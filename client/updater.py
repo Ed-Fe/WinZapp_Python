@@ -21,10 +21,10 @@ import threading
 import logging
 import ctypes
 import subprocess
-import requests
 import wx
 
 from app_paths import _outer_exe_dir, _is_frozen, resource_path
+from core import tls_trust
 from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
 from version import __version__
 
@@ -59,7 +59,7 @@ def _verify_sha256sums(file_path: str, filename: str, sha256sums_url: str) -> "t
         )
         return True, ""
     try:
-        resp = requests.get(sha256sums_url, timeout=15)
+        resp = tls_trust.get(sha256sums_url, timeout=15)
         resp.raise_for_status()
     except Exception as exc:
         return False, f"Failed to download SHA256SUMS.txt: {exc}"
@@ -685,7 +685,7 @@ class UpdateProgressDialog(wx.Dialog):
             os.close(zip_fd)
 
             logging.info("Auto-updater: Downloading ZIP from %s to %s", self._zip_url, zip_path)
-            resp = requests.get(self._zip_url, stream=True, timeout=60)
+            resp = tls_trust.get(self._zip_url, stream=True, timeout=60)
             resp.raise_for_status()
 
             total = int(resp.headers.get("content-length", 0))
@@ -887,7 +887,7 @@ class UpdateChecker:
             return False
 
     def _get_json(self, url: str, params: "dict | None" = None):
-        resp = requests.get(
+        resp = tls_trust.get(
             url,
             headers={"User-Agent": f"WinZapp/{__version__}"},
             params=params,
