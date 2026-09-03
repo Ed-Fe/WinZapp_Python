@@ -1,0 +1,291 @@
+"""One transcription, off the UI thread, in phases the UI can announce.
+
+A transcription is three waits stacked on each other — converting the audio,
+loading the model (tens of seconds for large-v3), decoding it — and a blind
+user staring at a window that says nothing has no way to tell any of them from
+a crash. So the job announces which wait it is in, before entering it, and the
+phases are symbolic codes: what they are *called* is part 6's business, in the
+user's own language, exactly as with the error codes and the device reasons.
+
+Rules this file exists to keep:
+
+* **Nothing here imports wx.** Every callback is invoked on the worker thread,
+  and part 6 wraps each one in `wx.CallAfter` — that is the same split
+  core/message_queue.py makes, and it is what lets the whole pipeline be tested
+  without a wx.App.
+
+* **Exactly one finished report, whatever happens.** The UI is holding a row
+  and a spoken "transcribing…" until it hears back; a path that ends without
+  reporting leaves that state forever. So the callbacks are called through a
+  guard that logs and swallows, and even a programming error on this thread
+  becomes a BACKEND_ERROR the user is told about.
+
+* **Cancellation is honoured in two phases and a half.** Converting is
+  interruptible (the ffmpeg process is killed, not abandoned) and so is
+  decoding (the backend stops consuming the segment generator). *Loading is
+  not*: `WhisperModel(...)` is one blocking call into C++ with nothing to hang
+  a check on, so a cancel arriving there is noticed only once the load returns
+  — which for large-v3 can be tens of seconds later. Saying "checked in every
+  phase" would be the comfortable version and it would be false. Whatever the
+  phase, the converted temporary file is deleted before this thread ends.
+
+* **Progress is reported only while decoding.** Converting and loading have no
+  fraction to give — ffmpeg's own progress is not parsed and CTranslate2's load
+  reports nothing — and loading is the *longest* of the three on a large model.
+  So part 6 needs an indeterminate indicator for those two phases; the phase
+  callback is what tells it to put one up.
+
+* **The hardware is probed here, immediately before the device is chosen.**
+  device.py's docstring is explicit that a probe taken at startup describes a
+  machine that no longer exists by the time a model is loaded: free VRAM is the
+  figure being planned against, and Chromium has since loaded WhatsApp Web.
+
+**What the log may say about a transcription.** Backend, model, device, compute
+type, the language asked for and the one detected, how long the audio was and
+how long the run took, and the technical text of a failure. Never the
+transcribed text or any part of it, never the contact, the number or the
+message id — and therefore never the audio path either, since the media file is
+named after the message id. `tests/test_transcription_backend.py` walks the
+logging calls of this package and fails if the text could reach one.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+
+from core.transcription import audio_prep, backend as backend_module, device, errors
+
+# Announced before the wait each one names, so the UI is never silent during
+# one. No i18n keys here on purpose: part 6 owns the wording, and these are the
+# codes it maps — the same arrangement as errors.ERROR_CODES.
+PHASE_PREPARING_AUDIO = "preparing_audio"
+PHASE_LOADING_MODEL = "loading_model"
+PHASE_TRANSCRIBING = "transcribing"
+PHASE_DONE = "done"
+PHASE_CANCELLED = "cancelled"
+PHASE_FAILED = "failed"
+
+PHASES = (
+    PHASE_PREPARING_AUDIO,
+    PHASE_LOADING_MODEL,
+    PHASE_TRANSCRIBING,
+    PHASE_DONE,
+    PHASE_CANCELLED,
+    PHASE_FAILED,
+)
+
+TERMINAL_PHASES = (PHASE_DONE, PHASE_CANCELLED, PHASE_FAILED)
+
+
+class TranscriptionJob:
+    """A single transcription running on its own thread.
+
+    One job per transcription, started once and never reused: the phases are a
+    sequence, and a job that could be restarted would have to answer what its
+    phase means while it is being restarted.
+    """
+
+    def __init__(self, audio_path, ffmpeg, models_root, model_id,
+                 language=None, device_preference=device.PREFERENCE_AUTO,
+                 backend=None, backend_id=None, prepared=None,
+                 on_phase=None, on_progress=None, on_finished=None,
+                 probe=None):
+        self._audio_path = audio_path
+        self._ffmpeg = ffmpeg
+        self._models_root = models_root
+        self._model_id = model_id
+        self._language = language or None
+        self._device_preference = device_preference
+        # `backend` is what the tests (and part 6, which keeps one warm) hand
+        # in; `backend_id` is the settings value resolved when the run starts,
+        # so a backend that stopped being usable is noticed then and not at
+        # construction time.
+        self._backend = backend
+        self._backend_id = backend_id
+        # An already-converted PreparedAudio, when the caller has one: part 4's
+        # "that failed on the GPU, try it on the CPU" would otherwise run
+        # ffmpeg over the same file a second time, which on a 40-minute
+        # recording is the whole wait again. A file handed in is **not** ours,
+        # so it is neither re-created nor deleted — its owner disposes of it.
+        self._prepared = prepared
+        self._on_phase = on_phase
+        self._on_progress = on_progress
+        self._on_finished = on_finished
+        self._probe = probe or device.probe_hardware
+
+        self._cancelled = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run, daemon=True, name="winzapp-transcription"
+        )
+
+        #: Readable from the callbacks: the device decision is made during the
+        #: loading phase, and part 6 announces it (device.device_reason_i18n_key)
+        #: alongside that phase rather than waiting for the result.
+        self.phase = None
+        self.device = None
+        self.device_reason = None
+        self.compute_type = None
+
+    # ── Control ──────────────────────────────────────────────────────────────
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def cancel(self):
+        """Ask the run to stop. Cooperative: it stops at the next check."""
+        self._cancelled.set()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled.is_set()
+
+    def join(self, timeout=None):
+        self._thread.join(timeout)
+
+    # ── Worker ───────────────────────────────────────────────────────────────
+
+    def _run(self):
+        started = time.monotonic()
+        try:
+            result = self._transcribe()
+        except errors.TranscriptionError as exc:
+            self._finish(None, exc, started)
+        except Exception as exc:
+            # A programming error on a worker thread has nothing above it to
+            # catch it, and the UI would sit waiting for a report that never
+            # comes — the same reason MessageQueue guards its own worker.
+            logging.exception("[transcription] the job failed unexpectedly")
+            self._finish(
+                None,
+                errors.TranscriptionError(
+                    errors.BACKEND_ERROR, f"{type(exc).__name__}: {exc}"
+                ),
+                started,
+            )
+        else:
+            self._finish(result, None, started)
+
+    def _transcribe(self):
+        self._check_cancel()
+        if self._prepared is not None:
+            # Nothing to convert, so nothing to announce converting — and
+            # nothing to delete either, since the file belongs to the caller.
+            # This is the one path whose first phase is `loading_model`, which
+            # part 6 has to accept: it is part 4's "that failed on the GPU, run
+            # it on the CPU", where the audio was converted by the run before.
+            return self._decode(self._resolve_backend(), self._prepared)
+
+        # On the converting path the first phase is announced before the
+        # backend is resolved: part 6 opens its progress window on the first
+        # phase it hears, and a job that falls at the first hurdle ("no usable
+        # backend") would otherwise report `failed` with no phase before it.
+        self._enter(PHASE_PREPARING_AUDIO)
+        backend = self._resolve_backend()
+        with audio_prep.prepared_audio(
+            self._ffmpeg, self._audio_path, should_cancel=self._should_cancel
+        ) as prepared:
+            return self._decode(backend, prepared)
+
+    def _resolve_backend(self):
+        return self._backend or backend_module.resolve_backend(self._backend_id)
+
+    def _decode(self, backend, prepared):
+        """From a prepared file to a result: decide, load, transcribe."""
+        # Probed here and used immediately: a probe is a statement about free
+        # memory at one instant, and this is the instant the decision is about.
+        probe = self._probe()
+        self.device, self.device_reason = device.resolve_device(
+            self._device_preference, probe
+        )
+        self.compute_type = device.select_compute_type(self.device, probe)
+
+        request = backend_module.TranscriptionRequest(
+            audio_path=prepared.path,
+            models_root=self._models_root,
+            model_id=self._model_id,
+            device=self.device,
+            compute_type=self.compute_type,
+            language=self._language,
+            duration_seconds=prepared.duration_seconds,
+        )
+
+        # Announced only now, and deliberately not before the probe: part 6
+        # reads `job.device` / `job.device_reason` from inside this very
+        # callback to say which processor is about to be used. Announced any
+        # earlier they are still None, and device_reason_i18n_key(None) falls
+        # back to "you asked for the CPU" — so a user on a machine with a GPU
+        # would hear the app confidently name the wrong reason while the model
+        # loads onto CUDA. Checked before announcing, too: a cancellation
+        # during the conversion must not produce "loading the model" and then,
+        # immediately, "cancelled".
+        self._check_cancel()
+        self._enter(PHASE_LOADING_MODEL)
+        backend.load_model(request, should_cancel=self._should_cancel)
+
+        self._check_cancel()
+        self._enter(PHASE_TRANSCRIBING)
+        return backend.transcribe(
+            request,
+            progress=self._report_progress,
+            should_cancel=self._should_cancel,
+        )
+
+    def _finish(self, result, error, started):
+        elapsed = time.monotonic() - started
+        if error is None:
+            phase = PHASE_DONE
+        elif error.code == errors.CANCELLED:
+            phase = PHASE_CANCELLED
+        else:
+            phase = PHASE_FAILED
+
+        # Everything the log is allowed to keep about a transcription, and
+        # nothing else — see the module docstring. `error.log_line` is the
+        # technical text; the result's own text is never touched here.
+        logging.info(
+            "[transcription] %s backend=%s model=%s device=%s compute=%s "
+            "audio=%.1fs asked=%s detected=%s took=%.1fs%s",
+            phase,
+            getattr(result, "backend", None) or self._backend_id or "auto",
+            self._model_id,
+            self.device,
+            self.compute_type,
+            getattr(result, "duration_seconds", None) or 0.0,
+            self._language or "auto",
+            getattr(result, "language", None),
+            elapsed,
+            f" — {error.log_line}" if error is not None else "",
+        )
+
+        self._enter(phase)
+        self._call(self._on_finished, result, error)
+
+    # ── Plumbing ─────────────────────────────────────────────────────────────
+
+    def _enter(self, phase):
+        self.phase = phase
+        self._call(self._on_phase, phase)
+
+    def _report_progress(self, fraction):
+        self._call(self._on_progress, fraction)
+
+    def _call(self, callback, *args):
+        if callback is None:
+            return
+        try:
+            callback(*args)
+        except Exception:
+            # A callback that raises must not cost the run its remaining
+            # phases, and above all must not cost it the finished report the
+            # UI is waiting on.
+            logging.exception("[transcription] a job callback raised")
+
+    def _should_cancel(self) -> bool:
+        return self._cancelled.is_set()
+
+    def _check_cancel(self):
+        if self._cancelled.is_set():
+            raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")

@@ -588,6 +588,41 @@ def pyinstaller_compile():
         "winrt",
         "pyaudio",
         "aiosqlite",
+        # Local (offline) transcription of voice messages. faster_whisper
+        # reaches ctranslate2, av, tokenizers and huggingface_hub through
+        # imports PyInstaller's static analysis does not follow (huggingface_hub
+        # additionally resolves its own names through a lazy module __getattr__,
+        # which nothing static can follow at all), and the voice-activity
+        # filter's silero model is a *data* file in faster_whisper/assets, which
+        # --collect-all brings along: it collects each package's data files and
+        # binaries as well as its modules, where a bare --hidden-import would
+        # ship the code and leave the .onnx behind.
+        #
+        # It costs around 190 MB in the staged app, measured on the installed
+        # packages: av + av.libs ~68 MB, ctranslate2 ~60 MB, onnxruntime
+        # ~45 MB, the rest small. The payload is stored uncompressed in the
+        # installer, so that lands close to 1:1 — and it is not avoidable while
+        # the transcription is local, since the alternative is sending the
+        # user's audio to somebody's server, which is the thing this feature
+        # exists not to do. The models themselves are NOT bundled: they are
+        # downloaded on demand into the folder core/transcription/model_store
+        # owns.
+        #
+        # What is NOT in here, deliberately: the CUDA runtime. The ctranslate2
+        # wheel ships ctranslate2.dll and a cuDNN *stub loader* only, and
+        # resolves cublas64_12.dll dynamically at run time — so a release built
+        # from this list runs the transcription on the CPU anywhere, and on the
+        # GPU only where a CUDA runtime is already present. Bundling it would
+        # be some 500 MB for every user; part 4 downloads it on demand, the way
+        # the models are downloaded, when the user turns NVIDIA acceleration on.
+        "faster_whisper",
+        "ctranslate2",
+        "av",
+        "tokenizers",
+        "huggingface_hub",
+        # HTTPS that verifies through the Windows certificate store — see
+        # client/core/tls_trust.py. Pure Python, and small.
+        "truststore",
     ]
 
     cmd = [
@@ -603,6 +638,21 @@ def pyinstaller_compile():
 
     for pkg in collect_all:
         cmd += ["--collect-all", pkg]
+
+    # onnxruntime is reached only from inside faster-whisper's voice-activity
+    # filter, so PyInstaller has to be told it exists. --hidden-import would be
+    # the tidier spelling — pyinstaller-hooks-contrib already ships
+    # hook-onnxruntime.py for the provider DLLs, and --collect-all additionally
+    # drags in onnxruntime.transformers and .quantization, whose imports of
+    # torch/transformers/psutil are absent here and fill the build log with
+    # warnings. It stays --collect-all anyway, and the asymmetry is the point:
+    # if onnxruntime fails to import in a frozen build ONLY, the filter silently
+    # falls back (faster_whisper_backend._run) and Whisper starts inventing
+    # sentences in the silence at the end of a voice note — which a blind user
+    # cannot detect. Noise in a build log costs a developer a squint; the other
+    # way costs a user a fabricated message. Revisit once a frozen build has
+    # actually been exercised with a voice note and part 6 surfaces vad_used.
+    cmd += ["--collect-all", "onnxruntime"]
 
     cmd += ["--paths", CLIENT_DIR]
 
