@@ -1045,9 +1045,12 @@
     "transcription_device_cuda_unavailable": "Technologia CUDA jest niedostępna. Transkrypcja zostanie wykonana przez procesor.",
     "transcription_device_no_cuda_found": "Nie znaleziono zgodnej karty graficznej. Transkrypcja zostanie wykonana przez procesor.",
     "transcription_device_cuda_driver_error": "Nie udało się odczytać informacji o karcie graficznej. Transkrypcja zostanie wykonana przez procesor.",
+    "transcription_device_cuda_libraries_missing": "Biblioteki CUDA nie są zainstalowane. Transkrypcja zostanie wykonana przez procesor. Możesz je pobrać w ustawieniach transkrypcji.",
+    "transcription_retry_on_cpu_vram": "Karta graficzna nie miała wystarczającej ilości pamięci. Czy chcesz wykonać transkrypcję ponownie, używając procesora?",
+    "transcription_retry_on_cpu_cuda": "Nie udało się użyć karty graficznej. Czy chcesz wykonać transkrypcję ponownie, używając procesora?",
     "transcription_error_model_not_installed": "Wybrany model transkrypcji nie jest zainstalowany. Pobierz model przed rozpoczęciem transkrypcji.",
     "transcription_error_model_corrupted": "Pliki modelu są niekompletne lub uszkodzone. Pobierz model ponownie.",
-    "transcription_error_no_disk_space": "Na dysku nie ma wystarczającej ilości miejsca, aby pobrać model.",
+    "transcription_error_no_disk_space": "Na dysku nie ma wystarczającej ilości miejsca na to pobieranie.",
     "transcription_error_cuda_unavailable": "Technologia CUDA jest niedostępna. Zmień urządzenie na procesor w ustawieniach i spróbuj ponownie.",
     "transcription_error_insufficient_vram": "Karta graficzna nie ma wystarczającej ilości pamięci dla tego modelu. Wybierz mniejszy model.",
     "transcription_error_insufficient_ram": "Komputer nie ma wystarczającej ilości pamięci dla tego modelu. Wybierz mniejszy model.",
@@ -1061,5 +1064,8 @@
     "transcription_error_model_download_failed": "Nie udało się pobrać modelu transkrypcji. Sprawdź połączenie i spróbuj ponownie.",
     "transcription_error_model_move_failed": "Nie udało się przenieść folderu z modelami. Modele pozostały w poprzednim folderze.",
     "transcription_error_models_busy": "Inne okno programu WinZapp korzysta z folderu modeli. Poczekaj, aż skończy, i spróbuj ponownie.",
+    "transcription_error_cuda_runtime_download_failed": "Nie udało się pobrać bibliotek CUDA. Sprawdź połączenie i spróbuj ponownie.",
+    "transcription_error_cuda_runtime_corrupted": "Pliki bibliotek CUDA są niekompletne lub uszkodzone. Zainstaluj je ponownie.",
+    "transcription_error_cuda_runtime_busy": "Inne okno programu WinZapp korzysta z folderu bibliotek CUDA. Poczekaj, aż skończy, i spróbuj ponownie.",
     "transcription_error_backend_error": "Podczas transkrypcji wystąpił błąd wewnętrzny."
 }

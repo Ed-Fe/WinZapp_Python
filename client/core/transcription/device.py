@@ -32,9 +32,10 @@ import ctypes
 import logging
 import os
 import sys
+import threading
 from dataclasses import dataclass
 
-from core.transcription import model_catalog
+from core.transcription import errors, model_catalog
 
 DEVICE_CPU = "cpu"
 DEVICE_CUDA = "cuda"
@@ -67,6 +68,12 @@ REASON_NO_CUDA_FOUND = "no_cuda_found"
 # cuda_device_count=0, cuda_probe_error=<what the run reported>) — which is the
 # only state where "your driver is broken" is the right thing to say.
 REASON_CUDA_DRIVER_ERROR = "cuda_driver_error"
+# The card is there and CTranslate2 can count it, but the CUDA libraries it
+# loads by name are nowhere on this machine. Its own reason because every other
+# sentence available here is false — there *is* a graphics card, the driver is
+# fine, and telling the user either of those sends them looking in the wrong
+# place for something part 4b can simply download.
+REASON_CUDA_LIBRARIES_MISSING = "cuda_libraries_missing"
 
 DEVICE_REASON_I18N_KEYS = {
     REASON_CUDA_SELECTED: "transcription_device_cuda_selected",
@@ -74,7 +81,84 @@ DEVICE_REASON_I18N_KEYS = {
     REASON_CUDA_UNAVAILABLE: "transcription_device_cuda_unavailable",
     REASON_NO_CUDA_FOUND: "transcription_device_no_cuda_found",
     REASON_CUDA_DRIVER_ERROR: "transcription_device_cuda_driver_error",
+    REASON_CUDA_LIBRARIES_MISSING: "transcription_device_cuda_libraries_missing",
 }
+
+# The failures a second run on the CPU could actually cure, and the sentence
+# each one is offered with. An allowlist rather than a denylist: offering to
+# redo a 40-minute recording that will then fail in exactly the same way costs
+# the user the whole wait twice and teaches them to dismiss the offer. Every
+# other code reaches the same end on either processor — a cancelled run, a
+# model that is not installed or is corrupt, media WhatsApp has not finished
+# downloading, RAM that was already too small for the model.
+#
+# BACKEND_ERROR is deliberately absent even though a GPU-only backend fault
+# would be cured by the CPU: the one such fault seen on real hardware (int8 on
+# sm_120) is already prevented by select_compute_type(), so what would be left
+# under it is the genuinely unknown, and an offer that usually fails again is
+# worse than no offer at all.
+CPU_RETRY_I18N_KEYS = {
+    errors.INSUFFICIENT_VRAM: "transcription_retry_on_cpu_vram",
+    errors.CUDA_UNAVAILABLE: "transcription_retry_on_cpu_cuda",
+}
+
+# The CUDA libraries CTranslate2 opens by name at run time, and which therefore
+# have to be loadable before "cuda" can be a truthful answer. Read off the
+# shipped wheel (ctranslate2 4.8.2, the CUDA 12 Windows build) rather than off
+# the documentation, because the two disagree:
+#
+# * ctranslate2.dll's import table names no CUDA library at all — the CUDA
+#   runtime is linked statically — so importing the module proves nothing, and
+#   `get_cuda_device_count()` needs only the driver's own nvcuda.dll. Its
+#   *strings* carry "cublas64_12.dll" next to cublasCreate_v2/cublasGemmEx:
+#   cuBLAS is opened with LoadLibrary the first time a model goes on the GPU,
+#   and no package in requirements.txt ships it. That is the whole bug — on
+#   every machine with a driver but no CUDA Toolkit the device is counted, cuda
+#   is chosen, and the model load dies with "Could not load library
+#   cublas64_12.dll".
+# * cuBLAS's own import table names cublasLt64_12.dll, so loading cuBLAS by
+#   name covers both: the Windows loader resolves the chain, and a missing
+#   cublasLt fails this check exactly as it would fail the model load.
+# * cuDNN is **not** in this list, and that is a finding rather than an
+#   omission. The wheel ships a 266 KB cudnn64_9.dll, which is only the cuDNN 9
+#   loader shim (it forwards to cudnn_graph/ops/cnn/adv64_9.dll, none of which
+#   are shipped) and which ctranslate2/__init__.py loads with a blanket
+#   CDLL(*.dll) at import. But this build of ctranslate2.dll references cuDNN
+#   nowhere — not an import, not a string, in neither the DLL nor the _ext
+#   extension module. Listing it here would refuse the GPU to every machine
+#   over a library this build never calls.
+_CUDA_RUNTIME_LIBRARIES = ("cublas64_12.dll",)
+
+# Directories the CUDA runtime libraries may also be loaded from:
+# {normcased path: (path, os.add_dll_directory cookie)}. Keyed that way so
+# registering the same directory twice is a no-op, and the cookie is kept
+# because it is the only handle on the registration. Empty here on purpose —
+# this module never goes looking for an install, it is told about one. The
+# download, its layout under app_paths.global_dir() and the call that registers
+# it are part 4b's.
+_extra_cuda_library_dirs = {}
+
+# Both of the below are read on the job's worker thread and written on the UI
+# thread — part 4b registers its directory when a download finishes, which can
+# land in the middle of a decision. Iterating a dict while another thread adds
+# to it raises RuntimeError, which would degrade a *successful* download into
+# an "unknown" for that run.
+_cuda_library_lock = threading.Lock()
+
+# The memoized answer of probe_cuda_libraries(), or None for "not asked yet".
+# This module's rule against reusing a probe is about *free memory*, which
+# moves while the app runs; whether a library is loadable does not, and
+# re-measuring it maps and unmaps cuBLAS (and, through it, cuBLASLt) before
+# every transcription only for CTranslate2 to map them again a moment later.
+# Invalidated by register_cuda_library_directory(), which is the one event that
+# can change the answer — and therefore also part 4b's place to re-ask.
+_cuda_library_answer = None
+
+# Bumped by every invalidation, so a measurement that started before one cannot
+# store its now-stale result afterwards. The measurement deliberately runs
+# outside the lock (it maps ~600 MB), which is exactly the window part 4b's
+# download lands in.
+_cuda_library_generation = 0
 
 # float16 needs Volta or newer to be worth anything; on Pascal and older the
 # half-precision path is emulated and slower than float32, when it works.
@@ -136,6 +220,14 @@ class HardwareProbe:
     available_ram_mb: int | None = None
     cuda_probe_error: str | None = None
     driver_error: str | None = None
+    #: Whether the CUDA libraries CTranslate2 loads at run time are loadable.
+    #: None means the question could not be asked (no device was counted, or
+    #: this is not Windows), and unknown must not block the GPU — only a
+    #: measured False does. Counting a device never proved a run was possible;
+    #: this is the field that does.
+    cuda_libraries_ok: bool | None = None
+    #: Which of them did not load, for the log and for part 4b's offer.
+    missing_cuda_libraries: tuple[str, ...] = ()
 
 
 def resolve_device(preference, probe) -> tuple[str, str]:
@@ -150,6 +242,16 @@ def resolve_device(preference, probe) -> tuple[str, str]:
 
     if cuda_usable(probe):
         return DEVICE_CUDA, REASON_CUDA_SELECTED
+
+    if probe.cuda_libraries_ok is False and probe.cuda_device_count > 0:
+        # Announced under "auto" as well, unlike the two reasons below, and
+        # that asymmetry is deliberate: this user has a usable card and one
+        # download away from using it, so the fallback is worth saying even
+        # though they asked for nothing in particular. Only a *measured* False
+        # gets here — an unchecked machine (None) falls through, because
+        # inventing an obstacle we did not observe would cost the GPU to
+        # everyone the check could not run on.
+        return DEVICE_CPU, REASON_CUDA_LIBRARIES_MISSING
 
     if preference == PREFERENCE_CUDA:
         # Asked for explicitly, so the fallback is worth saying out loud, and a
@@ -167,8 +269,46 @@ def resolve_device(preference, probe) -> tuple[str, str]:
 
 
 def cuda_usable(probe) -> bool:
-    """Whether CUDA can actually be used, not merely whether a DLL loaded."""
-    return bool(probe.cuda_available) and probe.cuda_device_count > 0
+    """Whether CUDA can actually be used, not merely whether a DLL loaded.
+
+    Counting devices is not the same question as being able to run on one:
+    `get_cuda_device_count()` answers with the driver alone, while the run also
+    needs the CUDA libraries CTranslate2 opens by name (see
+    `_CUDA_RUNTIME_LIBRARIES`). A measured False therefore vetoes the GPU; an
+    unknown does not.
+    """
+    return (
+        bool(probe.cuda_available)
+        and probe.cuda_device_count > 0
+        and probe.cuda_libraries_ok is not False
+    )
+
+
+def should_retry_on_cpu(error, device_used=DEVICE_CUDA) -> bool:
+    """Whether re-running this failed transcription on the CPU could help.
+
+    Pure, and deliberately only an opinion: nothing re-runs on its own. Waiting
+    through a long recording a second time is the user's call to make, so part 6
+    asks and this only says whether asking makes sense.
+    """
+    if device_used != DEVICE_CUDA:
+        # There is nothing to fall back to. A run that was already on the
+        # processor and failed for a CUDA reason is not a state that occurs,
+        # but the guard is what keeps the offer from appearing after one.
+        return False
+    return getattr(error, "code", None) in CPU_RETRY_I18N_KEYS
+
+
+def cpu_retry_i18n_key(error, device_used=DEVICE_CUDA):
+    """The i18n key of the offer to re-run on the CPU, or None for no offer.
+
+    Which key comes back *is* the reason: the two failures worth re-running
+    need different sentences — "there was not enough video memory" and "the
+    card could not be used" send the user to different settings if they decline.
+    """
+    if not should_retry_on_cpu(error, device_used):
+        return None
+    return CPU_RETRY_I18N_KEYS[error.code]
 
 
 def gpu_supports_int8(compute_capability) -> bool:
@@ -319,6 +459,8 @@ def probe_hardware() -> HardwareProbe:
     total_vram = None
     free_vram = None
     cuda_probe_error = None
+    libraries_ok = None
+    missing_libraries = ()
     # One bag for everything that failed, joined into driver_error at the end:
     # it is log-facing only, so it is more useful complete than tidy.
     problems = []
@@ -345,6 +487,20 @@ def probe_hardware() -> HardwareProbe:
         if cuda_probe_error:
             problems.append(cuda_probe_error)
 
+        # Only worth asking once a device has been counted: on a machine with
+        # no NVIDIA card the libraries are missing for an uninteresting reason
+        # and the answer changes nothing. The failure it *does* find is never
+        # folded into cuda_probe_error — that field means "the card could not
+        # be described", and this is the card being fine and the libraries not
+        # being here.
+        try:
+            libraries_ok, missing_libraries, library_error = probe_cuda_libraries()
+        except Exception as exc:
+            libraries_ok, missing_libraries = None, ()
+            library_error = f"cuda libraries: {exc}"
+        if library_error:
+            problems.append(library_error)
+
     try:
         total_ram, available_ram, ram_error = _probe_ram_mb()
     except Exception as exc:
@@ -363,9 +519,262 @@ def probe_hardware() -> HardwareProbe:
         available_ram_mb=available_ram,
         cuda_probe_error=cuda_probe_error,
         driver_error="; ".join(problems) or None,
+        cuda_libraries_ok=libraries_ok,
+        missing_cuda_libraries=tuple(missing_libraries),
     )
     logging.info("[transcription] hardware probe: %s", probe)
     return probe
+
+
+def register_cuda_library_directory(path) -> bool:
+    """Make `path` a place the CUDA runtime libraries may be loaded from.
+
+    Both halves of this matter and they are not the same thing.
+    `os.add_dll_directory()` is measured to be what makes a library in `path`
+    reachable to CTranslate2's own raw LoadLibrary — in a frozen build as well
+    as under python.exe, which is more than PATH alone manages there. Recording
+    the path is what lets `probe_cuda_libraries()` name an absolute file, so a
+    registered directory is checked whether or not the loader's own search
+    order happens to reach it.
+
+    Answers "was it registered", which is not yet "can the GPU be used now":
+    that stays `probe_cuda_libraries()`'s answer, and registering here
+    invalidates its memoized one so the next call measures again. Part 4b asks
+    both, in that order, when its download finishes — and
+    `cuda_runtime_present_in()` before it, to know whether to download at all.
+
+    Idempotent, and never raises: it runs as a download finishes, and a
+    directory that turned out not to be there is a reason to keep using the
+    CPU, not to take the app down.
+    """
+    try:
+        # Emptiness is checked before abspath(), which resolves "" — and, on
+        # Windows, "   ", since the loader strips trailing whitespace — to the
+        # working directory, putting the whole of it on the DLL search path.
+        text = str(path).strip() if path else ""
+        if not text:
+            return False
+        resolved = os.path.abspath(text)
+        if not os.path.isdir(resolved):
+            return False
+        key = os.path.normcase(resolved)
+        with _cuda_library_lock:
+            already_registered = key in _extra_cuda_library_dirs
+        if already_registered:
+            # Registered already, but still invalidate: a caller registering
+            # the same directory twice is part 4b telling us its *contents*
+            # changed. The directory under global_dir() is registered at
+            # startup while it is still empty, the probe memoizes False, and
+            # the download then lands in it — without this, that False stands
+            # for the rest of the session and a user who paid for ~600 MB stays
+            # on the CPU until they restart the app. One extra measurement per
+            # download costs nothing next to the download.
+            with _cuda_library_lock:
+                _invalidate_cuda_library_answer()
+            return True
+        cookie = (
+            os.add_dll_directory(resolved)
+            if hasattr(os, "add_dll_directory")
+            else None
+        )
+        with _cuda_library_lock:
+            _extra_cuda_library_dirs[key] = (resolved, cookie)
+            _invalidate_cuda_library_answer()
+        logging.info("[transcription] CUDA library directory registered")
+        return True
+    except Exception:
+        logging.warning(
+            "[transcription] could not register a CUDA library directory",
+            exc_info=True,
+        )
+        return False
+
+
+def forget_cuda_library_answer() -> None:
+    """Forget the memoized probe answer — for a caller that REMOVES libraries.
+
+    `register_cuda_library_directory()` invalidates on its own, because adding
+    a directory is the event that can turn a measured False into a True.
+    Taking the libraries away is the same event pointing the other way, and it
+    has no such call: the files simply stop being there and nothing in this
+    process notices. A memoized True then outlives them — `cuda_usable()` keeps
+    choosing the GPU, and every transcription until the app is restarted loads
+    the model onto the card and dies on "Could not load library
+    cublas64_12.dll". That is the hole part 4a closed on the disk side, on the
+    side the disk cannot see.
+
+    Also for the caller that is about to ask the question for real after
+    something *outside* this module changed the answer: registering is the only
+    invalidation there is, so a caller with nothing to register has no other
+    way to force a fresh measurement.
+
+    Idempotent, and never a decision of its own: the next
+    `probe_cuda_libraries()` measures again and answers.
+    """
+    with _cuda_library_lock:
+        _invalidate_cuda_library_answer()
+
+
+def cuda_library_directories() -> tuple:
+    """Every directory registered above, in registration order."""
+    with _cuda_library_lock:
+        return tuple(path for path, _cookie in _extra_cuda_library_dirs.values())
+
+
+def cuda_runtime_present_in(path) -> bool:
+    """Whether `path` holds every file in `_CUDA_RUNTIME_LIBRARIES`.
+
+    Part 4b's "is it already here?", asked before spending a download rather
+    than after: registering a directory answers only that the directory exists,
+    and an empty one registers exactly as happily as a complete one. Presence
+    is not loadability — a file that is there and broken still fails
+    `probe_cuda_libraries()` — so this decides whether to fetch, never whether
+    to use the GPU.
+    """
+    try:
+        return bool(path) and all(
+            os.path.isfile(os.path.join(path, name))
+            for name in _CUDA_RUNTIME_LIBRARIES
+        )
+    except Exception:
+        return False
+
+
+def probe_cuda_libraries(directories=None):
+    """(ok, missing, error) — will the libraries CTranslate2 needs load?
+
+    `ok` is True or False when the question could be answered and **None when
+    it could not be asked at all**, which is not the same thing and is why this
+    is not a bare bool: `cuda_usable()` vetoes the GPU on a measured False and
+    never on an unknown. Off Windows the library names are not these ones, and
+    refusing CUDA there would be inventing an obstacle we did not observe.
+
+    Without side effects — it loads a library and releases it again, and never
+    asks CUDA for a context, which would cost hundreds of milliseconds and a
+    slice of the very VRAM the decision is about. Memoized per process all the
+    same: mapping cuBLAS and cuBLASLt before every transcription, only for
+    CTranslate2 to map them again immediately afterwards, is ~600 MB of address
+    space and two DllMain runs for an answer that cannot have changed in
+    between. An `ok` of None is never memoized, so a transient fault does not
+    become a permanent verdict.
+
+    `directories` asks about a specific set instead — an explicit question,
+    never answered from the cache and never written to it.
+    """
+    global _cuda_library_answer
+
+    if not sys.platform.startswith("win"):
+        # No error text: not asking is not failing, and this answer feeds
+        # driver_error, which is the bag of what failed.
+        return None, (), None
+
+    if directories is not None:
+        return _measure_cuda_libraries(tuple(directories))
+
+    with _cuda_library_lock:
+        cached = _cuda_library_answer
+        generation = _cuda_library_generation
+
+    if cached is not None:
+        return cached
+
+    # Measured outside the lock — it maps two large libraries and must not hold
+    # a registration off meanwhile — so the generation captured above is what
+    # decides whether this answer may still be stored. Without it an
+    # invalidation landing mid-measurement is simply overwritten by the stale
+    # answer that arrives a moment later, which is the same permanent False as
+    # the shortcut above. Same shape as FasterWhisperBackend's `_generation`,
+    # and for the same reason: the expensive half runs unlocked, so the decision
+    # to keep its result is taken against a value captured before it started.
+    answer = _measure_cuda_libraries(cuda_library_directories())
+    if answer[0] is not None:
+        with _cuda_library_lock:
+            if generation == _cuda_library_generation:
+                _cuda_library_answer = answer
+    return answer
+
+
+def _invalidate_cuda_library_answer() -> None:
+    """Forget the memoized answer. Called holding `_cuda_library_lock`."""
+    global _cuda_library_answer, _cuda_library_generation
+    _cuda_library_answer = None
+    _cuda_library_generation += 1
+
+
+def _measure_cuda_libraries(directories):
+    """(ok, missing, error) for `directories`, measured rather than recalled."""
+    try:
+        missing = []
+        failures = []
+        for name in _CUDA_RUNTIME_LIBRARIES:
+            failure = _load_cuda_library(name, directories)
+            if failure:
+                missing.append(name)
+                failures.append(failure)
+        return not missing, tuple(missing), "; ".join(failures) or None
+    except Exception as exc:
+        # ctypes itself misbehaving, which is not an answer about the machine.
+        return None, (), f"cuda libraries: {exc}"
+
+
+def _load_cuda_library(name, directories):
+    """None if `name` can be loaded, or every reason it could not.
+
+    **`winmode=0` on the bare name is the whole point of this function.**
+    ctypes does not perform a plain LoadLibrary: CPython forces
+    LOAD_LIBRARY_SEARCH_DEFAULT_DIRS on every ctypes load
+    (`ctypes/__init__.py::CDLL._load_library`), while CTranslate2 opens cuBLAS
+    from inside ctranslate2.dll with a raw LoadLibrary that obeys the
+    *process's* search order. The two agree under python.exe and disagree in a
+    frozen build, whose PyInstaller bootloader calls the legacy SetDllDirectory
+    and never SetDefaultDllDirectories. Measured on a real onedir build, for a
+    DLL reachable only through PATH — which is exactly where the CUDA Toolkit
+    installer puts it, and PyTorch and other ML tooling with it — the default
+    flags made this check answer "missing" while the run itself would have
+    loaded it. The user would then be told, falsely, that the CUDA libraries
+    are not installed, and watch large-v3 run about an order of magnitude
+    slower on the CPU with nothing to retry, because the veto happens before
+    the run. `winmode=0` asks the question the way the run asks it.
+
+    The registered directories keep the default flags on purpose: an absolute
+    path there is a folder we put the libraries in ourselves, and those flags
+    are what let a dependency like cuBLASLt resolve out of that same folder.
+
+    Erring permissive is the safe side of this asymmetry: a load that then
+    fails inside CTranslate2 is classified CUDA_UNAVAILABLE, which is in
+    CPU_RETRY_I18N_KEYS, so it becomes an offer to re-run on the CPU with the
+    audio already converted. A false refusal has no recovery at all.
+
+    Every failure is kept for the same reason `_load_nvml()` keeps its own: the
+    last one alone says nothing about why the first was not enough.
+    """
+    failures = []
+    candidates = (
+        (name, 0),
+        *((os.path.join(folder, name), None) for folder in directories),
+    )
+    for candidate, winmode in candidates:
+        try:
+            library = ctypes.WinDLL(candidate, winmode=winmode)
+        except Exception as exc:
+            failures.append(f"{candidate}: {exc}")
+            continue
+        _release_library(library)
+        return None
+    return "; ".join(failures)
+
+
+def _release_library(library) -> None:
+    """Undo the load, so the check leaves the process as it found it.
+
+    ctypes never unloads a library, so without this a probe per transcription
+    piles up references to a library the decision may well not use. Best effort
+    on purpose: failing to release is not a reason to answer "unknown".
+    """
+    try:
+        ctypes.windll.kernel32.FreeLibrary(ctypes.c_void_p(library._handle))
+    except Exception:
+        pass
 
 
 def _load_nvml():

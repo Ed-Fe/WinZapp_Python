@@ -28,8 +28,13 @@ Two decisions carry most of the weight:
 
 The converted file is a temporary that is always removed — on success by the
 caller (`prepared_audio()` is the context manager that does it), and on every
-failure and cancellation by this module itself. It is written under a random
-name rather than the message's, for the same privacy reason.
+failure and cancellation by this module itself. The single exception is a run
+that hands the file on instead of finishing with it, so that a transcription
+which failed on the GPU can be redone on the CPU without converting the audio
+again: there the receiver becomes the one who calls `discard()`, and
+`prepared_audio()`'s own docstring says which callers may not use it. It is
+written under a random name rather than the message's, for the same privacy
+reason.
 """
 
 from __future__ import annotations
@@ -94,7 +99,14 @@ class PreparedAudio:
 
 @contextlib.contextmanager
 def prepared_audio(ffmpeg, source_path, should_cancel=None):
-    """`prepare_audio()` with the temporary file removed however it ends."""
+    """`prepare_audio()` with the temporary file removed however it ends.
+
+    For callers that will never pass the file on. One that might — a run that
+    fails on the GPU and may be redone on the CPU with the same audio — calls
+    `prepare_audio()` and `discard()` itself instead, because only it can see
+    whether the file was handed to somebody else, and that decision must not be
+    pushed into a context manager that cannot.
+    """
     prepared = prepare_audio(ffmpeg, source_path, should_cancel=should_cancel)
     try:
         yield prepared

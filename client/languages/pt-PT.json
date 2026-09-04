@@ -1045,9 +1045,12 @@
     "transcription_device_cuda_unavailable": "O CUDA não está disponível. A transcrição será executada pelo processador.",
     "transcription_device_no_cuda_found": "Não foi encontrada nenhuma placa gráfica compatível. A transcrição será executada pelo processador.",
     "transcription_device_cuda_driver_error": "Não foi possível consultar a placa gráfica. A transcrição será executada pelo processador.",
+    "transcription_device_cuda_libraries_missing": "As bibliotecas CUDA não estão instaladas. A transcrição será executada pelo processador. Pode transferi-las nas definições de transcrição.",
+    "transcription_retry_on_cpu_vram": "A memória da placa gráfica não foi suficiente. Quer refazer a transcrição utilizando o processador?",
+    "transcription_retry_on_cpu_cuda": "Não foi possível utilizar a placa gráfica. Quer refazer a transcrição utilizando o processador?",
     "transcription_error_model_not_installed": "O modelo de transcrição escolhido não está instalado. Transfira o modelo antes de transcrever.",
     "transcription_error_model_corrupted": "Os ficheiros do modelo estão incompletos ou danificados. Transfira o modelo novamente.",
-    "transcription_error_no_disk_space": "Não há espaço em disco suficiente para transferir o modelo.",
+    "transcription_error_no_disk_space": "Não há espaço em disco suficiente para esta transferência.",
     "transcription_error_cuda_unavailable": "O CUDA não está disponível. Mude o dispositivo para o processador nas definições e tente novamente.",
     "transcription_error_insufficient_vram": "A memória da placa gráfica não é suficiente para este modelo. Escolha um modelo mais pequeno.",
     "transcription_error_insufficient_ram": "A memória do computador não é suficiente para este modelo. Escolha um modelo mais pequeno.",
@@ -1061,5 +1064,8 @@
     "transcription_error_model_download_failed": "Não foi possível transferir o modelo de transcrição. Verifique a ligação e tente novamente.",
     "transcription_error_model_move_failed": "Não foi possível mover a pasta dos modelos. Os modelos continuam na pasta anterior.",
     "transcription_error_models_busy": "Outra janela do WinZapp está a usar a pasta dos modelos. Aguarde que termine e tente novamente.",
+    "transcription_error_cuda_runtime_download_failed": "Não foi possível transferir as bibliotecas CUDA. Verifique a ligação e tente novamente.",
+    "transcription_error_cuda_runtime_corrupted": "Os ficheiros das bibliotecas CUDA estão incompletos ou danificados. Instale-as novamente.",
+    "transcription_error_cuda_runtime_busy": "Outra janela do WinZapp está a usar a pasta das bibliotecas CUDA. Aguarde que termine e tente novamente.",
     "transcription_error_backend_error": "Ocorreu um erro interno durante a transcrição."
 }

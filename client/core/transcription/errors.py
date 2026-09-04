@@ -49,6 +49,21 @@ MODEL_MOVE_FAILED = "model_move_failed"
 # simply busy with the same folder, and the answer is to wait rather than to
 # retry anything.
 MODELS_BUSY = "models_busy"
+# The cuBLAS wheel could not be fetched. Its own code rather than
+# MODEL_DOWNLOAD_FAILED because that sentence names the transcription *model*,
+# and a user who was told their model failed to download will go and repair a
+# model that is perfectly fine.
+CUDA_RUNTIME_DOWNLOAD_FAILED = "cuda_runtime_download_failed"
+# The installed CUDA libraries are missing, the wrong size or hash differently
+# than the wheel's own RECORD says. Same split as MODEL_CORRUPTED against
+# MODEL_DOWNLOAD_FAILED: "the files on your disk are damaged, install them
+# again" is a different instruction from "the download did not get through".
+CUDA_RUNTIME_CORRUPTED = "cuda_runtime_corrupted"
+# Another account's process is holding the CUDA libraries directory. Distinct
+# from MODELS_BUSY only in which folder it names, which is the whole point: a
+# user who clicked "download the CUDA libraries" and is told another window is
+# busy with the *models* has been sent to look at the wrong thing.
+CUDA_RUNTIME_BUSY = "cuda_runtime_busy"
 # The catch-all: the backend raised something we have no specific answer for.
 BACKEND_ERROR = "backend_error"
 
@@ -72,6 +87,9 @@ ERROR_CODES = (
     MODEL_DOWNLOAD_FAILED,
     MODEL_MOVE_FAILED,
     MODELS_BUSY,
+    CUDA_RUNTIME_DOWNLOAD_FAILED,
+    CUDA_RUNTIME_CORRUPTED,
+    CUDA_RUNTIME_BUSY,
     BACKEND_ERROR,
 )
 

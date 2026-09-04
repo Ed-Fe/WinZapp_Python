@@ -1045,9 +1045,12 @@
     "transcription_device_cuda_unavailable": "CUDA no está disponible. La transcripción se ejecutará en el procesador.",
     "transcription_device_no_cuda_found": "No se encontró ninguna tarjeta gráfica compatible. La transcripción se ejecutará en el procesador.",
     "transcription_device_cuda_driver_error": "No se pudo consultar la tarjeta gráfica. La transcripción se ejecutará en el procesador.",
+    "transcription_device_cuda_libraries_missing": "Las bibliotecas CUDA no están instaladas. La transcripción se ejecutará en el procesador. Puedes descargarlas en la configuración de transcripción.",
+    "transcription_retry_on_cpu_vram": "La tarjeta gráfica no tenía memoria suficiente. ¿Quieres transcribir de nuevo usando el procesador?",
+    "transcription_retry_on_cpu_cuda": "No se pudo usar la tarjeta gráfica. ¿Quieres transcribir de nuevo usando el procesador?",
     "transcription_error_model_not_installed": "El modelo de transcripción elegido no está instalado. Descarga el modelo antes de transcribir.",
     "transcription_error_model_corrupted": "Los archivos del modelo están incompletos o dañados. Descarga el modelo de nuevo.",
-    "transcription_error_no_disk_space": "No hay suficiente espacio en disco para descargar el modelo.",
+    "transcription_error_no_disk_space": "No hay suficiente espacio en disco para esta descarga.",
     "transcription_error_cuda_unavailable": "CUDA no está disponible. Cambia el dispositivo a procesador en la configuración e inténtalo de nuevo.",
     "transcription_error_insufficient_vram": "La tarjeta gráfica no tiene memoria suficiente para este modelo. Elige un modelo más pequeño.",
     "transcription_error_insufficient_ram": "El equipo no tiene memoria suficiente para este modelo. Elige un modelo más pequeño.",
@@ -1061,5 +1064,8 @@
     "transcription_error_model_download_failed": "No se pudo descargar el modelo de transcripción. Comprueba la conexión e inténtalo de nuevo.",
     "transcription_error_model_move_failed": "No se pudo mover la carpeta de los modelos. Los modelos siguen en la carpeta anterior.",
     "transcription_error_models_busy": "Otra ventana de WinZapp está usando la carpeta de modelos. Espera a que termine e inténtalo de nuevo.",
+    "transcription_error_cuda_runtime_download_failed": "No se pudieron descargar las bibliotecas CUDA. Comprueba la conexión e inténtalo de nuevo.",
+    "transcription_error_cuda_runtime_corrupted": "Los archivos de las bibliotecas CUDA están incompletos o dañados. Vuelve a instalarlas.",
+    "transcription_error_cuda_runtime_busy": "Otra ventana de WinZapp está usando la carpeta de las bibliotecas CUDA. Espera a que termine e inténtalo de nuevo.",
     "transcription_error_backend_error": "Se produjo un error interno durante la transcripción."
 }

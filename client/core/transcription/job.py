@@ -27,7 +27,9 @@ Rules this file exists to keep:
   a check on, so a cancel arriving there is noticed only once the load returns
   — which for large-v3 can be tens of seconds later. Saying "checked in every
   phase" would be the comfortable version and it would be false. Whatever the
-  phase, the converted temporary file is deleted before this thread ends.
+  phase, the converted temporary file is deleted before this thread ends —
+  with exactly one exception, `prepared_handover`, where it is handed to the
+  caller instead of deleted and the caller becomes the one who deletes it.
 
 * **Progress is reported only while decoding.** Converting and loading have no
   fraction to give — ffmpeg's own progress is not parsed and CTranslate2's load
@@ -109,6 +111,16 @@ class TranscriptionJob:
         # ffmpeg over the same file a second time, which on a 40-minute
         # recording is the whole wait again. A file handed in is **not** ours,
         # so it is neither re-created nor deleted — its owner disposes of it.
+        #
+        # Handing one in does *not* imply the CPU: the run re-probes and
+        # re-decides like any other, and after INSUFFICIENT_VRAM the card is
+        # still counted and its libraries still load, so a re-run built without
+        # `device_preference=device.PREFERENCE_CPU` goes straight back to CUDA
+        # and fails identically — having paid for the model load again, and
+        # having told the user it was trying the processor. Whoever builds the
+        # re-run passes that preference. (Part 6: a forced CPU run resolves to
+        # REASON_CPU_REQUESTED, "you asked for the processor", which this user
+        # did not; that announcement is the one to suppress on this path.)
         self._prepared = prepared
         self._on_phase = on_phase
         self._on_progress = on_progress
@@ -127,6 +139,21 @@ class TranscriptionJob:
         self.device = None
         self.device_reason = None
         self.compute_type = None
+
+        #: The converted audio, handed to the caller instead of being deleted,
+        #: when the run failed on the GPU in a way a CPU re-run could cure.
+        #: Set before the finished callback is called, so part 6 can read it
+        #: from there — and **whoever reads it owns the file**: pass it to the
+        #: CPU job as `prepared=` (with `device_preference=PREFERENCE_CPU`) and
+        #: call `audio_prep.discard()` on it once that job is done or the offer
+        #: is declined. It stays None on every other path, and those paths
+        #: delete the file themselves as before.
+        #:
+        #: A handover needs somebody to hand it to, so a job built without an
+        #: `on_finished` never makes one: nothing would ever learn the file
+        #: exists, and a WAV of the whole recording would sit in %TEMP% with no
+        #: owner for good.
+        self.prepared_handover = None
 
     # ── Control ──────────────────────────────────────────────────────────────
 
@@ -184,10 +211,32 @@ class TranscriptionJob:
         # backend") would otherwise report `failed` with no phase before it.
         self._enter(PHASE_PREPARING_AUDIO)
         backend = self._resolve_backend()
-        with audio_prep.prepared_audio(
+        prepared = audio_prep.prepare_audio(
             self._ffmpeg, self._audio_path, should_cancel=self._should_cancel
-        ) as prepared:
+        )
+        # Written out rather than run under audio_prep.prepared_audio(), which
+        # always deletes: whether this file may outlive the run depends on the
+        # error and on the device it happened on, and neither is anything that
+        # context manager can see.
+        try:
             return self._decode(backend, prepared)
+        except errors.TranscriptionError as exc:
+            if self._on_finished is not None and device.should_retry_on_cpu(
+                exc, self.device
+            ):
+                # Converting a 40-minute recording again would be the entire
+                # wait a second time, for a file that is already correct. From
+                # here the file is the caller's, and the `finally` below leaves
+                # it alone.
+                self.prepared_handover = prepared
+                logging.info(
+                    "[transcription] keeping the converted audio for a "
+                    "possible re-run on the processor"
+                )
+            raise
+        finally:
+            if self.prepared_handover is None:
+                audio_prep.discard(prepared)
 
     def _resolve_backend(self):
         return self._backend or backend_module.resolve_backend(self._backend_id)

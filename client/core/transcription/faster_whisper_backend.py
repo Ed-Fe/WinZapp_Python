@@ -111,6 +111,12 @@ _CUDA_MISSING_MARKERS = (
     "cublas",
     "libcuda",
     "cuda is not available",
+    # A card whose architecture this CTranslate2 build has no kernels for —
+    # too new, or too old for the compiled -gencode list. It is a GPU fault
+    # the CPU does not have, and without these two it landed in BACKEND_ERROR,
+    # which carries no offer to re-run on the processor.
+    "no kernel image",
+    "invalid device function",
 )
 
 # The voice-activity filter is the one part of the run that needs onnxruntime,

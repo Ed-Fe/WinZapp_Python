@@ -621,6 +621,14 @@ class TestErrorClassification:
              errors.CUDA_UNAVAILABLE),
             ("Could not load library cublas64_12.dll", "cuda",
              errors.CUDA_UNAVAILABLE),
+            # A card this CTranslate2 build has no kernels for — too new, or
+            # older than its compiled -gencode list. Without these two the
+            # message fell through to BACKEND_ERROR, which carries no offer to
+            # re-run on the processor, where it would have worked.
+            ("no kernel image is available for execution on the device", "cuda",
+             errors.CUDA_UNAVAILABLE),
+            ("CUDA error: invalid device function", "cuda",
+             errors.CUDA_UNAVAILABLE),
             ("Invalid model configuration", "cpu", errors.BACKEND_ERROR),
             ("something nobody has ever seen", "cuda", errors.BACKEND_ERROR),
         ],
@@ -643,6 +651,19 @@ class TestErrorClassification:
             RuntimeError("CUBLAS_STATUS_ALLOC_FAILED"), "cuda"
         )
         assert error.code == errors.INSUFFICIENT_VRAM
+
+    def test_a_card_without_kernels_becomes_an_offer_to_use_the_processor(self):
+        """The point of classifying it at all: the CPU is the answer.
+
+        The retry allowlist is deliberately short, so a GPU fault the CPU could
+        cure has to arrive as one of its two codes rather than as the catch-all.
+        """
+        for message in ("no kernel image is available for execution on the device",
+                        "CUDA error: invalid device function"):
+            error = faster_whisper_backend.classify_backend_error(
+                RuntimeError(message), "cuda"
+            )
+            assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is True
 
     def test_pythons_own_memory_error_is_recognised(self):
         error = faster_whisper_backend.classify_backend_error(MemoryError(), "cpu")
@@ -1262,6 +1283,230 @@ class TestJob:
         assert backend.requests[0].audio_path == str(already)
         assert backend.requests[0].duration_seconds == 12.0
         assert already.exists(), "the job deleted a file it does not own"
+
+    def test_a_gpu_failure_worth_redoing_hands_the_audio_over(
+        self, tmp_path, own_temp_dir
+    ):
+        """The converted audio outlives the run that failed on the GPU.
+
+        Re-converting is the whole wait a second time — 40 minutes of audio is
+        40 minutes of ffmpeg — for a file that is already correct. So the job
+        hands it to the caller instead of deleting it, and from that point the
+        caller is the one who deletes it.
+        """
+        backend = _FakeBackend(
+            error=errors.TranscriptionError(errors.INSUFFICIENT_VRAM, "alloc failed")
+        )
+        job, watcher = _run_job(
+            tmp_path, backend,
+            probe=lambda: device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                free_vram_mb=8192, total_vram_mb=8192,
+            ),
+        )
+
+        assert job.device == device.DEVICE_CUDA
+        assert watcher.finished[0][1].code == errors.INSUFFICIENT_VRAM
+        assert job.prepared_handover is not None
+        assert os.path.isfile(job.prepared_handover.path)
+        assert job.prepared_handover.duration_seconds > 0
+        # Still in the temp directory, on purpose: it is a leak only until the
+        # caller discards it, which is the other half of the contract.
+        assert _leftovers(own_temp_dir) != []
+        audio_prep.discard(job.prepared_handover)
+        assert _leftovers(own_temp_dir) == []
+
+    def test_the_handed_over_file_transcribes_without_ffmpeg_running_again(
+        self, tmp_path, own_temp_dir
+    ):
+        """The point of the handover: the CPU run reuses the same audio."""
+        failing = _FakeBackend(
+            error=errors.TranscriptionError(errors.CUDA_UNAVAILABLE, "no cublas")
+        )
+        gpu_job, _watcher = _run_job(
+            tmp_path, failing,
+            probe=lambda: device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                free_vram_mb=8192, total_vram_mb=8192,
+            ),
+        )
+        prepared = gpu_job.prepared_handover
+        assert prepared is not None
+
+        second = _FakeBackend(result=_result())
+        cpu_job, cpu_watcher = _run_job(
+            tmp_path, second,
+            # Would raise FFMPEG_FAILED if the conversion were attempted, which
+            # is exactly what must not happen a second time.
+            ffmpeg=str(tmp_path / "must-not-run.exe"),
+            prepared=prepared,
+            probe=lambda: device.HardwareProbe(total_ram_mb=16384,
+                                               available_ram_mb=8192),
+        )
+
+        assert cpu_watcher.finished[0][1] is None
+        assert cpu_job.device == device.DEVICE_CPU
+        assert second.requests[0].audio_path == prepared.path
+        # The second job did not take ownership either — it never created the
+        # file — so the caller is still the one holding it.
+        assert cpu_job.prepared_handover is None
+        assert os.path.isfile(prepared.path)
+        audio_prep.discard(prepared)
+        assert _leftovers(own_temp_dir) == []
+
+    @pytest.mark.parametrize("code", [
+        errors.CANCELLED,
+        errors.MODEL_NOT_INSTALLED,
+        errors.MODEL_CORRUPTED,
+        errors.BACKEND_ERROR,
+    ])
+    def test_a_failure_the_cpu_cannot_cure_deletes_the_audio_as_before(
+        self, tmp_path, own_temp_dir, code
+    ):
+        # The path that hands nothing over is the path that used to exist, and
+        # it must keep cleaning up after itself.
+        backend = _FakeBackend(error=errors.TranscriptionError(code, "detail"))
+        job, _watcher = _run_job(
+            tmp_path, backend,
+            probe=lambda: device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                free_vram_mb=8192, total_vram_mb=8192,
+            ),
+        )
+        assert job.prepared_handover is None
+        assert _leftovers(own_temp_dir) == []
+
+    def test_a_handover_with_nobody_to_hand_it_to_is_not_made(
+        self, tmp_path, own_temp_dir
+    ):
+        """A job with no finished callback has no caller to become the owner.
+
+        The transfer presumes a reader. Without one, nothing would ever learn
+        the file exists, and a WAV of the whole recording would sit in %TEMP%
+        unowned for good — a leak that grows by one recording per failure.
+        """
+        backend = _FakeBackend(
+            error=errors.TranscriptionError(errors.INSUFFICIENT_VRAM, "alloc failed")
+        )
+        job = job_module.TranscriptionJob(
+            audio_path=_voice_note(tmp_path),
+            ffmpeg=_fake_ffmpeg(tmp_path, seconds=1.0),
+            models_root=str(tmp_path / "models"),
+            model_id="tiny",
+            backend=backend,
+            on_finished=None,
+            probe=lambda: device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                free_vram_mb=8192, total_vram_mb=8192,
+            ),
+        )
+        job.start()
+        job.join(30)
+
+        assert job.phase == job_module.PHASE_FAILED
+        assert job.device == device.DEVICE_CUDA
+        assert job.prepared_handover is None
+        assert _leftovers(own_temp_dir) == []
+
+    def test_the_re_run_needs_the_preference_and_not_just_the_audio(
+        self, tmp_path, own_temp_dir
+    ):
+        """Handing the audio in does not imply the processor — the flag does.
+
+        After INSUFFICIENT_VRAM the card is still counted and its libraries
+        still load, so a re-run built without PREFERENCE_CPU re-decides its way
+        straight back to CUDA and fails identically, having paid for the model
+        load a second time. The probe here says CUDA precisely so that only the
+        preference can be what moves it.
+        """
+        prepared = audio_prep.PreparedAudio(
+            path=str(tmp_path / "already-converted.wav"), duration_seconds=12.0
+        )
+        (tmp_path / "already-converted.wav").write_bytes(b"RIFF")
+        cuda_probe = lambda: device.HardwareProbe(  # noqa: E731 - one line, one use
+            cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+            free_vram_mb=8192, total_vram_mb=8192,
+        )
+
+        went_back, _watcher = _run_job(
+            tmp_path, _FakeBackend(result=_result()),
+            ffmpeg=str(tmp_path / "must-not-run.exe"),
+            prepared=prepared, probe=cuda_probe,
+        )
+        assert went_back.device == device.DEVICE_CUDA, (
+            "the audio alone was enough to move the run off the GPU"
+        )
+
+        forced, _watcher = _run_job(
+            tmp_path, _FakeBackend(result=_result()),
+            ffmpeg=str(tmp_path / "must-not-run.exe"),
+            prepared=prepared, probe=cuda_probe,
+            device_preference=device.PREFERENCE_CPU,
+        )
+        assert forced.device == device.DEVICE_CPU
+        # Part 6 announces this one: a forced re-run says "you asked for the
+        # processor", which this user did not — that is the announcement to
+        # suppress on the retry path.
+        assert forced.device_reason == device.REASON_CPU_REQUESTED
+
+    def test_a_gpu_failure_on_a_run_that_was_on_the_cpu_hands_nothing_over(
+        self, tmp_path, own_temp_dir
+    ):
+        # Same error code, CPU run: there is nothing to fall back to, so
+        # keeping the file would leak it for an offer nobody can make.
+        backend = _FakeBackend(
+            error=errors.TranscriptionError(errors.INSUFFICIENT_VRAM, "alloc failed")
+        )
+        job, _watcher = _run_job(tmp_path, backend)
+        assert job.device == device.DEVICE_CPU
+        assert job.prepared_handover is None
+        assert _leftovers(own_temp_dir) == []
+
+    def test_a_successful_run_hands_nothing_over(self, tmp_path, own_temp_dir):
+        job, watcher = _run_job(tmp_path, _FakeBackend(result=_result()))
+        assert watcher.finished[0][1] is None
+        assert job.prepared_handover is None
+        assert _leftovers(own_temp_dir) == []
+
+    def test_the_handover_is_readable_from_the_finished_callback(
+        self, tmp_path, own_temp_dir
+    ):
+        """Part 6 reads it from there, so it has to be set before the report.
+
+        The callback is where the offer to re-run is decided, and the finished
+        report is the only thing the UI is waiting on — a handover published
+        after it would be invisible.
+        """
+        seen = {}
+        backend = _FakeBackend(
+            error=errors.TranscriptionError(errors.INSUFFICIENT_VRAM, "alloc failed")
+        )
+        holder = {}
+
+        def _on_finished(result, error):
+            seen["handover"] = holder["job"].prepared_handover
+            seen["offer"] = device.cpu_retry_i18n_key(error, holder["job"].device)
+
+        job = job_module.TranscriptionJob(
+            audio_path=_voice_note(tmp_path),
+            ffmpeg=_fake_ffmpeg(tmp_path, seconds=1.0),
+            models_root=str(tmp_path / "models"),
+            model_id="tiny",
+            backend=backend,
+            on_finished=_on_finished,
+            probe=lambda: device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                free_vram_mb=8192, total_vram_mb=8192,
+            ),
+        )
+        holder["job"] = job
+        job.start()
+        job.join(30)
+
+        assert seen["handover"] is not None
+        assert seen["offer"] == "transcription_retry_on_cpu_vram"
+        audio_prep.discard(seen["handover"])
+        assert _leftovers(own_temp_dir) == []
 
     def test_the_configured_backend_is_resolved_when_none_is_handed_in(
         self, tmp_path, own_temp_dir, monkeypatch

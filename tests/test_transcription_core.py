@@ -26,6 +26,17 @@ first place:
   yet, so reading it as a driver fault told users with no NVIDIA hardware at all
   to go and reinstall a graphics driver.
 
+* **Counting CUDA devices never proved a transcription could run on one.**
+  `ctranslate2.get_cuda_device_count()` answers with the NVIDIA driver alone,
+  while the run also opens cuBLAS by name — a library no package in
+  requirements.txt ships. So on every machine with a driver and no CUDA
+  Toolkit, which is nearly every machine that installs a release, the old
+  decision chose "cuda" and the model load died with "Could not load library
+  cublas64_12.dll"; on a developer's machine, which has the Toolkit, it worked.
+  The libraries are therefore checked as well, and the reason says *that*
+  rather than "no card was found", which is false and sends the user looking
+  in the wrong place.
+
 * **Memory is planned against what is free, not what is installed.** A 16 GB
   machine running Chromium, WhatsApp Web and a screen reader is a 5 GB machine
   for this purpose; deciding on the 16 buys a 3 GB download and then an
@@ -39,9 +50,11 @@ first place:
 
 import ast
 import dataclasses
+import inspect
 import json
 import os
 import sys
+import threading
 import types
 
 import pytest
@@ -111,9 +124,30 @@ _EXPECTED_REPOS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _no_memoized_cuda_answer_between_tests(monkeypatch):
+    """The memo is module state, so it is reset for every test in this file.
+
+    Two classes reset it for themselves, which is not the same thing: on a
+    machine that actually has cuBLAS, a test that only means to probe the
+    hardware populates it on the way past, and the next test inherits an answer
+    nobody in it asked for.
+    """
+    monkeypatch.setattr(device, "_cuda_library_answer", None)
+    monkeypatch.setattr(device, "_cuda_library_generation", 0)
+
+
 def _probe(**kwargs):
     """A HardwareProbe with everything unknown unless the test says otherwise."""
     return device.HardwareProbe(**kwargs)
+
+
+class _FakeLibrary:
+    """What ctypes.WinDLL returns, as far as this module is concerned."""
+
+    def __init__(self, name):
+        self.name = name
+        self._handle = 0x7FFFFFFFFFFF
 
 
 def _cuda_probe(capability=(8, 6), free_vram_mb=8192, **kwargs):
@@ -330,6 +364,50 @@ class TestResolveDevice:
                             driver_error="nvml: nvmlInit_v2 failed")
         chosen, _ = device.resolve_device(device.PREFERENCE_AUTO, probe)
         assert chosen == device.DEVICE_CUDA
+
+    def test_a_counted_gpu_with_no_cuda_libraries_is_not_chosen(self):
+        # The measured bug: the driver counts the card, cuBLAS is nowhere, and
+        # the model load is what discovers it — after the user has waited.
+        probe = _cuda_probe(cuda_libraries_ok=False,
+                            missing_cuda_libraries=("cublas64_12.dll",))
+        chosen, reason = device.resolve_device(device.PREFERENCE_AUTO, probe)
+        assert chosen == device.DEVICE_CPU
+        assert reason == device.REASON_CUDA_LIBRARIES_MISSING
+
+    def test_the_missing_libraries_reason_is_given_under_both_preferences(self):
+        # Unlike the no-GPU pair, this one is announced under "auto" too: the
+        # user has a usable card and is one download away from using it.
+        probe = _cuda_probe(cuda_libraries_ok=False)
+        for preference in (device.PREFERENCE_AUTO, device.PREFERENCE_CUDA):
+            assert device.resolve_device(preference, probe)[1] == (
+                device.REASON_CUDA_LIBRARIES_MISSING
+            )
+
+    def test_asking_for_the_cpu_still_wins_over_a_library_fault(self):
+        probe = _cuda_probe(cuda_libraries_ok=False)
+        chosen, reason = device.resolve_device(device.PREFERENCE_CPU, probe)
+        assert chosen == device.DEVICE_CPU
+        assert reason == device.REASON_CPU_REQUESTED
+
+    def test_a_machine_the_check_could_not_run_on_still_gets_the_gpu(self):
+        # None is "not asked", never "no". Inventing an obstacle nobody
+        # observed would cost the GPU to every machine the check cannot reach.
+        probe = _cuda_probe(cuda_libraries_ok=None)
+        assert device.resolve_device(device.PREFERENCE_AUTO, probe)[0] == (
+            device.DEVICE_CUDA
+        )
+
+    def test_without_a_card_a_library_fault_is_not_the_reason(self):
+        # No device was counted, so the libraries are missing for an
+        # uninteresting reason; saying so would send a user with no NVIDIA
+        # hardware off to download a CUDA runtime they can never use.
+        probe = _probe(cuda_libraries_ok=False)
+        assert device.resolve_device(device.PREFERENCE_AUTO, probe)[1] == (
+            device.REASON_NO_CUDA_FOUND
+        )
+        assert device.resolve_device(device.PREFERENCE_CUDA, probe)[1] == (
+            device.REASON_CUDA_UNAVAILABLE
+        )
 
     def test_a_zero_device_count_is_not_cuda(self):
         # ctranslate2 loaded but found nothing — "available" alone is not enough.
@@ -578,6 +656,10 @@ class TestProbeHardware:
             raise OSError("nvml exploded")
 
         monkeypatch.setattr(device, "_probe_nvml", _boom)
+        # The library check is answered here rather than left to the machine:
+        # this test is about NVML alone, and on a runner without the CUDA
+        # runtime the real check would (correctly) veto the GPU below.
+        monkeypatch.setattr(device, "probe_cuda_libraries", lambda: (True, (), None))
         probe = device.probe_hardware()
         assert isinstance(probe, device.HardwareProbe)
         assert probe.cuda_available is True
@@ -662,6 +744,675 @@ class TestProbeHardware:
         assert reason in device.DEVICE_REASON_I18N_KEYS
         assert device.select_compute_type(chosen, probe) in (
             device.COMPUTE_INT8, device.COMPUTE_FLOAT16, device.COMPUTE_FLOAT32,
+        )
+
+
+class TestCudaLibraries:
+    """Whether CUDA can be *used*, which is not what counting devices answers.
+
+    ctranslate2 4.8.2's Windows CUDA build names no CUDA library in its import
+    table (the CUDA runtime is static) and opens cuBLAS with LoadLibrary the
+    first time a model goes on the GPU. Nothing in requirements.txt ships it,
+    so the failure lands at model load on a user's machine and never on a
+    developer's, which has the Toolkit. The check has to be cheap enough to run
+    before every transcription and must never take the app down with it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _forget_the_memoized_answer(self, monkeypatch):
+        """The answer is memoized per process, so it is per-test state here."""
+        monkeypatch.setattr(device, "_cuda_library_answer", None)
+
+    def test_cublas_is_the_library_that_matters(self):
+        # Read off the shipped wheel, not off the documentation: the strings of
+        # ctranslate2.dll carry "cublas64_12.dll" beside cublasCreate_v2 and
+        # cublasGemmEx. cublasLt needs no entry of its own — cuBLAS imports it,
+        # so the Windows loader fails this check for it too.
+        assert device._CUDA_RUNTIME_LIBRARIES == ("cublas64_12.dll",)
+
+    def test_cudnn_is_deliberately_not_required(self):
+        """The wheel ships a cudnn64_9.dll and this build never calls it.
+
+        That 266 KB file is the cuDNN 9 loader shim, forwarding to
+        cudnn_graph/ops/cnn/adv64_9.dll, none of which the wheel ships — and
+        ctranslate2/__init__.py loads it anyway with a blanket CDLL(*.dll).
+        But ctranslate2.dll references cuDNN nowhere: not an import, not a
+        string, in neither the DLL nor the extension module. Requiring it here
+        would refuse the GPU to every machine over a library nothing calls.
+        """
+        assert not any("cudnn" in name for name in device._CUDA_RUNTIME_LIBRARIES)
+
+    def test_the_bare_name_is_asked_the_way_the_run_asks_it(self):
+        """`winmode=0`, and it cannot be observed from a test.
+
+        ctypes forces LOAD_LIBRARY_SEARCH_DEFAULT_DIRS on every load of its
+        own, while CTranslate2 opens cuBLAS with a raw LoadLibrary that follows
+        the process search order. The two agree under python.exe and diverge in
+        a frozen build, whose PyInstaller bootloader calls the legacy
+        SetDllDirectory: measured on a real onedir build, a DLL reachable only
+        through PATH — where the CUDA Toolkit installer puts it — loaded for
+        the run and not for the check. That made the app announce "the CUDA
+        libraries are not installed", falsely, and fall back to the CPU with
+        nothing to retry, because the veto lands before the run. None of that
+        is reproducible under pytest, so the intent is pinned on the source.
+        """
+        source = inspect.getsource(device._load_cuda_library)
+        assert "winmode=0" in source
+        # And only for the bare name: a registered directory keeps the default
+        # flags, which is what lets cuBLASLt resolve out of the same folder.
+        assert "(name, 0)" in source
+
+    def test_the_check_answers_on_this_machine_without_raising(self):
+        # This runner has no CUDA runtime, so the shape of the answer is known
+        # rather than merely "one of the three": every library is missing, and
+        # each is named — an assertion that accepted True as well would pass on
+        # a machine where the check silently did nothing.
+        ok, missing, error = device.probe_cuda_libraries(
+            directories=(os.path.join("nowhere", "cuda"),)
+        )
+        assert ok is False
+        assert missing == device._CUDA_RUNTIME_LIBRARIES
+        assert "cublas64_12.dll" in error
+        # The default path answers whatever this machine says, so there is
+        # nothing to assert about it — only that it comes back at all, which
+        # is the promise every caller in this module relies on.
+        device.probe_cuda_libraries()
+
+    def test_a_library_that_will_not_load_is_reported_as_missing(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "win32")
+
+        def _refuse(name, winmode=None):
+            raise OSError(f"could not find {name}")
+
+        monkeypatch.setattr(device.ctypes, "WinDLL", _refuse, raising=False)
+        ok, missing, error = device.probe_cuda_libraries()
+        assert ok is False
+        assert missing == device._CUDA_RUNTIME_LIBRARIES
+        assert "cublas64_12.dll" in error
+
+    def test_a_library_that_loads_is_not_missing(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device.ctypes, "WinDLL",
+            lambda name, winmode=None: _FakeLibrary(name), raising=False,
+        )
+        monkeypatch.setattr(device, "_release_library", lambda library: None)
+        ok, missing, error = device.probe_cuda_libraries()
+        assert ok is True
+        assert missing == ()
+        assert error is None
+
+    def test_the_load_is_released_again(self, monkeypatch):
+        """The check runs before every transcription, so it may not accumulate.
+
+        ctypes never unloads a library on its own; without the release, a probe
+        per transcription piles up references to a library the decision may
+        well not end up using.
+        """
+        released = []
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device.ctypes, "WinDLL",
+            lambda name, winmode=None: _FakeLibrary(name), raising=False,
+        )
+        monkeypatch.setattr(
+            device.ctypes, "windll",
+            types.SimpleNamespace(
+                kernel32=types.SimpleNamespace(
+                    FreeLibrary=lambda handle: released.append(handle)
+                )
+            ),
+            raising=False,
+        )
+        assert device.probe_cuda_libraries()[0] is True
+        assert len(released) == len(device._CUDA_RUNTIME_LIBRARIES)
+
+    def test_a_release_that_fails_is_not_a_verdict(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device.ctypes, "WinDLL",
+            lambda name, winmode=None: _FakeLibrary(name), raising=False,
+        )
+
+        def _refuse_to_free(_handle):
+            raise OSError("FreeLibrary exploded")
+
+        monkeypatch.setattr(
+            device.ctypes, "windll",
+            types.SimpleNamespace(
+                kernel32=types.SimpleNamespace(FreeLibrary=_refuse_to_free)
+            ),
+            raising=False,
+        )
+        assert device.probe_cuda_libraries()[0] is True
+
+    def test_ctypes_blowing_up_is_unknown_rather_than_a_no(self, monkeypatch):
+        # Not an answer about the machine, so it must not veto the GPU.
+        monkeypatch.setattr(sys, "platform", "win32")
+
+        def _explode(*_args):
+            raise RuntimeError("ctypes is having a day")
+
+        monkeypatch.setattr(device, "_load_cuda_library", _explode)
+        monkeypatch.setattr(device, "_cuda_library_answer", None)
+        ok, missing, error = device.probe_cuda_libraries()
+        assert ok is None
+        assert missing == ()
+        assert "ctypes is having a day" in error
+
+    def test_off_windows_the_question_is_not_asked_at_all(self, monkeypatch):
+        # The library names are not these ones there, and answering "no" would
+        # be inventing an obstacle nobody measured.
+        monkeypatch.setattr(sys, "platform", "linux")
+        ok, missing, error = device.probe_cuda_libraries()
+        assert ok is None
+        assert missing == ()
+        # And no error text: it feeds driver_error, which is the bag of what
+        # failed, and not having asked is not a failure.
+        assert error is None
+
+    def test_every_directory_that_failed_is_reported(self, monkeypatch):
+        # Same rule as _load_nvml(): the last failure alone says nothing about
+        # why the ones before it were not enough.
+        monkeypatch.setattr(sys, "platform", "win32")
+
+        def _refuse(name, winmode=None):
+            raise OSError(f"cannot load {name}")
+
+        monkeypatch.setattr(device.ctypes, "WinDLL", _refuse, raising=False)
+        _ok, _missing, error = device.probe_cuda_libraries(
+            directories=(os.path.join("somewhere", "cuda"),)
+        )
+        # The bare name, then the directory handed in.
+        assert error.count("cannot load") == 2
+        assert "somewhere" in error
+
+    def test_a_registered_directory_is_searched_after_the_bare_name(self, monkeypatch):
+        tried = []
+        monkeypatch.setattr(sys, "platform", "win32")
+
+        def _only_the_extra_directory(name, winmode=None):
+            tried.append((name, winmode))
+            if os.path.dirname(name):
+                return _FakeLibrary(name)
+            raise OSError("not on the default search path")
+
+        monkeypatch.setattr(
+            device.ctypes, "WinDLL", _only_the_extra_directory, raising=False
+        )
+        monkeypatch.setattr(device, "_release_library", lambda library: None)
+        folder = os.path.join("elsewhere", "cuda")
+        ok, missing, _error = device.probe_cuda_libraries(directories=(folder,))
+        assert ok is True and missing == ()
+        # The bare name asked the way the run asks (winmode=0), then the
+        # registered directory with the default flags, which is what lets a
+        # dependency like cuBLASLt resolve out of that same folder.
+        assert tried[0] == ("cublas64_12.dll", 0)
+        assert tried[1] == (os.path.join(folder, "cublas64_12.dll"), None)
+
+
+class TestTheLibraryAnswerIsRemembered:
+    """Asked once per process, not once per transcription.
+
+    The rule against reusing a probe is about free memory, which moves while
+    the app runs. Whether a library loads does not — and measuring it maps and
+    unmaps cuBLAS and cuBLASLt, some 600 MB and two DllMain runs, immediately
+    before CTranslate2 maps them again.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _forget_the_memoized_answer(self, monkeypatch):
+        monkeypatch.setattr(device, "_cuda_library_answer", None)
+        monkeypatch.setattr(device, "_cuda_library_generation", 0)
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+
+    def test_registering_a_directory_again_still_forgets_the_answer(
+        self, monkeypatch, tmp_path
+    ):
+        """Part 4b registers the same directory twice, and the second time is
+        the one that matters.
+
+        The directory under global_dir() is registered while it is still empty,
+        so the probe memoizes False. The download then lands in it and part 4b
+        registers again — through the "already registered" shortcut. Without an
+        invalidation there, that False stands for the rest of the session: the
+        user paid for ~600 MB and stays on the CPU until they restart.
+        """
+        answers = [(False, ("cublas64_12.dll",), "not found"), (True, (), None)]
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: answers.pop(0) if answers else (True, (), None),
+        )
+        folder = str(tmp_path / "cuda")
+        os.makedirs(folder)
+
+        assert device.register_cuda_library_directory(folder) is True
+        assert device.probe_cuda_libraries()[0] is False   # still empty
+
+        assert device.register_cuda_library_directory(folder) is True  # the download landed
+        assert device.probe_cuda_libraries()[0] is True
+
+    def test_taking_libraries_away_can_be_told_to_this_module(self, monkeypatch):
+        """The invalidation a *removal* needs, which registering cannot give.
+
+        Registering a directory invalidates on its own because it is the event
+        that can turn a False into a True. Deleting the libraries is the same
+        event pointing the other way and has no such call, so without this a
+        True measured earlier in the session outlives the files: cuda_usable()
+        keeps choosing the GPU and every transcription until the app restarts
+        loads the model onto the card and dies on the missing library.
+        """
+        monkeypatch.setattr(device, "_cuda_library_answer", (True, (), None))
+
+        device.forget_cuda_library_answer()
+
+        assert device._cuda_library_answer is None
+        # The generation moves too, so a measurement that started before the
+        # removal cannot store its now-stale result afterwards.
+        assert device._cuda_library_generation == 1
+
+    def test_forgetting_twice_is_not_an_error(self, monkeypatch):
+        device.forget_cuda_library_answer()
+        device.forget_cuda_library_answer()
+        assert device._cuda_library_answer is None
+
+    def test_a_registration_during_the_measurement_is_not_overwritten(
+        self, monkeypatch, tmp_path
+    ):
+        """The measurement runs outside the lock, because it maps ~600 MB.
+
+        So a registration can land while it is in flight, and the answer that
+        arrives afterwards describes the world from before it. Storing it
+        anyway is the same permanent False as the shortcut above — and this is
+        deterministic, not a race: the stub registers from inside the measure.
+        """
+        folder = str(tmp_path / "cuda")
+        os.makedirs(folder)
+        measured = []
+
+        def _measure(directories):
+            measured.append(directories)
+            if len(measured) == 1:
+                # "a registration arrived during the measurement"
+                device.register_cuda_library_directory(folder)
+                return False, ("cublas64_12.dll",), "not found"
+            return True, (), None
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(device, "_measure_cuda_libraries", _measure)
+
+        assert device.probe_cuda_libraries()[0] is False
+        # Nothing was stored, so the next question is measured against the
+        # world as it is now rather than answered from the stale one.
+        assert device.probe_cuda_libraries()[0] is True
+        assert len(measured) == 2
+
+    def test_a_definite_answer_is_measured_once(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: calls.append(directories) or (True, (), None),
+        )
+        first = device.probe_cuda_libraries()
+        second = device.probe_cuda_libraries()
+        assert first == second == (True, (), None)
+        assert len(calls) == 1
+
+    def test_a_missing_library_is_remembered_too(self, monkeypatch):
+        calls = []
+        answer = (False, ("cublas64_12.dll",), "cublas64_12.dll: not found")
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: calls.append(directories) or answer,
+        )
+        assert device.probe_cuda_libraries() == answer
+        assert device.probe_cuda_libraries() == answer
+        assert len(calls) == 1
+
+    def test_an_unknown_is_never_remembered(self, monkeypatch):
+        # A transient ctypes fault must not become a permanent verdict.
+        calls = []
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: calls.append(directories) or (None, (), "odd"),
+        )
+        device.probe_cuda_libraries()
+        device.probe_cuda_libraries()
+        assert len(calls) == 2
+
+    def test_an_explicit_question_neither_reads_nor_writes_the_cache(
+        self, monkeypatch, tmp_path
+    ):
+        calls = []
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: calls.append(directories) or (True, (), None),
+        )
+        device.probe_cuda_libraries(directories=(str(tmp_path),))
+        device.probe_cuda_libraries(directories=(str(tmp_path),))
+        assert len(calls) == 2
+        assert device._cuda_library_answer is None
+
+    def test_registering_a_directory_makes_the_next_call_measure_again(
+        self, monkeypatch, tmp_path
+    ):
+        """Part 4b's download is the one event that can change the answer."""
+        calls = []
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            device, "_measure_cuda_libraries",
+            lambda directories: calls.append(directories) or (False, (), "not yet"),
+        )
+        monkeypatch.setattr(
+            device.os, "add_dll_directory", lambda path: None, raising=False
+        )
+        device.probe_cuda_libraries()
+        assert device.register_cuda_library_directory(str(tmp_path)) is True
+        device.probe_cuda_libraries()
+        assert len(calls) == 2
+        # And the second measurement was told about the new directory.
+        assert calls[1] == (str(tmp_path),)
+
+
+class TestCudaLibraryDirectories:
+    """Part 4b's hook: it downloads the runtime, this is told where it landed.
+
+    Recording the path is only half of it. `os.add_dll_directory()` is what
+    lets CTranslate2's own LoadLibrary find the file, and without it this
+    module could confirm a library the run would then fail to open — the exact
+    lie the check exists to remove.
+    """
+
+    def test_registering_a_real_directory_reports_it(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        assert device.register_cuda_library_directory(str(tmp_path)) is True
+        assert device.cuda_library_directories() == (str(tmp_path),)
+
+    def test_registering_twice_is_a_no_op(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        assert device.register_cuda_library_directory(str(tmp_path)) is True
+        assert device.register_cuda_library_directory(str(tmp_path)) is True
+        assert len(device.cuda_library_directories()) == 1
+
+    def test_the_directory_is_handed_to_the_windows_loader_too(
+        self, tmp_path, monkeypatch
+    ):
+        added = []
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        monkeypatch.setattr(
+            device.os, "add_dll_directory", lambda path: added.append(path),
+            raising=False,
+        )
+        device.register_cuda_library_directory(str(tmp_path))
+        assert added == [str(tmp_path)]
+
+    @pytest.mark.parametrize("path", [None, "", "   "])
+    def test_a_path_that_is_not_a_directory_is_refused_quietly(self, path, monkeypatch):
+        # An empty path in particular: abspath("") is the working directory,
+        # and registering that would put the whole cwd on the DLL search path.
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        assert device.register_cuda_library_directory(path) is False
+        assert device.cuda_library_directories() == ()
+
+    def test_a_missing_directory_is_refused_rather_than_raised(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        assert device.register_cuda_library_directory(
+            str(tmp_path / "was-never-downloaded")
+        ) is False
+
+    def test_a_registration_that_explodes_is_survived(self, tmp_path, monkeypatch):
+        # It runs as a download finishes; a directory that misbehaves is a
+        # reason to keep using the CPU, not to take the app down.
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+
+        def _boom(_path):
+            raise OSError("the loader refused it")
+
+        monkeypatch.setattr(device.os, "add_dll_directory", _boom, raising=False)
+        assert device.register_cuda_library_directory(str(tmp_path)) is False
+
+
+class TestTheRegistryIsThreadSafe:
+    def test_registering_while_the_directories_are_read_does_not_raise(
+        self, tmp_path, monkeypatch
+    ):
+        """The probe runs on the job thread; part 4b registers on the UI one.
+
+        A dict grown mid-iteration raises RuntimeError, which would turn a
+        download that had just succeeded into an "unknown" for that run.
+        """
+        monkeypatch.setattr(device, "_extra_cuda_library_dirs", {})
+        monkeypatch.setattr(device, "_cuda_library_answer", None)
+        monkeypatch.setattr(
+            device.os, "add_dll_directory", lambda path: None, raising=False
+        )
+        folders = []
+        for index in range(60):
+            folder = tmp_path / f"cuda-{index}"
+            folder.mkdir()
+            folders.append(str(folder))
+
+        failures = []
+
+        def _register():
+            try:
+                for folder in folders:
+                    device.register_cuda_library_directory(folder)
+            except Exception as exc:  # pragma: no cover - the bug being pinned
+                failures.append(exc)
+
+        writer = threading.Thread(target=_register)
+        writer.start()
+        try:
+            # Read for as long as the writer lives, rather than a fixed count:
+            # measured against the unlocked version, 400 reads raced the 60
+            # registrations 0 times in 20 runs — the test passed with and
+            # without the lock, i.e. it pinned nothing. Bounded by the writer
+            # instead, it reproduces the RuntimeError every time and scales
+            # with whatever machine runs it.
+            while writer.is_alive():
+                device.cuda_library_directories()
+        except Exception as exc:  # pragma: no cover - the bug being pinned
+            failures.append(exc)
+        writer.join(30)
+
+        assert failures == []
+        assert len(device.cuda_library_directories()) == len(folders)
+
+
+class TestCudaRuntimePresence:
+    """Part 4b's "is it already here?", which is not "does it work?".
+
+    Registering answers only that a directory exists — an empty one registers
+    exactly as happily as a complete one — so the question of whether to spend
+    a download needs its own answer, and loadability stays
+    `probe_cuda_libraries()`'s.
+    """
+
+    def test_a_folder_holding_every_library_is_present(self, tmp_path):
+        for name in device._CUDA_RUNTIME_LIBRARIES:
+            (tmp_path / name).write_bytes(b"not a real library")
+        assert device.cuda_runtime_present_in(str(tmp_path)) is True
+
+    def test_an_empty_folder_is_not(self, tmp_path):
+        assert device.cuda_runtime_present_in(str(tmp_path)) is False
+
+    def test_a_half_finished_download_is_not(self, tmp_path):
+        # Only meaningful once more than one library is required; written so it
+        # keeps meaning something when that day comes.
+        for name in device._CUDA_RUNTIME_LIBRARIES[:-1]:
+            (tmp_path / name).write_bytes(b"not a real library")
+        assert device.cuda_runtime_present_in(str(tmp_path)) is False
+
+    def test_a_directory_that_is_not_there_answers_no_rather_than_raising(
+        self, tmp_path
+    ):
+        assert device.cuda_runtime_present_in(
+            str(tmp_path / "was-never-downloaded")
+        ) is False
+
+    @pytest.mark.parametrize("path", [None, ""])
+    def test_nothing_at_all_answers_no(self, path):
+        assert device.cuda_runtime_present_in(path) is False
+
+
+def test_the_library_names_belong_to_the_pinned_ctranslate2():
+    """"cublas64_12" is CUDA 12 naming, and the pin is what makes it true.
+
+    A bump to a CTranslate2 built against CUDA 13 renames the library. The
+    check would then report it missing on *every* machine, every user would
+    silently lose the GPU, and each would be told the CUDA libraries are not
+    installed — which would be false. So the two are asserted together: moving
+    the pin fails this test until the names move with it.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "requirements.txt"), "r", encoding="utf-8") as handle:
+        requirements = handle.read()
+
+    assert "ctranslate2==4.8.2" in requirements
+    assert device._CUDA_RUNTIME_LIBRARIES == ("cublas64_12.dll",)
+
+
+class TestProbeReportsTheLibraries:
+    def test_a_missing_library_reaches_the_decision_and_the_log(self, monkeypatch):
+        monkeypatch.setitem(
+            sys.modules, "ctranslate2",
+            types.SimpleNamespace(get_cuda_device_count=lambda: 1),
+        )
+        monkeypatch.setattr(device, "_probe_nvml", lambda: ((8, 6), 8192, 8192, None))
+        monkeypatch.setattr(
+            device, "probe_cuda_libraries",
+            lambda: (False, ("cublas64_12.dll",), "cublas64_12.dll: not found"),
+        )
+        probe = device.probe_hardware()
+
+        assert probe.cuda_available is True and probe.cuda_device_count == 1
+        assert probe.cuda_libraries_ok is False
+        assert probe.missing_cuda_libraries == ("cublas64_12.dll",)
+        # The aggregate is log-facing and takes everything; the driver-fault
+        # field must stay empty — the driver is fine, the libraries are not.
+        assert "cublas64_12.dll" in probe.driver_error
+        assert probe.cuda_probe_error is None
+        assert device.resolve_device(device.PREFERENCE_AUTO, probe)[1] == (
+            device.REASON_CUDA_LIBRARIES_MISSING
+        )
+
+    def test_the_check_is_not_run_when_no_device_was_counted(self, monkeypatch):
+        # Loading cuBLAS on a machine with no NVIDIA card answers nothing and
+        # is the one place this check would cost something for nothing.
+        calls = []
+        monkeypatch.setitem(
+            sys.modules, "ctranslate2",
+            types.SimpleNamespace(get_cuda_device_count=lambda: 0),
+        )
+        monkeypatch.setattr(
+            device, "probe_cuda_libraries",
+            lambda: calls.append(1) or (True, (), None),
+        )
+        probe = device.probe_hardware()
+        assert calls == []
+        assert probe.cuda_libraries_ok is None
+        assert probe.missing_cuda_libraries == ()
+
+    def test_a_library_check_that_raises_still_returns_a_probe(self, monkeypatch):
+        monkeypatch.setitem(
+            sys.modules, "ctranslate2",
+            types.SimpleNamespace(get_cuda_device_count=lambda: 1),
+        )
+        monkeypatch.setattr(device, "_probe_nvml", lambda: (None, None, None, None))
+
+        def _boom():
+            raise OSError("the loader exploded")
+
+        monkeypatch.setattr(device, "probe_cuda_libraries", _boom)
+        probe = device.probe_hardware()
+        assert isinstance(probe, device.HardwareProbe)
+        assert probe.cuda_libraries_ok is None
+        assert "the loader exploded" in probe.driver_error
+        # Unknown, so the GPU is still allowed — and still announced as such.
+        assert device.resolve_device(device.PREFERENCE_AUTO, probe)[0] == (
+            device.DEVICE_CUDA
+        )
+
+
+class TestCpuRetry:
+    """Running it again on the processor — when that is worth offering.
+
+    An allowlist, because the offer costs the user the whole wait a second
+    time: a 40-minute recording redone for a failure the CPU cannot cure is
+    40 minutes spent learning to dismiss the offer.
+    """
+
+    @pytest.mark.parametrize(
+        "code", [errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE]
+    )
+    def test_a_gpu_fault_the_cpu_would_not_have_is_worth_redoing(self, code):
+        error = errors.TranscriptionError(code, "detail for the log")
+        assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is True
+        assert device.cpu_retry_i18n_key(error, device.DEVICE_CUDA)
+
+    @pytest.mark.parametrize("code", [
+        errors.CANCELLED,
+        errors.MODEL_NOT_INSTALLED,
+        errors.MODEL_CORRUPTED,
+        errors.MEDIA_NOT_DOWNLOADED,
+    ])
+    def test_the_cases_the_issue_names_as_pointless_are_not_offered(self, code):
+        error = errors.TranscriptionError(code)
+        assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is False
+        assert device.cpu_retry_i18n_key(error, device.DEVICE_CUDA) is None
+
+    @pytest.mark.parametrize("code", sorted(errors.ERROR_CODES))
+    def test_every_code_has_an_answer_and_only_these_two_are_yes(self, code):
+        # The set is written out rather than read back off the implementation:
+        # a third code added to the allowlist has to come here and re-argue
+        # itself against the comment above it, which is where the reasoning is.
+        worth_redoing = {errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE}
+        error = errors.TranscriptionError(code)
+        offered = device.should_retry_on_cpu(error, device.DEVICE_CUDA)
+        assert offered is (code in worth_redoing)
+
+    def test_insufficient_ram_is_never_the_cpus_problem_to_solve(self):
+        # It is the CPU's own memory that ran out; redoing it there is the one
+        # thing guaranteed to fail the same way.
+        error = errors.TranscriptionError(errors.INSUFFICIENT_RAM)
+        assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is False
+
+    def test_a_backend_error_is_not_offered(self):
+        # The GPU-only backend fault seen on real hardware — int8 on sm_120 —
+        # is already prevented by select_compute_type(), so what is left under
+        # this code is the unknown, and an offer that usually fails again is
+        # worse than none.
+        error = errors.TranscriptionError(errors.BACKEND_ERROR, "something new")
+        assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is False
+
+    def test_a_run_that_was_already_on_the_cpu_is_never_offered_the_cpu(self):
+        error = errors.TranscriptionError(errors.INSUFFICIENT_VRAM)
+        assert device.should_retry_on_cpu(error, device.DEVICE_CPU) is False
+        assert device.cpu_retry_i18n_key(error, device.DEVICE_CPU) is None
+
+    def test_a_device_that_was_never_decided_is_not_offered_either(self):
+        # job.device is still None when the run fell before the device was
+        # chosen — a backend that would not resolve, for instance.
+        error = errors.TranscriptionError(errors.CUDA_UNAVAILABLE)
+        assert device.should_retry_on_cpu(error, None) is False
+
+    def test_something_that_is_not_an_error_answers_no_rather_than_raising(self):
+        assert device.should_retry_on_cpu(None, device.DEVICE_CUDA) is False
+        assert device.cpu_retry_i18n_key("insufficient_vram") is None
+
+    def test_the_two_offers_do_not_say_the_same_thing(self):
+        # Declining sends the user to different settings, so the two failures
+        # cannot share one sentence.
+        assert len(set(device.CPU_RETRY_I18N_KEYS.values())) == len(
+            device.CPU_RETRY_I18N_KEYS
         )
 
 
@@ -752,6 +1503,14 @@ class TestTranslations:
             key for key in device.DEVICE_REASON_I18N_KEYS.values() if key not in table
         )
         assert missing == [], f"{locale}.json is missing device reasons: {missing}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_every_cpu_retry_offer_is_translated_everywhere(self, locale):
+        table = _load(locale)
+        missing = sorted(
+            key for key in device.CPU_RETRY_I18N_KEYS.values() if key not in table
+        )
+        assert missing == [], f"{locale}.json is missing retry offers: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_size_class_is_translated_everywhere(self, locale):
