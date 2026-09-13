@@ -64,6 +64,15 @@ CUDA_RUNTIME_CORRUPTED = "cuda_runtime_corrupted"
 # user who clicked "download the CUDA libraries" and is told another window is
 # busy with the *models* has been sent to look at the wrong thing.
 CUDA_RUNTIME_BUSY = "cuda_runtime_busy"
+# The DLLs are mapped into this process by a transcription that already ran on
+# the GPU, and Windows neither unlinks nor replaces a mapped DLL. It is not
+# corruption, it is not the download, and it is not another window: it is this
+# process, and the only way out is a restart. Its own code because the three
+# alternatives each send the user somewhere else — "check your connection",
+# "install them again", "wait for the other window" — and the wrong one here
+# costs 553 MB per attempt, since the download runs to completion and only
+# fails when it tries to publish over a file that cannot be replaced.
+CUDA_RUNTIME_IN_USE = "cuda_runtime_in_use"
 # The catch-all: the backend raised something we have no specific answer for.
 BACKEND_ERROR = "backend_error"
 
@@ -90,6 +99,7 @@ ERROR_CODES = (
     CUDA_RUNTIME_DOWNLOAD_FAILED,
     CUDA_RUNTIME_CORRUPTED,
     CUDA_RUNTIME_BUSY,
+    CUDA_RUNTIME_IN_USE,
     BACKEND_ERROR,
 )
 

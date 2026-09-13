@@ -62,6 +62,7 @@ from core.locale_format import get_date_format, get_time_format, get_datetime_fo
 from core.quiet_hours import is_quiet_hours_active
 from core.database_bridge import DatabaseBridge
 from core import token_vault
+from core.transcription import cuda_runtime
 from app_paths import resource_path, data_path, accounts_root
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -1426,6 +1427,20 @@ class MainWindow(wx.Frame):
         self.settings = {}
         logging.info("MainWindow: Loading settings...")
         self.load_settings()
+
+        # The CUDA libraries a previous session downloaded are on no loader
+        # search path when this process starts, so without this call a user who
+        # already paid for that 550 MB download is silently back on the
+        # processor today, with nothing anywhere saying why. It must run before
+        # the first device decision — anything reaching device.probe_hardware()
+        # or resolve_device() — and after load_settings(), so that a configured
+        # folder is already readable. Cheap (a couple of os.path.isfile plus an
+        # add_dll_directory), never raises, and False simply means there is
+        # nothing installed to register.
+        logging.info(
+            "MainWindow: CUDA transcription libraries registered=%s",
+            cuda_runtime.register_installed_runtime(),
+        )
 
         #Initialize sound system
         logging.info("MainWindow: Initializing sound system...")

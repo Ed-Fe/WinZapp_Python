@@ -116,6 +116,16 @@ class _HotkeyCapture(wx.TextCtrl):
 
 from core.utils import DEFAULT_SETTINGS, SEARCH_NORMALIZATION_MODES, search_normalization_mode, GROUP_MEDIA_TYPES, AUTO_DOWNLOAD_MEDIA_TYPES
 from core import save_location
+# Aliased: this file already talks about audio devices everywhere, so a bare
+# `device` here would read as one of those rather than as "GPU or processor".
+from core.transcription import (
+    backend as transcription_backend,
+    cuda_runtime,
+    device as transcription_device,
+    model_catalog,
+    model_store,
+    preferences as transcription_preferences,
+)
 
 
 def ensure_default_settings_file():
@@ -146,6 +156,89 @@ def ensure_default_settings_file():
     except Exception:
         pass
     return False
+
+
+# The order the transcription device options are offered in, and the map from
+# a radio index back to the value that reaches settings.json. A tuple rather
+# than the dict's own iteration order because the index the user picked is
+# meaningless unless the order is fixed here, in one place, for both
+# directions.
+_TRANSCRIPTION_DEVICE_PREFERENCES = (
+    transcription_device.PREFERENCE_AUTO,
+    transcription_device.PREFERENCE_CUDA,
+    transcription_device.PREFERENCE_CPU,
+)
+
+
+def _format_transcription_size(i18n, size_bytes) -> str:
+    """A model or download size as a short, speakable figure ("1,5 GB").
+
+    Binary units and the locale's own decimal separator, like every other size
+    WinZapp shows (see ConversationsPanel._format_filesize). Coarser than that
+    one on purpose: everything measured here is between 70 MB and 3 GB, and a
+    second decimal buys the user nothing while making the combobox item longer
+    to listen to.
+    """
+    try:
+        size = int(size_bytes or 0)
+    except (TypeError, ValueError):
+        return ""
+    sep = i18n.t("decimal_separator")
+    if size >= 1024 ** 3:
+        return f"{size / 1024 ** 3:.1f}".replace(".", sep) + " GB"
+    return f"{size / 1024 ** 2:.0f} MB"
+
+
+def _transcription_model_choice_label(i18n, model, state) -> str:
+    """One line of the model picker, written as a sentence.
+
+    A combobox item is a single accessibility object: the screen reader reads
+    the whole string and nothing else, so everything the user needs to choose
+    between two models has to be inside it — which model, how good it is, what
+    it costs, and whether it is already here. Three sentences rather than one
+    with a swappable tail, because the size means different things in each:
+    disk already spent, a download still to pay for, or a download to finish.
+
+    `state` is a model_store.InstallState; an unknown state reads as "not
+    installed", which is the honest answer for a folder we could not measure.
+    """
+    size_class = i18n.t(
+        model_catalog.size_class_i18n_key(model.size_class) or model.size_class
+    )
+    if state is not None and state.state == model_store.STATE_INSTALLED:
+        key, size = "transcription_model_choice_installed", model.disk_bytes
+    elif state is not None and state.state == model_store.STATE_INCOMPLETE:
+        key, size = "transcription_model_choice_incomplete", model.download_bytes
+    else:
+        key, size = "transcription_model_choice_available", model.download_bytes
+    return i18n.t(key).format(
+        name=model.id,
+        size_class=size_class,
+        size=_format_transcription_size(i18n, size),
+    )
+
+
+def _transcription_cuda_status_text(i18n, state) -> str:
+    """The one line saying where the CUDA libraries stand.
+
+    Four situations, not three: a complete install of an earlier pin and an
+    install interrupted half way are both INCOMPLETE, and cuda_runtime tells
+    them apart through `installed_version` precisely so this line can say
+    "update them" rather than "finish the download" (see RuntimeState). Its own
+    rule is honoured here too — `missing` wins, so the version only speaks when
+    nothing is missing.
+    """
+    if state is None:
+        return ""
+    if state.state == cuda_runtime.STATE_INSTALLED:
+        return i18n.t("transcription_cuda_runtime_installed")
+    if state.state == cuda_runtime.STATE_INCOMPLETE:
+        if not state.missing and state.installed_version:
+            return i18n.t(cuda_runtime.OUTDATED_I18N_KEY)
+        return i18n.t("transcription_cuda_runtime_incomplete")
+    return i18n.t("transcription_cuda_runtime_absent").format(
+        size=_format_transcription_size(i18n, cuda_runtime.WHEEL_BYTES)
+    )
 
 
 class SettingsDialog(wx.Dialog):
@@ -180,8 +273,19 @@ class SettingsDialog(wx.Dialog):
         # itself) are covered by _loading_values rather than by binding order.
         self.Bind(wx.EVT_CHECKBOX, self._mark_dirty)
         self.Bind(wx.EVT_RADIOBUTTON, self._mark_dirty)
+        # A wx.RadioBox is not a group of wx.RadioButtons and fires its own
+        # event type: without this the transcription tab's device picker was
+        # the one control in the whole dialog that could be changed without
+        # the Apply button ever appearing.
+        self.Bind(wx.EVT_RADIOBOX, self._mark_dirty)
         self.Bind(wx.EVT_COMBOBOX, self._mark_dirty)
         self.Bind(wx.EVT_TEXT, self._mark_dirty)
+        # Bound after _load_values() for the same reason as the four above:
+        # AddPage() itself fires this event while the notebook is being built,
+        # and the transcription tab must not count that as having been shown.
+        self._notebook.Bind(
+            wx.EVT_NOTEBOOK_PAGE_CHANGED, self._on_settings_page_changed
+        )
         self.Fit()
         self.SetMinSize((360, -1))
         self.Centre()
@@ -1047,6 +1151,16 @@ class SettingsDialog(wx.Dialog):
         self._notebook.AddPage(self._calls_page, i18n.t("tab_calls"))
         self._call_alerts_check.Bind(wx.EVT_CHECKBOX, self._on_call_alerts_toggle)
 
+        # ── Transcription tab ────────────────────────────────────────────────
+        # Appended, never inserted. Every hardcoded _notebook.SetSelection(N)
+        # in this file and in main.py names a tab at index 8 or lower, and the
+        # SetPageText() enumeration in _refresh_dialog_labels() is positional,
+        # so the end is the one position that shifts nothing — but the new
+        # index still owes that enumeration a line of its own, or the tab
+        # caption stops following a language change.
+        self._transcription_page = self._build_transcription_page(self._notebook)
+        self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
+
         # ── Button row ───────────────────────────────────────────────────────
         btn_sizer = wx.StdDialogButtonSizer()
         self._ok_btn = wx.Button(self, wx.ID_OK, label=i18n.t("ok"))
@@ -1065,6 +1179,819 @@ class SettingsDialog(wx.Dialog):
         self._ok_btn.Bind(wx.EVT_BUTTON, self._on_ok)
         self._cancel_btn.Bind(wx.EVT_BUTTON, self._on_cancel)
         self._apply_btn.Bind(wx.EVT_BUTTON, self._on_apply)
+
+    def _build_transcription_page(self, parent):
+        """The Transcrição tab, built inside `parent` and returned.
+
+        A method rather than one more block inside _build_ui(), and the reason
+        is the test: SettingsDialog is a wx.Dialog, which the suite may not
+        construct at all (tests/test_no_desktop_visible_windows.py — a dialog
+        owns its own construction, takes the desktop focus and has crashed a
+        developer's screen reader), so everything this tab offers would
+        otherwise only be checkable by reading the source. Taking the parent as
+        an argument is what lets the method be bound onto a stub and built
+        against conftest's off-screen frame instead.
+
+        Choices only. Downloading or removing a model, installing, repairing or
+        removing the CUDA libraries and *moving* the models folder all belong to
+        part 5c; this tab says what the state is and stores what the user picked.
+        """
+        i18n = self.main_window.i18n
+        page = wx.Panel(parent)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        #: The models folder as it is stored install-wide: "" for the default
+        #: folder, an absolute path otherwise. Read once, before anything below
+        #: is drawn, because the model list is drawn *against* it — and kept in
+        #: this attribute rather than read back out of the field, which shows
+        #: the resolved path and must never be written back (see
+        #: preferences.resolve_models_dir()).
+        self._transcription_models_dir = self._stored_transcription_models_dir()
+
+        #: What is actually on disk in that folder, re-read whenever the folder
+        #: changes. Empty until the tab is first put on screen — listing it is
+        #: disk I/O, and _enter_transcription_page() is where this tab's I/O
+        #: lives (see _load_transcription_values() for why none of it is on the
+        #: path of simply opening the dialog).
+        self._transcription_installed_ids = ()
+        #: device.probe_hardware()'s answer, or None while nobody has measured.
+        #: Taken once, on the first visit to this tab, and never on open.
+        self._transcription_probe = None
+        #: Whether this tab has actually been on screen. Everything that
+        #: *consumes* a substitution warning is gated on it — see
+        #: _enter_transcription_page() and
+        #: _transcription_setting_may_be_written().
+        self._transcription_page_seen = False
+        #: Which settings resolve() had to replace, as setting names.
+        self._transcription_substituted_settings = set()
+
+        #: Three lines of the font actually in use, for the two read-only
+        #: fields below. A pixel count (52 px was two lines at 100% scaling)
+        #: crops the text at the display scaling and font size a low-vision
+        #: user runs — the one reader these two fields exist for.
+        text_block_height = page.GetTextExtent("Xg").GetHeight() * 3
+
+        # What resolve() had to replace, when it had to replace anything.
+        # First on the page and in the tab order because it is about the
+        # controls below it — and a read-only wx.TextCtrl rather than a
+        # wx.StaticText because static text is not focusable: a screen-reader
+        # user tabbing through the tab would never reach it.
+        self._transcription_substituted_label = wx.StaticText(
+            page, label=i18n.t("transcription_substituted_label")
+        )
+        sizer.Add(self._transcription_substituted_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._transcription_substituted_field = wx.TextCtrl(
+            page, style=wx.TE_MULTILINE | wx.TE_BESTWRAP, size=(-1, text_block_height)
+        )
+        # SetEditable(False), never Disable(): a disabled control drops out of
+        # the tab order entirely, which is the same as not showing the warning
+        # at all to the user it is written for (see ConversationsPanel's
+        # read-only composer for the same call and the same reasoning).
+        self._transcription_substituted_field.SetEditable(False)
+        sizer.Add(self._transcription_substituted_field, 0, wx.EXPAND | wx.ALL, 8)
+        self._transcription_substituted_label.Hide()
+        self._transcription_substituted_field.Hide()
+        self._transcription_substitution_keys = []
+        #: The same field also carries what the *machine* has to say about the
+        #: current choices — kept apart from the substitutions because the two
+        #: are recomputed at different moments (see
+        #: _show_transcription_hardware_notices()).
+        self._transcription_hardware_keys = []
+
+        self._transcription_model_label = wx.StaticText(
+            page, label=i18n.t("transcription_model_label")
+        )
+        sizer.Add(self._transcription_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._transcription_model_combo = wx.ComboBox(page, style=wx.CB_READONLY)
+        # Same multi-character type-ahead as the language combo on the General
+        # tab — a read-only wx.ComboBox otherwise only matches the first letter.
+        bind_incremental_search(self._transcription_model_combo)
+        sizer.Add(self._transcription_model_combo, 0, wx.EXPAND | wx.ALL, 8)
+        #: Parallel to the combobox items: index -> the value stored in
+        #: settings.json. The item text is a whole sentence, so it cannot be
+        #: mapped back to an id by reading it.
+        self._transcription_model_ids = []
+        self._populate_transcription_model_choices()
+
+        self._transcription_device_radio = wx.RadioBox(
+            page,
+            label=i18n.t("transcription_device_label"),
+            choices=[
+                i18n.t(transcription_preferences.DEVICE_PREFERENCE_I18N_KEYS[pref])
+                for pref in _TRANSCRIPTION_DEVICE_PREFERENCES
+            ],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        sizer.Add(self._transcription_device_radio, 0, wx.EXPAND | wx.ALL, 8)
+        # Asking for the graphics card on a machine that has none is worth
+        # saying so the moment it is asked, not at the end of the first
+        # transcription — and the CUDA line further down otherwise invites a
+        # half-gigabyte download that would not help.
+        self._transcription_device_radio.Bind(
+            wx.EVT_RADIOBOX, self._on_transcription_device_change
+        )
+
+        # A checkbox that enables the list, rather than a "detect
+        # automatically" entry at the top of the list itself: they are two
+        # different questions ("per message?" and "which language, when not?"),
+        # and this is the pair a screen reader reads best. See
+        # preferences._resolve_language() for the whole argument.
+        self._transcription_detect_language_check = wx.CheckBox(
+            page, label=i18n.t(transcription_preferences.LANGUAGE_DETECT_I18N_KEY)
+        )
+        sizer.Add(self._transcription_detect_language_check, 0, wx.ALL, 8)
+
+        self._transcription_language_label = wx.StaticText(
+            page, label=i18n.t("transcription_language_label")
+        )
+        sizer.Add(self._transcription_language_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._transcription_language_combo = wx.ComboBox(page, style=wx.CB_READONLY)
+        bind_incremental_search(self._transcription_language_combo)
+        sizer.Add(self._transcription_language_combo, 0, wx.EXPAND | wx.ALL, 8)
+        self._transcription_language_codes = []
+        self._populate_transcription_language_choices()
+        self._transcription_detect_language_check.Bind(
+            wx.EVT_CHECKBOX, self._on_transcription_detect_language_toggle
+        )
+
+        # The backend picker exists only where there is something to pick.
+        # Keyed on BACKEND_IDS — what WinZapp knows — and not on
+        # available_backend_ids(), which is what runs on this machine today:
+        # measuring that means importing the optional backend just to draw a
+        # tab, and a user must be able to choose the component they are about
+        # to install. With one id there is nothing to choose, and a combobox
+        # with a single entry is a stop in the tab order that answers nothing.
+        self._transcription_backend_label = None
+        self._transcription_backend_combo = None
+        self._transcription_backend_ids = []
+        if len(transcription_backend.BACKEND_IDS) > 1:
+            self._transcription_backend_label = wx.StaticText(
+                page, label=i18n.t("transcription_backend_label")
+            )
+            sizer.Add(
+                self._transcription_backend_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8
+            )
+            self._transcription_backend_combo = wx.ComboBox(page, style=wx.CB_READONLY)
+            bind_incremental_search(self._transcription_backend_combo)
+            sizer.Add(self._transcription_backend_combo, 0, wx.EXPAND | wx.ALL, 8)
+            self._populate_transcription_backend_choices()
+
+        self._transcription_models_dir_label = wx.StaticText(
+            page, label=i18n.t("transcription_models_dir_label")
+        )
+        sizer.Add(self._transcription_models_dir_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        # Field and button on one row, as on the Files and saving tab: the path
+        # is the long part and the button is a fixed word.
+        models_dir_row = wx.BoxSizer(wx.HORIZONTAL)
+        self._transcription_models_dir_field = wx.TextCtrl(page, style=wx.TE_DONTWRAP)
+        # Shows the *resolved* folder, and is not typed into: an empty stored
+        # value means "the default folder", and typing the resolved path back
+        # into it would freeze a data directory that legitimately moves (see
+        # preferences.resolve_models_dir()).
+        self._transcription_models_dir_field.SetEditable(False)
+        models_dir_row.Add(self._transcription_models_dir_field, 1, wx.EXPAND | wx.RIGHT, 8)
+        self._transcription_models_dir_browse_btn = wx.Button(
+            page, label=i18n.t("transcription_models_dir_browse_btn")
+        )
+        models_dir_row.Add(self._transcription_models_dir_browse_btn, 0)
+        sizer.Add(models_dir_row, 0, wx.EXPAND | wx.ALL, 8)
+        self._transcription_models_dir_browse_btn.Bind(
+            wx.EVT_BUTTON, self._on_browse_transcription_models_dir
+        )
+        self._show_transcription_models_dir()
+
+        self._transcription_cuda_label = wx.StaticText(
+            page, label=i18n.t("transcription_cuda_runtime_label")
+        )
+        sizer.Add(self._transcription_cuda_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._transcription_cuda_field = wx.TextCtrl(
+            page, style=wx.TE_MULTILINE | wx.TE_BESTWRAP, size=(-1, text_block_height)
+        )
+        self._transcription_cuda_field.SetEditable(False)
+        sizer.Add(self._transcription_cuda_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        page.SetSizer(sizer)
+        return page
+
+    # ── Transcription tab ────────────────────────────────────────────────────
+    # Kept together rather than spread across this file's Helpers/Event
+    # handlers sections: the tab is one subject, and the populate/load/apply
+    # halves only make sense read against each other.
+
+    def _transcription_app_settings(self):
+        """This window's install-wide settings object, or None.
+
+        **`_app_settings`, with the underscore** — that is the attribute
+        `MainWindow._apply_global_settings()` writes and `_persist_global_
+        settings()` reads, and nothing in the app ever sets a bare
+        `app_settings` on the window. The two `switch_behavior` call sites in
+        this file spell it without one and survive only because they fall back
+        to `settings["general"]`, which `_apply_global_settings()` overlays for
+        them; the models folder is not in `_GENERAL_GLOBAL` and has no such
+        second route, so a wrong spelling here means the folder the user chose
+        is silently never written and never read back.
+
+        `getattr` is kept rather than a plain attribute read because
+        `_apply_global_settings()` returns early when there is no `global_dir`
+        (a legacy, account-less install), leaving the attribute unset.
+        """
+        return getattr(self.main_window, "_app_settings", None)
+
+    def _stored_transcription_models_dir(self) -> str:
+        """The install-wide models folder as stored: "" means the default.
+
+        Install-wide, so it comes from app_settings and not from this account's
+        settings.json — the model files are shared by every account (see
+        app_settings' own comment on the key).
+        """
+        return transcription_preferences.stored_models_dir(
+            self._transcription_app_settings()
+        )
+
+    def _refresh_transcription_models(self):
+        """Redraw everything that depends on what the models folder holds.
+
+        The folder, the model list and the hardware notices, in that order —
+        "nothing fits" can stop or start being true with the models on disk.
+        One place for it because more than one event changes that: choosing
+        another folder today, and downloading, removing or moving a model once
+        part 5c adds those actions. _enter_transcription_page() runs once per
+        opening and cannot serve as the refresh after an action.
+        """
+        self._show_transcription_models_dir()
+        self._populate_transcription_model_choices()
+        _models_dir, self._transcription_installed_ids = (
+            transcription_preferences.models_folder(self._transcription_models_dir)
+        )
+        self._show_transcription_hardware_notices()
+
+    def _show_transcription_models_dir(self):
+        """Put the *resolved* folder in the field, whatever is stored."""
+        # ChangeValue, never SetValue: wx fires EVT_TEXT for SetValue even
+        # with identical text, and the dialog routes EVT_TEXT to _mark_dirty.
+        # This field only *shows* a folder — the Browse button is what
+        # changes it, and it marks the dialog dirty itself.
+        self._transcription_models_dir_field.ChangeValue(
+            transcription_preferences.resolve_models_dir(self._transcription_models_dir)
+        )
+
+    def _populate_transcription_model_choices(self):
+        """Rebuild the model list, keeping whatever was selected selected.
+
+        Every entry is re-measured against the folder in force *now*, which is
+        also why this is called again after the folder changes: a list drawn
+        from the old folder would tell the user a model is installed when the
+        run would not find it.
+        """
+        i18n = self.main_window.i18n
+        models_dir = transcription_preferences.resolve_models_dir(
+            self._transcription_models_dir
+        )
+        labels = [i18n.t(transcription_preferences.OPTION_AUTO_I18N_KEY)]
+        model_ids = [transcription_preferences.AUTO]
+        for model in model_catalog.list_models():
+            labels.append(_transcription_model_choice_label(
+                i18n, model, model_store.installation_state(models_dir, model)
+            ))
+            model_ids.append(model.id)
+
+        selected = self._selected_transcription_model()
+        # Set() replaces the whole list in one call, so there is nothing for
+        # Freeze()/Thaw() to batch here — that pair is for the row-by-row
+        # mutation of a list control, where it saves the screen reader a flood
+        # of one event per row.
+        self._transcription_model_combo.Set(labels)
+        self._transcription_model_ids = model_ids
+        self._select_transcription_model(selected)
+
+    def _populate_transcription_language_choices(self):
+        """Rebuild the language list, keeping whatever was selected selected.
+
+        Endonyms, with WinZapp's own language first — both decided by
+        language_choices(). The "the language WinZapp is in" sentinel is an
+        entry of its own at the very top, because it is the stored default and
+        a value with no entry to select is a value the dialog cannot show.
+        """
+        i18n = self.main_window.i18n
+        labels = [i18n.t(transcription_preferences.LANGUAGE_INTERFACE_I18N_KEY)]
+        codes = [transcription_preferences.LANGUAGE_INTERFACE]
+        for code, endonym in transcription_preferences.language_choices(i18n.language):
+            labels.append(endonym)
+            codes.append(code)
+
+        selected = self._selected_transcription_language()
+        self._transcription_language_combo.Set(labels)
+        self._transcription_language_codes = codes
+        self._select_transcription_language(selected)
+
+    def _populate_transcription_backend_choices(self):
+        """Rebuild the backend list. Only ever called where there is one."""
+        i18n = self.main_window.i18n
+        labels = [i18n.t(transcription_preferences.OPTION_AUTO_I18N_KEY)]
+        backend_ids = [transcription_preferences.AUTO]
+        for backend_id in transcription_backend.BACKEND_IDS:
+            labels.append(i18n.t(
+                transcription_preferences.BACKEND_I18N_KEYS.get(backend_id, backend_id)
+            ))
+            backend_ids.append(backend_id)
+
+        selected = self._selected_transcription_backend()
+        self._transcription_backend_combo.Set(labels)
+        self._transcription_backend_ids = backend_ids
+        self._select_transcription_backend(selected)
+
+    def _selected_transcription_model(self):
+        return self._selected_id(
+            self._transcription_model_combo, self._transcription_model_ids
+        )
+
+    def _selected_transcription_language(self):
+        return self._selected_id(
+            self._transcription_language_combo, self._transcription_language_codes
+        )
+
+    def _selected_transcription_backend(self):
+        if self._transcription_backend_combo is None:
+            return None
+        return self._selected_id(
+            self._transcription_backend_combo, self._transcription_backend_ids
+        )
+
+    @staticmethod
+    def _selected_id(combo, values):
+        """The stored value behind the selected item, or None.
+
+        The item text is a whole sentence (see
+        _transcription_model_choice_label()), so the id can only come from the
+        parallel list — never from reading the label back.
+        """
+        index = combo.GetSelection()
+        if index == wx.NOT_FOUND or not 0 <= index < len(values):
+            return None
+        return values[index]
+
+    def _select_transcription_model(self, model_id):
+        self._select_id(
+            self._transcription_model_combo, self._transcription_model_ids, model_id
+        )
+
+    def _select_transcription_language(self, code):
+        self._select_id(
+            self._transcription_language_combo, self._transcription_language_codes, code
+        )
+
+    def _select_transcription_backend(self, backend_id):
+        if self._transcription_backend_combo is not None:
+            self._select_id(
+                self._transcription_backend_combo,
+                self._transcription_backend_ids,
+                backend_id,
+            )
+
+    @staticmethod
+    def _select_id(combo, values, value):
+        """Select the item standing for `value`, falling back to "automatic".
+
+        Index 0 is the automatic entry in every one of these lists, and it is
+        the right fallback for a value with no entry: sanitize_section() has
+        already rewritten anything permanently meaningless, so what is left
+        here is a value this build cannot show — and showing the automatic
+        entry is what the run would do with it anyway.
+        """
+        if combo.GetCount() == 0:
+            return
+        combo.SetSelection(values.index(value) if value in values else 0)
+
+    def _selected_transcription_device_preference(self):
+        """The device preference the radio is on, never a negative index.
+
+        `wx.NOT_FOUND` is -1, which indexes the preference tuple from the end
+        and would answer "processor" for something the user never chose. A
+        wx.RadioBox always has a selection so this cannot happen today; the
+        guard is what keeps it from happening silently if the control is ever
+        swapped for one that can be left unset.
+        """
+        index = self._transcription_device_radio.GetSelection()
+        if not 0 <= index < len(_TRANSCRIPTION_DEVICE_PREFERENCES):
+            return transcription_device.PREFERENCE_AUTO
+        return _TRANSCRIPTION_DEVICE_PREFERENCES[index]
+
+    def _sync_transcription_language_controls(self):
+        """The language list is only for the user who turned detection off.
+
+        Disabled rather than hidden, like the custom save folder: a control
+        that appears and disappears is harder to follow under a screen reader
+        than one that is consistently there and consistently unavailable.
+        (Not a tab-order argument — a disabled control is skipped exactly as a
+        hidden one is; consistency is the whole of the reason.)
+        """
+        detect = self._transcription_detect_language_check.GetValue()
+        for control in (self._transcription_language_label,
+                        self._transcription_language_combo):
+            control.Enable(not detect)
+
+    def _show_transcription_substitutions(self, resolution):
+        """Say which stored choices could not be honoured, or show nothing.
+
+        One sentence per replaced setting, never the stored value itself: an
+        id read out to a blind user says nothing they can act on, which is why
+        Substitution keeps the id for the log and the sentence for here.
+        """
+        #: The keys rather than the rendered sentences, so a language change
+        #: can say the same thing again in the new language instead of leaving
+        #: the old one on screen.
+        self._transcription_substitution_keys = [
+            substitution.i18n_key for substitution in resolution.substitutions
+        ]
+        #: The same substitutions as setting names, which is what decides
+        #: whether OK may write that control back — see
+        #: _transcription_setting_may_be_written().
+        self._transcription_substituted_settings = {
+            substitution.setting for substitution in resolution.substitutions
+        }
+        self._render_transcription_substitutions()
+
+    def _show_transcription_hardware_notices(self):
+        """Redraw the two sentences that only a measurement can produce.
+
+        A no-op until the tab has been on screen once: with no probe there is
+        nothing measured to report, and taking one here would put the cost
+        back on the path this whole split exists to keep clear.
+        """
+        self._transcription_hardware_keys = (
+            [] if self._transcription_probe is None
+            else self._transcription_hardware_notice_keys(self._transcription_probe)
+        )
+        self._render_transcription_substitutions()
+
+    def _transcription_hardware_notice_keys(self, probe):
+        """The i18n keys for what this machine says about the current choices.
+
+        Resolved against the controls as they stand rather than against
+        settings.json, because both notices answer a question the user is
+        asking right now — "what happens if I pick the graphics card?" — and
+        the answer has to follow the radio button, not what OK last wrote.
+
+        `preferences.resolve()` rather than `device.auto_select_model()` plus
+        an `available_memory_mb()` of our own: telling "nothing fits" apart
+        from "nothing could be measured" is a decision preferences.py already
+        makes against this same probe, and a second copy of it here is a copy
+        that can disagree with the one the run will use.
+        """
+        preference = self._selected_transcription_device_preference()
+        live = {transcription_preferences.SECTION: {
+            transcription_preferences.SETTING_MODEL:
+                self._selected_transcription_model()
+                or transcription_preferences.AUTO,
+            transcription_preferences.SETTING_DEVICE: preference,
+        }}
+        resolution = transcription_preferences.resolve(
+            live, probe, self._transcription_installed_ids
+        )
+
+        keys = []
+        device_id, reason = transcription_device.resolve_device(preference, probe)
+        if (preference == transcription_device.PREFERENCE_CUDA
+                and device_id != transcription_device.DEVICE_CUDA):
+            # Only for the user who asked for the card. Under "automatic" the
+            # processor is not a disappointed expectation, which is the same
+            # distinction resolve_device() itself draws.
+            keys.append(transcription_device.device_reason_i18n_key(reason))
+        if resolution.model_none_reason is not None:
+            keys.append(
+                transcription_preferences.MODEL_NONE_I18N_KEYS[
+                    resolution.model_none_reason
+                ]
+            )
+        return keys
+
+    def _render_transcription_substitutions(self):
+        i18n = self.main_window.i18n
+        # Both sources share the one field, and that is deliberate: they are
+        # the same kind of thing to the person reading them, and a second
+        # read-only box would be a second tab stop saying so.
+        text = "\n".join(
+            i18n.t(key) for key in
+            self._transcription_substitution_keys + self._transcription_hardware_keys
+        )
+        # ChangeValue: showing a warning is not an edit. With SetValue, merely
+        # arriving on this tab made the Apply button appear and gain a tab
+        # stop — exactly what _mark_dirty exists to prevent.
+        self._transcription_substituted_field.ChangeValue(text)
+        self._transcription_substituted_label.Show(bool(text))
+        self._transcription_substituted_field.Show(bool(text))
+        self._transcription_substituted_field.GetParent().Layout()
+
+    def _show_transcription_cuda_status(self):
+        """Put the one line about the CUDA libraries into its own field."""
+        # ChangeValue for the same reason as the warning field above.
+        self._transcription_cuda_field.ChangeValue(_transcription_cuda_status_text(
+            self.main_window.i18n, cuda_runtime.installation_state()
+        ))
+
+    def _load_transcription_values(self):
+        """Populate the Transcrição tab. Measures nothing and consumes nothing.
+
+        Two things this deliberately does *not* do, both of which it used to.
+
+        **It does not probe the hardware.** `device.probe_hardware()` imports
+        ctranslate2, counts CUDA devices, asks NVML and, where a card is
+        present, LoadLibrary's cuBLAS — seconds on a machine with a graphics
+        card, on the wx thread, inside `SettingsDialog.__init__`, i.e. before
+        there is a window for a screen reader to announce. device.py accepts
+        that cost against "nothing next to a transcription"; the budget for
+        opening Ctrl+, is not the same budget. Nothing here needs the answer:
+        the substitutions below are provably independent of it (neither
+        `_resolve_backend()`, `_resolve_device_preference()` nor
+        `_resolve_language()` is even handed the probe, and `_resolve_model()`
+        appends its own before `auto_select_model()` is reached), so an empty
+        probe and an empty installed list produce the identical warning list.
+        The measurement happens on the first visit to the tab instead —
+        `_enter_transcription_page()`, which is what `model_none_reason` and
+        the "you asked for a card this machine has not got" notice are read
+        off. Part 5c needs the same answer for its download offers: take it
+        from there, or off the UI thread altogether, never from here.
+
+        **It does not sanitize.** `resolve()` reports a value it had to replace
+        and `sanitize_section()` is what stops that report repeating — but it
+        stops it whether or not anybody was told, and this method runs on every
+        single open of this dialog, including the one where the user came to
+        change the interface language and never looked at this tab. Consuming
+        the warning there is the exact silent swap preferences.py exists to
+        prevent. Both the sanitize and the write-back are therefore gated on
+        the tab having actually been shown.
+        """
+        i18n = self.main_window.i18n
+        settings = self.main_window.settings
+
+        self._transcription_models_dir = self._stored_transcription_models_dir()
+        self._show_transcription_models_dir()
+
+        # available_backends stays None — "nobody measured" — on purpose:
+        # measuring means importing the optional backend, and _resolve_backend()
+        # then checks a stored id against the ids this version knows about
+        # rather than inventing an obstacle we did not observe. The empty probe
+        # and the empty installed list are the same kind of "nobody measured",
+        # and for the reason in this method's docstring: only .substitutions is
+        # read from what comes back, and no substitution depends on either.
+        resolution = transcription_preferences.resolve(
+            settings,
+            transcription_device.HardwareProbe(),
+            (),
+            i18n.language,
+        )
+        self._show_transcription_substitutions(resolution)
+
+        section = transcription_preferences.read_section(settings)
+        self._populate_transcription_model_choices()
+        self._select_transcription_model(section[transcription_preferences.SETTING_MODEL])
+
+        stored_device = section[transcription_preferences.SETTING_DEVICE]
+        self._transcription_device_radio.SetSelection(
+            _TRANSCRIPTION_DEVICE_PREFERENCES.index(stored_device)
+            if stored_device in _TRANSCRIPTION_DEVICE_PREFERENCES else 0
+        )
+
+        detect = section[transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE]
+        self._transcription_detect_language_check.SetValue(bool(detect))
+        self._populate_transcription_language_choices()
+        self._select_transcription_language(
+            section[transcription_preferences.SETTING_LANGUAGE]
+        )
+        self._sync_transcription_language_controls()
+
+        if self._transcription_backend_combo is not None:
+            self._populate_transcription_backend_choices()
+            self._select_transcription_backend(
+                section[transcription_preferences.SETTING_BACKEND]
+            )
+
+        self._show_transcription_cuda_status()
+
+    def _enter_transcription_page(self):
+        """The tab has been put on screen: measure it, say it, and only then
+        let what it says be spent.
+
+        Everything the tab costs the user is here rather than in
+        `_load_transcription_values()`, for two separate reasons.
+
+        The probe and the folder listing are disk and driver I/O, and paying
+        for them on every Ctrl+, blocks the wx thread before there is even a
+        window for the screen reader to announce.
+
+        The warning is the other half. A read-only field on a tab that was
+        never selected is not a cue for anybody, and under NVDA it is not a
+        cue even with the tab open until focus reaches it — so the sentence is
+        also spoken once, through `speak_output` like every other announcement
+        in the app. `sanitize_section()` runs only *after* that: it rewrites
+        the dead value so the warning never comes back, which is exactly why
+        it must not run before the warning was delivered.
+
+        Idempotent by design — a user switching tabs back and forth is not a
+        reason to re-measure, and re-speaking the same sentence on every visit
+        would be its own kind of noise.
+        """
+        if self._transcription_page_seen:
+            return
+        self._transcription_page_seen = True
+
+        # One call rather than resolving the folder and listing it separately:
+        # a tab that lists from one folder while the run reads another shows
+        # the user a model that is not the one a transcription would find.
+        _models_dir, self._transcription_installed_ids = (
+            transcription_preferences.models_folder(self._transcription_models_dir)
+        )
+        self._transcription_probe = transcription_device.probe_hardware()
+        self._show_transcription_hardware_notices()
+        self._show_transcription_cuda_status()
+
+        if self._transcription_substitution_keys:
+            i18n = self.main_window.i18n
+            self.main_window.speak_output.output(" ".join(
+                i18n.t(key) for key in self._transcription_substitution_keys
+            ))
+        if transcription_preferences.sanitize_section(self.main_window.settings):
+            # Saved here rather than left to OK/Apply: the point of rewriting a
+            # value that can never be valid again is that the warning above is
+            # not repeated, and a user who closes this dialog with Cancel would
+            # otherwise be told the same thing again on every open.
+            self.main_window.save_settings()
+
+    def _transcription_setting_may_be_written(self, setting) -> bool:
+        """Whether OK may write this control back over what is stored.
+
+        A setting `resolve()` had to substitute is showing the *replacement*,
+        not what is on disk: writing that back from an OK pressed on some other
+        tab consumes the warning the user was never given, and leaves them with
+        "Automático" selected and nothing to say their choice was dropped.
+        Every other setting is unaffected — its control is a faithful copy of
+        what is stored, so writing it back changes nothing.
+        """
+        return (self._transcription_page_seen
+                or setting not in self._transcription_substituted_settings)
+
+    def _apply_transcription_values(self):
+        """Write the Transcrição tab back. Called from _apply_values().
+
+        Only what the tab actually presented — see
+        _transcription_setting_may_be_written().
+        """
+        section = self.main_window.settings.setdefault(
+            transcription_preferences.SECTION, {}
+        )
+        model_id = self._selected_transcription_model()
+        if model_id is not None and self._transcription_setting_may_be_written(
+                transcription_preferences.SETTING_MODEL):
+            section[transcription_preferences.SETTING_MODEL] = model_id
+        if self._transcription_setting_may_be_written(
+                transcription_preferences.SETTING_DEVICE):
+            section[transcription_preferences.SETTING_DEVICE] = (
+                self._selected_transcription_device_preference()
+            )
+        # Not gated: the checkbox is never substituted (a value that is not a
+        # bool carries no intent to have been overridden, which is why
+        # _resolve_language() does not report it either), so the control always
+        # shows what is stored.
+        section[transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE] = (
+            self._transcription_detect_language_check.GetValue()
+        )
+        # Written even while detection is on: it is the language the user would
+        # rather hear, which preferred_language() answers for part 6 whatever
+        # the checkbox says, and losing it every time detection is ticked would
+        # make the choice unrecoverable.
+        language = self._selected_transcription_language()
+        if language is not None and self._transcription_setting_may_be_written(
+                transcription_preferences.SETTING_LANGUAGE):
+            section[transcription_preferences.SETTING_LANGUAGE] = language
+        # The backend key is left exactly as it was found where there is no
+        # picker: with one backend the stored value carries no choice of the
+        # user's, and writing over it would be this dialog inventing one.
+        backend_id = self._selected_transcription_backend()
+        if backend_id is not None and self._transcription_setting_may_be_written(
+                transcription_preferences.SETTING_BACKEND):
+            section[transcription_preferences.SETTING_BACKEND] = backend_id
+
+        # The models folder is install-wide, so it goes to app_settings and not
+        # into this account's settings.json — app_settings.set() raises KeyError
+        # for anything that is not global, which is what keeps it that way.
+        app_settings = self._transcription_app_settings()
+        if (app_settings is not None
+                and self._transcription_models_dir != self._stored_transcription_models_dir()):
+            app_settings.set(
+                transcription_preferences.MODELS_DIR_SETTING,
+                self._transcription_models_dir,
+            )
+
+    def _refresh_transcription_labels(self):
+        """Retranslate the Transcrição tab after a language change.
+
+        More than SetLabel() calls: both comboboxes carry text built out of
+        translations (the size class and the installed state of every model,
+        and the interface-language entry), so they are rebuilt rather than
+        relabelled — which is also why the populate helpers preserve the
+        selection instead of resetting it.
+        """
+        i18n = self.main_window.i18n
+        self._transcription_substituted_label.SetLabel(
+            i18n.t("transcription_substituted_label")
+        )
+        self._render_transcription_substitutions()
+        self._transcription_model_label.SetLabel(i18n.t("transcription_model_label"))
+        self._populate_transcription_model_choices()
+        self._transcription_device_radio.SetLabel(i18n.t("transcription_device_label"))
+        for index, preference in enumerate(_TRANSCRIPTION_DEVICE_PREFERENCES):
+            self._transcription_device_radio.SetItemLabel(
+                index,
+                i18n.t(transcription_preferences.DEVICE_PREFERENCE_I18N_KEYS[preference]),
+            )
+        self._transcription_detect_language_check.SetLabel(
+            i18n.t(transcription_preferences.LANGUAGE_DETECT_I18N_KEY)
+        )
+        self._transcription_language_label.SetLabel(
+            i18n.t("transcription_language_label")
+        )
+        # Rebuilt, not just relabelled: language_choices() puts WinZapp's own
+        # language first, and "its own language" is exactly what just changed.
+        self._populate_transcription_language_choices()
+        if self._transcription_backend_combo is not None:
+            self._transcription_backend_label.SetLabel(
+                i18n.t("transcription_backend_label")
+            )
+            self._populate_transcription_backend_choices()
+        self._transcription_models_dir_label.SetLabel(
+            i18n.t("transcription_models_dir_label")
+        )
+        self._transcription_models_dir_browse_btn.SetLabel(
+            i18n.t("transcription_models_dir_browse_btn")
+        )
+        self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
+        self._show_transcription_cuda_status()
+
+    def _on_settings_page_changed(self, event):
+        """Notice when the transcription tab is the one now on screen."""
+        event.Skip()
+        index = event.GetSelection()
+        if index == wx.NOT_FOUND or index >= self._notebook.GetPageCount():
+            return
+        if self._notebook.GetPage(index) is self._transcription_page:
+            self._enter_transcription_page()
+
+    def _on_transcription_detect_language_toggle(self, event):
+        self._sync_transcription_language_controls()
+        event.Skip()
+
+    def _on_transcription_device_change(self, event):
+        """Re-answer "and what would that actually run on?" as it is asked."""
+        self._show_transcription_hardware_notices()
+        # Skip() or the dialog-level EVT_RADIOBOX never runs and the Apply
+        # button stays hidden — see _mark_dirty()'s docstring.
+        event.Skip()
+
+    def _on_browse_transcription_models_dir(self, event):
+        """Choose the folder the models are downloaded into.
+
+        **This records the preference and moves nothing** — moving what is
+        already downloaded is part 5c's job (model_store.move_models(), under
+        the same cross-process lock, with progress and cancellation). Nothing
+        can be stranded by that yet: until 5c there is no way to download a
+        model from inside the app at all, so the folder this points at is
+        empty. The model list is redrawn against the new folder immediately,
+        so what the tab says about each model stays true.
+        """
+        i18n = self.main_window.i18n
+        current = transcription_preferences.resolve_models_dir(
+            self._transcription_models_dir
+        )
+        try:
+            default_path = current if os.path.isdir(current) else ""
+        except (OSError, ValueError):
+            default_path = ""
+        with wx.DirDialog(
+            self,
+            message=i18n.t("transcription_models_dir_browse_dialog_title"),
+            defaultPath=default_path,
+            style=wx.DD_DEFAULT_STYLE,
+        ) as dlg:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            chosen = dlg.GetPath()
+
+        # Choosing the default folder stores the empty sentinel rather than the
+        # path it resolved to: an absolute path written here would freeze a data
+        # directory that legitimately moves — the whole WinZapp data folder is
+        # meant to be copyable to another machine.
+        default_dir = model_store.default_models_dir()
+        try:
+            is_default = os.path.normcase(os.path.abspath(chosen)) == os.path.normcase(
+                os.path.abspath(default_dir)
+            )
+        except (OSError, ValueError):
+            is_default = False
+        self._transcription_models_dir = "" if is_default else chosen
+        self._refresh_transcription_models()
+        self._transcription_models_dir_field.SetFocus()
+        self._mark_dirty()
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1343,6 +2270,8 @@ class SettingsDialog(wx.Dialog):
         self._mark_audio_played_check.SetValue(
             audio_playback.get("mark_audio_played_in_list", True)
         )
+
+        self._load_transcription_values()
 
     def _set_alert_combo(self, combo, choice_key: str):
         try:
@@ -2405,6 +3334,10 @@ class SettingsDialog(wx.Dialog):
             "mark_audio_played_in_list"
         ] = self._mark_audio_played_check.GetValue()
 
+        # Transcription — the four per-account settings plus the install-wide
+        # models folder, which goes to app_settings rather than settings.json.
+        self._apply_transcription_values()
+
         # Persist and propagate
         self.main_window.save_settings()
         # Reload sound objects so per-event enabled/path changes (and the new
@@ -2469,6 +3402,7 @@ class SettingsDialog(wx.Dialog):
         self._notebook.SetPageText(9, i18n.t("tab_files_saving"))
         self._notebook.SetPageText(10, i18n.t("tab_audio_playback"))
         self._notebook.SetPageText(11, i18n.t("tab_calls"))
+        self._notebook.SetPageText(12, i18n.t("tab_transcription"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
@@ -2616,6 +3550,10 @@ class SettingsDialog(wx.Dialog):
         for s in self._AUDIO_SPEED_STEPS:
             self._audio_speed_combo.Append(self._format_speed(s))
         self._audio_speed_combo.SetSelection(cur_sel if cur_sel != wx.NOT_FOUND else 0)
+
+        # Transcription tab — sizes carry the decimal separator too, and the
+        # language list is ordered by the interface language that just changed.
+        self._refresh_transcription_labels()
 
     # ── Event handlers ───────────────────────────────────────────────────────
 

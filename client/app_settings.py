@@ -55,6 +55,16 @@ _DEFAULTS: dict[str, Any] = {
     # on every new-account pairing under the multi-account flow.
     "wpp_api_key": "70733f08be1ed195bda1c31b6e135f5ebeb9fb8c6c28530a3a46e4093357b037",
     "wpp_custom_api": False,
+    # Where the Whisper transcription models are downloaded to. Global rather
+    # than per-account because the files themselves are shared — a single model
+    # is up to 3 GB, which is exactly why model_store.default_models_dir() puts
+    # them under global_dir() — so one account pointing somewhere else while
+    # its siblings keep reading the old folder is not a state that means
+    # anything. Empty means "the default folder": see
+    # core.transcription.preferences.resolve_models_dir() for why the resolved
+    # path is deliberately not written here. Key name mirrored by that module's
+    # MODELS_DIR_SETTING, and a test pins the two spellings together.
+    "transcription_models_dir": "",
 }
 
 # Which legacy general.* keys are global (the rest stay per-account).

@@ -39,19 +39,30 @@ WINZAPP_RUN_NETWORK_TESTS is set.
 """
 
 import base64
+import errno
 import hashlib
 import io
+import json
 import os
 import zipfile
 
 import pytest
 
 import app_paths
+from app_paths import resource_path
 from coord_locks import LockTimeout
 from core import tls_trust
 from core.transcription import cuda_runtime, device, errors
 
 _NETWORK_OPT_IN_ENV = "WINZAPP_RUN_NETWORK_TESTS"
+
+
+def _load_language(name):
+    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+LOCALES = sorted(_load_language("language_map"))
 
 # What the probe says on a machine that has not got the libraries yet.
 _MISSING = (False, ("cublas64_12.dll",), "could not load cublas64_12.dll")
@@ -920,6 +931,419 @@ class TestRepairing:
         cuda_runtime.install_cuda_runtime(str(directory), session=session)
 
         assert session.requested == []
+
+
+class TestRepairingTheOneStateInstallingCannotReach:
+    """Right sizes, wrong bytes — and every check but the hash agrees.
+
+    A DLL that a disk fault or another installer overwrote in place keeps its
+    exact size, so `installation_state()` — cheap on purpose, names and sizes
+    only — calls the directory INSTALLED. The install's own "is it already
+    here?" gate then fetches nothing, while the probe answers False because the
+    library will not load, so `install_cuda_runtime()` reports that the GPU
+    still does not work having downloaded not one byte.
+    `verify_installation()` can name that state and cannot undo it. This is the
+    way out, and it is the same shape `model_store.repair_model()` has, for the
+    same reason.
+    """
+
+    def _corrupt_in_place(self, directory):
+        """Overwrite the start of a library, keeping its length exactly."""
+        path = os.path.join(str(directory), "cublas64_12.dll")
+        before = os.path.getsize(path)
+        with open(path, "r+b") as handle:
+            handle.write(b"Z" * 64)
+        assert os.path.getsize(path) == before
+        return path
+
+    def test_installing_alone_cannot_get_out_of_it(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The dead end, pinned first, so the repair below is measured against
+        it rather than against an assumption about it."""
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        self._corrupt_in_place(directory)
+
+        assert cuda_runtime.is_installed(str(directory)) is True
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING,))
+        session = _FakeSession(wheel.bytes)
+
+        answer = cuda_runtime.install_cuda_runtime(str(directory), session=session)
+
+        assert session.requested == []
+        assert answer[0] is False
+
+    def test_repairing_downloads_it_again(self, tmp_path, wheel, monkeypatch):
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        corrupted = self._corrupt_in_place(directory)
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        # False while the bad bytes are there, True once they have been
+        # replaced: the answer is the probe's, never this module's claim about
+        # what it wrote.
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        session = _FakeSession(wheel.bytes)
+
+        answer = cuda_runtime.repair_cuda_runtime(str(directory), session=session)
+
+        assert session.requested == [cuda_runtime.WHEEL_URL]
+        assert answer[0] is True
+        with open(corrupted, "rb") as handle:
+            assert handle.read() == wheel.libraries["cublas64_12.dll"]
+        # The expensive check, which is what said the directory was bad, now
+        # passes — a size-only assertion here would agree with the bug.
+        cuda_runtime.verify_installation(str(directory))
+
+    def test_the_delete_and_the_download_are_one_hold_of_the_lock(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """A window between them is a window another account downloads into.
+
+        The nested acquisitions inside remove/install are the same hold — the
+        lock is re-entrant within the process — so what this asserts is that
+        the depth never falls back to zero until the repair is over.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        self._corrupt_in_place(directory)
+
+        _pin(monkeypatch, wheel)
+        events = _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+
+        cuda_runtime.repair_cuda_runtime(
+            str(directory), session=_FakeSession(wheel.bytes)
+        )
+
+        assert {key for _kind, key in events} == {str(directory)}
+        assert events[0][0] == "acquire"
+        depth = 0
+        depths = []
+        for kind, _key in events:
+            depth += 1 if kind == "acquire" else -1
+            depths.append(depth)
+        assert depths[-1] == 0, "the repair ended still holding the lock"
+        assert min(depths[:-1]) > 0, "the lock was let go mid-repair"
+
+    def test_another_window_busy_with_it_is_reported_before_anything_is_deleted(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """Its own code, and it has to arrive while the install is still there.
+
+        Taking the lock twice would let the busy answer come *after* the
+        removal, which is the worst of both: the user is told to wait and their
+        libraries are already gone.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        self._corrupt_in_place(directory)
+        _busy_locks(monkeypatch)
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.repair_cuda_runtime(str(directory))
+
+        assert caught.value.code == errors.CUDA_RUNTIME_BUSY
+        assert set(cuda_runtime.INSTALLED_FILES).issubset(_names_in(str(directory)))
+
+    def test_repairing_a_directory_with_nothing_in_it_simply_installs(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The repair button is reachable from a state the user misread, and
+        deleting nothing before downloading is not a failure."""
+        directory = tmp_path / "cuda"
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        session = _FakeSession(wheel.bytes)
+
+        answer = cuda_runtime.repair_cuda_runtime(str(directory), session=session)
+
+        assert session.requested == [cuda_runtime.WHEEL_URL]
+        assert answer[0] is True
+        assert cuda_runtime.is_installed(str(directory)) is True
+
+
+class TestTellingAnOutdatedInstallFromAnInterruptedOne:
+    """Both are INCOMPLETE, and they need different sentences.
+
+    "Finish the download that stopped" and "update the libraries to the version
+    your card needs" are different instructions and different waits — the
+    second is 553 MB the user was not expecting. The only clue used to be
+    `missing`, and for an install left by another pin `missing` is empty: every
+    file is there, at exactly the size its own manifest states.
+    """
+
+    def test_another_pin_names_the_version_it_left(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        _write_manifest_of_another_pin(directory)
+
+        state = cuda_runtime.installation_state(str(directory))
+
+        assert state.state == cuda_runtime.STATE_INCOMPLETE
+        assert state.installed_version == "11.0.0.0"
+        # Unchanged, and exactly why the version had to be exposed instead: on
+        # its own the caller has nothing to say.
+        assert state.missing == ()
+
+    def test_an_interrupted_install_names_no_version(self, tmp_path):
+        directory = tmp_path / "cuda"
+        os.makedirs(str(directory))
+        with open(os.path.join(str(directory), "cublas64_12.dll.part"), "wb") as fh:
+            fh.write(b"half a library")
+
+        state = cuda_runtime.installation_state(str(directory))
+
+        assert state.state == cuda_runtime.STATE_INCOMPLETE
+        assert state.installed_version is None
+        assert state.missing
+
+    def test_a_complete_install_names_no_version_either(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The field means "a previous pin left this", not "what is here".
+
+        A state of its own was the other option and would have been a bug:
+        install_cuda_runtime()'s shortcut is written as `!= STATE_INCOMPLETE`,
+        so a fourth state would send an outdated install down the "already
+        fine" branch and the repin would reach nobody.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+
+        state = cuda_runtime.installation_state(str(directory))
+
+        assert state.state == cuda_runtime.STATE_INSTALLED
+        assert state.installed_version is None
+
+    def test_an_empty_directory_names_no_version(self, tmp_path):
+        state = cuda_runtime.installation_state(str(tmp_path / "nothing"))
+        assert state.state == cuda_runtime.STATE_ABSENT
+        assert state.installed_version is None
+
+    def test_an_unreadable_manifest_names_no_version(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """Unparsable is not "another version": nothing on disk says which."""
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        with open(os.path.join(str(directory), "RECORD"), "wb") as handle:
+            handle.write(b"\xff\xfe not a manifest")
+
+        state = cuda_runtime.installation_state(str(directory))
+
+        assert state.state == cuda_runtime.STATE_INCOMPLETE
+        assert state.installed_version is None
+
+    def test_an_interrupted_download_of_the_old_pin_sets_both_and_missing_wins(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The state the field's own comment used to say was unreachable.
+
+        A download of the *previous* pin that stopped half way leaves that
+        pin's manifest — so `installed_version` is filled — beside an
+        incomplete set of libraries, so `missing` is filled too. Whichever the
+        caller reads first is the sentence the user gets, and "update your CUDA
+        libraries" for a half-written install sends them to the wrong button.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        _write_manifest_of_another_pin(directory)
+        os.remove(os.path.join(str(directory), "cublas64_12.dll"))
+
+        state = cuda_runtime.installation_state(str(directory))
+
+        assert state.state == cuda_runtime.STATE_INCOMPLETE
+        assert state.installed_version == "11.0.0.0"
+        assert "cublas64_12.dll" in state.missing
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_the_sentence_the_version_exists_for_is_translated(self, locale):
+        """The field's whole justification is a sentence somebody can read.
+
+        Without the key I18n.t() renders its own name — a screen reader then
+        says "transcription cuda runtime outdated" letter group by letter
+        group — which is the failure this repository has already shipped twice.
+        """
+        table = _load_language(locale)
+        assert cuda_runtime.OUTDATED_I18N_KEY in table, locale
+        assert table[cuda_runtime.OUTDATED_I18N_KEY].strip(), locale
+
+
+class TestALibraryThisProcessHasAlreadyMapped:
+    """The 553 MB the wrong error code costs, and where it is caught instead.
+
+    Windows neither unlinks nor replaces a DLL that is mapped into the process,
+    and after one transcription on the GPU that is exactly what these two
+    files are. The sequence measured on a real install: repair → the removal
+    leaves the DLLs and takes the manifest → the install sees no manifest with
+    files present, calls it INCOMPLETE, and so misses its own "already fine"
+    shortcut → 553 MB downloaded and verified → `os.replace()` raises
+    PermissionError → reported as CUDA_RUNTIME_DOWNLOAD_FAILED → a blind user
+    hears "check your connection" on a perfect connection, and tries again for
+    another half gigabyte.
+
+    Nothing in the process can fix it; only a restart can. So it gets a code of
+    its own, and the removal's return value — documented as the names that
+    resisted, which is precisely this — is read before the download rather than
+    thrown away.
+    """
+
+    def _refuse(self, monkeypatch, name, errnum=errno.EACCES):
+        """Make `name` behave the way a mapped DLL does: no unlink, no replace."""
+        target = os.path.normcase(name)
+        real_remove = os.remove
+        real_replace = os.replace
+
+        def _remove(path, *args, **kwargs):
+            if os.path.normcase(os.path.basename(str(path))) == target:
+                raise PermissionError(errnum, "The process cannot access the file")
+            return real_remove(path, *args, **kwargs)
+
+        def _replace(src, dst, *args, **kwargs):
+            if os.path.normcase(os.path.basename(str(dst))) == target:
+                raise PermissionError(errnum, "The process cannot access the file")
+            return real_replace(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr(cuda_runtime.os, "remove", _remove)
+        monkeypatch.setattr(cuda_runtime.os, "replace", _replace)
+
+    def test_repairing_says_so_before_spending_the_download(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        session = _FakeSession(wheel.bytes)
+        self._refuse(monkeypatch, "cublas64_12.dll")
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.repair_cuda_runtime(str(directory), session=session)
+
+        assert caught.value.code == errors.CUDA_RUNTIME_IN_USE
+        assert session.requested == [], "the download ran anyway"
+
+    def test_the_names_travel_in_the_detail_and_never_in_the_sentence(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """Same split as everywhere else: the file names are for log.log.
+
+        `wx.MessageBox(str(exc), ...)` is an idiom this repository already
+        uses, so anything __str__ returns is one careless handler away from
+        being read out character by character.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        self._refuse(monkeypatch, "cublas64_12.dll")
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.repair_cuda_runtime(
+                str(directory), session=_FakeSession(wheel.bytes)
+            )
+
+        assert "cublas64_12.dll" in caught.value.detail
+        assert str(caught.value) == errors.CUDA_RUNTIME_IN_USE
+        assert caught.value.i18n_key == "transcription_error_cuda_runtime_in_use"
+
+    def test_a_repin_over_a_mapped_install_is_not_a_failed_download(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The path with no removal in it, which no pre-check can reach.
+
+        An install of the previous pin the user has already transcribed with:
+        `install_cuda_runtime()` fetches the new wheel and dies publishing over
+        a file the loader is holding. There is nothing here to have refused
+        earlier — the answer has to be read off the errno.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        _write_manifest_of_another_pin(directory)
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        self._refuse(monkeypatch, "cublas64_12.dll")
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.install_cuda_runtime(
+                str(directory), session=_FakeSession(wheel.bytes)
+            )
+
+        assert caught.value.code == errors.CUDA_RUNTIME_IN_USE
+
+    @pytest.mark.parametrize("errnum", [errno.EACCES, errno.EPERM])
+    def test_both_permission_errnos_are_the_same_answer(
+        self, tmp_path, wheel, monkeypatch, errnum
+    ):
+        """Windows reports a sharing violation as EACCES through Python, but
+        the mapping is the platform's and not worth betting one code on."""
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        _write_manifest_of_another_pin(directory)
+
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING, _LOADABLE))
+        self._refuse(monkeypatch, "cublas64_12.dll", errnum=errnum)
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.install_cuda_runtime(
+                str(directory), session=_FakeSession(wheel.bytes)
+            )
+
+        assert caught.value.code == errors.CUDA_RUNTIME_IN_USE
+
+    def test_a_genuinely_failed_transfer_still_says_so(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """The other half of the split: nothing was mapped, and the download is
+        what broke. Reading everything as "in use" would send a user with a
+        dropped connection to restart WinZapp forever."""
+        directory = tmp_path / "cuda"
+        _pin(monkeypatch, wheel)
+        _recording_locks(monkeypatch)
+        _loader(monkeypatch, answers=(_MISSING,))
+        session = _FakeSession(wheel.bytes, failure=OSError("connection reset"))
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime.install_cuda_runtime(str(directory), session=session)
+
+        assert caught.value.code == errors.CUDA_RUNTIME_DOWNLOAD_FAILED
+
+    def test_the_removal_alone_still_only_reports_what_resisted(
+        self, tmp_path, wheel, monkeypatch
+    ):
+        """`remove_cuda_runtime()` is unchanged and still does not raise.
+
+        Both buttons the settings tab wires up reach this state, but they need
+        different things from it: Remove has already done everything it can and
+        answers with the names, while Repair cannot go on at all. Turning the
+        removal itself into a raise would take the names away from the caller
+        that wants them.
+        """
+        directory = tmp_path / "cuda"
+        _install(directory, wheel, monkeypatch)
+        _recording_locks(monkeypatch)
+        self._refuse(monkeypatch, "cublas64_12.dll")
+
+        assert cuda_runtime.remove_cuda_runtime(str(directory)) == (
+            "cublas64_12.dll",
+        )
 
 
 class TestCancelling:

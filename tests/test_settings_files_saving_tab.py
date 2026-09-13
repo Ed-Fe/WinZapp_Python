@@ -94,6 +94,25 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         assert dialog._notebook.FindPage(dialog._conn_page) == 4
         assert dialog._notebook.FindPage(dialog._storage_page) == 8
 
+    def test_the_transcription_tab_is_the_last_one(self, make_dialog):
+        """Asserted against the real notebook rather than by reading the source
+        for AddPage() calls, which is all a suite that may not construct this
+        dialog can do (tests/test_transcription_settings_tab.py). Appending is
+        the one position that renumbers nothing — this is where that stops
+        being an argument and becomes a measurement."""
+        dialog = make_dialog()
+        # Constructing the dialog adds every page, and AddPage() fires
+        # EVT_NOTEBOOK_PAGE_CHANGED. The handler is bound after _load_values()
+        # precisely so that does not count as the user visiting the tab — which
+        # would speak and consume a substitution warning nobody heard. A source
+        # grep cannot tell a Bind placed before _load_values() from one after;
+        # the real notebook can.
+        assert dialog._transcription_page_seen is False
+        assert dialog._notebook.FindPage(dialog._transcription_page) == 12
+        assert dialog._notebook.GetPageText(12) == dialog.main_window.i18n.t(
+            "tab_transcription"
+        )
+
     def test_every_page_has_a_translated_title(self, make_dialog):
         """SetPageText() is driven by index; an off-by-one shows up as a tab
         labelled with another tab's name, which nothing else would catch."""

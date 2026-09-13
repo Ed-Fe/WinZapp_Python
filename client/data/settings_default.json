@@ -72,6 +72,13 @@
         "extended_sr_compat_enabled": true,
         "sapi_fallback_enabled": true
     },
+    "transcription": {
+        "backend": "auto",
+        "model": "auto",
+        "device": "auto",
+        "language": "interface",
+        "auto_detect_language": true
+    },
     "files": {
         "save_dialog_folder_mode": "last",
         "save_dialog_custom_folder": "",

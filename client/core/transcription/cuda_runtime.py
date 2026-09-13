@@ -77,6 +77,7 @@ import glob
 import hashlib
 import logging
 import os
+import re
 import time
 import zipfile
 from dataclasses import dataclass
@@ -115,6 +116,12 @@ _DIST_INFO_PREFIX = f"nvidia_cublas_cu12-{WHEEL_VERSION}.dist-info/"
 _RECORD_MEMBER = _DIST_INFO_PREFIX + "RECORD"
 RECORD_FILENAME = "RECORD"
 
+# The same directory name with the version left open, so a manifest written by
+# a pin that is not this one can still say which pin it was. Anchored, and the
+# version is everything up to ".dist-info/", which is what a wheel's own
+# escaping guarantees is there.
+_DIST_INFO_RE = re.compile(r"^nvidia_cublas_cu12-(.+?)\.dist-info/")
+
 # (name on disk, path inside the wheel) for every file installed, RECORD aside.
 # Flattened out of nvidia/cublas/bin/ on purpose: the directory registered with
 # the loader has to be the one holding the DLLs themselves, and a folder of two
@@ -152,6 +159,15 @@ STATE_ABSENT = "absent"
 STATE_INCOMPLETE = "incomplete"
 STATE_INSTALLED = "installed"
 
+#: The sentence `RuntimeState.installed_version` exists to make possible, and
+#: the whole of its justification: an install of an earlier pin loads perfectly
+#: and is still the wrong version, so it needs to be told from an interrupted
+#: download in words. Declared here rather than left to the settings tab
+#: because a field whose entire argument is a sentence nobody wrote yet has no
+#: argument — I18n.t() would render the missing key by reading its own name out
+#: loud, which is the failure this repository has already shipped twice.
+OUTDATED_I18N_KEY = "transcription_cuda_runtime_outdated"
+
 _PART_SUFFIX = ".part"
 
 _CHUNK_BYTES = 1024 * 1024
@@ -177,6 +193,18 @@ class RuntimeState:
 
     state: str
     missing: tuple[str, ...] = ()
+    #: The version a *previous pin's* install left behind, when that is what is
+    #: on disk; None in every other case. Not a state of its own, deliberately:
+    #: install_cuda_runtime()'s shortcut is written as `!= STATE_INCOMPLETE`, so
+    #: a fourth state would make an outdated install take the "already fine"
+    #: branch and the repin would never reach anyone — which is exactly the bug
+    #: the manifest's version check was added to catch. What it buys is a
+    #: sentence — `OUTDATED_I18N_KEY`: a complete install of the old version
+    #: and an install interrupted half way are both INCOMPLETE, but "update the
+    #: CUDA libraries" and "finish the interrupted download" are different
+    #: instructions, and one of them is a 553 MB wait the user did not expect.
+    #: `missing` takes precedence over this field; see installation_state().
+    installed_version: str | None = None
 
 
 def default_cuda_runtime_dir() -> str:
@@ -198,7 +226,7 @@ def installation_state(directory=None) -> RuntimeState:
     `verify_installation()` is the expensive answer.
     """
     directory = _resolve(directory)
-    record = _read_installed_record(directory)
+    record, installed_version = _read_installed_record(directory)
     if record is None:
         # Without the manifest nothing on disk can be checked at all, so the
         # libraries beside it are unusable however healthy they look. Whether
@@ -210,7 +238,17 @@ def installation_state(directory=None) -> RuntimeState:
         missing = tuple(name for name in INSTALLED_FILES if name not in present)
         if not present and not _has_parts(directory):
             return RuntimeState(STATE_ABSENT, missing)
-        return RuntimeState(STATE_INCOMPLETE, missing)
+        # `installed_version` is set whenever a manifest is there and names
+        # another pin, which is not only the complete-but-outdated case: a
+        # download of the *old* pin that was interrupted leaves the old
+        # manifest and an incomplete set of libraries, so both signals are
+        # present at once. **`missing` wins.** "Finish the interrupted
+        # download" describes that directory and "update your CUDA libraries"
+        # does not, and a caller that read the version first would offer an
+        # update for a half-written install. The version is the answer only
+        # when `missing` is empty, which is the case that would otherwise
+        # leave the caller with no clue at all.
+        return RuntimeState(STATE_INCOMPLETE, missing, installed_version)
 
     missing = []
     for name, member in _LIBRARY_MEMBERS:
@@ -336,6 +374,64 @@ def install_cuda_runtime(directory=None, progress=None, should_cancel=None,
     return answer
 
 
+def repair_cuda_runtime(directory=None, progress=None, should_cancel=None,
+                        session=None):
+    """Delete whatever is installed and fetch it again. Returns the probe.
+
+    The only way out of the state `install_cuda_runtime()` cannot fix, and it
+    is the same shape as `model_store.repair_model()`'s: every file present at
+    exactly the size RECORD states, and the bytes behind them wrong (a silent
+    corruption, or a DLL something else on the machine overwrote). The cheap
+    check calls that installed, so the install's own "is it already here?" gate
+    fetches nothing; the probe meanwhile answers False, because the library
+    does not load. The user is left with a button that reports failure without
+    ever downloading, and `verify_installation()` can name the problem but not
+    undo it.
+
+    Both halves run under **one** hold of the shared lock — it is re-entrant
+    within the process, so the nested acquisitions inside `remove` and
+    `install` are the same hold — which is what keeps another account's process
+    from starting its own download into the directory in the window between the
+    delete and the fetch. Two separate holds would also mean two chances to
+    report "another window is busy", and the second would arrive after the
+    files were already gone.
+
+    One outcome the caller has to be ready for, and it is the same one
+    `remove_cuda_runtime()` documents: Windows will not unlink a DLL that a
+    transcription has already mapped into this process, so a repair after a GPU
+    run cannot replace those files. Nothing here can fix that from inside the
+    running process — WinZapp has to be restarted first — but the removal
+    *names* the files that resisted, and that answer arrives before a single
+    byte is spent. Left unread it would be found again 553 MB later, as a
+    PermissionError out of `_write_part()`'s publish, reported as a download
+    that failed: the user hears "check your connection" with a perfect
+    connection, half a gigabyte gone, and tries again for another one.
+    """
+    directory = _resolve(directory)
+    try:
+        with _hold_runtime_lock(directory, should_cancel):
+            logging.info("[transcription] repairing the CUDA libraries in %s",
+                         directory)
+            stuck = remove_cuda_runtime(directory, should_cancel=should_cancel)
+            if stuck:
+                # The names are the detail, i.e. the log; the sentence the user
+                # gets is the code's, and it is the only one that tells them to
+                # restart. Raised rather than downloaded through, because the
+                # download would finish and then fail at the publish anyway.
+                raise errors.TranscriptionError(
+                    errors.CUDA_RUNTIME_IN_USE,
+                    f"{directory}: still mapped: {', '.join(stuck)}",
+                )
+            return install_cuda_runtime(
+                directory,
+                progress=progress,
+                should_cancel=should_cancel,
+                session=session,
+            )
+    except LockTimeout as exc:
+        raise errors.TranscriptionError(errors.CUDA_RUNTIME_BUSY, str(exc)) from exc
+
+
 def verify_installation(directory=None, progress=None, should_cancel=None) -> None:
     """The expensive check: every installed library's sha256, against RECORD.
 
@@ -351,7 +447,7 @@ def verify_installation(directory=None, progress=None, should_cancel=None) -> No
             f"{directory}: missing or wrong size: {', '.join(state.missing)}",
         )
 
-    record = _read_installed_record(directory)
+    record, _version = _read_installed_record(directory)
     total = sum(record[member].size for _name, member in _LIBRARY_MEMBERS)
     done = 0
     for name, member in _LIBRARY_MEMBERS:
@@ -713,29 +809,51 @@ def _parse_record(raw):
 
 
 def _read_installed_record(directory):
-    """The manifest sitting next to the installed libraries, or None.
+    """(manifest, version) for the libraries on disk. Either may be None.
 
-    None covers absent, unreadable, unparsable **and left by another pin**
-    alike: all four mean the files beside it cannot be checked against the
-    wheel this version installs, which is the only thing the callers do with
-    the answer. The last of those is the one that is easy to miss — the
+    The manifest is None for absent, unreadable, unparsable **and left by
+    another pin** alike: all four mean the files beside it cannot be checked
+    against the wheel this version installs, which is the only thing the
+    callers do with it. The last of those is the one that is easy to miss — the
     previous pin's libraries are present, and its manifest describes them at
     exactly the sizes they have, so every check agrees while the version is
     wrong.
+
+    The version is whichever one the manifest names, and it is returned rather
+    than only logged precisely so that fourth case can be told from the other
+    three: they are all INCOMPLETE, and the sentence a user needs for "your
+    libraries are one version behind" is not the sentence for "your download
+    stopped half way".
     """
     try:
         with open(os.path.join(directory, RECORD_FILENAME), "rb") as handle:
             entries = _parse_record(handle.read())
     except (OSError, errors.TranscriptionError):
-        return None
+        return None, None
+    version = _record_version(entries)
     # Every wheel's dist-info holds METADATA and WHEEL, both with a digest, so
     # a manifest from the pinned wheel always has an entry under this prefix.
     if not any(key.startswith(_DIST_INFO_PREFIX) for key in entries):
         logging.info(
-            "[transcription] the installed CUDA manifest is not %s's", WHEEL_VERSION
+            "[transcription] the installed CUDA manifest is %s's, not %s's",
+            version or "an unknown version", WHEEL_VERSION,
         )
-        return None
-    return entries
+        return None, version
+    return entries, version
+
+
+def _record_version(entries):
+    """The wheel version a manifest's own dist-info names, or None.
+
+    Read off the entries rather than off a file name, because the dist-info
+    directory is the only thing in a RECORD that carries the version at all —
+    the libraries it lists are named the same in every release of the series.
+    """
+    for key in entries:
+        match = _DIST_INFO_RE.match(key)
+        if match:
+            return match.group(1)
+    return None
 
 
 def _hash_file(path, done, total, progress, should_cancel):
@@ -829,6 +947,15 @@ def _as_transcription_error(exc, fallback):
         # The gate ran before the transfer, but 1.3 GB takes long enough for
         # something else on the machine to fill the volume meanwhile.
         return errors.TranscriptionError(errors.NO_DISK_SPACE, str(exc))
+    if isinstance(exc, OSError) and exc.errno in (errno.EACCES, errno.EPERM):
+        # `os.replace()` over a DLL this process has already mapped, which is
+        # what a repin lands on when a transcription ran on the GPU first —
+        # there is no removal in that path for repair_cuda_runtime()'s
+        # pre-check to have caught, so this is the only place it can be told
+        # apart from a transfer that genuinely failed. "Check your connection"
+        # for a file the loader is holding open sends the user to retry the
+        # 553 MB, and the retry cannot succeed either.
+        return errors.TranscriptionError(errors.CUDA_RUNTIME_IN_USE, str(exc))
     return errors.TranscriptionError(fallback, str(exc))
 
 
