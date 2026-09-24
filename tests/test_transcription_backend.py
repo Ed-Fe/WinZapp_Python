@@ -1545,7 +1545,13 @@ _FORBIDDEN_IN_LOG = (
 # Part 3's own modules. Restricted to them deliberately: the model store logs
 # the models directory the user chose, which is neither a message nor a
 # conversation, and rewriting its rules is not this part's business.
-_PART3_MODULES = ("audio_prep.py", "backend.py", "faster_whisper_backend.py", "job.py")
+#
+# management.py joins them: it logs the outcome of every action the settings
+# tab runs, and nothing it logs may ever reach past the model id.
+_PART3_MODULES = (
+    "audio_prep.py", "backend.py", "faster_whisper_backend.py", "job.py",
+    "management.py",
+)
 
 
 def _logging_arguments(path):

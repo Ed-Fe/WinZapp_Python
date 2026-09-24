@@ -275,6 +275,32 @@ def free_bytes(path):
             candidate = parent
 
 
+def required_free_bytes(needed_bytes) -> int:
+    """Free bytes the gate below demands for a transfer of `needed_bytes`.
+
+    The transfer plus the slack, as one public answer. Part 5c quotes this to
+    the user before a download, and a figure worked out anywhere else is one
+    that can say "it fits" about a transfer ensure_free_space() then refuses.
+    """
+    return int(needed_bytes) + _FREE_SPACE_SLACK_BYTES
+
+
+def remaining_download_bytes(root, model) -> int:
+    """Bytes download_model() still has to put on the disk for `model`.
+
+    The whole model, less every file already complete *and* less the `.part`
+    prefixes a resume will not fetch again — the figure the free-space gate
+    counts, because this is what the gate calls. InstallState.present_bytes is
+    not a substitute: it counts finished files only, and model.bin is 95-99% of
+    a model, so a download interrupted at 90% would be quoted as the whole
+    model again and a user with room for the remaining tenth told there is no
+    space. Sizes only, never a hash, so part 5c can ask before offering.
+    """
+    directory = model_dir(root, model.id)
+    done_bytes, pending = _download_plan(directory, model)
+    return model.download_bytes - done_bytes - _resumable_bytes(directory, pending)
+
+
 def ensure_free_space(root, needed_bytes) -> None:
     """Raise NO_DISK_SPACE unless `needed_bytes` fit under `root`, with slack.
 
@@ -288,7 +314,7 @@ def ensure_free_space(root, needed_bytes) -> None:
             "[transcription] free space at %s is unknown; allowing the transfer", root
         )
         return
-    if free < needed_bytes + _FREE_SPACE_SLACK_BYTES:
+    if free < required_free_bytes(needed_bytes):
         raise errors.TranscriptionError(
             errors.NO_DISK_SPACE,
             f"{root}: {needed_bytes} bytes needed plus "
@@ -502,14 +528,7 @@ def _download_locked(model, root, root_created, progress, should_cancel, session
     """download_model()'s body, with the models lock already held."""
     directory = model_dir(root, model.id)
     total = model.download_bytes
-    done_bytes = 0
-    pending = []
-
-    for name, size in model.files:
-        if _file_complete(os.path.join(directory, name), size):
-            done_bytes += size
-            continue
-        pending.append((name, size))
+    done_bytes, pending = _download_plan(directory, model)
 
     _report(progress, done_bytes, total)
     if not pending:
@@ -522,10 +541,10 @@ def _download_locked(model, root, root_created, progress, should_cancel, session
     # Before a single byte is fetched: the point of the gate is to fail while
     # the user can still pick a smaller model, not half way into the big one.
     # What a resume will not re-fetch is already on the disk, so it is not
-    # counted again.
-    ensure_free_space(
-        root, total - done_bytes - _resumable_bytes(directory, pending)
-    )
+    # counted again. Through remaining_download_bytes() rather than worked out
+    # here, so the figure part 5c quotes before the download is this one; it
+    # re-stats a handful of files, under the lock, which is nothing.
+    ensure_free_space(root, remaining_download_bytes(root, model))
 
     created_dir = not os.path.isdir(directory)
     owned_session = session is None
@@ -746,6 +765,18 @@ def _has_parts(directory, model) -> bool:
         os.path.exists(os.path.join(directory, name + _PART_SUFFIX))
         for name, _size in model.files
     )
+
+
+def _download_plan(directory, model):
+    """(bytes already complete, [(name, size) still to fetch]) for `model`."""
+    done_bytes = 0
+    pending = []
+    for name, size in model.files:
+        if _file_complete(os.path.join(directory, name), size):
+            done_bytes += size
+            continue
+        pending.append((name, size))
+    return done_bytes, pending
 
 
 def _resumable_bytes(directory, pending) -> int:
