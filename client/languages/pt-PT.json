@@ -1160,5 +1160,15 @@
     "transcription_confirm_remove_cuda": "Remover as bibliotecas CUDA? A transcrição voltará a ser executada pelo processador, e será preciso transferi-las outra vez para utilizar a placa gráfica.",
     "transcription_models_dir_now_the_new_one": "Ainda assim, todos os modelos estão na pasta nova, e é essa que a configuração passa a usar.",
     "transcription_model_actions_group": "Modelo selecionado",
-    "transcription_cuda_actions_group": "Bibliotecas CUDA"
+    "transcription_cuda_actions_group": "Bibliotecas CUDA",
+    "transcription_phase_preparing_audio": "A preparar o áudio...",
+    "transcription_phase_loading_model": "A carregar o modelo de transcrição...",
+    "transcription_phase_transcribing": "A transcrever a mensagem...",
+    "transcription_running_on_cuda": "A transcrição vai usar o modelo {model} e a placa gráfica.",
+    "transcription_running_on_cpu": "A transcrição vai usar o modelo {model} e o processador.",
+    "transcription_note_no_speech": "Não foi encontrada nenhuma fala nesta mensagem, por isso a transcrição ficou vazia.",
+    "transcription_note_vad_unavailable": "O filtro de voz não pôde ser usado nesta transcrição, por isso ela pode não ser fiável.",
+    "transcription_note_language_differs": "Esta mensagem foi transcrita em {language}.",
+    "transcription_note_low_confidence": "O idioma desta mensagem não foi identificado com certeza, por isso o texto pode estar errado. Pode escolher o idioma nas definições de transcrição.",
+    "transcription_finished": "Transcrição concluída."
 }
