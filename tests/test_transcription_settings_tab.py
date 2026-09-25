@@ -31,6 +31,29 @@ Four failures this pins, each of which is silent in a different way.
   to announce, and nothing on the tab needed the answer at that point — the
   substitutions do not depend on the probe at all.
 
+* **A button that is there for a state it cannot act on — or missing from the
+  one it must.** Remover has to exist for an interrupted install, because a
+  removal that could not delete everything leaves exactly that state and its
+  own sentence asks the user to remove them again; and Reparar has to survive
+  a check that found damage, which `installation_state()` cannot see at all
+  since it measures sizes and corruption is the right size with the wrong
+  bytes.
+
+* **Bytes written into a folder Cancel throws away.** Procurar records a
+  folder and stores nothing until OK, so a model downloaded against the
+  *chosen* folder and then a Cancel leaves three gigabytes where nothing in
+  the app ever looks again — the model list and `list_unknown_dirs()` both
+  walk the folder that is configured, so the picker offers the same download
+  over again.
+
+* **A models folder moved by Procurar, or half moved and then claimed.** The
+  move belongs to OK: started from the browse handler it leaves the files in a
+  folder a Cancel never stores. And a move that did not get everything across
+  leaves them split between two folders, only one of which the setting can
+  name — the previous one, because from there pressing OK again moves the
+  rest, while the new one strands the leftovers where nothing lists or deletes
+  them.
+
 * **The CUDA libraries silently forgotten between sessions.** The folder a
   previous run downloaded into is on no loader search path when this process
   starts, so `register_installed_runtime()` has to run at startup and before
@@ -54,7 +77,8 @@ import wx
 
 from app_paths import resource_path
 from core.transcription import backend as backend_module
-from core.transcription import cuda_runtime, device, model_catalog, model_store
+from core.transcription import cuda_runtime, device, errors, management, model_catalog
+from core.transcription import model_store
 from core.transcription import preferences
 from ui.dialogs import settings_dialog
 from ui.dialogs.settings_dialog import SettingsDialog
@@ -118,9 +142,26 @@ class _SpeakOutput:
 
     def __init__(self):
         self.spoken = []
+        self.interrupts = []
 
     def output(self, text, interrupt=False):
         self.spoken.append(text)
+        self.interrupts.append(interrupt)
+
+
+class _Sound:
+    """main_window.error_sound, minus BASS. Counts what was played.
+
+    The existing error sound and no other: a new sound event would need an
+    .ogg in the default pack and in every pack a user has installed, plus a
+    line in the Sound Events tab.
+    """
+
+    def __init__(self):
+        self.plays = 0
+
+    def play(self):
+        self.plays += 1
 
 
 class _MainWindow:
@@ -133,6 +174,7 @@ class _MainWindow:
         # production does not have, with six green tests over it.
         self._app_settings = app_settings
         self.speak_output = _SpeakOutput()
+        self.error_sound = _Sound()
         self.saves = 0
 
     def save_settings(self):
@@ -210,6 +252,34 @@ class _TabOwner:
     _on_browse_transcription_models_dir = (
         SettingsDialog._on_browse_transcription_models_dir
     )
+    # ── Part 5c-2: the eight action buttons and what they run ───────────────
+    _build_transcription_action_row = SettingsDialog._build_transcription_action_row
+    _transcription_model_state = SettingsDialog._transcription_model_state
+    _transcription_cuda_button_state = SettingsDialog._transcription_cuda_button_state
+    _sync_transcription_action_buttons = (
+        SettingsDialog._sync_transcription_action_buttons
+    )
+    _set_transcription_job_running = SettingsDialog._set_transcription_job_running
+    _on_transcription_model_change = SettingsDialog._on_transcription_model_change
+    _on_transcription_action = SettingsDialog._on_transcription_action
+    _start_transcription_action = SettingsDialog._start_transcription_action
+    _measure_transcription_download = SettingsDialog._measure_transcription_download
+    _confirm_transcription_download = SettingsDialog._confirm_transcription_download
+    _ask_transcription_download = SettingsDialog._ask_transcription_download
+    _run_transcription_job = SettingsDialog._run_transcription_job
+    _report_transcription_job = SettingsDialog._report_transcription_job
+    _note_transcription_outcome = SettingsDialog._note_transcription_outcome
+    _announce_transcription_result = SettingsDialog._announce_transcription_result
+    _refresh_after_transcription_action = (
+        SettingsDialog._refresh_after_transcription_action
+    )
+    _adopt_transcription_probe = SettingsDialog._adopt_transcription_probe
+    _restore_transcription_focus = SettingsDialog._restore_transcription_focus
+    _transcription_models_dir_applied = (
+        SettingsDialog._transcription_models_dir_applied
+    )
+    _ask_transcription_removal = SettingsDialog._ask_transcription_removal
+    _move_transcription_models = SettingsDialog._move_transcription_models
 
 
 @pytest.fixture
@@ -1166,9 +1236,10 @@ class TestTheMnemonicsOnThisTab:
     above, since a missing one renders as its own key name and no longer
     contains the model id."""
 
-    #: Every label on the tab, plus the three buttons that are on screen
-    #: whichever tab is showing. Leaving those three out is what let &Aviso sit
-    #: on top of &Aplicar and, worse, &Onde on top of the dialog's own &OK.
+    #: Every label on the tab that must have an Alt key, plus the three
+    #: buttons on screen whichever tab is showing. Leaving those three out is
+    #: what let &Aviso sit on top of &Aplicar and, worse, &Onde on top of the
+    #: dialog's own &OK.
     LABELLED = (
         "transcription_substituted_label",
         "transcription_model_label",
@@ -1184,6 +1255,33 @@ class TestTheMnemonicsOnThisTab:
         "apply",
     )
 
+    #: The eight action buttons, which may collide with nothing and are not
+    #: owed an Alt key of their own. Deliberately, and measured rather than
+    #: assumed: once each label became one word inside a named group, the
+    #: letters left over after the twelve above cover four of the eight in
+    #: pt-BR, pt-PT and en-US and five in es-ES and pl — "Reparar" and
+    #: "Remover" appear twice each on the tab and cannot share a letter. A
+    #: label is read out in full every time focus lands on it, several times a
+    #: session; Alt+letter is rarely used and is not announced at all, so a
+    #: longer label is the more expensive half of that trade.
+    ACTION_BUTTONS = (
+        "transcription_model_download_btn",
+        "transcription_model_verify_btn",
+        "transcription_model_repair_btn",
+        "transcription_model_remove_btn",
+        "transcription_cuda_install_btn",
+        "transcription_cuda_repair_btn",
+        "transcription_cuda_verify_btn",
+        "transcription_cuda_remove_btn",
+    )
+
+    #: The two group names. Not tab stops, so not owed a letter — and they
+    #: must not quietly spend one either.
+    GROUPS = (
+        "transcription_model_actions_group",
+        "transcription_cuda_actions_group",
+    )
+
     @staticmethod
     def _mnemonic(value):
         for index, char in enumerate(value):
@@ -1194,13 +1292,35 @@ class TestTheMnemonicsOnThisTab:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_they_do_not_collide(self, locale):
         """Two controls sharing an Alt key means one of them can never be
-        reached with it — and which one is undefined."""
+        reached with it — and which one is undefined. The buttons are in here
+        even though they are not owed a letter: the ones that *have* one must
+        still not take somebody else's."""
         table = _load(locale)
         used = [
-            self._mnemonic(table[key]) for key in self.LABELLED
+            self._mnemonic(table[key])
+            for key in self.LABELLED + self.ACTION_BUTTONS
             if self._mnemonic(table[key]) is not None
         ]
         assert len(used) == len(set(used)), f"{locale}: repeated mnemonics in {used}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_the_group_names_spend_no_letter(self, locale):
+        """A wx.StaticBox is not a tab stop, and an & in its label would take
+        a letter from the buttons inside it for nothing."""
+        table = _load(locale)
+        for key in self.GROUPS:
+            assert table[key], f"{locale}: {key} is empty"
+            assert self._mnemonic(table[key]) is None, f"{locale}: {key}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_a_button_is_one_word_and_the_group_says_what_it_acts_on(self, locale):
+        """The whole point of the grouping: the object is announced once, on
+        entry, instead of inside all four labels."""
+        table = _load(locale)
+        for key in self.ACTION_BUTTONS:
+            label = table[key].replace("&", "")
+            assert " " not in label.strip(), f"{locale}: {key} is {label!r}"
+        assert "CUDA" in table["transcription_cuda_actions_group"]
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_control_on_the_tab_has_one(self, locale):
@@ -1214,3 +1334,1089 @@ class TestTheMnemonicsOnThisTab:
         assert without == [], f"{locale}: no Alt key for {without}"
 
 
+
+
+# ── Part 5c-2: the actions the tab offers ────────────────────────────────────
+#
+# The progress dialog is never constructed here either — it is a wx.Dialog for
+# the same reason SettingsDialog is, and its own behaviour is pinned in
+# tests/test_transcription_progress_dialog.py. What these need from it is only
+# that it ran, with which action, against which folder, and what it answered.
+
+
+class _FakeProgress:
+    """Stands in for TranscriptionProgressDialog: runs nothing, answers what
+    the test told it to, and remembers how it was asked.
+
+    It does call the factory it is handed — the job is real, never started,
+    and `announcement()` is read off it by the tab, so stubbing that would be
+    this file deciding which sentence each outcome gets.
+    """
+
+    def __init__(self, parent, i18n, speak_output, make_job, status_text,
+                 job_kwargs=None):
+        self.status_text = status_text
+        self.destroyed = False
+        self.job = make_job(lambda tick: None, lambda result, error: None)
+        self.action = self.job.action
+        self.model_id = self.job.model_id
+        self.job_kwargs = dict(job_kwargs or {})
+
+    def run(self):
+        return wx.ID_CANCEL if self.error is not None else wx.ID_OK
+
+    def Destroy(self):
+        self.destroyed = True
+
+
+def _install_fake_progress(monkeypatch, answers=None):
+    """Replace the progress dialog; return the list of the ones it made.
+
+    `answers` is a list of (result, error, models_before_move), one per job,
+    in order; anything past the end is a plain success.
+    """
+    made = []
+    queue = list(answers or [])
+    #: What the factory asked ManagementJob for. Captured through the real
+    #: constructor rather than through the dialog, because the arguments now
+    #: live in the tab's own closure — which is the point of the factory.
+    last_kwargs = {}
+    real_job = management.ManagementJob
+
+    def _record(action, **kwargs):
+        last_kwargs.clear()
+        last_kwargs.update(kwargs)
+        return real_job(action, **kwargs)
+
+    def _make(*args, **kwargs):
+        dialog = _FakeProgress(*args, **kwargs)
+        dialog.job_kwargs = dict(last_kwargs)
+        result, error, before_move = queue.pop(0) if queue else (None, None, ())
+        dialog.result = result
+        dialog.error = error
+        dialog.job.models_before_move = tuple(before_move)
+        made.append(dialog)
+        return dialog
+
+    monkeypatch.setattr(
+        settings_dialog.transcription_management, "ManagementJob", _record
+    )
+    monkeypatch.setattr(settings_dialog, "TranscriptionProgressDialog", _make)
+    return made
+
+
+@pytest.fixture
+def confirm_yes(monkeypatch):
+    """Answer every question with Yes. Removing now asks one."""
+    asked = []
+    monkeypatch.setattr(
+        settings_dialog.wx, "MessageBox",
+        lambda *args, **kwargs: asked.append(args) or wx.YES,
+    )
+    return asked
+
+
+@pytest.fixture
+def inline_call_after(monkeypatch):
+    """Run wx.CallAfter inline, so a test sees the other half of the hop.
+
+    The tab's own half of the thread split is the `wx.CallAfter` in
+    `_measure_transcription_download()`; what it defers is checked by running
+    it rather than by trusting the name.
+    """
+    monkeypatch.setattr(
+        settings_dialog.wx, "CallAfter",
+        lambda func, *args, **kwargs: func(*args, **kwargs),
+    )
+
+
+@pytest.fixture
+def no_background_probe(monkeypatch):
+    """Nothing here may start a real hardware probe: it imports ctranslate2
+    and asks this developer's own machine, which is what device.py's docstring
+    says a decision must never depend on."""
+    started = []
+
+    def _probe_in_background(on_done, probe=None):
+        started.append(on_done)
+        return None
+
+    monkeypatch.setattr(
+        settings_dialog.transcription_management,
+        "probe_in_background",
+        _probe_in_background,
+    )
+    return started
+
+
+def _summary(**overrides):
+    """A management.DownloadSummary with plausible figures, minus the disk."""
+    values = dict(
+        subject=management.SUBJECT_MODEL,
+        model_id="small",
+        download_bytes=500 * 1024 ** 2,
+        installed_bytes=500 * 1024 ** 2,
+        required_free_bytes=756 * 1024 ** 2,
+        free_bytes=40 * 1024 ** 3,
+        enough_space=True,
+        destination=r"X:\models\small",
+        device=device.DEVICE_CPU,
+        device_reason=device.REASON_NO_CUDA_FOUND,
+        resumable=True,
+        fits_memory=None,
+        freed_bytes=0,
+    )
+    values.update(overrides)
+    return management.DownloadSummary(**values)
+
+
+class TestWhichButtonsCanBePressed:
+    """Four states, and the one that keeps being got wrong is INCOMPLETE."""
+
+    def test_nothing_downloaded_offers_only_the_download(self):
+        assert settings_dialog._transcription_action_states(
+            model_store.STATE_ABSENT, False
+        ) == {"download": True, "verify": False, "repair": False, "remove": False}
+
+    def test_an_interrupted_transfer_can_be_finished_repaired_or_removed(self):
+        """Removing has to be there: a removal that could not delete
+        everything leaves exactly this state, and 5c-1's sentence for it asks
+        the user to remove them again — at a button that would not exist."""
+        assert settings_dialog._transcription_action_states(
+            model_store.STATE_INCOMPLETE, False
+        ) == {"download": True, "verify": False, "repair": True, "remove": True}
+
+    def test_a_complete_install_is_not_offered_for_download_again(self):
+        assert settings_dialog._transcription_action_states(
+            model_store.STATE_INSTALLED, False
+        ) == {"download": False, "verify": True, "repair": False, "remove": True}
+
+    def test_corruption_only_a_hash_could_find_is_what_turns_repair_on(self):
+        """installation_state() measures sizes, so the wrong bytes at the
+        right size read as installed there — and Reparar, which deletes
+        first, is the only one of the four that fixes it."""
+        assert settings_dialog._transcription_action_states(
+            settings_dialog._TRANSCRIPTION_STATE_CORRUPTED, False
+        ) == {"download": False, "verify": True, "repair": True, "remove": True}
+
+    @pytest.mark.parametrize("state", [
+        model_store.STATE_ABSENT,
+        model_store.STATE_INCOMPLETE,
+        model_store.STATE_INSTALLED,
+        settings_dialog._TRANSCRIPTION_STATE_CORRUPTED,
+    ])
+    def test_a_running_job_turns_every_button_off(self, state):
+        """Two jobs in this process do not fail — they serialize on the models
+        lock, and the second waits silently for up to twelve hours behind a
+        bar that never moves."""
+        assert not any(
+            settings_dialog._transcription_action_states(state, True).values()
+        )
+
+    def test_nothing_selected_turns_every_button_off(self):
+        assert not any(
+            settings_dialog._transcription_action_states(None, False).values()
+        )
+
+
+class TestTheButtonsOnTheTab:
+    def test_every_action_a_user_can_ask_for_has_a_button(self, tab):
+        """Read against management.ACTIONS rather than against a list written
+        here, so an action added to that module without a button on this tab
+        fails instead of being quietly unreachable. The models-folder move is
+        the one exception: it has no button because it happens on OK."""
+        offered = set(tab._transcription_action_buttons)
+        assert offered == set(management.ACTIONS) - {management.ACTION_MOVE_MODELS}
+
+    def test_each_row_is_a_named_group(self, tab):
+        """What lets the buttons be one word each: a wx.StaticBox is a native
+        control whose name a screen reader announces on entering it, so the
+        object is said once rather than inside all four labels."""
+        i18n = tab.main_window.i18n
+        assert [box.GetLabel() for box, _key in tab._transcription_action_groups] == [
+            i18n.t("transcription_model_actions_group"),
+            i18n.t("transcription_cuda_actions_group"),
+        ]
+
+    def test_the_buttons_live_inside_their_own_group(self, tab):
+        """Parented to the box, not to the page — which is what puts them in
+        the group for the accessibility layer and not only for the layout."""
+        boxes = [box for box, _key in tab._transcription_action_groups]
+        for action, _label, _state in (
+            settings_dialog._TRANSCRIPTION_CUDA_ACTION_BUTTONS
+        ):
+            assert tab._transcription_action_buttons[action].GetParent() is boxes[1]
+
+    def test_the_group_names_follow_a_language_change(self, tab):
+        tab._load_transcription_values()
+        tab.main_window.i18n = _I18n("pl")
+        tab._refresh_transcription_labels()
+        assert [box.GetLabel() for box, _key in tab._transcription_action_groups] == [
+            _I18n("pl").t("transcription_model_actions_group"),
+            _I18n("pl").t("transcription_cuda_actions_group"),
+        ]
+
+    def test_the_automatic_entry_leaves_every_model_button_off(self, tab):
+        tab._load_transcription_values()
+        assert tab._selected_transcription_model() == preferences.AUTO
+        for action, _label, _state in (
+            settings_dialog._TRANSCRIPTION_MODEL_ACTION_BUTTONS
+        ):
+            assert not tab._transcription_action_buttons[action].IsEnabled()
+
+    def test_a_model_that_is_not_here_offers_the_download_and_nothing_else(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        buttons = tab._transcription_action_buttons
+        assert buttons[management.ACTION_DOWNLOAD_MODEL].IsEnabled()
+        assert not buttons[management.ACTION_VERIFY_MODEL].IsEnabled()
+        assert not buttons[management.ACTION_REMOVE_MODEL].IsEnabled()
+
+    def test_an_installed_model_offers_verifying_and_removing(self, tab, monkeypatch):
+        monkeypatch.setattr(
+            settings_dialog.model_store, "installation_state",
+            lambda root, model: model_store.InstallState(model_store.STATE_INSTALLED),
+        )
+        tab._populate_transcription_model_choices()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        buttons = tab._transcription_action_buttons
+        assert not buttons[management.ACTION_DOWNLOAD_MODEL].IsEnabled()
+        assert buttons[management.ACTION_VERIFY_MODEL].IsEnabled()
+        assert buttons[management.ACTION_REMOVE_MODEL].IsEnabled()
+
+    def test_a_failed_check_turns_repair_on_for_that_model_alone(self, tab, monkeypatch):
+        monkeypatch.setattr(
+            settings_dialog.model_store, "installation_state",
+            lambda root, model: model_store.InstallState(model_store.STATE_INSTALLED),
+        )
+        tab._populate_transcription_model_choices()
+        tab._note_transcription_outcome(
+            management.ACTION_VERIFY_MODEL, "small",
+            errors.TranscriptionError(errors.MODEL_CORRUPTED, "digest"),
+        )
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        assert tab._transcription_action_buttons[
+            management.ACTION_REPAIR_MODEL].IsEnabled()
+
+        tab._select_transcription_model("medium")
+        tab._sync_transcription_action_buttons()
+        assert not tab._transcription_action_buttons[
+            management.ACTION_REPAIR_MODEL].IsEnabled()
+
+    def test_a_repair_that_worked_forgets_the_corruption(self, tab):
+        tab._note_transcription_outcome(
+            management.ACTION_VERIFY_MODEL, "small",
+            errors.TranscriptionError(errors.MODEL_CORRUPTED, "digest"),
+        )
+        tab._note_transcription_outcome(management.ACTION_REPAIR_MODEL, "small", None)
+        assert tab._transcription_corrupted_models == set()
+
+    def test_a_cancelled_check_found_nothing_and_changes_nothing(self, tab):
+        tab._note_transcription_outcome(
+            management.ACTION_VERIFY_MODEL, "small",
+            errors.TranscriptionError(errors.CANCELLED, "by the user"),
+        )
+        assert tab._transcription_corrupted_models == set()
+
+    def test_the_cuda_buttons_follow_what_is_installed(self, tab, monkeypatch):
+        monkeypatch.setattr(
+            settings_dialog.cuda_runtime, "installation_state",
+            lambda directory=None: cuda_runtime.RuntimeState(
+                cuda_runtime.STATE_INCOMPLETE, ("cublas64_12.dll",)
+            ),
+        )
+        tab._show_transcription_cuda_status()
+        buttons = tab._transcription_action_buttons
+        assert buttons[management.ACTION_INSTALL_CUDA_RUNTIME].IsEnabled()
+        assert buttons[management.ACTION_REPAIR_CUDA_RUNTIME].IsEnabled()
+        # The one 5c-1 asked for by name: a removal that could not delete
+        # everything lands here, and its sentence sends the user back to it.
+        assert buttons[management.ACTION_REMOVE_CUDA_RUNTIME].IsEnabled()
+        assert not buttons[management.ACTION_VERIFY_CUDA_RUNTIME].IsEnabled()
+
+    def test_the_model_picker_redraws_them_and_lets_the_event_through(self, tab):
+        """Skip(), or the dialog-level EVT_COMBOBOX never runs and the Apply
+        button stays hidden for the model picker."""
+        skipped = []
+
+        class _Event:
+            def Skip(self):
+                skipped.append(True)
+
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._on_transcription_model_change(_Event())
+        assert skipped == [True]
+        assert tab._transcription_action_buttons[
+            management.ACTION_DOWNLOAD_MODEL].IsEnabled()
+
+    def test_the_button_pressed_is_the_action_that_runs(self, tab):
+        started = []
+        tab._start_transcription_action = lambda action: started.append(action)
+
+        class _Event:
+            def __init__(self, obj):
+                self._obj = obj
+
+            def GetEventObject(self):
+                return self._obj
+
+        for _action, button in tab._transcription_action_buttons.items():
+            tab._on_transcription_action(_Event(button))
+        assert sorted(started) == sorted(tab._transcription_action_buttons)
+
+
+class TestTheQuestionBeforeADownload:
+    """The five things §5 of the issue asks for, before the bytes start."""
+
+    def test_it_names_the_model_the_size_the_space_the_folder_and_the_device(self):
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(i18n, _summary())
+        assert "small" in text
+        assert settings_dialog._format_transcription_size(i18n, 500 * 1024 ** 2) in text
+        assert settings_dialog._format_transcription_size(i18n, 756 * 1024 ** 2) in text
+        assert r"X:\models\small" in text
+        assert i18n.t("transcription_confirm_device_cpu") in text
+
+    def test_it_says_the_card_when_that_is_where_it_would_run(self):
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(
+            i18n, _summary(device=device.DEVICE_CUDA)
+        )
+        assert i18n.t("transcription_confirm_device_cuda") in text
+        assert i18n.t("transcription_confirm_device_cpu") not in text
+
+    def test_the_cuda_download_says_it_cannot_be_resumed(self):
+        """553 MB with no resume: cancelling means starting over, and that is
+        the user's decision to make before it starts, not after."""
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(
+            i18n, _summary(
+                subject=management.SUBJECT_CUDA_RUNTIME, model_id=None,
+                resumable=False, download_bytes=cuda_runtime.WHEEL_BYTES,
+            )
+        )
+        assert settings_dialog._format_transcription_size(
+            i18n, cuda_runtime.WHEEL_BYTES
+        ) in text
+        assert i18n.t("transcription_confirm_no_resume").split("{")[0] in text
+
+    def test_a_resumable_model_download_does_not_mention_starting_over(self):
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(i18n, _summary())
+        assert i18n.t("transcription_confirm_no_resume").split("{")[0] not in text
+
+    def test_a_repair_says_what_it_deletes_first(self):
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(
+            i18n, _summary(), repair=True
+        )
+        assert text.startswith(
+            i18n.t("transcription_confirm_model_repair").format(model="small")
+        )
+
+    def test_a_model_too_big_for_the_device_says_so(self):
+        i18n = _I18n()
+        assert i18n.t("transcription_confirm_does_not_fit") in (
+            settings_dialog._transcription_download_confirmation(
+                i18n, _summary(fits_memory=False)
+            )
+        )
+        assert i18n.t("transcription_confirm_does_not_fit") not in (
+            settings_dialog._transcription_download_confirmation(
+                i18n, _summary(fits_memory=None)
+            )
+        )
+
+    def test_space_that_could_not_be_measured_reads_as_unknown(self):
+        i18n = _I18n()
+        text = settings_dialog._transcription_download_confirmation(
+            i18n, _summary(free_bytes=None, enough_space=None)
+        )
+        assert i18n.t("transcription_confirm_space_unknown") in text
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_no_locale_leaves_a_placeholder_to_be_read_out(self, locale):
+        i18n = _I18n(locale)
+        for summary in (
+            _summary(),
+            _summary(enough_space=None, free_bytes=None),
+            _summary(enough_space=False, free_bytes=1024),
+            _summary(fits_memory=False, device=device.DEVICE_CUDA),
+            _summary(subject=management.SUBJECT_CUDA_RUNTIME, model_id=None,
+                     resumable=False),
+        ):
+            for repair in (False, True):
+                text = settings_dialog._transcription_download_confirmation(
+                    i18n, summary, repair
+                )
+                assert "{" not in text and "}" not in text, (locale, summary)
+
+
+class TestWhatHappensWhenThereIsNoRoom:
+    """Not enough space is not a question, and unmeasurable space is not a no."""
+
+    @staticmethod
+    def _boxes(monkeypatch, answer):
+        raised = []
+        monkeypatch.setattr(
+            settings_dialog.wx, "MessageBox",
+            lambda *args, **kwargs: raised.append(args) or answer,
+        )
+        return raised
+
+    def test_not_enough_space_is_told_and_not_offered(self, tab, monkeypatch):
+        raised = self._boxes(monkeypatch, wx.YES)
+        assert tab._ask_transcription_download(
+            _summary(enough_space=False, free_bytes=1024), False
+        ) is False
+        assert len(raised) == 1
+        style = raised[0][2]
+        assert style & wx.ICON_ERROR
+        # No "Sim" for something the download's own gate would refuse anyway.
+        assert not style & wx.YES_NO
+
+    def test_space_that_could_not_be_measured_is_still_offered(self, tab, monkeypatch):
+        """ensure_free_space() lets an unmeasurable volume through, so
+        refusing here would make downloading impossible on a disk nothing can
+        measure."""
+        raised = self._boxes(monkeypatch, wx.YES)
+        assert tab._ask_transcription_download(
+            _summary(enough_space=None, free_bytes=None), False
+        ) is True
+        assert raised[0][2] & wx.YES_NO
+
+    def test_a_no_stops_the_download(self, tab, monkeypatch):
+        self._boxes(monkeypatch, wx.NO)
+        assert tab._ask_transcription_download(_summary(), False) is False
+
+
+class TestTheMeasurementsAreTakenOffTheWxThread:
+    """Half a second on the wx thread is half a second in which the screen
+    reader cannot announce the screen the user just opened."""
+
+    def test_the_probe_and_the_free_space_are_taken_together_in_the_background(
+        self, tab, monkeypatch, no_background_probe, inline_call_after
+    ):
+        measured = []
+        monkeypatch.setattr(
+            settings_dialog.model_store, "free_bytes",
+            lambda path: measured.append(path) or 40 * 1024 ** 3,
+        )
+        monkeypatch.setattr(
+            settings_dialog.wx, "MessageBox", lambda *args, **kwargs: wx.NO
+        )
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+
+        # Handed to the probe thread and not yet run: the disk query has not
+        # happened on this thread.
+        assert len(no_background_probe) == 1
+        assert measured == []
+
+        no_background_probe[0](_CPU_ONLY)
+        assert len(measured) == 1
+
+    def test_the_buttons_are_off_while_the_measurement_runs(
+        self, tab, no_background_probe
+    ):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+        assert tab._transcription_job_running
+        assert not tab._transcription_action_buttons[
+            management.ACTION_DOWNLOAD_MODEL].IsEnabled()
+
+    def test_a_second_press_during_it_starts_nothing(self, tab, no_background_probe):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+        assert len(no_background_probe) == 1
+
+    def test_the_fresh_probe_replaces_the_one_the_tab_had(
+        self, tab, monkeypatch, no_background_probe, inline_call_after
+    ):
+        """Installing the libraries is exactly what changes the answer, so a
+        cached probe would go on saying the card cannot be used."""
+        monkeypatch.setattr(
+            settings_dialog.model_store, "free_bytes", lambda path: 40 * 1024 ** 3
+        )
+        monkeypatch.setattr(
+            settings_dialog.wx, "MessageBox", lambda *args, **kwargs: wx.NO
+        )
+        with_card = device.HardwareProbe(
+            total_ram_mb=16_384, available_ram_mb=12_288,
+            cuda_device_count=1, cuda_libraries_ok=True,
+        )
+        tab._load_transcription_values()
+        tab._start_transcription_action(management.ACTION_INSTALL_CUDA_RUNTIME)
+        no_background_probe[0](with_card)
+        assert tab._transcription_probe is with_card
+
+    def test_the_tab_being_closed_mid_probe_touches_nothing(self, tab):
+        """The user can still press OK during the measurement, and the answer
+        then comes back to controls that no longer exist."""
+        tab.__class__.__bool__ = lambda self: False
+        try:
+            tab._confirm_transcription_download(
+                management.ACTION_DOWNLOAD_MODEL, "small", _CPU_ONLY, 1
+            )
+        finally:
+            del tab.__class__.__bool__
+
+
+class TestTheTabIsRedrawnAfterEveryAction:
+    """The buttons and the state line have to say what is on disk *now*."""
+
+    @staticmethod
+    def _spy(tab):
+        seen = []
+        tab._refresh_transcription_models = lambda: seen.append("models")
+        tab._show_transcription_cuda_status = lambda: seen.append("cuda")
+        return seen
+
+    def test_a_model_action_redraws_the_model_list(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        seen = self._spy(tab)
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert seen == ["models"]
+
+    def test_a_cuda_action_redraws_the_cuda_line(
+        self, tab, monkeypatch, no_background_probe
+    ):
+        _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        seen = self._spy(tab)
+        tab._start_transcription_action(management.ACTION_VERIFY_CUDA_RUNTIME)
+        assert seen == ["cuda"]
+
+    def test_the_card_is_measured_again_after_the_libraries_change(
+        self, tab, monkeypatch, no_background_probe, confirm_yes
+    ):
+        _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._start_transcription_action(management.ACTION_REMOVE_CUDA_RUNTIME)
+        assert len(no_background_probe) == 1
+
+    def test_the_buttons_are_on_again_once_the_action_is_over(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert tab._transcription_job_running is False
+
+    def test_the_action_is_run_against_the_folder_that_is_actually_stored(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_VERIFY_MODEL)
+        assert made[0].job_kwargs["models_root"] == str(tmp_path)
+        assert made[0].model_id == "small"
+        assert made[0].destroyed
+
+
+class TestWhatTheUserIsTold:
+    def test_a_failure_plays_the_error_sound_and_is_spoken(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        _install_fake_progress(monkeypatch, [(
+            None,
+            errors.TranscriptionError(errors.MODEL_DOWNLOAD_FAILED, "no line"),
+            (),
+        )])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert tab.main_window.error_sound.plays == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(errors.error_i18n_key(errors.MODEL_DOWNLOAD_FAILED))
+        ]
+
+    def test_a_success_is_spoken_with_no_sound(self, tab, monkeypatch, confirm_yes):
+        _install_fake_progress(monkeypatch, [(True, None, ())])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert tab.main_window.error_sound.plays == 0
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(management.MODEL_REMOVED_I18N_KEY).format(
+                model="small"
+            )
+        ]
+
+    def test_a_cancel_is_not_announced_as_a_failure(self, tab, monkeypatch):
+        _install_fake_progress(monkeypatch, [(
+            None, errors.TranscriptionError(errors.CANCELLED, "by the user"), ()
+        )])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_VERIFY_MODEL)
+        assert tab.main_window.error_sound.plays == 0
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(management.CANCELLED_I18N_KEY)
+        ]
+
+    def test_nothing_is_ever_said_with_interrupt(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        """Cutting the screen reader off mid-sentence is worse than waiting."""
+        _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert tab.main_window.speak_output.interrupts == [False]
+
+    def test_the_sentence_is_left_on_screen_as_well(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        """Spoken is not enough for the low-vision reader the two read-only
+        fields on this tab exist for."""
+        _install_fake_progress(monkeypatch, [(True, None, ())])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        shown = tab._transcription_substituted_field.GetValue()
+        assert tab.main_window.i18n.t(
+            management.MODEL_REMOVED_I18N_KEY
+        ).format(model="small") in shown
+        assert tab._transcription_substituted_field.IsShown()
+
+    def test_it_is_said_again_in_the_new_language(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        """Kept as key and values, not as the rendered sentence."""
+        _install_fake_progress(monkeypatch, [(True, None, ())])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        tab.main_window.i18n = _I18n("pl")
+        tab._refresh_transcription_labels()
+        assert _I18n("pl").t(management.MODEL_REMOVED_I18N_KEY).format(
+            model="small"
+        ) in tab._transcription_substituted_field.GetValue()
+
+    def test_showing_the_result_does_not_make_apply_appear(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        """The field is written with ChangeValue for exactly this reason."""
+        _install_fake_progress(monkeypatch)
+        tab._loading_values = True
+        try:
+            tab._load_transcription_values()
+        finally:
+            tab._loading_values = False
+        tab._select_transcription_model("small")
+        tab.dirtied = 0
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert tab.dirtied == 0
+
+
+class TestTheModelsMoveOnlyAfterOk:
+    """A move started in Procurar leaves the files in a folder a Cancel then
+    never stores, so the setting goes on naming the folder they left."""
+
+    @staticmethod
+    def _function(name):
+        tree = ast.parse(SETTINGS_DIALOG_SOURCE)
+        return next(
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef) and node.name == name
+        )
+
+    @staticmethod
+    def _called(function):
+        return {
+            node.func.attr for node in ast.walk(function)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+
+    def test_the_browse_handler_moves_nothing(self):
+        called = self._called(self._function("_on_browse_transcription_models_dir"))
+        assert "_move_transcription_models" not in called
+        assert "_run_transcription_job" not in called
+
+    def test_applying_is_what_moves_them(self):
+        called = self._called(self._function("_apply_transcription_values"))
+        assert "_move_transcription_models" in called
+
+    def test_a_previous_folder_with_nothing_in_it_opens_no_dialog(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+        assert made == []
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path / "elsewhere")
+
+    def test_a_folder_with_models_in_it_is_moved_and_the_new_one_stored(
+        self, tab, monkeypatch, tmp_path
+    ):
+        (tmp_path / "small").mkdir()
+        made = _install_fake_progress(monkeypatch, [(("small",), None, ("small",))])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        assert len(made) == 1
+        assert made[0].action == management.ACTION_MOVE_MODELS
+        assert made[0].job_kwargs["models_root"] == str(tmp_path)
+        assert made[0].job_kwargs["new_models_root"] == str(tmp_path / "elsewhere")
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path / "elsewhere")
+
+    def test_a_half_finished_move_keeps_the_setting_on_the_previous_folder(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """move_models() skips whatever already arrived, so from the previous
+        folder pressing OK again moves exactly the rest. Naming the new folder
+        would strand the leftovers where nothing lists or deletes them."""
+        (tmp_path / "small").mkdir()
+        failure = errors.TranscriptionError(errors.MODEL_MOVE_FAILED, "half way")
+        failure.moved = ("small",)
+        _install_fake_progress(monkeypatch, [(None, failure, ("small", "medium"))])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path)
+        assert tab._transcription_models_dir == str(tmp_path)
+
+    def test_a_half_finished_move_says_which_are_where_and_which_folder_won(
+        self, tab, monkeypatch, tmp_path
+    ):
+        (tmp_path / "small").mkdir()
+        failure = errors.TranscriptionError(errors.MODEL_MOVE_FAILED, "half way")
+        failure.moved = ("small",)
+        _install_fake_progress(monkeypatch, [(None, failure, ("small", "medium"))])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        i18n = tab.main_window.i18n
+        said = tab.main_window.speak_output.spoken[-1]
+        assert i18n.t(management.MODELS_MOVE_PARTIAL_I18N_KEY).format(
+            moved="small", remaining="medium"
+        ) in said
+        assert i18n.t("transcription_models_dir_kept_previous") in said
+        assert i18n.t("transcription_models_dir_kept_previous") in (
+            tab._transcription_substituted_field.GetValue()
+        )
+
+    def test_a_move_that_got_everything_across_keeps_the_new_folder(
+        self, tab, monkeypatch, tmp_path
+    ):
+        (tmp_path / "small").mkdir()
+        _install_fake_progress(monkeypatch, [(("small",), None, ("small",))])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+        assert tab.main_window.i18n.t("transcription_models_dir_kept_previous") not in (
+            tab.main_window.speak_output.spoken[-1]
+        )
+
+    def test_a_move_that_raised_with_everything_already_across_says_so(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """The setting names the new folder — rightly, the models are there —
+        while the sentence for the outcome is a failure. Hearing "could not be
+        completed" as the folder silently changes is the worst of both."""
+        (tmp_path / "small").mkdir()
+        failure = errors.TranscriptionError(errors.MODEL_MOVE_FAILED, "after the last one")
+        failure.moved = ("small",)
+        _install_fake_progress(monkeypatch, [(None, failure, ("small",))])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path / "elsewhere")
+        assert tab.main_window.i18n.t("transcription_models_dir_now_the_new_one") in (
+            tab.main_window.speak_output.spoken[-1]
+        )
+
+    def test_a_move_that_broke_before_it_started_keeps_the_previous_folder(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """The worst shape of failure: the job never got far enough to say
+        what crossed, so nothing crossed. Read as "everything is still in the
+        old folder" it is harmless; read as success it names a folder the
+        models are not in and the picker offers to download them all again."""
+        (tmp_path / "small").mkdir()
+        _install_fake_progress(monkeypatch, [(
+            None, errors.TranscriptionError(errors.MODELS_BUSY, "another window"), ()
+        )])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path)
+        assert tab.main_window.i18n.t("transcription_models_dir_kept_previous") in (
+            tab.main_window.speak_output.spoken[-1]
+        )
+
+    def test_a_cancelled_move_that_got_nothing_across_keeps_it_too(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """"Operação cancelada." says nothing about the folder, and the user
+        would otherwise press OK and find it silently back on the old one."""
+        (tmp_path / "small").mkdir()
+        _install_fake_progress(monkeypatch, [(
+            None, errors.TranscriptionError(errors.CANCELLED, "by the user"),
+            ("small",),
+        )])
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        assert tab.main_window._app_settings.get(
+            preferences.MODELS_DIR_SETTING
+        ) == str(tmp_path)
+
+    def test_moving_the_folder_says_nothing_about_the_cuda_libraries(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """A move is neither a model action nor a CUDA one, and a successful
+        one is no reason to forget that the libraries failed their check."""
+        (tmp_path / "small").mkdir()
+        _install_fake_progress(monkeypatch, [(("small",), None, ("small",))])
+        tab._note_transcription_outcome(
+            management.ACTION_VERIFY_CUDA_RUNTIME, None,
+            errors.TranscriptionError(errors.CUDA_RUNTIME_CORRUPTED, "digest"),
+        )
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+        assert tab._transcription_cuda_corrupted is True
+
+
+class TestFoldersNothingHereCanDelete:
+    """A model a later version retires stops being listed anywhere, and
+    remove_model() refuses a name the catalogue cannot look up — up to 3 GB
+    sitting there, invisible and undeletable from inside the app."""
+
+    def test_they_are_named_in_the_warning_field(self, tab, tmp_path):
+        (tmp_path / "whisper-from-2019").mkdir()
+        tab._load_transcription_values()
+        tab._refresh_transcription_models()
+        shown = tab._transcription_substituted_field.GetValue()
+        assert "whisper-from-2019" in shown
+        assert tab._transcription_substituted_field.IsShown()
+
+    def test_they_are_spoken_when_the_tab_is_put_on_screen(self, tab, tmp_path):
+        """A read-only field is not a cue under NVDA until focus reaches it,
+        and a folder nobody knows about is what nobody goes looking for."""
+        (tmp_path / "whisper-from-2019").mkdir()
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert any(
+            "whisper-from-2019" in said
+            for said in tab.main_window.speak_output.spoken
+        )
+
+    def test_a_folder_the_catalogue_knows_is_not_one_of_them(self, tab, tmp_path):
+        (tmp_path / model_catalog.list_models()[0].id).mkdir()
+        tab._load_transcription_values()
+        tab._refresh_transcription_models()
+        assert tab._transcription_unknown_dirs == ()
+        assert not tab._transcription_substituted_field.IsShown()
+
+    def test_an_empty_folder_says_nothing(self, tab):
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab.main_window.speak_output.spoken == []
+
+
+class TestNothingIsWrittenIntoAFolderCancelThrowsAway:
+    """The other half of "the models move on OK", seen from Cancel's side.
+
+    Procurar records a folder and stores nothing until OK. A 3 GB download
+    written against that folder and then a Cancel leaves the setting on the
+    old one, and nothing in the app ever looks at the new folder again — not
+    the model list, not list_unknown_dirs(), both of which walk the folder
+    that is *configured*. The picker then says "not installed" and offers the
+    same 3 GB over again.
+    """
+
+    @staticmethod
+    def _refuse(monkeypatch):
+        told = []
+        monkeypatch.setattr(
+            settings_dialog.wx, "MessageBox",
+            lambda *args, **kwargs: told.append(args) or wx.OK,
+        )
+        return told
+
+    @pytest.mark.parametrize("action", list(management.MODEL_ACTIONS))
+    def test_every_model_action_is_refused_while_the_folder_is_only_chosen(
+        self, tab, monkeypatch, tmp_path, action
+    ):
+        made = _install_fake_progress(monkeypatch)
+        told = self._refuse(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+
+        tab._start_transcription_action(action)
+
+        assert made == []
+        assert told, "the user has to be told why nothing happened"
+        assert told[0][0] == tab.main_window.i18n.t("transcription_apply_folder_first")
+
+    def test_nothing_is_measured_either(self, tab, monkeypatch, tmp_path,
+                                        no_background_probe):
+        """The refusal comes before the probe, so a download that cannot start
+        does not spend a second of somebody's machine deciding that."""
+        self._refuse(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+        assert no_background_probe == []
+
+    def test_the_cuda_libraries_are_not_held_up_by_the_models_folder(
+        self, tab, monkeypatch, tmp_path, no_background_probe, confirm_yes
+    ):
+        """They live in their own install-wide folder, which this setting does
+        not move — refusing those too would be a rule with no reason."""
+        made = _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._start_transcription_action(management.ACTION_VERIFY_CUDA_RUNTIME)
+        assert len(made) == 1
+
+    def test_the_same_action_runs_once_the_folder_has_been_applied(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _install_fake_progress(monkeypatch)
+        self._refuse(monkeypatch)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+
+        tab._start_transcription_action(management.ACTION_VERIFY_MODEL)
+        assert len(made) == 1
+        assert made[0].job_kwargs["models_root"] == str(tmp_path / "elsewhere")
+
+
+class TestRemovingIsAskedAboutFirst:
+    """Three gigabytes on one Enter, from a button one arrow key away from
+    Verificar on the same row."""
+
+    @staticmethod
+    def _answer(monkeypatch, reply):
+        asked = []
+        monkeypatch.setattr(
+            settings_dialog.wx, "MessageBox",
+            lambda *args, **kwargs: asked.append(args) or reply,
+        )
+        return asked
+
+    def test_removing_a_model_asks_and_names_it(self, tab, monkeypatch):
+        made = _install_fake_progress(monkeypatch)
+        asked = self._answer(monkeypatch, wx.YES)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert len(asked) == 1
+        assert "small" in asked[0][0]
+        assert asked[0][2] & wx.YES_NO
+        assert len(made) == 1
+
+    def test_no_removes_nothing(self, tab, monkeypatch):
+        made = _install_fake_progress(monkeypatch)
+        self._answer(monkeypatch, wx.NO)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
+        assert made == []
+
+    def test_removing_the_libraries_asks_too(
+        self, tab, monkeypatch, no_background_probe
+    ):
+        made = _install_fake_progress(monkeypatch)
+        asked = self._answer(monkeypatch, wx.NO)
+        tab._load_transcription_values()
+        tab._start_transcription_action(management.ACTION_REMOVE_CUDA_RUNTIME)
+        assert len(asked) == 1
+        assert asked[0][0] == tab.main_window.i18n.t("transcription_confirm_remove_cuda")
+        assert made == []
+
+    def test_verifying_is_not_asked_about(self, tab, monkeypatch):
+        """Only the two that delete. A question in front of a harmless action
+        is a question users learn to press through."""
+        _install_fake_progress(monkeypatch)
+        asked = self._answer(monkeypatch, wx.YES)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_VERIFY_MODEL)
+        assert asked == []
+
+
+class TestTheFocusNeverStaysOnADisabledButton:
+    """A download that worked takes the model to INSTALLED, which is exactly
+    the state in which Baixar is off — and the focus is on Baixar, because
+    that is the button the user pressed. A disabled control answers nothing to
+    a screen reader."""
+
+    @staticmethod
+    def _watch(tab):
+        taken = []
+        for action, button in tab._transcription_action_buttons.items():
+            button.SetFocus = lambda action=action: taken.append(action)
+        tab._transcription_model_combo.SetFocus = lambda: taken.append("model combo")
+        tab._transcription_cuda_field.SetFocus = lambda: taken.append("cuda field")
+        return taken
+
+    def test_it_moves_to_the_next_button_that_can_be_pressed(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        taken = self._watch(tab)
+        # Verificar is off for a model that is not downloaded; Baixar is on.
+        tab._restore_transcription_focus(management.ACTION_VERIFY_MODEL)
+        assert taken == [management.ACTION_DOWNLOAD_MODEL]
+
+    def test_a_button_that_is_still_enabled_keeps_the_focus(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_DOWNLOAD_MODEL)
+        assert taken == []
+
+    def test_a_row_with_nothing_left_falls_back_to_its_own_control(self, tab):
+        tab._load_transcription_values()
+        # "Automático" names no model, so all four are off.
+        assert tab._selected_transcription_model() == preferences.AUTO
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_REMOVE_MODEL)
+        assert taken == ["model combo"]
+
+    def test_the_models_folder_move_has_no_button_and_moves_no_focus(self, tab):
+        tab._load_transcription_values()
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_MOVE_MODELS)
+        assert taken == []

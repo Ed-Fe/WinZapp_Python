@@ -122,9 +122,15 @@ from core.transcription import (
     backend as transcription_backend,
     cuda_runtime,
     device as transcription_device,
+    errors as transcription_errors,
+    management as transcription_management,
     model_catalog,
     model_store,
     preferences as transcription_preferences,
+)
+from ui.dialogs.transcription_progress import (
+    TranscriptionProgressDialog,
+    progress_status_text,
 )
 
 
@@ -168,6 +174,189 @@ _TRANSCRIPTION_DEVICE_PREFERENCES = (
     transcription_device.PREFERENCE_CUDA,
     transcription_device.PREFERENCE_CPU,
 )
+
+
+# A fourth state, for the action buttons only. `installation_state()` and
+# `cuda_runtime.installation_state()` measure names and sizes, so the one
+# thing neither can see is a file that is exactly the right size and the wrong
+# bytes — which is precisely what verify_model()/verify_installation() answer
+# MODEL_CORRUPTED and CUDA_RUNTIME_CORRUPTED for. Without a state of its own
+# the check that found the damage would leave the Reparar button disabled, one
+# keypress after telling the user to press it.
+_TRANSCRIPTION_STATE_CORRUPTED = "corrupted"
+
+# The two rows of action buttons, each entry (action, label key, state key) in
+# the order they are offered — which is also their order in the tab. Declared
+# as data because three separate places walk them: building the row, enabling
+# them against what is on disk, and retranslating the labels.
+_TRANSCRIPTION_MODEL_ACTION_BUTTONS = (
+    (transcription_management.ACTION_DOWNLOAD_MODEL,
+     "transcription_model_download_btn", "download"),
+    (transcription_management.ACTION_VERIFY_MODEL,
+     "transcription_model_verify_btn", "verify"),
+    (transcription_management.ACTION_REPAIR_MODEL,
+     "transcription_model_repair_btn", "repair"),
+    (transcription_management.ACTION_REMOVE_MODEL,
+     "transcription_model_remove_btn", "remove"),
+)
+_TRANSCRIPTION_CUDA_ACTION_BUTTONS = (
+    (transcription_management.ACTION_INSTALL_CUDA_RUNTIME,
+     "transcription_cuda_install_btn", "download"),
+    (transcription_management.ACTION_REPAIR_CUDA_RUNTIME,
+     "transcription_cuda_repair_btn", "repair"),
+    (transcription_management.ACTION_VERIFY_CUDA_RUNTIME,
+     "transcription_cuda_verify_btn", "verify"),
+    (transcription_management.ACTION_REMOVE_CUDA_RUNTIME,
+     "transcription_cuda_remove_btn", "remove"),
+)
+
+#: The name of each group box. Deliberately without a mnemonic: a static box
+#: is not a tab stop, and the two letters it would cost are letters the
+#: buttons inside it need more.
+_TRANSCRIPTION_MODEL_ACTIONS_GROUP = "transcription_model_actions_group"
+_TRANSCRIPTION_CUDA_ACTIONS_GROUP = "transcription_cuda_actions_group"
+
+# The four actions that spend the user's bandwidth, and therefore the four
+# that have to be agreed to first.
+_TRANSCRIPTION_CONFIRMED_ACTIONS = (
+    transcription_management.ACTION_DOWNLOAD_MODEL,
+    transcription_management.ACTION_REPAIR_MODEL,
+    transcription_management.ACTION_INSTALL_CUDA_RUNTIME,
+    transcription_management.ACTION_REPAIR_CUDA_RUNTIME,
+)
+
+_TRANSCRIPTION_REPAIR_ACTIONS = (
+    transcription_management.ACTION_REPAIR_MODEL,
+    transcription_management.ACTION_REPAIR_CUDA_RUNTIME,
+)
+
+#: The two that delete. They are asked about for the same reason the downloads
+#: are: gigabytes either way, and Remover sits on the same row as Verificar,
+#: one arrow key apart under a screen reader.
+_TRANSCRIPTION_REMOVE_ACTIONS = (
+    transcription_management.ACTION_REMOVE_MODEL,
+    transcription_management.ACTION_REMOVE_CUDA_RUNTIME,
+)
+
+#: The CUDA half of ACTIONS, which is deliberately not "everything that is not
+#: a model action": ACTION_MOVE_MODELS is neither, and says nothing at all
+#: about the libraries.
+_TRANSCRIPTION_CUDA_ACTIONS = tuple(
+    action for action, _label_key, _state_key in _TRANSCRIPTION_CUDA_ACTION_BUTTONS
+)
+
+
+def _transcription_action_states(state, job_running) -> dict:
+    """Which of the four buttons may be pressed for something in `state`.
+
+    One table for the models and for the CUDA libraries, because it is the
+    same question about the same states: model_store and cuda_runtime spell
+    ABSENT/INCOMPLETE/INSTALLED with the same three literals and say so in
+    each other's terms. Two copies of this could disagree about whether
+    Remover exists for an interrupted install — and it must, because a removal
+    that could not delete everything leaves exactly that state, and the
+    sentence telling the user to remove them again would then point at a
+    button that is not there.
+
+    `state` is None when there is nothing selected to act on ("Automático" in
+    the model picker names no model), and then every button is off — as they
+    all are while a job runs: two jobs in this process do not fail, they
+    serialize on the models lock, but the second one waits *silently* for up
+    to twelve hours behind a bar that never moves.
+    """
+    if job_running or state is None:
+        return {"download": False, "verify": False, "repair": False, "remove": False}
+    return {
+        # An install already complete has nothing left to fetch, and a
+        # corrupted one is Reparar's: every file is there at its right size,
+        # so a download would keep every wrong byte.
+        "download": state in (model_store.STATE_ABSENT, model_store.STATE_INCOMPLETE),
+        # Both checks read every byte and compare it against a digest, which
+        # can only be done once every byte is there.
+        "verify": state in (model_store.STATE_INSTALLED,
+                            _TRANSCRIPTION_STATE_CORRUPTED),
+        "repair": state in (model_store.STATE_INCOMPLETE,
+                            _TRANSCRIPTION_STATE_CORRUPTED),
+        # Anything at all on disk can be removed, leftovers of an interrupted
+        # transfer included — that is the only route the user has to them.
+        "remove": state != model_store.STATE_ABSENT,
+    }
+
+
+def _transcription_download_confirmation(i18n, summary, repair=False) -> str:
+    """Everything the user is agreeing to, before the first byte moves.
+
+    The five things the issue asks for — what it is, how big the download is,
+    how much disk it needs, where it goes, and whether it will end up running
+    on the processor or on the card — plus the two that only sometimes apply:
+    a transfer that cannot be resumed, and a model that will not fit the
+    memory of the device it would run on. `summary` is a
+    management.DownloadSummary, so the figures here are the same ones the
+    free-space gate will use rather than a second calculation of them.
+    """
+    if summary.subject == transcription_management.SUBJECT_MODEL:
+        head = i18n.t(
+            "transcription_confirm_model_repair" if repair
+            else "transcription_confirm_model"
+        ).format(model=summary.model_id or "")
+    else:
+        head = i18n.t(
+            "transcription_confirm_cuda_repair" if repair
+            else "transcription_confirm_cuda"
+        )
+
+    lines = [
+        head,
+        i18n.t("transcription_confirm_download_size").format(
+            size=_format_transcription_size(i18n, summary.download_bytes)
+        ),
+        i18n.t("transcription_confirm_required_space").format(
+            size=_format_transcription_size(i18n, summary.required_free_bytes)
+        ),
+    ]
+    if summary.enough_space is None:
+        # "Unknown", never "enough": ensure_free_space() lets an unmeasurable
+        # volume through, and claiming it fits would be inventing an answer.
+        lines.append(i18n.t("transcription_confirm_space_unknown"))
+    elif summary.enough_space:
+        lines.append(i18n.t("transcription_confirm_free_space").format(
+            size=_format_transcription_size(i18n, summary.free_bytes)
+        ))
+    else:
+        lines.append(i18n.t("transcription_confirm_not_enough_space").format(
+            required=_format_transcription_size(i18n, summary.required_free_bytes),
+            free=_format_transcription_size(i18n, summary.free_bytes),
+        ))
+    lines.append(i18n.t("transcription_confirm_destination").format(
+        folder=summary.destination
+    ))
+    lines.append(i18n.t(
+        "transcription_confirm_device_cuda"
+        if summary.device == transcription_device.DEVICE_CUDA
+        else "transcription_confirm_device_cpu"
+    ))
+    if not summary.resumable:
+        # The CUDA libraries: a cancelled or dropped transfer starts from zero
+        # next time, which is 553 MB the user decides about *now*.
+        lines.append(i18n.t("transcription_confirm_no_resume").format(
+            size=_format_transcription_size(i18n, summary.download_bytes)
+        ))
+    if summary.fits_memory is False:
+        lines.append(i18n.t("transcription_confirm_does_not_fit"))
+    return "\n".join(lines)
+
+
+def _transcription_unknown_dirs_notice(i18n, names) -> str:
+    """What to say about folders in the models folder nothing here can remove.
+
+    A model a later version retires stops being listed anywhere, and
+    remove_model() refuses to delete a name the catalogue cannot look up — so
+    up to 3 GB would sit there, invisible and undeletable from inside the app,
+    with nothing ever mentioning it.
+    """
+    if not names:
+        return ""
+    return i18n.t("transcription_unknown_dirs").format(folders=", ".join(names))
 
 
 def _format_transcription_size(i18n, size_bytes) -> str:
@@ -1192,9 +1381,11 @@ class SettingsDialog(wx.Dialog):
         an argument is what lets the method be bound onto a stub and built
         against conftest's off-screen frame instead.
 
-        Choices only. Downloading or removing a model, installing, repairing or
-        removing the CUDA libraries and *moving* the models folder all belong to
-        part 5c; this tab says what the state is and stores what the user picked.
+        Each thing the user can *do* sits on its own row directly under the
+        control it acts on — the four model buttons after the model picker, the
+        four CUDA ones after the CUDA status line. A button that acts on a
+        choice belongs next to that choice in the tab order, not collected at
+        the bottom of the page past the language and the folder.
         """
         i18n = self.main_window.i18n
         page = wx.Panel(parent)
@@ -1224,6 +1415,34 @@ class SettingsDialog(wx.Dialog):
         self._transcription_page_seen = False
         #: Which settings resolve() had to replace, as setting names.
         self._transcription_substituted_settings = set()
+        #: Every action button, by its management action. Filled in by
+        #: _build_transcription_action_row() as each row is laid out, which is
+        #: why everything that walks it tolerates a button that is not there
+        #: yet: the populate helpers below run while the page is half built.
+        self._transcription_action_buttons = {}
+        #: (static box, title key) per group, for the retranslation.
+        self._transcription_action_groups = []
+        #: Whether an action is under way — the measurement before a download
+        #: included, since that is a thread too and a second press during it
+        #: would start a second job.
+        self._transcription_job_running = False
+        #: What the model list last measured, by model id. Read by the buttons
+        #: instead of measuring again on every arrow key through the picker.
+        self._transcription_model_states = {}
+        #: cuda_runtime.installation_state()'s own state, kept by
+        #: _show_transcription_cuda_status() for the same reason.
+        self._transcription_cuda_state = None
+        #: What only a hash could have found: see
+        #: _TRANSCRIPTION_STATE_CORRUPTED and _note_transcription_outcome().
+        self._transcription_corrupted_models = set()
+        self._transcription_cuda_corrupted = False
+        #: Folders under the models root no catalogue entry claims.
+        self._transcription_unknown_dirs = ()
+        #: The last action's Announcement, so the sentence the user heard is
+        #: also on screen. Key and values rather than the rendered sentence, so
+        #: a language change re-says it instead of leaving the old one there.
+        self._transcription_last_outcome = None
+        self._transcription_last_outcome_extra = ()
 
         #: Three lines of the font actually in use, for the two read-only
         #: fields below. A pixel count (52 px was two lines at 100% scaling)
@@ -1272,6 +1491,15 @@ class SettingsDialog(wx.Dialog):
         #: mapped back to an id by reading it.
         self._transcription_model_ids = []
         self._populate_transcription_model_choices()
+        # Which buttons below make sense depends on the model selected, and
+        # SetSelection() fires nothing — only the user's own choice does.
+        self._transcription_model_combo.Bind(
+            wx.EVT_COMBOBOX, self._on_transcription_model_change
+        )
+        self._build_transcription_action_row(
+            page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
+            _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
+        )
 
         self._transcription_device_radio = wx.RadioBox(
             page,
@@ -1370,9 +1598,50 @@ class SettingsDialog(wx.Dialog):
         )
         self._transcription_cuda_field.SetEditable(False)
         sizer.Add(self._transcription_cuda_field, 0, wx.EXPAND | wx.ALL, 8)
+        self._build_transcription_action_row(
+            page, sizer, _TRANSCRIPTION_CUDA_ACTION_BUTTONS,
+            _TRANSCRIPTION_CUDA_ACTIONS_GROUP,
+        )
+        self._sync_transcription_action_buttons()
 
         page.SetSizer(sizer)
         return page
+
+    def _build_transcription_action_row(self, page, sizer, buttons, title_key):
+        """One named group of action buttons, wired and remembered by action.
+
+        **A wx.StaticBox, and that is what lets each button be one word.** The
+        group is a native control: MSAA exposes the grouping and a screen
+        reader announces its name when focus enters it, so "Instalar" inside
+        "Bibliotecas CUDA" carries everything "Instalar bibliotecas CUDA"
+        carried — with the object read once on entry instead of again on every
+        one of the four. A button's label is its whole identity and is read in
+        full every single time focus lands on it, several times a session,
+        which is a far larger cost than the Alt key it buys.
+
+        Children are parented to the box rather than to the page, which is
+        what wx wants for a static box and what keeps them inside the group
+        for the accessibility layer as well as for the layout. Tab order is
+        creation order, so it still walks them left to right.
+
+        All eight share `_on_transcription_action`: the button *is* the
+        action, and eight near-identical handlers would be eight places for
+        the next action to be wired into the wrong one.
+        """
+        i18n = self.main_window.i18n
+        box = wx.StaticBox(page, label=i18n.t(title_key))
+        self._transcription_action_groups.append((box, title_key))
+        group = wx.StaticBoxSizer(box, wx.VERTICAL)
+        # A wrap sizer inside it so a long translation folds onto a second
+        # line instead of setting the width of every other tab in the dialog.
+        row = wx.WrapSizer(wx.HORIZONTAL)
+        for action, label_key, _state_key in buttons:
+            button = wx.Button(box, label=i18n.t(label_key))
+            button.Bind(wx.EVT_BUTTON, self._on_transcription_action)
+            self._transcription_action_buttons[action] = button
+            row.Add(button, 0, wx.RIGHT, 8)
+        group.Add(row, 1, wx.EXPAND | wx.ALL, 4)
+        sizer.Add(group, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
     # ── Transcription tab ────────────────────────────────────────────────────
     # Kept together rather than spread across this file's Helpers/Event
@@ -1415,15 +1684,16 @@ class SettingsDialog(wx.Dialog):
         The folder, the model list and the hardware notices, in that order —
         "nothing fits" can stop or start being true with the models on disk.
         One place for it because more than one event changes that: choosing
-        another folder today, and downloading, removing or moving a model once
-        part 5c adds those actions. _enter_transcription_page() runs once per
-        opening and cannot serve as the refresh after an action.
+        another folder, and downloading, repairing, removing or moving a
+        model. _enter_transcription_page() runs once per opening and cannot
+        serve as the refresh after an action.
         """
         self._show_transcription_models_dir()
         self._populate_transcription_model_choices()
-        _models_dir, self._transcription_installed_ids = (
+        models_dir, self._transcription_installed_ids = (
             transcription_preferences.models_folder(self._transcription_models_dir)
         )
+        self._transcription_unknown_dirs = model_store.list_unknown_dirs(models_dir)
         self._show_transcription_hardware_notices()
 
     def _show_transcription_models_dir(self):
@@ -1450,10 +1720,13 @@ class SettingsDialog(wx.Dialog):
         )
         labels = [i18n.t(transcription_preferences.OPTION_AUTO_I18N_KEY)]
         model_ids = [transcription_preferences.AUTO]
+        # The same measurement the label is written from is what the action
+        # buttons read, rather than a second one of their own per keystroke.
+        self._transcription_model_states = {}
         for model in model_catalog.list_models():
-            labels.append(_transcription_model_choice_label(
-                i18n, model, model_store.installation_state(models_dir, model)
-            ))
+            state = model_store.installation_state(models_dir, model)
+            self._transcription_model_states[model.id] = state.state
+            labels.append(_transcription_model_choice_label(i18n, model, state))
             model_ids.append(model.id)
 
         selected = self._selected_transcription_model()
@@ -1464,6 +1737,7 @@ class SettingsDialog(wx.Dialog):
         self._transcription_model_combo.Set(labels)
         self._transcription_model_ids = model_ids
         self._select_transcription_model(selected)
+        self._sync_transcription_action_buttons()
 
     def _populate_transcription_language_choices(self):
         """Rebuild the language list, keeping whatever was selected selected.
@@ -1668,13 +1942,28 @@ class SettingsDialog(wx.Dialog):
 
     def _render_transcription_substitutions(self):
         i18n = self.main_window.i18n
-        # Both sources share the one field, and that is deliberate: they are
+        # Every source shares the one field, and that is deliberate: they are
         # the same kind of thing to the person reading them, and a second
-        # read-only box would be a second tab stop saying so.
-        text = "\n".join(
-            i18n.t(key) for key in
-            self._transcription_substitution_keys + self._transcription_hardware_keys
+        # read-only box would be a second tab stop saying so. The result of
+        # the action the user just took goes first, because it is the one they
+        # are waiting for; the folder's own notice goes last, because it is
+        # about the folder rather than about anything they just did.
+        lines = []
+        if self._transcription_last_outcome is not None:
+            lines.append(i18n.t(self._transcription_last_outcome.i18n_key).format(
+                **self._transcription_last_outcome.values
+            ))
+            lines.extend(
+                i18n.t(key) for key in self._transcription_last_outcome_extra
+            )
+        lines.extend(i18n.t(key) for key in self._transcription_substitution_keys)
+        lines.extend(i18n.t(key) for key in self._transcription_hardware_keys)
+        notice = _transcription_unknown_dirs_notice(
+            i18n, self._transcription_unknown_dirs
         )
+        if notice:
+            lines.append(notice)
+        text = "\n".join(lines)
         # ChangeValue: showing a warning is not an edit. With SetValue, merely
         # arriving on this tab made the Apply button appear and gain a tab
         # stop — exactly what _mark_dirty exists to prevent.
@@ -1685,10 +1974,420 @@ class SettingsDialog(wx.Dialog):
 
     def _show_transcription_cuda_status(self):
         """Put the one line about the CUDA libraries into its own field."""
+        state = cuda_runtime.installation_state()
+        self._transcription_cuda_state = state.state
         # ChangeValue for the same reason as the warning field above.
-        self._transcription_cuda_field.ChangeValue(_transcription_cuda_status_text(
-            self.main_window.i18n, cuda_runtime.installation_state()
-        ))
+        self._transcription_cuda_field.ChangeValue(
+            _transcription_cuda_status_text(self.main_window.i18n, state)
+        )
+        self._sync_transcription_action_buttons()
+
+    # ── The eight actions ────────────────────────────────────────────────────
+
+    def _transcription_model_state(self):
+        """What the selected model's buttons have to answer to, or None."""
+        model_id = self._selected_transcription_model()
+        if model_id is None or model_id == transcription_preferences.AUTO:
+            return None
+        if model_id in self._transcription_corrupted_models:
+            return _TRANSCRIPTION_STATE_CORRUPTED
+        return self._transcription_model_states.get(model_id)
+
+    def _transcription_cuda_button_state(self):
+        """The same, for the CUDA libraries."""
+        if self._transcription_cuda_corrupted:
+            return _TRANSCRIPTION_STATE_CORRUPTED
+        return self._transcription_cuda_state
+
+    def _sync_transcription_action_buttons(self):
+        """Enable exactly the buttons that can act on what is on disk now."""
+        for buttons, state in (
+            (_TRANSCRIPTION_MODEL_ACTION_BUTTONS, self._transcription_model_state()),
+            (_TRANSCRIPTION_CUDA_ACTION_BUTTONS,
+             self._transcription_cuda_button_state()),
+        ):
+            allowed = _transcription_action_states(
+                state, self._transcription_job_running
+            )
+            for action, _label_key, state_key in buttons:
+                button = self._transcription_action_buttons.get(action)
+                # Absent while the page is still being built: the populate
+                # helpers run before the row they belong to exists.
+                if button is not None:
+                    button.Enable(allowed[state_key])
+
+    def _set_transcription_job_running(self, running):
+        """One action at a time, and every other button says so."""
+        self._transcription_job_running = bool(running)
+        self._sync_transcription_action_buttons()
+
+    def _on_transcription_model_change(self, event):
+        """Another model, another set of buttons that can act on it."""
+        self._sync_transcription_action_buttons()
+        # Skip() or the dialog-level EVT_COMBOBOX never runs and the Apply
+        # button stays hidden — see _mark_dirty()'s docstring.
+        event.Skip()
+
+    def _on_transcription_action(self, event):
+        """All eight buttons come here; the button is the action."""
+        pressed = event.GetEventObject()
+        for action, button in self._transcription_action_buttons.items():
+            if button is pressed:
+                self._start_transcription_action(action)
+                return
+
+    def _start_transcription_action(self, action):
+        """Work out what the action needs, ask if it costs a download, run it."""
+        if self._transcription_job_running:
+            return
+        model_id = None
+        if action in transcription_management.MODEL_ACTIONS:
+            if not self._transcription_models_dir_applied():
+                return
+            model_id = self._selected_transcription_model()
+            if model_id is None or model_id == transcription_preferences.AUTO:
+                # "Automático" names no model. The buttons are already off in
+                # that state; this is the guard for a press that got through.
+                return
+        if action in _TRANSCRIPTION_CONFIRMED_ACTIONS:
+            self._measure_transcription_download(action, model_id)
+            return
+        if action in _TRANSCRIPTION_REMOVE_ACTIONS and not self._ask_transcription_removal(
+                action, model_id):
+            return
+        job, result, error = self._run_transcription_job(action, model_id=model_id)
+        self._report_transcription_job(action, model_id, job, result, error)
+
+    def _transcription_models_dir_applied(self) -> bool:
+        """Refuse to touch the models while the folder is only *chosen*.
+
+        The other half of "the move happens on OK": a folder picked in
+        Procurar is not stored until OK, so bytes written against it now are
+        bytes Cancel throws away. A 3 GB download into the chosen folder
+        followed by Cancel leaves the setting on the old folder, and nothing
+        in the app ever looks at the new one again — not the model list, not
+        `list_unknown_dirs()`, which both walk the folder that is *configured*
+        — so the picker says "not installed" and offers the same 3 GB again.
+
+        Only the model actions: the CUDA libraries live in their own
+        install-wide folder that this setting does not move.
+        """
+        if self._transcription_models_dir == self._stored_transcription_models_dir():
+            return True
+        i18n = self.main_window.i18n
+        wx.MessageBox(
+            i18n.t("transcription_apply_folder_first"),
+            i18n.t("settings_title"),
+            wx.OK | wx.ICON_INFORMATION,
+            self,
+        )
+        return False
+
+    def _measure_transcription_download(self, action, model_id):
+        """Take the measurements the question needs, off the wx thread.
+
+        `probe_hardware()` was measured at 0.67 s on a machine with no card at
+        all, and a wx thread busy that long is a screen reader with nothing to
+        read. The free space goes with it, on the same thread, because it is
+        the same wait for the same question — and both are taken again on
+        every press rather than cached, since installing the libraries is
+        precisely the thing that changes the answer.
+        """
+        self._set_transcription_job_running(True)
+        models_root = transcription_preferences.resolve_models_dir(
+            self._transcription_models_dir
+        )
+        root = (models_root if action in transcription_management.MODEL_ACTIONS
+                else cuda_runtime.default_cuda_runtime_dir())
+
+        def _measured(probe):
+            # Still on the probe's own thread, which is where the disk query
+            # belongs too rather than back on the one we just left.
+            free = model_store.free_bytes(root)
+            wx.CallAfter(
+                self._confirm_transcription_download, action, model_id, probe, free
+            )
+
+        transcription_management.probe_in_background(_measured)
+
+    def _confirm_transcription_download(self, action, model_id, probe, free_bytes):
+        """Back on the wx thread with the measurements: ask, then run."""
+        if not self:
+            # Configurações was closed while the probe ran, and every control
+            # below went with it.
+            return
+        self._adopt_transcription_probe(probe)
+        self._set_transcription_job_running(False)
+
+        repair = action in _TRANSCRIPTION_REPAIR_ACTIONS
+        preference = self._selected_transcription_device_preference()
+        if action in transcription_management.MODEL_ACTIONS:
+            summary = transcription_management.model_download_summary(
+                model_id,
+                transcription_preferences.resolve_models_dir(
+                    self._transcription_models_dir
+                ),
+                probe, free_bytes, preference, repair=repair,
+            )
+        else:
+            summary = transcription_management.cuda_runtime_download_summary(
+                probe, free_bytes, device_preference=preference, repair=repair
+            )
+        if summary is None:
+            # An id the catalogue no longer knows: there is nothing to quote
+            # and nothing to fetch.
+            return
+        if not self._ask_transcription_download(summary, repair):
+            return
+        job, result, error = self._run_transcription_job(action, model_id=model_id)
+        self._report_transcription_job(action, model_id, job, result, error)
+
+    def _ask_transcription_download(self, summary, repair) -> bool:
+        i18n = self.main_window.i18n
+        text = _transcription_download_confirmation(i18n, summary, repair)
+        title = i18n.t("transcription_download_confirm_title")
+        if summary.enough_space is False:
+            # Not a question. The free-space gate inside the download would
+            # refuse this transfer anyway, and offering "Sim" for something
+            # that cannot start is offering to fail. A volume that could not
+            # be *measured* is a different answer and does go through, because
+            # ensure_free_space() lets that one through too — refusing here
+            # would make downloading impossible on a disk nothing can measure.
+            wx.MessageBox(text, title, wx.OK | wx.ICON_ERROR, self)
+            return False
+        return wx.MessageBox(text, title, wx.YES_NO | wx.ICON_QUESTION, self) == wx.YES
+
+    def _ask_transcription_removal(self, action, model_id) -> bool:
+        """Ask before deleting. No size in the question, on purpose: it would
+        be the catalogued one, which is a lie about a half-downloaded model —
+        and the figure is already in the picker line the user just read."""
+        i18n = self.main_window.i18n
+        if action == transcription_management.ACTION_REMOVE_MODEL:
+            text = i18n.t("transcription_confirm_remove_model").format(
+                model=model_id or ""
+            )
+        else:
+            text = i18n.t("transcription_confirm_remove_cuda")
+        return wx.MessageBox(
+            text, i18n.t("transcription_remove_confirm_title"),
+            wx.YES_NO | wx.ICON_QUESTION, self,
+        ) == wx.YES
+
+    def _run_transcription_job(self, action, model_id=None, models_root=None,
+                               new_models_root=None):
+        """Run one action behind the progress dialog. Returns what it answered.
+
+        Deliberately does not report: the models-folder move has to decide
+        which folder the setting names *before* anything is said, so that the
+        sentence and the setting cannot disagree.
+        """
+        if models_root is None:
+            # The folder that is actually in force, never the one the tab is
+            # merely showing — see _transcription_models_dir_applied(), which
+            # is what stops the two from differing here at all.
+            models_root = transcription_preferences.resolve_models_dir(
+                self._stored_transcription_models_dir()
+            )
+        job_kwargs = {}
+        if action in transcription_management.MODEL_ACTIONS:
+            job_kwargs["models_root"] = models_root
+        elif action == transcription_management.ACTION_MOVE_MODELS:
+            job_kwargs["models_root"] = models_root
+            job_kwargs["new_models_root"] = new_models_root
+
+        def _make_job(on_progress, on_finished):
+            return transcription_management.ManagementJob(
+                action, model_id=model_id,
+                on_progress=on_progress, on_finished=on_finished,
+                **job_kwargs,
+            )
+
+        dialog = TranscriptionProgressDialog(
+            self,
+            self.main_window.i18n,
+            self.main_window.speak_output,
+            _make_job,
+            progress_status_text(self.main_window.i18n, action, model_id),
+        )
+        self._set_transcription_job_running(True)
+        try:
+            dialog.run()
+            return dialog.job, dialog.result, dialog.error
+        finally:
+            dialog.Destroy()
+            self._set_transcription_job_running(False)
+
+    def _report_transcription_job(self, action, model_id, job, result, error,
+                                  extra_keys=()):
+        """Say what happened, remember it, and redraw what it changed."""
+        self._note_transcription_outcome(action, model_id, error)
+        self._announce_transcription_result(job, result, error, extra_keys)
+        self._refresh_after_transcription_action(action)
+        self._restore_transcription_focus(action)
+
+    def _restore_transcription_focus(self, action):
+        """Never leave the focus on a button the action just switched off.
+
+        A download that worked takes the model to INSTALLED, which is exactly
+        the state in which Baixar is disabled — and the focus was on Baixar,
+        because that is what the user pressed. A disabled control answers
+        nothing to a screen reader, so the user is left on a button that will
+        not say what it is. The nearest thing that *can* is the next enabled
+        button on the same row, and failing that the control the row belongs
+        to.
+        """
+        button = self._transcription_action_buttons.get(action)
+        if button is None or button.IsEnabled():
+            # No button at all for the models-folder move, and nothing to do
+            # when the one pressed is still available.
+            return
+        if action in transcription_management.MODEL_ACTIONS:
+            row, fallback = (_TRANSCRIPTION_MODEL_ACTION_BUTTONS,
+                             self._transcription_model_combo)
+        else:
+            row, fallback = (_TRANSCRIPTION_CUDA_ACTION_BUTTONS,
+                             self._transcription_cuda_field)
+        for other, _label_key, _state_key in row:
+            candidate = self._transcription_action_buttons.get(other)
+            if candidate is not None and candidate.IsEnabled():
+                candidate.SetFocus()
+                return
+        fallback.SetFocus()
+
+    def _note_transcription_outcome(self, action, model_id, error):
+        """Remember damage only a hash could have found.
+
+        installation_state() measures names and sizes, so a file that is the
+        right size and the wrong bytes reads as installed there — and without
+        somewhere to keep what verify_*() found, the Reparar button the user
+        has just been told to press would be disabled the moment the check
+        that found the problem finished. A cancelled check changes nothing:
+        it found nothing either way.
+        """
+        code = getattr(error, "code", None)
+        if action in transcription_management.MODEL_ACTIONS:
+            if code == transcription_errors.MODEL_CORRUPTED:
+                self._transcription_corrupted_models.add(model_id)
+            elif error is None:
+                self._transcription_corrupted_models.discard(model_id)
+            return
+        if action not in _TRANSCRIPTION_CUDA_ACTIONS:
+            # Moving the models folder is neither, and a move that worked is
+            # no reason to forget that the libraries failed their check.
+            return
+        if code == transcription_errors.CUDA_RUNTIME_CORRUPTED:
+            self._transcription_cuda_corrupted = True
+        elif error is None:
+            self._transcription_cuda_corrupted = False
+
+    def _announce_transcription_result(self, job, result, error, extra_keys=()):
+        """Say it once, through the app's own funnel, and leave it on screen.
+
+        The sound is only for a failure, and it is the error sound that
+        already exists: a new sound event would need an .ogg in the default
+        pack *and* in every pack a user has installed, plus a line in the
+        Sound Events tab — and for the other three outcomes the sentence is
+        the whole of the news.
+        """
+        announcement = job.announcement(result, error)
+        self._transcription_last_outcome = announcement
+        self._transcription_last_outcome_extra = tuple(extra_keys)
+        self._render_transcription_substitutions()
+
+        i18n = self.main_window.i18n
+        sentences = [i18n.t(announcement.i18n_key).format(**announcement.values)]
+        sentences.extend(i18n.t(key) for key in self._transcription_last_outcome_extra)
+        if announcement.outcome == transcription_management.OUTCOME_FAILED:
+            self.main_window.error_sound.play()
+        # One call, and no interrupt: two announcements in a row talk over
+        # each other, and cutting the reader off to say this is worse than
+        # waiting for it to finish what it was reading.
+        self.main_window.speak_output.output(" ".join(sentences))
+
+    def _refresh_after_transcription_action(self, action):
+        """Redraw whatever the action left different on the disk."""
+        if (action in transcription_management.MODEL_ACTIONS
+                or action == transcription_management.ACTION_MOVE_MODELS):
+            self._refresh_transcription_models()
+            return
+        self._show_transcription_cuda_status()
+        # Installing or removing the libraries changes what the card can do,
+        # and the probe taken before it says the old answer — which is the
+        # "you asked for the card and it cannot be used" notice still claiming
+        # the libraries are missing right after they were installed.
+        transcription_management.probe_in_background(
+            lambda probe: wx.CallAfter(self._adopt_transcription_probe, probe)
+        )
+
+    def _adopt_transcription_probe(self, probe):
+        """A fresh measurement of this machine, back on the wx thread."""
+        if not self:
+            return
+        self._transcription_probe = probe
+        self._show_transcription_hardware_notices()
+
+    def _move_transcription_models(self) -> str:
+        """Move what is downloaded into the folder the user chose, and answer
+        which folder the setting must now name.
+
+        Run from OK/Apply and never from Procurar: a move started in the
+        browse handler would leave the files in a folder a Cancel then never
+        stores, so the setting would name the folder they left.
+
+        A move that did not get everything across leaves the models split
+        between the two folders, and the setting can name only one of them. It
+        names the **previous** one, and that is not a toss-up: move_models()
+        skips whatever already arrived, so from the previous folder pressing
+        OK again moves exactly what is left, and the models that did not cross
+        stay usable in the meantime. Naming the new folder instead would
+        strand the leftovers where nothing lists them, remove_model() never
+        reaches them, and the picker offers to download them all over again.
+
+        "Did not get everything across" is deliberately the *default* reading
+        of a failure rather than a case of it: a job that broke before it
+        could even read `models_before_move` reports no models on either side,
+        and treating that as success would name the new folder for a move that
+        never happened at all.
+        """
+        previous = self._stored_transcription_models_dir()
+        chosen = self._transcription_models_dir
+        old_root = transcription_preferences.resolve_models_dir(previous)
+        new_root = transcription_preferences.resolve_models_dir(chosen)
+        try:
+            nothing_there = not os.path.isdir(old_root) or not os.listdir(old_root)
+        except OSError:
+            nothing_there = False
+        if nothing_there:
+            # The common case, on an install where nothing was ever
+            # downloaded. A progress dialog that opens and closes within a
+            # frame is a focus change a screen reader announces for nothing.
+            return chosen
+
+        job, result, error = self._run_transcription_job(
+            transcription_management.ACTION_MOVE_MODELS,
+            models_root=old_root,
+            new_models_root=new_root,
+        )
+        moved = tuple(getattr(error, "moved", ()) or ())
+        stayed = [m for m in job.models_before_move if m not in moved]
+        everything_crossed = error is None or (moved and not stayed)
+        extra_keys = ()
+        folder = chosen
+        if not everything_crossed:
+            folder = previous
+            self._transcription_models_dir = previous
+            extra_keys = ("transcription_models_dir_kept_previous",)
+        elif error is not None:
+            # Everything arrived and the move still raised. The sentence for
+            # that is a failure, and the folder has nonetheless changed —
+            # hearing "could not be completed" while the setting silently
+            # moves is the worst of both.
+            extra_keys = ("transcription_models_dir_now_the_new_one",)
+        self._report_transcription_job(
+            transcription_management.ACTION_MOVE_MODELS, None, job, result, error,
+            extra_keys,
+        )
+        return folder
 
     def _load_transcription_values(self):
         """Populate the Transcrição tab. Measures nothing and consumes nothing.
@@ -1799,18 +2498,30 @@ class SettingsDialog(wx.Dialog):
         # One call rather than resolving the folder and listing it separately:
         # a tab that lists from one folder while the run reads another shows
         # the user a model that is not the one a transcription would find.
-        _models_dir, self._transcription_installed_ids = (
+        models_dir, self._transcription_installed_ids = (
             transcription_preferences.models_folder(self._transcription_models_dir)
         )
+        # Folders no catalogue entry claims, listed with the rest of the
+        # folder rather than on its own pass — see
+        # _transcription_unknown_dirs_notice() for what makes them worth a
+        # sentence at all.
+        self._transcription_unknown_dirs = model_store.list_unknown_dirs(models_dir)
         self._transcription_probe = transcription_device.probe_hardware()
         self._show_transcription_hardware_notices()
         self._show_transcription_cuda_status()
 
-        if self._transcription_substitution_keys:
-            i18n = self.main_window.i18n
-            self.main_window.speak_output.output(" ".join(
-                i18n.t(key) for key in self._transcription_substitution_keys
-            ))
+        i18n = self.main_window.i18n
+        # The same argument as the substitutions: a read-only field is not a
+        # cue under NVDA until focus reaches it, and folders the app cannot
+        # delete are exactly the thing nobody goes looking for.
+        spoken = [i18n.t(key) for key in self._transcription_substitution_keys]
+        unknown = _transcription_unknown_dirs_notice(
+            i18n, self._transcription_unknown_dirs
+        )
+        if unknown:
+            spoken.append(unknown)
+        if spoken:
+            self.main_window.speak_output.output(" ".join(spoken))
         if transcription_preferences.sanitize_section(self.main_window.settings):
             # Saved here rather than left to OK/Apply: the point of rewriting a
             # value that can never be valid again is that the warning above is
@@ -1878,9 +2589,12 @@ class SettingsDialog(wx.Dialog):
         app_settings = self._transcription_app_settings()
         if (app_settings is not None
                 and self._transcription_models_dir != self._stored_transcription_models_dir()):
+            # The files move here and nowhere else — see
+            # _move_transcription_models(), which also decides which of the two
+            # folders the setting ends up naming when only half of them cross.
             app_settings.set(
                 transcription_preferences.MODELS_DIR_SETTING,
-                self._transcription_models_dir,
+                self._move_transcription_models(),
             )
 
     def _refresh_transcription_labels(self):
@@ -1927,6 +2641,16 @@ class SettingsDialog(wx.Dialog):
         )
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()
+        for action, label_key, _state_key in (
+            _TRANSCRIPTION_MODEL_ACTION_BUTTONS + _TRANSCRIPTION_CUDA_ACTION_BUTTONS
+        ):
+            button = self._transcription_action_buttons.get(action)
+            if button is not None:
+                button.SetLabel(i18n.t(label_key))
+        # The group names carry what the buttons no longer spell out, so they
+        # have to follow a language change like any other label.
+        for box, title_key in self._transcription_action_groups:
+            box.SetLabel(i18n.t(title_key))
 
     def _on_settings_page_changed(self, event):
         """Notice when the transcription tab is the one now on screen."""
@@ -1951,13 +2675,12 @@ class SettingsDialog(wx.Dialog):
     def _on_browse_transcription_models_dir(self, event):
         """Choose the folder the models are downloaded into.
 
-        **This records the preference and moves nothing** — moving what is
-        already downloaded is part 5c's job (model_store.move_models(), under
-        the same cross-process lock, with progress and cancellation). Nothing
-        can be stranded by that yet: until 5c there is no way to download a
-        model from inside the app at all, so the folder this points at is
-        empty. The model list is redrawn against the new folder immediately,
-        so what the tab says about each model stays true.
+        **This records the preference and moves nothing.** The files move in
+        `_move_transcription_models()`, from OK/Apply — a move started here
+        would leave them in a folder a Cancel then never stores, so the
+        setting would go on naming the folder they had already left. The model
+        list is redrawn against the new folder immediately, so what the tab
+        says about each model stays true either way.
         """
         i18n = self.main_window.i18n
         current = transcription_preferences.resolve_models_dir(
