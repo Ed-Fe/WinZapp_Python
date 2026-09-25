@@ -31,6 +31,7 @@ import ast
 import logging
 import os
 import re
+import textwrap
 
 import pytest
 
@@ -629,7 +630,13 @@ _FORBIDDEN_IN_LOG = (
 
 def _scan(path):
     with open(path, "r", encoding="utf-8") as handle:
-        tree = ast.parse(handle.read())
+        return _scan_source(handle.read(), os.path.basename(path))
+
+
+def _scan_source(source, label):
+    """The same scan over a piece of source — for a method inside a file
+    whose older code is not yet held to the rule (main.py, database.py)."""
+    tree = ast.parse(textwrap.dedent(source))
     offenders = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -653,7 +660,7 @@ def _scan(path):
                              r"|traceback\.format_tb\(exc\.__traceback__\)", "", expression)
             for pattern in _FORBIDDEN_IN_LOG:
                 if re.search(pattern, cleaned):
-                    offenders.append(f"{os.path.basename(path)}: {target.attr}({expression})")
+                    offenders.append(f"{label}: {target.attr}({expression})")
     return offenders
 
 

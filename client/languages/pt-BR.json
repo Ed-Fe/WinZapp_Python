@@ -1173,7 +1173,7 @@
     "transcription_note_low_confidence": "O idioma desta mensagem não foi identificado com certeza, então o texto pode estar errado. Você pode escolher o idioma nas configurações de transcrição.",
     "transcription_finished": "Transcrição concluída.",
     "transcribe_message": "Transcrever mensagem com Whisper",
-    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcrever a mensagem de voz ou o áudio com o Whisper",
+    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcrever a mensagem de voz ou o áudio com o Whisper, ou abrir a transcrição já salva",
     "transcription_no_audio": "Esta mensagem não tem áudio para transcrever.",
     "transcription_starting": "Iniciando a transcrição...",
     "transcription_phase_downloading_audio": "Baixando o áudio da mensagem...",
@@ -1191,5 +1191,16 @@
     "transcription_save_title": "Salvar transcrição",
     "transcription_save_wildcard": "Arquivos de texto (*.txt)|*.txt",
     "transcription_save_default_name": "Transcrição - {name}",
-    "transcription_result_has_notes": "Há avisos acima do texto."
+    "transcription_result_has_notes": "Há avisos acima do texto.",
+    "transcription_view": "Ver transcrição",
+    "transcription_transcribe_again": "Transcrever novamente",
+    "transcription_delete": "Apagar transcrição",
+    "transcription_delete_question": "Apagar a transcrição desta mensagem? A mensagem e o áudio continuam na conversa.",
+    "transcription_deleted": "Transcrição apagada.",
+    "transcription_delete_failed": "Não foi possível apagar a transcrição.",
+    "transcription_saved_opened": "Transcrição salva, feita em {when} com o modelo {model}.",
+    "transcription_saved_opened_no_model": "Transcrição salva, feita em {when}.",
+    "transcription_not_saved_unsent": "Esta transcrição não foi salva, porque a mensagem ainda não foi enviada. Depois do envio, transcreva de novo para salvá-la.",
+    "transcription_not_saved_missing": "Esta transcrição não foi salva, porque a mensagem não está mais nesta conversa.",
+    "transcription_store_failed": "Não foi possível salvar a transcrição."
 }

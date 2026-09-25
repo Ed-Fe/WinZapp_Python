@@ -1173,7 +1173,7 @@
     "transcription_note_low_confidence": "El idioma de este mensaje no se identificó con certeza, así que el texto puede estar equivocado. Puede elegir el idioma en la configuración de transcripción.",
     "transcription_finished": "Transcripción terminada.",
     "transcribe_message": "Transcribir mensaje con Whisper",
-    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcribir el mensaje de voz o el audio con Whisper",
+    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcribir el mensaje de voz o el audio con Whisper, o abrir la transcripción ya guardada",
     "transcription_no_audio": "Este mensaje no tiene audio para transcribir.",
     "transcription_starting": "Iniciando la transcripción...",
     "transcription_phase_downloading_audio": "Descargando el audio del mensaje...",
@@ -1191,5 +1191,16 @@
     "transcription_save_title": "Guardar transcripción",
     "transcription_save_wildcard": "Archivos de texto (*.txt)|*.txt",
     "transcription_save_default_name": "Transcripción - {name}",
-    "transcription_result_has_notes": "Hay avisos encima del texto."
+    "transcription_result_has_notes": "Hay avisos encima del texto.",
+    "transcription_view": "Ver transcripción",
+    "transcription_transcribe_again": "Transcribir de nuevo",
+    "transcription_delete": "Eliminar transcripción",
+    "transcription_delete_question": "¿Eliminar la transcripción de este mensaje? El mensaje y su audio siguen en la conversación.",
+    "transcription_deleted": "Transcripción eliminada.",
+    "transcription_delete_failed": "No se pudo eliminar la transcripción.",
+    "transcription_saved_opened": "Transcripción guardada, hecha el {when} con el modelo {model}.",
+    "transcription_saved_opened_no_model": "Transcripción guardada, hecha el {when}.",
+    "transcription_not_saved_unsent": "Esta transcripción no se guardó porque el mensaje aún no se ha enviado. Cuando se envíe, vuelve a transcribirlo para guardarla.",
+    "transcription_not_saved_missing": "Esta transcripción no se guardó porque el mensaje ya no está en esta conversación.",
+    "transcription_store_failed": "No se pudo guardar la transcripción."
 }

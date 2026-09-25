@@ -54,6 +54,7 @@ from core.transcription import (
     narration,
     preferences,
 )
+from core.transcription import stored as stored_transcription
 from core.transcription.backend import TranscriptionResult
 from tests.test_transcription_message_run import (
     RESULT,
@@ -64,6 +65,7 @@ from tests.test_transcription_message_run import (
     _scan,
     _succeed,
 )
+from main import MainWindow
 from ui import transcription_flow
 from ui.conversations import ConversationsPanel
 from ui.dialogs import transcription_result
@@ -120,6 +122,38 @@ class _Sound:
         self.played += 1
 
 
+class _Inline:
+    """The background executor, run on the spot."""
+
+    def submit(self, fn, *args, **kwargs):
+        fn(*args, **kwargs)
+
+
+class _FakeDb:
+    """DatabaseBridge's two transcription calls, recorded. `fail` raises."""
+
+    def __init__(self):
+        self.calls = []
+        self.fail = False
+
+    def set_message_transcription(self, jid, msg_id, value):
+        self.calls.append(("set", jid, msg_id, value))
+        if self.fail:
+            raise TimeoutError("db busy")
+        return True
+
+    def delete_message_transcription(self, jid, msg_id, deleted_at):
+        self.calls.append(("delete", jid, msg_id, deleted_at))
+        if self.fail:
+            raise TimeoutError("db busy")
+        return True
+
+    def insert_message(self, jid, msg):
+        self.calls.append(("insert", jid, (msg.get("key") or {}).get("id")))
+        if self.fail:
+            raise TimeoutError("db busy")
+
+
 class _MainWindow:
     def __init__(self, key, settings=None):
         self.i18n = I18N
@@ -129,6 +163,23 @@ class _MainWindow:
         self._app_settings = None
         self._wa_connected = True
         self.error_sound = _Sound()
+        # What MainWindow's own transcription storage reads.
+        self.chats = {}
+        self.db = _FakeDb()
+        self._msg_bg_executor = _Inline()
+        self.conversations_panel = None
+        self.saves = []
+
+    _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    get_chat = MainWindow.get_chat
+    _transcription_copies = MainWindow._transcription_copies
+    _transcription_storage_jids = MainWindow._transcription_storage_jids
+    _say_transcription_not_stored = MainWindow._say_transcription_not_stored
+    store_message_transcription = MainWindow.store_message_transcription
+    delete_message_transcription = MainWindow.delete_message_transcription
+
+    def _schedule_save(self, dirty_jid=None, contacts_dirty=False):
+        self.saves.append(dirty_jid)
 
     @staticmethod
     def _find_api_ffmpeg():
@@ -204,6 +255,7 @@ class _Panel:
         self.messages_list = _List()
         self.message_field = _Field()
         self._sorted_messages = list(messages)
+        self.conversation = {"remoteJid": _JID}
         self.conversation_name = _CONTACT
         self._download = download or (lambda msg, path: False)
         self.ensure_calls = []
@@ -372,6 +424,12 @@ def world(tmp_path, own_temp_dir, fernet_key, fernet, monkeypatch):
     w.main_window = _MainWindow(fernet_key)
     w.target = _msg()
     w.panel = _Panel(w.main_window, [_msg("A1"), w.target, _msg("A3")])
+    # The chat holds the very dicts the panel lists, as it does in the app.
+    w.main_window.chats[_JID] = {
+        "remoteJid": _JID,
+        "messages": {"messages": {"records": list(w.panel._sorted_messages)}},
+    }
+    w.main_window.conversations_panel = w.panel
     w.fernet = fernet
     return w
 
@@ -977,7 +1035,7 @@ class TestAltShiftTIsOurs:
 
     def test_the_shortcut_reaches_the_flow_with_the_selected_message(self, monkeypatch):
         seen = []
-        monkeypatch.setattr(transcription_flow, "transcribe_message",
+        monkeypatch.setattr(transcription_flow, "open_or_transcribe",
                             lambda panel, msg: seen.append(msg))
 
         class _Stub:
@@ -1077,6 +1135,241 @@ class TestOpeningTheSettingsTab:
         monkeypatch.setattr(settings_dialog, "SettingsDialog", _FakeSettingsDialog)
         transcription_flow.open_transcription_settings(object())
         assert steps == ["built", "shown on the tab", "destroyed"]
+
+
+# ── A stored transcription (part 7) ──────────────────────────────────────────
+# The flow above, with MainWindow's real storage methods bound onto the stub
+# window: what a finished run leaves on the message, what reopening it says,
+# and what deleting it does. The rules that keep it across resyncs are pinned
+# in tests/test_transcription_stored.py.
+
+
+def _saved_value(text="o texto guardado", vad_used=True, model_id="medium", at=1_700_000_000.0):
+    return {"text": text, "language": "pt", "language_probability": 0.97,
+            "model_id": model_id, "backend": "faster_whisper", "vad_used": vad_used, "at": at}
+
+
+def _saved(world, **kwargs):
+    world.target[stored_transcription.TRANSCRIPTION_KEY] = _saved_value(**kwargs)
+
+
+class TestAFinishedRunIsKept:
+    def test_the_result_is_stored_on_the_message_and_in_the_database(self, world):
+        _start(world)
+        saved = stored_transcription.saved_transcription(world.target)
+        assert saved["text"] == RESULT.text
+        assert saved["language"] == "pt" and saved["vad_used"] is True
+        [call] = world.main_window.db.calls
+        assert call[:3] == ("set", _JID, _ID)
+        # Nothing about keeping it goes into the notes when it was kept.
+        [dialog] = _FakeResultDialog.made
+        assert _t("transcription_not_saved_unsent") not in dialog.notes
+
+    def test_an_empty_result_does_not_replace_a_stored_one(self, world):
+        _saved(world)
+        world.script = [_script_returning(_result(text=""))]
+        transcription_flow.transcribe_message(world.panel, world.target)
+        assert stored_transcription.saved_transcription(world.target)["text"] == "o texto guardado"
+        assert world.main_window.db.calls == []
+
+    def test_transcribing_again_replaces_it(self, world):
+        _saved(world)
+        transcription_flow.transcribe_message(world.panel, world.target)
+        assert len(world.jobs) == 1
+        assert stored_transcription.saved_transcription(world.target)["text"] == RESULT.text
+
+    def test_an_own_message_still_being_sent_is_not_kept_and_the_window_says_so(self, world):
+        world.target["_local_pending"] = True
+        world.target["_local_id"] = _ID
+        _start(world)
+        assert stored_transcription.TRANSCRIPTION_KEY not in world.target
+        assert world.main_window.db.calls == []
+        [dialog] = _FakeResultDialog.made
+        assert _t("transcription_not_saved_unsent") in dialog.notes
+        assert dialog.spoken.endswith(_t("transcription_result_has_notes"))
+
+
+    def test_a_database_that_fails_is_said_in_one_sentence(self, world):
+        """The result window opens before the background write answers; when
+        that write fails, the window must not go on implying the text was
+        kept."""
+        world.main_window.db.fail = True
+        _start(world)
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_store_failed")
+        assert world.main_window.error_sound.played == 1
+
+    def test_a_kept_one_says_nothing_about_keeping(self, world):
+        _start(world)
+        assert _t("transcription_store_failed") not in world.main_window.speak_output.spoken
+        assert world.main_window.error_sound.played == 0
+
+    def test_transcribing_again_is_dated_after_the_stored_one_whatever_the_clock(
+            self, world, monkeypatch):
+        """The clock was set back since the first transcription: dated by the
+        clock alone, the new text would lose to the old one on the next sync."""
+        _saved(world, at=2_000_000_000.0)
+        monkeypatch.setattr(transcription_flow.time, "time", lambda: 1_000_000_000.0)
+        kept = []
+        world.main_window.store_message_transcription = (
+            lambda jid, msg_id, value: kept.append(value) or stored_transcription.SAVE_STORED
+        )
+        flow = transcription_flow.MessageTranscriptionFlow(world.panel, world.target)
+        flow._store(RESULT)
+        [value] = kept
+        assert value["at"] > 2_000_000_000.0
+        assert value["text"] == RESULT.text
+
+
+class TestOpeningAStoredTranscription:
+    def test_the_shortcut_opens_it_without_running_anything(self, world):
+        _saved(world)
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        assert _FakeProgressDialog.made == []
+        assert world.jobs == []
+        [dialog] = _FakeResultDialog.made
+        assert dialog.text == "o texto guardado"
+        assert _CONTACT in dialog.title
+        headline = _t("transcription_saved_opened",
+                      when=transcription_flow.saved_when(I18N, 1_700_000_000.0), model="medium")
+        assert dialog.spoken.startswith(headline)
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_the_voice_filter_warning_is_repeated_every_time(self, world):
+        _saved(world, vad_used=False)
+        for _ in range(2):
+            transcription_flow.open_or_transcribe(world.panel, world.target)
+        warning = _t("transcription_note_vad_unavailable")
+        for dialog in _FakeResultDialog.made:
+            assert warning in dialog.spoken
+            assert warning in dialog.notes
+
+    def test_the_date_is_not_a_warning(self, world):
+        """The headline carries when and which model; the notes field is
+        pointed to as "warnings", so a clean reopening points to nothing."""
+        _saved(world)
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        [dialog] = _FakeResultDialog.made
+        assert dialog.notes == []
+        assert _t("transcription_result_has_notes") not in dialog.spoken
+
+    def test_a_stored_value_without_a_model_says_only_when(self, world):
+        _saved(world, model_id="")
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        [dialog] = _FakeResultDialog.made
+        assert dialog.spoken.startswith(_t(
+            "transcription_saved_opened_no_model",
+            when=transcription_flow.saved_when(I18N, 1_700_000_000.0)))
+
+    def test_a_message_with_nothing_stored_runs_as_before(self, world):
+        world.target[stored_transcription.TRANSCRIPTION_KEY] = stored_transcription.tombstone(5.0)
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        assert len(world.jobs) == 1
+
+    def test_insert_from_a_stored_one_writes_the_stored_text(self, world):
+        _saved(world)
+        _FakeResultDialog.choose_insert = True
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        assert world.panel.message_field.value == "o texto guardado"
+
+
+class TestDeletingAStoredTranscription:
+    def test_no_leaves_it_and_puts_the_focus_back(self, world):
+        _saved(world)
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_NO
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert stored_transcription.saved_transcription(world.target) is not None
+        assert world.main_window.db.calls == []
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_yes_deletes_says_so_and_puts_the_focus_back(self, world):
+        _saved(world)
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        transcription_flow.delete_transcription(world.panel, world.target)
+        [question] = _FakeMessageDialog.made
+        assert question.message == _t("transcription_delete_question")
+        assert stored_transcription.saved_transcription(world.target) is None
+        assert [c[0] for c in world.main_window.db.calls] == ["delete"]
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_deleted")
+        assert _row_focus(world.panel) == [("Focus", 1)]
+        # And the next Alt+Shift+T runs a new transcription.
+        transcription_flow.open_or_transcribe(world.panel, world.target)
+        assert len(world.jobs) == 1
+
+    def test_a_failed_delete_keeps_it_and_says_so_with_the_error_sound(self, world):
+        _saved(world)
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        world.main_window.db.fail = True
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert stored_transcription.saved_transcription(world.target) is not None
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_delete_failed")
+        assert world.main_window.error_sound.played == 1
+
+
+class TestTheMenuOffersWhatIsStored:
+    def _branch(self):
+        source = inspect.getsource(ConversationsPanel.on_messages_context_menu)
+        tree = ast.parse(source.lstrip())
+        [guarded] = [
+            n for n in ast.walk(tree)
+            if isinstance(n, ast.If) and ast.unparse(n.test) == "message_audio.is_transcribable(msg)"
+        ]
+        [inner] = [n for n in guarded.body if isinstance(n, ast.If)]
+        return inner
+
+    @staticmethod
+    def _items(statements):
+        """[(label key, shortcut shown, handler)] in the order the menu has them.
+
+        Pairs each `x = menu.Append(..., <label>)` with the `self.Bind(...,
+        <lambda calling the handler>, x)` that names the same item: three
+        items each holding a label and a handler somewhere is not enough — a
+        "Ver transcrição" bound to the delete handler would ask a user who
+        wanted to read whether to throw the text away.
+        """
+        labels, order, handlers = {}, [], {}
+        for node in statements:
+            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                    and ast.unparse(node.value.func) == "menu.Append"):
+                [target] = node.targets
+                label = node.value.args[1]
+                [key] = [c.args[0].value for c in ast.walk(label)
+                         if isinstance(c, ast.Call) and ast.unparse(c.func) == "i18n.t"]
+                labels[target.id] = (key, "Alt+Shift+T" in ast.unparse(label))
+                order.append(target.id)
+            elif (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+                    and ast.unparse(node.value.func) == "self.Bind"):
+                _event, callback, item = node.value.args
+                assert isinstance(callback, ast.Lambda)
+                handlers[item.id] = callback.body.func.attr
+        assert set(handlers) == set(labels), "an item without its binding, or the reverse"
+        return [labels[name] + (handlers[name],) for name in order]
+
+    def test_a_stored_one_offers_view_again_and_delete(self):
+        inner = self._branch()
+        assert ast.unparse(inner.test) == \
+            "stored_transcription.saved_transcription(msg) is not None"
+        assert self._items(inner.body) == [
+            ("transcription_view", True, "_on_menu_transcribe"),
+            ("transcription_transcribe_again", False, "_on_menu_transcribe_again"),
+            ("transcription_delete", False, "_on_menu_delete_transcription"),
+        ]
+
+    def test_otherwise_the_item_of_part_6(self):
+        assert self._items(self._branch().orelse) == [
+            ("transcribe_message", True, "_on_menu_transcribe"),
+        ]
+
+    @pytest.mark.parametrize("handler, entry", [
+        ("_on_menu_transcribe", "open_or_transcribe"),
+        ("_on_menu_transcribe_again", "transcribe_message"),
+        ("_on_menu_delete_transcription", "delete_transcription"),
+    ])
+    def test_each_item_reaches_its_entry_point(self, monkeypatch, handler, entry):
+        seen = []
+        monkeypatch.setattr(transcription_flow, entry, lambda panel, msg: seen.append(msg))
+        message = _msg("X")
+        getattr(ConversationsPanel, handler)(object(), message)
+        assert seen == [message]
 
 
 # ── Privacy and language ─────────────────────────────────────────────────────

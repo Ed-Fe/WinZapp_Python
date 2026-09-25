@@ -1173,7 +1173,7 @@
     "transcription_note_low_confidence": "The language of this message was not identified with certainty, so the text may be wrong. You can choose the language in the transcription settings.",
     "transcription_finished": "Transcription finished.",
     "transcribe_message": "Transcribe message with Whisper",
-    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcribe the voice message or audio with Whisper",
+    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcribe the voice message or audio with Whisper, or open the transcription already saved",
     "transcription_no_audio": "This message has no audio to transcribe.",
     "transcription_starting": "Starting the transcription...",
     "transcription_phase_downloading_audio": "Downloading the message audio...",
@@ -1191,5 +1191,16 @@
     "transcription_save_title": "Save transcription",
     "transcription_save_wildcard": "Text files (*.txt)|*.txt",
     "transcription_save_default_name": "Transcription - {name}",
-    "transcription_result_has_notes": "There are warnings above the text."
+    "transcription_result_has_notes": "There are warnings above the text.",
+    "transcription_view": "View transcription",
+    "transcription_transcribe_again": "Transcribe again",
+    "transcription_delete": "Delete transcription",
+    "transcription_delete_question": "Delete this message's transcription? The message and its audio stay in the conversation.",
+    "transcription_deleted": "Transcription deleted.",
+    "transcription_delete_failed": "The transcription could not be deleted.",
+    "transcription_saved_opened": "Saved transcription, made on {when} with the {model} model.",
+    "transcription_saved_opened_no_model": "Saved transcription, made on {when}.",
+    "transcription_not_saved_unsent": "This transcription was not saved, because the message has not been sent yet. Once it is sent, transcribe it again to save it.",
+    "transcription_not_saved_missing": "This transcription was not saved, because the message is no longer in this conversation.",
+    "transcription_store_failed": "The transcription could not be saved."
 }

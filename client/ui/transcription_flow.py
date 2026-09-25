@@ -41,13 +41,27 @@ failed, not the same wait continuing, and the question has to be asked with no
 progress dialog on screen — a Yes/No box on top of a modal whose only button
 is Cancel would leave the user two dialogs deep in the middle of a run.
 
+A finished transcription is kept with its message (part 7,
+`core.transcription.stored`), and from then on the message offers it instead
+of the wait: Alt+Shift+T and "Ver transcrição" open the same result window
+with the stored text, saying when and with which model it was made, and
+repeating every note that still applies — the voice-filter warning above all,
+since a transcription made without the filter is exactly as untrustworthy the
+tenth time it is read. "Transcrever novamente" is the run above; its result
+replaces the stored one. "Apagar transcrição" asks first, because it throws
+away minutes of work with one key.
+
 Nothing here logs the message, its id, the contact or a path: the same rule as
 the whole transcription package, checked by `tests/test_transcription_flow.py`.
 """
 
+import time
+from datetime import datetime
+
 import wx
 
 from app_paths import data_path
+from core.locale_format import get_datetime_format
 from core.transcription import (
     audio_prep,
     errors,
@@ -57,6 +71,7 @@ from core.transcription import (
     message_run,
     narration,
     preferences,
+    stored as stored_transcription,
 )
 from core.utils import is_phone_like
 from ui.dialogs.transcription_progress import TranscriptionProgressDialog
@@ -83,6 +98,18 @@ _SETTINGS_OFFER_CODES = (errors.MODEL_NOT_INSTALLED, errors.MODEL_CORRUPTED)
 AUTO_MODEL_UNAVAILABLE_I18N_KEY = "transcription_model_unavailable_auto"
 HAS_NOTES_I18N_KEY = "transcription_result_has_notes"
 
+#: The headline of a stored transcription opened again, with and without the
+#: model — a stored value always has one, but a sentence ending in "with the
+#: model ." is what a damaged one would otherwise say.
+SAVED_OPENED_I18N_KEY = "transcription_saved_opened"
+SAVED_OPENED_NO_MODEL_I18N_KEY = "transcription_saved_opened_no_model"
+
+#: The note for a fresh result that was not kept, by what storing answered.
+NOT_SAVED_I18N_KEYS = {
+    stored_transcription.SAVE_UNSENT: "transcription_not_saved_unsent",
+    stored_transcription.SAVE_MISSING: "transcription_not_saved_missing",
+}
+
 #: Every key this module asks for besides the ones narration/errors/preferences
 #: own. The i18n test reads this rather than a list of its own.
 FLOW_I18N_KEYS = (
@@ -94,7 +121,13 @@ FLOW_I18N_KEYS = (
         "transcription_starting",
         "transcription_open_settings_question",
         "transcription_result_title",
+        SAVED_OPENED_I18N_KEY,
+        SAVED_OPENED_NO_MODEL_I18N_KEY,
+        "transcription_delete_question",
+        "transcription_deleted",
+        "transcription_delete_failed",
     )
+    + tuple(NOT_SAVED_I18N_KEYS.values())
 )
 
 
@@ -221,6 +254,38 @@ def title_name(panel, msg):
     return chat
 
 
+def saved_when(i18n, at) -> str:
+    """When a stored transcription was made, in the user's own regional format.
+
+    The same pattern the conversation uses for a message's date
+    (`get_datetime_format()` over the language file's `datetime_fmt`), so the
+    two read alike.
+    """
+    try:
+        return datetime.fromtimestamp(at).strftime(get_datetime_format(i18n.t("datetime_fmt")))
+    except (OverflowError, OSError, ValueError, TypeError):
+        return ""
+
+
+def saved_announcement(i18n, value) -> management.Announcement:
+    """The spoken headline for opening `value`, a stored transcription.
+
+    When and with which model go in the headline, not among the notes: the
+    notes field is announced as "there are warnings above the text", and the
+    date is not a warning — putting it there would make that pointer fire on
+    every reopening and teach the user to ignore it.
+    """
+    when = saved_when(i18n, stored_transcription.decision_time(value))
+    model = str(value.get("model_id") or "")
+    if model:
+        return management.Announcement(
+            SAVED_OPENED_I18N_KEY, management.OUTCOME_DONE, {"when": when, "model": model}
+        )
+    return management.Announcement(
+        SAVED_OPENED_NO_MODEL_I18N_KEY, management.OUTCOME_DONE, {"when": when}
+    )
+
+
 def open_transcription_settings(main_window):
     """Open Settings directly on the Transcription tab.
 
@@ -255,6 +320,11 @@ class MessageTranscriptionFlow:
         self._i18n = self._main_window.i18n
         self._msg = msg
         self._msg_id = (msg.get("key") or {}).get("id", "") if isinstance(msg, dict) else ""
+        # The chat the message is shown in, as the panel's own writes use it
+        # (`_persist_message_local_flags()`): that is the jid its row is
+        # stored under, which a group member's or an @lid's key need not be.
+        conversation = getattr(panel, "conversation", None)
+        self._jid = conversation.get("remoteJid", "") if isinstance(conversation, dict) else ""
         #: The progress dialog on screen, while there is one.
         self._dialog = None
         #: The run currently behind it — read by `_on_phase` for the device.
@@ -419,9 +489,81 @@ class MessageTranscriptionFlow:
             # sentence says there was no speech, and the filter warning still
             # goes with it — a note of pure noise transcribed without the
             # filter is exactly where the invented sentence would have been.
+            # Nor is it stored: there is nothing to reuse, and a second run
+            # that heard nothing must not replace a first one that did.
             self._say_after_focus(result_speech(i18n, announcement, notes, window=False))
             return
 
+        not_saved = NOT_SAVED_I18N_KEYS.get(self._store(result))
+        if not_saved:
+            # Said in the window, among the notes, because it changes what the
+            # user can expect: this text will not be there to reopen.
+            notes = tuple(notes) + (narration.Note(not_saved),)
+        self._open_result_window(result, announcement, notes)
+
+    def _store(self, result):
+        """Keep `result` with the message; storing's SAVE_* answer.
+
+        Dated after the decision the message already holds, whatever the
+        clock says — "Transcrever novamente" after a clock was set back must
+        still be the later decision (`stored_transcription.next_decision_time`).
+        """
+        previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY) if isinstance(self._msg, dict) else None
+        value = stored_transcription.record_from_result(
+            result, stored_transcription.next_decision_time(time.time(), previous)
+        )
+        return self._main_window.store_message_transcription(self._jid, self._msg_id, value)
+
+    def show_saved(self):
+        """Open the stored transcription — no model, no wait, same window."""
+        value = stored_transcription.saved_transcription(self._msg)
+        if value is None:
+            # Nothing stored after all (deleted from another copy between the
+            # menu opening and the click): the ordinary path, which is what the
+            # same key does on a message with nothing stored.
+            self.start()
+            return
+        result = stored_transcription.as_result(value)
+        notes = narration.result_notes(
+            result,
+            preferences.preferred_language(
+                self._main_window.settings, getattr(self._i18n, "language", "")
+            ),
+        )
+        self._open_result_window(result, saved_announcement(self._i18n, value), notes)
+
+    def delete_saved(self):
+        """Ask, delete the stored transcription, and say how it went."""
+        i18n = self._i18n
+        dlg = wx.MessageDialog(
+            self._main_window,
+            i18n.t("transcription_delete_question"),
+            i18n.t("transcription_progress_title"),
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        try:
+            answer = dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        # Back on the message now, whatever the answer: the deletion answers
+        # from a background thread, and a focus move made when it does would
+        # pull the user back from wherever they went in the meantime.
+        self._focus_message()
+        if answer != wx.ID_YES:
+            return
+        self._main_window.delete_message_transcription(self._jid, self._msg_id, self._after_delete)
+
+    def _after_delete(self, ok):
+        """On the wx thread, once the database has answered."""
+        if ok:
+            self._main_window.output(self._i18n.t("transcription_deleted"))
+            return
+        self._play_error_sound()
+        self._main_window.output(self._i18n.t("transcription_delete_failed"))
+
+    def _open_result_window(self, result, announcement, notes):
+        """The result window over `result` — fresh or stored, the same one."""
+        i18n = self._i18n
         _spoken, shown = split_result_notes(announcement, notes)
         name = title_name(self._panel, self._msg)
         title = (i18n.t("transcription_result_title").format(name=name) if name
@@ -515,5 +657,23 @@ class MessageTranscriptionFlow:
 
 
 def transcribe_message(panel, msg):
-    """Entry point for the context menu and Alt+Shift+T."""
+    """Run a transcription — "Transcrever novamente", or a message with none."""
     MessageTranscriptionFlow(panel, msg).start()
+
+
+def open_or_transcribe(panel, msg):
+    """Entry point for Alt+Shift+T and the menu's first transcription item.
+
+    The stored transcription when there is one — the key never starts minutes
+    of work to produce what is already there — and a run otherwise.
+    """
+    flow = MessageTranscriptionFlow(panel, msg)
+    if stored_transcription.saved_transcription(msg) is not None:
+        flow.show_saved()
+    else:
+        flow.start()
+
+
+def delete_transcription(panel, msg):
+    """Entry point for "Apagar transcrição"."""
+    MessageTranscriptionFlow(panel, msg).delete_saved()

@@ -1173,7 +1173,7 @@
     "transcription_note_low_confidence": "Nie rozpoznano z pewnością języka tej wiadomości, więc tekst może być błędny. Język można wybrać w ustawieniach transkrypcji.",
     "transcription_finished": "Transkrypcja zakończona.",
     "transcribe_message": "Transkrybuj wiadomość za pomocą Whispera",
-    "shortcut_alt_shift_t_label": "Alt+Shift+T: transkrybuj wiadomość głosową lub nagranie audio za pomocą Whispera",
+    "shortcut_alt_shift_t_label": "Alt+Shift+T: transkrybuj wiadomość głosową lub nagranie audio za pomocą Whispera albo otwórz zapisaną transkrypcję",
     "transcription_no_audio": "Ta wiadomość nie zawiera dźwięku do transkrypcji.",
     "transcription_starting": "Rozpoczynanie transkrypcji...",
     "transcription_phase_downloading_audio": "Pobieranie dźwięku wiadomości...",
@@ -1191,5 +1191,16 @@
     "transcription_save_title": "Zapisz transkrypcję",
     "transcription_save_wildcard": "Pliki tekstowe (*.txt)|*.txt",
     "transcription_save_default_name": "Transkrypcja - {name}",
-    "transcription_result_has_notes": "Nad tekstem są ostrzeżenia."
+    "transcription_result_has_notes": "Nad tekstem są ostrzeżenia.",
+    "transcription_view": "Pokaż transkrypcję",
+    "transcription_transcribe_again": "Transkrybuj ponownie",
+    "transcription_delete": "Usuń transkrypcję",
+    "transcription_delete_question": "Usunąć transkrypcję tej wiadomości? Wiadomość i jej nagranie pozostaną w rozmowie.",
+    "transcription_deleted": "Transkrypcja usunięta.",
+    "transcription_delete_failed": "Nie udało się usunąć transkrypcji.",
+    "transcription_saved_opened": "Zapisana transkrypcja, wykonana {when} przy użyciu modelu {model}.",
+    "transcription_saved_opened_no_model": "Zapisana transkrypcja, wykonana {when}.",
+    "transcription_not_saved_unsent": "Ta transkrypcja nie została zapisana, ponieważ wiadomość nie została jeszcze wysłana. Po wysłaniu transkrybuj ją ponownie, aby ją zapisać.",
+    "transcription_not_saved_missing": "Ta transkrypcja nie została zapisana, ponieważ wiadomości nie ma już w tej rozmowie.",
+    "transcription_store_failed": "Nie udało się zapisać transkrypcji."
 }

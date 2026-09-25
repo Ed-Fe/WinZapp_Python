@@ -63,6 +63,7 @@ from core.quiet_hours import is_quiet_hours_active
 from core.database_bridge import DatabaseBridge
 from core import token_vault
 from core.transcription import cuda_runtime
+from core.transcription import stored as stored_transcription
 from app_paths import resource_path, data_path, accounts_root
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -5181,10 +5182,19 @@ class MainWindow(wx.Frame):
                 .get("messages", {})
                 .get("records", [])
             )
-            dst_ids = {r.get("key", {}).get("id") for r in dst_records}
+            dst_by_id = {r.get("key", {}).get("id"): r for r in dst_records}
             for r in src_records:
-                if r.get("key", {}).get("id") not in dst_ids:
+                mid = r.get("key", {}).get("id")
+                if mid not in dst_by_id:
                     dst_records.append(r)
+                elif mid:
+                    # The @lid copy is about to be dropped, and it can be the
+                    # only one holding what WinZapp alone knows: a voice note
+                    # transcribed while the conversation was still the @lid
+                    # one, a video whose length was measured there. The
+                    # database keeps the same rule in merge_or_rename_chat().
+                    stored_transcription.fold_transcription(dst_by_id[mid], r)
+                    carry_over_video_durations([dst_by_id[mid]], [r])
         else:
             lid_chat = self.chats.pop(lid_jid)
             lid_chat["remoteJid"] = phone_jid
@@ -5269,6 +5279,10 @@ class MainWindow(wx.Frame):
         existing["message"]     = incoming.get("message")
         existing["messageType"] = "protocolMessage"
         existing.pop("_edited", None)
+        # The transcription is the withdrawn content in another form. The
+        # database drops it on its own for a record that is no longer audio
+        # (core.transcription.stored), but this dict is the one on screen.
+        existing.pop(stored_transcription.TRANSCRIPTION_KEY, None)
 
         def _bg_persist():
             try:
@@ -13519,10 +13533,17 @@ class MainWindow(wx.Frame):
             """Append src messages that are not already in dst (dedup by msg ID)."""
             if not src_records:
                 return
-            dst_ids = {r.get("key", {}).get("id") for r in dst_records}
+            dst_by_id = {r.get("key", {}).get("id"): r for r in dst_records}
             for r in src_records:
-                if r.get("key", {}).get("id") not in dst_ids:
+                mid = r.get("key", {}).get("id")
+                if mid not in dst_by_id:
                     dst_records.append(r)
+                elif mid:
+                    # The source chat is dropped after this; see
+                    # _merge_lid_into_phone() for why its copy of a message
+                    # already present can still hold something to keep.
+                    stored_transcription.fold_transcription(dst_by_id[mid], r)
+                    carry_over_video_durations([dst_by_id[mid]], [r])
 
         # ── Pass 0: merge phantom "self-referential" chats ────────────────────
         # WPPConnect/Baileys occasionally reports a self-chat send (seen with
@@ -18289,6 +18310,15 @@ class MainWindow(wx.Frame):
             if carried:
                 logging.info("[sync_chat_messages] %s: kept %d measured video duration(s)",
                              remote_jid, carried)
+            # A saved transcription is the same kind of fact, with the same
+            # database-side twin (DatabaseManager._with_known_local_fields):
+            # without this it survives on disk and "Ver transcrição" leaves the
+            # menu at the first sync.
+            carried = stored_transcription.carry_over_transcriptions(all_messages, local_records)
+            if carried:
+                # A count only — not even the chat: part of the transcription
+                # package's rule that nothing about whose note it was is logged.
+                logging.info("[sync_chat_messages] kept %d saved transcription(s)", carried)
             api_ids = {r.get("key", {}).get("id") for r in all_messages}
             extra   = [r for r in local_records
                        if r.get("key", {}).get("id") and
@@ -18338,6 +18368,11 @@ class MainWindow(wx.Frame):
                         .get("messages", {})
                         .get("records", []))
         if live_records:
+            # A transcription saved or deleted while the fetch was in flight
+            # landed on the live records, after the carry-over above read the
+            # snapshot — and it is the more recent decision, which is the one
+            # the rule keeps.
+            stored_transcription.carry_over_transcriptions(all_messages, live_records)
             current_ids = {r.get("key", {}).get("id") for r in all_messages}
             late_extra  = [r for r in live_records
                            if r.get("key", {}).get("id") and
@@ -19103,6 +19138,181 @@ class MainWindow(wx.Frame):
             # Repaint only — a rebuild here would move the user's focus for a
             # row that just gained a duration clause.
             cp._repaint_message_rows([msg_id])
+
+    # ── Saved transcriptions (issue #112) ───────────────────────────────────
+    # The rule that keeps a transcription across resyncs, and why deleting
+    # writes a tombstone, is in core/transcription/stored.py. What lives here
+    # is only which dicts hold the message and how the write is scheduled.
+
+    def _transcription_copies(self, jid: str, msg_id: str) -> list:
+        """Every in-memory dict that may be message *msg_id* of chat *jid*.
+
+        More than one, routinely: the chat's records and its lastMessage, and
+        the conversation panel's own lists — which keep the dicts of the chat
+        they were built from after a resync has swapped self.chats[jid] for a
+        new one. Each of them can be written back to the database by some
+        later path (a star toggled, a status update, save_data()), and the
+        menu reads the panel's copy, so all of them have to agree.
+        """
+        copies = []
+        chat = self.get_chat(jid)
+        if isinstance(chat, dict):
+            copies.extend(((chat.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.append(chat.get("lastMessage"))
+        cp = getattr(self, "conversations_panel", None)
+        conversation = getattr(cp, "conversation", None)
+        if (isinstance(conversation, dict)
+                and self._normalize_jid(conversation.get("remoteJid", "")) == self._normalize_jid(jid)):
+            copies.extend(((conversation.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.extend(getattr(cp, "_all_sorted_messages", None) or [])
+            copies.extend(getattr(cp, "_sorted_messages", None) or [])
+        return copies
+
+    def store_message_transcription(self, jid: str, msg_id: str, value: dict) -> str:
+        """Keep *value* as the transcription of message *msg_id* (UI thread).
+
+        Returns one of stored_transcription's SAVE_* answers, which the result
+        window turns into a note when it is not SAVE_STORED.
+
+        The message is looked up again here, by id, rather than trusted from
+        the dict the flow held when the run started: a transcription takes
+        minutes, and a sync may have replaced that dict since, or the send of
+        an own message may have given it its real id. Memory first, on every
+        copy, so the menu offers "Ver transcrição" at once; the database gets
+        the dedicated key-only write (never insert_message() of this record,
+        whose other fields may be minutes stale) on the background executor,
+        under every JID the conversation's rows may be filed under
+        (_transcription_storage_jids()). When none of them has the row yet —
+        a message that arrived live and has not been persisted — the record
+        is written whole through insert_message(), whose rule keeps whichever
+        decision is later. Only an actual failure of the database is said to
+        the user, in one sentence: the window must not go on implying the
+        text was kept when nothing was written.
+        """
+        copies = self._transcription_copies(jid, msg_id)
+        current = stored_transcription.find_record(copies, msg_id)
+        if current is None:
+            return stored_transcription.SAVE_MISSING
+        if stored_transcription.is_unsent(current):
+            return stored_transcription.SAVE_UNSENT
+        real_id = (current.get("key") or {}).get("id", "")
+        if real_id != msg_id:
+            # Sent while it was being transcribed: the copies now carry the
+            # real id, and that is the one the row is stored under.
+            copies = self._transcription_copies(jid, real_id)
+        # Dated after anything these copies hold: the flow dated it with the
+        # wall clock minutes ago, and a clock set back since would make this
+        # newer decision lose to the one it replaces.
+        at = stored_transcription.decision_time(value)
+        later = stored_transcription.next_decision_time(
+            at if at is not None else time.time(),
+            *(c.get(stored_transcription.TRANSCRIPTION_KEY) for c in copies
+              if isinstance(c, dict) and (c.get("key") or {}).get("id") == real_id),
+        )
+        if later != at:
+            value = dict(value, at=later)
+        stored_transcription.set_on_copies(copies, real_id, value)
+        db = getattr(self, "db", None)
+        if db is not None:
+            # Taken here, on the UI thread, already carrying the value: the
+            # fallback below writes this snapshot, never a dict still in use.
+            record = dict(current)
+            storage_jids = self._transcription_storage_jids(jid)
+
+            def _bg_persist():
+                # Nothing about the message in these lines — not its id either.
+                try:
+                    written = False
+                    for storage_jid in storage_jids:
+                        if db.set_message_transcription(storage_jid, real_id, value):
+                            written = True
+                    if not written:
+                        db.insert_message(jid, record)
+                        logging.info("[transcription] no stored row yet: the message was written whole")
+                except Exception as exc:
+                    logging.warning("[transcription] storing a transcription failed: %s",
+                                    type(exc).__name__)
+                    wx.CallAfter(self._say_transcription_not_stored)
+            self._msg_bg_executor.submit(_bg_persist)
+        self._schedule_save(dirty_jid=jid)
+        return stored_transcription.SAVE_STORED
+
+    def _say_transcription_not_stored(self):
+        """The one sentence for a transcription the database refused (UI thread).
+
+        Said over whatever is on screen — usually the result window, which
+        opened before the background write answered — without interrupting
+        it: the text is still there to read, and the copies in memory still
+        carry it, but nothing promises it will be there next time.
+        """
+        if hasattr(self, "error_sound"):
+            self.error_sound.play()
+        self.output(self.i18n.t("transcription_store_failed"))
+
+    def _transcription_storage_jids(self, jid: str) -> list:
+        """The chat JIDs the rows of conversation *jid* may be stored under.
+
+        The conversation's own, and the @lid its older history can still be
+        filed under — the same lookup ConversationsPanel._history_storage_jid()
+        makes to read that history back. A message loaded from there lives in
+        the database under the @lid, so a write keyed on the phone JID alone
+        finds no row, and the transcription would reach the disk only if some
+        later save happened to carry it.
+        """
+        jids = [jid]
+        lid = (getattr(self, "_phone_to_lid", None) or {}).get(jid, "")
+        if lid and lid != jid:
+            jids.append(lid)
+        return jids
+
+    def delete_message_transcription(self, jid: str, msg_id: str, on_done) -> None:
+        """Delete message *msg_id*'s transcription; call *on_done(ok)* on the
+        UI thread once the database has answered.
+
+        The database first and memory after, the reverse of storing: saying
+        "deleted" while the disk still holds the text would be false, and it
+        is the disk that outlives the session. *on_done* runs only once every
+        copy on disk has the tombstone: the message's row under each JID the
+        conversation may be stored under, and the chat's preview, which
+        never holds the text (DatabaseManager._build_chat_values()) and is
+        scrubbed by the same write if an older one did. A row that does not
+        exist is not a failure — nothing is left holding the text, which is
+        what the user asked for.
+        """
+        copies = self._transcription_copies(jid, msg_id)
+        # After whatever is stored, whatever the clock says — see
+        # store_message_transcription(); a delete dated before the text it
+        # deletes is one the next sync would undo.
+        deleted_at = stored_transcription.next_decision_time(
+            time.time(),
+            *(c.get(stored_transcription.TRANSCRIPTION_KEY) for c in copies
+              if isinstance(c, dict) and (c.get("key") or {}).get("id") == msg_id),
+        )
+        value = stored_transcription.tombstone(deleted_at)
+        db = getattr(self, "db", None)
+        storage_jids = self._transcription_storage_jids(jid)
+
+        def _finish(ok):
+            if ok:
+                stored_transcription.set_on_copies(
+                    self._transcription_copies(jid, msg_id), msg_id, value
+                )
+                self._schedule_save(dirty_jid=jid)
+            on_done(ok)
+
+        def _bg_delete():
+            ok = db is not None
+            if ok:
+                try:
+                    for storage_jid in storage_jids:
+                        db.delete_message_transcription(storage_jid, msg_id, deleted_at)
+                except Exception as exc:
+                    ok = False
+                    logging.warning("[transcription] deleting a transcription failed: %s",
+                                    type(exc).__name__)
+            wx.CallAfter(_finish, ok)
+
+        self._msg_bg_executor.submit(_bg_delete)
 
     def _check_wa_connection_closed(self, response) -> bool:
         """Detect a response that means "WhatsApp is not connected".
@@ -21142,6 +21352,10 @@ class MainWindow(wx.Frame):
 
         # Prepare body with media details to bypass Puppeteer cache lookups in WPPConnect Server
         body_data = dict(media)
+        # The record goes over the wire whole, and a saved transcription is
+        # part of it — the text of a private voice note, which the server has
+        # no use for and never had a copy of.
+        body_data.pop(stored_transcription.TRANSCRIPTION_KEY, None)
         msg_type = media.get("messageType")
         msg_inner_obj = media.get("message")
         if isinstance(msg_inner_obj, str):

@@ -1173,7 +1173,7 @@
     "transcription_note_low_confidence": "O idioma desta mensagem não foi identificado com certeza, por isso o texto pode estar errado. Pode escolher o idioma nas definições de transcrição.",
     "transcription_finished": "Transcrição concluída.",
     "transcribe_message": "Transcrever mensagem com o Whisper",
-    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcrever a mensagem de voz ou o áudio com o Whisper",
+    "shortcut_alt_shift_t_label": "Alt+Shift+T: transcrever a mensagem de voz ou o áudio com o Whisper, ou abrir a transcrição já guardada",
     "transcription_no_audio": "Esta mensagem não tem áudio para transcrever.",
     "transcription_starting": "A iniciar a transcrição...",
     "transcription_phase_downloading_audio": "A transferir o áudio da mensagem...",
@@ -1191,5 +1191,16 @@
     "transcription_save_title": "Guardar transcrição",
     "transcription_save_wildcard": "Ficheiros de texto (*.txt)|*.txt",
     "transcription_save_default_name": "Transcrição - {name}",
-    "transcription_result_has_notes": "Há avisos acima do texto."
+    "transcription_result_has_notes": "Há avisos acima do texto.",
+    "transcription_view": "Ver transcrição",
+    "transcription_transcribe_again": "Transcrever novamente",
+    "transcription_delete": "Apagar transcrição",
+    "transcription_delete_question": "Apagar a transcrição desta mensagem? A mensagem e o áudio continuam na conversa.",
+    "transcription_deleted": "Transcrição apagada.",
+    "transcription_delete_failed": "Não foi possível apagar a transcrição.",
+    "transcription_saved_opened": "Transcrição guardada, feita em {when} com o modelo {model}.",
+    "transcription_saved_opened_no_model": "Transcrição guardada, feita em {when}.",
+    "transcription_not_saved_unsent": "Esta transcrição não foi guardada, porque a mensagem ainda não foi enviada. Depois do envio, transcreva-a de novo para a guardar.",
+    "transcription_not_saved_missing": "Esta transcrição não foi guardada, porque a mensagem já não está nesta conversa.",
+    "transcription_store_failed": "Não foi possível guardar a transcrição."
 }

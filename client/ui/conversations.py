@@ -51,6 +51,7 @@ from ui.accessible import (
 from ui.dialogs.emoji_picker import choose_and_insert_emoji
 from core.save_location import resolve_save_dialog_folder
 from core.transcription import message_audio
+from core.transcription import stored as stored_transcription
 from core.utils import history_window, reaction_targets_status, format_number, decrypt_bytes, is_phone_like, encrypt, effective_unread_count, first_unread_index, db_fetch_limit, looks_like_binary_blob, normalize_for_search, normalize_line_separators, parse_bool_flag as _parse_bool_flag, append_selected_marker, is_message_forwarded, is_voice_message, video_seconds, MEASURED_SECONDS_KEY, link_preview_text
 from core.locale_format import get_date_format, get_time_format, get_datetime_format
 from core.message_copy_format import format_copied_message
@@ -1609,6 +1610,39 @@ class ConversationsPanel(wx.Panel):
         )
         self.conversation_panel.Layout()
 
+    def _load_conversation_page_from_db(self, conversation):
+        """Replace *conversation*'s records with its newest page from the database.
+
+        A method of its own, and not lines inside navigate_to_conversation(),
+        only so the carry-over below can be tested: navigate_to_conversation()
+        cannot run against a stub, and a call with its two arguments swapped
+        reads exactly like the right one.
+        """
+        _conv_jid = conversation.get("remoteJid", "")
+        if not _conv_jid:
+            return
+        configured_limit = int(self.main_window.settings.get("user_interface", {}).get("messages_page_size", 200))
+        unread_count = int(conversation.get("unreadCount") or 0)
+        limit = db_fetch_limit(configured_limit, unread_count)
+        db_msgs = self.main_window.db.get_messages(_conv_jid, limit=limit)
+        db_msgs.reverse()
+        # The stored copy can be a moment behind a transcription just
+        # saved or deleted — MainWindow.store_message_transcription()
+        # writes it on a background executor — and these records are
+        # about to replace the ones that already have it.
+        stored_transcription.carry_over_transcriptions(
+            db_msgs,
+            ((conversation.get("messages") or {}).get("messages") or {}).get("records") or [],
+        )
+        if "messages" not in conversation:
+            conversation["messages"] = {}
+        conversation["messages"]["messages"] = {
+            "total": self.main_window.db.get_message_count(_conv_jid),
+            "pages": 1,
+            "currentPage": 1,
+            "records": db_msgs
+        }
+
     def navigate_to_conversation(self, conversation):
         if self.conversation is not None and self.conversation.get("remoteJid") == conversation.get("remoteJid"):
             self.conversation = conversation
@@ -1669,21 +1703,7 @@ class ConversationsPanel(wx.Panel):
         
         # Load up to 200 messages from local DB when opening conversation to support fast startup
         try:
-            _conv_jid = conversation.get("remoteJid", "")
-            if _conv_jid:
-                configured_limit = int(self.main_window.settings.get("user_interface", {}).get("messages_page_size", 200))
-                unread_count = int(conversation.get("unreadCount") or 0)
-                limit = db_fetch_limit(configured_limit, unread_count)
-                db_msgs = self.main_window.db.get_messages(_conv_jid, limit=limit)
-                db_msgs.reverse()
-                if "messages" not in conversation:
-                    conversation["messages"] = {}
-                conversation["messages"]["messages"] = {
-                    "total": self.main_window.db.get_message_count(_conv_jid),
-                    "pages": 1,
-                    "currentPage": 1,
-                    "records": db_msgs
-                }
+            self._load_conversation_page_from_db(conversation)
         except Exception as e:
             logging.error(f"[navigate_to_conversation] Failed to load messages from DB: {e}")
 
@@ -4532,15 +4552,44 @@ class ConversationsPanel(wx.Panel):
         # Transcribe (Alt+Shift+T) — next to the audio's own Save As, for the
         # same messages message_audio.is_transcribable() accepts: voice notes,
         # audio files, and documents whose mimetype is audio/*.
+        # A message whose transcription is stored offers it instead of the
+        # wait: Alt+Shift+T moves to "Ver transcrição" (the shortcut opens the
+        # stored one too), and running it again or deleting it are items of
+        # their own. The row itself says nothing about it: a marker there
+        # would be read on every pass over every transcribed note, for good,
+        # and the one action it would inform — Alt+Shift+T — already does the
+        # right thing either way, opening the stored text or starting a run.
         if message_audio.is_transcribable(msg):
-            transcribe_item = menu.Append(
-                wx.ID_ANY, f"{i18n.t('transcribe_message')}\tAlt+Shift+T"
-            )
-            self.Bind(
-                wx.EVT_MENU,
-                lambda e, m=msg: self._on_menu_transcribe(m),
-                transcribe_item,
-            )
+            if stored_transcription.saved_transcription(msg) is not None:
+                view_item = menu.Append(
+                    wx.ID_ANY, f"{i18n.t('transcription_view')}\tAlt+Shift+T"
+                )
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe(m),
+                    view_item,
+                )
+                again_item = menu.Append(wx.ID_ANY, i18n.t("transcription_transcribe_again"))
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe_again(m),
+                    again_item,
+                )
+                delete_item = menu.Append(wx.ID_ANY, i18n.t("transcription_delete"))
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_delete_transcription(m),
+                    delete_item,
+                )
+            else:
+                transcribe_item = menu.Append(
+                    wx.ID_ANY, f"{i18n.t('transcribe_message')}\tAlt+Shift+T"
+                )
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe(m),
+                    transcribe_item,
+                )
 
         # Edit (own text messages within 3 hours)
         _is_own      = msg.get("key", {}).get("fromMe", False)
@@ -12379,11 +12428,22 @@ class ConversationsPanel(wx.Panel):
         # Imported here, like SettingsDialog in main.py: the flow pulls in the
         # model store and the CUDA runtime (requests, TLS setup), and nobody
         # should pay for that at startup before transcribing anything.
+        from ui.transcription_flow import open_or_transcribe
+
+        # A message with no audio answers with one sentence and opens nothing,
+        # and one with a stored transcription opens it instead of running —
+        # the flow checks both, so the shortcut and the menu cannot disagree.
+        open_or_transcribe(self, msg)
+
+    def _on_menu_transcribe_again(self, msg: dict):
         from ui.transcription_flow import transcribe_message
 
-        # A message with no audio answers with one sentence and opens nothing
-        # — the flow checks, so the shortcut and the menu cannot disagree.
         transcribe_message(self, msg)
+
+    def _on_menu_delete_transcription(self, msg: dict):
+        from ui.transcription_flow import delete_transcription
+
+        delete_transcription(self, msg)
 
     def _on_accel_show_text_popup(self, event):
         """Alt+C: show focused message text in a popup dialog."""
