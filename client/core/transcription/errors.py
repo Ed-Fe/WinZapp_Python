@@ -22,6 +22,15 @@ MODEL_NOT_INSTALLED = "model_not_installed"
 # sha256 for model.bin (see model_catalog).
 MODEL_CORRUPTED = "model_corrupted"
 NO_DISK_SPACE = "no_disk_space"
+# The disk ran out while a message's audio was being decrypted into %TEMP% for
+# a transcription. Its own code rather than NO_DISK_SPACE because that
+# sentence says "for this download": it is what the model and CUDA downloads
+# say, and here nothing was being downloaded — the voice note was already on
+# disk. It also names a different place: %TEMP% sits on the system drive by
+# default, which need not be the drive holding WinZapp's data, so a user sent
+# to free space "for the download" may clear the wrong disk and meet the same
+# failure again.
+TEMP_NO_DISK_SPACE = "temp_no_disk_space"
 CUDA_UNAVAILABLE = "cuda_unavailable"
 INSUFFICIENT_VRAM = "insufficient_vram"
 INSUFFICIENT_RAM = "insufficient_ram"
@@ -83,6 +92,7 @@ ERROR_CODES = (
     MODEL_NOT_INSTALLED,
     MODEL_CORRUPTED,
     NO_DISK_SPACE,
+    TEMP_NO_DISK_SPACE,
     CUDA_UNAVAILABLE,
     INSUFFICIENT_VRAM,
     INSUFFICIENT_RAM,

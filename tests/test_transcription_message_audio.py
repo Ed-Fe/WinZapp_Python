@@ -35,6 +35,8 @@ Everything this file pins is a failure the user cannot see happening:
 """
 
 import ast
+import errno
+import json
 import math
 import os
 import random
@@ -44,7 +46,16 @@ import traceback
 
 import pytest
 
+from app_paths import resource_path
 from core.transcription import errors, message_audio
+
+
+def _load_language(name):
+    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+_LANGUAGE_MAP = _load_language("language_map")
 
 
 # ── Fixtures and helpers ─────────────────────────────────────────────────────
@@ -761,9 +772,94 @@ class TestDecryptToTemp:
             raise OSError("the disk filled up")
 
         monkeypatch.setattr(os, "fdopen", _fail)
-        with pytest.raises(OSError):
+        with pytest.raises(errors.TranscriptionError) as caught:
             message_audio.decrypt_to_temp(source, fernet_key)
+        # No error number at all, so nothing says the disk is full: the
+        # sentence must not blame the recording either, which is what
+        # AUDIO_INCOMPLETE would do.
+        assert caught.value.code == errors.BACKEND_ERROR
         assert _leftovers(own_temp_dir) == []
+
+
+class TestAFullDiskIsASentence:
+    """Decrypting a 2 GB audio document into a nearly full system drive.
+
+    This used to let a raw OSError escape, which is not the contract: every
+    failure here is a TranscriptionError, so the caller can say it — and an
+    OSError that escaped would be logged whole by the caller's catch-all,
+    temporary path and Windows user name included.
+    """
+
+    def _fill_disk(self, monkeypatch, failure):
+        real_fdopen = os.fdopen
+        seen = {}
+
+        def _full(handle, *args, **kwargs):
+            real_fdopen(handle, *args, **kwargs).close()
+            raise failure(seen)
+
+        real_mkstemp = message_audio.tempfile.mkstemp
+
+        def _mkstemp(*args, **kwargs):
+            handle, path = real_mkstemp(*args, **kwargs)
+            seen["path"] = path
+            return handle, path
+
+        monkeypatch.setattr(message_audio.tempfile, "mkstemp", _mkstemp)
+        monkeypatch.setattr(os, "fdopen", _full)
+        return seen
+
+    @pytest.mark.parametrize(
+        "make",
+        [
+            lambda seen: OSError(errno.ENOSPC, "No space left on device", seen["path"]),
+            lambda seen: OSError(None, "There is not enough space on the disk",
+                                 seen["path"], 112),
+            lambda seen: OSError(None, "The disk is full", seen["path"], 39),
+        ],
+        ids=["enospc", "winerror-112", "winerror-39"],
+    )
+    def test_a_full_disk_says_no_disk_space(
+        self, make, tmp_path, own_temp_dir, fernet, fernet_key, monkeypatch
+    ):
+        source = _cached(tmp_path, fernet, WAV)
+        seen = self._fill_disk(monkeypatch, make)
+        with pytest.raises(errors.TranscriptionError) as caught:
+            message_audio.decrypt_to_temp(source, fernet_key)
+        # The temporary's own code, not the downloads' NO_DISK_SPACE: nothing
+        # was being downloaded, and "for this download" sends the user to
+        # look for one.
+        assert caught.value.code == errors.TEMP_NO_DISK_SPACE
+        assert _leftovers(own_temp_dir) == []
+        # The temporary's folder carries the Windows user name.
+        rendered = "".join(traceback.format_exception(caught.value))
+        for text in (caught.value.detail, caught.value.log_line, rendered):
+            assert seen["path"] not in text
+            assert os.path.basename(seen["path"]) not in text
+
+    @pytest.mark.parametrize("locale", sorted(_LANGUAGE_MAP))
+    def test_the_sentence_is_not_the_downloads_one(self, locale):
+        """Two codes that read the same would be one code with extra steps."""
+        table = _load_language(locale)
+        temp = table[errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE)]
+        download = table[errors.error_i18n_key(errors.NO_DISK_SPACE)]
+        assert temp and temp != download
+
+    def test_a_temp_folder_that_cannot_be_written_is_not_blamed_on_the_audio(
+        self, tmp_path, own_temp_dir, fernet, fernet_key, monkeypatch
+    ):
+        """mkstemp itself failing: there is no temporary to clean up, and the
+        recording is fine."""
+        source = _cached(tmp_path, fernet, WAV)
+
+        def _refuse(*args, **kwargs):
+            raise PermissionError(13, "Permission denied", str(own_temp_dir))
+
+        monkeypatch.setattr(message_audio.tempfile, "mkstemp", _refuse)
+        with pytest.raises(errors.TranscriptionError) as caught:
+            message_audio.decrypt_to_temp(source, fernet_key)
+        assert caught.value.code == errors.BACKEND_ERROR
+        assert str(own_temp_dir) not in caught.value.log_line
 
 
 class TestTemporaryLifetime:
@@ -984,6 +1080,42 @@ class TestTheDetailNamesNoFile:
             message_audio.decrypt_to_temp(source, fernet_key, decrypt=_quoting)
         assert caught.value.code == errors.AUDIO_INCOMPLETE
         assert "ValueError" in caught.value.detail
+        self._assert_nothing_identifies_the_message(caught.value, source)
+
+    def test_running_out_of_memory_names_no_file(
+        self, tmp_path, own_temp_dir, fernet, fernet_key
+    ):
+        """The one branch this class did not cover, and the one that chained
+        with `from exc`: a MemoryError is empty in production, but `decrypt`
+        is injectable and the traceback printed the original whole."""
+        source = self._source(tmp_path, fernet)
+
+        def _exhausted(data, key):
+            raise MemoryError(f"cannot allocate for {source}")
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            message_audio.decrypt_to_temp(source, fernet_key, decrypt=_exhausted)
+        assert caught.value.code == errors.AUDIO_INCOMPLETE
+        assert caught.value.__cause__ is None
+        self._assert_nothing_identifies_the_message(caught.value, source)
+
+    def test_a_decrypt_raising_an_oserror_that_quotes_the_path_names_no_file(
+        self, tmp_path, own_temp_dir, fernet, fernet_key
+    ):
+        """`strerror` is only the system's sentence when the system raised it.
+
+        An injected `decrypt` can put anything there; measured, a path in it
+        reached `log_line` while reading and decrypting shared one `try`.
+        """
+        source = self._source(tmp_path, fernet)
+
+        def _quoting(data, key):
+            raise OSError(5, f"cannot decrypt {source}")
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            message_audio.decrypt_to_temp(source, fernet_key, decrypt=_quoting)
+        assert caught.value.code == errors.AUDIO_INCOMPLETE
+        assert "OSError" in caught.value.detail
         self._assert_nothing_identifies_the_message(caught.value, source)
 
     def test_what_the_log_keeps_is_still_worth_reading(

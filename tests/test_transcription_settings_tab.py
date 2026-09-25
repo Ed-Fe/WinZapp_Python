@@ -1174,8 +1174,9 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
 
 
 class TestTheTabIsEnteredThroughTheNotebook:
-    """Nothing else calls _enter_transcription_page(), and everything the tab
-    measures, speaks and consumes is behind it."""
+    """Only the notebook's page change and show_transcription_tab() (below)
+    enter the tab, and everything the tab measures, speaks and consumes is
+    behind that entry."""
 
     def test_the_notebook_page_change_is_bound(self):
         assert "wx.EVT_NOTEBOOK_PAGE_CHANGED" in SETTINGS_DIALOG_SOURCE
@@ -1194,6 +1195,117 @@ class TestTheTabIsEnteredThroughTheNotebook:
         }
         assert "_enter_transcription_page" in called
         assert "Skip" in called
+
+
+class _PageChangedEvent:
+    def __init__(self, index):
+        self._index = index
+
+    def Skip(self):
+        pass
+
+    def GetSelection(self):
+        return self._index
+
+
+class _EventfulNotebook:
+    """wx.Notebook's two ways of selecting a page, with wx's difference.
+
+    SetSelection() delivers EVT_NOTEBOOK_PAGE_CHANGED synchronously to the
+    handler the dialog binds; ChangeSelection() delivers nothing. A notebook
+    fake without that difference is how the flow's own test once passed over
+    a SetSelection() that entered the tab before the window existed.
+    """
+
+    def __init__(self, owner, pages):
+        self._owner = owner
+        self._pages = pages
+        self.calls = []
+
+    def FindPage(self, page):
+        return self._pages.index(page) if page in self._pages else wx.NOT_FOUND
+
+    def GetPageCount(self):
+        return len(self._pages)
+
+    def GetPage(self, index):
+        return self._pages[index]
+
+    def SetSelection(self, index):
+        self.calls.append(("SetSelection", index))
+        self._owner._on_settings_page_changed(_PageChangedEvent(index))
+
+    def ChangeSelection(self, index):
+        self.calls.append(("ChangeSelection", index))
+
+
+class _DialogOpenedOnTheTab:
+    """SettingsDialog minus wx.Dialog: the notebook above and a modal loop
+    that, like the real one, runs what was queued before it once it is up."""
+
+    show_transcription_tab = SettingsDialog.show_transcription_tab
+    _on_settings_page_changed = SettingsDialog._on_settings_page_changed
+
+    def __init__(self, queued, with_tab=True):
+        self.timeline = []
+        self._queued = queued
+        self._transcription_page = object()
+        pages = [object(), object()] + ([self._transcription_page] if with_tab else [])
+        self._notebook = _EventfulNotebook(self, pages)
+
+    def _enter_transcription_page(self):
+        self.timeline.append("entered")
+
+    def ShowModal(self):
+        self.timeline.append("shown")
+        for func, args in list(self._queued):
+            func(*args)
+        return wx.ID_OK
+
+
+class TestOpeningStraightOnTheTab:
+    """`show_transcription_tab()` enters the tab only once the window is up.
+
+    The case that reaches it most is a replaced model: the user said Yes to
+    "open Settings?", and entering the tab speaks "your model was replaced"
+    and then sanitizes the setting so it is never said again. Entered from
+    inside SetSelection(), before ShowModal(), the sentence is cut by the
+    screen reader announcing the new window and the condition is spent all
+    the same.
+    """
+
+    @pytest.fixture
+    def queued(self, monkeypatch):
+        posted = []
+        monkeypatch.setattr(
+            settings_dialog.wx, "CallAfter",
+            lambda func, *args: posted.append((func, args)),
+        )
+        return posted
+
+    def test_the_tab_is_entered_from_inside_the_modal_loop(self, queued):
+        dialog = _DialogOpenedOnTheTab(queued)
+        assert dialog.show_transcription_tab() == wx.ID_OK
+        assert dialog.timeline == ["shown", "entered"]
+
+    def test_the_page_is_selected_without_the_page_changed_event(self, queued):
+        dialog = _DialogOpenedOnTheTab(queued)
+        dialog.show_transcription_tab()
+        assert dialog._notebook.calls == [("ChangeSelection", 2)]
+
+    def test_the_entry_is_queued_not_called(self, queued):
+        dialog = _DialogOpenedOnTheTab(queued)
+        dialog.ShowModal = lambda: wx.ID_OK
+        dialog.show_transcription_tab()
+        assert dialog.timeline == []
+        assert [func.__name__ for func, _args in queued] == ["_enter_transcription_page"]
+
+    def test_without_the_tab_it_just_opens(self, queued):
+        dialog = _DialogOpenedOnTheTab(queued, with_tab=False)
+        dialog.show_transcription_tab()
+        assert dialog._notebook.calls == []
+        assert queued == []
+        assert dialog.timeline == ["shown"]
 
 
 class TestRetranslation:

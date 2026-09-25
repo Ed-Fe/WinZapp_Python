@@ -65,6 +65,7 @@ Three decisions carry this module, and the first one is the important one.
 from __future__ import annotations
 
 import contextlib
+import errno
 import os
 import tempfile
 
@@ -346,22 +347,21 @@ def decrypt_to_temp(media_path, key, decrypt=None) -> str:
             errors.MEDIA_NOT_DOWNLOADED, f"{size} bytes on disk"
         )
 
+    # Reading and decrypting are two separate `try` blocks, and the split is
+    # what makes the OSError branch below honest. Its `detail` keeps
+    # `strerror`, which is only safe for an OSError the *operating system*
+    # raised: there it is the system's own sentence ("Permission denied") and
+    # the path lives in `filename`, which is dropped. The injectable `decrypt`
+    # can raise an OSError too, built from whatever text it likes — one
+    # quoting the path was measured reaching the log through `strerror` when
+    # both calls shared a block. Kept apart, only `open()`/`read()` reach the
+    # branch that trusts `strerror`; everything `decrypt` raises is reduced to
+    # its type name.
     try:
         with open(media_path, "rb") as handle:
-            plain = decrypt(handle.read(), key)
-    except errors.TranscriptionError:
-        raise
-    except MemoryError as exc:
-        # The whole file is read and decrypted in memory, and Fernet's internal
-        # base64 step peaks at roughly three times its size — an audio document
-        # may be 2 GB, so this is reachable on a real machine rather than
-        # theoretical. The file is perfectly fine, and the three branches below
-        # all describe one that is not, so it gets its own `detail`: sending a
-        # user to re-download an intact 2 GB recording is a long, wasted trip.
-        # Note `str(MemoryError())` is empty, hence the spelled-out text.
-        raise errors.TranscriptionError(
-            errors.AUDIO_INCOMPLETE, "MemoryError: not enough memory to decrypt the file"
-        ) from exc
+            data = handle.read()
+    except MemoryError:
+        raise _out_of_memory() from None
     except OSError as exc:
         # The bytes could not be read off the disk at all — a removable drive
         # pulled mid-read, an antivirus holding the file, a path too long.
@@ -370,9 +370,11 @@ def decrypt_to_temp(media_path, key, decrypt=None) -> str:
         # an OSError raised by `open()` carries the path in both, the file is
         # named after the message id, and `detail` is the half that goes to
         # the log. `strerror` is the system's own sentence ("No such file or
-        # directory") and holds no path; an OSError raised with a bare message
-        # has neither number, and loses its text here on purpose — this module
-        # cannot vouch for what that text contains.
+        # directory") and holds no path — true of what `open()` and `read()`
+        # raise, which is all that can reach this branch (see above); an
+        # OSError raised with a bare message has neither number, and loses its
+        # text here on purpose — this module cannot vouch for what that text
+        # contains.
         #
         # A file that vanished between `getsize()` and `open()` — the user
         # deleting the media just as the transcription starts — is the state
@@ -385,6 +387,13 @@ def decrypt_to_temp(media_path, key, decrypt=None) -> str:
             f"read failed: {type(exc).__name__}: errno={exc.errno}"
             f" winerror={getattr(exc, 'winerror', None)} strerror={exc.strerror}",
         ) from None
+
+    try:
+        plain = decrypt(data, key)
+    except errors.TranscriptionError:
+        raise
+    except MemoryError:
+        raise _out_of_memory() from None
     except Exception as exc:
         # Fernet refuses a file that was truncated mid-write, one written under
         # a different secret.key, and one that was never encrypted at all.
@@ -405,10 +414,12 @@ def decrypt_to_temp(media_path, key, decrypt=None) -> str:
         # in the log. The type is also what tells the cases apart (InvalidToken
         # against, say, a TypeError from a malformed key).
         #
-        # `from None` here and in the branch above: the original exception is
-        # exactly what was kept out of `detail`, and chained as `__cause__` it
-        # would reach the log whole the first time anything logs this error
-        # with its traceback.
+        # `from None` here and in every branch above: the original exception
+        # is exactly what was kept out of `detail`, and chained as `__cause__`
+        # it would reach the log whole the first time anything logs this error
+        # with its traceback. (It still sits in `__context__` — `from None`
+        # only stops the traceback printing it — so nothing may walk the chain
+        # by hand to log it.)
         raise errors.TranscriptionError(
             errors.AUDIO_INCOMPLETE, f"decrypt failed: {type(exc).__name__}"
         ) from None
@@ -421,16 +432,63 @@ def decrypt_to_temp(media_path, key, decrypt=None) -> str:
 
     # A random name, never the message's: the file on disk is named after the
     # message id, and %TEMP% is not a private place.
-    handle, temp_path = tempfile.mkstemp(prefix="winzapp-audio-", suffix=extension)
+    temp_path = None
     try:
+        handle, temp_path = tempfile.mkstemp(prefix="winzapp-audio-", suffix=extension)
         with os.fdopen(handle, "wb") as out:
             out.write(plain)
-    except BaseException:
+    except OSError as exc:
         # A partly written temporary is decrypted audio of a private
         # conversation sitting in %TEMP% with nobody left to delete it.
         discard_temp(temp_path)
+        # Decrypting a 2 GB audio document into a nearly full system drive is
+        # an ordinary way for this to happen, and it must reach the user as a
+        # sentence: an OSError escaping from here lands in the caller's
+        # catch-all, which logs its text — and the text of an OSError about
+        # this file quotes the temporary's path, whose folder carries the
+        # Windows user name. So the detail is numbers and the type only, never
+        # `filename`, and the code says what the user can act on: a full disk
+        # is TEMP_NO_DISK_SPACE (not the downloads' NO_DISK_SPACE — see
+        # errors.py), and anything else here (a %TEMP% that cannot be
+        # written at all) is nobody's audio at fault, hence BACKEND_ERROR
+        # rather than a sentence blaming the recording.
+        raise errors.TranscriptionError(
+            errors.TEMP_NO_DISK_SPACE if _is_disk_full(exc) else errors.BACKEND_ERROR,
+            f"temporary write failed: {type(exc).__name__}: errno={exc.errno}"
+            f" winerror={getattr(exc, 'winerror', None)}",
+        ) from None
+    except BaseException:
+        discard_temp(temp_path)
         raise
     return temp_path
+
+
+# ERROR_DISK_FULL and ERROR_HANDLE_DISK_FULL. Python maps both to ENOSPC on
+# its own, but only when the OSError was raised with the winerror argument —
+# checking both spellings costs nothing and does not depend on that.
+_WINERROR_DISK_FULL = (112, 39)
+
+
+def _is_disk_full(exc) -> bool:
+    return (getattr(exc, "errno", None) == errno.ENOSPC
+            or getattr(exc, "winerror", None) in _WINERROR_DISK_FULL)
+
+
+def _out_of_memory():
+    """The error for a file too large to hold in memory, read or decrypted.
+
+    The whole file is read and decrypted in memory, and Fernet's internal
+    base64 step peaks at roughly three times its size — an audio document may
+    be 2 GB, so this is reachable on a real machine rather than theoretical.
+    The file is perfectly fine, and every other branch describes one that is
+    not, so it gets its own `detail`: sending a user to re-download an intact
+    2 GB recording is a long, wasted trip. `str(MemoryError())` is empty,
+    hence the spelled-out text — and the caller raises it `from None`, because
+    a MemoryError raised with a message is not this module's to vouch for.
+    """
+    return errors.TranscriptionError(
+        errors.AUDIO_INCOMPLETE, "MemoryError: not enough memory to decrypt the file"
+    )
 
 
 def discard_temp(path) -> None:

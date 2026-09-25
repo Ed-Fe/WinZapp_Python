@@ -1547,10 +1547,12 @@ _FORBIDDEN_IN_LOG = (
 # conversation, and rewriting its rules is not this part's business.
 #
 # management.py joins them: it logs the outcome of every action the settings
-# tab runs, and nothing it logs may ever reach past the model id.
+# tab runs, and nothing it logs may ever reach past the model id. So does part
+# 6b's message_run.py, the one module here that holds a message record — its
+# stricter scan (and the UI modules') is in test_transcription_message_run.py.
 _PART3_MODULES = (
     "audio_prep.py", "backend.py", "faster_whisper_backend.py", "job.py",
-    "management.py",
+    "management.py", "message_run.py",
 )
 
 

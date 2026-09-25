@@ -1,0 +1,1094 @@
+"""Transcribing a message from the conversation: what the user hears, where
+the focus lands, and what is left on the disk.
+
+`ui.transcription_flow.MessageTranscriptionFlow` is the wx half of part 6b.
+The ways it goes wrong are the ones a sighted tester does not notice:
+
+* **The focus comes back to the wrong message.** A transcription takes
+  minutes and messages keep arriving; the row the user was on is some other
+  message by the end. The message is found again by its id.
+
+* **The voice-filter warning is not said.** It is the only degradation a
+  listener cannot detect, so it is spoken every time — in the finished
+  sentence and in the empty-result sentence alike.
+
+* **The device is announced before it is known.** Read before the job's
+  probe, the reason is None, which narration turns into no sentence; read at
+  the loading phase it is the real one. It belongs in that phase's line and
+  nowhere else.
+
+* **A failure told twice, or not at all.** The media download is the trap:
+  the panel's usual helper reports its own failures in a message box.
+
+* **A private recording left behind.** The decrypted temporary, and the
+  converted audio a failed GPU run hands over for a re-run on the processor,
+  whether the re-run is accepted or declined.
+
+`MessageTranscriptionFlow` is a plain object, so it is built directly; the
+panel it wires into is a stub carrying only what the flow touches, with
+ConversationsPanel's own `_find_index_by_msg_id()` / `_focus_message_row()`
+bound onto it. The dialogs are fakes defined here — the real ones may not be
+put on the desktop by this suite (tests/test_no_desktop_visible_windows.py).
+The run behind them is the real `MessageTranscription`, with the job, the
+probe and the model listing replaced at their module-level defaults.
+"""
+
+import ast
+import errno
+import inspect
+import json
+import os
+import pathlib
+
+import pytest
+
+from app_paths import resource_path
+from core.transcription import (
+    audio_prep,
+    backend as backend_module,
+    device,
+    errors,
+    job as job_module,
+    message_run,
+    model_store,
+    narration,
+    preferences,
+)
+from core.transcription.backend import TranscriptionResult
+from tests.test_transcription_message_run import (
+    RESULT,
+    WAV,
+    _FakeJob,
+    _fail_on_gpu_with_handover,
+    _leftovers,
+    _scan,
+    _succeed,
+)
+from ui import transcription_flow
+from ui.conversations import ConversationsPanel
+from ui.dialogs import transcription_result
+from ui.transcription_flow import MessageTranscriptionFlow
+
+_ID = "3EB0FEEDFACE00112233"
+_CONTACT = "Ana Souza"
+_JID = "5511988887777@s.whatsapp.net"
+
+_REPO = pathlib.Path(__file__).resolve().parent.parent
+
+
+def _load(name):
+    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+LOCALES = sorted(_load("language_map"))
+
+
+class _I18n:
+    def __init__(self, locale="pt-BR"):
+        self.language = locale
+        self._table = _load(locale)
+
+    def t(self, key):
+        return self._table.get(key, key)
+
+
+I18N = _I18n()
+
+
+def _t(key, **values):
+    return I18N.t(key).format(**values)
+
+
+# ── Stubs ────────────────────────────────────────────────────────────────────
+
+
+class _Speech:
+    def __init__(self):
+        self.spoken = []
+
+    def output(self, text, interrupt=False):
+        assert not interrupt, "transcription speech never interrupts"
+        self.spoken.append(text)
+
+
+class _Sound:
+    def __init__(self):
+        self.played = 0
+
+    def play(self):
+        self.played += 1
+
+
+class _MainWindow:
+    def __init__(self, key, settings=None):
+        self.i18n = I18N
+        self.speak_output = _Speech()
+        self.settings = settings if settings is not None else {"transcription": {"model": "small"}}
+        self.key = key
+        self._app_settings = None
+        self._wa_connected = True
+        self.error_sound = _Sound()
+
+    @staticmethod
+    def _find_api_ffmpeg():
+        return "ffmpeg.exe"
+
+    def output(self, text, interrupt=False):
+        self.speak_output.output(text, interrupt=interrupt)
+
+
+class _List:
+    def __init__(self):
+        self.calls = []
+        self.shown = True
+
+    def Focus(self, idx):
+        self.calls.append(("Focus", idx))
+
+    def Select(self, idx, on=True):
+        self.calls.append(("Select", idx))
+
+    def EnsureVisible(self, idx):
+        self.calls.append(("EnsureVisible", idx))
+
+    def SetFocus(self):
+        self.calls.append(("SetFocus",))
+
+    def IsShown(self):
+        return self.shown
+
+
+class _Field:
+    """A text field over a Python string, with a caret and a selection."""
+
+    def __init__(self, value="", caret=None, selection=None):
+        self.value = value
+        self.caret = len(value) if caret is None else caret
+        self.selection = selection
+        self.focused = False
+
+    def GetSelection(self):
+        return self.selection or (self.caret, self.caret)
+
+    def SetInsertionPoint(self, pos):
+        self.caret = pos
+        self.selection = None
+
+    def GetInsertionPoint(self):
+        return self.caret
+
+    def GetRange(self, start, end):
+        return self.value[max(0, start):max(0, end)]
+
+    def WriteText(self, text):
+        start, end = self.GetSelection()
+        self.value = self.value[:start] + text + self.value[end:]
+        self.caret = start + len(text)
+        self.selection = None
+
+    def SetFocus(self):
+        self.focused = True
+
+
+def _msg(msg_id=_ID, msg_type="audioMessage", remote=_JID, participant=None, from_me=False):
+    key = {"id": msg_id, "remoteJid": remote, "fromMe": from_me}
+    if participant:
+        key["participant"] = participant
+    return {"key": key, "messageType": msg_type, "message": {msg_type: {}}}
+
+
+class _Panel:
+    def __init__(self, main_window, messages, download=None):
+        self.main_window = main_window
+        self.messages_list = _List()
+        self.message_field = _Field()
+        self._sorted_messages = list(messages)
+        self.conversation_name = _CONTACT
+        self._download = download or (lambda msg, path: False)
+        self.ensure_calls = []
+
+    _find_index_by_msg_id = ConversationsPanel._find_index_by_msg_id
+    _focus_message_row = ConversationsPanel._focus_message_row
+    _is_separator = ConversationsPanel._is_separator
+
+    def _download_media_to_disk(self, msg, media_path):
+        return self._download(msg, media_path)
+
+    def _ensure_media_on_disk(self, msg, media_path):
+        # The helper that reports on its own. The flow must not reach it.
+        self.ensure_calls.append(media_path)
+        raise AssertionError("the transcription must not use the self-reporting helper")
+
+    #: What the panel resolves a group participant to. A name by default; the
+    #: title tests set it to the number shapes the real fallback produces.
+    participant_name = "Bruno"
+
+    def _get_participant_name(self, participant, msg=None):
+        return self.participant_name
+
+
+# ── Fake dialogs ─────────────────────────────────────────────────────────────
+
+
+class _FakeProgressDialog:
+    """TranscriptionProgressDialog's contract, run synchronously."""
+
+    made = []
+    before_start = None  # a hook the tests set to act "while it runs"
+
+    def __init__(self, parent, i18n, speak_output, make_job, status_text):
+        self.statuses = [status_text]
+        self.ticks = []
+        self.result = None
+        self.error = None
+        self.destroyed = False
+        self.reports = 0
+        self.job = make_job(self._progress, self._finished)
+        _FakeProgressDialog.made.append(self)
+
+    def __bool__(self):
+        return not self.destroyed
+
+    def run(self):
+        if _FakeProgressDialog.before_start is not None:
+            _FakeProgressDialog.before_start(self)
+        self.job.start()
+        self.job.join(10)
+        return 0
+
+    def set_status(self, text):
+        self.statuses.append(text)
+
+    def _progress(self, tick):
+        self.ticks.append(tick)
+
+    def _finished(self, result, error):
+        self.reports += 1
+        self.result, self.error = result, error
+
+    def Destroy(self):
+        self.destroyed = True
+
+
+class _FakeResultDialog:
+    made = []
+    choose_insert = False
+
+    def __init__(self, parent, main_window, title, text, notes=(), spoken="", default_file=""):
+        self.title = title
+        self.text = text
+        self.notes = list(notes)
+        self.spoken = spoken
+        self.default_file = default_file
+        self.insert_requested = False
+        self.destroyed = False
+        _FakeResultDialog.made.append(self)
+
+    def run(self):
+        self.insert_requested = _FakeResultDialog.choose_insert
+        return 0
+
+    def Destroy(self):
+        self.destroyed = True
+
+
+class _FakeMessageDialog:
+    made = []
+    answer = None
+
+    def __init__(self, parent, message, caption, style):
+        self.message = message
+        _FakeMessageDialog.made.append(self)
+
+    def ShowModal(self):
+        return _FakeMessageDialog.answer
+
+    def Destroy(self):
+        pass
+
+
+@pytest.fixture
+def own_temp_dir(tmp_path, monkeypatch):
+    import tempfile
+
+    private = tmp_path / "temp"
+    private.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(private))
+    return private
+
+
+@pytest.fixture
+def world(tmp_path, own_temp_dir, fernet_key, fernet, monkeypatch):
+    """Everything around the flow, faked at its edges. Returns a namespace."""
+
+    class World:
+        pass
+
+    w = World()
+    w.jobs = []
+    w.script = [_succeed]
+    w.settings_opened = []
+    w.posted = []
+    w.temp = own_temp_dir
+
+    for cls in (_FakeProgressDialog, _FakeResultDialog, _FakeMessageDialog):
+        cls.made = []
+    _FakeProgressDialog.before_start = None
+    _FakeResultDialog.choose_insert = False
+    _FakeMessageDialog.answer = transcription_flow.wx.ID_NO
+
+    voice = tmp_path / "voice_messages"
+    media = tmp_path / "media"
+    voice.mkdir()
+    media.mkdir()
+    (voice / f"{_ID}.msv").write_bytes(fernet.encrypt(WAV))
+    w.voice = voice
+
+    def _job_factory(*args, **kwargs):
+        # The script is read when the job is built, so a test can give the
+        # first run and the re-run different ones.
+        script = w.script.pop(0) if len(w.script) > 1 else w.script[0]
+        return _FakeJob(script, w.jobs)(*args, **kwargs)
+
+    monkeypatch.setattr(job_module, "TranscriptionJob", _job_factory)
+    monkeypatch.setattr(device, "probe_hardware",
+                        lambda: device.HardwareProbe(total_ram_mb=16000, available_ram_mb=8000))
+    monkeypatch.setattr(model_store, "list_installed", lambda root: ("small",))
+    monkeypatch.setattr(backend_module, "available_backend_ids", lambda: ("faster_whisper",))
+    monkeypatch.setattr(transcription_flow, "data_path", lambda name: str(tmp_path / name))
+    monkeypatch.setattr(transcription_flow, "TranscriptionProgressDialog", _FakeProgressDialog)
+    monkeypatch.setattr(transcription_flow, "TranscriptionResultDialog", _FakeResultDialog)
+    monkeypatch.setattr(transcription_flow.wx, "MessageDialog", _FakeMessageDialog)
+    monkeypatch.setattr(transcription_flow, "open_transcription_settings",
+                        lambda mw: w.settings_opened.append(mw))
+
+    def _call_after(func, *args, **kwargs):
+        w.posted.append(getattr(func, "__name__", repr(func)))
+        func(*args, **kwargs)
+
+    monkeypatch.setattr(transcription_flow.wx, "CallAfter", _call_after)
+
+    w.main_window = _MainWindow(fernet_key)
+    w.target = _msg()
+    w.panel = _Panel(w.main_window, [_msg("A1"), w.target, _msg("A3")])
+    w.fernet = fernet
+    return w
+
+
+def _start(world, msg=None):
+    MessageTranscriptionFlow(world.panel, msg or world.target).start()
+
+
+def _row_focus(panel):
+    return [c for c in panel.messages_list.calls if c[0] == "Focus"]
+
+
+# ── The path users take most ─────────────────────────────────────────────────
+
+
+class TestAFinishedTranscription:
+    def test_the_text_opens_in_the_result_window_titled_by_name(self, world):
+        _start(world)
+        [dialog] = _FakeResultDialog.made
+        assert dialog.text == RESULT.text
+        assert _CONTACT in dialog.title
+        assert "5511" not in dialog.title
+        assert dialog.default_file.endswith(".txt") and _CONTACT in dialog.default_file
+        assert dialog.spoken.startswith(_t("transcription_finished"))
+
+    def test_the_focus_returns_to_the_same_message_after_others_arrived(self, world):
+        """The regression this pins: the row index at the start is a different
+        message by the end. Two messages arrive at the top mid-run."""
+        def _messages_arrive(job):
+            world.panel._sorted_messages[:0] = [_msg("NEW1"), _msg("NEW2")]
+            _succeed(job)
+
+        world.script = [_messages_arrive]
+        _start(world)
+        assert world.panel._sorted_messages[3] is world.target
+        assert _row_focus(world.panel) == [("Focus", 3)]
+
+    def test_a_message_no_longer_listed_leaves_the_focus_on_the_list(self, world):
+        def _message_goes(job):
+            world.panel._sorted_messages.remove(world.target)
+            _succeed(job)
+
+        world.script = [_message_goes]
+        _start(world)
+        assert _row_focus(world.panel) == []
+        assert world.panel.messages_list.calls == [("SetFocus",)]
+
+    def test_the_models_folder_is_the_install_wide_one_the_user_chose(self, world, tmp_path):
+        """Read from `_app_settings`, with the underscore — the spelling the
+        window really has. Part 5b shipped the other one against a stub that
+        invented it, and the user's folder was never read back."""
+        chosen = str(tmp_path / "my models")
+
+        class _AppSettings:
+            def get(self, key, default=None):
+                return chosen if key == preferences.MODELS_DIR_SETTING else default
+
+        world.main_window._app_settings = _AppSettings()
+        _start(world)
+        assert world.jobs[0].models_root == chosen
+
+    def test_nothing_decrypted_is_left_behind(self, world):
+        _start(world)
+        assert _leftovers(world.temp) == []
+
+    def test_insert_puts_the_text_at_the_cursor_and_keeps_what_was_typed(self, world):
+        _FakeResultDialog.choose_insert = True
+        world.panel.message_field = _Field("ok, então", caret=2)
+        _start(world)
+        field = world.panel.message_field
+        assert field.value == f"ok {RESULT.text}, então"
+        assert field.focused
+        # The one exit where the focus does not go back to the message.
+        assert _row_focus(world.panel) == []
+
+    def test_insert_never_replaces_a_selection(self, world):
+        _FakeResultDialog.choose_insert = True
+        world.panel.message_field = _Field("apagar não", caret=0, selection=(0, 6))
+        _start(world)
+        assert world.panel.message_field.value.startswith("apagar ")
+        assert RESULT.text in world.panel.message_field.value
+
+
+# ── What is said ─────────────────────────────────────────────────────────────
+
+
+def _result(**overrides):
+    values = dict(text="uma frase", language="pt", language_probability=0.99,
+                  duration_seconds=3.0)
+    values.update(overrides)
+    return TranscriptionResult(**values)
+
+
+def _script_returning(result):
+    def _script(job):
+        job.device, job.device_reason = device.DEVICE_CPU, device.REASON_NO_CUDA_FOUND
+        job.on_phase(job_module.PHASE_LOADING_MODEL)
+        job.on_finished(result, None)
+    return _script
+
+
+class TestTheVoiceFilterWarningIsAlwaysSpoken:
+    def test_with_a_result_it_is_in_what_is_spoken_and_what_is_shown(self, world):
+        world.script = [_script_returning(_result(vad_used=False))]
+        _start(world)
+        [dialog] = _FakeResultDialog.made
+        warning = _t("transcription_note_vad_unavailable")
+        assert warning in dialog.spoken
+        assert warning in dialog.notes
+
+    def test_with_an_empty_result_it_is_spoken_and_nothing_opens(self, world):
+        world.script = [_script_returning(_result(text="", vad_used=False))]
+        _start(world)
+        assert _FakeResultDialog.made == []
+        [sentence] = world.main_window.speak_output.spoken[-1:]
+        assert _t("transcription_note_no_speech") in sentence
+        assert _t("transcription_note_vad_unavailable") in sentence
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_the_other_notes_are_shown_and_only_pointed_to(self, world):
+        world.script = [_script_returning(
+            _result(language="es", language_probability=0.3, vad_used=True))]
+        _start(world)
+        [dialog] = _FakeResultDialog.made
+        assert _t("transcription_note_low_confidence") in dialog.notes
+        assert _t("transcription_note_low_confidence") not in dialog.spoken
+        assert dialog.spoken.endswith(_t("transcription_result_has_notes"))
+
+
+class TestThePhases:
+    def test_the_device_is_said_with_the_loading_line_and_nowhere_else(self, world):
+        _start(world)
+        [progress] = _FakeProgressDialog.made
+        device_sentence = _t("transcription_running_on_cpu", model="small")
+        assert progress.statuses == [
+            _t("transcription_starting"),
+            _t("transcription_phase_preparing_audio"),
+            f"{_t('transcription_phase_loading_model')} {device_sentence}",
+            _t("transcription_phase_transcribing"),
+        ]
+
+    def test_a_download_is_announced(self, world, fernet):
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+
+        def _download(msg, path):
+            with open(path, "wb") as handle:
+                handle.write(world.fernet.encrypt(WAV))
+            return True
+
+        world.panel._download = _download
+        _start(world)
+        [progress] = _FakeProgressDialog.made
+        assert progress.statuses[1] == _t("transcription_phase_downloading_audio")
+
+    def test_the_statuses_cross_to_the_wx_thread(self, world):
+        _start(world)
+        # Preparing, loading, transcribing — the first line is the dialog's own.
+        assert world.posted.count("_show_status") == 3
+
+
+class TestFailuresAreToldOnce:
+    def test_offline_is_the_apps_own_offline_sentence_once(self, world):
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+        world.main_window._wa_connected = False
+        _start(world)
+        assert world.main_window.speak_output.spoken == [_t("media_download_offline")]
+        assert world.panel.ensure_calls == []
+        assert _FakeMessageDialog.made == []
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_a_failed_download_is_said_once(self, world):
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+        _start(world)
+        assert world.main_window.speak_output.spoken == [_t("media_download_failed")]
+        assert world.main_window.error_sound.played == 1
+
+    def test_a_full_temporary_disk_is_not_called_a_download(self, world, monkeypatch):
+        """The voice note is on disk and nothing is being downloaded: the
+        downloads' "not enough space for this download" would send the user
+        looking for a download, and possibly to the wrong drive."""
+        from core.transcription import message_audio
+
+        real_fdopen = os.fdopen
+
+        def _full(handle, *args, **kwargs):
+            real_fdopen(handle, *args, **kwargs).close()
+            raise OSError(errno.ENOSPC, "No space left on device")
+
+        monkeypatch.setattr(message_audio.os, "fdopen", _full)
+        _start(world)
+        assert world.main_window.speak_output.spoken == [
+            _t("transcription_error_temp_no_disk_space")]
+        assert world.main_window.error_sound.played == 1
+        assert _leftovers(world.temp) == []
+
+    def test_no_backend_is_said(self, world, monkeypatch):
+        monkeypatch.setattr(backend_module, "available_backend_ids", lambda: ())
+        _start(world)
+        assert world.main_window.speak_output.spoken == [
+            _t("transcription_error_backend_missing")]
+        assert _FakeMessageDialog.made == []
+
+    def test_a_cancel_says_cancelled_and_leaves_nothing(self, world):
+        def _cancel_midway(job):
+            _FakeProgressDialog.made[-1].job.cancel()
+            job.on_finished(None, errors.TranscriptionError(errors.CANCELLED, "x"))
+
+        world.script = [_cancel_midway]
+        _start(world)
+        assert world.main_window.speak_output.spoken == [_t("transcription_error_cancelled")]
+        assert world.main_window.error_sound.played == 0
+        assert _leftovers(world.temp) == []
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_a_failed_job_is_said_and_leaves_nothing(self, world):
+        def _fail(job):
+            job.on_finished(None, errors.TranscriptionError(errors.FFMPEG_FAILED, "x"))
+
+        world.script = [_fail]
+        _start(world)
+        assert world.main_window.speak_output.spoken == [_t("transcription_error_ffmpeg_failed")]
+        assert _leftovers(world.temp) == []
+
+    def test_a_message_without_audio_opens_nothing(self, world):
+        _start(world, _msg(msg_type="imageMessage"))
+        assert world.main_window.speak_output.spoken == [_t("transcription_no_audio")]
+        assert _FakeProgressDialog.made == []
+
+
+class TestTheSettingsOffer:
+    def test_no_model_offers_the_transcription_tab(self, world, monkeypatch):
+        world.main_window.settings = {}
+        monkeypatch.setattr(model_store, "list_installed", lambda root: ())
+        monkeypatch.setattr(device, "probe_hardware", lambda: device.HardwareProbe())
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        _start(world)
+        [dialog] = _FakeMessageDialog.made
+        assert dialog.message.startswith(_t("transcription_model_none_unmeasured"))
+        assert dialog.message.endswith(_t("transcription_open_settings_question"))
+        assert world.settings_opened == [world.main_window]
+        assert _row_focus(world.panel) == [("Focus", 1)]
+        # The box is the report: nothing is spoken on top of it.
+        assert world.main_window.speak_output.spoken == []
+
+    def test_declining_opens_nothing(self, world, monkeypatch):
+        monkeypatch.setattr(model_store, "list_installed", lambda root: ("tiny",))
+        _start(world)
+        [dialog] = _FakeMessageDialog.made
+        assert dialog.message.startswith(_t("transcription_error_model_not_installed"))
+        assert world.settings_opened == []
+
+
+def _succeed_on_the_processor(job):
+    """What job.py does with a handed-over file and PREFERENCE_CPU: nothing to
+    convert, so its first phase is the model load, on the processor, for the
+    reason "you asked for it" — which narration deliberately does not say."""
+    job.device, job.device_reason = device.DEVICE_CPU, device.REASON_CPU_REQUESTED
+    job.on_phase(job_module.PHASE_LOADING_MODEL)
+    job.on_phase(job_module.PHASE_TRANSCRIBING)
+    job.on_progress(1.0)
+    job.on_phase(job_module.PHASE_DONE)
+    job.on_finished(RESULT, None)
+
+
+class TestTheProcessorReRun:
+    """The handover is the real `audio_prep.PreparedAudio` and it goes through
+    the real `audio_prep.discard()`. A stand-in string with a discard that
+    deletes strings would pass just as well if the flow called
+    `message_audio.discard_temp(handover)` by mistake — which, handed the real
+    object, raises instead of deleting anything."""
+
+    def _handover(self, world):
+        path = world.temp / "converted.wav"
+        path.write_bytes(b"RIFF")
+        prepared = audio_prep.PreparedAudio(path=str(path), duration_seconds=4.0)
+
+        def _script(job):
+            job.handover_to_give = prepared
+            _fail_on_gpu_with_handover(job)
+
+        world.script = [_script, _succeed_on_the_processor]
+        return prepared, path
+
+    def test_accepted_it_runs_on_the_processor_from_the_converted_audio(self, world, monkeypatch):
+        discarded = []
+        real_discard = audio_prep.discard
+
+        def _watched_discard(prepared):
+            discarded.append(prepared)
+            real_discard(prepared)
+
+        monkeypatch.setattr(transcription_flow.audio_prep, "discard", _watched_discard)
+        prepared, path = self._handover(world)
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        _start(world)
+        [question] = _FakeMessageDialog.made
+        assert question.message == _t("transcription_retry_on_cpu_vram")
+        first, second = world.jobs
+        assert second.prepared is prepared
+        assert second.device_preference == device.PREFERENCE_CPU
+        assert discarded == [prepared]
+        assert not path.exists()
+        assert len(_FakeResultDialog.made) == 1
+        assert _leftovers(world.temp) == []
+
+    def test_the_second_dialog_says_where_the_re_run_is_going(self, world):
+        """A new dialog for a new run: it starts from "starting", goes
+        straight to the model load (there is nothing left to convert), names
+        the processor there — and does not tell a user who agreed to an offer
+        that they asked for the processor."""
+        self._handover(world)
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        _start(world)
+        first_dialog, second_dialog = _FakeProgressDialog.made
+        assert second_dialog.statuses == [
+            _t("transcription_starting"),
+            _t("transcription_phase_loading_model") + " "
+            + _t("transcription_running_on_cpu", model="small"),
+            _t("transcription_phase_transcribing"),
+        ]
+        assert second_dialog.reports == 1
+        assert second_dialog.destroyed and first_dialog.destroyed
+
+    def test_declined_the_converted_audio_is_deleted_and_nothing_more_is_said(self, world):
+        prepared, path = self._handover(world)
+        _start(world)
+        assert len(world.jobs) == 1
+        assert not path.exists()
+        assert world.main_window.speak_output.spoken == []
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+
+# ── Pure decisions ───────────────────────────────────────────────────────────
+
+
+class _Run:
+    def __init__(self, device_id=None, reason=None, model_id="small"):
+        self.device = device_id
+        self.device_reason = reason
+        self.model_id = model_id
+
+
+class TestPhaseStatusText:
+    def test_the_loading_line_names_the_device_once_known(self):
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL,
+            _Run(device.DEVICE_CUDA, device.REASON_CUDA_SELECTED))
+        assert _t("transcription_running_on_cuda", model="small") in text
+
+    def test_before_the_probe_nothing_is_claimed(self):
+        """None, None is what the loading callback would see if it were read
+        early; it must not become "you asked for the processor"."""
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, _Run())
+        assert text == _t("transcription_phase_loading_model")
+        assert _t("transcription_device_cpu_requested") not in text
+
+    def test_other_phases_never_carry_the_device(self):
+        known = _Run(device.DEVICE_CUDA, device.REASON_CUDA_SELECTED)
+        for phase in (job_module.PHASE_PREPARING_AUDIO, job_module.PHASE_TRANSCRIBING,
+                      message_run.PHASE_DOWNLOADING_MEDIA):
+            text = transcription_flow.phase_status_text(I18N, phase, known)
+            assert "small" not in text
+
+    def test_terminal_phases_say_nothing(self):
+        for phase in job_module.TERMINAL_PHASES:
+            assert transcription_flow.phase_status_text(I18N, phase, _Run()) is None
+
+
+class TestResultSpeech:
+    def test_vad_is_spoken_even_alongside_every_other_note(self):
+        result = _result(language="es", language_probability=0.2, vad_used=False)
+        notes = narration.result_notes(result, "pt")
+        announcement = narration.outcome_announcement(result)
+        spoken, shown = transcription_flow.split_result_notes(announcement, notes)
+        assert [n.i18n_key for n in spoken] == [narration.VAD_UNAVAILABLE_I18N_KEY]
+        assert len(shown) == 3
+
+    def test_the_headline_is_not_repeated_as_a_note(self):
+        result = _result(text="", vad_used=True)
+        notes = narration.result_notes(result, "pt")
+        announcement = narration.outcome_announcement(result)
+        sentence = transcription_flow.result_speech(I18N, announcement, notes, window=False)
+        assert sentence == _t("transcription_note_no_speech")
+
+    def test_no_pointer_when_everything_shown_was_spoken(self):
+        result = _result(vad_used=False)
+        notes = narration.result_notes(result, "pt")
+        announcement = narration.outcome_announcement(result)
+        sentence = transcription_flow.result_speech(I18N, announcement, notes, window=True)
+        assert _t("transcription_result_has_notes") not in sentence
+
+
+class TestModelProblemSentence:
+    def _resolution(self, model_id, reason=None, substitutions=()):
+        return preferences.Resolution("faster_whisper", model_id, device.PREFERENCE_AUTO,
+                                      None, tuple(substitutions), reason)
+
+    def test_automatic_choice_never_says_you_chose(self):
+        key = transcription_flow.model_problem_i18n_key(
+            errors.MODEL_NOT_INSTALLED, self._resolution("small"), {})
+        assert key == transcription_flow.AUTO_MODEL_UNAVAILABLE_I18N_KEY
+
+    def test_an_explicit_choice_does(self):
+        key = transcription_flow.model_problem_i18n_key(
+            errors.MODEL_NOT_INSTALLED, self._resolution("small"),
+            {"transcription": {"model": "small"}})
+        assert key == errors.error_i18n_key(errors.MODEL_NOT_INSTALLED)
+
+    def test_a_retired_choice_is_automatic_again(self):
+        substituted = preferences.Substitution(preferences.SETTING_MODEL, "old")
+        key = transcription_flow.model_problem_i18n_key(
+            errors.MODEL_NOT_INSTALLED, self._resolution("small", substitutions=[substituted]),
+            {"transcription": {"model": "old"}})
+        assert key == transcription_flow.AUTO_MODEL_UNAVAILABLE_I18N_KEY
+
+    @pytest.mark.parametrize("reason", [preferences.MODEL_NONE_NOTHING_FITS,
+                                        preferences.MODEL_NONE_UNMEASURED])
+    def test_no_model_names_why(self, reason):
+        key = transcription_flow.model_problem_i18n_key(
+            errors.MODEL_NOT_INSTALLED, self._resolution(None, reason), {})
+        assert key == preferences.MODEL_NONE_I18N_KEYS[reason]
+
+
+class TestInsertionText:
+    @pytest.mark.parametrize(
+        "before, after, expected",
+        [("", "", "texto"), ("k", "", " texto"), (" ", "", "texto"),
+         ("", "x", "texto "), ("\n", "\n", "texto"), ("a", "b", " texto "),
+         ("a", ",", " texto"), ("a", "?", " texto")],
+    )
+    def test_spaces_only_where_words_would_touch(self, before, after, expected):
+        assert transcription_flow.insertion_text("  texto ", before, after) == expected
+
+    def test_nothing_to_insert(self):
+        assert transcription_flow.insertion_text("   ", "a", "b") == ""
+
+
+class TestTitleName:
+    def test_a_private_chat_is_the_contact(self):
+        panel = _Panel(None, [])
+        assert transcription_flow.title_name(panel, _msg()) == _CONTACT
+
+    def test_a_group_message_names_who_spoke(self):
+        panel = _Panel(None, [])
+        panel.conversation_name = "Família"
+        msg = _msg(remote="120363000000000000@g.us", participant="5511900000000@s.whatsapp.net")
+        assert transcription_flow.title_name(panel, msg) == "Bruno, Família"
+
+    @pytest.mark.parametrize("resolved", [
+        # An @lid nobody has mapped: the bare local part of the JID.
+        "187612345678901",
+        # A participant with no saved or pushed name: the formatted number.
+        "+55 11 90000-0000",
+        # format_number() found nothing to format and the JID came back whole.
+        "5511900000000@s.whatsapp.net",
+    ], ids=["lid-digits", "formatted-number", "whole-jid"])
+    def test_a_participant_known_only_by_number_leaves_the_group_name(self, resolved):
+        panel = _Panel(None, [])
+        panel.conversation_name = "Família"
+        panel.participant_name = resolved
+        msg = _msg(remote="120363000000000000@g.us", participant="187612345678901@lid")
+        assert transcription_flow.title_name(panel, msg) == "Família"
+
+    def test_the_real_fallback_for_an_unmapped_lid_is_caught(self):
+        """The shape above is the one ConversationsPanel really returns: its
+        own `_get_participant_name()`, with nothing known about the @lid."""
+
+        class _MW:
+            contacts = {}
+            _lid_to_phone = {}
+            _phone_to_lid = {}
+            _presence_pushname_map = {}
+            _is_bad_contact_name = staticmethod(lambda name: not name or name.isdigit())
+
+            def _is_self_jid(self, jid):
+                return False
+
+            def get_chat(self, jid):
+                return None
+
+            def _normalize_jid(self, jid):
+                return jid
+
+            def resolve_lid_jids_via_api(self, jids):
+                # The real one is an HTTP call on a background thread; the
+                # title never waits for it, so neither does this test.
+                pass
+
+        class _GroupPanel:
+            conversation_name = "Família"
+            main_window = _MW()
+            _sorted_messages = []
+            _get_participant_name = ConversationsPanel._get_participant_name
+
+        panel = _GroupPanel()
+        msg = _msg(remote="120363000000000000@g.us", participant="187612345678901@lid")
+        assert panel._get_participant_name("187612345678901@lid", msg) == "187612345678901"
+        assert transcription_flow.title_name(panel, msg) == "Família"
+
+    def test_the_file_name_offered_carries_no_number_either(self, world):
+        world.panel.conversation_name = "Família"
+        world.panel.participant_name = "187612345678901"
+        world.target["key"]["remoteJid"] = "120363000000000000@g.us"
+        world.target["key"]["participant"] = "187612345678901@lid"
+        _start(world)
+        [dialog] = _FakeResultDialog.made
+        assert "187612345678901" not in dialog.title
+        assert "187612345678901" not in dialog.default_file
+        assert "Família" in dialog.title
+
+
+# ── Threads ──────────────────────────────────────────────────────────────────
+
+
+class TestTheRunsThreadsOnlyCrossWithCallAfter:
+    """Everything the run calls back on its own threads, pinned statically:
+    a wx control driven from two threads does not fail a test, it crashes a
+    user's session."""
+
+    _WORKER_METHODS = ("_on_phase",)
+
+    def test_worker_methods_touch_nothing_directly(self):
+        source = inspect.getsource(MessageTranscriptionFlow)
+        tree = ast.parse(source)
+        methods = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+        for name in self._WORKER_METHODS:
+            for node in ast.walk(methods[name]):
+                if not isinstance(node, ast.Call):
+                    continue
+                called = ast.unparse(node.func)
+                if called.startswith("wx."):
+                    assert called == "wx.CallAfter", f"{name} calls {called} directly"
+                # Any method of the flow's own is a wx-thread method: it may
+                # be handed to wx.CallAfter, never called from here.
+                assert not called.startswith("self."), f"{name} calls {called} off the wx thread"
+                for forbidden in ("_dialog", "_panel", "_main_window", "speak_output", "output"):
+                    assert forbidden not in called, f"{name} calls {called} off the wx thread"
+
+    def test_every_run_is_built_with_those_callbacks(self):
+        """The dialog's own posting pair for progress and the report, and
+        `_on_phase` — nothing that touches wx directly."""
+        source = inspect.getsource(MessageTranscriptionFlow)
+        tree = ast.parse(source)
+        built = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                 and ast.unparse(n.func).endswith(("MessageTranscription",
+                                                   "MessageTranscription.retry_on_cpu"))]
+        assert len(built) == 2
+        for call in built:
+            given = {kw.arg: ast.unparse(kw.value) for kw in call.keywords}
+            assert given["on_phase"] == "self._on_phase"
+            assert given["on_progress"] == "on_progress"
+            assert given["on_finished"] == "on_finished"
+
+
+# ── Wiring into the panel ────────────────────────────────────────────────────
+
+
+def _accelerator_bindings(path):
+    """(modifiers, key) of every accelerator tuple in a module, as source."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    aliases = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                and isinstance(node.targets[0], ast.Name):
+            text = ast.unparse(node.value)
+            if "ACCEL_" in text:
+                aliases[node.targets[0].id] = text
+    found = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Tuple) and len(node.elts) == 3):
+            continue
+        key = ast.unparse(node.elts[1])
+        mods = ast.unparse(node.elts[0])
+        mods = aliases.get(mods, mods)
+        if "ACCEL_" not in mods:
+            continue
+        found.append((frozenset(p.strip() for p in mods.replace("wx.", "").split("|")),
+                      key.replace("'", '"').upper(), ast.unparse(node.elts[2])))
+    return found
+
+
+class TestAltShiftTIsOurs:
+    """Alt+Shift+T must mean one thing. Alt+T (presence) lives in MainWindow's
+    table, which is why a scan of the panel alone would not see a clash."""
+
+    _MODULES = ("client/main.py", "client/ui/conversations.py", "client/status_panel.py",
+                "client/ui/media_viewer.py")
+
+    def test_exactly_one_binding_in_the_whole_window(self):
+        alt_shift = frozenset({"ACCEL_ALT", "ACCEL_SHIFT"})
+        owners = []
+        for module in self._MODULES:
+            for mods, key, target in _accelerator_bindings(_REPO / module):
+                if mods == alt_shift and key == 'ORD("T")':
+                    owners.append((module, target))
+        assert owners == [("client/ui/conversations.py", "self.ID_ALT_SHIFT_T")]
+
+    def test_the_scan_sees_the_bindings_it_is_guarding(self):
+        """A scanner that found nothing would pass the test above forever."""
+        found = _accelerator_bindings(_REPO / "client/main.py")
+        assert (frozenset({"ACCEL_ALT"}), 'ORD("T")', "self.ID_ALT_T") in found
+
+    def test_the_shortcut_reaches_the_flow_with_the_selected_message(self, monkeypatch):
+        seen = []
+        monkeypatch.setattr(transcription_flow, "transcribe_message",
+                            lambda panel, msg: seen.append(msg))
+
+        class _Stub:
+            messages_list = type("L", (), {"GetFirstSelected": lambda self: 1})()
+            _sorted_messages = [_msg("A"), _msg("B")]
+            _is_separator = ConversationsPanel._is_separator
+            _on_menu_transcribe = ConversationsPanel._on_menu_transcribe
+            _on_accel_transcribe = ConversationsPanel._on_accel_transcribe
+
+        _Stub()._on_accel_transcribe(None)
+        assert [m["key"]["id"] for m in seen] == ["B"]
+
+    def test_the_menu_item_is_guarded_by_is_transcribable_and_shows_the_shortcut(self):
+        source = inspect.getsource(ConversationsPanel.on_messages_context_menu)
+        tree = ast.parse(source.lstrip())
+        guarded = [
+            n for n in ast.walk(tree)
+            if isinstance(n, ast.If)
+            and ast.unparse(n.test) == "message_audio.is_transcribable(msg)"
+        ]
+        assert len(guarded) == 1
+        body = ast.unparse(guarded[0])
+        assert "transcribe_message" in body and "Alt+Shift+T" in body
+
+    def test_the_f1_list_has_it(self):
+        from ui.dialogs.shortcuts_dialog import ShortcutsDialog
+
+        class _Echo:
+            def t(self, key):
+                return key
+
+        assert "shortcut_alt_shift_t_label" in ShortcutsDialog._build_text(_Echo())
+
+
+class TestTheSilentDownloadHelper:
+    """`_ensure_media_on_disk()` keeps telling the three existing callers what
+    went wrong; `_download_media_to_disk()`, split out of it, tells nobody."""
+
+    class _Stub:
+        _download_media_to_disk = ConversationsPanel._download_media_to_disk
+        _ensure_media_on_disk = ConversationsPanel._ensure_media_on_disk
+
+        def __init__(self):
+            self.main_window = type("MW", (), {})()
+            self.main_window.i18n = I18N
+            self.main_window.app_name = "WinZapp"
+            self.main_window._wa_connected = True
+            self.main_window.output = lambda text: None
+            self.main_window.handle_audio_message = lambda msg: None
+
+    def test_the_split_out_helper_reports_nothing(self, monkeypatch, tmp_path):
+        from ui import conversations
+
+        posted = []
+        monkeypatch.setattr(conversations.wx, "CallAfter", lambda *a, **k: posted.append(a))
+        assert self._Stub()._download_media_to_disk(_msg(), str(tmp_path / "x.msv")) is False
+        assert posted == []
+
+    def test_the_old_helper_still_reports_once(self, monkeypatch, tmp_path):
+        from ui import conversations
+
+        posted = []
+        monkeypatch.setattr(conversations.wx, "CallAfter", lambda *a, **k: posted.append(a))
+        assert self._Stub()._ensure_media_on_disk(_msg(), str(tmp_path / "x.msv")) is False
+        # "downloading..." and the one message box, exactly as before.
+        assert len(posted) == 2
+        assert posted[1][0] is conversations.wx.MessageBox
+        assert posted[1][1] == _t("media_download_failed")
+
+
+class TestOpeningTheSettingsTab:
+    """The flow asks the dialog to open itself on the tab and selects nothing.
+
+    Selecting the page from here is what once entered the tab before the
+    window existed (SetSelection() fires the page-change handler); the rule
+    lives in SettingsDialog.show_transcription_tab(), pinned in
+    tests/test_transcription_settings_tab.py. The fake below has no notebook
+    and no ShowModal(), so a flow that went back to doing either fails here.
+    """
+
+    def test_the_dialog_opens_itself_on_the_tab(self, monkeypatch):
+        from ui.dialogs import settings_dialog
+
+        steps = []
+
+        class _FakeSettingsDialog:
+            def __init__(self, parent):
+                steps.append("built")
+
+            def show_transcription_tab(self):
+                steps.append("shown on the tab")
+                return transcription_flow.wx.ID_OK
+
+            def Destroy(self):
+                steps.append("destroyed")
+
+        monkeypatch.setattr(settings_dialog, "SettingsDialog", _FakeSettingsDialog)
+        transcription_flow.open_transcription_settings(object())
+        assert steps == ["built", "shown on the tab", "destroyed"]
+
+
+# ── Privacy and language ─────────────────────────────────────────────────────
+
+
+def test_the_flow_and_the_result_window_log_nothing_private():
+    offenders = _scan(transcription_flow.__file__) + _scan(transcription_result.__file__)
+    assert offenders == [], offenders
+
+
+@pytest.mark.parametrize("locale", LOCALES)
+def test_every_key_the_flow_asks_for_exists(locale):
+    table = _load(locale)
+    for key in transcription_flow.FLOW_I18N_KEYS:
+        assert table.get(key), f"{locale} lacks {key}"

@@ -2652,6 +2652,32 @@ class SettingsDialog(wx.Dialog):
         for box, title_key in self._transcription_action_groups:
             box.SetLabel(i18n.t(title_key))
 
+    def show_transcription_tab(self):
+        """Show the dialog already on the Transcription tab; return the modal code.
+
+        For callers that send the user straight here (a transcription that has
+        no model to run with). The tab is found by its page object, never by
+        its index: tabs are inserted over time, and a hardcoded number
+        silently opens the wrong one.
+
+        `ChangeSelection()`, not `SetSelection()`: the second fires
+        EVT_NOTEBOOK_PAGE_CHANGED, and `_on_settings_page_changed()` would
+        then enter the tab from inside it — before `ShowModal()`, with no
+        window on screen. Entering is what speaks the tab's one-time warning
+        (a replaced model, folders the app cannot delete) and then lets
+        `sanitize_section()` spend it; spoken before the window exists, the
+        screen reader's announcement of the new window cuts it off, and the
+        warning is never said again. So the entry is queued with
+        `wx.CallAfter` before `ShowModal()` and runs from inside the modal
+        loop, once the window is up — the same arrangement
+        `TranscriptionProgressDialog.run()` uses, for the same reason.
+        """
+        index = self._notebook.FindPage(self._transcription_page)
+        if index != wx.NOT_FOUND:
+            self._notebook.ChangeSelection(index)
+            wx.CallAfter(self._enter_transcription_page)
+        return self.ShowModal()
+
     def _on_settings_page_changed(self, event):
         """Notice when the transcription tab is the one now on screen."""
         event.Skip()

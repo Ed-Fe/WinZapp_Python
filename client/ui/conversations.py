@@ -50,6 +50,7 @@ from ui.accessible import (
 )
 from ui.dialogs.emoji_picker import choose_and_insert_emoji
 from core.save_location import resolve_save_dialog_folder
+from core.transcription import message_audio
 from core.utils import history_window, reaction_targets_status, format_number, decrypt_bytes, is_phone_like, encrypt, effective_unread_count, first_unread_index, db_fetch_limit, looks_like_binary_blob, normalize_for_search, normalize_line_separators, parse_bool_flag as _parse_bool_flag, append_selected_marker, is_message_forwarded, is_voice_message, video_seconds, MEASURED_SECONDS_KEY, link_preview_text
 from core.locale_format import get_date_format, get_time_format, get_datetime_format
 from core.message_copy_format import format_copied_message
@@ -1284,6 +1285,10 @@ class ConversationsPanel(wx.Panel):
         self.ID_ALT_SHIFT_V     = wx.NewIdRef()  # converse with           (Alt+Shift+V)
         self.ID_ALT_SHIFT_Q     = wx.NewIdRef()  # goto quoted message     (Alt+Shift+Q)
         self.ID_ALT_SHIFT_S     = wx.NewIdRef()  # mute / unmute           (Alt+Shift+S)
+        # ── Voice-message transcription ──────────────────────────────────────
+        # Not Alt+T: that one announces the conversation's presence (seen /
+        # online / typing) and lives in MainWindow's own table, not this one.
+        self.ID_ALT_SHIFT_T     = wx.NewIdRef()  # transcribe with Whisper (Alt+Shift+T)
         # ── Message star ─────────────────────────────────────────────────────
         self.ID_CTRL_SHIFT_O    = wx.NewIdRef()  # star message            (Ctrl+Shift+O)
         # ── Mass actions (only act while messages are selected) ──────────────
@@ -1382,6 +1387,7 @@ class ConversationsPanel(wx.Panel):
             (AS,               ord("V"),          self.ID_ALT_SHIFT_V),
             (AS,               ord("Q"),          self.ID_ALT_SHIFT_Q),
             (AS,               ord("S"),          self.ID_ALT_SHIFT_S),
+            (AS,               ord("T"),          self.ID_ALT_SHIFT_T),
             (CS,               ord("O"),           self.ID_CTRL_SHIFT_O),
             (wx.ACCEL_ALT,     ord(","),           self.ID_ALT_COMMA),
             (wx.ACCEL_ALT,     ord("."),           self.ID_ALT_PERIOD),
@@ -1442,6 +1448,7 @@ class ConversationsPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self._on_accel_alt_shift_v,         id=self.ID_ALT_SHIFT_V)
         self.Bind(wx.EVT_MENU, self._on_accel_goto_quoted,         id=self.ID_ALT_SHIFT_Q)
         self.Bind(wx.EVT_MENU, self._on_accel_mute,                id=self.ID_ALT_SHIFT_S)
+        self.Bind(wx.EVT_MENU, self._on_accel_transcribe,          id=self.ID_ALT_SHIFT_T)
         self.Bind(wx.EVT_MENU, self._on_accel_star,                 id=self.ID_CTRL_SHIFT_O)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_decrease,      id=self.ID_ALT_COMMA)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_increase,      id=self.ID_ALT_PERIOD)
@@ -4522,6 +4529,19 @@ class ConversationsPanel(wx.Panel):
             )
             self.Bind(wx.EVT_MENU, self._on_action_save_as, save_audio_item)
 
+        # Transcribe (Alt+Shift+T) — next to the audio's own Save As, for the
+        # same messages message_audio.is_transcribable() accepts: voice notes,
+        # audio files, and documents whose mimetype is audio/*.
+        if message_audio.is_transcribable(msg):
+            transcribe_item = menu.Append(
+                wx.ID_ANY, f"{i18n.t('transcribe_message')}\tAlt+Shift+T"
+            )
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, m=msg: self._on_menu_transcribe(m),
+                transcribe_item,
+            )
+
         # Edit (own text messages within 3 hours)
         _is_own      = msg.get("key", {}).get("fromMe", False)
         _is_text     = msg_type in ("conversation", "extendedTextMessage")
@@ -6842,14 +6862,42 @@ class ConversationsPanel(wx.Panel):
             return False
 
         wx.CallAfter(self.main_window.output, i18n.t("downloading"))
+        if self._download_media_to_disk(msg, media_path):
+            return True
+
+        wx.CallAfter(
+            wx.MessageBox,
+            i18n.t("media_download_failed"),
+            i18n.t("error").format(app_name=self.main_window.app_name),
+            wx.OK | wx.ICON_ERROR,
+        )
+        return False
+
+    def _download_media_to_disk(self, msg: dict, media_path: str) -> bool:
+        """Download a message's media and answer whether the file is now there.
+        Says nothing to the user — that is the whole difference from
+        _ensure_media_on_disk(), which reports its own failures.
+
+        Split out for the voice-message transcription, which runs this behind
+        a modal progress dialog: the message box _ensure_media_on_disk() posts
+        through wx.CallAfter would surface on top of that dialog, and the
+        transcription would then report the same failure a second time. It
+        says it once itself, after the dialog has closed (see
+        ui/transcription_flow.py). Runs on a worker thread, like every caller
+        of _ensure_media_on_disk().
+        """
         try:
             if msg.get("messageType") == "audioMessage":
                 self.main_window.handle_audio_message(msg)
             else:
                 self.main_window.handle_media_message(msg)
         except Exception as exc:
+            # Labelled with this helper's own name, not its caller's: a
+            # transcription reaches it without passing through
+            # _ensure_media_on_disk(), and a log read for one should not
+            # name the other.
             logging.info(
-                "[_ensure_media_on_disk] download raised for %s: %s",
+                "[_download_media_to_disk] download raised for %s: %s",
                 (msg.get("key") or {}).get("id", ""), exc,
             )
 
@@ -6857,15 +6905,9 @@ class ConversationsPanel(wx.Panel):
             return True
 
         logging.info(
-            "[_ensure_media_on_disk] %s: still missing after download attempt "
-            "(%s) — reporting it instead of opening.",
+            "[_download_media_to_disk] %s: still missing after download attempt "
+            "(%s) — the caller reports it.",
             (msg.get("key") or {}).get("id", ""), media_path,
-        )
-        wx.CallAfter(
-            wx.MessageBox,
-            i18n.t("media_download_failed"),
-            i18n.t("error").format(app_name=self.main_window.app_name),
-            wx.OK | wx.ICON_ERROR,
         )
         return False
 
@@ -12318,6 +12360,30 @@ class ConversationsPanel(wx.Panel):
         if self._is_separator(msg):
             return
         self._on_menu_copy_caption(msg)
+
+    # ── Alt+Shift+T: transcribe a voice message ─────────────────────────────
+    # Only the wiring lives here; the flow is ui/transcription_flow.py and the
+    # slow part core/transcription/message_run.py.
+
+    def _on_accel_transcribe(self, event):
+        """Alt+Shift+T on the focused message."""
+        index = self.messages_list.GetFirstSelected()
+        if index < 0 or index >= len(self._sorted_messages):
+            return
+        msg = self._sorted_messages[index]
+        if self._is_separator(msg):
+            return
+        self._on_menu_transcribe(msg)
+
+    def _on_menu_transcribe(self, msg: dict):
+        # Imported here, like SettingsDialog in main.py: the flow pulls in the
+        # model store and the CUDA runtime (requests, TLS setup), and nobody
+        # should pay for that at startup before transcribing anything.
+        from ui.transcription_flow import transcribe_message
+
+        # A message with no audio answers with one sentence and opens nothing
+        # — the flow checks, so the shortcut and the menu cannot disagree.
+        transcribe_message(self, msg)
 
     def _on_accel_show_text_popup(self, event):
         """Alt+C: show focused message text in a popup dialog."""
