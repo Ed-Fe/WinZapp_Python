@@ -1202,5 +1202,6 @@
     "transcription_saved_opened_no_model": "Transcrição guardada, feita em {when}.",
     "transcription_not_saved_unsent": "Esta transcrição não foi guardada, porque a mensagem ainda não foi enviada. Depois do envio, transcreva-a de novo para a guardar.",
     "transcription_not_saved_missing": "Esta transcrição não foi guardada, porque a mensagem já não está nesta conversa.",
+    "transcription_discarded_withdrawn": "A mensagem foi eliminada para todos enquanto estava a ser transcrita, por isso a transcrição foi descartada.",
     "transcription_store_failed": "Não foi possível guardar a transcrição."
 }

@@ -1930,6 +1930,18 @@ class MainWindow(wx.Frame):
         self._msg_bg_executor = ThreadPoolExecutor(
             max_workers=4, thread_name_prefix="msg-bg"
         )
+        # Saving and deleting a stored transcription (issue #112) go through
+        # their own queue of ONE thread, not the pool above: the order they
+        # reach the database in has to be the order the user decided them in.
+        # On four threads, a save held up behind a busy database (a sync)
+        # could land after the delete the user made once the result window
+        # showed the text — and bring it back after "Transcrição apagada" had
+        # been said. Like the pool above it is never joined: real_exit() ends
+        # in os._exit(), and every call it makes is bounded by the database
+        # bridge's own timeout.
+        self._transcription_write_queue = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="transcription-db"
+        )
         # jid -> Future of the most recent message insert submitted for an
         # @lid chat, so _merge_lid_into_phone() can wait for it before moving
         # that chat's rows to the phone JID (see its own comment). Only @lid
@@ -19171,8 +19183,10 @@ class MainWindow(wx.Frame):
     def store_message_transcription(self, jid: str, msg_id: str, value: dict) -> str:
         """Keep *value* as the transcription of message *msg_id* (UI thread).
 
-        Returns one of stored_transcription's SAVE_* answers, which the result
-        window turns into a note when it is not SAVE_STORED.
+        Returns one of stored_transcription's SAVE_* answers, which the flow
+        turns into a note in the result window when it is not SAVE_STORED —
+        or, for SAVE_WITHDRAWN, into one spoken sentence and no window
+        (ui.transcription_flow).
 
         The message is looked up again here, by id, rather than trusted from
         the dict the flow held when the run started: a transcription takes
@@ -19180,19 +19194,28 @@ class MainWindow(wx.Frame):
         an own message may have given it its real id. Memory first, on every
         copy, so the menu offers "Ver transcrição" at once; the database gets
         the dedicated key-only write (never insert_message() of this record,
-        whose other fields may be minutes stale) on the background executor,
-        under every JID the conversation's rows may be filed under
-        (_transcription_storage_jids()). When none of them has the row yet —
-        a message that arrived live and has not been persisted — the record
-        is written whole through insert_message(), whose rule keeps whichever
-        decision is later. Only an actual failure of the database is said to
-        the user, in one sentence: the window must not go on implying the
-        text was kept when nothing was written.
+        whose other fields may be minutes stale) on the transcription write
+        queue, in one call covering every JID the conversation's rows may be
+        filed under (_transcription_storage_jids()). When none of them has
+        the row yet — a message that arrived live and has not been persisted
+        — the record is written whole through insert_message(), whose rule
+        keeps whichever decision is later. Only an actual failure of the
+        database is said to the user, in one sentence: the window must not go
+        on implying the text was kept when nothing was written.
+
+        A message its sender deleted for everyone while it was being
+        transcribed is refused outright (SAVE_WITHDRAWN): _apply_remote_revoke()
+        turns the record into a protocolMessage in place, so find_record()
+        still finds it, and the text is exactly what that sender withdrew.
+        The database refuses it too (_rewrite_transcription()), for a revoke
+        that reaches the disk before it reaches this dict.
         """
         copies = self._transcription_copies(jid, msg_id)
         current = stored_transcription.find_record(copies, msg_id)
         if current is None:
             return stored_transcription.SAVE_MISSING
+        if stored_transcription.is_withdrawn(current):
+            return stored_transcription.SAVE_WITHDRAWN
         if stored_transcription.is_unsent(current):
             return stored_transcription.SAVE_UNSENT
         real_id = (current.get("key") or {}).get("id", "")
@@ -19222,18 +19245,14 @@ class MainWindow(wx.Frame):
             def _bg_persist():
                 # Nothing about the message in these lines — not its id either.
                 try:
-                    written = False
-                    for storage_jid in storage_jids:
-                        if db.set_message_transcription(storage_jid, real_id, value):
-                            written = True
-                    if not written:
+                    if not db.set_message_transcription(storage_jids, real_id, value):
                         db.insert_message(jid, record)
                         logging.info("[transcription] no stored row yet: the message was written whole")
                 except Exception as exc:
                     logging.warning("[transcription] storing a transcription failed: %s",
                                     type(exc).__name__)
                     wx.CallAfter(self._say_transcription_not_stored)
-            self._msg_bg_executor.submit(_bg_persist)
+            self._transcription_write_queue.submit(_bg_persist)
         self._schedule_save(dirty_jid=jid)
         return stored_transcription.SAVE_STORED
 
@@ -19273,11 +19292,13 @@ class MainWindow(wx.Frame):
         "deleted" while the disk still holds the text would be false, and it
         is the disk that outlives the session. *on_done* runs only once every
         copy on disk has the tombstone: the message's row under each JID the
-        conversation may be stored under, and the chat's preview, which
-        never holds the text (DatabaseManager._build_chat_values()) and is
-        scrubbed by the same write if an older one did. A row that does not
-        exist is not a failure — nothing is left holding the text, which is
-        what the user asked for.
+        conversation may be stored under — one call, one lock hold — and the
+        chat's preview, which never holds the text
+        (DatabaseManager._build_chat_values()) and is scrubbed by the same
+        write if an older one did. A row that does not exist is not a failure
+        — nothing is left holding the text, which is what the user asked for.
+        Queued behind any save still waiting for the database, never beside
+        it: see _transcription_write_queue in __init__.
         """
         copies = self._transcription_copies(jid, msg_id)
         # After whatever is stored, whatever the clock says — see
@@ -19304,15 +19325,14 @@ class MainWindow(wx.Frame):
             ok = db is not None
             if ok:
                 try:
-                    for storage_jid in storage_jids:
-                        db.delete_message_transcription(storage_jid, msg_id, deleted_at)
+                    db.delete_message_transcription(storage_jids, msg_id, deleted_at)
                 except Exception as exc:
                     ok = False
                     logging.warning("[transcription] deleting a transcription failed: %s",
                                     type(exc).__name__)
             wx.CallAfter(_finish, ok)
 
-        self._msg_bg_executor.submit(_bg_delete)
+        self._transcription_write_queue.submit(_bg_delete)
 
     def _check_wa_connection_closed(self, response) -> bool:
         """Detect a response that means "WhatsApp is not connected".

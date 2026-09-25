@@ -6,9 +6,10 @@ server knows nothing of it, and everything that refreshes a conversation
 writes the server's copy over the record — which is how it gets lost, or worse,
 comes back after being deleted:
 
-* **A resync erases it.** `insert_message()`, `insert_messages_batch()` and
-  `import_from_dict()` (behind `save_data()`) all `INSERT OR REPLACE` the whole
-  row; and `sync_chat_messages()` replaces the records in memory. Both sides
+* **A resync erases it.** `insert_message()`, `insert_messages_batch()` (the
+  hot path, every sync round) and `import_from_dict()` (behind `save_data()`,
+  the fallback when an incremental write fails) all `INSERT OR REPLACE` the
+  whole row; and `sync_chat_messages()` replaces the records in memory. Both sides
   need the rule, or it survives on disk and leaves the screen at the first
   sync — the video-duration precedent (`test_video_duration_persists.py`) paid
   for learning that.
@@ -21,6 +22,13 @@ comes back after being deleted:
 * **A deleted transcription comes back.** The same message lives in several
   dicts at once, and every one of them can be written back later. Deleting
   therefore leaves a dated tombstone, and the later decision wins everywhere.
+  Nor may a save that reached the database late win over a delete made after
+  it: the two go through one single-thread queue, and a text older than the
+  row's decision is not re-dated into the winner.
+
+* **The text of a withdrawn message is kept.** The contact deletes the note
+  for everyone while it is being transcribed; the record becomes a
+  `protocolMessage` in place, and the finished text must go nowhere.
 
 * **A merge drops the copy that had it.** The same voice note filed under an
   `@lid` and under the phone number until the two conversations are merged;
@@ -38,6 +46,9 @@ comes back after being deleted:
 import asyncio
 import inspect
 import logging
+import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -373,6 +384,22 @@ async def _stored_text(db, mid=_ID, jid=_JID):
     return _text_of(await _stored_record(db, mid, jid))
 
 
+def _count_message_selects(db, monkeypatch):
+    """Every SELECT on the messages table from now on, as (sql, params).
+    The caller undoes the patch before reading the rows back."""
+    conn = db._conn
+    original = conn.execute
+    selects = []
+
+    def _counting(sql, *args, **kwargs):
+        if sql.lstrip().upper().startswith("SELECT") and "FROM messages" in sql:
+            selects.append((sql, tuple(args[0]) if args else ()))
+        return original(sql, *args, **kwargs)
+
+    monkeypatch.setattr(conn, "execute", _counting)
+    return selects
+
+
 class TestTheDatabaseKeepsIt:
     async def test_a_batch_resync_without_the_key_keeps_it(self, in_memory_db):
         await in_memory_db.insert_message(_JID, _audio())
@@ -438,19 +465,41 @@ class TestTheDatabaseKeepsIt:
         cursor = await in_memory_db._conn.execute("SELECT message_id FROM messages")
         assert [r["message_id"] for r in await cursor.fetchall()] == ["REAL"]
 
-    async def test_one_read_per_message_and_none_for_text(self, in_memory_db, monkeypatch):
-        reads = []
-        original = DatabaseManager._stored_message
-
-        async def _counting(self, conn, remote_jid, message_id):
-            reads.append(message_id)
-            return await original(self, conn, remote_jid, message_id)
-
-        monkeypatch.setattr(DatabaseManager, "_stored_message", _counting)
+    async def test_one_read_per_block_and_none_for_text(self, in_memory_db, monkeypatch):
+        """insert_messages_batch() is the hot path — every sync round — and a
+        SELECT per voice note there doubled its cost; the rows are read in
+        one SELECT per block of ids, and text asks for none."""
         text = {"key": {"id": "T1", "remoteJid": _JID}, "messageType": "conversation",
                 "messageTimestamp": 1, "message": {"conversation": "oi"}}
+        selects = _count_message_selects(in_memory_db, monkeypatch)
         await in_memory_db.insert_messages_batch(_JID, [_audio("A1"), _audio("A2"), text])
-        assert sorted(reads) == ["A1", "A2"]
+        monkeypatch.undo()
+        [(_, params)] = selects
+        assert sorted(params[1:]) == ["A1", "A2"]
+
+    async def test_a_batch_larger_than_a_block_reads_one_per_block(self, in_memory_db, monkeypatch):
+        from core.database import _IN_CHUNK
+
+        records = [_audio(f"A{i}") for i in range(_IN_CHUNK + 1)]
+        await in_memory_db.insert_messages_batch(_JID, records)
+        await in_memory_db.set_message_transcription(_JID, f"A{_IN_CHUNK}", _value())
+        selects = _count_message_selects(in_memory_db, monkeypatch)
+        await in_memory_db.insert_messages_batch(_JID, records)
+        monkeypatch.undo()
+        assert len(selects) == 2
+        # Read directly: get_messages() pages, and this row is past its first page.
+        last = await in_memory_db._stored_message(in_memory_db._conn, _JID, f"A{_IN_CHUNK}")
+        assert _text_of(last) == _SECRET
+
+    async def test_a_second_copy_in_the_same_batch_sees_the_first(self, in_memory_db):
+        """With one read per message, a later copy of the same id read the
+        row the earlier copy had just written; reading ahead must not lose
+        that, or the second copy (without the key) would erase the first's."""
+        await in_memory_db.insert_messages_batch(_JID, [
+            _audio(**{TRANSCRIPTION_KEY: _value()}), _audio(status=4),
+        ])
+        record = await _stored_record(in_memory_db)
+        assert _text_of(record) == _SECRET and record["status"] == 4
 
     async def test_the_read_and_the_write_are_one_lock_hold(self, in_memory_db, monkeypatch):
         """A sync writing the row while the transcription is being stored:
@@ -495,23 +544,19 @@ class TestTheDatabaseKeepsIt:
     async def test_what_is_read_before_a_write(self, in_memory_db, monkeypatch):
         """Audio, documents and unmapped types need the row; a known other
         kind cannot be the same message and costs no read."""
-        reads = []
-        original = DatabaseManager._stored_message
-
-        async def _counting(self, conn, remote_jid, message_id):
-            reads.append(message_id)
-            return await original(self, conn, remote_jid, message_id)
-
-        monkeypatch.setattr(DatabaseManager, "_stored_message", _counting)
+        selects = _count_message_selects(in_memory_db, monkeypatch)
         await in_memory_db.insert_messages_batch(_JID, [
             _audio("IMG", msg_type="imageMessage"), _audio("CIPHER", msg_type="ciphertext"),
             _audio("DOC", msg_type="documentMessage"), _audio("GONE", msg_type="protocolMessage"),
         ])
-        assert sorted(reads) == ["CIPHER", "DOC"]
+        monkeypatch.undo()
+        [(_, params)] = selects
+        assert sorted(params[1:]) == ["CIPHER", "DOC"]
 
     async def test_the_full_state_save_reads_per_chat_not_per_message(self, in_memory_db, monkeypatch):
-        """save_data() used to pay one SELECT per voice note in memory, under
-        the write lock; the same rule now costs one per conversation."""
+        """save_data() — the fallback when an incremental write fails — reads
+        its rows in blocks the way insert_messages_batch() does: one SELECT
+        per conversation here, not one per voice note."""
         records = [_audio(f"A{i}") for i in range(40)]
         await in_memory_db.insert_messages_batch(_JID, records)
         await in_memory_db.set_message_transcription(_JID, "A7", _value())
@@ -558,11 +603,122 @@ class TestTheDatabaseKeepsIt:
         assert _text_of(record) is None
         assert record[TRANSCRIPTION_KEY]["at"] > 100.0
 
-    async def test_transcribing_again_with_the_clock_behind_still_replaces_it(self, in_memory_db):
+    async def test_a_text_older_than_the_rows_decision_is_not_re_dated_into_the_winner(
+            self, in_memory_db):
+        """A text is written only when it is at least as recent as the row's
+        decision. The clock-set-back case is dated where the decision is
+        made, after every copy in memory (see
+        TestStoringFromMainWindow.test_it_is_dated_after_what_the_copies_hold)."""
+        await in_memory_db.insert_message(_JID, _audio())
+        await in_memory_db.set_message_transcription(_JID, _ID, _value("nova", at=200.0))
+
+        assert await in_memory_db.set_message_transcription(_JID, _ID, _value("velha", at=100.0))
+
+        record = await _stored_record(in_memory_db)
+        assert _text_of(record) == "nova"
+        assert record[TRANSCRIPTION_KEY]["at"] == 200.0
+
+    async def test_a_text_at_least_as_recent_replaces_it(self, in_memory_db):
         await in_memory_db.insert_message(_JID, _audio())
         await in_memory_db.set_message_transcription(_JID, _ID, _value("velha", at=100.0))
-        await in_memory_db.set_message_transcription(_JID, _ID, _value("nova", at=10.0))
+        await in_memory_db.set_message_transcription(_JID, _ID, _value("nova", at=100.0))
         assert await _stored_text(in_memory_db) == "nova"
+        await in_memory_db.set_message_transcription(_JID, _ID, _value("mais nova", at=300.0))
+        assert await _stored_text(in_memory_db) == "mais nova"
+
+
+class TestALateSaveDoesNotUndoADelete:
+    """The user reads the result and deletes it before the save has reached a
+    database busy with a sync. The save used to be re-dated after the row —
+    the tombstone at 200 — and land as the text at 200.001: the tombstone in
+    memory (200) did not beat it, and the next opening of the conversation
+    brought the text back after "Transcrição apagada" had been said."""
+
+    async def test_the_tombstone_stays(self, in_memory_db):
+        await in_memory_db.insert_message(_JID, _audio())
+        assert await in_memory_db.delete_message_transcription(_JID, _ID, 200.0)
+
+        assert await in_memory_db.set_message_transcription(_JID, _ID, _value(at=100.0))
+
+        record = await _stored_record(in_memory_db)
+        assert _text_of(record) is None
+        assert record[TRANSCRIPTION_KEY] == stored.tombstone(200.0)
+        # What the next opening reads, against the tombstone memory holds.
+        [page] = await in_memory_db.get_messages(_JID)
+        page_copy = _audio(**{TRANSCRIPTION_KEY: stored.tombstone(200.0)})
+        assert stored.carry_over_transcriptions([page], [page_copy]) == 0
+        assert _text_of(page) is None
+
+    async def test_every_jid_of_a_decision_is_one_lock_hold(self, in_memory_db, monkeypatch):
+        """With a call per JID, a save and a delete could each reach one of
+        the two rows first, and the rows would disagree."""
+        await in_memory_db.insert_message(_JID, _audio())
+        await in_memory_db.insert_message(_LID, _audio(jid=_LID))
+        real_lock = in_memory_db._write_lock
+        holds = []
+
+        class _CountingLock:
+            async def __aenter__(self):
+                holds.append(1)
+                return await real_lock.__aenter__()
+
+            async def __aexit__(self, *exc):
+                return await real_lock.__aexit__(*exc)
+
+        monkeypatch.setattr(in_memory_db, "_write_lock", _CountingLock())
+        assert await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value())
+        assert len(holds) == 1
+        monkeypatch.undo()
+
+        assert await _stored_text(in_memory_db) == _SECRET
+        assert await _stored_text(in_memory_db, jid=_LID) == _SECRET
+
+    async def test_a_jid_without_the_row_is_routine_not_a_failure(self, in_memory_db, caplog):
+        """The @lid half of a conversation usually has no row; a line per
+        such JID on every save read like a failure in log.log."""
+        caplog.set_level(logging.INFO)
+        await in_memory_db.insert_message(_JID, _audio())
+        await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value())
+        assert not [r for r in caplog.records if "not written" in r.getMessage()]
+
+        await in_memory_db.set_message_transcription([_JID, _LID], "NAO-EXISTE", _value())
+        [line] = [r.getMessage() for r in caplog.records if "not written" in r.getMessage()]
+        assert "no stored row" in line
+
+    async def test_no_row_under_any_jid_is_the_only_false(self, in_memory_db):
+        await in_memory_db.insert_message(_LID, _audio(jid=_LID))
+        assert await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value())
+        assert await in_memory_db.set_message_transcription([_JID], _ID, _value()) is False
+
+
+class TestAWithdrawnMessageKeepsNoText:
+    """The contact deleted the note for everyone while it was being
+    transcribed. The revoke may reach the disk before the save does."""
+
+    async def _withdrawn(self, db, jid=_JID):
+        await db.insert_message(jid, _audio(jid=jid))
+        await db.insert_message(jid, _audio(jid=jid, msg_type="protocolMessage"))
+
+    async def test_a_text_is_not_written_over_it(self, in_memory_db):
+        await self._withdrawn(in_memory_db)
+
+        answer = await in_memory_db.set_message_transcription(_JID, _ID, _value())
+
+        # True: the row answered. False would send MainWindow to its
+        # fallback, which writes the audio record back whole over the revoke.
+        assert answer is True
+        row = await _row(in_memory_db)
+        assert row["message_type"] == "protocolMessage"
+        assert TRANSCRIPTION_KEY not in await _stored_record(in_memory_db)
+
+    async def test_only_the_withdrawn_row_refuses_it(self, in_memory_db):
+        await in_memory_db.insert_message(_JID, _audio())
+        await self._withdrawn(in_memory_db, jid=_LID)
+
+        assert await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value())
+
+        assert await _stored_text(in_memory_db) == _SECRET
+        assert TRANSCRIPTION_KEY not in await _stored_record(in_memory_db, jid=_LID)
 
 
 class TestTheChatPreviewNeverHoldsIt:
@@ -807,19 +963,19 @@ class _RecordingDb:
         #: The (jid, id) rows that exist; None means every row does.
         self.rows = None
 
-    def set_message_transcription(self, jid, msg_id, value):
-        self.calls.append(("set", jid, msg_id))
+    def set_message_transcription(self, jids, msg_id, value):
+        self.calls.append(("set", tuple(jids), msg_id))
         self.values.append(value)
         if self.fail:
             raise TimeoutError("busy")
-        return self.has_row(jid, msg_id)
+        return any(self.has_row(jid, msg_id) for jid in jids)
 
-    def delete_message_transcription(self, jid, msg_id, deleted_at):
-        self.calls.append(("delete", jid, msg_id))
+    def delete_message_transcription(self, jids, msg_id, deleted_at):
+        self.calls.append(("delete", tuple(jids), msg_id))
         self.values.append(deleted_at)
         if self.fail:
             raise TimeoutError("busy")
-        return self.has_row(jid, msg_id)
+        return any(self.has_row(jid, msg_id) for jid in jids)
 
     def insert_message(self, jid, msg):
         self.calls.append(("insert", jid, (msg.get("key") or {}).get("id")))
@@ -857,7 +1013,7 @@ class _Window:
         self.chats = {_JID: {"remoteJid": _JID, "messages": {"messages": {"records": records}}}}
         self.conversations_panel = panel
         self.db = _RecordingDb()
-        self._msg_bg_executor = _Inline()
+        self._transcription_write_queue = _Inline()
         self._phone_to_lid = {}
         self.i18n = _KeysI18n()
         self.error_sound = _Sound()
@@ -897,7 +1053,7 @@ class TestStoringFromMainWindow:
         assert answer == stored.SAVE_STORED
         assert _text_of(current) == _SECRET
         assert TRANSCRIPTION_KEY not in held_by_the_flow
-        assert window.db.calls == [("set", _JID, _ID)]
+        assert window.db.calls == [("set", (_JID,), _ID)]
         assert window.saves == [_JID]
 
     def test_every_copy_is_updated(self):
@@ -956,7 +1112,20 @@ class TestStoringFromMainWindow:
 
         assert window.store_message_transcription(_JID, "LOCAL-UUID", _value()) == stored.SAVE_STORED
         assert _text_of(promoted) == _SECRET
-        assert window.db.calls == [("set", _JID, "REAL")]
+        assert window.db.calls == [("set", (_JID,), "REAL")]
+
+    def test_a_message_deleted_for_everyone_during_the_run_is_refused(self):
+        """_apply_remote_revoke() turned the very dict find_record() finds
+        into a protocolMessage; the finished text goes nowhere."""
+        record = _audio()
+        window = _Window([record])
+        _revoke(record)
+
+        assert window.store_message_transcription(_JID, _ID, _value()) == stored.SAVE_WITHDRAWN
+
+        assert TRANSCRIPTION_KEY not in record
+        assert window.db.calls == []
+        assert window.saves == []
 
     def test_a_message_gone_from_the_chat_is_missing(self):
         window = _Window([_audio("OUTRO")])
@@ -964,7 +1133,13 @@ class TestStoringFromMainWindow:
         assert window.db.calls == []
 
     def test_a_failed_write_keeps_the_copy_in_memory(self, caplog, inline_call_after):
-        """The next write of the record takes the key to disk — see the rule."""
+        """The copies in memory keep the text for the session, and the menu
+        with them. Nothing rewrites the row on its own afterwards:
+        _schedule_save(dirty_jid=jid) writes only the chat's row, whose
+        preview never carries the key. The text reaches the disk only if a
+        later path writes this record whole (a star, a status echo,
+        save_data()), through the rule — which is why the failure is said
+        (next test)."""
         record = _audio()
         window = _Window([record])
         window.db.fail = True
@@ -989,7 +1164,7 @@ class TestStoringFromMainWindow:
 
         window.store_message_transcription(_JID, _ID, _value())
 
-        assert window.db.calls == [("set", _JID, _ID), ("set", _LID, _ID)]
+        assert window.db.calls == [("set", (_JID, _LID), _ID)]
         assert window.spoken == []
 
     def test_no_row_anywhere_writes_the_record_whole_through_the_rule(self, inline_call_after):
@@ -1032,7 +1207,7 @@ class TestDeletingFromMainWindow:
         window.delete_message_transcription(_JID, _ID, answers.append)
 
         assert answers == [True]
-        assert window.db.calls == [("delete", _JID, _ID)]
+        assert window.db.calls == [("delete", (_JID,), _ID)]
         assert _text_of(record) is None
         assert record[TRANSCRIPTION_KEY]["deleted"] is True
 
@@ -1064,7 +1239,7 @@ class TestDeletingFromMainWindow:
         window._phone_to_lid = {_JID: _LID}
         answers = []
         window.delete_message_transcription(_JID, _ID, answers.append)
-        assert window.db.calls == [("delete", _JID, _ID), ("delete", _LID, _ID)]
+        assert window.db.calls == [("delete", (_JID, _LID), _ID)]
         assert answers == [True]
 
     def test_the_tombstone_reaches_the_panels_old_copy(self, inline_call_after):
@@ -1078,23 +1253,80 @@ class TestDeletingFromMainWindow:
         assert _text_of(panel_copy) is None
 
 
+class _RevokeStub:
+    def __init__(self):
+        self.db = _RecordingDb()
+        self._msg_bg_executor = _Inline()
+
+    def _schedule_set_chats(self):
+        pass
+
+    _apply_remote_revoke = MainWindow._apply_remote_revoke
+
+
+def _revoke(existing):
+    """A "delete for everyone" of *existing*, applied in place by the real
+    _apply_remote_revoke(). True when it was applied."""
+    revoke = {"key": dict(existing["key"]), "messageType": "protocolMessage",
+              "message": {"protocolMessage": {"type": 3}}}
+    return _RevokeStub()._apply_remote_revoke(existing, revoke, _JID)
+
+
+class TestTheWriteQueue:
+    """Saving and deleting go through one queue of one thread: the order they
+    reach the database in is the order they were decided in."""
+
+    def test_it_is_one_thread(self):
+        source = inspect.getsource(MainWindow.__init__)
+        assert re.search(
+            r"self\._transcription_write_queue = ThreadPoolExecutor\(\s*max_workers=1\b", source
+        ), "MainWindow.__init__ must build the transcription queue with one worker"
+
+    def test_a_save_held_up_by_the_database_still_lands_before_the_delete(self, inline_call_after):
+        """The save waits on a database busy with a sync; the user reads the
+        result and deletes it meanwhile. On four threads the delete
+        overtook the save."""
+        window = _Window([_audio()])
+        window._transcription_write_queue = ThreadPoolExecutor(max_workers=1)
+        release = threading.Event()
+        real_set = window.db.set_message_transcription
+
+        def _busy_set(jids, msg_id, value):
+            release.wait(5)
+            return real_set(jids, msg_id, value)
+
+        window.db.set_message_transcription = _busy_set
+        answered = threading.Event()
+        try:
+            window.store_message_transcription(_JID, _ID, _value())
+            window.delete_message_transcription(_JID, _ID, lambda ok: answered.set())
+            release.set()
+            assert answered.wait(5)
+        finally:
+            release.set()
+            window._transcription_write_queue.shutdown(wait=True)
+        assert [call[0] for call in window.db.calls] == ["set", "delete"]
+
+    def test_a_failure_inside_it_does_not_stop_it(self, inline_call_after):
+        window = _Window([_audio()])
+        window._transcription_write_queue = ThreadPoolExecutor(max_workers=1)
+        answers = []
+        try:
+            window._transcription_write_queue.submit(lambda: 1 / 0)
+            window.db.fail = True
+            window.store_message_transcription(_JID, _ID, _value())
+            window._transcription_write_queue.submit(lambda: setattr(window.db, "fail", False))
+            window.delete_message_transcription(_JID, _ID, answers.append)
+        finally:
+            window._transcription_write_queue.shutdown(wait=True)
+        assert window.spoken == ["transcription_store_failed"]
+        assert answers == [True]
+
+
 class TestOtherPathsThatHoldTheRecord:
     def test_a_message_deleted_for_everyone_loses_its_transcription(self):
-        class _Stub:
-            def __init__(self):
-                self.db = _RecordingDb()
-                self._msg_bg_executor = _Inline()
-
-            def _schedule_set_chats(self):
-                pass
-
-            _apply_remote_revoke = MainWindow._apply_remote_revoke
-
         existing = _audio(**{TRANSCRIPTION_KEY: _value()})
-        revoke = {"key": dict(existing["key"]), "messageType": "protocolMessage",
-                  "message": {"protocolMessage": {"type": 3}}}
-
-        assert _Stub()._apply_remote_revoke(existing, revoke, _JID) is True
+        assert _revoke(existing) is True
         assert TRANSCRIPTION_KEY not in existing
 
     def test_the_media_request_to_wppconnect_never_carries_it(self, monkeypatch):
@@ -1147,9 +1379,12 @@ _NEW_CODE = (
     DatabaseManager._apply_known_local_fields,
     DatabaseManager._carries_local_fields,
     DatabaseManager._stored_message,
+    DatabaseManager._stored_rows_by_id,
+    DatabaseManager._apply_stored_row,
     DatabaseManager.set_message_transcription,
     DatabaseManager.delete_message_transcription,
     DatabaseManager._rewrite_transcription,
+    DatabaseManager._scrub_transcription_from_preview,
 )
 
 
@@ -1180,6 +1415,11 @@ async def test_nothing_private_reaches_the_log_at_run_time(in_memory_db, caplog,
     await in_memory_db.set_message_transcription(_JID, _ID, _value())
     await in_memory_db.set_message_transcription(_JID, "NAO-EXISTE", _value())
     await in_memory_db.delete_message_transcription(_JID, _ID, 500.0)
+    # The two refusals log too: a decision older than the row's, and a row
+    # deleted for everyone.
+    await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value(at=1.0))
+    await in_memory_db.insert_message(_JID, _audio(msg_type="protocolMessage"))
+    await in_memory_db.set_message_transcription(_JID, _ID, _value(at=900.0))
     await in_memory_db.insert_messages_batch(_JID, [_audio(**{TRANSCRIPTION_KEY: _value(at=1.0)})])
 
     window = _Window([_audio(), _audio("P", _local_pending=True, _local_id="P")])

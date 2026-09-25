@@ -38,13 +38,17 @@ measured duration a transcription can be *deleted*:
 * **Only a withdrawn message loses it.** A message deleted for everyone comes
   back under its own id as a `protocolMessage` (`websocket_client`'s
   `"revoked"`, `MainWindow._apply_remote_revoke()`), and the text of what its
-  sender withdrew is not something to keep. Any other copy that is not audio
+  sender withdrew is not something to keep — nor is one that finishes after
+  the withdrawal: `MainWindow.store_message_transcription()` refuses it, and
+  `DatabaseManager._rewrite_transcription()` will not write a text over a
+  row that cannot hold one. Any other copy that is not audio
   or a document says nothing about the transcription either way. A known kind
   (`OTHER_KINDS`) cannot be the same message, so it is left as it came, with no
   read; a type WPPConnect passes through unmapped (a `ciphertext` placeholder
-  of a note not yet decrypted, say) may well be the voice note itself, so the
-  stored value is kept exactly as it is — neither the copy's key adopted nor
-  the stored one dropped. Dropping on "not audio" alone would have erased a
+  of a note not yet decrypted, say) may well be the voice note itself, so a
+  stored value is kept exactly as it is — the copy's own key neither replaces
+  it nor drops it — and with nothing stored the copy is written as it came,
+  its key included. Dropping on "not audio" alone would have erased a
   transcription for good the first time such a placeholder was written.
 
 * **Merging two copies keeps the later decision.** The same message can sit
@@ -421,8 +425,11 @@ def set_on_copies(copies, msg_id, value) -> int:
 # ── What storing answered ────────────────────────────────────────────────────
 
 #: MainWindow.store_message_transcription()'s answers. Only SAVE_STORED means
-#: the transcription will be there next time; the other two are said in the
-#: result window, so that nobody expects to find it again and does not.
+#: the transcription will be there next time; SAVE_UNSENT and SAVE_MISSING are
+#: said in the result window, so that nobody expects to find it again and does
+#: not. SAVE_WITHDRAWN opens no window at all: the message was deleted for
+#: everyone while it was being transcribed (see ui.transcription_flow).
 SAVE_STORED = "stored"
 SAVE_UNSENT = "unsent"
 SAVE_MISSING = "missing"
+SAVE_WITHDRAWN = "withdrawn"

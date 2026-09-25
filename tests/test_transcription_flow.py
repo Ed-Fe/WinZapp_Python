@@ -136,14 +136,14 @@ class _FakeDb:
         self.calls = []
         self.fail = False
 
-    def set_message_transcription(self, jid, msg_id, value):
-        self.calls.append(("set", jid, msg_id, value))
+    def set_message_transcription(self, jids, msg_id, value):
+        self.calls.append(("set", tuple(jids), msg_id, value))
         if self.fail:
             raise TimeoutError("db busy")
         return True
 
-    def delete_message_transcription(self, jid, msg_id, deleted_at):
-        self.calls.append(("delete", jid, msg_id, deleted_at))
+    def delete_message_transcription(self, jids, msg_id, deleted_at):
+        self.calls.append(("delete", tuple(jids), msg_id, deleted_at))
         if self.fail:
             raise TimeoutError("db busy")
         return True
@@ -166,7 +166,7 @@ class _MainWindow:
         # What MainWindow's own transcription storage reads.
         self.chats = {}
         self.db = _FakeDb()
-        self._msg_bg_executor = _Inline()
+        self._transcription_write_queue = _Inline()
         self.conversations_panel = None
         self.saves = []
 
@@ -1160,7 +1160,7 @@ class TestAFinishedRunIsKept:
         assert saved["text"] == RESULT.text
         assert saved["language"] == "pt" and saved["vad_used"] is True
         [call] = world.main_window.db.calls
-        assert call[:3] == ("set", _JID, _ID)
+        assert call[:3] == ("set", (_JID,), _ID)
         # Nothing about keeping it goes into the notes when it was kept.
         [dialog] = _FakeResultDialog.made
         assert _t("transcription_not_saved_unsent") not in dialog.notes
@@ -1188,6 +1188,30 @@ class TestAFinishedRunIsKept:
         assert _t("transcription_not_saved_unsent") in dialog.notes
         assert dialog.spoken.endswith(_t("transcription_result_has_notes"))
 
+
+    def test_a_message_deleted_for_everyone_meanwhile_is_said_and_not_shown(self, world):
+        """The contact deleted the note for everyone while it was being
+        transcribed: _apply_remote_revoke() turned the very dict the flow
+        holds into a protocolMessage. Nothing is kept, no window puts the
+        withdrawn content back on screen, and one sentence says why — after
+        the focus has gone back to the message."""
+        def _revoked_during_the_run(job):
+            job.device, job.device_reason = device.DEVICE_CPU, device.REASON_NO_CUDA_FOUND
+            job.on_phase(job_module.PHASE_LOADING_MODEL)
+            world.target["message"] = {"protocolMessage": {"type": 3}}
+            world.target["messageType"] = "protocolMessage"
+            job.on_finished(_result(), None)
+
+        world.script = [_revoked_during_the_run]
+        _start(world)
+
+        assert _FakeResultDialog.made == []
+        assert stored_transcription.TRANSCRIPTION_KEY not in world.target
+        assert world.main_window.db.calls == []
+        assert world.main_window.saves == []
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_discarded_withdrawn")
+        assert _row_focus(world.panel) == [("Focus", 1)]
+        assert world.main_window.error_sound.played == 0
 
     def test_a_database_that_fails_is_said_in_one_sentence(self, world):
         """The result window opens before the background write answers; when

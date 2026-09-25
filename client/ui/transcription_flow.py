@@ -49,7 +49,9 @@ repeating every note that still applies — the voice-filter warning above all,
 since a transcription made without the filter is exactly as untrustworthy the
 tenth time it is read. "Transcrever novamente" is the run above; its result
 replaces the stored one. "Apagar transcrição" asks first, because it throws
-away minutes of work with one key.
+away minutes of work with one key. A run that finishes after the sender deleted
+the message for everyone is neither kept nor shown: one sentence says so, and
+no window opens (`WITHDRAWN_I18N_KEY`).
 
 Nothing here logs the message, its id, the contact or a path: the same rule as
 the whole transcription package, checked by `tests/test_transcription_flow.py`.
@@ -110,6 +112,10 @@ NOT_SAVED_I18N_KEYS = {
     stored_transcription.SAVE_MISSING: "transcription_not_saved_missing",
 }
 
+#: What is said, instead of opening the result window, when the message was
+#: deleted for everyone while it was being transcribed (SAVE_WITHDRAWN).
+WITHDRAWN_I18N_KEY = "transcription_discarded_withdrawn"
+
 #: Every key this module asks for besides the ones narration/errors/preferences
 #: own. The i18n test reads this rather than a list of its own.
 FLOW_I18N_KEYS = (
@@ -123,6 +129,7 @@ FLOW_I18N_KEYS = (
         "transcription_result_title",
         SAVED_OPENED_I18N_KEY,
         SAVED_OPENED_NO_MODEL_I18N_KEY,
+        WITHDRAWN_I18N_KEY,
         "transcription_delete_question",
         "transcription_deleted",
         "transcription_delete_failed",
@@ -494,7 +501,19 @@ class MessageTranscriptionFlow:
             self._say_after_focus(result_speech(i18n, announcement, notes, window=False))
             return
 
-        not_saved = NOT_SAVED_I18N_KEYS.get(self._store(result))
+        answer = self._store(result)
+        if answer == stored_transcription.SAVE_WITHDRAWN:
+            # Not shown either, only said. The sender deleted the message for
+            # everyone while it was being transcribed, and WinZapp takes a
+            # withdrawn message's content off the screen the moment the
+            # revoke arrives, playable audio included
+            # (MainWindow._apply_remote_revoke()). The result window would
+            # put that content back in another form — one that can be saved
+            # to a file or inserted into the message field. The minutes of
+            # work are lost, and the sentence says why.
+            self._say_after_focus(i18n.t(WITHDRAWN_I18N_KEY))
+            return
+        not_saved = NOT_SAVED_I18N_KEYS.get(answer)
         if not_saved:
             # Said in the window, among the notes, because it changes what the
             # user can expect: this text will not be there to reopen.

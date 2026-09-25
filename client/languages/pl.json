@@ -1202,5 +1202,6 @@
     "transcription_saved_opened_no_model": "Zapisana transkrypcja, wykonana {when}.",
     "transcription_not_saved_unsent": "Ta transkrypcja nie została zapisana, ponieważ wiadomość nie została jeszcze wysłana. Po wysłaniu transkrybuj ją ponownie, aby ją zapisać.",
     "transcription_not_saved_missing": "Ta transkrypcja nie została zapisana, ponieważ wiadomości nie ma już w tej rozmowie.",
+    "transcription_discarded_withdrawn": "Wiadomość została usunięta u wszystkich w trakcie transkrypcji, więc transkrypcja została odrzucona.",
     "transcription_store_failed": "Nie udało się zapisać transkrypcji."
 }
