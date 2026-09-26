@@ -184,9 +184,16 @@ class TranscriptionJob:
             # A programming error on a worker thread has nothing above it to
             # catch it, and the UI would sit waiting for a report that never
             # comes — the same reason MessageQueue guards its own worker.
-            logging.exception("[transcription] the job failed unexpectedly")
+            # Not logging.exception(): its lines are the exception's text
+            # verbatim, and the text of anything that touched the audio can
+            # name the media file — the message id. The same report, chain and
+            # all, with that name taken out (errors.exception_report()).
+            logging.error("[transcription] the job failed unexpectedly: %s",
+                          errors.exception_report(exc))
             self._finish(
                 None,
+                # The text is kept for the diagnosis; the constructor takes
+                # any media file name out of it (TranscriptionError.__init__).
                 errors.TranscriptionError(
                     errors.BACKEND_ERROR, f"{type(exc).__name__}: {exc}"
                 ),
@@ -326,11 +333,12 @@ class TranscriptionJob:
             return
         try:
             callback(*args)
-        except Exception:
+        except Exception as exc:
             # A callback that raises must not cost the run its remaining
             # phases, and above all must not cost it the finished report the
             # UI is waiting on.
-            logging.exception("[transcription] a job callback raised")
+            logging.error("[transcription] a job callback raised: %s",
+                          errors.exception_report(exc))
 
     def _should_cancel(self) -> bool:
         return self._cancelled.is_set()

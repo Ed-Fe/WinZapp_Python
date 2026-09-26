@@ -57,6 +57,7 @@ Nothing here logs the message, its id, the contact or a path: the same rule as
 the whole transcription package, checked by `tests/test_transcription_flow.py`.
 """
 
+import logging
 import time
 from datetime import datetime
 
@@ -116,6 +117,12 @@ NOT_SAVED_I18N_KEYS = {
 #: deleted for everyone while it was being transcribed (SAVE_WITHDRAWN).
 WITHDRAWN_I18N_KEY = "transcription_discarded_withdrawn"
 
+#: The note for a fresh result that storing raised on. MainWindow's own
+#: sentence for a background write the database refused
+#: (_say_transcription_not_stored()), so the two failures to keep the text
+#: are said the same way.
+STORE_FAILED_I18N_KEY = "transcription_store_failed"
+
 #: Every key this module asks for besides the ones narration/errors/preferences
 #: own. The i18n test reads this rather than a list of its own.
 FLOW_I18N_KEYS = (
@@ -130,6 +137,7 @@ FLOW_I18N_KEYS = (
         SAVED_OPENED_I18N_KEY,
         SAVED_OPENED_NO_MODEL_I18N_KEY,
         WITHDRAWN_I18N_KEY,
+        STORE_FAILED_I18N_KEY,
         "transcription_delete_question",
         "transcription_deleted",
         "transcription_delete_failed",
@@ -501,7 +509,34 @@ class MessageTranscriptionFlow:
             self._say_after_focus(result_speech(i18n, announcement, notes, window=False))
             return
 
-        answer = self._store(result)
+        store_raised = False
+        try:
+            answer = self._store(result)
+        except Exception as exc:
+            # Storing runs here, on the wx thread, before the window below has
+            # opened, and nothing above this call catches anything but
+            # sys.excepthook — whose generic dialog would cost the user the
+            # text of minutes of transcription. The text is what they waited
+            # for, so it is shown anyway, and the note says it was not kept.
+            logging.error("[transcription] storing a transcription raised: %s",
+                          errors.exception_report(exc))
+            # Only noted: the window opens after this block, not inside it.
+            # Raised from in here, anything the dialog raised would carry this
+            # exception along as its __context__ to sys.excepthook, which
+            # writes format_exception() to the log with nothing scrubbed.
+            store_raised = True
+            answer = None
+        if store_raised:
+            if not self._withdrawn_now():
+                # Once, here: the window plays nothing of its own, and the
+                # note inside it is what says why the sound played.
+                self._play_error_sound()
+                notes = tuple(notes) + (narration.Note(STORE_FAILED_I18N_KEY),)
+                self._open_result_window(result, announcement, notes)
+                return
+            # The one answer that still outranks showing the text (see just
+            # below), even when storing never got as far as asking.
+            answer = stored_transcription.SAVE_WITHDRAWN
         if answer == stored_transcription.SAVE_WITHDRAWN:
             # Not shown either, only said. The sender deleted the message for
             # everyone while it was being transcribed, and WinZapp takes a
@@ -511,7 +546,14 @@ class MessageTranscriptionFlow:
             # put that content back in another form — one that can be saved
             # to a file or inserted into the message field. The minutes of
             # work are lost, and the sentence says why.
-            self._say_after_focus(i18n.t(WITHDRAWN_I18N_KEY))
+            #
+            # With the error sound, like every other run that ends without
+            # the text the user asked for — a media status (the note expired
+            # or was deleted) is the closest of them, and it sounds. The one
+            # quiet ending, "no speech", is the recording's answer about
+            # itself; here the user asked, waited, and gets nothing to read,
+            # and the sound is what says so before the sentence does.
+            self._say_after_focus(i18n.t(WITHDRAWN_I18N_KEY), failed=True)
             return
         not_saved = NOT_SAVED_I18N_KEYS.get(answer)
         if not_saved:
@@ -519,6 +561,30 @@ class MessageTranscriptionFlow:
             # user can expect: this text will not be there to reopen.
             notes = tuple(notes) + (narration.Note(not_saved),)
         self._open_result_window(result, announcement, notes)
+
+    def _withdrawn_now(self):
+        """Whether the message has been deleted for everyone, asked of the
+        record memory holds now.
+
+        Not of `self._msg` alone: that is the dict the flow captured when the
+        run started, and in the minutes since a sync may have swapped it for a
+        new one (store_message_transcription() says the same) — a revoke
+        applied to the new one leaves the old one still looking like audio.
+        Found the way storing finds it, every copy by id or `_local_id`. The
+        flow's own dict still counts too: a withdrawal never undoes itself, so
+        either one saying so is enough.
+        """
+        try:
+            copies = self._main_window._transcription_copies(self._jid, self._msg_id)
+            current = stored_transcription.find_record(copies, self._msg_id)
+        except Exception as exc:
+            # Asked right after storing raised, and whatever broke that may
+            # break this too; the text on screen outranks a second traceback.
+            logging.warning("[transcription] looking the message up again raised: %s",
+                            errors.exception_report(exc))
+            current = None
+        return (stored_transcription.is_withdrawn(current)
+                or stored_transcription.is_withdrawn(self._msg))
 
     def _store(self, result):
         """Keep `result` with the message; storing's SAVE_* answer.

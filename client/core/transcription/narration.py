@@ -231,7 +231,8 @@ def outcome_announcement(result=None, error=None) -> Announcement:
         # errors.error_i18n_key() owns the code-to-sentence map, including what
         # an unrecognised code falls back to; a second copy of it here is how
         # the two start disagreeing.
-        return Announcement(errors.error_i18n_key(code), outcome, {})
+        return Announcement(errors.error_i18n_key(code), outcome,
+                            errors.error_i18n_values(code))
 
     if result is None:
         # Neither a result nor an error: nothing a job can legitimately report,

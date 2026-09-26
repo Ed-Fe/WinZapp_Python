@@ -298,7 +298,7 @@ def remaining_download_bytes(root, model) -> int:
     """
     directory = model_dir(root, model.id)
     done_bytes, pending = _download_plan(directory, model)
-    return model.download_bytes - done_bytes - _resumable_bytes(directory, pending)
+    return model.download_bytes - done_bytes - _resumable_bytes(directory, model, pending)
 
 
 def ensure_free_space(root, needed_bytes) -> None:
@@ -711,7 +711,7 @@ def _try_rename(source, destination) -> bool:
     except OSError as exc:
         logging.info(
             "[transcription] cannot rename %s to %s (%s); copying instead",
-            source, destination, exc,
+            source, destination, errors.scrub_media_names(str(exc)),
         )
         return False
 
@@ -779,12 +779,30 @@ def _download_plan(directory, model):
     return done_bytes, pending
 
 
-def _resumable_bytes(directory, pending) -> int:
-    """Bytes of `pending` already on disk as a resumable `.part`."""
+def _resumable_bytes(directory, model, pending) -> int:
+    """Bytes of `pending` already on disk as a `.part` a resume will keep.
+
+    Only the files _download_file() actually resumes — model.bin, the one with
+    a digest (_expected_sha256()). An auxiliary file's `.part` is fetched again
+    from byte 0 however long it is, so counting it here would quote the
+    free-space gate less than the transfer is about to write.
+    """
     return sum(
         _resume_offset(os.path.join(directory, name + _PART_SUFFIX), size)
         for name, size in pending
+        if _expected_sha256(model, name)
     )
+
+
+def _expected_sha256(model, name):
+    """The digest `name` is checked against, or None when it has none.
+
+    Only model.bin has one: it is the sole LFS file in these repositories, and
+    the one where a silent corruption costs a multi-gigabyte re-download to
+    discover. It is also what decides whether a `.part` may be resumed — see
+    _download_file() — and so what _resumable_bytes() counts.
+    """
+    return model.model_bin_sha256 if name == "model.bin" else None
 
 
 def _resume_offset(part_path, expected_bytes) -> int:
@@ -807,10 +825,7 @@ def _download_file(session, model, directory, name, expected_bytes,
                    done_bytes, total, progress, should_cancel) -> int:
     """One file of `model`, streamed into place. Returns the new byte count."""
     part_path = os.path.join(directory, name + _PART_SUFFIX)
-    # Only model.bin has a digest to check against: it is the sole LFS file in
-    # these repositories, and the one where a silent corruption costs a
-    # multi-gigabyte re-download to discover.
-    expected_sha256 = model.model_bin_sha256 if name == "model.bin" else None
+    expected_sha256 = _expected_sha256(model, name)
 
     # Only a file with a digest may be resumed, and that is the whole rule.
     # For the auxiliary files the only check is `written == expected_bytes`,
@@ -916,7 +931,8 @@ def _seed_from_part(part_path, resume_from, expected_sha256, should_cancel):
                     digest.update(chunk)
                 read += len(chunk)
     except OSError as exc:
-        logging.info("[transcription] cannot resume %s: %s", part_path, exc)
+        logging.info("[transcription] cannot resume %s: %s", part_path,
+                     errors.scrub_media_names(str(exc)))
         return fresh, 0
 
     if read != resume_from:

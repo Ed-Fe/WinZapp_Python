@@ -201,6 +201,25 @@ class TestFileNames:
         word = table["transcription_save_default_name"].split("{name}")[0].strip(" -")
         assert transcription_result.default_file_name(_Locale(), "") == f"{word}.txt"
 
+    def test_a_pattern_with_nothing_usable_falls_back_to_the_translated_word(self):
+        """Never an English literal: a Polish user would be offered a file
+        named in a language they did not choose."""
+        class _Odd:
+            def t(self, key):
+                return {"transcription_save_default_name": "// {name} ??",
+                        "transcription_progress_title": "Transkrypcja"}[key]
+
+        assert transcription_result.default_file_name(_Odd(), "") == "Transkrypcja.txt"
+
+    def test_two_sentences_with_nothing_usable_still_give_a_name(self):
+        """".txt" alone is a nameless hidden file, read out as "dot t x t"."""
+        class _Blank:
+            def t(self, key):
+                return {"transcription_save_default_name": "// {name} ??",
+                        "transcription_progress_title": " ... "}[key]
+
+        assert transcription_result.default_file_name(_Blank(), "") == "WinZapp.txt"
+
     def test_a_typed_name_without_an_extension_gets_txt(self):
         assert transcription_result.with_txt_extension(r"C:\x\nota") == r"C:\x\nota.txt"
         assert transcription_result.with_txt_extension(r"C:\x\nota.md") == r"C:\x\nota.md"

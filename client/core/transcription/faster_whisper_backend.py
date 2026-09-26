@@ -361,7 +361,7 @@ class FasterWhisperBackend(TranscriptionBackend):
             logging.warning(
                 "[transcription] the voice-activity filter is unavailable "
                 "(%s: %s) — transcribing without it",
-                type(exc).__name__, exc,
+                type(exc).__name__, errors.scrub_media_names(str(exc)),
             )
         try:
             segments, info = model.transcribe(

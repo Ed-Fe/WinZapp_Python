@@ -1552,7 +1552,9 @@ class TestVerifying:
         self, tmp_path, wheel, monkeypatch
     ):
         """`str(exc)` is one careless wx.MessageBox away from being read out,
-        so it stays the code and the path stays in the log."""
+        so it stays the code. The log keeps the whole diagnosis, folder
+        included: it names no message, and which install was checked is half
+        of what the line is for (errors.scrub_media_names())."""
         directory = tmp_path / "cuda"
         _install(directory, wheel, monkeypatch)
         os.remove(os.path.join(str(directory), "RECORD"))
@@ -1561,6 +1563,7 @@ class TestVerifying:
             cuda_runtime.verify_installation(str(directory))
 
         assert str(caught.value) == errors.CUDA_RUNTIME_CORRUPTED
+        assert str(directory) not in str(caught.value)
         assert str(directory) in caught.value.log_line
 
 

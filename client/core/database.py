@@ -922,6 +922,11 @@ class DatabaseManager:
         if not isinstance(stored_video, dict) or MEASURED_SECONDS_KEY not in stored_video:
             return msg
         known = stored_video[MEASURED_SECONDS_KEY]
+        # The id stays: this line is only ever reached for a videoMessage, and
+        # a video is never transcribed (is_transcribable() takes audio only),
+        # so the transcription's no-id rule has nothing to protect here — and
+        # the id is what ties this line to _apply_probed_video_duration()'s own
+        # when a video's length "goes back to 0 seconds" again.
         log.info(
             "[messages] %s: keeping the measured %ss duration; the incoming copy carries none",
             message_id, known,
@@ -1130,35 +1135,43 @@ class DatabaseManager:
         refused_withdrawn = refused_older = False
         async with self._write_lock:
             conn = await self._ensure_conn()
-            for remote_jid in jids:
-                stored = await self._stored_message(conn, remote_jid, message_id)
-                if stored is None:
-                    continue
-                found = True
-                current = stored.get(TRANSCRIPTION_KEY)
-                row_value = value
-                if deleting:
-                    at = decision_time(value)
-                    if at is not None:
-                        later = next_decision_time(at, current)
-                        if later != at:
-                            row_value = dict(value, at=later)
-                elif not may_hold_transcription(stored):
-                    refused_withdrawn = True
-                    continue
-                elif newer_decision(value, current) is not value:
-                    refused_older = True
-                    continue
-                stored[TRANSCRIPTION_KEY] = row_value
-                await conn.execute(
-                    "UPDATE messages SET message_json=? WHERE remote_jid=? AND message_id=?",
-                    (self._encrypt_json(stored), remote_jid, message_id),
-                )
-                written = True
-                if deleting:
-                    await self._scrub_transcription_from_preview(conn, remote_jid, message_id)
-            if written:
-                await conn.commit()
+            # All of it or none of it, in the mould of insert_messages_batch():
+            # the first UPDATE opens a transaction, and if a later JID's write
+            # fails, what is left in it would otherwise be committed by the
+            # next unrelated write — after the user heard it had failed.
+            try:
+                for remote_jid in jids:
+                    stored = await self._stored_message(conn, remote_jid, message_id)
+                    if stored is None:
+                        continue
+                    found = True
+                    current = stored.get(TRANSCRIPTION_KEY)
+                    row_value = value
+                    if deleting:
+                        at = decision_time(value)
+                        if at is not None:
+                            later = next_decision_time(at, current)
+                            if later != at:
+                                row_value = dict(value, at=later)
+                    elif not may_hold_transcription(stored):
+                        refused_withdrawn = True
+                        continue
+                    elif newer_decision(value, current) is not value:
+                        refused_older = True
+                        continue
+                    stored[TRANSCRIPTION_KEY] = row_value
+                    await conn.execute(
+                        "UPDATE messages SET message_json=? WHERE remote_jid=? AND message_id=?",
+                        (self._encrypt_json(stored), remote_jid, message_id),
+                    )
+                    written = True
+                    if deleting:
+                        await self._scrub_transcription_from_preview(conn, remote_jid, message_id)
+                if written:
+                    await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
         # One line per decision, and only when it did not do what was asked:
         # a JID without the row is routine (the @lid half of a conversation
         # usually has none), a decision nobody could write is not.

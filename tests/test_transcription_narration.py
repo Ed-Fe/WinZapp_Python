@@ -420,6 +420,20 @@ class TestOutcomeAnnouncement:
         assert "ABCDEF" not in announcement.i18n_key
         assert announcement.values == {}
 
+    def test_a_full_temp_disk_names_the_drive_and_only_the_drive(self, monkeypatch):
+        """The only field any error sentence has — and the settings tab's
+        management.announcement() passes the same one, through the same
+        helper."""
+        monkeypatch.setattr(errors.tempfile, "gettempdir",
+                            lambda: r"C:\Users\Ana Souza\AppData\Local\Temp")
+        error = errors.TranscriptionError(errors.TEMP_NO_DISK_SPACE, "rc=1: ...")
+        announcement = narration.outcome_announcement(error=error)
+        assert announcement.values == {"drive": "C:"}
+        assert management.announcement(
+            management.ACTION_DOWNLOAD_MODEL, error=error).values == {"drive": "C:"}
+        text = _translations("pl")[announcement.i18n_key].format(**announcement.values)
+        assert "C:" in text and "Ana Souza" not in text and "Users" not in text
+
 
 class TestCpuRetryOffer:
     def test_a_vram_failure_is_worth_offering_again(self):

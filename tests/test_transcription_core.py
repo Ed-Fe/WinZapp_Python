@@ -1468,7 +1468,9 @@ class TestErrors:
 
     @pytest.mark.parametrize("code", errors.ERROR_CODES)
     def test_every_code_maps_to_an_i18n_key(self, code):
-        key = errors.error_i18n_key(code)
+        # A %TEMP% with a drive letter, pinned: TEMP_NO_DISK_SPACE picks its
+        # sentence by that, and the machine running this may have none.
+        key = errors.error_i18n_key(code, r"C:\Temp")
         assert key == f"transcription_error_{code}"
         assert errors.ERROR_I18N_KEYS[code] == key
 
@@ -1477,6 +1479,57 @@ class TestErrors:
         # the screen reader read "transcription_error_whatever" aloud.
         assert errors.error_i18n_key("whatever") == errors.ERROR_I18N_KEYS[errors.BACKEND_ERROR]
         assert errors.TranscriptionError(None).i18n_key in errors.ERROR_I18N_KEYS.values()
+
+
+class TestTheTempDiskIsNamed:
+    """TEMP_NO_DISK_SPACE names the drive %TEMP% is on — never its folder,
+    which carries the Windows user name."""
+
+    def test_the_drive_letter_alone(self):
+        assert errors.temp_drive(r"C:\Users\Ana Souza\AppData\Local\Temp") == "C:"
+        assert errors.temp_drive(r"d:\tmp") == "D:"
+
+    def test_a_network_temp_names_no_share(self):
+        assert errors.temp_drive(r"\\servidor\ana.souza\temp") == ""
+
+    def test_a_network_temp_gets_the_sentence_that_names_no_drive(self):
+        """ "There is no free space on drive  to prepare..." is what one key
+        with an empty field read out for a %TEMP% on a share."""
+        share = r"\\servidor\ana.souza\temp"
+        key = errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE, share)
+        assert key == errors.TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY
+        assert errors.error_i18n_values(errors.TEMP_NO_DISK_SPACE, share) == {}
+        assert errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE, r"D:\tmp") == (
+            errors.ERROR_I18N_KEYS[errors.TEMP_NO_DISK_SPACE])
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_both_temp_sentences_read_whole_in_every_language(self, locale):
+        table = _load(locale)
+        for temp_dir in (r"E:\Temp", r"\\srv\temp"):
+            key = errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE, temp_dir)
+            sentence = table[key].format(
+                **errors.error_i18n_values(errors.TEMP_NO_DISK_SPACE, temp_dir))
+            assert sentence and "{" not in sentence and "  " not in sentence, locale
+        assert "{" not in table[errors.TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY]
+
+    def test_only_that_code_asks_for_it(self):
+        values = errors.error_i18n_values(
+            errors.TEMP_NO_DISK_SPACE, r"C:\Users\Ana Souza\AppData\Local\Temp")
+        assert values == {"drive": "C:"}
+        for code in errors.ERROR_CODES:
+            if code != errors.TEMP_NO_DISK_SPACE:
+                assert errors.error_i18n_values(code) == {}
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_every_error_sentence_formats_with_what_it_is_given(self, locale):
+        """A field the sentence asks for and error_i18n_values() does not give
+        is a KeyError in the middle of announcing the failure."""
+        table = _load(locale)
+        for code in errors.ERROR_CODES:
+            text = table[errors.error_i18n_key(code, r"E:\Temp")]
+            sentence = text.format(**errors.error_i18n_values(code, r"E:\Temp"))
+            if code == errors.TEMP_NO_DISK_SPACE:
+                assert "E:" in sentence, locale
 
 
 class TestTranslations:
@@ -1490,10 +1543,9 @@ class TestTranslations:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_error_code_is_translated_everywhere(self, locale):
         table = _load(locale)
-        missing = sorted(
-            errors.error_i18n_key(code) for code in errors.ERROR_CODES
-            if errors.error_i18n_key(code) not in table
-        )
+        keys = [errors.error_i18n_key(code, r"C:\Temp") for code in errors.ERROR_CODES]
+        keys.append(errors.TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY)
+        missing = sorted(key for key in keys if key not in table)
         assert missing == [], f"{locale}.json would speak these key names aloud: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)

@@ -479,8 +479,13 @@ class ManagementJob:
         except Exception as exc:
             # Nothing above a worker thread catches anything, and the tab is
             # holding a progress dialog open until it hears back.
-            logging.exception(
-                "[transcription] management action %s failed unexpectedly", self.action
+            # The report, not logging.exception(): the same chain and frames,
+            # through the one funnel every module of the issue logs an
+            # exception by, so what may not reach the log (a media file name,
+            # the message id) is decided in one place — errors.py.
+            logging.error(
+                "[transcription] management action %s failed unexpectedly: %s",
+                self.action, errors.exception_report(exc),
             )
             self._finish(
                 None,
@@ -585,10 +590,11 @@ class ManagementJob:
             return
         try:
             callback(*args)
-        except Exception:
+        except Exception as exc:
             # A callback that raises must cost neither the rest of the action
             # nor the finished report the tab is waiting on.
-            logging.exception("[transcription] a management callback raised")
+            logging.error("[transcription] a management callback raised: %s",
+                          errors.exception_report(exc))
 
     def _should_cancel(self) -> bool:
         return self._cancelled.is_set()
@@ -630,12 +636,16 @@ def probe_in_background(on_done, probe=None) -> threading.Thread:
         try:
             answer = measure()
         except Exception as exc:
-            logging.exception("[transcription] the background hardware probe raised")
-            answer = device.HardwareProbe(driver_error=f"probe: {exc}")
+            logging.error("[transcription] the background hardware probe raised: %s",
+                          errors.exception_report(exc))
+            answer = device.HardwareProbe(
+                driver_error=f"probe: {errors.scrub_media_names(str(exc))}"
+            )
         try:
             on_done(answer)
-        except Exception:
-            logging.exception("[transcription] the probe callback raised")
+        except Exception as exc:
+            logging.error("[transcription] the probe callback raised: %s",
+                          errors.exception_report(exc))
 
     thread = threading.Thread(target=_run, daemon=True, name="winzapp-transcription-probe")
     thread.start()
@@ -829,4 +839,5 @@ def _error_announcement(action, error, models_before_move):
         return Announcement(FAILED_I18N_KEY, OUTCOME_FAILED)
     # Everything else already has the right sentence, CUDA_RUNTIME_IN_USE's
     # "close and reopen WinZapp" among them.
-    return Announcement(errors.error_i18n_key(code), OUTCOME_FAILED)
+    return Announcement(errors.error_i18n_key(code), OUTCOME_FAILED,
+                        errors.error_i18n_values(code))

@@ -819,7 +819,7 @@ class TestAFullDiskIsASentence:
         ],
         ids=["enospc", "winerror-112", "winerror-39"],
     )
-    def test_a_full_disk_says_no_disk_space(
+    def test_a_full_disk_says_temp_no_disk_space(
         self, make, tmp_path, own_temp_dir, fernet, fernet_key, monkeypatch
     ):
         source = _cached(tmp_path, fernet, WAV)

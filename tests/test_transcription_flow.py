@@ -37,6 +37,7 @@ import ast
 import errno
 import inspect
 import json
+import logging
 import os
 import pathlib
 
@@ -620,8 +621,13 @@ class TestFailuresAreToldOnce:
 
         monkeypatch.setattr(message_audio.os, "fdopen", _full)
         _start(world)
+        # The drive %TEMP% is on, by letter: the disk to free is named, and
+        # its folder (which carries the Windows user name) never is.
+        # (Or, on a %TEMP% with no letter, the sentence that names none.)
+        key = errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE)
         assert world.main_window.speak_output.spoken == [
-            _t("transcription_error_temp_no_disk_space")]
+            _t(key, **errors.error_i18n_values(errors.TEMP_NO_DISK_SPACE))]
+        assert str(world.temp) not in world.main_window.speak_output.spoken[0]
         assert world.main_window.error_sound.played == 1
         assert _leftovers(world.temp) == []
 
@@ -1194,7 +1200,7 @@ class TestAFinishedRunIsKept:
         transcribed: _apply_remote_revoke() turned the very dict the flow
         holds into a protocolMessage. Nothing is kept, no window puts the
         withdrawn content back on screen, and one sentence says why — after
-        the focus has gone back to the message."""
+        the focus has gone back to the message, and with the error sound."""
         def _revoked_during_the_run(job):
             job.device, job.device_reason = device.DEVICE_CPU, device.REASON_NO_CUDA_FOUND
             job.on_phase(job_module.PHASE_LOADING_MODEL)
@@ -1211,7 +1217,8 @@ class TestAFinishedRunIsKept:
         assert world.main_window.saves == []
         assert world.main_window.speak_output.spoken[-1] == _t("transcription_discarded_withdrawn")
         assert _row_focus(world.panel) == [("Focus", 1)]
-        assert world.main_window.error_sound.played == 0
+        # Sounded like every run that ends without the text asked for.
+        assert world.main_window.error_sound.played == 1
 
     def test_a_database_that_fails_is_said_in_one_sentence(self, world):
         """The result window opens before the background write answers; when
@@ -1221,6 +1228,138 @@ class TestAFinishedRunIsKept:
         _start(world)
         assert world.main_window.speak_output.spoken[-1] == _t("transcription_store_failed")
         assert world.main_window.error_sound.played == 1
+
+    def test_storing_that_raises_still_shows_the_text_and_says_it_was_not_kept(
+            self, world, caplog):
+        """store_message_transcription() runs on the wx thread before the
+        window opens; a raise there used to reach sys.excepthook's generic
+        dialog and take minutes of transcription with it."""
+        def _broken(jid, msg_id, value):
+            raise RuntimeError("store exploded")
+
+        world.main_window.store_message_transcription = _broken
+        caplog.set_level(logging.DEBUG)
+        _start(world)
+
+        [dialog] = _FakeResultDialog.made
+        assert dialog.text == RESULT.text
+        assert _t("transcription_store_failed") in dialog.notes
+        assert world.main_window.error_sound.played == 1
+        assert "storing a transcription raised: RuntimeError: store exploded" in caplog.text
+        assert RESULT.text not in caplog.text
+
+    def test_storing_that_raises_on_a_withdrawn_message_shows_nothing(self, world):
+        """The revoke outranks the fallback window: the text is what the
+        sender withdrew, whatever storing did."""
+        def _revoked_then_broken(jid, msg_id, value):
+            world.target["message"] = {"protocolMessage": {"type": 3}}
+            world.target["messageType"] = "protocolMessage"
+            raise RuntimeError("store exploded")
+
+        world.main_window.store_message_transcription = _revoked_then_broken
+        _start(world)
+
+        assert _FakeResultDialog.made == []
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_discarded_withdrawn")
+        assert world.main_window.error_sound.played == 1
+
+    def test_a_window_that_raises_does_not_carry_the_storing_error_along(
+            self, world, monkeypatch):
+        """The window opens after the except block, not inside it: raised from
+        in there, the dialog's own error would take the storing one along as
+        its __context__ to sys.excepthook, which logs format_exception()
+        with nothing scrubbed."""
+        def _broken(jid, msg_id, value):
+            raise RuntimeError("store exploded")
+
+        def _dialog_breaks(*args, **kwargs):
+            raise ValueError("dialog exploded")
+
+        world.main_window.store_message_transcription = _broken
+        monkeypatch.setattr(transcription_flow, "TranscriptionResultDialog", _dialog_breaks)
+        with pytest.raises(ValueError) as raised:
+            _start(world)
+        assert raised.value.__context__ is None
+
+    def test_storing_that_raises_asks_the_record_a_sync_put_in_its_place(self, world):
+        """A sync swapped the flow's dict for a new copy during the run, and
+        the revoke landed on that one: the flow's own dict still looks like
+        audio, and asking it alone would put the withdrawn text on screen."""
+        def _synced_revoked_then_broken(jid, msg_id, value):
+            fresh = _msg()
+            fresh["message"] = {"protocolMessage": {"type": 3}}
+            fresh["messageType"] = "protocolMessage"
+            records = world.main_window.chats[_JID]["messages"]["messages"]["records"]
+            records[records.index(world.target)] = fresh
+            world.panel._sorted_messages[world.panel._sorted_messages.index(world.target)] = fresh
+            raise RuntimeError("store exploded")
+
+        world.main_window.store_message_transcription = _synced_revoked_then_broken
+        _start(world)
+
+        assert not stored_transcription.is_withdrawn(world.target)
+        assert _FakeResultDialog.made == []
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_discarded_withdrawn")
+        assert world.main_window.error_sound.played == 1
+
+    def test_storing_that_raises_still_asks_the_flows_own_dict(self, world):
+        """The other way round: the revoke landed on the flow's own dict —
+        _apply_remote_revoke() changes only the dict it is handed — and a sync
+        then put a new copy, still audio, in its place. Asking the current
+        record alone would put the withdrawn text on screen."""
+        def _revoked_synced_then_broken(jid, msg_id, value):
+            world.target["message"] = {"protocolMessage": {"type": 3}}
+            world.target["messageType"] = "protocolMessage"
+            fresh = _msg()
+            records = world.main_window.chats[_JID]["messages"]["messages"]["records"]
+            records[records.index(world.target)] = fresh
+            world.panel._sorted_messages[world.panel._sorted_messages.index(world.target)] = fresh
+            raise RuntimeError("store exploded")
+
+        world.main_window.store_message_transcription = _revoked_synced_then_broken
+        _start(world)
+
+        current = stored_transcription.find_record(
+            world.main_window._transcription_copies(_JID, _ID), _ID)
+        assert current is not world.target and not stored_transcription.is_withdrawn(current)
+        assert _FakeResultDialog.made == []
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_discarded_withdrawn")
+        assert world.main_window.error_sound.played == 1
+
+    def test_storing_that_raises_and_a_lookup_that_raises_still_shows_the_text(
+            self, world, caplog):
+        """Whatever broke storing may break looking the message up again too:
+        the text still goes on screen, said not to be kept, and the second
+        failure is one line of log with nothing about the message in it."""
+        lookup = world.main_window._transcription_copies
+        calls = []
+
+        def _second_lookup_breaks(jid, msg_id):
+            calls.append(msg_id)
+            if len(calls) > 1:
+                raise RuntimeError("lookup exploded")
+            return lookup(jid, msg_id)
+
+        class _BrokenQueue:
+            def submit(self, fn, *args, **kwargs):
+                raise RuntimeError("queue exploded")
+
+        # The real store_message_transcription(): its lookup is the first
+        # call and succeeds, then the write queue raises.
+        world.main_window._transcription_copies = _second_lookup_breaks
+        world.main_window._transcription_write_queue = _BrokenQueue()
+        caplog.set_level(logging.DEBUG)
+        _start(world)
+
+        assert len(calls) == 2
+        [dialog] = _FakeResultDialog.made
+        assert dialog.text == RESULT.text
+        assert _t("transcription_store_failed") in dialog.notes
+        assert world.main_window.error_sound.played == 1
+        assert "storing a transcription raised: RuntimeError: queue exploded" in caplog.text
+        assert "looking the message up again raised: RuntimeError: lookup exploded" in caplog.text
+        assert _ID not in caplog.text
+        assert RESULT.text not in caplog.text
 
     def test_a_kept_one_says_nothing_about_keeping(self, world):
         _start(world)

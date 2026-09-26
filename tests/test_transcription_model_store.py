@@ -880,6 +880,9 @@ class TestDownload:
         assert 0 < len(stale) < len(contents["tokenizer.json"])
         with open(os.path.join(directory, "tokenizer.json.part"), "wb") as fh:
             fh.write(stale)
+        # And the figure the free-space gate counts agrees: a `.part` that
+        # will be fetched again from byte 0 is not bytes already downloaded.
+        assert model_store.remaining_download_bytes(str(tmp_path), model) == model.download_bytes
         session = _FakeSession(_bodies(model, contents))
 
         model_store.download_model(model, str(tmp_path), session=session)

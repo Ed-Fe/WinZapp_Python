@@ -78,6 +78,21 @@ _TRUNCATED_MARKERS = (
     "incomplete frame",
 )
 
+# The disk under %TEMP% filled while ffmpeg was writing the WAV. That file is
+# far larger than the note it comes from (~115 MB per hour of audio at 16 kHz
+# mono, against a few MB of Opus), so a nearly full system drive lets the
+# decryption through and stops here. ffmpeg reports the C library's
+# strerror(ENOSPC) — "No space left on device" — and a Windows build that
+# surfaces the system message says one of the other two (ERROR_DISK_FULL,
+# ERROR_HANDLE_DISK_FULL). Checked before everything else: the write failing
+# half way can also print "partial file", and blaming the recording would send
+# the user to fix audio that is fine.
+_NO_SPACE_MARKERS = (
+    "no space left on device",
+    "not enough space on the disk",
+    "the disk is full",
+)
+
 # ffmpeg read the bytes and could not make a stream of them.
 _UNRECOGNISED_MARKERS = (
     "invalid data found when processing input",
@@ -242,6 +257,8 @@ def _classify_ffmpeg_failure(returncode, stderr_text):
     """The error a non-zero ffmpeg exit deserves."""
     message = (stderr_text or "").lower()
     tail = (stderr_text or "").strip()[-800:]
+    if any(marker in message for marker in _NO_SPACE_MARKERS):
+        return errors.TranscriptionError(errors.TEMP_NO_DISK_SPACE, f"rc={returncode}: {tail}")
     if any(marker in message for marker in _TRUNCATED_MARKERS):
         return errors.TranscriptionError(errors.AUDIO_INCOMPLETE, tail)
     if any(marker in message for marker in _UNRECOGNISED_MARKERS):
@@ -298,11 +315,15 @@ def _kill(process) -> None:
     try:
         process.kill()
         process.wait(timeout=5)
-    except Exception:
+    except Exception as exc:
         # The process is already gone, or refuses to die; either way there is
         # nothing further this path can do about it, and it is running inside
-        # an `except` that has an error of its own to re-raise.
-        logging.warning("[transcription] could not stop ffmpeg", exc_info=True)
+        # an `except` that has an error of its own to re-raise. Not
+        # exc_info=True: a TimeoutExpired prints the whole command line, and
+        # the command line holds the media file's path, named after the
+        # message id.
+        logging.warning("[transcription] could not stop ffmpeg: %s",
+                        errors.exception_report(exc))
 
 
 def _unlink(path) -> None:

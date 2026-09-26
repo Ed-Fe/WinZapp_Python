@@ -560,16 +560,7 @@ class TestTheDatabaseKeepsIt:
         records = [_audio(f"A{i}") for i in range(40)]
         await in_memory_db.insert_messages_batch(_JID, records)
         await in_memory_db.set_message_transcription(_JID, "A7", _value())
-        conn = in_memory_db._conn
-        original = conn.execute
-        selects = []
-
-        def _counting(sql, *args, **kwargs):
-            if sql.lstrip().upper().startswith("SELECT") and "FROM messages" in sql:
-                selects.append(sql)
-            return original(sql, *args, **kwargs)
-
-        monkeypatch.setattr(conn, "execute", _counting)
+        selects = _count_message_selects(in_memory_db, monkeypatch)
         await in_memory_db.import_from_dict({"chats": {_JID: {
             "remoteJid": _JID, "messages": {"messages": {"records": records}},
         }}}, clear_first=False)
@@ -577,6 +568,44 @@ class TestTheDatabaseKeepsIt:
 
         assert len(selects) == 1
         assert await _stored_text(in_memory_db, "A7") == _SECRET
+
+    async def test_the_full_state_save_sees_its_own_earlier_copy(self, in_memory_db):
+        """The same id twice in one chat's records: the rows are read once,
+        before the loop, so without handing each write back to what was read
+        the second copy (without the key) would be merged against the row as
+        it was before the first, and erase the text the first just wrote."""
+        await in_memory_db.insert_message(_JID, _audio())
+        await in_memory_db.import_from_dict({"chats": {_JID: {
+            "remoteJid": _JID, "messages": {"messages": {"records": [
+                _audio(**{TRANSCRIPTION_KEY: _value()}), _audio(status=4),
+            ]}},
+        }}}, clear_first=False)
+        record = await _stored_record(in_memory_db)
+        assert _text_of(record) == _SECRET and record["status"] == 4
+
+    async def test_a_write_that_fails_on_the_second_jid_leaves_nothing_behind(
+            self, in_memory_db, monkeypatch):
+        """The first row's UPDATE opens a transaction; the second JID's write
+        fails. Unrolled, the first UPDATE would be committed by the next
+        unrelated write — after "não foi possível apagar" had been said."""
+        await in_memory_db.insert_message(_JID, _audio())
+        await in_memory_db.insert_message(_LID, _audio(jid=_LID))
+        await in_memory_db.insert_message(_JID, _audio("OUTRA"))
+        original = DatabaseManager._stored_message
+
+        async def _second_fails(self, conn, remote_jid, message_id):
+            if remote_jid == _LID:
+                raise OSError("disk I/O error")
+            return await original(self, conn, remote_jid, message_id)
+
+        monkeypatch.setattr(DatabaseManager, "_stored_message", _second_fails)
+        with pytest.raises(OSError):
+            await in_memory_db.set_message_transcription([_JID, _LID], _ID, _value())
+        monkeypatch.undo()
+        # Something unrelated, which commits whatever transaction is open.
+        await in_memory_db.update_message_status(_JID, "OUTRA", 4)
+
+        assert TRANSCRIPTION_KEY not in await _stored_record(in_memory_db)
 
     async def test_the_full_state_save_keeps_a_measured_duration_too(self, in_memory_db):
         video = {"key": {"id": "V1", "remoteJid": _JID, "fromMe": False},
@@ -1252,6 +1281,93 @@ class TestDeletingFromMainWindow:
 
         assert _text_of(panel_copy) is None
 
+    def test_a_newer_transcription_made_while_the_delete_waited_is_kept(
+            self, inline_call_after, monkeypatch):
+        """The delete waits in the queue behind a sync; the user asks for
+        "Transcrever novamente" meanwhile. The queue writes the tombstone and
+        then the new text (the disk ends right), and the delete's answer must
+        not put the tombstone over that new text in memory, nor say
+        "apagada" with its window open."""
+        monkeypatch.setattr(main_module.time, "time", lambda: 1_000.0)
+        record = _audio(**{TRANSCRIPTION_KEY: _value("primeira", at=100.0)})
+        window = _Window([record])
+        held = []
+        window._transcription_write_queue = type(
+            "_Held", (), {"submit": lambda self, fn, *a, **k: held.append(fn)})()
+        answers = []
+
+        window.delete_message_transcription(_JID, _ID, answers.append)
+        window.store_message_transcription(_JID, _ID, _value("segunda", at=2_000.0))
+        for job in held:
+            job()
+
+        assert [call[0] for call in window.db.calls] == ["delete", "set"]
+        tombstone_at = window.db.values[0]
+        assert tombstone_at < 2_000.0
+        assert _text_of(record) == "segunda"
+        assert answers == [], "nothing is said about a deletion already superseded"
+        assert window.spoken == []
+
+    def test_one_copy_with_a_newer_transcription_is_enough_to_say_nothing(
+            self, inline_call_after, monkeypatch):
+        """A partial acceptance: the chat's copy still holds the old text and
+        takes the tombstone, while a copy reloaded from the database already
+        carries a newer transcription and refuses it. "Apagada" said then
+        would be false for the text still on that copy — and the copy that
+        took the tombstone gets the newer text back, as the disk has it, so
+        memory does not end half deleted until the next reload."""
+        monkeypatch.setattr(main_module.time, "time", lambda: 1_000.0)
+        in_chat = _audio(**{TRANSCRIPTION_KEY: _value("primeira", at=100.0)})
+        reloaded = _audio(**{TRANSCRIPTION_KEY: _value("primeira", at=100.0)})
+        window = _Window([in_chat])
+        window.conversations_panel = _Panel({"remoteJid": _JID}, all_sorted=[reloaded])
+        held = []
+        window._transcription_write_queue = type(
+            "_Held", (), {"submit": lambda self, fn, *a, **k: held.append(fn)})()
+        answers = []
+
+        window.delete_message_transcription(_JID, _ID, answers.append)
+        # The newer text reaches only the reloaded copy before the delete runs.
+        reloaded[TRANSCRIPTION_KEY] = _value("segunda", at=5_000.0)
+        for job in held:
+            job()
+
+        assert _text_of(in_chat) == "segunda"
+        assert _text_of(reloaded) == "segunda"
+        assert in_chat[TRANSCRIPTION_KEY] is reloaded[TRANSCRIPTION_KEY]
+        assert answers == []
+        assert window.spoken == []
+
+    def test_a_message_no_longer_in_memory_is_still_said_deleted(self, inline_call_after):
+        """No copy to disagree with: the disk has the tombstone, which is
+        what the user asked for."""
+        window = _Window([_audio(**{TRANSCRIPTION_KEY: _value()})])
+        answers = []
+        window.chats[_JID]["messages"]["messages"]["records"] = []
+        window.delete_message_transcription(_JID, _ID, answers.append)
+        assert answers == [True]
+
+
+class TestSetWhereNewer:
+    def test_only_copies_it_is_not_older_than(self):
+        old = _audio(**{TRANSCRIPTION_KEY: _value(at=100.0)})
+        newer = _audio(**{TRANSCRIPTION_KEY: _value(at=300.0)})
+        bare = _audio()
+        other = _audio("OUTRO")
+        tomb = stored.tombstone(200.0)
+        assert stored.set_where_newer([old, newer, bare, other, old], _ID, tomb) == (2, 3)
+        assert old[TRANSCRIPTION_KEY] is tomb and bare[TRANSCRIPTION_KEY] is tomb
+        assert _text_of(newer) == _SECRET
+        assert TRANSCRIPTION_KEY not in other
+
+    def test_the_same_decision_twice_is_accepted(self):
+        tomb = stored.tombstone(200.0)
+        record = _audio(**{TRANSCRIPTION_KEY: stored.tombstone(200.0)})
+        assert stored.set_where_newer([record], _ID, tomb) == (1, 1)
+
+    def test_none_found(self):
+        assert stored.set_where_newer([_audio("OUTRO"), None], _ID, stored.tombstone(1.0)) == (0, 0)
+
 
 class _RevokeStub:
     def __init__(self):
@@ -1307,12 +1423,15 @@ class TestTheWriteQueue:
             window._transcription_write_queue.shutdown(wait=True)
         assert [call[0] for call in window.db.calls] == ["set", "delete"]
 
-    def test_a_failure_inside_it_does_not_stop_it(self, inline_call_after):
+    def test_a_failed_write_does_not_stop_it(self, inline_call_after):
+        """The store's own except answers the failure and the one thread
+        goes on to the delete queued behind it: the failure is the
+        database's, raised inside _bg_persist(), not one planted in the
+        queue — that would only test the standard library."""
         window = _Window([_audio()])
         window._transcription_write_queue = ThreadPoolExecutor(max_workers=1)
         answers = []
         try:
-            window._transcription_write_queue.submit(lambda: 1 / 0)
             window.db.fail = True
             window.store_message_transcription(_JID, _ID, _value())
             window._transcription_write_queue.submit(lambda: setattr(window.db, "fail", False))
@@ -1399,6 +1518,22 @@ def test_the_scan_would_see_an_id_in_a_log_line():
     """The scan above passing proves nothing unless it can fail."""
     bad = 'def f(message_id):\n    log.info("x %s", message_id)\n'
     assert _scan_source(bad, "probe")
+
+
+async def test_the_video_duration_line_still_names_its_message(in_memory_db, caplog):
+    """_with_known_video_duration() is not in _NEW_CODE on purpose: its line is
+    only reached for a videoMessage, a video is never transcribed, and the id
+    is what ties it to _apply_probed_video_duration()'s own line when a
+    video's length "goes back to 0 seconds" (488571e7)."""
+    caplog.set_level(logging.INFO)
+    video = {"key": {"id": "V1", "remoteJid": _JID, "fromMe": False},
+             "messageType": "videoMessage", "messageTimestamp": 1,
+             "message": {"videoMessage": {"seconds": 0}}}
+    measured = {**video, "message": {"videoMessage": {"seconds": 0, MEASURED_SECONDS_KEY: 42}}}
+    await in_memory_db.insert_message(_JID, measured)
+    await in_memory_db.insert_message(_JID, video)
+    [line] = [r.getMessage() for r in caplog.records if "keeping the measured" in r.getMessage()]
+    assert "V1" in line and "42" in line
 
 
 def test_the_sync_count_line_names_no_chat():

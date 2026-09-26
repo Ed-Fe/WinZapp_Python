@@ -422,6 +422,34 @@ def set_on_copies(copies, msg_id, value) -> int:
     return len(seen)
 
 
+def set_where_newer(copies, msg_id, value):
+    """Put `value` only on the copies of `msg_id` it is not older than.
+
+    For a decision that reaches memory after the database answered — the
+    delete's tombstone: the queue it waited in may have held it behind a
+    newer transcription the user asked for meanwhile, which is already on
+    the copies and already on disk after the tombstone. Writing it blindly
+    would replace that newer text in memory with the older deletion.
+
+    Returns `(accepted, found)`: how many distinct dicts took `value`, and
+    how many are `msg_id` at all. None found is not the same as none
+    accepted — a message no longer in memory has nothing to disagree with.
+    """
+    seen = set()
+    accepted = 0
+    for record in copies or ():
+        if not isinstance(record, dict) or id(record) in seen:
+            continue
+        key = record.get("key") if isinstance(record.get("key"), dict) else {}
+        if not msg_id or key.get("id") != msg_id:
+            continue
+        seen.add(id(record))
+        if newer_decision(value, record.get(TRANSCRIPTION_KEY)) is value:
+            record[TRANSCRIPTION_KEY] = value
+            accepted += 1
+    return accepted, len(seen)
+
+
 # ── What storing answered ────────────────────────────────────────────────────
 
 #: MainWindow.store_message_transcription()'s answers. Only SAVE_STORED means

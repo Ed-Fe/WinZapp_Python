@@ -582,10 +582,13 @@ def register_cuda_library_directory(path) -> bool:
             _invalidate_cuda_library_answer()
         logging.info("[transcription] CUDA library directory registered")
         return True
-    except Exception:
+    except Exception as exc:
+        # The report rather than exc_info=True: the same chain and frames,
+        # through the one funnel the whole package logs an exception by
+        # (errors.exception_report()).
         logging.warning(
-            "[transcription] could not register a CUDA library directory",
-            exc_info=True,
+            "[transcription] could not register a CUDA library directory: %s",
+            errors.exception_report(exc),
         )
         return False
 

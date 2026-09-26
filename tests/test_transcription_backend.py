@@ -57,6 +57,7 @@ import pytest
 from core.transcription import (
     audio_prep,
     backend as backend_module,
+    cuda_runtime,
     device,
     errors,
     faster_whisper_backend,
@@ -932,6 +933,29 @@ class TestAudioPreparation:
         assert caught.value.code == errors.AUDIO_INCOMPLETE
         assert _leftovers(own_temp_dir) == []
 
+    @pytest.mark.parametrize("stderr", [
+        # The C library's strerror(ENOSPC), which ffmpeg prints on its own.
+        "[out#0/wav] Error writing trailer: No space left on device\n",
+        # A partial write says "partial file" too; the disk is what to fix.
+        "partial file\nav_interleaved_write_frame(): No space left on device\n",
+        # The Windows system messages for ERROR_DISK_FULL / _HANDLE_DISK_FULL.
+        "Error writing output: There is not enough space on the disk.\n",
+        "Error writing output: The disk is full.\n",
+    ], ids=["enospc", "enospc-after-partial", "winerror-112", "winerror-39"])
+    def test_a_full_temp_disk_is_said_as_such_not_blamed_on_the_audio(
+        self, stderr, tmp_path, own_temp_dir
+    ):
+        """The WAV is far larger than the note (~115 MB per hour): the
+        decryption fits and the conversion does not. FFMPEG_FAILED would say
+        the audio could not be converted — sending the user after a
+        recording that is fine. Synthetic stderr: not measured on a real
+        full disk."""
+        ffmpeg = _fake_ffmpeg(tmp_path, returncode=1, seconds=-1, stderr=stderr)
+        with pytest.raises(errors.TranscriptionError) as caught:
+            audio_prep.prepare_audio(ffmpeg, _voice_note(tmp_path))
+        assert caught.value.code == errors.TEMP_NO_DISK_SPACE
+        assert _leftovers(own_temp_dir) == []
+
     def test_any_other_failure_stays_generic(self, tmp_path, own_temp_dir):
         """A wrong diagnosis sends a blind user to fix what is not broken."""
         ffmpeg = _fake_ffmpeg(
@@ -1630,6 +1654,424 @@ class TestLogPrivacy:
         assert watcher.finished[0][1].code == errors.UNSUPPORTED_AUDIO_FORMAT
         assert os.path.basename(source) not in caplog.text
         assert source not in caplog.text
+
+    # A path the way an OSError about the media file prints it: the file is
+    # named after the message id, and the id is what may never reach the log.
+    # The folder around it is left alone on purpose (errors.scrub_media_names()),
+    # so these look for the id and nothing else — never for a folder name like
+    # "Users", which the frames of any report carry too, wherever the
+    # repository happens to be checked out.
+    _LEAKY_ID = "3EB0FEEDFACE00998877"
+    _LEAKY_PATH = r"C:\Users\Ana Souza\AppData\Local\WinZapp\media\3EB0FEEDFACE00998877.wzmedia"
+
+    @pytest.mark.parametrize("make", [
+        lambda path: OSError(22, "Invalid argument", path),
+        lambda path: RuntimeError(f"Unable to open file '{path}'"),
+        lambda path: ValueError(f"cannot read {path}"),
+    ], ids=["oserror", "quoted", "bare"])
+    def test_an_unexpected_exception_keeps_its_wording_and_loses_the_message_id(
+        self, make, tmp_path, own_temp_dir, caplog
+    ):
+        """The job's catch-all used to put `{exc}` in the detail and
+        logging.exception() in the log, and the text of an exception about a
+        media file carries that file's name: the message id."""
+        caplog.set_level(logging.DEBUG)
+        backend = _FakeBackend(error=make(self._LEAKY_PATH))
+        _job, watcher = _run_job(tmp_path, backend)
+
+        error = watcher.finished[0][1]
+        assert error.code == errors.BACKEND_ERROR
+        for text in (error.log_line, caplog.text):
+            assert self._LEAKY_ID not in text
+        # Still a diagnosis: the type, the folder the file was in, and the
+        # frames of our own code.
+        assert type(backend._error).__name__ in error.log_line
+        assert "<message id>.wzmedia" in error.log_line
+        assert "AppData" in error.log_line
+        assert "job.py" in caplog.text
+
+    def test_an_ffmpeg_that_will_not_die_logs_no_message_id(self, caplog):
+        """TimeoutExpired prints the whole command, and the command holds the
+        media file's path — which exc_info=True used to write out whole."""
+        import subprocess
+
+        path = self._LEAKY_PATH
+
+        class _Stuck:
+            def kill(self):
+                pass
+
+            def wait(self, timeout=None):
+                raise subprocess.TimeoutExpired(["ffmpeg.exe", "-i", path], timeout)
+
+        caplog.set_level(logging.DEBUG)
+        audio_prep._kill(_Stuck())
+        assert "could not stop ffmpeg: TimeoutExpired" in caplog.text
+        assert self._LEAKY_ID not in caplog.text
+
+    def test_a_callback_that_raises_logs_no_message_id_either(
+        self, tmp_path, own_temp_dir, caplog
+    ):
+        caplog.set_level(logging.DEBUG)
+        watcher = _Watcher()
+
+        def _bad_phase(phase):
+            watcher.phases.append(phase)
+            raise OSError(2, "No such file or directory", self._LEAKY_PATH)
+
+        watcher.on_phase = _bad_phase
+        _run_job(tmp_path, _FakeBackend(result=_result()), watcher=watcher)
+        assert "a job callback raised: FileNotFoundError errno=2" in caplog.text
+        assert self._LEAKY_ID not in caplog.text
+
+
+class TestScrubMediaNames:
+    """errors.scrub_media_names(): the media file name goes, nothing else does.
+
+    The file is named after the WhatsApp message id, which the issue forbids
+    the log to hold. Folders, error codes and DLL or model names are the
+    diagnosis, and a cleaner that took them — as the first version did, on
+    the idea that a profile folder was private — left log.log unable to say
+    which DLL failed to load or which model failed to open.
+    """
+
+    _ID = "3EB0C0FFEE00112233"
+
+    @pytest.mark.parametrize("text, kept", [
+        (str(OSError(2, "No such file or directory",
+                     r"C:\Users\Ana Souza\AppData\Local\WinZapp\voice_messages\3EB0C0FFEE00112233.msv")),
+         r"[Errno 2] No such file or directory: 'C:\\Users\\Ana Souza\\AppData\\Local"
+         r"\\WinZapp\\voice_messages\\<message id>.msv'"),
+        (r"cannot read D:\WinZapp\media\3EB0C0FFEE00112233.wzmedia",
+         r"cannot read D:\WinZapp\media\<message id>.wzmedia"),
+        (r"C:\m\3EB0C0FFEE00112233.wzmedia: Invalid data found when processing input",
+         r"C:\m\<message id>.wzmedia: Invalid data found when processing input"),
+        ("3EB0C0FFEE00112233.wzmedia is bad", "<message id>.wzmedia is bad"),
+        ("3EB0C0FFEE00112233.MSV", "<message id>.MSV"),
+        # A sentence's own full stop still ends the name.
+        ("failed on 3EB0C0FFEE00112233.msv.", "failed on <message id>.msv."),
+        # An own voice note not yet sent is named after its local uuid4.
+        ("b3c1e0de-8f5a-4c2b-9d7e-0a1b2c3d4e5f.msv", "<message id>.msv"),
+    ])
+    def test_the_media_name_goes_and_the_rest_of_the_line_stays(self, text, kept):
+        assert errors.scrub_media_names(text) == kept
+        assert self._ID not in errors.scrub_media_names(text)
+
+    @pytest.mark.parametrize("text", [
+        # The four lines the path cleaner used to ruin, as measured.
+        r"Could not load library C:\Users\Ana\AppData\Local\WinZapp\cuda\cudnn_ops64_9.dll. "
+        r"Error code 126",
+        r"Expected D:\x\y, got E:\z",
+        r"C:\Users\Ana\AppData\Local\WinZapp\cuda\cublas64_12.dll: [WinError 32] The process "
+        r"cannot access the file because it is being used by another process: "
+        r"'C:\Users\Ana\AppData\Local\WinZapp\cuda\cublas64_12.dll'",
+        r"Unable to open file 'model.bin' in model "
+        r"'C:\Users\Ana Souza\AppData\Local\WinZapp\whisper_models\large-v3'",
+        r"share \\srv\ana.souza\tmp is gone",
+        "CUDA failed with error out of memory",
+        "Max retries exceeded with url: /org/repo/resolve/0123abcd/model.bin",
+        "model.bin sha256 " + "a" * 64 + ", expected " + "b" * 64,
+        "rc=1: Error writing trailer: No space left on device",
+        # Only a name that ends in the suffix is a media file.
+        r"C:\backup\sub.msv.bak",
+        "vcvars.msvc",
+    ])
+    def test_everything_else_is_left_exactly_as_it_was(self, text):
+        assert errors.scrub_media_names(text) == text
+
+    def test_the_dll_and_its_error_code_survive(self):
+        """126 is a missing dependency, 193 the wrong architecture: the code is
+        the diagnosis of a CUDA DLL conflict, and the name says which DLL."""
+        line = errors.scrub_media_names(
+            r"Could not load library C:\Program Files\x\cudnn_ops64_9.dll. Error code 126")
+        assert "cudnn_ops64_9.dll" in line and "Error code 126" in line
+
+    def test_the_model_tried_survives(self):
+        exc = errors.TranscriptionError(
+            errors.BACKEND_ERROR,
+            r"RuntimeError: Unable to open file 'model.bin' in model "
+            r"'C:\Users\Ana\AppData\Local\WinZapp\whisper_models\large-v3'")
+        assert r"whisper_models\large-v3" in exc.log_line
+
+    def test_a_dll_held_by_the_antivirus_is_named(self, tmp_path):
+        """cuda_runtime._hash_file()'s detail is `f"{path}: {exc}"`: which DLL
+        could not be read is the only useful half of it."""
+        missing = tmp_path / "cublas64_12.dll"
+        with pytest.raises(errors.TranscriptionError) as caught:
+            cuda_runtime._hash_file(str(missing), 0, 1, None, None)
+        assert caught.value.code == errors.CUDA_RUNTIME_CORRUPTED
+        assert str(missing) in caught.value.log_line
+        assert "Errno 2" in caught.value.log_line
+
+    def test_the_detail_is_cleaned_wherever_it_is_raised(self):
+        exc = errors.TranscriptionError(
+            errors.BACKEND_ERROR, r"cannot read C:\Users\Ana\voice_messages\3EB0C0FFEE00112233.msv")
+        assert exc.detail == r"cannot read C:\Users\Ana\voice_messages\<message id>.msv"
+        assert self._ID not in exc.log_line
+        assert str(exc) == errors.BACKEND_ERROR
+
+
+class TestExceptionReport:
+    """errors.exception_report(): logging.exception()'s chain, minus the id."""
+
+    _PATH = r"C:\Users\Ana\AppData\Local\WinZapp\media\3EB0C0FFEE00112233.wzmedia"
+
+    def test_a_cause_is_reported_with_its_errno(self):
+        """`RuntimeError(...) from OSError(2, ...)` without the OSError would
+        have lost the only line that says what actually failed."""
+        try:
+            try:
+                raise OSError(2, "No such file or directory", self._PATH)
+            except OSError as inner:
+                raise RuntimeError("model load failed") from inner
+        except RuntimeError as exc:
+            report = errors.exception_report(exc)
+
+        assert "FileNotFoundError errno=2" in report
+        assert "The above exception was the direct cause of the following exception" in report
+        assert "RuntimeError: model load failed" in report
+        # Oldest first, as traceback prints it.
+        assert report.index("FileNotFoundError") < report.index("RuntimeError")
+        assert "3EB0C0FFEE00112233" not in report
+        assert "<message id>.wzmedia" in report
+
+    def test_an_exception_raised_while_handling_another_reports_both(self):
+        try:
+            try:
+                raise OSError(28, "No space left on device")
+            except OSError:
+                raise ValueError("cleanup failed")
+        except ValueError as exc:
+            report = errors.exception_report(exc)
+
+        assert "OSError errno=28" in report
+        assert "During handling of the above exception" in report
+        assert "ValueError: cleanup failed" in report
+
+    def test_from_none_keeps_the_original_out(self):
+        """message_audio.py raises `from None` so the exception carrying the
+        media path never travels; the report must respect that exactly as
+        traceback does, even though it still sits in __context__."""
+        try:
+            try:
+                raise OSError(5, "Access denied", self._PATH)
+            except OSError:
+                raise errors.TranscriptionError(errors.MEDIA_NOT_DOWNLOADED) from None
+        except errors.TranscriptionError as exc:
+            assert exc.__context__ is not None
+            report = errors.exception_report(exc)
+
+        assert "TranscriptionError: media_not_downloaded" in report
+        assert "OSError" not in report and "Access denied" not in report
+        assert "3EB0C0FFEE00112233" not in report
+        assert "direct cause" not in report and "During handling" not in report
+
+    def test_a_transcription_error_cause_keeps_its_detail(self):
+        """str() of a TranscriptionError is the code alone, for the UI; as a
+        link in the chain it is read through log_line, or the detail it was
+        raised with — the one line saying what went wrong — never shows."""
+        try:
+            try:
+                raise errors.TranscriptionError(errors.BACKEND_ERROR, f"decoder died on {self._PATH}")
+            except errors.TranscriptionError as inner:
+                raise RuntimeError("unexpected") from inner
+        except RuntimeError as exc:
+            report = errors.exception_report(exc)
+
+        assert "TranscriptionError: backend_error: decoder died on" in report
+        assert "<message id>.wzmedia" in report
+        assert "3EB0C0FFEE00112233" not in report
+
+    def test_a_transcription_error_context_keeps_its_detail(self):
+        try:
+            try:
+                raise errors.TranscriptionError(errors.BACKEND_ERROR, f"decoder died on {self._PATH}")
+            except errors.TranscriptionError:
+                raise ValueError("cleanup failed")
+        except ValueError as exc:
+            report = errors.exception_report(exc)
+
+        assert "During handling of the above exception" in report
+        assert "TranscriptionError: backend_error: decoder died on" in report
+        assert "3EB0C0FFEE00112233" not in report
+
+    def test_a_single_exception_reads_as_before(self):
+        report = errors.exception_report(PermissionError(13, "Permission denied"))
+        assert report == "PermissionError errno=13: [Errno 13] Permission denied"
+
+
+# ── Every module of the issue: nothing that names a message ──────────────────
+#
+# The stricter scans (here for part 3, in test_transcription_message_run.py for
+# the modules that hold a message) forbid names like `id` outright, which the
+# model store and the CUDA runtime cannot live with: a model id is exactly the
+# technical detail their log is for. What every module shares is narrower and
+# absolute — nothing that names a message (its id, its media file, its text,
+# its contact or number), and no exception whose text has not been through
+# errors.scrub_media_names(). Folders are not on the list: they are the
+# diagnosis of a model or CUDA failure, and they name no message.
+
+def _issue_modules():
+    package = os.path.dirname(job_module.__file__)
+    client = os.path.dirname(os.path.dirname(package))
+    modules = sorted(
+        os.path.join(package, name) for name in os.listdir(package) if name.endswith(".py")
+    )
+    modules += [
+        os.path.join(client, "ui", "transcription_flow.py"),
+        os.path.join(client, "ui", "dialogs", "transcription_progress.py"),
+        os.path.join(client, "ui", "dialogs", "transcription_result.py"),
+    ]
+    return modules
+
+
+_LOG_LEVELS = frozenset(
+    ("debug", "info", "warning", "warn", "error", "exception", "critical", "log"))
+
+# Names an exception is routinely held by even outside an `except ... as`,
+# e.g. a finished report's `error` parameter.
+_EXCEPTION_NAMES = frozenset(("exc", "err", "error", "e"))
+
+# The readings of an exception that may reach the log: each either cleans the
+# media name out of the text or reads only a number, a code or a class.
+_SAFE_EXCEPTION_READINGS = (
+    r"errors\.exception_report\({0}\)",
+    r"errors\.scrub_media_names\(str\({0}\)\)",
+    r"type\({0}\)\.__name__",
+    r"{0}\.(?:errno|log_line|code)\b",
+    r"getattr\({0}, 'winerror', None\)",
+    r"{0} is (?:not )?None",
+    r"traceback\.format_tb\({0}\.__traceback__\)",
+)
+
+# The fields of a finished result that describe the run, not the recording.
+_SAFE_RESULT_READINGS = re.compile(
+    r"getattr\(result, '(?:backend|duration_seconds|language)', None\)"
+    r"|result\.(?:backend|duration_seconds|language|is_empty)\b"
+    # How long something is says nothing about what it holds.
+    r"|len\([^()]*\)"
+)
+
+# Names that carry a message: its id or record, its media file (named after
+# the id), the transcribed text, the contact and their number.
+_NAMES_A_MESSAGE = (
+    r"\bmsg\b", r"\bmsgs\b", r"\bmessage\b", r"\brecord\b", r"\bmsg_id\b",
+    r"\bmessage_id\b", r"\breal_id\b", r"\blocal_id\b", r"\bclean_id\b",
+    r"\bmedia_file\b", r"\bmedia_path\b", r"\baudio_path\b", r"\bsource_path\b",
+    r"\bfile_?names?\b",
+    r"\btext\b", r"\.text\b", r"\bsegments?\b", r"\bresult\b", r"\btranscript\w*",
+    r"\bjid\b", r"_jid\b", r"\bcontact\w*", r"\bphone\w*", r"\bnumber\b",
+    r"\bsender\w*", r"\bpush_?name\b", r"\bchat_name\b", r"\btitle\b",
+)
+
+
+def _exception_names(tree):
+    """Every name an `except ... as` binds in `tree`, plus the usual ones."""
+    names = set(_EXCEPTION_NAMES)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+    return names
+
+
+def _is_log_call(node):
+    target = node.func
+    return (isinstance(target, ast.Attribute)
+            and target.attr in _LOG_LEVELS
+            and isinstance(target.value, ast.Name)
+            and "log" in target.value.id.lower())
+
+
+def _unsafe_logging(source, label):
+    """Every logging call in `source` that could print something of a message."""
+    tree = ast.parse(source)
+    exception_names = _exception_names(tree)
+    offenders = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and _is_log_call(node)):
+            continue
+        if node.func.attr == "exception":
+            # Its lines are str(exc) verbatim: errors.exception_report().
+            offenders.append(f"{label}: logging.exception at line {node.lineno}")
+            continue
+        for keyword in node.keywords:
+            if keyword.arg == "exc_info":
+                offenders.append(f"{label}: exc_info at line {node.lineno}")
+        for argument in list(node.args) + [kw.value for kw in node.keywords]:
+            if isinstance(argument, ast.Constant):
+                continue
+            expression = ast.unparse(argument)
+            for name in exception_names:
+                for reading in _SAFE_EXCEPTION_READINGS:
+                    expression = re.sub(reading.format(re.escape(name)), "", expression)
+            expression = _SAFE_RESULT_READINGS.sub("", expression)
+            raw_exception = any(re.search(rf"\b{re.escape(name)}\b", expression)
+                                for name in exception_names)
+            names_a_message = any(re.search(p, expression) for p in _NAMES_A_MESSAGE)
+            if raw_exception or names_a_message:
+                offenders.append(f"{label}:{node.lineno}: {ast.unparse(argument)}")
+    return offenders
+
+
+def test_no_module_of_the_issue_logs_a_message_or_a_raw_exception():
+    offenders = []
+    for path in _issue_modules():
+        with open(path, "r", encoding="utf-8") as handle:
+            offenders += _unsafe_logging(handle.read(), os.path.basename(path))
+    assert offenders == [], offenders
+
+
+def test_the_issue_wide_scan_covers_every_module_it_should():
+    names = {os.path.basename(path) for path in _issue_modules()}
+    for expected in ("model_store.py", "cuda_runtime.py", "device.py", "management.py",
+                     "narration.py", "preferences.py", "stored.py", "message_audio.py",
+                     "transcription_flow.py", "transcription_progress.py",
+                     "transcription_result.py"):
+        assert expected in names
+    # The app-wide TLS module logs no message and is not the issue's code.
+    assert "tls_trust.py" not in names
+
+
+@pytest.mark.parametrize("bad", [
+    # Any exception handed over raw, whatever it is called.
+    'try:\n    pass\nexcept OSError as exc:\n    logging.info("x %s", exc)\n',
+    'try:\n    pass\nexcept OSError as e:\n    logging.info("%s", e)\n',
+    'try:\n    pass\nexcept OSError as failure:\n    logging.warning("x %s", failure)\n',
+    'try:\n    pass\nexcept OSError as exc:\n    logging.info("x %s", str(exc))\n',
+    'try:\n    pass\nexcept OSError as exc:\n    logger.info("x %s", exc)\n',
+    'try:\n    pass\nexcept OSError as err:\n    logging.error("x %s", errors.exception_report(exc))\n    log.info("%s", err)\n',
+    'def f(error):\n    logging.info("x %s", error)\n',
+    'def f():\n    logging.exception("x")\n',
+    'def f():\n    logging.warning("x", exc_info=True)\n',
+    # Anything that names the message.
+    'def f(msg_id):\n    logging.info("at %s", msg_id)\n',
+    'def f(msg):\n    logger.info("for %s", msg)\n',
+    'def f(audio_path):\n    logging.info("at %s", audio_path)\n',
+    'def f(filename):\n    logging.info("at %s", filename)\n',
+    'def f(result):\n    logging.info("got %s", result.text)\n',
+    'def f(result):\n    logging.info("got %s", result)\n',
+    'def f(jid):\n    logging.info("chat %s", jid)\n',
+    'def f(contact_name):\n    logging.info("from %s", contact_name)\n',
+    'def f(phone):\n    logging.info("from %s", phone)\n',
+])
+def test_the_issue_wide_scan_would_see_it(bad):
+    """The scan passing proves nothing unless it can fail."""
+    assert _unsafe_logging(bad, "probe")
+
+
+@pytest.mark.parametrize("good", [
+    'try:\n    pass\nexcept OSError as exc:\n    logging.info("x %s", errors.scrub_media_names(str(exc)))\n',
+    'try:\n    pass\nexcept OSError as err:\n    logging.error("x %s", errors.exception_report(err))\n',
+    'try:\n    pass\nexcept OSError as exc:\n    logging.info("%s %s", type(exc).__name__, exc.errno)\n',
+    # Folders are the diagnosis, not a message.
+    'def f(model, directory):\n    logging.info("%s at %s", model.id, directory)\n',
+    'def f(new_root, model_dir, part_path):\n    logging.info("%s %s %s", new_root, model_dir, part_path)\n',
+    # How much, never what.
+    'def f(text, n):\n    logging.info("%d chars, %s", len(text), str(n))\n',
+    'def f(result):\n    logging.info("%s %s", result.language, getattr(result, \'backend\', None))\n',
+])
+def test_the_issue_wide_scan_lets_the_legitimate_forms_through(good):
+    assert _unsafe_logging(good, "probe") == []
 
 
 def test_nothing_here_reaches_for_the_hugging_face_cache():

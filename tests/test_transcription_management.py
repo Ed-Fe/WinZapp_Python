@@ -621,15 +621,20 @@ class TestManagementJob:
     @pytest.mark.parametrize("action", management.ACTIONS)
     def test_an_unexpected_exception_becomes_the_actions_own_code(
             self, tmp_path, monkeypatch, action):
-        _install(monkeypatch, action, _Fake(raises=KeyError(r"C:\somewhere\secret")))
+        _install(monkeypatch, action,
+                 _Fake(raises=KeyError(r"C:\somewhere\3EB0FEEDFACE0099.wzmedia")))
         harness = _Harness(tmp_path, action).run()
         assert len(harness.reports) == 1
         result, error = harness.reports[0]
         assert result is None
         assert error.code == management._FALLBACK_CODES[action]
-        # The technical text is for log.log, never for the sentence.
-        assert "secret" not in str(error)
-        assert "secret" in error.log_line
+        # The technical text is for log.log, never for the sentence — and
+        # even there without a media file's name, the message id
+        # (errors.scrub_media_names()). The folder stays: it names nobody.
+        assert "somewhere" not in str(error)
+        assert "KeyError" in error.log_line
+        assert "3EB0FEEDFACE0099" not in error.log_line
+        assert "somewhere" in error.log_line and "<message id>.wzmedia" in error.log_line
 
     @pytest.mark.parametrize("action", [
         management.ACTION_VERIFY_MODEL, management.ACTION_REMOVE_MODEL,

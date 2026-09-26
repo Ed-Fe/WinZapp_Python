@@ -6,13 +6,20 @@ So a failure travels as a *code*, and only the UI layer turns it into a
 sentence, in the user's own language.
 
 The split between `code` and `detail` is the point of this module.  `detail` is
-technical (a CTranslate2 message, an ffmpeg exit code, a path) and belongs in
-log.log; it is never spoken and never shown. Putting a backend string on screen
-would say nothing useful to a blind user in Polish, and it is also where file
-paths and message ids leak.
+technical (a CTranslate2 message, an ffmpeg exit code) and belongs in log.log;
+it is never spoken and never shown, and never carries a media file's name
+either — that name is the message id, and the constructor runs it through
+`scrub_media_names()`. Putting a backend string on screen would say nothing
+useful to a blind user in Polish, and it is also where file paths and message
+ids leak.
 """
 
 from __future__ import annotations
+
+import os
+import re
+import tempfile
+import traceback
 
 # The chosen model is not on disk yet.
 MODEL_NOT_INSTALLED = "model_not_installed"
@@ -115,6 +122,13 @@ ERROR_CODES = (
 
 ERROR_I18N_KEYS = {code: f"transcription_error_{code}" for code in ERROR_CODES}
 
+# TEMP_NO_DISK_SPACE's sentence when %TEMP% has no drive letter (a network
+# share, see temp_drive()). Its own sentence rather than an empty `{drive}`:
+# "no free space on drive  to prepare..." is what a single key read out there,
+# and a drive phrase translated on its own and spliced in cannot follow a word
+# order that differs in every locale.
+TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY = "transcription_error_temp_no_disk_space_unnamed"
+
 
 class TranscriptionError(Exception):
     """A transcription failure carrying a code the UI can translate.
@@ -138,7 +152,10 @@ class TranscriptionError(Exception):
     def __init__(self, code, detail=None):
         super().__init__(code)
         self.code = code
-        self.detail = detail
+        # Cleaned here, once, rather than trusted to every raise: a detail is
+        # routinely built from `f"{exc}"`, and the text of an exception about a
+        # media file names it after the message id (see scrub_media_names()).
+        self.detail = scrub_media_names(detail)
 
     def __str__(self):
         return str(self.code)
@@ -150,15 +167,159 @@ class TranscriptionError(Exception):
 
     @property
     def i18n_key(self) -> str:
+        """The key alone, not the sentence. TEMP_NO_DISK_SPACE's carries a
+        `{drive}` field, so `i18n.t(exc.i18n_key)` would read "{drive}" out
+        loud; a sentence is built from `error_i18n_key(code, temp_dir)` and
+        `error_i18n_values(code, temp_dir)`, with the same `temp_dir`, never
+        from this property on its own."""
         return error_i18n_key(self.code)
 
 
-def error_i18n_key(code) -> str:
+# ── Keeping message ids out of the log ───────────────────────────────────────
+#
+# The text of an exception is the best technical detail there is, and on this
+# path it is also where the one private thing a failure can carry rides along:
+# a media file is named after the WhatsApp message id (`voice_messages/<id>.msv`,
+# `media/<id>.wzmedia`, see message_audio.cached_media_path()), and the id is
+# what the issue forbids the log to hold. So the name is replaced and nothing
+# else is — one helper, used by every module of the package, rather than each
+# growing its own idea of what a media name looks like.
+#
+# Only the name, never the folder. Folders are what a transcription failure is
+# diagnosed with — which drive a model sits on, which spelling of the models
+# folder was compared, where a CUDA DLL was looked for — and they identify no
+# message: the account folder is `accounts/<uuid4>` and every temporary comes
+# out of mkstemp(). The Windows user name in a profile folder is already in
+# dozens of lines of log.log outside this package, and in the frames of every
+# traceback; hiding it here protected nothing and cost the error codes and
+# DLL names that sat on the same line.
+#
+# A whole file-name token that *ends* in the media suffix, and nothing more: the
+# lookbehind keeps it from starting mid-token and the lookahead from matching a
+# name that only carries the suffix in its middle (`x.msv.bak` is not a media
+# file), while a sentence's closing full stop still ends the name.
+_MEDIA_NAME = re.compile(
+    r"(?<![\w.-])[\w.-]+(\.(?:wzmedia|msv))(?!\.?[\w-])", re.I
+)
+
+MESSAGE_ID_PLACEHOLDER = "<message id>"
+
+
+def scrub_media_names(text):
+    """`text` with every media file name — the message id — replaced.
+
+    The suffix stays, so the log still says whether it was a voice note or
+    another attachment; the folder around it and everything else on the line
+    (the wording, errno, a DLL name, a model folder) are left exactly as they
+    were. Anything that is not a non-empty string comes back unchanged.
+    """
+    if not isinstance(text, str) or not text:
+        return text
+    return _MEDIA_NAME.sub(lambda m: MESSAGE_ID_PLACEHOLDER + m.group(1), text)
+
+
+# traceback's own connecting sentences, so the report reads like the
+# `logging.exception()` output it replaces and anyone who knows that output can
+# follow the chain without learning a second layout.
+_CAUSE_LINE = "\nThe above exception was the direct cause of the following exception:\n\n"
+_CONTEXT_LINE = "\nDuring handling of the above exception, another exception occurred:\n\n"
+
+
+def _one_exception(exc) -> str:
+    parts = [type(exc).__name__]
+    for name in ("errno", "winerror"):
+        value = getattr(exc, name, None)
+        if value is not None:
+            parts.append(f"{name}={value}")
+    # A TranscriptionError's str() is its code alone, on purpose (see its
+    # docstring), so a chain link that is one would lose the detail it was
+    # raised with; log_line is the reading made for the log, already scrubbed.
+    raw = exc.log_line if isinstance(exc, TranscriptionError) else str(exc)
+    text = scrub_media_names(raw)
+    head = " ".join(parts) + (f": {text}" if text else "")
+    frames = "".join(traceback.format_tb(exc.__traceback__))
+    return f"{head}\n{frames}" if frames else head
+
+
+def exception_report(exc) -> str:
+    """An unexpected exception for the log: the whole chain, as traceback has it.
+
+    What `logging.exception()` would print, minus what it must not: its lines
+    are `str(exc)` verbatim, and the text of anything that touched a media file
+    carries that file's name, the message id. Everything else stays — frames,
+    folders, `errno`/`winerror` — and so does the chain: a `RuntimeError("model
+    load failed") from OSError(2, ...)` whose report dropped the OSError would
+    have dropped the only line that says what actually failed.
+
+    The chain is walked the way traceback walks it: `__cause__`, then
+    `__context__` unless `__suppress_context__` is set. That last rule is not a
+    detail — message_audio.py raises `from None` on purpose, so the exception
+    carrying the media path stays behind in `__context__` and never travels;
+    printing `__context__` regardless would undo it.
+    """
+    links = []
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if exc.__cause__ is not None:
+            following, connector = exc.__cause__, _CAUSE_LINE
+        elif exc.__context__ is not None and not exc.__suppress_context__:
+            following, connector = exc.__context__, _CONTEXT_LINE
+        else:
+            following, connector = None, ""
+        links.append((exc, connector))
+        exc = following
+    # Oldest first, like traceback: the root cause at the top, the exception
+    # that was actually caught at the bottom, each preceded by the sentence
+    # that ties it to the one above.
+    return "".join(
+        connector + _one_exception(current) for current, connector in reversed(links)
+    )
+
+
+def error_i18n_key(code, temp_dir=None) -> str:
     """The i18n key for an error code.
 
     An unrecognised code resolves to the internal-error message rather than to
     a key of its own: I18n.t() falls back to the raw key name, so inventing
     "transcription_error_<whatever>" here would have a screen reader read the
     code out loud instead of a sentence.
+
+    TEMP_NO_DISK_SPACE is the one code with two sentences, picked by whether
+    %TEMP% has a drive letter to name (temp_drive()). `temp_dir` must be the
+    one error_i18n_values() is given, or the key and its fields disagree.
     """
+    if code == TEMP_NO_DISK_SPACE and not temp_drive(temp_dir):
+        return TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY
     return ERROR_I18N_KEYS.get(code, ERROR_I18N_KEYS[BACKEND_ERROR])
+
+
+def error_i18n_values(code, temp_dir=None) -> dict:
+    """The fields error_i18n_key(code)'s sentence is formatted with.
+
+    Beside the key, not inside each caller: every place that turns a code into
+    a sentence formats it with these, and a field only one of them passed would
+    be a KeyError in the middle of announcing a failure everywhere else.
+    """
+    if code == TEMP_NO_DISK_SPACE:
+        drive = temp_drive(temp_dir)
+        # No letter means error_i18n_key() chose the sentence without a field.
+        return {"drive": drive} if drive else {}
+    return {}
+
+
+def temp_drive(temp_dir=None) -> str:
+    """The drive letter %TEMP% lives on ("C:"), or "" when it has none.
+
+    TEMP_NO_DISK_SPACE names it because %TEMP% sits on the system drive by
+    default, which need not be the drive holding WinZapp's data — "free up
+    space" without saying where sends the user to clear the wrong disk. The
+    letter only, never the folder: the path carries the Windows user name. A
+    UNC %TEMP% has no letter and its share name is not ours to read out, so it
+    gets "" and error_i18n_key() picks the sentence that names no drive.
+    """
+    try:
+        drive = os.path.splitdrive(temp_dir or tempfile.gettempdir())[0]
+    except Exception:
+        return ""
+    return drive.upper() if re.fullmatch(r"[A-Za-z]:", drive or "") else ""

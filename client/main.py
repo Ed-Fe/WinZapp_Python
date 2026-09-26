@@ -19247,7 +19247,9 @@ class MainWindow(wx.Frame):
                 try:
                     if not db.set_message_transcription(storage_jids, real_id, value):
                         db.insert_message(jid, record)
-                        logging.info("[transcription] no stored row yet: the message was written whole")
+                        # The missing row is the database's own line; this
+                        # one says only what was done about it.
+                        logging.info("[transcription] fell back to writing the message whole")
                 except Exception as exc:
                     logging.warning("[transcription] storing a transcription failed: %s",
                                     type(exc).__name__)
@@ -19298,7 +19300,10 @@ class MainWindow(wx.Frame):
         write if an older one did. A row that does not exist is not a failure
         — nothing is left holding the text, which is what the user asked for.
         Queued behind any save still waiting for the database, never beside
-        it: see _transcription_write_queue in __init__.
+        it: see _transcription_write_queue in __init__. When a newer
+        transcription took the deletion's place while it waited, *on_done*
+        is not called at all — there is nothing true to say about a deletion
+        the user has already superseded.
         """
         copies = self._transcription_copies(jid, msg_id)
         # After whatever is stored, whatever the clock says — see
@@ -19315,10 +19320,48 @@ class MainWindow(wx.Frame):
 
         def _finish(ok):
             if ok:
-                stored_transcription.set_on_copies(
-                    self._transcription_copies(jid, msg_id), msg_id, value
+                # Only where the tombstone is still the latest decision: this
+                # delete may have waited in the queue behind a "Transcrever
+                # novamente" whose text is already on the copies (and on disk,
+                # written after the tombstone). Overwriting it would put the
+                # older decision back in memory under the new result window.
+                current_copies = self._transcription_copies(jid, msg_id)
+                accepted, found = stored_transcription.set_where_newer(
+                    current_copies, msg_id, value
                 )
-                self._schedule_save(dirty_jid=jid)
+                if accepted:
+                    self._schedule_save(dirty_jid=jid)
+                if found > accepted:
+                    # Saying "deleted" now would contradict the transcription
+                    # the user is looking at; the later decision is the answer.
+                    # Any copy refusing it is enough, not only all of them: a
+                    # copy reloaded from the database can carry the newer text
+                    # while another still holds the old one, and "apagada"
+                    # would then be said over text that is still there.
+                    #
+                    # Nor can the copies that took the tombstone keep it: the
+                    # disk holds the newer decision, so memory would disagree
+                    # with it — some copies deleted, one with text — until the
+                    # next reload. Not because a tombstone can lose on disk
+                    # (_rewrite_transcription() lets it win over whatever the
+                    # row holds), but because of when it was written: it is
+                    # dated after every copy memory held when the delete was
+                    # decided, so any decision newer than it was made and
+                    # queued after it, and the write queue has one thread —
+                    # that decision reached the disk after the tombstone and
+                    # replaced it there.
+                    # The newest decision any copy holds goes on all of them.
+                    newest = value
+                    for copy in current_copies:
+                        if isinstance(copy, dict) and (copy.get("key") or {}).get("id") == msg_id:
+                            newest = stored_transcription.newer_decision(
+                                copy.get(stored_transcription.TRANSCRIPTION_KEY), newest
+                            )
+                    stored_transcription.set_on_copies(current_copies, msg_id, newest)
+                    logging.info("[transcription] a later transcription replaced the deleted "
+                                 "one while the delete was queued: %d of %d copy(ies) kept it",
+                                 found - accepted, found)
+                    return
             on_done(ok)
 
         def _bg_delete():

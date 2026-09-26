@@ -67,6 +67,12 @@ _MAX_FILE_NAME_CHARS = 80
 # "Transcrição -.txt" is what would be offered — and read out.
 _FILE_NAME_EDGES = " .-–—"
 
+# The stem when both translated sentences clean down to nothing (a locale file
+# holding only punctuation there): ".txt" alone is a hidden, nameless file the
+# save dialog offers and a screen reader reads as "dot t x t". The app's own
+# name, because it is the one word that is the same in every language.
+_LAST_RESORT_FILE_STEM = "WinZapp"
+
 
 def default_file_name(i18n, name) -> str:
     """The name the save dialog offers: the translated word and who it is from.
@@ -75,11 +81,18 @@ def default_file_name(i18n, name) -> str:
     spell out) and never a phone number when a name exists — `name` is what the
     window title shows.
     """
-    base = i18n.t("transcription_save_default_name").format(name=name or "")
-    base = _UNSAFE_FILE_NAME.sub(" ", base)
-    base = " ".join(base.split()).strip(_FILE_NAME_EDGES)
-    base = base[:_MAX_FILE_NAME_CHARS].strip(_FILE_NAME_EDGES)
-    return f"{base or 'transcription'}.txt"
+    base = _file_stem(i18n.t("transcription_save_default_name").format(name=name or ""))
+    # A pattern that sanitises to nothing falls back to the window's own
+    # translated word, never to a literal in one language.
+    base = base or _file_stem(i18n.t("transcription_progress_title"))
+    return f"{base or _LAST_RESORT_FILE_STEM}.txt"
+
+
+def _file_stem(text) -> str:
+    """`text` made safe to be a Windows file name, without the extension."""
+    text = _UNSAFE_FILE_NAME.sub(" ", text)
+    text = " ".join(text.split()).strip(_FILE_NAME_EDGES)
+    return text[:_MAX_FILE_NAME_CHARS].strip(_FILE_NAME_EDGES)
 
 
 def with_txt_extension(path) -> str:

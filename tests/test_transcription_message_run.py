@@ -35,7 +35,7 @@ import textwrap
 
 import pytest
 
-from core.transcription import device, errors, job as job_module, management, message_run
+from core.transcription import audio_prep, device, errors, job as job_module, management, message_run
 from core.transcription.backend import TranscriptionResult
 
 _LEAKY_ID = "3EB0C0FFEE5EC2E7AB12"
@@ -545,8 +545,11 @@ class TestWhatIsAnnounced:
 
 class TestTheProcessorReRun:
     def _first(self, tmp_path, fernet_key, fernet, own_temp_dir):
-        handover = own_temp_dir / "converted.wav"
-        handover.write_bytes(b"RIFF")
+        # The real type job.py hands over, not a bare path: a re-run that
+        # only worked with a Path would pass here and fail in the app.
+        converted = own_temp_dir / "converted.wav"
+        converted.write_bytes(b"RIFF")
+        handover = audio_prep.PreparedAudio(path=str(converted), duration_seconds=7.0)
 
         def _script(job):
             job.handover_to_give = handover
@@ -561,7 +564,7 @@ class TestTheProcessorReRun:
         assert watcher.finished[0][1].code == errors.INSUFFICIENT_VRAM
         assert run.prepared_handover is handover
         assert run.device == device.DEVICE_CUDA
-        assert handover.exists()
+        assert os.path.exists(handover.path)
 
     def test_the_re_run_uses_the_converted_audio_on_the_processor(
         self, tmp_path, own_temp_dir, fernet_key, fernet
@@ -583,7 +586,7 @@ class TestTheProcessorReRun:
         assert first.probes == probes_before
         assert watcher.finished == [(RESULT, None)]
         # Not the re-run's to delete: whoever made the offer owns the file.
-        assert handover.exists()
+        assert os.path.exists(handover.path)
 
 
 class TestTheLogCarriesNothingPrivate:

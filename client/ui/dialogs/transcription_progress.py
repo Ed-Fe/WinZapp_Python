@@ -189,7 +189,8 @@ class TranscriptionProgressDialog(wx.Dialog):
             # window locked behind a modal whose Cancel is waiting for a
             # report that can no longer come. A thread that cannot be started
             # is exactly that case.
-            logging.exception("[transcription] the progress dialog could not start its job")
+            logging.error("[transcription] the progress dialog could not start its job: %s",
+                          errors.exception_report(exc))
             self._on_finished(
                 None,
                 errors.TranscriptionError(
