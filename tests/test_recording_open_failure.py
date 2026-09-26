@@ -33,6 +33,7 @@ import pytest
 
 import ui.conversations as conversations_module
 from ui.conversations import ConversationsPanel
+from tests.god_modules import patch_conversations_global
 
 
 class _FakeI18n:
@@ -155,12 +156,10 @@ def scheduled(monkeypatch):
     # A stand-in for the real module: present (so the method doesn't take the
     # "PyAudio not installed" early return) but never actually touched,
     # because find_input_device_index() is stubbed in every test below.
-    monkeypatch.setattr(
-        conversations_module,
-        "pyaudio",
+    patch_conversations_global(monkeypatch, "pyaudio",
         types.SimpleNamespace(paInt16=8, paContinue=0),
     )
-    monkeypatch.setattr(conversations_module, "find_input_device_index",
+    patch_conversations_global(monkeypatch, "find_input_device_index",
                         lambda *a, **kw: None)
     return calls, fired
 
@@ -182,7 +181,7 @@ class TestCallbackAlwaysRuns:
 
     def test_stream_open_failure_still_schedules_the_callback(self, scheduled, monkeypatch):
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "find_input_device_index", _boom)
+        patch_conversations_global(monkeypatch, "find_input_device_index", _boom)
 
         stub = _Stub()
         stub._start_voice_recording()
@@ -201,7 +200,7 @@ class TestCallbackAlwaysRuns:
         """The whole point of the callback still running: the flag it clears is
         what on_record_voice_message() checks before allowing another attempt."""
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "find_input_device_index", _boom)
+        patch_conversations_global(monkeypatch, "find_input_device_index", _boom)
 
         stub = _Stub()
         stub._start_voice_recording()
@@ -219,7 +218,7 @@ class TestCallbackAlwaysRuns:
         """End-to-end guard on the actual user-visible symptom: the second press
         of the record button must reach _start_voice_recording() again."""
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "find_input_device_index", _boom)
+        patch_conversations_global(monkeypatch, "find_input_device_index", _boom)
 
         stub = _Stub()
         stub._start_voice_recording()
@@ -274,7 +273,7 @@ class TestFailedOpenIsAnnounced:
         """The raise-in-the-thread case ends in the same stream=None callback,
         so it must reach the user as well, not just the log."""
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "find_input_device_index", _boom)
+        patch_conversations_global(monkeypatch, "find_input_device_index", _boom)
 
         stub = _Stub()
         stub._start_voice_recording()
@@ -345,7 +344,7 @@ class TestHostApiFallback:
 
     def test_a_failed_default_falls_back_to_an_enumerated_device(self, scheduled, monkeypatch):
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "fallback_input_device_indices",
+        patch_conversations_global(monkeypatch, "fallback_input_device_indices",
                             lambda pa, exclude=(): [7])
 
         stub = _Stub()
@@ -372,8 +371,8 @@ class TestHostApiFallback:
             seen["exclude"] = exclude
             return []
 
-        monkeypatch.setattr(conversations_module, "find_input_device_index", lambda *a, **kw: 3)
-        monkeypatch.setattr(conversations_module, "fallback_input_device_indices", _candidates)
+        patch_conversations_global(monkeypatch, "find_input_device_index", lambda *a, **kw: 3)
+        patch_conversations_global(monkeypatch, "fallback_input_device_indices", _candidates)
 
         stub = _Stub()
         stub._start_voice_recording()
@@ -387,7 +386,7 @@ class TestHostApiFallback:
         fallback adds attempts, it must not swallow the announcement when all
         of them fail."""
         calls, fired = scheduled
-        monkeypatch.setattr(conversations_module, "fallback_input_device_indices",
+        patch_conversations_global(monkeypatch, "fallback_input_device_indices",
                             lambda pa, exclude=(): [7, 9])
 
         stub = _Stub()

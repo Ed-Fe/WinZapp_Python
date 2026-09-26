@@ -28,6 +28,7 @@ import pytest
 import ui.conversations as conversations
 from core.utils import MEASURED_SECONDS_KEY
 from ui.conversations import ConversationsPanel, video_seconds
+from tests.god_modules import conversations_source
 
 
 @pytest.fixture(autouse=True)
@@ -299,7 +300,7 @@ class TestOwnVideoAttachmentGetsAMeasuredDuration:
 
 def _source_conversations():
     import pathlib
-    return (pathlib.Path(__file__).resolve().parents[1] / "client" / "ui" / "conversations.py").read_text(encoding="utf-8")
+    return conversations_source()
 
 
 class TestProbeTellsShortFromUnreadable:

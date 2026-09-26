@@ -25,6 +25,7 @@ import pytest
 import wx
 
 from ui.conversations import ConversationsPanel, _SAVEABLE_MESSAGE_TYPES
+from tests.god_modules import patch_conversations_global
 
 
 class _FakeI18n:
@@ -641,7 +642,7 @@ def confirm_yes(monkeypatch):
     monkeypatch.setattr(wx, "MessageBox", lambda *a, **k: wx.YES)
     # Clearing asks through its own dialog (it carries the "keep starred
     # messages" checkbox); answer yes with the checkbox at its default.
-    monkeypatch.setattr("ui.conversations.confirm_clear_chat", lambda *a, **k: (True, True))
+    patch_conversations_global(monkeypatch, "confirm_clear_chat", lambda *a, **k: (True, True))
 
 
 @pytest.fixture
@@ -661,14 +662,14 @@ def confirm_yes_capture(monkeypatch):
         calls.append((message, title))
         return True, True
 
-    monkeypatch.setattr("ui.conversations.confirm_clear_chat", _fake_clear_confirm)
+    patch_conversations_global(monkeypatch, "confirm_clear_chat", _fake_clear_confirm)
     return calls
 
 
 @pytest.fixture
 def confirm_no(monkeypatch):
     monkeypatch.setattr(wx, "MessageBox", lambda *a, **k: wx.NO)
-    monkeypatch.setattr("ui.conversations.confirm_clear_chat", lambda *a, **k: (False, True))
+    patch_conversations_global(monkeypatch, "confirm_clear_chat", lambda *a, **k: (False, True))
 
 
 @pytest.fixture
@@ -846,7 +847,7 @@ class TestMassChatActions:
         assert panel.main_window.announced == ["success_clear"]
 
     def test_unticking_keep_starred_applies_to_every_selected_chat(self, monkeypatch):
-        monkeypatch.setattr("ui.conversations.confirm_clear_chat", lambda *a, **k: (True, False))
+        patch_conversations_global(monkeypatch, "confirm_clear_chat", lambda *a, **k: (True, False))
         panel = _Panel()
         panel.selected_chats = {"a@s.whatsapp.net", "b@s.whatsapp.net"}
         panel._on_mass_clear_chats(None)
@@ -930,7 +931,7 @@ class TestMassChatActions:
         """Not even a confirmation dialog — the submenu is only built while a
         selection exists, but the handlers are reachable after it is cleared."""
         monkeypatch.setattr(wx, "MessageBox", lambda *a, **k: pytest.fail("asked"))
-        monkeypatch.setattr("ui.conversations.confirm_clear_chat", lambda *a, **k: pytest.fail("asked"))
+        patch_conversations_global(monkeypatch, "confirm_clear_chat", lambda *a, **k: pytest.fail("asked"))
         panel = _Panel()
         getattr(panel, handler)(None)
         assert panel.main_window.cleared == []
@@ -1324,8 +1325,7 @@ def fixed_datetime_format(monkeypatch):
     the real machine's Windows regional settings) to a fixed pattern, so
     _on_mass_copy_messages's output doesn't depend on the test runner's
     locale."""
-    monkeypatch.setattr(
-        "ui.conversations.get_datetime_format", lambda fallback: "%d/%m/%Y %H:%M"
+    patch_conversations_global(monkeypatch, "get_datetime_format", lambda fallback: "%d/%m/%Y %H:%M"
     )
 
 

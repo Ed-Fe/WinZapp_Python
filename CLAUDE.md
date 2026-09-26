@@ -35,6 +35,16 @@ read when you touch that area (see the index at the end and `.claude/rules/`).
 5. **All speech goes through `MainWindow.speak_output`** (via
    `MainWindow.output()`); UI is plain wx controls only, list mutations
    inside `Freeze()`/`Thaw()`, titles and rows show names, never raw JIDs.
+6. **Modularize on arrival — never grow a file just because it is open.**
+   `main.py` went from ~1,000 to 35,600 lines in four months, one agent
+   append at a time, until no human would touch it. Before adding code, find
+   the module that owns the responsibility (`client/main_window/`,
+   `client/ui/conversation_panel/`, `client/core/`); if none does, create
+   one. Pure logic goes into a plain function with a direct test, not onto a
+   wx class. A new feature that needs more than ~150 lines is its own module.
+   When you delete a feature, delete its dead helpers too. Size budgets are
+   enforced by `tests/test_god_file_split_structure.py` — split the module
+   instead of raising a budget (that is a team decision, in its own PR).
 
 ## What this is
 
@@ -92,11 +102,17 @@ version is named once, in `client/node_download_config.py`. `client/api/` and
   `api_patches/package.json`; every send endpoint passes through
   `auditSendResult()` and Python through `core/send_contract.py` — a 201
   without a real message id is a failure. `docs/traps/send-contract.md`.
-- **The god objects**: `client/main.py` (`MainWindow`, ~32,700 lines) holds
-  WebSocket/HTTP calls, JID normalization, chat state, sync, sounds, menus,
-  updates; `client/ui/conversations.py` (`ConversationsPanel`, ~17,500 lines)
-  holds the message list and composer. **grep them first** — the method you
-  need very likely exists. Extraction is a skill (`extract-from-god-file`).
+- **The two big classes are split into mixins.**
+  `client/main.py` (~1,900 lines) keeps only `MainWindow.__init__`, `init_UI`
+  and startup; every other method lives in one module per responsibility
+  under `client/main_window/` (sync, connection, sending, calls, identity,
+  chat list, … — 28 mixins plus plain-function modules).
+  `client/ui/conversations.py` (~1,200 lines, `ConversationsPanel`) likewise
+  keeps `__init__`/`init_UI`; the message list, composer, playback, menus etc.
+  live under `client/ui/conversation_panel/`.
+  Each package's `__init__.py` is the map. **grep those packages first** — the
+  method you need very likely exists. `MainWindow.method(stub, …)` still works
+  in tests (MRO); a mixin never imports `main`.
 
 ### Message pipeline (short form — `docs/reference/message-pipeline.md`)
 
@@ -109,7 +125,7 @@ version is named once, in `client/node_download_config.py`. `client/api/` and
    `_is_undecrypted_placeholder()` drops a live `ciphertext`; one a sync stored is
    shown and later replaced by its decrypted copy (`message-pipeline.md`). An edit
    arrives under the *original* `key.id` and goes to `_apply_possible_edit()`.
-3. Sends: `client/ui/conversations.py` shows a virtual pending message
+3. Sends: `client/ui/conversation_panel/text_sending.py` shows a virtual pending message
    (`_local_pending`, `_local_id`), `client/core/message_queue.py` calls
    `MainWindow.send_*`; the echo comes back through `on_new_message` and is
    matched to the pending message **by type**. Ambiguous failures (timeout,
@@ -125,7 +141,7 @@ version is named once, in `client/node_download_config.py`. `client/api/` and
 - `@c.us` — legacy phone form still in some WPPConnect responses; normalized
   on load (`MainWindow.deduplicate_chats`, `_normalize_jid`).
 - `@lid` — linked-device id, **not a phone number**. Bridge through
-  `_lid_to_phone`/`_phone_to_lid` (`main.py`) before display, send or contact
+  `_lid_to_phone`/`_phone_to_lid` (`main_window/identity.py`) before display, send or contact
   lookup. Brazilian numbers also need 8/9-digit interchangeability.
 - `@g.us` — group. Not trustworthy alone: a self-chat echo can carry a
   participant's `@lid` digits suffixed `@g.us`. Invariant: a group JID's

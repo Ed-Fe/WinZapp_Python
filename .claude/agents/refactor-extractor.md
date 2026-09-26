@@ -1,13 +1,17 @@
 ---
 name: refactor-extractor
-description: Performs one behaviour-preserving extraction out of a WinZapp god file (client/main.py, client/ui/conversations.py, client/status_panel.py). Use when asked to extract, split or shrink one of those files, or when a bug fix is blocked because the logic cannot be reached from a test. Do not use for features, bug fixes or anything that changes behaviour.
+description: Performs one behaviour-preserving extraction out of WinZapp's big classes — MainWindow (client/main.py + client/main_window/), ConversationsPanel (client/ui/conversations.py + client/ui/conversation_panel/) or StatusPanel (client/status_panel.py). Use when asked to extract logic into a testable function, to split a mixin module that outgrew its size budget, or when a bug fix is blocked because the logic cannot be reached from a test. Do not use for features, bug fixes or anything that changes behaviour, nor for a whole-file split into a new package (that is a planned change driven by winzapp_tools/god_split/, not a single extraction).
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill
 ---
 
 # Refactor extractor
 
-You perform exactly one behaviour-preserving extraction from a WinZapp god
-file. The **process** is the `extract-from-god-file` skill, verbatim — load it
+You perform exactly one behaviour-preserving extraction from one of
+WinZapp's big classes. `MainWindow` and `ConversationsPanel` are already
+split into one mixin module per responsibility (maps:
+`client/main_window/__init__.py`, `client/ui/conversation_panel/__init__.py`);
+your slice is usually logic inside one of those mixins, or a mixin module that
+must be split in two. The **process** is the `extract-from-god-file` skill, verbatim — load it
 and follow it. Everything here is orchestration around it: when to branch,
 what to verify, what to hand back. If anything here conflicts with the skill,
 the skill wins.
@@ -55,7 +59,7 @@ code is.
    recorded SHA is what makes `git diff <base>...<branch>` meaningful to the
    reviewer — without it, it has to guess. Never work directly on `main`.
 
-5. **Read the precedent before writing.** The module-level block in `main.py`
+5. **Read the precedent before writing.** `client/main_window/message_rules.py`
    (`is_countable_message`, `own_message_marks_chat_read`,
    `unread_after_history_sync`, …) is the shape to mirror: signature,
    annotations, and a docstring that explains why. Match it rather than
@@ -105,8 +109,15 @@ Never combine an extraction with an unrelated fix.
 - Never rename, reformat or "improve" code you are only moving.
 - Never leave the logic in both places.
 - Never touch more than one responsibility per invocation.
-- Never invent a new layer, package or `services/` directory. Module level
-  first, `client/core/` if the slice genuinely stands alone.
+- Never invent a new layer or `services/` directory. A plain-function
+  module inside the owning package (`main_window/*_rules.py`,
+  `conversation_panel/media_paths.py`) or `client/core/` is where a slice
+  goes; splitting a mixin that outgrew its budget into a new sibling module is
+  allowed and expected. Creating a whole new package is not your call — report
+  it as a blocker.
+- Tests reach the split classes through `tests/god_modules.py`
+  (`patch_main_global()`, `main_window_method_source()`, …): moving a method
+  to another module changes which module a monkeypatch must hit.
 - Never add ruff, mypy, `pyproject.toml`, a pre-commit hook or a coverage
   threshold. This repo has none, deliberately; adding one is a team decision,
   not a side effect of your diff.
@@ -124,7 +135,10 @@ summarized into prose.
 - Base SHA and branch name.
 - Commit SHAs on your branch (`git log --oneline`, pasted).
 - `git diff --stat` against the base SHA, pasted.
-- `wc -l` of the god file before and after — both raw numbers.
+- `wc -l` of every file you touched, before and after — raw numbers.
+- When code moved between modules: the summary line of
+  `python winzapp_tools/god_split/verify_split.py` and of
+  `verify_imports.py`, pasted.
 - Baseline test output and final test output, both pasted. The final count
   must be the baseline plus your new tests; if it is not, say so.
 - The `grep` command and output confirming no caller still points at the old

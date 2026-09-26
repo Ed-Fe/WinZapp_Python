@@ -35,6 +35,7 @@ from core.utils import (
     DEFAULT_SETTINGS, SPELL_CHECK_MODE_MIGRATION_FLAG,
     backfill_missing_defaults, migrate_spell_check_mode,
 )
+from tests.god_modules import patch_conversations_global
 
 
 _CLIENT = pathlib.Path(__file__).resolve().parents[1] / "client"
@@ -70,8 +71,7 @@ def _windows_setting_unreadable(monkeypatch):
     """Pin Windows' reading to "unknown" by default, so a test that does not
     say otherwise cannot have its result decided by the spelling setting of
     whatever machine happens to run the suite."""
-    monkeypatch.setattr(
-        conversations_module, "windows_spellcheck_enabled", lambda: None
+    patch_conversations_global(monkeypatch, "windows_spellcheck_enabled", lambda: None
     )
 
 
@@ -213,16 +213,14 @@ class TestThePanelReadsItLive:
         assert _Panel({"spell_check_mode": "off"})._spell_check_enabled() is False
 
     def test_windows_off_reaches_the_panel(self, monkeypatch):
-        monkeypatch.setattr(
-            conversations_module, "windows_spellcheck_enabled", lambda: False
+        patch_conversations_global(monkeypatch, "windows_spellcheck_enabled", lambda: False
         )
         assert _Panel({"spell_check_mode": "windows"})._spell_check_enabled() is False
 
     def test_an_explicit_on_survives_windows_saying_off(self, monkeypatch):
         """The whole point of keeping the override: Windows' setting is the
         default, not a veto."""
-        monkeypatch.setattr(
-            conversations_module, "windows_spellcheck_enabled", lambda: False
+        patch_conversations_global(monkeypatch, "windows_spellcheck_enabled", lambda: False
         )
         assert _Panel({"spell_check_mode": "on"})._spell_check_enabled() is True
 

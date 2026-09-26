@@ -23,9 +23,11 @@ read end to end.
 
 ## Before writing anything
 
-1. **Grep `main.py` first.** It and `conversations.py` are the god files
-   (current sizes in `CLAUDE.md`). The method you are about to write very
-   likely already exists, and that is the most common wasted change here.
+1. **Grep `client/main_window/` and `client/ui/conversation_panel/` first**
+   (plus `main.py`/`conversations.py`). `MainWindow` and `ConversationsPanel`
+   are assembled from one mixin module per responsibility; each package's
+   `__init__.py` is the map. The method you are about to write very likely
+   already exists, and that is the most common wasted change here.
 2. **Load the skill that covers the area** — `accessible-ui`, `i18n-ui-string`,
    `write-test`, `wppconnect-patch`. They exist so you do not rediscover the
    traps.
@@ -39,7 +41,21 @@ read end to end.
 ## Where new code goes
 
 This is a real decision every time, and the repo has a concrete answer that is
-about testability, not taste:
+about testability and size, not taste:
+
+- **Never append to the file you happen to have open.** That habit is how
+  `main.py` reached 35,600 lines in four months, until only an AI could find
+  anything in it. Put a `MainWindow` method in the `client/main_window/`
+  mixin that owns the responsibility, a `ConversationsPanel` method in the
+  `client/ui/conversation_panel/` one; if none owns it, **create a new
+  module** in that package (a mixin class added to the class bases) rather
+  than stretching an unrelated one. Never add methods back into `main.py` or
+  `conversations.py`. A feature that needs more than ~150 lines is its own
+  module. `tests/test_god_file_split_structure.py` enforces size budgets —
+  split, do not raise them.
+- **Delete what your change makes dead.** A replaced helper, a setting no
+  longer read, a branch no caller reaches: remove it in the same change, with
+  a grep across `client/` and `tests/` proving nothing uses it.
 
 - **Prefer module-level functions for pure logic.** `MainWindow` is a
   `wx.Frame` and `ConversationsPanel` a `wx.Panel` — neither can be
@@ -59,6 +75,7 @@ Not because these are bad ideas, but because they are absent here, and one
 file written in a foreign dialect is worse than a consistent imperfect one:
 
 - New abstraction layers — repositories, services, factories, DI containers,
+  (a new *module* for a new responsibility is not a layer — it is required),
   `ABC`/`Protocol` hierarchies. State moves through plain dicts and functions.
 - A new dependency, without saying so and why. The dependency list is small on
   purpose and every addition ships to end users.

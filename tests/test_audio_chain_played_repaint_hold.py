@@ -38,6 +38,7 @@ import wx
 
 from tests.conftest import hidden_frame
 from ui.conversations import ConversationsPanel
+from tests.god_modules import patch_conversations_global
 
 
 class _Recorder:
@@ -165,8 +166,7 @@ def _no_account_paths(monkeypatch):
     one needs an active account, which no test bootstraps."""
     import ui.conversations as conversations_module
 
-    monkeypatch.setattr(
-        conversations_module, "data_path", lambda *parts: "/".join(parts)
+    patch_conversations_global(monkeypatch, "data_path", lambda *parts: "/".join(parts)
     )
 
 

@@ -196,9 +196,11 @@ protótipo e voltar.
 encontra módulos rasos que valeriam virar módulos profundos, e mostra um
 relatório HTML. Você escolhe um e ele entrevista sobre esse.
 
-**No WinZapp:** vai apontar para o `main.py` e o `conversations.py`. Achou o
-candidato, a execução é o nosso `extract-from-god-file` (automático) ou o
-agente `refactor-extractor`.
+**No WinZapp:** o `main.py` e o `conversations.py` já foram divididos em
+mixins (`client/main_window/`, `client/ui/conversation_panel/`); o candidato
+agora costuma ser um mixin que cresceu demais, lógica pura presa num mixin, ou
+o `status_panel.py`. Achou o candidato, a execução é o nosso
+`extract-from-god-file` (automático) ou o agente `refactor-extractor`.
 
 ### `/wait-what` — não entendi
 

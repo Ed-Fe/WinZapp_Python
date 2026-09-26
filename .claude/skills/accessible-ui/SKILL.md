@@ -1,6 +1,6 @@
 ---
 name: accessible-ui
-description: Build or change WinZapp UI so screen readers keep working. Use for any edit to client/ui/ (especially conversations.py), client/status_panel.py or the wx code in main.py — adding a control, changing a list, announcing something, wiring a keyboard shortcut. Covers the plain-controls rule, funnelling all speech through speak_output, Freeze/Thaw around list mutations, and the SysListView32 text limit.
+description: Build or change WinZapp UI so screen readers keep working. Use for any edit to client/ui/ (especially conversations.py and client/ui/conversation_panel/), client/status_panel.py or the wx code in main.py and client/main_window/ — adding a control, changing a list, announcing something, wiring a keyboard shortcut. Covers the plain-controls rule, funnelling all speech through speak_output, Freeze/Thaw around list mutations, and the SysListView32 text limit.
 ---
 
 # Accessible UI
@@ -33,8 +33,9 @@ checks the wiring).
 
 `MainWindow.speak_output` is an `AccessibleSpeechOutput`
 (`client/core/accessible_speech.py`) wrapping accessible_output2's `Auto`. It
-is the single gate every spoken announcement passes through, from `main.py`,
-`conversations.py`, `websocket_client.py` and `connect.py` alike.
+is the single gate every spoken announcement passes through, from
+`client/main_window/`, `client/ui/conversation_panel/`, `websocket_client.py`
+and `connect.py` alike.
 
 ```python
 self.main_window.speak_output.output(i18n.t("some_key"))
@@ -63,7 +64,7 @@ the very window that suppresses `output()`.
 
 If you cut off a focus announcement, gate it on the setting and fire it twice,
 as `_silence_send_voice_focus_if_enabled()` does
-(`client/ui/conversations.py`):
+(`client/ui/conversation_panel/voice_recording.py`):
 
 ```python
 if not self.main_window.settings.get("speech_content", {}).get(

@@ -57,6 +57,7 @@ from core.transcription import (
 )
 from core.transcription import stored as stored_transcription
 from core.transcription.backend import TranscriptionResult
+from tests.god_modules import conversations_source_files, main_window_source_files
 from tests.test_transcription_message_run import (
     RESULT,
     WAV,
@@ -1022,21 +1023,28 @@ class TestAltShiftTIsOurs:
     """Alt+Shift+T must mean one thing. Alt+T (presence) lives in MainWindow's
     table, which is why a scan of the panel alone would not see a clash."""
 
-    _MODULES = ("client/main.py", "client/ui/conversations.py", "client/status_panel.py",
-                "client/ui/media_viewer.py")
+    # Every file MainWindow and ConversationsPanel are built from (their
+    # accelerator tables now sit in main_window/shortcuts.py and
+    # conversation_panel/accelerators.py), plus the two other tables.
+    @staticmethod
+    def _modules():
+        files = (main_window_source_files() + conversations_source_files()
+                 + [_REPO / "client/status_panel.py", _REPO / "client/ui/media_viewer.py"])
+        return [f.relative_to(_REPO).as_posix() for f in files]
 
     def test_exactly_one_binding_in_the_whole_window(self):
         alt_shift = frozenset({"ACCEL_ALT", "ACCEL_SHIFT"})
         owners = []
-        for module in self._MODULES:
+        for module in self._modules():
             for mods, key, target in _accelerator_bindings(_REPO / module):
                 if mods == alt_shift and key == 'ORD("T")':
                     owners.append((module, target))
-        assert owners == [("client/ui/conversations.py", "self.ID_ALT_SHIFT_T")]
+        assert owners == [("client/ui/conversation_panel/accelerators.py", "self.ID_ALT_SHIFT_T")]
 
     def test_the_scan_sees_the_bindings_it_is_guarding(self):
         """A scanner that found nothing would pass the test above forever."""
-        found = _accelerator_bindings(_REPO / "client/main.py")
+        found = [binding for module in self._modules()
+                 for binding in _accelerator_bindings(_REPO / module)]
         assert (frozenset({"ACCEL_ALT"}), 'ORD("T")', "self.ID_ALT_T") in found
 
     def test_the_shortcut_reaches_the_flow_with_the_selected_message(self, monkeypatch):

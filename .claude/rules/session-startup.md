@@ -2,6 +2,8 @@
 paths:
   - "client/api_patches/src/util/createSessionUtil.ts"
   - "client/main.py"
+  - "client/main_window/wpp_server.py"
+  - "client/main_window/connection.py"
 ---
 
 # Session startup

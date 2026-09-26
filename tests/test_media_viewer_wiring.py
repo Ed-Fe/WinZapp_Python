@@ -7,18 +7,24 @@ Linux packaging/review environment where wx is not installed.
 import ast
 import json
 from pathlib import Path
+from tests.god_modules import conversations_source
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _source(rel):
+    if rel == "client/ui/conversations.py":
+        # ConversationsPanel is split over ui/conversation_panel/ now.
+        return conversations_source()
     return (ROOT / rel).read_text(encoding="utf-8")
 
 
 def _method_calls(rel, class_name, method_name):
     tree = ast.parse(_source(rel))
     for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == class_name:
+        if isinstance(node, ast.ClassDef) and (
+                node.name == class_name
+                or (class_name == "ConversationsPanel" and node.name.endswith("Mixin"))):
             for child in node.body:
                 if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == method_name:
                     return {

@@ -29,6 +29,7 @@ import ui.conversations as conversations_module
 from core.link_preview import fetch_link_preview, find_first_url
 from main import MainWindow
 from ui.conversations import ConversationsPanel
+from tests.god_modules import patch_conversations_global
 
 
 # ── core/link_preview.py ────────────────────────────────────────────────────
@@ -357,8 +358,7 @@ class TestLinkPreviewComposerFlow:
     def test_url_with_a_preview_shows_the_remove_button(self, monkeypatch):
         stub = _Stub(text="check this out https://example.com")
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(
-            conversations_module, "fetch_link_preview",
+        patch_conversations_global(monkeypatch, "fetch_link_preview",
             lambda url, **kw: {"title": "Example Domain", "description": "desc",
                                 "canonicalUrl": url},
         )
@@ -373,8 +373,7 @@ class TestLinkPreviewComposerFlow:
     def test_url_with_no_preview_available_does_not_show_the_button(self, monkeypatch):
         stub = _Stub(text="https://example.com")
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(
-            conversations_module, "fetch_link_preview", lambda url, **kw: None,
+        patch_conversations_global(monkeypatch, "fetch_link_preview", lambda url, **kw: None,
         )
         _run_debounced_check(monkeypatch, stub)
 
@@ -385,8 +384,7 @@ class TestLinkPreviewComposerFlow:
         stub = _Stub(text="just some text, no link")
         calls = []
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(
-            conversations_module, "fetch_link_preview",
+        patch_conversations_global(monkeypatch, "fetch_link_preview",
             lambda url, **kw: calls.append(url) or None,
         )
         _run_debounced_check(monkeypatch, stub)
@@ -413,8 +411,7 @@ class TestLinkPreviewComposerFlow:
         stub._link_preview_dismissed_url = "https://example.com"
         calls = []
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(
-            conversations_module, "fetch_link_preview",
+        patch_conversations_global(monkeypatch, "fetch_link_preview",
             lambda url, **kw: calls.append(url) or {"title": "t", "description": "", "canonicalUrl": url},
         )
         _run_debounced_check(monkeypatch, stub)
@@ -425,8 +422,7 @@ class TestLinkPreviewComposerFlow:
         stub = _Stub(text="https://other.example.com")
         stub._link_preview_dismissed_url = "https://example.com"
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(
-            conversations_module, "fetch_link_preview",
+        patch_conversations_global(monkeypatch, "fetch_link_preview",
             lambda url, **kw: {"title": "t", "description": "", "canonicalUrl": url},
         )
         _run_debounced_check(monkeypatch, stub)
@@ -439,7 +435,7 @@ class TestLinkPreviewComposerFlow:
         stub._link_preview_source_url = "https://example.com"
         stub._remove_link_preview_btn.Show()
         _run_fetch_synchronously(monkeypatch)
-        monkeypatch.setattr(conversations_module, "fetch_link_preview", lambda url, **kw: None)
+        patch_conversations_global(monkeypatch, "fetch_link_preview", lambda url, **kw: None)
 
         _run_debounced_check(monkeypatch, stub)
 

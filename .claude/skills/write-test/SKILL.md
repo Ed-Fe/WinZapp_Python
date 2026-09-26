@@ -23,8 +23,10 @@ directly. `ack_to_status()` and `_delivery_status()` are module-level for
 exactly this reason, and `tests/test_delivery_status.py` just imports and calls
 them. No stub, no wx, nothing to keep in sync.
 
-This is the better outcome even ignoring tests: it shrinks `main.py`, which is
-~26,900 lines and where most logic ends up by default.
+This is the better outcome even ignoring tests: logic on a wx class stays
+reachable only through a stub. Put it in a plain-function module
+(`client/main_window/message_rules.py`, `client/ui/conversation_panel/media_paths.py`,
+`client/core/`), next to the rules of the same responsibility.
 
 ## Route 2 — unbound method against a stub
 
@@ -66,6 +68,16 @@ Rules that make this work and keep it honest:
 - **Bind siblings under their real names.** If `_learn_sender_names_bulk` calls
   `self._learn_sender_name`, that name must exist on the stub. Short aliases for
   the tests' own convenience come *in addition*, never instead.
+- **Patch a module global through `tests/god_modules.py`.** `MainWindow` and
+  `ConversationsPanel` are assembled from mixin modules, and a method looks a
+  global up in the module it is *defined* in — `monkeypatch.setattr(main,
+  "api_post", fake)` no longer reaches a method living in
+  `main_window/sending.py`. Use `patch_main_global(monkeypatch, "api_post",
+  fake)` / `patch_conversations_global(...)`. For source-text assertions use
+  `main_window_source()` / `main_window_method_source(name)` (and the
+  `conversations_*` twins), never a read of `main.py` alone. To get a raw
+  member for `types.MethodType`, use `inspect.getattr_static(MainWindow,
+  name)`, not `MainWindow.__dict__[name]` (the member lives on a mixin).
 - **Build message dicts through a small local factory** (`_group_msg(...)`)
   rather than repeating the canonical shape — `{"key": {"remoteJid", "fromMe",
   "id", "participant"}, "message", "messageType", "messageTimestamp",

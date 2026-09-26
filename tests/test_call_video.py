@@ -8,6 +8,7 @@ import pytest
 from core.call_logic import active_call_label_key, incoming_call_can_answer
 from core.call_video import CameraCapture, camera_names, jpeg_frames, list_camera_devices
 from main import MainWindow
+from tests.god_modules import main_window_source, conversations_source
 
 
 def test_camera_names_only_reads_video_devices():
@@ -244,7 +245,7 @@ def test_video_button_and_labels_exist_in_all_languages():
 
 
 def test_video_button_is_restricted_to_individual_chats():
-    source = (Path(__file__).parents[1] / 'client' / 'ui' / 'conversations.py').read_text(encoding='utf-8')
+    source = conversations_source()
     assert 'unavailable = jid.endswith(("@g.us", "@newsletter", "@broadcast"))' in source
     assert 'self._video_call_btn.Show(bool(jid) and not unavailable)' in source
     assert 'self.main_window.start_video_call(jid, name)' in source
@@ -395,7 +396,7 @@ def test_remote_video_passes_gate_and_schedules_render(monkeypatch):
 
 
 def test_call_window_video_toggle_is_hidden_without_camera():
-    source = (Path(__file__).parents[1] / 'client' / 'main.py').read_text(encoding='utf-8')
+    source = main_window_source()
     assert 'self.voice_call_window_video_button.Hide()' in source
     assert 'video_button.Show(is_video and local_camera_available)' in source
     assert 'self.voice_call_window_video_button.Bind(wx.EVT_BUTTON, self.toggle_call_video)' in source
@@ -438,7 +439,7 @@ def test_toggle_call_video_does_nothing_silently_on_a_voice_only_call():
     assert stub.announcements == []
 
 
-_MAIN_SRC = (Path(__file__).parents[1] / "client" / "main.py").read_text(encoding="utf-8")
+_MAIN_SRC = main_window_source()
 
 
 def _body_between(source, start_marker, end_marker):
@@ -850,7 +851,7 @@ def test_the_fit_measures_the_name_actually_shown():
 
 
 def test_the_label_has_a_row_of_its_own_above_the_buttons():
-    source = (Path(__file__).parents[1] / "client" / "main.py").read_text(encoding="utf-8")
+    source = main_window_source()
     assert "call_sizer.Add(self.voice_call_window_label, 0, wx.EXPAND" in source
     assert "controls.Add(self.voice_call_window_label" not in source
 

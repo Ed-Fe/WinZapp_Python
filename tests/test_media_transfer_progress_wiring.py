@@ -2,11 +2,14 @@
 
 import ast
 from pathlib import Path
+from tests.god_modules import conversations_method_source
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _method_source(path: Path, class_name: str, method_name: str) -> str:
+    if class_name == "ConversationsPanel":
+        return conversations_method_source(method_name)
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source)
     lines = source.splitlines()

@@ -7,15 +7,14 @@ was also always visible even while Classic mode was selected.
 
 import ast
 from pathlib import Path
+from tests.god_modules import conversations_source
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_SOURCE = (ROOT / "client" / "ui" / "dialogs" / "settings_dialog.py").read_text(
     encoding="utf-8"
 )
-CONVERSATIONS_SOURCE = (ROOT / "client" / "ui" / "conversations.py").read_text(
-    encoding="utf-8"
-)
+CONVERSATIONS_SOURCE = conversations_source()
 
 
 def _method_source(source: str, class_name: str, method_name: str) -> str:

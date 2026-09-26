@@ -180,7 +180,7 @@ jobs:
       - name: Set up WPPConnect Server
         run: uv run python setup_api.py
 
-      # ensure_wpp_version() (client/main.py) compares an *installed*
+      # ensure_wpp_version() (client/main_window/wpp_server.py) compares an *installed*
       # api/package.json's version against the minimum baked into
       # client/wpp_minimum_version.txt, and prompts the user to update
       # WPPConnect Server when the installed copy is older than what this

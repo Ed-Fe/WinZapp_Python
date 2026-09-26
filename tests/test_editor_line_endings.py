@@ -22,6 +22,7 @@ import pytest
 
 from core.utils import normalize_line_separators, to_editor_line_endings
 from ui.conversations import ConversationsPanel
+from tests.god_modules import conversations_source
 
 
 class TestTheEditorForm:
@@ -90,13 +91,13 @@ class TestOnlyMultilineFieldsGetIt:
         """If this ever gains TE_MULTILINE the guard above starts converting it
         too, which is correct — but the reasoning in the handler would be stale,
         so fail loudly and make someone re-read it."""
-        source = inspect.getsource(ConversationsPanel)
+        source = conversations_source()
         caption = source[source.index("self._caption_field = wx.TextCtrl("):]
         caption = caption[:caption.index(")")]
         assert "TE_MULTILINE" not in caption
 
     def test_the_message_field_is_multiline(self):
-        source = inspect.getsource(ConversationsPanel)
+        source = conversations_source()
         field = source[source.index("self.message_field = wx.TextCtrl("):]
         field = field[:field.index(")")]
         assert "TE_MULTILINE" in field
@@ -117,7 +118,7 @@ class TestEveryPathThatFillsTheComposer:
     def test_editing_a_sent_message_produces_it_too(self):
         """Stored message text is canonical \\n; dropped into the field as-is it
         is one unnavigable line."""
-        source = inspect.getsource(ConversationsPanel)
+        source = conversations_source()
         call = re.search(
             r"self\.message_field\.SetValue\(to_editor_line_endings\(content\)\)",
             source)

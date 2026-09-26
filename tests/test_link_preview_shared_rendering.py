@@ -19,6 +19,7 @@ from pathlib import Path
 from core.notification_manager import format_notification_body
 from core.utils import link_preview_text
 from ui.conversations import ConversationsPanel
+from tests.god_modules import conversations_source
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,7 +134,8 @@ class TestBothSurfacesAgree:
 
 
 def _calls_link_preview_text(rel_path):
-    src = (ROOT / rel_path).read_text(encoding="utf-8")
+    src = (conversations_source() if rel_path == "client/ui/conversations.py"
+           else (ROOT / rel_path).read_text(encoding="utf-8"))
     tree = ast.parse(src, filename=rel_path)
     return any(
         isinstance(node, ast.Call)

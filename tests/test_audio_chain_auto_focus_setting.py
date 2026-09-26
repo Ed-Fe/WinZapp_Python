@@ -18,6 +18,7 @@ start the next audio) resolves synchronously within one call.
 import pytest
 
 from ui.conversations import ConversationsPanel
+from tests.god_modules import patch_conversations_global
 
 
 class _FakeMessagesList:
@@ -116,7 +117,7 @@ def call_later_now(monkeypatch):
     # _start_audio() (inside the chain) builds a voice_messages/ path via
     # data_path(), which needs an active multi-account context this test
     # never sets up — irrelevant to what's under test here (focus movement).
-    monkeypatch.setattr("ui.conversations.data_path", lambda *a, **k: "unused.msv")
+    patch_conversations_global(monkeypatch, "data_path", lambda *a, **k: "unused.msv")
 
 
 class TestAutoFocusNextAudioEnabled:

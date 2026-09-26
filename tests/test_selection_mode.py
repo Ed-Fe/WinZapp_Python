@@ -36,6 +36,7 @@ from ui.conversations import (
     toggle_jid_selection,
     visible_jid_selected,
 )
+from tests.god_modules import conversations_method_source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -766,6 +767,8 @@ class TestEscape:
 
 
 def _method_source(class_name: str, method_name: str) -> str:
+    if class_name == "ConversationsPanel":
+        return conversations_method_source(method_name)
     path = ROOT / "client" / "ui" / "conversations.py"
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source)

@@ -225,19 +225,47 @@ release before.
 
 ## Tier 2 — structure, but only where it changes something
 
-This repo's default is to append to `main.py` (22,300 lines) and
-`conversations.py` (13,500). Pushing back is useful — but only with the real
-reason attached, which here is **testability**: `MainWindow` is a `wx.Frame`
-and `ConversationsPanel` a `wx.Panel`, so logic left on those classes can only
-be tested through a stub, while logic extracted to module level is tested
-directly.
+This repo's old default was to append to whatever file was open: `main.py`
+reached 35,600 lines and `conversations.py` 18,100 before both were split into
+one mixin module per responsibility (`client/main_window/`,
+`client/ui/conversation_panel/`; maps in their `__init__.py`). Holding that
+line is now a Tier 2 concern with teeth:
 
-So: flag a new branchy block on those classes and propose the extraction,
-naming the test it would make possible. Flag a private helper that should
-exist because three call sites now repeat the same conditional.
+- **Placement.** Flag new `MainWindow`/`ConversationsPanel` code that lands in
+  `main.py`/`conversations.py`, or in a mixin that does not own the
+  responsibility (a call feature in `chat_list.py`, a sync rule in
+  `settings.py`). Name the module it belongs in, or say a new one is due. A
+  new feature over ~150 lines in an existing module is a new module.
+- **Testability.** Logic on those classes is still testable only through a
+  stub; logic in a plain-function module (`main_window/message_rules.py`,
+  `core/`) is tested directly. Flag a new branchy block on a mixin and
+  propose the extraction, naming the test it would make possible.
+- **Dead code.** Flag helpers, settings keys and branches the diff leaves
+  with no caller (show the grep).
+- A private helper should exist when three call sites now repeat the same
+  conditional.
 
 Do **not** flag: layering, SRP, dependency inversion, or "this class is too
 big" as a standalone observation. Everyone knows. It changes nothing.
+
+## Reviewing a mechanical move (a split or large extraction)
+
+Nobody can read 35,000 moved lines, and you should not try. A split done with
+`winzapp_tools/god_split/` is reviewed by evidence plus the part that is not
+movement:
+
+1. Run `python winzapp_tools/god_split/verify_split.py <base> <file> <Class> <package>`
+   yourself. Every node must be identical except the ones the commit message
+   lists; review exactly those by hand.
+2. Run `verify_imports.py`, `verify_instance_access.py <base>` (names
+   reached through `self._mw`/`mw`/`self.main_window`/`getattr(..., "x")`)
+   and the full suite; compare the count with the base.
+3. Read the test changes: a test rewritten to use `tests/god_modules.py`
+   must still assert the same thing — a patch that no longer reaches the code
+   makes a test pass for the wrong reason.
+4. Check the risk points the tool cannot: classmethods called as
+   `Mixin.method()` whose body reads `cls.X` from another mixin, `__file__`,
+   `.claude/rules/*.md` path triggers that still name only the old file.
 
 ## Tier 3 — nits, at most a handful
 
@@ -256,8 +284,8 @@ individual findings.
    `tests/test_accessible_speech.py`, and the suites touching the changed area.
    A failing test is worth more than any comment you could write about it.
 3. **Verify before asserting.** `grep` for the function, read it, check the
-   call sites. This codebase has ~22,300 lines in one file — the method you
-   assume is missing usually exists.
+   call sites — across `client/main_window/` and `client/ui/conversation_panel/`
+   too. The method you assume is missing usually exists.
 4. **Say when it is fine.** A diff with no Tier 1 findings should be reported
    as such, plainly. Manufacturing findings to look thorough is the failure
    mode that makes reviewers ignored.

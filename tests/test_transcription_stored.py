@@ -59,6 +59,7 @@ from core.transcription.backend import TranscriptionResult
 from core.transcription.stored import TRANSCRIPTION_KEY
 from core.utils import MEASURED_SECONDS_KEY
 from main import MainWindow
+from tests.god_modules import patch_main_global
 from tests.test_deep_sync import _MessagesStub, _Resp
 from tests.test_historical_self_chat_guard import _DedupStub
 from tests.test_lid_merge_keeps_messages import _Stub as _LidMergeStub
@@ -1456,7 +1457,9 @@ class TestOtherPathsThatHoldTheRecord:
             sent.append(json)
             raise main_module.MediaExpiredError()
 
-        monkeypatch.setattr(main_module, "api_post", _fake_post)
+        # get_base64_from_media() looks api_post up in the module its mixin
+        # lives in, not in main: patch every module MainWindow is built from.
+        patch_main_global(monkeypatch, "api_post", _fake_post)
 
         class _Stub:
             _phone_to_lid = {}

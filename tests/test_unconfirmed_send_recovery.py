@@ -34,6 +34,7 @@ import inspect
 import wx
 
 from ui.conversations import ConversationsPanel
+from tests.god_modules import patch_conversations_global
 
 REMOTE = "5511999999999@s.whatsapp.net"
 
@@ -121,7 +122,7 @@ def _patch_delete_dialog(monkeypatch, result=wx.ID_OK, everyone_selected=False,
         # was genuinely stopped, and data_path() refuses to answer without an
         # active account — same redirect tests/test_message_cancel_race.py uses.
         import ui.conversations as conversations
-        monkeypatch.setattr(conversations, "data_path", lambda name: str(tmp_path / name))
+        patch_conversations_global(monkeypatch, "data_path", lambda name: str(tmp_path / name))
     monkeypatch.setattr(wx, "Dialog", _make_fake_dialog(result, everyone_selected))
     monkeypatch.setattr(wx, "Panel", _FakePanel)
     monkeypatch.setattr(wx, "BoxSizer", _FakeSizer)

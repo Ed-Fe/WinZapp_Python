@@ -34,6 +34,7 @@ from ui import conversations
 from ui.conversations import ConversationsPanel
 from ui.dialogs import settings_dialog
 from ui.dialogs.settings_dialog import SettingsDialog
+from tests.god_modules import conversations_source, patch_conversations_global
 
 
 # ── The pure decisions ────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ def answer(monkeypatch):
     def _ask(parent, i18n):
         state["asked"] += 1
         return state["answer"]
-    monkeypatch.setattr(conversations, "ask_stereo_voice", _ask)
+    patch_conversations_global(monkeypatch, "ask_stereo_voice", _ask)
     return state
 
 
@@ -336,14 +337,14 @@ class TestThePipelineIsWired:
         assert 'i18n.t("voice_stereo_unavailable")' in src
 
     def test_the_message_is_encoded_and_queued_with_the_decision(self):
-        src = inspect.getsource(ConversationsPanel)
+        src = conversations_source()
         assert "stereo_out      = encode_as_stereo(self._recording_stereo, actual_ch)" in src
         assert "mw._convert_wav_to_ogg(wav_path, stereo=stereo_out)" in src
         assert "stereo=stereo_out)" in src
 
     def test_the_second_button_follows_the_first_everywhere(self):
         """Every Hide/Show/Enable/Disable of the record button is mirrored."""
-        src = inspect.getsource(ConversationsPanel)
+        src = conversations_source()
         for action in ("Hide", "Show", "Enable", "Disable"):
             assert (src.count(f"self.record_voice_message_btn.{action}()")
                     == src.count(f"self._record_voice_alt_btn.{action}()")), action
@@ -362,12 +363,12 @@ class _EnabledButton:
 
 class TestTheShortcut:
     def test_it_is_in_the_conversation_accelerators(self):
-        src = inspect.getsource(ConversationsPanel)
+        src = conversations_source()
         assert 'ord("G"),          self.ID_CTRL_SHIFT_G)' in src
         assert "self._on_record_alternate_mode,     id=self.ID_CTRL_SHIFT_G)" in src
 
     def test_the_screen_reader_announces_it_on_the_button(self):
-        src = inspect.getsource(ConversationsPanel)
+        src = conversations_source()
         assert ('self._record_voice_alt_btn.SetAccessible(\n'
                 '            AccessibleRecordVoiceMessage("Ctrl+Shift+G")') in src.replace("\r\n", "\n")
 

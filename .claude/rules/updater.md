@@ -7,6 +7,7 @@ paths:
   - ".github/scripts/*.py"
   - "client/core/release_signature.py"
   - "client/core/release_keys.py"
+  - "client/main_window/updates.py"
 ---
 
 # Updater

@@ -15,6 +15,7 @@ import ui.dialogs.emoji_picker as emoji_picker
 
 import pytest
 import wx
+from tests.god_modules import patch_conversations_global
 
 
 def test_quick_reactions_keep_the_existing_twelve_at_first():
@@ -315,14 +316,14 @@ def test_more_reactions_row_opens_picker_and_sends_its_choice(
     def _pick(*args):
         picked.append(True)
         return picker_choice
-    monkeypatch.setattr(conversations, "choose_reaction_emoji", _pick)
+    patch_conversations_global(monkeypatch, "choose_reaction_emoji", _pick)
     monkeypatch.setattr(conversations.threading, "Thread", _Thread)
     ranking_calls = []
     real_quick_reactions = conversations.quick_reactions
     def _quick_reactions(*args, **kwargs):
         ranking_calls.append(kwargs)
         return real_quick_reactions(*args, **kwargs)
-    monkeypatch.setattr(conversations, "quick_reactions", _quick_reactions)
+    patch_conversations_global(monkeypatch, "quick_reactions", _quick_reactions)
     ConversationsPanel._on_menu_react(_Panel(), {"key": {"id": "m1"}})
 
     assert ranking_calls == [

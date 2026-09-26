@@ -1,125 +1,143 @@
 ---
 name: extract-from-god-file
-description: Pull a slice of logic out of one of WinZapp's god files without changing behaviour. Use when asked to extract, split, shrink or refactor `client/main.py`, `client/ui/conversations.py` or `client/status_panel.py`, when a method is too tangled to test, or when a bug fix keeps being blocked by not being able to reach the logic from a test.
+description: Pull logic out of WinZapp's big classes (MainWindow in client/main.py + client/main_window/, ConversationsPanel in client/ui/conversations.py + client/ui/conversation_panel/, StatusPanel in client/status_panel.py) without changing behaviour. Use when asked to extract, split, shrink or refactor them, when a mixin module is outgrowing its size budget, when a method is too tangled to test, or when a bug fix keeps being blocked by not being able to reach the logic from a test.
 ---
 
-# Extracting from a god file
+# Extracting from the big classes
 
-## The two files, and the actual reason to do this
+## Where things stand
 
-`client/main.py` is ~26,900 lines and `client/ui/conversations.py` ~16,000.
-`client/status_panel.py` (~3,000) is a distant third.
+`MainWindow` and `ConversationsPanel` used to be single files of 35,600 and
+18,100 lines. In September 2026 both were split **mechanically** into one
+mixin module per responsibility:
 
-The reason to extract is **not** that big files are ugly. It is that
-`MainWindow` is a `wx.Frame` and `ConversationsPanel` a `wx.Panel`: neither can
-be instantiated without a running `wx.App`, so logic sitting on them is
-reachable from a test only through a hand-built stub that has to be kept in
-sync with whatever attributes the method touches. The same logic at module
-level is imported and called directly.
+- `client/main.py` (~1,900 lines: `__init__`, `init_UI`, startup) +
+  `client/main_window/*.py` (28 mixins + plain-function modules)
+- `client/ui/conversations.py` (~1,200 lines: `__init__`, `init_UI`,
+  `refresh_labels`) + `client/ui/conversation_panel/*.py` (28 mixins + plain
+  modules, including `ArchivedConversationsPanel`)
 
-So the test for whether an extraction is worth doing is concrete: **does it
-turn a stub test into a direct one, or make an untestable thing testable?** If
-the answer is no, you are moving code around for aesthetics, and this repo has
-better uses for a diff.
+The map of each package is its `__init__.py`. `client/status_panel.py`
+(~3,200 lines) was not split yet.
 
-## Where extracted code goes
+That split moved code; it did not make it testable. A method on a mixin is
+still a method of a `wx.Frame`/`wx.Panel` and still needs a stub. So there
+are now **two different jobs** this skill covers, and they are not the same
+size:
 
-Two destinations, and the cheap one is usually right.
+1. **Extract logic from a method into a plain function** (the usual job).
+2. **Split a module** that outgrew its budget, or split `status_panel.py` the
+   way the other two were split (rare, mechanical, tool-driven).
 
-**Module level in the same file.** `main.py` already holds 21 module-level
-functions — `is_countable_message()`, `own_message_marks_chat_read()`,
-`unread_after_history_sync()`, `history_gap_detected()` and the rest of that
-block. They were pulled off `MainWindow` for exactly this reason and are
-tested directly. No new file, no import churn, no circular-import risk. Start
-here.
+## Job 1 — extract logic into a plain function
 
-**A module under `client/core/`.** Justified when the slice is cohesive and
-carries its own state or lifecycle — `notification_manager.py`,
-`message_queue.py`, `video_player.py`, `token_vault.py`,
-`database_bridge.py`. Do not create a new package, a new layer, or a
-`services/` directory. The repo is flat under `core/` and staying flat is
-what makes it navigable.
+The reason is concrete: **does it turn a stub test into a direct one, or make
+an untestable thing testable?** If not, you are moving code for aesthetics.
 
-## The shape to copy
+### Where it goes
 
-Mirror the existing module-level functions exactly: type-annotated signature,
-and a docstring that explains **why**, usually naming the incident that
-motivated it. `is_countable_message()`'s docstring is the reference — it
-explains why the check derives from an allowlist rather than keeping a second
-blocklist, and names the bug that proved it.
+- **A plain-function module in the same package** —
+  `main_window/message_rules.py`, `main_window/identity_rules.py`,
+  `conversation_panel/media_paths.py`, `conversation_panel/selection_rules.py`
+  are the precedent: no `self`, no wx, tested directly. Add to one whose
+  responsibility matches, or create a new `*_rules.py`/helper module next to
+  them.
+- **`client/core/`** when the slice stands alone and has its own state or
+  lifecycle (`notification_manager.py`, `message_queue.py`,
+  `incremental_sync.py`, `call_log.py`).
 
-Take arguments; do not reach back into `self`. A function that needs six
-attributes of `MainWindow` is telling you the slice is drawn wrong — redraw it
-before extracting.
+### The shape to copy
 
-## Procedure
+`is_countable_message()` in `main_window/message_rules.py`: type-annotated
+signature, and a docstring that explains **why**, naming the incident that
+motivated it. Take arguments; do not reach back into `self`. A function that
+needs six attributes of `MainWindow` is telling you the slice is drawn wrong.
 
-1. **Establish the baseline before touching anything.**
-   ```
-   venv/Scripts/python.exe -m pytest -q
-   ```
-   Record the number. If something is already failing, you need to know that
-   now — otherwise you cannot tell your breakage from what you inherited.
+## Job 2 — split a module (or a remaining big file)
 
-2. **Characterize first.** Write a test against the behaviour *as it is
-   today*, through a stub if that is the only way in (see `write-test`). This
-   test is the contract: it must pass before and after, unchanged. If you
-   cannot write it before moving the code, say so and say why — that is a
-   real finding about the slice, not a formality to skip.
+Use the tool that did the original split, never a hand move of hundreds of
+lines:
 
-3. **One responsibility per pass.** Not one method — one responsibility. Two
-   unrelated slices in one diff cannot be reverted independently, and the
-   review cannot tell which one broke something.
+```
+python winzapp_tools/god_split/split_god_class.py <config.py>
+python winzapp_tools/god_split/verify_split.py main <god file> <Class> <package dir>
+python winzapp_tools/god_split/verify_imports.py
+python winzapp_tools/god_split/verify_instance_access.py main
+```
 
-4. **Move the code, verbatim.** No renames, no reformatting, no "while I'm
-   here" fixes, no exception-handling improvements outside what you are
-   already touching. A behaviour-preserving extraction whose diff is pure
-   movement can be reviewed in minutes; the same extraction with three
-   drive-by improvements cannot be reviewed at all.
+`verify_instance_access.py` covers what imports do not: the rest of the app
+holds the instance as `self.main_window`, `self._mw`, `mw`, `panel`, … and
+reaches members by string (`getattr(mw, "x", None)`). Every such name must
+keep the status it had on the base ref (class member / `self.x =` attribute).
 
-5. **Leave the god file thin.** The old method either disappears or becomes a
-   one-line call to the new function. Never leave the logic duplicated in
-   both places — that is strictly worse than not extracting, because the two
-   copies drift and nothing tells you.
+`config_main_window.py` / `config_conversation_panel.py` in the same folder
+are worked examples: anchors (first method of each run → module), helper
+module assignments, and `POST` hooks for the few references that cannot stay
+verbatim. `verify_split.py` must report every node identical except the ones
+you rewrote on purpose; list those in the commit message.
 
-6. **Add the direct test** the extraction just made possible. This is the
-   payoff; without it the extraction bought nothing.
+Splitting one existing mixin module in two is the same idea at small scale:
+move whole methods (with the comment lines above them) into the new module's
+mixin class, add it to the class bases, and run the checks below.
 
-7. **Verify.**
-   ```
-   venv/Scripts/python.exe -m pytest -q
-   ```
-   Same count as the baseline, plus your new tests. Bare `pytest` and
-   `python -m pytest` do not resolve on a dev machine here.
+## Procedure (both jobs)
+
+1. **Baseline first.** `venv/Scripts/python.exe -m pytest -q` — record the
+   number. Bare `pytest` does not resolve on a dev machine here.
+2. **Characterize first** (job 1): a test against today's behaviour, through
+   a stub if that is the only way in (see `write-test`). It must pass before
+   and after, unchanged.
+3. **One responsibility per pass.** Two unrelated slices in one diff cannot
+   be reverted independently.
+4. **Move verbatim.** No renames, no reformatting, no drive-by fixes.
+5. **Leave no copy behind.** The old method disappears or becomes a one-line
+   call. Never duplicate logic.
+6. **Add the direct test** the extraction made possible (job 1).
+7. **Verify**: full suite, same count plus your new tests.
+
+## Traps specific to the split layout
+
+- **A module global is looked up where the method is defined.** Moving a
+  method to another module changes which module a test must patch. Tests use
+  `tests/god_modules.py`: `patch_main_global()` /
+  `patch_conversations_global()` patch the name everywhere the class's code
+  looks it up. Never `monkeypatch.setattr(main, "api_post", ...)` directly.
+- **Source-text tests** read the whole class through `main_window_source()` /
+  `conversations_source()`, or one method through
+  `main_window_method_source()` / `conversations_method_source()` — never by
+  slicing a file from one `def` to the next (the next method may live in
+  another module).
+- **A mixin never imports `main`**: running, `main` is `__main__`, so the
+  import executes main.py a second time. Reach another mixin's static member
+  by importing that mixin class (`ChatListMixin._counts_as_last_message`), or
+  through `self`.
+- **Classmethods** called as `SomeMixin.method(...)` get `cls=SomeMixin`, not
+  `MainWindow`: any `cls.X` inside must be defined on that same mixin.
+- **`__file__`** in a moved method now points into the package directory —
+  see `_MAIN_PY` in `main_window/sending.py`.
+- **Two mixins defining the same name** do not fail; the earlier one in the
+  MRO silently wins. `tests/test_god_file_split_structure.py` catches it.
+- **`.claude/rules/*.md` fire by path.** A trap rule that pointed at
+  `client/main.py` must also name the module the code now lives in.
 
 ## What must not change
 
-An extraction is behaviour-preserving by definition. These are the areas where
-"I just tidied it slightly" has shipped real bugs, and where the reviewer will
-look first:
-
-- **JID normalization** — the `@lid`/phone bridge, the Brazilian 8/9-digit
-  handling, the fake-`@g.us` guard.
-- **The live-events gate** — anything behind `_live_events_ready()` stays
-  behind it.
-- **Echo matching by message type** — reordering or "simplifying" that
-  matching swaps real WhatsApp IDs between unrelated messages.
-- **Speech and list mutation** — `speak_output`, `Freeze()`/`Thaw()`. See
-  `accessible-ui`.
-- **Anything that touches the five locales.** See `i18n-ui-string`.
-
-If making the extraction clean seems to require changing one of these, stop.
-The extraction is wrong, not the invariant.
+Behaviour-preserving by definition. Reviewers look first at: JID
+normalization (`@lid`/phone bridge, 8/9-digit handling, fake-`@g.us` guard),
+the `_live_events_ready()` gate, echo matching by message type, speech and
+list mutation (`speak_output`, `Freeze()`/`Thaw()` — see `accessible-ui`),
+and anything touching the locales (see `i18n-ui-string`). If making the
+extraction clean seems to require changing one of these, stop: the
+extraction is wrong, not the invariant.
 
 ## Tooling this repo does not have
 
-There is no ruff, no mypy, no `pyproject.toml`, no pre-commit hook and no
-coverage threshold. `pytest` is the whole gate. Do not invent a lint step, and
-do not add one as part of an extraction — that is a separate decision for the
-team, not a side effect of moving a function.
+No ruff, no mypy, no pre-commit hook, no coverage threshold. `pytest` is the
+gate. Do not add one as part of an extraction — that is a team decision.
 
 ## Finishing
 
-Report the before/after `wc -l` of the god file as raw numbers, the baseline
-and final test counts, and what the extraction made testable that was not
-before. Then hand the diff to `winzapp-reviewer`.
+Report before/after `wc -l` of every file touched as raw numbers, baseline
+and final test counts, the `verify_split.py` summary line when you moved
+code, and what is now directly testable that was not. Then hand the diff to
+`winzapp-reviewer`.

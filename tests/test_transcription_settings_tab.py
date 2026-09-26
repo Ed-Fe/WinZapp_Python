@@ -84,6 +84,7 @@ from ui.dialogs import settings_dialog
 from ui.dialogs.settings_dialog import SettingsDialog
 
 from tests.conftest import hidden_frame
+from tests.god_modules import main_window_source
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SETTINGS_DIALOG_SOURCE = (
@@ -1118,8 +1119,7 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
     the field simply back on the default next time."""
 
     @staticmethod
-    def _self_attributes_assigned_in(path) -> set:
-        source = (REPO / path).read_text(encoding="utf-8")
+    def _self_attributes_assigned_in(source) -> set:
         assigned = set()
         for node in ast.walk(ast.parse(source)):
             if isinstance(node, ast.Assign):
@@ -1136,10 +1136,12 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         return assigned
 
     def test_main_py_stores_it_under_the_underscored_name_and_no_other(self):
-        assigned = self._self_attributes_assigned_in("client/main.py")
+        # Every file MainWindow is built from (main.py and main_window/*.py):
+        # a second spelling in any of its mixins is the same bug.
+        assigned = self._self_attributes_assigned_in(main_window_source())
         assert "_app_settings" in assigned
         assert "app_settings" not in assigned, (
-            "main.py grew a second spelling — the transcription tab reads "
+            "MainWindow grew a second spelling — the transcription tab reads "
             "_app_settings and has no fallback the way switch_behavior does"
         )
 
