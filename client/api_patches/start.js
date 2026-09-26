@@ -210,6 +210,23 @@ const distPath = path.join(__dirname, 'dist');
 const configDefault = require(path.join(distPath, 'config')).default;
 const { initServer } = require(path.join(distPath, 'index'));
 
+// WPPConnect 2.3.3 still hard-codes Chrome/102 in WAuserAgente.  Current
+// WhatsApp Web uses that UA while deciding whether its VoIP backend worker may
+// initialize; overriding the feature checks later exposes the call methods but
+// leaves their RPC transport without a successful voipInit.  Advertise the
+// Chromium version we actually launch instead of an unrelated legacy build.
+try {
+  const uaModule = require('@wppconnect-team/wppconnect/dist/config/WAuserAgente');
+  const versionMatch = String(chromeExecutable || '').match(/(?:win64-|chrome-)(\d+\.\d+\.\d+\.\d+)/i);
+  const chromeVersion = versionMatch?.[1] || '148.0.7778.97';
+  uaModule.useragentOverride =
+    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ` +
+    `(KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+  console.log(`[WinZapp] Chromium user-agent aligned to Chrome/${chromeVersion}`);
+} catch (error) {
+  console.warn(`[WinZapp] Could not align Chromium user-agent: ${error.message || error}`);
+}
+
 // Carrega as configurações personalizadas de config.json
 let customConfig = {};
 const customConfigPath = path.join(__dirname, 'config.json');
@@ -268,7 +285,6 @@ if (process.env.AUTHENTICATION_API_KEY) {
 // software rasterizer fallback available.
 const optimizedBrowserArgs = [
   '--disable-renderer-accessibility',
-  '--disable-web-security',
   '--no-sandbox',
   '--disable-background-networking',
   '--disable-default-apps',
@@ -279,7 +295,8 @@ const optimizedBrowserArgs = [
   '--disable-translate',
   '--hide-scrollbars',
   '--metrics-recording-only',
-  '--mute-audio',
+  '--autoplay-policy=no-user-gesture-required',
+  '--use-fake-ui-for-media-stream',
   '--no-first-run',
   '--safebrowsing-disable-auto-update',
   '--ignore-certificate-errors',
@@ -288,7 +305,6 @@ const optimizedBrowserArgs = [
   '--no-zygote',
   '--disable-component-update',
   '--disable-speech-api',
-  '--disable-voice-input',
   '--disable-renderer-backgrounding',
   '--disable-backgrounding-occluded-windows',
   '--disable-features=OptimizationGuideOnDeviceModel,PromptAPIForGeminiNano,AISummarization,HelpMeWrite,OptimizationGuide,OptimizationHints,OptimizationTargetPrediction',
@@ -298,6 +314,17 @@ const optimizedBrowserArgs = [
   '--use-mock-keychain',
   '--no-pings',
   '--disable-client-side-phishing-detection',
+  // Belt to clearRestorableSession()'s braces (createSessionUtil.ts).
+  // That function removes the saved-tab files and records a clean exit
+  // before every launch; these two stop Chrome from acting on a restore
+  // record that appears anyway — a crash mid-session, or a profile
+  // restored from a snapshot taken elsewhere. WPPConnect drives exactly
+  // one page, and every extra tab a restore reopens loads outside
+  // start.js's document interception and outside wppconnect's user-agent
+  // override, then competes for the same IndexedDB and backend worker
+  // until injectApi() times out.
+  '--hide-crash-restore-bubble',
+  '--disable-session-crashed-bubble',
 ];
 
 // WPPConnect pins the WhatsApp Web version (default '2.3000.10305x') by serving
@@ -385,6 +412,107 @@ function versionExpiry(catalogue, version) {
   }
 }
 
+// ── What the installed wa-js says it can actually drive ──────────────────
+//
+// Pinning is only half a contract. WPPConnect serves a WhatsApp Web build and
+// then injects @wppconnect/wa-js into it; if that build is one wa-js cannot
+// drive, the page loads and authenticates (the phone even lists the linked
+// device as active) but `WPP.isReady` never becomes true. wppconnect's
+// injectApi() then dies on
+//
+//   TimeoutError: Waiting failed: 30000ms exceeded
+//
+// after which the session never leaves INITIALIZING, WinZapp reports offline,
+// and — because nothing was ever logged out — the user is told nothing at all.
+// Measured on a real install on 2026-09-07, an hour after selectServableVersion()
+// happily pinned a build Meta had published two and a half hours earlier.
+//
+// wa-js publishes the contract itself, as a semver-style range in its bundle:
+//
+//   t.version="4.6.0", t.supportedWhatsappWeb=">=2.3000.1038792969-alpha"
+//
+// Today that is a floor and nothing else, so honouring it changes no choice on
+// a current catalogue. It is still worth honouring for two reasons: it is the
+// only statement of compatibility that exists anywhere, and the day wa-js adds
+// an upper bound (`>=X <Y`) this respects it for free, with nothing to edit
+// here and nothing to ship. What covers today is WINZAPP_WA_WEB_VERSION, at
+// the call site.
+//
+// Read out of the bundle text rather than by require()ing wa-js: that file is
+// a browser bundle meant to be injected into a page, and loading it in Node is
+// neither safe nor cheap. Resolved through WPPConnect's own tree for exactly
+// the reason requireWaVersion() does the same — the copy WPPConnect injects is
+// the only one whose opinion matters.
+function readWaJsSupportedRange() {
+  try {
+    const wppEntry = require.resolve('@wppconnect-team/wppconnect/package.json');
+    const waJsPath = require.resolve('@wppconnect/wa-js', {
+      paths: [path.dirname(wppEntry)],
+    });
+    const source = fs.readFileSync(waJsPath, 'utf8');
+    const match = source.match(/supportedWhatsappWeb\s*=\s*["']([^"']+)["']/);
+    return match ? match[1].trim() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Resolved once, like `waVersion`. null means "this install cannot tell", which
+// must behave exactly as it did before this existed — never as "nothing is
+// supported".
+const waJsSupportedRange = readWaJsSupportedRange();
+
+// WhatsApp Web builds are dotted numbers with an optional channel suffix
+// ("2.3000.1046941822-alpha"). Compared component by component as numbers,
+// because they are not semver: 1046941822 has to sort above 999999999, which
+// it does not as a string. The suffix is deliberately ignored — it names the
+// release channel, not an ordering, and selectServableVersion() already has a
+// separate stable-first preference for it.
+function compareWhatsappVersions(a, b) {
+  const parts = (v) =>
+    String(v)
+      .split('-')[0]
+      .split('.')
+      .map((n) => parseInt(n, 10) || 0);
+  const left = parts(a);
+  const right = parts(b);
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    if (diff !== 0) return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+// Does `version` satisfy `range`?
+//
+// Understands the space-separated conjunction of comparators wa-js uses
+// (">=X", ">=X <Y", "<=X"), and nothing else — this is not a semver
+// implementation and must not grow into one. Anything unparseable, empty, or
+// "*" answers true: an install that cannot read the contract keeps exactly the
+// behaviour it had before the contract was consulted. That direction is the
+// safe one. The opposite — an unrecognised range excluding every build — would
+// leave the catalogue empty and send resolveWhatsappVersion() down the
+// unpinned path, which is the documented silent-send-failure disaster.
+function satisfiesWhatsappRange(version, range) {
+  if (!range || range === '*') return true;
+  const comparators = range.split(/\s+/).filter(Boolean);
+  if (comparators.length === 0) return true;
+  for (const comparator of comparators) {
+    const match = comparator.match(/^(>=|<=|>|<|=)?\s*(\d[\w.\-]*)$/);
+    if (!match) return true; // unparseable: do not let it exclude anything
+    const [, operator, bound] = match;
+    const cmp = compareWhatsappVersions(version, bound);
+    const ok =
+      operator === '>' ? cmp > 0
+      : operator === '<' ? cmp < 0
+      : operator === '<=' ? cmp <= 0
+      : operator === '=' ? cmp === 0
+      : cmp >= 0; // ">=" and the bare default
+    if (!ok) return false;
+  }
+  return true;
+}
+
 // The newest build this install can serve AND that Meta has not expired yet.
 //
 // Walks the catalogue newest-first and stops at the first entry that is both
@@ -419,7 +547,10 @@ function versionExpiry(catalogue, version) {
 // empty/unusable. `expired: true` means nothing valid was left and this is the
 // newest servable build regardless — see the call site for why that is still
 // pinned rather than dropped.
-function selectServableVersion(catalogue, now) {
+function selectServableVersion(catalogue, now, supportedRange) {
+  // Taken as a parameter, defaulting to the module-scope value, so a test can
+  // drive the compatibility range without reaching into module state.
+  if (supportedRange === undefined) supportedRange = waJsSupportedRange;
   const available = catalogue.getAvailableVersions();
   if (!Array.isArray(available) || available.length === 0) return null;
   // Memoised per version, and that is not a micro-optimisation. The comment
@@ -443,27 +574,52 @@ function selectServableVersion(catalogue, now) {
     return servable;
   };
   const isStable = (version) => !/-alpha|-beta/i.test(version);
-  for (const stableOnly of [true, false]) {
-    for (let i = available.length - 1; i >= 0; i--) {
-      const version = available[i];
-      if (stableOnly && !isStable(version)) continue;
-      const expire = versionExpiry(catalogue, version);
-      if (expire !== null && expire <= now) continue;
-      if (!canServe(version)) continue;
-      return { version, expire, expired: false, total: available.length };
-    }
-  }
-  for (const stableOnly of [true, false]) {
-    for (let i = available.length - 1; i >= 0; i--) {
-      const version = available[i];
-      if (stableOnly && !isStable(version)) continue;
-      if (canServe(version)) {
+  // The compatibility range is the OUTERMOST constraint, above both expiry and
+  // channel: exhaust every build the installed wa-js says it can drive before
+  // considering one it does not. That ordering is the point of the whole
+  // filter — "newer" is worth nothing if wa-js cannot initialise on it, which
+  // is the failure this was written for.
+  //
+  // The unrestricted pass below it is not optional. If the range excluded
+  // everything, returning null would drop resolveWhatsappVersion() into its
+  // unpinned branch, and running unpinned is measurably worse than running on
+  // a build of uncertain compatibility: WhatsApp serves its own newest build
+  // AND we lose the document interception. So a range that matches nothing
+  // degrades to today's behaviour, loudly, rather than to no pin at all.
+  for (const respectRange of [true, false]) {
+    const supported = (version) =>
+      !respectRange || satisfiesWhatsappRange(version, supportedRange);
+    for (const stableOnly of [true, false]) {
+      for (let i = available.length - 1; i >= 0; i--) {
+        const version = available[i];
+        if (stableOnly && !isStable(version)) continue;
+        if (!supported(version)) continue;
+        const expire = versionExpiry(catalogue, version);
+        if (expire !== null && expire <= now) continue;
+        if (!canServe(version)) continue;
         return {
           version,
-          expire: versionExpiry(catalogue, version),
-          expired: true,
+          expire,
+          expired: false,
+          unsupported: !respectRange,
           total: available.length,
         };
+      }
+    }
+    for (const stableOnly of [true, false]) {
+      for (let i = available.length - 1; i >= 0; i--) {
+        const version = available[i];
+        if (stableOnly && !isStable(version)) continue;
+        if (!supported(version)) continue;
+        if (canServe(version)) {
+          return {
+            version,
+            expire: versionExpiry(catalogue, version),
+            expired: true,
+            unsupported: !respectRange,
+            total: available.length,
+          };
+        }
       }
     }
   }
@@ -481,8 +637,51 @@ function resolveWhatsappVersion() {
     // (see setup_api.py's _PATCHED_DEPENDENCY_KEYS comment block and
     // tests/test_wpp_dependency_not_pinned.py). Keeping up is
     // `npm update @wppconnect/wa-version`, not editing this file.
+    // Manual override, for the one situation nothing automatic can cover: a
+    // WhatsApp Web build that is new, unexpired, inside wa-js's declared range
+    // and STILL not drivable by it. That is not hypothetical — it is what
+    // stranded a real install on 2026-09-07, and there was no way to test the
+    // theory or unblock the machine short of editing this file. One env var
+    // turns a day of guessing into one restart.
+    //
+    // Verified against the catalogue before it is trusted: a typo here would
+    // otherwise reach WPPConnect, which does not fail on an unknown version —
+    // it logs "using latest as fallback" and quietly runs unpinned.
+    const override = String(process.env.WINZAPP_WA_WEB_VERSION || '').trim();
+    if (override) {
+      let servable = false;
+      try {
+        waVersion.getPageContent(override);
+        servable = true;
+      } catch (e) {}
+      if (servable) {
+        console.log(
+          `[WinZapp] Pinning WhatsApp Web to ${override} (WINZAPP_WA_WEB_VERSION override).`
+        );
+        return override;
+      }
+      console.error(
+        `[WinZapp] WINZAPP_WA_WEB_VERSION is set to ${override}, which this ` +
+        "install's @wppconnect/wa-version cannot serve. Ignoring it and selecting " +
+        'automatically. Pick one of the versions the catalogue actually has.'
+      );
+    }
     const selected = selectServableVersion(waVersion, Date.now());
     if (!selected) return undefined;
+    if (selected.unsupported && waJsSupportedRange) {
+      // Everything wa-js declares support for is unusable on this install, so
+      // the pin below is a build it never claimed to drive. Still better than
+      // unpinned (see selectServableVersion), but this is the line to look for
+      // when the symptom is "connects, phone shows the device active, WinZapp
+      // stays offline".
+      console.error(
+        `[WinZapp] No WhatsApp Web build in this catalogue satisfies the range the ` +
+        `installed wa-js declares (${waJsSupportedRange}). Pinning ` +
+        `${selected.version} regardless, because running unpinned is worse. If the ` +
+        'session never leaves INITIALIZING, run: npm update @wppconnect/wa-version ' +
+        '(or reinstall the API from WinZapp).'
+      );
+    }
     pinnedCatalogueExpired = Boolean(selected.expired);
     if (selected.expired) {
       // Every entry in the catalogue is past its expiry date, so whatever we
@@ -517,9 +716,12 @@ function resolveWhatsappVersion() {
     const expiryNote = selected.expire === null
       ? 'no expiry recorded'
       : `expires ${new Date(selected.expire).toISOString()}`;
+    const rangeNote = waJsSupportedRange
+      ? `, wa-js supports ${waJsSupportedRange}`
+      : ', wa-js declares no supported range';
     console.log(
       `[WinZapp] Pinning WhatsApp Web to ${selected.version} ` +
-      `(of ${selected.total} available, ${expiryNote})`
+      `(of ${selected.total} available, ${expiryNote}${rangeNote})`
     );
     return selected.version;
   } catch (e) {
@@ -681,9 +883,34 @@ async function installPinnedPageInterception(page, body, log) {
   // interception entirely and got WhatsApp's current build — which decides
   // whether the bug is in this pattern or upstream of it.
   let documentsServed = 0;
+  const interceptionInstalledAt = Date.now();
   page.on('framenavigated', (frame) => {
     if (frame === page.mainFrame()) {
-      console.log(`[WinZapp] main frame navigated -> ${frame.url()}`);
+      const url = frame.url();
+      console.log(`[WinZapp] main frame navigated -> ${url}`);
+      // A forced `post_logout=1` this early — before the first pinned
+      // document has even been served once — means WhatsApp evicted the
+      // session before WPPConnect had a chance to log in at all, which is a
+      // different failure than the documented reload loop this pattern match
+      // was narrowed to avoid (see the comment on the exact-match urlPattern
+      // below). Both incidents that motivated this ([blindtec], [valmir],
+      // 2026-09-03) showed this exact shape: pair, list-chats stuck at 0
+      // chats the whole time, then this navigation 2-3 minutes later, on a
+      // pin that was not expired. Logged so a future occurrence is
+      // identifiable from log.log alone instead of requiring a fresh
+      // wppconnect.log grep session — this line changes no behavior.
+      if (/[?&]post_logout=1/.test(url)) {
+        const reasonMatch = url.match(/[?&]logout_reason=(\d+)/);
+        const reason = reasonMatch ? reasonMatch[1] : 'unknown';
+        const elapsedS = ((Date.now() - interceptionInstalledAt) / 1000).toFixed(1);
+        console.warn(
+          `[WinZapp] WhatsApp forced a logout (post_logout=1, logout_reason=${reason}) ` +
+          `${elapsedS}s after this session's document interception was installed, after ` +
+          `${documentsServed} pinned document(s) served. If this happens shortly after a ` +
+          'fresh pairing with the chat list still empty, it is WhatsApp evicting the ' +
+          'session server-side, not a local fault.'
+        );
+      }
     }
   });
   // The exact-match urlPattern is deliberate — do NOT widen it.
@@ -723,7 +950,18 @@ async function installPinnedPageInterception(page, body, log) {
         await cdp.send('Fetch.fulfillRequest', {
           requestId,
           responseCode: 200,
-          responseHeaders: [{ name: 'Content-Type', value: 'text/html' }],
+          // Keep the isolation contract from Meta's real document response.
+          // WhatsApp's browser VoIP backend uses pthread-enabled WebAssembly;
+          // without COOP+COEP, SharedArrayBuffer is unavailable, voipInit
+          // silently ends in the failed state, and every call RPC is rejected.
+          responseHeaders: [
+            { name: 'Content-Type', value: 'text/html; charset=utf-8' },
+            { name: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+            { name: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+            { name: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+            { name: 'Origin-Agent-Cluster', value: '?1' },
+            { name: 'Cache-Control', value: 'no-store, must-revalidate, no-cache, private' },
+          ],
           body: Buffer.from(body).toString('base64'),
         });
       } else {
@@ -823,6 +1061,23 @@ function patchWppconnectVersionPinning() {
         );
       }
     }
+    // The call media hooks must exist before WhatsApp's modules evaluate, and
+    // this is the one moment before the first load: register them now instead
+    // of reloading later (see registerCallMediaBridgeBeforeLoad in
+    // src/util/callMediaBridge.ts for the reload that wedged the page).
+    try {
+      const { registerCallMediaBridgeBeforeLoad } = require(
+        path.join(distPath, 'util', 'callMediaBridge')
+      );
+      if (await registerCallMediaBridgeBeforeLoad(page)) {
+        console.log('[WinZapp] call media bridge registered before WhatsApp Web loads.');
+      }
+    } catch (e) {
+      console.warn(
+        '[WinZapp] Could not register the call media bridge before load ' +
+        `(${e && e.message}); it will be installed into the running page instead.`
+      );
+    }
     return original.call(this, page, token, clear, version, proxy, log);
   };
 }
@@ -876,6 +1131,10 @@ const finalConfig = {
     puppeteerOptions: {
       ...(configDefault.createOptions?.puppeteerOptions || {}),
       ...(customConfig.createOptions?.puppeteerOptions || {}),
+      // Puppeteer adds --mute-audio to its headless defaults independently of
+      // browserArgs.  Leaving it there discards the remote call audio in the
+      // Chromium audio service before WinZapp can play it.
+      ignoreDefaultArgs: ['--mute-audio'],
       protocolTimeout: 300000,
       executablePath: chromeExecutable || undefined,
     },

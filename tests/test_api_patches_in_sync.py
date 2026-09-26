@@ -65,12 +65,15 @@ MIRRORED_FILES = [
     "decrypt.js",
     "src/config.ts",
     "src/index.ts",
+    "src/util/callMediaBridge.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",
     "src/util/functions.ts",
+    "src/util/logger.ts",
     "src/util/tokenStore/fileTokenStory.ts",
     "src/middleware/statusConnection.ts",
     "src/middleware/auth.ts",
+    "src/middleware/socketAuth.ts",
     "src/dto/sync.ts",
     "src/middleware/instrumentation.ts",
     "src/errors/domain.ts",
@@ -80,6 +83,8 @@ MIRRORED_FILES = [
     "src/tests/middleware/instrumentation.test.ts",
     "src/tests/dto/sync.test.ts",
     "src/tests/middleware/errorHandler.test.ts",
+    "src/tests/util/logger.test.ts",
+    "src/controller/callController.ts",
     "src/controller/deviceController.ts",
     "src/controller/messageController.ts",
     "src/controller/sessionController.ts",
@@ -157,6 +162,35 @@ def test_the_in_app_installer_restores_the_same_patches():
         assert f'"{rel_path}"' in src, f"ApiSetupDialog does not restore {rel_path}"
 
 
+def test_build_api_uses_the_canonical_patch_list_and_verifies_call_output():
+    """The developer build path must not silently compile a stale call controller."""
+    src = (ROOT / "build_api.py").read_text(encoding="utf-8")
+    assert "canonical_setup.CUSTOM_ROOT_FILES + canonical_setup.CUSTOM_SRC_FILES" in src
+    assert "canonical_setup._merge_package_json_dependencies()" in src
+    assert "_verify_critical_call_patch(api_dir)" in src
+
+    # REGRESSION: this used to assert only that the marker literals appeared
+    # somewhere in build_api.py -- which is trivially true of any string
+    # written there, and stayed true after the markers stopped existing in
+    # callController.ts. With `marker in source` gating the check, that made
+    # `missing` unconditionally empty: a stale dist/controller/callController.js
+    # passed "verification" and the test reported green. Assert instead that
+    # every marker the guard relies on is actually present in the patched
+    # controller, which is the only thing that makes the guard able to fire.
+    markers = re.search(
+        r"markers = \(\s*(.*?)\s*\)", src, re.S
+    )
+    assert markers, "could not locate the markers tuple in build_api.py"
+    marker_values = re.findall(r'"([^"]+)"', markers.group(1))
+    assert marker_values, "the markers tuple is empty"
+
+    controller = (
+        ROOT / "client" / "api_patches" / "src" / "controller" / "callController.ts"
+    ).read_text(encoding="utf-8")
+    for marker in marker_values:
+        assert marker in controller, marker
+
+
 def test_both_installers_patch_the_same_dependencies():
     """package.json is merged, not copied, by both flows — but only setup_api.py
     used to do it at all, so every end-user install ran npm install against the
@@ -167,14 +201,18 @@ def test_both_installers_patch_the_same_dependencies():
     assert '"@ffmpeg-installer/ffmpeg"' in dialog, "ApiSetupDialog does not patch @ffmpeg-installer/ffmpeg"
 
 
-def test_wppconnect_itself_is_no_longer_pinned():
-    """@wppconnect-team/wppconnect used to be forced to an exact version here,
-    and that went stale within days: this dependency releases multiple times a
-    week, and wppconnect-server's own package.json had already moved on to a
-    newer requirement than what WinZapp had frozen — silently running an
-    incompatible pairing with no error anywhere. Neither installer may
-    reintroduce that pin; upstream's own declared range must win, exactly like
-    every other dependency this file does not name."""
+def test_wppconnect_runtime_is_pinned_by_both_installers():
+    """WinZapp ships a *homologated pair*: one WPPConnect Server tag
+    (client/wpp_minimum_version.txt) together with one exact
+    @wppconnect-team/wppconnect + @wppconnect/wa-js it was validated against.
+
+    Upstream declares a caret range, so leaving it alone meant a plain
+    `npm install` of the same server tag could change the browser-side send
+    and status APIs underneath an unchanged WinZapp build — which is what it
+    did. Moving the pair is a deliberate act, made in one commit alongside
+    client/wpp_minimum_version.txt, never something a reinstall does on its
+    own. Both installers therefore have to carry the key, or the end-user
+    install flow silently resolves a different pair than a dev build."""
     setup = (ROOT / "setup_api.py").read_text(encoding="utf-8")
     dialog = (ROOT / "client" / "ui" / "dialogs" / "api_setup.py").read_text(encoding="utf-8")
 
@@ -183,8 +221,8 @@ def test_wppconnect_itself_is_no_longer_pinned():
         end = src.index("]", start)
         return src[start:end]
 
-    assert "@wppconnect-team/wppconnect" not in _patched_keys(setup, "_PATCHED_DEPENDENCY_KEYS")
-    assert "@wppconnect-team/wppconnect" not in _patched_keys(dialog, "_PATCHED_DEPENDENCY_KEYS")
+    assert "@wppconnect-team/wppconnect" in _patched_keys(setup, "_PATCHED_DEPENDENCY_KEYS")
+    assert "@wppconnect-team/wppconnect" in _patched_keys(dialog, "_PATCHED_DEPENDENCY_KEYS")
 
 
 def test_fluent_ffmpeg_is_gone_everywhere():
@@ -329,12 +367,11 @@ class TestPackageJsonMerge:
         out = json.loads((api / "package.json").read_text(encoding="utf-8"))
         assert out["dependencies"]["@ffmpeg-installer/ffmpeg"] == "^1.1.0"
 
-    def test_wppconnect_itself_is_never_touched_by_the_merge(self, tmp_path):
-        """The whole point of unpinning it: whatever range the real download
-        declared must survive completely untouched, even if api_patches/
-        package.json still happens to mention the key (e.g. as a leftover
-        reference) — it must not be in _PATCHED_DEPENDENCY_KEYS, so the merge
-        never looks at it."""
+    def test_wppconnect_runtime_pin_is_applied_by_the_merge(self, tmp_path):
+        """The merge is what actually installs the homologated pair: whatever
+        range the download declared has to lose to api_patches/package.json for
+        this one key, exactly like every other patched dependency. Anything
+        else and the pin exists only on paper."""
         api, patches = self._setup_dirs(
             tmp_path,
             {"version": "2.10.1", "dependencies": {"@wppconnect-team/wppconnect": "^2.2.6"}},
@@ -342,10 +379,7 @@ class TestPackageJsonMerge:
         )
         self._dialog()._merge_package_json_dependencies(str(api), str(patches))
         out = json.loads((api / "package.json").read_text(encoding="utf-8"))
-        assert out["dependencies"]["@wppconnect-team/wppconnect"] == "^2.2.6", (
-            "the merge must never override @wppconnect-team/wppconnect — "
-            "it is not (and must not become) a patched key"
-        )
+        assert out["dependencies"]["@wppconnect-team/wppconnect"] == "2.2.4"
 
     def test_the_downloaded_version_field_is_never_overwritten(self, tmp_path):
         """WppUpdateChecker compares this against the latest GitHub release — it
@@ -398,9 +432,10 @@ class TestPackageJsonMerge:
         out = json.loads((api / "package.json").read_text(encoding="utf-8"))
         assert out["version"] == "9.9.9"
         assert "@ffmpeg-installer/ffmpeg" in out["dependencies"]
-        assert "@wppconnect-team/wppconnect" not in out["dependencies"], (
-            "the real api_patches/package.json must not (re-)declare this key, "
-            "or a future _PATCHED_DEPENDENCY_KEYS edit could start pinning it again"
+        patched = json.loads((PATCHES / "package.json").read_text(encoding="utf-8"))
+        assert (
+            out["dependencies"]["@wppconnect-team/wppconnect"]
+            == patched["dependencies"]["@wppconnect-team/wppconnect"]
         )
 
 
@@ -421,29 +456,22 @@ def test_patched_dependencies_are_present_in_the_live_package_json():
     )
 
 
-def test_wppconnect_is_not_frozen_in_the_live_package_json():
-    """Regression guard for the original bug report: client/api/package.json
-    must track whatever range wppconnect-server's own upstream package.json
-    declares, not a value someone hardcoded here at some point in the past.
-    This can't assert a specific version (upstream releases constantly), only
-    that it's a caret range — or a git dependency, which is likewise resolved
-    fresh rather than frozen — rather than the old exact pin."""
+def test_wppconnect_is_frozen_to_the_homologated_live_version():
+    """The live client/api/package.json must carry the exact pair declared in
+    api_patches/, not the caret range the clone came with — a range here means
+    the merge never ran, and the next `npm install` is free to change the
+    browser-side send/status APIs this patch set was written against.
+
+    The expected value is read from api_patches/package.json rather than
+    written out again, so moving the pair stays a one-file edit.
+    """
     live = API / "package.json"
     if not live.exists():
         pytest.skip("client/api/package.json not present")
     deps = json.loads(live.read_text(encoding="utf-8")).get("dependencies", {})
-    version = deps.get("@wppconnect-team/wppconnect", "")
-    # `or bool(version)` used to be a third clause here, which made the two
-    # above it dead: every non-empty string passed, including the exact pin
-    # this test exists to reject. A guard that cannot fail is worse than no
-    # guard, because the green run reads as evidence.
-    assert version.startswith("^") or version.startswith("git+"), (
-        f"@wppconnect-team/wppconnect is pinned to an exact version ({version!r}) "
-        f"in client/api/package.json — this is exactly the bug that made a real "
-        f"clone of wppconnect-server 2.10.1 (which wants ^2.2.6) run against a "
-        f"stale, incompatible 2.2.4. Let it float on upstream's own range, or "
-        f"point at a git dependency."
-    )
+    patched = json.loads((PATCHES / "package.json").read_text(encoding="utf-8"))
+    expected = patched["dependencies"]["@wppconnect-team/wppconnect"]
+    assert deps.get("@wppconnect-team/wppconnect", "") == expected
 
 
 # Matches `from './x'`, `import '../y'` and `require('./z')` — only the

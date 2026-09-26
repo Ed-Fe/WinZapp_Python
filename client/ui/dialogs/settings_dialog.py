@@ -1,8 +1,11 @@
 import ctypes
 import os
 import wx
+from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
 from core.i18n import LANGUAGE_NAMES
 from core.combo_search import bind_incremental_search
+from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
+from ui.dialogs.stereo_voice_warning import ask_stereo_voice
 from core.sound_system import (
     SOUND_EVENTS, discover_alert_tone_choices, resolve_alert_tone_path,
     DEFAULT_PACK_ID, import_soundpack, AlertPreviewController,
@@ -10,6 +13,13 @@ from core.sound_system import (
 from core.audio_devices import (
     enumerate_output_devices, enumerate_input_devices, test_input_device,
 )
+from core.spell_checker import SPELL_CHECK_MODES, spell_check_mode
+from core.reaction_shortcuts import (
+    DEFAULT_QUICK_REACTIONS,
+    assign_quick_reaction,
+    fixed_quick_reactions,
+)
+from ui.dialogs.emoji_picker import choose_reaction_emoji
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -131,6 +141,10 @@ from core.transcription import (
 from ui.dialogs.transcription_progress import (
     TranscriptionProgressDialog,
     progress_status_text,
+)
+from core.profile_backup import (
+    CLOSE_HOURS_MINIMUM, DEFAULT_CLOSE_HOURS, DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM,
+    parse_hours_field, stored_hours,
 )
 
 
@@ -430,6 +444,24 @@ def _transcription_cuda_status_text(i18n, state) -> str:
     )
 
 
+def chat_lock_tab_visible(main_window) -> bool:
+    """Whether Settings may show the "Locked chats" tab at all.
+
+    A vault the user chose to hide (hide_navigation) must not be advertised
+    by an always-visible tab whose button unlocks with the PIN alone -- that
+    would skip the secret search code and give away that a vault exists. It
+    stays reachable while the vault is already unlocked (the user got in via
+    the secret code) and while none was ever set up. Mirrors
+    MainWindow.chat_lock_navigation_visible(): no vault object -> hidden.
+    """
+    vault = getattr(main_window, "_chat_lock_vault", None)
+    if vault is None:
+        return False
+    if not vault.configured or not vault.hide_navigation:
+        return True
+    return bool(getattr(main_window, "_chat_lock_unlocked", False))
+
+
 class SettingsDialog(wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
@@ -453,7 +485,7 @@ class SettingsDialog(wx.Dialog):
         self._load_values()
         self._loading_values = False
         self._apply_btn.Hide()
-        # Catches every checkbox/radio/combo/text change anywhere in the
+        # Catches every checkbox/radio/combo/choice/text change anywhere in the
         # dialog via wx's normal command-event propagation (a control-level
         # handler that doesn't call event.Skip() would otherwise swallow it —
         # see _mark_dirty()'s docstring for the handlers that needed one
@@ -468,6 +500,7 @@ class SettingsDialog(wx.Dialog):
         # the Apply button ever appearing.
         self.Bind(wx.EVT_RADIOBOX, self._mark_dirty)
         self.Bind(wx.EVT_COMBOBOX, self._mark_dirty)
+        self.Bind(wx.EVT_CHOICE, self._mark_dirty)
         self.Bind(wx.EVT_TEXT, self._mark_dirty)
         # Bound after _load_values() for the same reason as the four above:
         # AddPage() itself fires this event while the notebook is being built,
@@ -503,10 +536,10 @@ class SettingsDialog(wx.Dialog):
         self._general_page = wx.Panel(self._notebook)
         gen_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        gen_sizer.Add(
-            wx.StaticText(self._general_page, label=i18n.t("language_label")),
-            0, wx.LEFT | wx.TOP | wx.RIGHT, 8,
-        )
+        # Kept on self so _refresh_dialog_labels() can re-translate it after
+        # Apply; an inline StaticText can never be relabelled.
+        self._language_label = wx.StaticText(self._general_page, label=i18n.t("language_label"))
+        gen_sizer.Add(self._language_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         self._lang_combo = wx.ComboBox(
             self._general_page,
             style=wx.CB_READONLY,
@@ -535,6 +568,30 @@ class SettingsDialog(wx.Dialog):
             self._general_page, label=i18n.t("announce_sync_events_label")
         )
         gen_sizer.Add(self._announce_sync_check, 0, wx.ALL, 8)
+
+        # Turns the checking itself off, not just its sound: set to off, the
+        # message field never calls into the Windows spell-check COM service
+        # at all (see ConversationsPanel._spell_check_enabled()). Silencing
+        # only the cue is already possible per-event under Eventos Sonoros.
+        #
+        # Radio group, not a checkbox: Windows has a spelling setting of its
+        # own (Settings > Time & language > Typing > Spelling), and following
+        # it is the right default — but a checkbox that silently lost to
+        # Windows would announce a state the app does not actually have, and
+        # every control here is read out loud. Three options say what is
+        # really going on and leave the override available.
+        self._spell_check_radio = wx.RadioBox(
+            self._general_page,
+            label=i18n.t("spell_check_label"),
+            choices=[
+                i18n.t("spell_check_mode_windows"),
+                i18n.t("spell_check_mode_on"),
+                i18n.t("spell_check_mode_off"),
+            ],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        gen_sizer.Add(self._spell_check_radio, 0, wx.EXPAND | wx.ALL, 8)
 
         # Radio group, not a checkbox: the two folding levels are different
         # trades, not "more of the same", so the user picks one rather than
@@ -618,17 +675,20 @@ class SettingsDialog(wx.Dialog):
         self._ui_page = wx.Panel(self._notebook)
         ui_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        ui_sizer.Add(
-            wx.StaticText(self._ui_page, label=i18n.t("ui_messages_page_size_label")),
-            0, wx.LEFT | wx.TOP | wx.RIGHT, 8,
+        # Both labels are kept on self: they name the edit fields below them
+        # for the screen reader, and an inline StaticText stayed in the
+        # previous language after Apply (reported live, English -> pt-BR).
+        self._messages_page_size_label = wx.StaticText(
+            self._ui_page, label=i18n.t("ui_messages_page_size_label")
         )
+        ui_sizer.Add(self._messages_page_size_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         self._messages_page_size_field = wx.TextCtrl(self._ui_page, style=wx.TE_DONTWRAP)
         ui_sizer.Add(self._messages_page_size_field, 0, wx.EXPAND | wx.ALL, 8)
 
-        ui_sizer.Add(
-            wx.StaticText(self._ui_page, label=i18n.t("ui_page_jump_size_label")),
-            0, wx.LEFT | wx.TOP | wx.RIGHT, 8,
+        self._page_jump_size_label = wx.StaticText(
+            self._ui_page, label=i18n.t("ui_page_jump_size_label")
         )
+        ui_sizer.Add(self._page_jump_size_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         self._page_jump_size_field = wx.TextCtrl(self._ui_page, style=wx.TE_DONTWRAP)
         ui_sizer.Add(self._page_jump_size_field, 0, wx.EXPAND | wx.ALL, 8)
 
@@ -758,6 +818,53 @@ class SettingsDialog(wx.Dialog):
         )
         ui_sizer.Add(
             self._bulk_action_shortcuts_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        # Mirrors user_interface.confirm_mark_all_read, the same key the
+        # "don't show again" checkbox of that confirmation clears — this is
+        # the way back after ticking it.
+        self._confirm_mark_all_read_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_confirm_mark_all_read")
+        )
+        ui_sizer.Add(
+            self._confirm_mark_all_read_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        # Same arrangement for F5 and Shift+F5: each mirrors the key its
+        # confirmation's "don't show again" box clears.
+        self._confirm_resync_all_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_confirm_resync_all")
+        )
+        ui_sizer.Add(
+            self._confirm_resync_all_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+        self._confirm_resync_conversation_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_confirm_resync_conversation")
+        )
+        ui_sizer.Add(
+            self._confirm_resync_conversation_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+        # Mirrors user_interface.warn_stereo_voice_iphone, which the stereo
+        # warning's own "don't show again" box clears.
+        self._warn_stereo_voice_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_warn_stereo_voice_iphone")
+        )
+        ui_sizer.Add(
+            self._warn_stereo_voice_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        self._space_selects_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_space_selects_in_selection_mode")
+        )
+        ui_sizer.Add(
+            self._space_selects_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        self._escape_clears_selection_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_escape_clears_selection")
+        )
+        ui_sizer.Add(
+            self._escape_clears_selection_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
         )
 
         self._auto_focus_next_audio_cb = wx.CheckBox(
@@ -1014,6 +1121,13 @@ class SettingsDialog(wx.Dialog):
         )
         adev_sizer.Add(self._noise_reduction_check, 0, wx.ALL, 8)
 
+        # Stereo voice messages by default (issue #82). The record button's
+        # neighbour offers the other mode for a single message.
+        self._voice_stereo_check = wx.CheckBox(
+            self._audio_devices_page, label=i18n.t("voice_stereo_default_label")
+        )
+        adev_sizer.Add(self._voice_stereo_check, 0, wx.ALL, 8)
+
         self._audio_devices_page.SetSizer(adev_sizer)
         self._notebook.AddPage(self._audio_devices_page, i18n.t("tab_audio_devices"))
 
@@ -1220,6 +1334,8 @@ class SettingsDialog(wx.Dialog):
 
         self._alert_private_combo.Bind(wx.EVT_COMBOBOX, self._on_alert_choice_changed)
         self._alert_group_combo.Bind(wx.EVT_COMBOBOX, self._on_alert_choice_changed)
+        self._alert_private_custom_field.Bind(wx.EVT_TEXT, self._on_alert_custom_path_changed)
+        self._alert_group_custom_field.Bind(wx.EVT_TEXT, self._on_alert_custom_path_changed)
 
         # Preview buttons — sharing a group so starting one stops the other.
         _alert_preview_group = []
@@ -1336,17 +1452,217 @@ class SettingsDialog(wx.Dialog):
         )
         calls_sizer.Add(self._call_popup_check, 0, wx.ALL, 8)
 
+        self._call_audio_settings_button = wx.Button(
+            self._calls_page, label=i18n.t("calls_audio_settings_button")
+        )
+        calls_sizer.Add(self._call_audio_settings_button, 0, wx.ALL, 8)
+
+        self._call_video_settings_button = wx.Button(
+            self._calls_page, label=i18n.t("calls_video_settings_button")
+        )
+        calls_sizer.Add(self._call_video_settings_button, 0, wx.ALL, 8)
+
         self._calls_page.SetSizer(calls_sizer)
         self._notebook.AddPage(self._calls_page, i18n.t("tab_calls"))
         self._call_alerts_check.Bind(wx.EVT_CHECKBOX, self._on_call_alerts_toggle)
+        # Bound to a local forwarder, not to self.main_window's own method:
+        # every wxgui test in this file's suites stands a plain wx.Frame in for
+        # MainWindow, so reaching for one of its methods while BUILDING the
+        # dialog raised AttributeError in __init__ and left a half-constructed
+        # dialog behind. 155 tests failed on that, most of them only as
+        # cascade — once enough part-built dialogs leak, wx starts answering
+        # "Failed to create dialog. Incorrect DLGTEMPLATE?" to everything, and
+        # the real cause is buried a thousand log lines up.
+        self._call_audio_settings_button.Bind(
+            wx.EVT_BUTTON, self._on_call_audio_settings
+        )
+        self._call_video_settings_button.Bind(
+            wx.EVT_BUTTON, self._on_call_video_settings
+        )
+
+        # ── Profile backup tab ───────────────────────────────────────────────
+        # When the restore point of the Chrome profile that carries the
+        # WhatsApp login is refreshed (core/profile_backup.py). Appended last,
+        # so no hardcoded SetSelection() index of an earlier tab moves.
+        self._profile_backup_page = wx.Panel(self._notebook)
+        backup_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._close_snapshot_hours_label = wx.StaticText(
+            self._profile_backup_page, label=i18n.t("profile_backup_close_hours_label")
+        )
+        backup_sizer.Add(self._close_snapshot_hours_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._close_snapshot_hours_field = wx.TextCtrl(
+            self._profile_backup_page, style=wx.TE_DONTWRAP
+        )
+        backup_sizer.Add(self._close_snapshot_hours_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        # A live profile cannot be copied, so this closes the session for the
+        # copy: a short disconnection each time, off by default.
+        self._live_snapshot_check = wx.CheckBox(
+            self._profile_backup_page, label=i18n.t("profile_backup_live_label")
+        )
+        backup_sizer.Add(self._live_snapshot_check, 0, wx.ALL, 8)
+
+        self._live_snapshot_hours_label = wx.StaticText(
+            self._profile_backup_page, label=i18n.t("profile_backup_live_hours_label")
+        )
+        backup_sizer.Add(self._live_snapshot_hours_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._live_snapshot_hours_field = wx.TextCtrl(
+            self._profile_backup_page, style=wx.TE_DONTWRAP
+        )
+        backup_sizer.Add(self._live_snapshot_hours_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        self._live_snapshot_confirm_check = wx.CheckBox(
+            self._profile_backup_page, label=i18n.t("profile_backup_live_confirm_label")
+        )
+        backup_sizer.Add(self._live_snapshot_confirm_check, 0, wx.ALL, 8)
+
+        self._profile_backup_page.SetSizer(backup_sizer)
+        self._notebook.AddPage(self._profile_backup_page, i18n.t("tab_profile_backup"))
+        self._live_snapshot_check.Bind(wx.EVT_CHECKBOX, self._on_live_snapshot_toggle)
+
+        # ── Reactions tab ────────────────────────────────────────────────────
+        # The twelve quick choices of "React to message" (core/reaction_shortcuts.py).
+        # Appended last, like Profile backup, so no hardcoded SetSelection() /
+        # SetPageText() index of an earlier tab moves.
+        self._reactions_page = wx.Panel(self._notebook)
+        reactions_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._fixed_quick_reactions_cb = wx.CheckBox(
+            self._reactions_page, label=i18n.t("reactions_fixed_label")
+        )
+        reactions_sizer.Add(self._fixed_quick_reactions_cb, 0, wx.ALL, 8)
+
+        # The label right before the list is the list's accessible name, so
+        # it carries the instruction: NVDA reads it on arriving by Tab, which
+        # is how the user learns that Enter opens the emoji picker.
+        self._quick_reaction_slots_label = wx.StaticText(
+            self._reactions_page, label=i18n.t("reactions_slots_label")
+        )
+        reactions_sizer.Add(
+            self._quick_reaction_slots_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8
+        )
+        self._quick_reaction_slots_list = wx.ListCtrl(
+            self._reactions_page, style=wx.LC_REPORT | wx.LC_SINGLE_SEL, size=(-1, 230)
+        )
+        self._quick_reaction_slots_list.InsertColumn(
+            0, i18n.t("reactions_slots_column").replace("&", ""), width=360
+        )
+        self._quick_reaction_slots = list(DEFAULT_QUICK_REACTIONS)
+        self._fill_quick_reaction_slots()
+        # Same "never open on nothing selected" convention as the group media
+        # list; Focus/Select only, the keyboard caret stays where it is.
+        self._quick_reaction_slots_list.Focus(0)
+        self._quick_reaction_slots_list.Select(0)
+        self._quick_reaction_slots_list.Bind(
+            wx.EVT_LIST_ITEM_ACTIVATED, self._on_quick_reaction_slot_activated
+        )
+        reactions_sizer.Add(
+            self._quick_reaction_slots_list, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        self._reset_quick_reactions_btn = wx.Button(
+            self._reactions_page, label=i18n.t("reactions_reset_button")
+        )
+        self._reset_quick_reactions_btn.Bind(wx.EVT_BUTTON, self._on_reset_quick_reactions)
+        reactions_sizer.Add(self._reset_quick_reactions_btn, 0, wx.ALL, 8)
+
+        self._reactions_page.SetSizer(reactions_sizer)
+        self._notebook.AddPage(self._reactions_page, i18n.t("tab_reactions"))
+        self._fixed_quick_reactions_cb.Bind(
+            wx.EVT_CHECKBOX, self._on_fixed_quick_reactions_toggle
+        )
+
+        # ── Locked chats tab ────────────────────────────────────────────────
+        # Persistent vault policy belongs in Settings, not beside the chat
+        # list the user visits repeatedly. The controls stay unavailable until
+        # the vault is authenticated (or configured for the first time), so
+        # opening Settings alone never exposes its current private state.
+        self._chat_lock_page = wx.Panel(self._notebook)
+        chat_lock_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._chat_lock_intro = wx.StaticText(
+            self._chat_lock_page,
+            label=i18n.t("chat_lock_settings_intro"),
+        )
+        chat_lock_sizer.Add(
+            self._chat_lock_intro, 0, wx.EXPAND | wx.ALL, 8
+        )
+        self._chat_lock_unlock_btn = wx.Button(
+            self._chat_lock_page,
+            label=i18n.t("chat_lock_settings_unlock"),
+        )
+        self._chat_lock_unlock_btn.Bind(
+            wx.EVT_BUTTON, self._on_chat_lock_settings_unlock
+        )
+        chat_lock_sizer.Add(self._chat_lock_unlock_btn, 0, wx.ALL, 8)
+
+        self._chat_lock_show_navigation_check = wx.CheckBox(
+            self._chat_lock_page,
+            label=i18n.t("chat_lock_show_navigation"),
+        )
+        self._chat_lock_show_navigation_check.Bind(
+            wx.EVT_CHECKBOX, self._on_chat_lock_policy_changed
+        )
+        chat_lock_sizer.Add(
+            self._chat_lock_show_navigation_check, 0, wx.ALL, 8
+        )
+
+        self._chat_lock_timeout_label = wx.StaticText(
+            self._chat_lock_page,
+            label=i18n.t("chat_lock_timeout_label"),
+        )
+        chat_lock_sizer.Add(
+            self._chat_lock_timeout_label,
+            0, wx.LEFT | wx.TOP | wx.RIGHT, 8,
+        )
+        self._chat_lock_timeout_choice = wx.Choice(
+            self._chat_lock_page,
+            choices=self._chat_lock_timeout_labels(),
+        )
+        self._chat_lock_timeout_choice.SetName(
+            i18n.t("chat_lock_timeout_label")
+        )
+        self._chat_lock_timeout_choice.Bind(
+            wx.EVT_CHOICE, self._on_chat_lock_policy_changed
+        )
+        chat_lock_sizer.Add(
+            self._chat_lock_timeout_choice,
+            0, wx.EXPAND | wx.ALL, 8,
+        )
+
+        self._chat_lock_change_pin_btn = wx.Button(
+            self._chat_lock_page, label=i18n.t("chat_lock_change_pin")
+        )
+        self._chat_lock_change_pin_btn.Bind(
+            wx.EVT_BUTTON, self._on_chat_lock_change_pin
+        )
+        chat_lock_sizer.Add(self._chat_lock_change_pin_btn, 0, wx.ALL, 8)
+
+        self._chat_lock_change_reveal_btn = wx.Button(
+            self._chat_lock_page, label=i18n.t("chat_lock_settings")
+        )
+        self._chat_lock_change_reveal_btn.Bind(
+            wx.EVT_BUTTON, self._on_chat_lock_change_reveal
+        )
+        chat_lock_sizer.Add(self._chat_lock_change_reveal_btn, 0, wx.ALL, 8)
+
+        self._chat_lock_page.SetSizer(chat_lock_sizer)
+        self._chat_lock_tab_shown = chat_lock_tab_visible(self.main_window)
+        if self._chat_lock_tab_shown:
+            self._notebook.AddPage(self._chat_lock_page, i18n.t("locked_chats"))
+        else:
+            self._chat_lock_page.Hide()
 
         # ── Transcription tab ────────────────────────────────────────────────
         # Appended, never inserted. Every hardcoded _notebook.SetSelection(N)
         # in this file and in main.py names a tab at index 8 or lower, and the
         # SetPageText() enumeration in _refresh_dialog_labels() is positional,
-        # so the end is the one position that shifts nothing — but the new
-        # index still owes that enumeration a line of its own, or the tab
-        # caption stops following a language change.
+        # so the end is the one position that shifts nothing — but the tab
+        # still owes that enumeration a line of its own, or its caption stops
+        # following a language change. That line finds the page with
+        # FindPage() instead of a number: the "Locked chats" tab just above is
+        # added only when chat_lock_tab_visible() says so, which leaves this
+        # one at index 14 or 15.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
 
@@ -2744,6 +3060,23 @@ class SettingsDialog(wx.Dialog):
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
+    def _apply_spell_check_mode(self):
+        """Select the stored spell-check mode in the radio group.
+
+        Shows the user's own choice, never Windows' current reading: the
+        "follow Windows" option is what expresses the deference, so seeding
+        the control from the registry instead would leave no way to tell the
+        two apart — and no way to keep following Windows once it changed.
+        spell_check_mode() (core/spell_checker.py) resolves the default and
+        migrates the legacy `spell_check_enabled` bool.
+
+        Its own method, rather than inline in _load_values(), so it can be
+        exercised against a stub carrying just the radio — SettingsDialog is
+        a wx.Dialog and cannot be built without a running wx.App.
+        """
+        mode = spell_check_mode(self.main_window.settings.get("general", {}))
+        self._spell_check_radio.SetSelection(SPELL_CHECK_MODES.index(mode))
+
     def _load_values(self):
         """Populate controls from current settings."""
         lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
@@ -2759,6 +3092,28 @@ class SettingsDialog(wx.Dialog):
         self._call_alerts_check.SetValue(call_settings.get("alerts_enabled", True))
         self._call_popup_check.SetValue(call_settings.get("popup_enabled", True))
         self._update_call_fields_state()
+
+        profile_backup = self.main_window.settings.get("profile_backup", {})
+        # Shown as the value WinZapp actually applies (core/profile_backup.py):
+        # a hand-edited 0, null or "abc" in settings.json would otherwise open
+        # as a field the validation refuses, blocking OK for a user who only
+        # came to change something else.
+        self._close_snapshot_hours_field.SetValue(str(stored_hours(
+            profile_backup.get("close_snapshot_min_hours", 24),
+            DEFAULT_CLOSE_HOURS, CLOSE_HOURS_MINIMUM)))
+        self._live_snapshot_check.SetValue(profile_backup.get("live_snapshot_enabled", False))
+        self._live_snapshot_hours_field.SetValue(str(stored_hours(
+            profile_backup.get("live_snapshot_interval_hours", 24),
+            DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM)))
+        self._live_snapshot_confirm_check.SetValue(profile_backup.get("live_snapshot_confirm", True))
+        self._update_live_snapshot_fields()
+
+        reactions = self.main_window.settings.get("reactions", {})
+        self._fixed_quick_reactions_cb.SetValue(
+            bool(reactions.get("fixed_quick_reactions", False))
+        )
+        self._set_quick_reaction_slots(reactions.get("quick_reaction_slots"))
+        self._update_quick_reaction_fields()
 
         files_settings = self.main_window.settings.get(save_location.SECTION, {})
         self._save_folder_radio.SetSelection(
@@ -2778,6 +3133,8 @@ class SettingsDialog(wx.Dialog):
 
         announce_sync = self.main_window.settings.get("general", {}).get("announce_sync_events", True)
         self._announce_sync_check.SetValue(announce_sync)
+
+        self._apply_spell_check_mode()
 
         # "off" unless the user chose otherwise — including for installs
         # whose settings.json predates the option and has no key at all.
@@ -2876,6 +3233,36 @@ class SettingsDialog(wx.Dialog):
             "bulk_action_shortcuts", True
         )
         self._bulk_action_shortcuts_cb.SetValue(bool(bulk_action_shortcuts))
+
+        confirm_mark_all_read = self.main_window.settings.get("user_interface", {}).get(
+            "confirm_mark_all_read", True
+        )
+        self._confirm_mark_all_read_cb.SetValue(bool(confirm_mark_all_read))
+
+        confirm_resync_all = self.main_window.settings.get("user_interface", {}).get(
+            "confirm_resync_all", True
+        )
+        self._confirm_resync_all_cb.SetValue(bool(confirm_resync_all))
+
+        confirm_resync_conversation = self.main_window.settings.get("user_interface", {}).get(
+            "confirm_resync_conversation", True
+        )
+        self._confirm_resync_conversation_cb.SetValue(bool(confirm_resync_conversation))
+
+        warn_stereo_voice = self.main_window.settings.get("user_interface", {}).get(
+            "warn_stereo_voice_iphone", True
+        )
+        self._warn_stereo_voice_cb.SetValue(bool(warn_stereo_voice))
+
+        space_selects = self.main_window.settings.get("user_interface", {}).get(
+            "space_selects_in_selection_mode", True
+        )
+        self._space_selects_cb.SetValue(bool(space_selects))
+
+        escape_clears_selection = self.main_window.settings.get("user_interface", {}).get(
+            "escape_clears_selection", True
+        )
+        self._escape_clears_selection_cb.SetValue(bool(escape_clears_selection))
 
         auto_focus_next_audio = self.main_window.settings.get("user_interface", {}).get(
             "auto_focus_next_audio", True
@@ -2976,7 +3363,11 @@ class SettingsDialog(wx.Dialog):
 
         self._port_field.SetValue(str(self.main_window.wpp_port))
 
-        api_key = conn.get("wpp_api_key", "wz-local-api-key")
+        # The shipped default rather than a placeholder. load_settings() and the
+        # defaults backfill normally fill the key before this runs, so this is
+        # consistency more than a live path — but a fallback that differs from
+        # DEFAULT_SETTINGS would be written back on OK if it ever were reached.
+        api_key = conn.get("wpp_api_key", DEFAULT_SETTINGS["connection"]["wpp_api_key"])
         self._api_key_field.SetValue(api_key)
 
         self._update_fields_state()
@@ -2990,6 +3381,11 @@ class SettingsDialog(wx.Dialog):
         )
         noise_red = self.main_window.settings.get("general", {}).get("noise_reduction_enabled", False)
         self._noise_reduction_check.SetValue(noise_red)
+
+        voice_stereo = self.main_window.settings.get("general", {}).get(
+            "voice_message_stereo", False
+        )
+        self._voice_stereo_check.SetValue(bool(voice_stereo))
 
         # Sound events / packs
         self.main_window.refresh_sound_packs()
@@ -3020,7 +3416,86 @@ class SettingsDialog(wx.Dialog):
             audio_playback.get("mark_audio_played_in_list", True)
         )
 
+        # This load used to sit inside _on_custom_api_toggle() instead of here,
+        # so opening Settings showed the Audio playback speed with nothing
+        # selected — whatever speed was saved — until the custom-API checkbox
+        # happened to be toggled.
+        saved_speed = audio_playback.get("audio_default_speed", 1.0)
+        try:
+            speed_idx = self._AUDIO_SPEED_STEPS.index(float(saved_speed))
+        except (ValueError, TypeError):
+            speed_idx = 0
+        self._audio_speed_combo.SetSelection(speed_idx)
+        self._load_chat_lock_values()
         self._load_transcription_values()
+
+    def _chat_lock_timeout_labels(self):
+        i18n = self.main_window.i18n
+        return [
+            i18n.t("chat_lock_timeout_never")
+            if minutes == 0 else
+            i18n.t("chat_lock_timeout_minutes").format(minutes=minutes)
+            for minutes in AUTO_LOCK_MINUTE_OPTIONS
+        ]
+
+    def _selected_chat_lock_timeout_minutes(self) -> int:
+        selection = self._chat_lock_timeout_choice.GetSelection()
+        if 0 <= selection < len(AUTO_LOCK_MINUTE_OPTIONS):
+            return AUTO_LOCK_MINUTE_OPTIONS[selection]
+        return AUTO_LOCK_MINUTE_OPTIONS[0]
+
+    def _set_chat_lock_timeout_minutes(self, minutes: int):
+        try:
+            selection = AUTO_LOCK_MINUTE_OPTIONS.index(int(minutes))
+        except (TypeError, ValueError):
+            selection = 0
+        self._chat_lock_timeout_choice.SetSelection(selection)
+
+    def _load_chat_lock_values(self):
+        vault = getattr(self.main_window, "_chat_lock_vault", None)
+        editable = bool(
+            vault is not None
+            and vault.configured
+            and getattr(self.main_window, "_chat_lock_unlocked", False)
+        )
+        if editable:
+            self._chat_lock_show_navigation_check.SetValue(
+                not vault.hide_navigation
+            )
+            self._set_chat_lock_timeout_minutes(vault.auto_lock_minutes)
+        else:
+            # Do not display persisted privacy choices before authentication.
+            self._chat_lock_show_navigation_check.SetValue(False)
+            self._set_chat_lock_timeout_minutes(AUTO_LOCK_MINUTE_OPTIONS[0])
+        for control in (
+            self._chat_lock_show_navigation_check,
+            self._chat_lock_timeout_choice,
+            self._chat_lock_change_pin_btn,
+            self._chat_lock_change_reveal_btn,
+        ):
+            control.Enable(editable)
+        self._chat_lock_unlock_btn.SetLabel(self.main_window.i18n.t(
+            "chat_lock_settings_ready"
+            if editable else "chat_lock_settings_unlock"
+        ))
+        self._chat_lock_unlock_btn.Enable(not editable)
+
+    def _apply_chat_lock_values(self):
+        vault = getattr(self.main_window, "_chat_lock_vault", None)
+        if not (
+            vault is not None
+            and vault.configured
+            and getattr(self.main_window, "_chat_lock_unlocked", False)
+        ):
+            return
+        show_navigation = self._chat_lock_show_navigation_check.GetValue()
+        if show_navigation == vault.hide_navigation:
+            self.main_window.set_chat_lock_navigation_hidden(
+                not show_navigation
+            )
+        timeout = self._selected_chat_lock_timeout_minutes()
+        if timeout != vault.auto_lock_minutes:
+            self.main_window.set_chat_lock_timeout_minutes(timeout)
 
     def _set_alert_combo(self, combo, choice_key: str):
         try:
@@ -3335,11 +3810,46 @@ class SettingsDialog(wx.Dialog):
     # ── Sound events tab ─────────────────────────────────────────────────────
 
     def _on_dialog_char_hook(self, event):
+        touch_timeout = getattr(
+            self.main_window, "touch_chat_lock_timeout", None
+        )
+        if callable(touch_timeout):
+            touch_timeout()
         if (event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
                 and wx.Window.FindFocus() is getattr(self, "_sound_events_list", None)):
             self._toggle_current_sound_event()
             return  # swallow — do NOT Skip, so it doesn't also fire the OK button
         event.Skip()
+
+    def _on_chat_lock_settings_unlock(self, event):
+        unlock = getattr(self.main_window, "unlock_chat_lock_settings", None)
+        if callable(unlock) and unlock():
+            self._load_chat_lock_values()
+            self._chat_lock_page.Layout()
+            self.Layout()
+
+    def _on_chat_lock_policy_changed(self, event):
+        touch_timeout = getattr(
+            self.main_window, "touch_chat_lock_timeout", None
+        )
+        if callable(touch_timeout):
+            touch_timeout()
+        # Let the dialog-level dirty tracker see the command event too.
+        event.Skip()
+
+    def _on_chat_lock_change_pin(self, event):
+        change = getattr(self.main_window, "change_chat_lock_pin", None)
+        if callable(change):
+            change()
+            self._load_chat_lock_values()
+
+    def _on_chat_lock_change_reveal(self, event):
+        change = getattr(
+            self.main_window, "change_chat_lock_reveal_code", None
+        )
+        if callable(change):
+            change()
+            self._load_chat_lock_values()
 
     def _on_sound_event_selected(self, event):
         self._update_sound_event_path_display()
@@ -3393,7 +3903,61 @@ class SettingsDialog(wx.Dialog):
         self._alert_group_custom_label.Show(is_custom_group)
         self._alert_group_custom_field.Show(is_custom_group)
 
+        self._update_alert_preview_visibility()
         self._alert_page.Layout()
+
+    def _confirm_stereo_voice_if_newly_enabled(self):
+        """Ask before stereo voice messages are turned on in this save."""
+        if not self._voice_stereo_check.GetValue():
+            return
+        if self.main_window.settings.get("general", {}).get("voice_message_stereo", False):
+            return  # already on: nothing new to warn about
+        if not self._warn_stereo_voice_cb.GetValue():
+            return
+        confirmed, dont_ask_again = ask_stereo_voice(self, self.main_window.i18n)
+        if not confirmed:
+            self._voice_stereo_check.SetValue(False)
+        elif dont_ask_again:
+            self._warn_stereo_voice_cb.SetValue(False)
+            self.main_window.settings.setdefault("user_interface", {})[
+                "warn_stereo_voice_iphone"] = False
+
+    def _update_alert_preview_visibility(self):
+        """Show each preview button only when there is a sound to play.
+
+        With "Personalizado" and no existing file in its path field, the
+        button used to stay and answer a press with an error box.
+        """
+        if not self._alert_private_preview_btn:
+            return  # the dialog closed while a delayed check was pending
+        changed = False
+        for combo, field, button, preview in (
+            (self._alert_private_combo, self._alert_private_custom_field,
+             self._alert_private_preview_btn, self._alert_private_preview),
+            (self._alert_group_combo, self._alert_group_custom_field,
+             self._alert_group_preview_btn, self._alert_group_preview),
+        ):
+            show = alert_tone_previewable(self._selected_alert_key(combo), field.GetValue())
+            if show == button.IsShown():
+                continue
+            if not show:
+                preview.stop()
+            button.Show(show)
+            changed = True
+        if changed:
+            self._alert_page.Layout()
+
+    def _on_alert_custom_path_changed(self, event):
+        # Skip first: the dialog-level EVT_TEXT binding is what marks the
+        # settings dirty, and it only runs if this handler lets it through.
+        event.Skip()
+        # Re-armed on each keystroke, so the check runs once typing pauses.
+        pending = getattr(self, "_alert_path_check", None)
+        if pending is not None and pending.IsRunning():
+            pending.Restart(CUSTOM_PATH_CHECK_DELAY_MS)
+        else:
+            self._alert_path_check = wx.CallLater(
+                CUSTOM_PATH_CHECK_DELAY_MS, self._update_alert_preview_visibility)
 
     def _on_alert_choice_changed(self, event):
         self._update_alert_custom_field_state()
@@ -3422,14 +3986,29 @@ class SettingsDialog(wx.Dialog):
 
     def _on_custom_api_toggle(self, event):
         self._update_fields_state()
-
-        saved_speed = self.main_window.settings.get("audio_playback", {}).get("audio_default_speed", 1.0)
-        try:
-            speed_idx = self._AUDIO_SPEED_STEPS.index(float(saved_speed))
-        except (ValueError, TypeError):
-            speed_idx = 0
-        self._audio_speed_combo.SetSelection(speed_idx)
         event.Skip()
+
+    def _on_call_audio_settings(self, event):
+        """Open the call microphone/speaker chooser, if the app can.
+
+        Looked up when the button is pressed rather than when it is built, for
+        the reason given where it is bound.
+        """
+        opener = getattr(self.main_window, "open_call_audio_settings", None)
+        if opener is None:
+            return
+        # Parented to this dialog, so the chooser cannot end up underneath it.
+        opener(event, parent=self)
+
+    def _on_call_video_settings(self, event):
+        """Open the call camera chooser, if the app can.
+
+        Same lookup-at-press-time reasoning as _on_call_audio_settings above.
+        """
+        opener = getattr(self.main_window, "open_call_audio_settings", None)
+        if opener is None:
+            return
+        opener(event, parent=self, include_audio=False, include_camera=True)
 
     def _on_call_alerts_toggle(self, event):
         self._update_call_fields_state()
@@ -3438,6 +4017,89 @@ class SettingsDialog(wx.Dialog):
     def _update_call_fields_state(self):
         """A popup is meaningful only while incoming-call alerts are enabled."""
         self._call_popup_check.Enable(self._call_alerts_check.GetValue())
+
+    def _on_live_snapshot_toggle(self, event):
+        self._update_live_snapshot_fields()
+        event.Skip()
+
+    def _quick_reaction_slot_text(self, position: int, emoji: str) -> str:
+        return self.main_window.i18n.t("reactions_slot_row").format(
+            position=position + 1, emoji=emoji
+        )
+
+    def _fill_quick_reaction_slots(self):
+        """Write the twelve rows in place (SetItem, not a rebuild), so the
+        focused row keeps its position after a choice or a language change."""
+        slots_list = self._quick_reaction_slots_list
+        slots_list.Freeze()
+        try:
+            for position, emoji in enumerate(self._quick_reaction_slots):
+                text = self._quick_reaction_slot_text(position, emoji)
+                if position < slots_list.GetItemCount():
+                    slots_list.SetItem(position, 0, text)
+                else:
+                    slots_list.Append((text,))
+        finally:
+            slots_list.Thaw()
+
+    def _set_quick_reaction_slots(self, slots):
+        self._quick_reaction_slots = fixed_quick_reactions(slots)
+        self._fill_quick_reaction_slots()
+
+    def _on_fixed_quick_reactions_toggle(self, event):
+        self._update_quick_reaction_fields()
+        event.Skip()
+
+    def _update_quick_reaction_fields(self):
+        """The rows only mean something while fixed quick reactions are on.
+        Hidden rather than disabled, like the live backup options, so Tab and
+        the screen reader do not walk through options that do nothing."""
+        show = self._fixed_quick_reactions_cb.GetValue()
+        for control in (self._quick_reaction_slots_label,
+                        self._quick_reaction_slots_list,
+                        self._reset_quick_reactions_btn):
+            control.Show(show)
+        self._reactions_page.Layout()
+
+    def _on_quick_reaction_slot_activated(self, event):
+        """Enter on a row opens the full emoji picker for that row."""
+        position = event.GetIndex()
+        if not 0 <= position < len(self._quick_reaction_slots):
+            return
+        i18n = self.main_window.i18n
+        emoji = choose_reaction_emoji(
+            self, i18n,
+            title=i18n.t("reactions_pick_title").format(position=position + 1),
+            hint_text=i18n.t("reactions_pick_hint"),
+            ok_label=i18n.t("reactions_pick_ok"),
+        )
+        if emoji:
+            self._set_quick_reaction_slots(
+                assign_quick_reaction(self._quick_reaction_slots, position, emoji)
+            )
+            self._mark_dirty()
+        self._quick_reaction_slots_list.Focus(position)
+        self._quick_reaction_slots_list.Select(position)
+
+    def _on_reset_quick_reactions(self, event):
+        self._set_quick_reaction_slots(list(DEFAULT_QUICK_REACTIONS))
+        self._mark_dirty()
+        # Focus stays on the button, so nothing else would tell the user the
+        # twelve rows just changed.
+        self.main_window.output(
+            self.main_window.i18n.t("reactions_reset_done"), interrupt=True
+        )
+
+    def _update_live_snapshot_fields(self):
+        """The interval and the confirmation only mean something while the
+        backup with WinZapp open is on. Hidden rather than disabled, so Tab
+        and the screen reader do not walk through options that do nothing."""
+        show = self._live_snapshot_check.GetValue()
+        for control in (self._live_snapshot_hours_label,
+                        self._live_snapshot_hours_field,
+                        self._live_snapshot_confirm_check):
+            control.Show(show)
+        self._profile_backup_page.Layout()
 
     def _validate(self) -> bool:
         """Return True if all values are valid; show an error and return False otherwise."""
@@ -3566,6 +4228,38 @@ class SettingsDialog(wx.Dialog):
                 self,
             )
             self._media_max_mb_field.SetFocus()
+            return False
+
+        # Profile backup: both hour fields must hold a whole number of hours —
+        # 0 is the documented "every clean close" for the first, while the live
+        # interval has no such sentinel (0 would close the session on every
+        # poll). Checked whether or not the live option is ticked: a value left
+        # in its hidden field is still what Apply would save.
+        if parse_hours_field(self._close_snapshot_hours_field.GetValue(),
+                             CLOSE_HOURS_MINIMUM) is None:
+            self._notebook.SetSelection(self._notebook.FindPage(self._profile_backup_page))
+            wx.MessageBox(
+                self.main_window.i18n.t("invalid_profile_backup_close_hours"),
+                self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            self._close_snapshot_hours_field.SetFocus()
+            return False
+        if parse_hours_field(self._live_snapshot_hours_field.GetValue(),
+                             LIVE_HOURS_MINIMUM) is None:
+            self._notebook.SetSelection(self._notebook.FindPage(self._profile_backup_page))
+            # A hidden field cannot take focus or be corrected: show it.
+            for control in (self._live_snapshot_hours_label, self._live_snapshot_hours_field):
+                control.Show()
+            self._profile_backup_page.Layout()
+            wx.MessageBox(
+                self.main_window.i18n.t("invalid_profile_backup_live_hours"),
+                self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            self._live_snapshot_hours_field.SetFocus()
             return False
 
         # Sound events: an ENABLED event's override path, if the user set one,
@@ -3759,8 +4453,10 @@ class SettingsDialog(wx.Dialog):
             return False
 
         # Language
+        old_lang = self.main_window.i18n.language
         sel = self._lang_combo.GetSelection()
         new_lang = self._lang_codes[sel] if sel != wx.NOT_FOUND else "pt-BR"
+        language_changed = new_lang != old_lang
         self.main_window.settings.setdefault("general", {})["language"] = new_lang
 
         # UI: messages page size
@@ -3824,6 +4520,24 @@ class SettingsDialog(wx.Dialog):
             "bulk_action_shortcuts"
         ] = self._bulk_action_shortcuts_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
+            "confirm_mark_all_read"
+        ] = self._confirm_mark_all_read_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "confirm_resync_all"
+        ] = self._confirm_resync_all_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "confirm_resync_conversation"
+        ] = self._confirm_resync_conversation_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "warn_stereo_voice_iphone"
+        ] = self._warn_stereo_voice_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "space_selects_in_selection_mode"
+        ] = self._space_selects_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "escape_clears_selection"
+        ] = self._escape_clears_selection_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
             "auto_focus_next_audio"
         ] = self._auto_focus_next_audio_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
@@ -3838,6 +4552,12 @@ class SettingsDialog(wx.Dialog):
         self.main_window.settings.setdefault("user_interface", {})[
             "forwarded_prefix_enabled"
         ] = self._forwarded_prefix_cb.GetValue()
+        self.main_window.settings.setdefault("reactions", {})[
+            "fixed_quick_reactions"
+        ] = self._fixed_quick_reactions_cb.GetValue()
+        self.main_window.settings.setdefault("reactions", {})[
+            "quick_reaction_slots"
+        ] = list(self._quick_reaction_slots)
         self.main_window.settings.setdefault("user_interface", {})[
             "conversation_video_media_viewer_dialog"
         ] = self._conversation_video_media_viewer_dialog_cb.GetValue()
@@ -3950,6 +4670,19 @@ class SettingsDialog(wx.Dialog):
             self._noise_reduction_check.GetValue()
         )
 
+        # Turning stereo voice messages on warns first that iPhone cannot play
+        # them (ui/dialogs/stereo_voice_warning.py). Read from this dialog's own
+        # box, not from settings: it may have been unticked in this same save.
+        # No leaves stereo off; "don't show again" unticks the box here too, so
+        # a later Apply cannot write it back on.
+        self._confirm_stereo_voice_if_newly_enabled()
+        self.main_window.settings.setdefault("general", {})["voice_message_stereo"] = (
+            self._voice_stereo_check.GetValue()
+        )
+        panel = getattr(self.main_window, "conversations_panel", None)
+        if panel is not None and hasattr(panel, "refresh_alternate_record_button"):
+            panel.refresh_alternate_record_button()
+
         # Notifications
         self.main_window.settings.setdefault("general", {})["notifications_enabled"] = (
             self._notifications_check.GetValue()
@@ -3963,6 +4696,14 @@ class SettingsDialog(wx.Dialog):
         calls = self.main_window.settings.setdefault("calls", {})
         calls["alerts_enabled"] = self._call_alerts_check.GetValue()
         calls["popup_enabled"] = self._call_popup_check.GetValue()
+
+        profile_backup = self.main_window.settings.setdefault("profile_backup", {})
+        profile_backup["close_snapshot_min_hours"] = parse_hours_field(
+            self._close_snapshot_hours_field.GetValue(), CLOSE_HOURS_MINIMUM)
+        profile_backup["live_snapshot_enabled"] = self._live_snapshot_check.GetValue()
+        profile_backup["live_snapshot_interval_hours"] = parse_hours_field(
+            self._live_snapshot_hours_field.GetValue(), LIVE_HOURS_MINIMUM)
+        profile_backup["live_snapshot_confirm"] = self._live_snapshot_confirm_check.GetValue()
         if not calls["alerts_enabled"]:
             stop_alerts = getattr(self.main_window, "stop_all_incoming_call_alerts", None)
             if stop_alerts is not None:
@@ -3974,6 +4715,13 @@ class SettingsDialog(wx.Dialog):
         # Sync/media/auto-offline announcements
         self.main_window.settings.setdefault("general", {})["announce_sync_events"] = (
             self._announce_sync_check.GetValue()
+        )
+
+        # Spell checking in the message field. Read live on every keystroke by
+        # ConversationsPanel, so this takes effect immediately — no restart,
+        # and no need to rebuild the panel's checker here.
+        self.main_window.settings.setdefault("general", {})["spell_check_mode"] = (
+            SPELL_CHECK_MODES[self._spell_check_radio.GetSelection()]
         )
 
         # Unicode folding in searches
@@ -4087,19 +4835,25 @@ class SettingsDialog(wx.Dialog):
         # models folder, which goes to app_settings rather than settings.json.
         self._apply_transcription_values()
 
+        # Vault policy is persisted inside the encrypted vault token rather
+        # than settings.json. Apply it alongside the ordinary settings so
+        # Cancel still discards checkbox/timeout edits.
+        self._apply_chat_lock_values()
+
         # Persist and propagate
         self.main_window.save_settings()
         # Reload sound objects so per-event enabled/path changes (and the new
         # alert-tone defaults) take effect immediately, without a restart.
         self.main_window.load_sounds()
 
-        # Invalidate cache and re-read the new language
-        from core.i18n import I18n
-        I18n.invalidate_cache()
-        self.main_window.i18n.get_language()
-
-        # Refresh all visible labels in the main window
-        self.main_window.apply_language_changes()
+        # Reload translations and repaint the already-created UI only when the
+        # language actually changed. This includes dynamic rows and modeless
+        # call windows, so no application restart is needed.
+        if language_changed:
+            from core.i18n import I18n
+            I18n.invalidate_cache()
+            self.main_window.i18n.get_language()
+            self.main_window.apply_language_changes()
 
         cp = getattr(self.main_window, "conversations_panel", None)
         message_list_mode_changed = new_message_list_mode != old_message_list_mode
@@ -4135,6 +4889,17 @@ class SettingsDialog(wx.Dialog):
 
         return True
 
+    @staticmethod
+    def _set_list_column_label(list_ctrl, text):
+        """Re-translate a single-column ListCtrl's header. NVDA reads it when
+        column headers are announced, and SetItem() on the rows leaves it
+        alone. Same `&` stripping as the InsertColumn() that created it, and
+        the same wx.ListItem/SetColumn() form conversations.py and
+        status_panel.py already use for their own headers."""
+        column = wx.ListItem()
+        column.SetText(text.replace("&", ""))
+        list_ctrl.SetColumn(0, column)
+
     def _refresh_dialog_labels(self):
         """Update this dialog's own title and notebook tab captions after a language change."""
         i18n = self.main_window.i18n
@@ -4151,17 +4916,75 @@ class SettingsDialog(wx.Dialog):
         self._notebook.SetPageText(9, i18n.t("tab_files_saving"))
         self._notebook.SetPageText(10, i18n.t("tab_audio_playback"))
         self._notebook.SetPageText(11, i18n.t("tab_calls"))
-        self._notebook.SetPageText(12, i18n.t("tab_transcription"))
+        self._notebook.SetPageText(12, i18n.t("tab_profile_backup"))
+        self._notebook.SetPageText(13, i18n.t("tab_reactions"))
+        if self._chat_lock_tab_shown:
+            self._notebook.SetPageText(14, i18n.t("locked_chats"))
+        # Transcription is appended after the conditional "Locked chats" tab,
+        # so its index is 14 or 15 depending on whether that tab is shown —
+        # looked up rather than hardcoded, the same way the page-changed
+        # handler finds it.
+        self._notebook.SetPageText(
+            self._notebook.FindPage(self._transcription_page),
+            i18n.t("tab_transcription"),
+        )
+        self._chat_lock_intro.SetLabel(i18n.t("chat_lock_settings_intro"))
+        self._chat_lock_unlock_btn.SetLabel(
+            i18n.t("chat_lock_settings_unlock")
+        )
+        self._chat_lock_show_navigation_check.SetLabel(
+            i18n.t("chat_lock_show_navigation")
+        )
+        selected_timeout = self._selected_chat_lock_timeout_minutes()
+        self._chat_lock_timeout_label.SetLabel(
+            i18n.t("chat_lock_timeout_label")
+        )
+        self._chat_lock_timeout_choice.SetName(
+            i18n.t("chat_lock_timeout_label")
+        )
+        self._chat_lock_timeout_choice.Clear()
+        self._chat_lock_timeout_choice.AppendItems(
+            self._chat_lock_timeout_labels()
+        )
+        self._set_chat_lock_timeout_minutes(selected_timeout)
+        self._chat_lock_change_pin_btn.SetLabel(
+            i18n.t("chat_lock_change_pin")
+        )
+        self._chat_lock_change_reveal_btn.SetLabel(
+            i18n.t("chat_lock_settings")
+        )
+        self._load_chat_lock_values()
+        self._fixed_quick_reactions_cb.SetLabel(i18n.t("reactions_fixed_label"))
+        self._quick_reaction_slots_label.SetLabel(i18n.t("reactions_slots_label"))
+        self._set_list_column_label(
+            self._quick_reaction_slots_list, i18n.t("reactions_slots_column")
+        )
+        self._fill_quick_reaction_slots()
+        self._reset_quick_reactions_btn.SetLabel(i18n.t("reactions_reset_button"))
+        self._close_snapshot_hours_label.SetLabel(i18n.t("profile_backup_close_hours_label"))
+        self._live_snapshot_check.SetLabel(i18n.t("profile_backup_live_label"))
+        self._live_snapshot_hours_label.SetLabel(i18n.t("profile_backup_live_hours_label"))
+        self._live_snapshot_confirm_check.SetLabel(i18n.t("profile_backup_live_confirm_label"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
         self._reload_audio_device_choices()
         self._noise_reduction_check.SetLabel(i18n.t("noise_reduction_label"))
+        self._voice_stereo_check.SetLabel(i18n.t("voice_stereo_default_label"))
         self._notifications_check.SetLabel(i18n.t("notifications_label"))
         self._call_alerts_check.SetLabel(i18n.t("calls_alerts_enabled_label"))
         self._call_popup_check.SetLabel(i18n.t("calls_popup_enabled_label"))
+        self._call_audio_settings_button.SetLabel(i18n.t("calls_audio_settings_button"))
+        self._call_video_settings_button.SetLabel(i18n.t("calls_video_settings_button"))
         self._keep_muted_silent_check.SetLabel(i18n.t("keep_muted_chats_silent_when_open_label"))
         self._announce_sync_check.SetLabel(i18n.t("announce_sync_events_label"))
+        self._spell_check_radio.SetLabel(i18n.t("spell_check_label"))
+        for _i, _key in enumerate((
+            "spell_check_mode_windows",
+            "spell_check_mode_on",
+            "spell_check_mode_off",
+        )):
+            self._spell_check_radio.SetItemLabel(_i, i18n.t(_key))
         self._search_norm_radio.SetLabel(i18n.t("search_normalization_label"))
         for _i, _key in enumerate((
             "search_normalization_off",
@@ -4183,6 +5006,15 @@ class SettingsDialog(wx.Dialog):
         self._updates_check.SetLabel(i18n.t("updates_label"))
         self._alpha_updates_check.SetLabel(i18n.t("alpha_updates_label"))
         self._alpha_updates_check.SetToolTip(i18n.t("alpha_updates_tooltip"))
+        self._language_label.SetLabel(i18n.t("language_label"))
+        self._switch_behavior_box.SetLabel(i18n.t("acc_switch_behavior_label"))
+        self._switch_behavior_single_rb.SetLabel(i18n.t("acc_switch_behavior_single"))
+        self._switch_behavior_keep_open_rb.SetLabel(i18n.t("acc_switch_behavior_keep_open"))
+        self._messages_page_size_label.SetLabel(i18n.t("ui_messages_page_size_label"))
+        self._page_jump_size_label.SetLabel(i18n.t("ui_page_jump_size_label"))
+        self._extended_sr_compat_check.SetLabel(i18n.t("accessibility_extended_sr_compat_label"))
+        self._sapi_fallback_check.SetLabel(i18n.t("accessibility_sapi_fallback_label"))
+        self._probe_video_duration_check.SetLabel(i18n.t("probe_video_duration_on_download_label"))
         self._focus_box.SetLabel(i18n.t("ui_focus_label"))
         self._focus_message_field_rb.SetLabel(i18n.t("ui_focus_message_field"))
         self._focus_unread_or_last_rb.SetLabel(i18n.t("ui_focus_unread_or_last"))
@@ -4200,6 +5032,7 @@ class SettingsDialog(wx.Dialog):
         self._self_ref_custom_label.SetLabel(i18n.t("ui_self_reference_custom_label"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._show_link_previews_cb.SetLabel(i18n.t("ui_show_link_previews_label"))
+        self._show_yesterday_label_cb.SetLabel(i18n.t("ui_show_yesterday_label"))
         self._forwarded_prefix_cb.SetLabel(i18n.t("ui_forwarded_prefix_label"))
         self._conversation_video_media_viewer_dialog_cb.SetLabel(
             i18n.t("ui_conversation_video_media_viewer_dialog_label")
@@ -4207,6 +5040,9 @@ class SettingsDialog(wx.Dialog):
         self._status_media_viewer_dialog_cb.SetLabel(i18n.t("ui_status_media_viewer_dialog_label"))
         self._group_media_types_label.SetLabel(
             i18n.t("ui_group_media_default_types_label")
+        )
+        self._set_list_column_label(
+            self._group_media_types_list, i18n.t("ui_group_media_default_types_label")
         )
         for _idx, _key in enumerate(GROUP_MEDIA_TYPES):
             self._group_media_types_list.SetItem(
@@ -4218,6 +5054,9 @@ class SettingsDialog(wx.Dialog):
         self._auto_download_types_label.SetLabel(
             i18n.t("storage_auto_download_media_types_label")
         )
+        self._set_list_column_label(
+            self._auto_download_types_list, i18n.t("storage_auto_download_media_types_label")
+        )
         for _idx, _key in enumerate(AUTO_DOWNLOAD_MEDIA_TYPES):
             self._auto_download_types_list.SetItem(
                 _idx, 0, i18n.t(f"group_media_type_{_key}")
@@ -4227,6 +5066,12 @@ class SettingsDialog(wx.Dialog):
         self._voice_msg_mode_voice_rb.SetLabel(i18n.t("ui_voice_message_mode_voice_message"))
         self._preserve_typed_caption_cb.SetLabel(i18n.t("ui_preserve_typed_text_as_caption"))
         self._bulk_action_shortcuts_cb.SetLabel(i18n.t("ui_bulk_action_shortcuts"))
+        self._confirm_mark_all_read_cb.SetLabel(i18n.t("ui_confirm_mark_all_read"))
+        self._confirm_resync_all_cb.SetLabel(i18n.t("ui_confirm_resync_all"))
+        self._confirm_resync_conversation_cb.SetLabel(i18n.t("ui_confirm_resync_conversation"))
+        self._warn_stereo_voice_cb.SetLabel(i18n.t("ui_warn_stereo_voice_iphone"))
+        self._space_selects_cb.SetLabel(i18n.t("ui_space_selects_in_selection_mode"))
+        self._escape_clears_selection_cb.SetLabel(i18n.t("ui_escape_clears_selection"))
         self._auto_focus_next_audio_cb.SetLabel(i18n.t("ui_auto_focus_next_audio"))
         self._selected_announce_box.SetLabel(i18n.t("ui_selected_announce_position_label"))
         self._selected_announce_start_rb.SetLabel(i18n.t("ui_selected_announce_position_start"))
@@ -4320,6 +5165,9 @@ class SettingsDialog(wx.Dialog):
     def _stop_alert_previews(self):
         self._alert_private_preview.stop()
         self._alert_group_preview.stop()
+        pending = getattr(self, "_alert_path_check", None)
+        if pending is not None:
+            pending.Stop()
 
     def _on_ok(self, event):
         if self._apply_values():
@@ -4333,12 +5181,20 @@ class SettingsDialog(wx.Dialog):
 
     def _on_apply(self, event):
         if self._apply_values():
+            # An invalid interval revealed its field even with the option
+            # off (_validate()); once the value is fixed, hide it again.
+            self._update_live_snapshot_fields()
             self._loading_values = True
             self._refresh_dialog_labels()
             self._loading_values = False
             self._maybe_warn_restart_required()
             self._dirty = False
             self._apply_btn.Hide()
+            # The notebook keeps its size, so the pages' own sizers would not
+            # recalculate on their own: a checkbox whose label got longer in
+            # the new language would stay at its old width, visibly cut off.
+            for _page in range(self._notebook.GetPageCount()):
+                self._notebook.GetPage(_page).Layout()
             self.Layout()
 
     def _mark_dirty(self, event=None):
@@ -4347,7 +5203,7 @@ class SettingsDialog(wx.Dialog):
         confusing since it never went away even with nothing to apply.
 
         Bound once at the dialog level (see __init__) so it catches every
-        checkbox/radio/combo/text control anywhere in the dialog via wx's
+        checkbox/radio/combo/choice/text control anywhere in the dialog via wx's
         normal command-event propagation, rather than wiring a per-control
         handler. A handful of controls already had their own dedicated
         handler (_on_self_reference_toggle, _on_custom_api_toggle,

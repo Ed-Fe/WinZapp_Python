@@ -27,6 +27,7 @@ class _Stub:
     _WPP_SESSION_RESTART_COOLDOWN = MainWindow._WPP_SESSION_RESTART_COOLDOWN
     _AUTO_RESTART_LOGOUT_GRACE_SECONDS = MainWindow._AUTO_RESTART_LOGOUT_GRACE_SECONDS
     _RECOVERY_CLOSE_WAIT = MainWindow._RECOVERY_CLOSE_WAIT
+    _RESTART_PROFILE_RELEASE_WAIT = MainWindow._RESTART_PROFILE_RELEASE_WAIT
     # The real gate the health loop reads, not a reimplementation of it.
     _self_inflicted_teardown_expected = MainWindow._self_inflicted_teardown_expected
 
@@ -37,6 +38,16 @@ class _Stub:
         self.waited_statuses = []
         self.closed_status = "CLOSED"
         self._recovery_restart_active = False
+        self.profile_release_waits = []
+
+    def wait_for_profile_release(self, session_name, timeout=20.0):
+        """The SECOND gate, between the close and the start. CLOSED only says
+        WPPConnect's state machine finished; this says Chrome let go of
+        userDataDir. Skipping it let a replacement browser open the login
+        database 80 ms after the close, which is how a suspend/resume cost a
+        user their profile — see tests/test_suspend_resume_profile_loss.py."""
+        self.profile_release_waits.append((session_name, timeout))
+        return True
 
     def _wait_for_status(self, predicate, timeout, stop_when_connected=True):
         self.waited_statuses.append((predicate, timeout, stop_when_connected))
@@ -252,3 +263,33 @@ class TestAutoRestartGraceWindow:
 
         assert calls == []
         assert s._auto_restart_grace_active() is True
+
+
+class TestItDoesNotStartOverAProfileRestore:
+    """A profile restore can begin during this restart's close or release wait
+    (issue #203 review). Starting then opens Chrome over the profile being
+    copied back, so the in-flight flag is read right before start-session."""
+
+    def test_start_session_is_skipped_when_a_restore_began_meanwhile(self, monkeypatch):
+        calls = []
+
+        def _fake_post(url, json=None, headers=None, timeout=None, **kw):
+            calls.append(url)
+
+            class _Resp:
+                status_code = 200
+            return _Resp()
+
+        monkeypatch.setattr("main.requests.post", _fake_post)
+        s = _Stub()
+        s._profile_restore_in_flight = False
+
+        def release(session_name, timeout=20.0):
+            s._profile_restore_in_flight = True
+            return True
+
+        s.wait_for_profile_release = release
+        s._restart_wpp_session()
+
+        assert calls == ["http://127.0.0.1:6300/api/test-token/close-session"]
+        assert s._restarting_wpp_session is False

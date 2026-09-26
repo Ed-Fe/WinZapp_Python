@@ -6,28 +6,68 @@ from ctypes import wintypes
 
 import wx
 
+from ui.accessible import (
+    AccessibleAltShortcutButton,
+    accelerator_keycode,
+    split_mnemonic,
+)
+
+
+def _plain(i18n, key):
+    """The locale string without its `&` (see IncomingCallDialog._apply_labels)."""
+    return split_mnemonic(i18n.t(key))[0]
+
 
 class IncomingCallDialog(wx.Dialog):
-    """Show caller information and expose a native local-stop button.
+    """Expose answer/reject/silence actions without blocking call events."""
 
-    The dialog is deliberately modeless.  WhatsApp can send an ended/answered
-    event while it is visible, and the main wx event loop must remain free to
-    process that event and close this window automatically.
-    """
-
-    def __init__(self, parent, message: str, on_stop, on_closed):
+    def __init__(
+        self,
+        parent,
+        message: str,
+        on_answer,
+        on_reject,
+        on_stop,
+        on_closed,
+        *,
+        can_answer: bool = True,
+        is_video: bool = False,
+        on_answer_without_video=None,
+    ):
         i18n = parent.i18n
+        # `parent` supplies i18n and owns the callbacks, but is deliberately
+        # NOT the wx parent, and the style carries no wx.STAY_ON_TOP. Reported
+        # live: while a call rang, Alt+Tab to WinZapp's main window always
+        # landed back on this popup, so the user could not move between them
+        # -- the same defect Gabriel fixed for the call window in 7f50df41, from
+        # the same causes. A wx.Dialog with a top-level frame as its parent is
+        # a Win32 OWNED window, which Windows keeps above its owner no matter
+        # what focus code does; and STAY_ON_TOP (plus the HWND_TOPMOST that
+        # _force_foreground() used to leave set) pinned it above every window
+        # on the desktop for as long as the call rang. The popup still has to
+        # appear over whatever app the user is in when the call arrives --
+        # that is how a blind user learns of it -- so _force_foreground()
+        # brings it to the top ONCE and then drops topmost, leaving an
+        # ordinary window the user can Alt+Tab away from.
+        #
+        # Passing None is not enough on its own: wxWidgets gives a dialog
+        # created with a NULL parent the application's top-level window as
+        # parent anyway (on MSW, as the owner of its HWND), unless the style
+        # says DIALOG_NO_PARENT. The popup is modeless, which is what that
+        # style is meant for.
         super().__init__(
-            parent,
+            None,
             title=i18n.t("incoming_call_popup_title"),
-            # This behaviour is explicitly user-controlled in Settings.  When
-            # enabled, the alert must surface over the application currently
-            # in use so a screen-reader user never has to hunt for it via Alt+Tab.
-            style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.DIALOG_NO_PARENT,
         )
+        self._on_answer_callback = on_answer
+        self._on_reject_callback = on_reject
         self._on_stop_callback = on_stop
         self._on_closed_callback = on_closed
+        self._on_answer_without_video_callback = on_answer_without_video
+        self._is_video = is_video
         self._closing = False
+        self._i18n = i18n
 
         panel = wx.Panel(self)
         content = wx.BoxSizer(wx.VERTICAL)
@@ -37,14 +77,33 @@ class IncomingCallDialog(wx.Dialog):
         content.Add(self._message, 0, wx.EXPAND | wx.ALL, 12)
 
         buttons = wx.StdDialogButtonSizer()
-        self._stop_button = wx.Button(
-            panel, wx.ID_OK, label=i18n.t("incoming_call_stop_button")
+        answer_key = (
+            "incoming_call_answer_with_video_button"
+            if is_video
+            else "incoming_call_answer_button"
+        )
+        self._answer_button = wx.Button(panel, wx.ID_OK, label=_plain(i18n, answer_key))
+        if is_video:
+            self._answer_without_video_button = wx.Button(
+                panel,
+                wx.ID_ANY,
+                label=_plain(i18n, "incoming_call_answer_without_video_button"),
+            )
+        self._reject_button = wx.Button(
+            panel, wx.ID_ANY, label=_plain(i18n, "incoming_call_reject_button")
+        )
+        self._silence_button = wx.Button(
+            panel, wx.ID_ANY, label=_plain(i18n, "incoming_call_silence_button")
         )
         self._close_button = wx.Button(
-            panel, wx.ID_CANCEL, label=i18n.t("incoming_call_close_button")
+            panel, wx.ID_CANCEL, label=_plain(i18n, "incoming_call_close_button")
         )
-        buttons.AddButton(self._stop_button)
-        buttons.AddButton(self._close_button)
+        button_order = [self._answer_button]
+        if is_video:
+            button_order.append(self._answer_without_video_button)
+        button_order += [self._reject_button, self._silence_button, self._close_button]
+        for button in button_order:
+            buttons.AddButton(button)
         buttons.Realize()
         content.Add(buttons, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
@@ -52,20 +111,105 @@ class IncomingCallDialog(wx.Dialog):
         outer = wx.BoxSizer(wx.VERTICAL)
         outer.Add(panel, 1, wx.EXPAND)
         self.SetSizerAndFit(outer)
-        self.SetMinSize((360, -1))
-        self.CentreOnParent()
+        self.SetMinSize((440, -1))
+        self.CentreOnScreen()  # it has no parent (see __init__)
 
-        self._stop_button.SetDefault()
-        self._stop_button.Bind(wx.EVT_BUTTON, self._on_stop)
+        self._answer_button.Enable(bool(can_answer))
+        if is_video:
+            self._answer_without_video_button.Enable(bool(can_answer))
+        default_button = self._answer_button if can_answer else self._reject_button
+        default_button.SetDefault()
+        self._default_focus = default_button
+        self._accel_ids = {}
+        self._apply_labels()
+        self.Bind(wx.EVT_MENU, self._on_accelerator)
+        self._answer_button.Bind(wx.EVT_BUTTON, self._on_answer)
+        if is_video:
+            self._answer_without_video_button.Bind(
+                wx.EVT_BUTTON, self._on_answer_without_video
+            )
+        self._reject_button.Bind(wx.EVT_BUTTON, self._on_reject)
+        self._silence_button.Bind(wx.EVT_BUTTON, self._on_stop)
         self._close_button.Bind(wx.EVT_BUTTON, self._on_close)
         self.Bind(wx.EVT_CLOSE, self._on_close)
 
+    def _label_specs(self):
+        answer_key = (
+            "incoming_call_answer_with_video_button"
+            if self._is_video
+            else "incoming_call_answer_button"
+        )
+        specs = [(self._answer_button, answer_key, self._on_answer)]
+        if self._is_video:
+            specs.append((
+                self._answer_without_video_button,
+                "incoming_call_answer_without_video_button",
+                self._on_answer_without_video,
+            ))
+        specs += [
+            (self._reject_button, "incoming_call_reject_button", self._on_reject),
+            (self._silence_button, "incoming_call_silence_button", self._on_stop),
+            (self._close_button, "incoming_call_close_button", self._on_close),
+        ]
+        return specs
+
+    def _apply_labels(self):
+        """Label the buttons and (re)build the Alt+<letter> accelerators.
+
+        The locale strings keep their `&` to say which letter is the shortcut,
+        but it is stripped from the label and registered as an accelerator
+        instead. A real mnemonic also fires on the bare letter while a button
+        has focus, so a letter typed into the composer when the popup stole
+        focus answered or rejected the call.
+        """
+        entries = []
+        self._accel_ids = {}
+        # Held so wx cannot hand these ids to a later wx.ID_ANY control.
+        self._accel_refs = []
+        for button, key, handler in self._label_specs():
+            label, letter = split_mnemonic(self._i18n.t(key))
+            button.SetLabel(label)
+            keycode = accelerator_keycode(letter)
+            if keycode is None:
+                # No letter, or one this keyboard layout cannot type: report
+                # no shortcut rather than one that would never fire (this also
+                # clears an accessible left over from the previous language).
+                button.SetAccessible(None)
+                continue
+            button.SetAccessible(AccessibleAltShortcutButton(letter))
+            # Enter/Esc already own the stock ids of the OK/Cancel buttons, so
+            # every accelerator gets a private command id instead.
+            ref = wx.NewIdRef()
+            self._accel_refs.append(ref)
+            self._accel_ids[ref.GetId()] = (button, handler)
+            entries.append(wx.AcceleratorEntry(wx.ACCEL_ALT, keycode, ref.GetId()))
+        self.SetAcceleratorTable(wx.AcceleratorTable(entries))
+
+    def _on_accelerator(self, event):
+        target = self._accel_ids.get(event.GetId())
+        if target is None:
+            event.Skip()
+            return
+        button, handler = target
+        if button.IsEnabled():
+            handler(event)
+
+    def refresh_labels(self, message: str | None = None):
+        """Re-translate this modeless popup without closing the ringing call."""
+        i18n = self._i18n
+        self.SetTitle(i18n.t("incoming_call_popup_title"))
+        if message is not None:
+            self._message.SetLabel(message)
+            self._message.SetName(message)
+        self._apply_labels()
+        self.Layout()
+        self.Fit()
+        self.SetMinSize((440, -1))
+
     def show_accessibly(self):
-        """Display over the current app and focus the local-stop button."""
+        """Display over the current app and focus the primary call action."""
         self.Show()
         self._force_foreground()
-        # Windows can finish activating the previously focused application
-        # after Show() returns. Repeat once after that race has settled.
         self._foreground_retry = wx.CallLater(150, self._force_foreground)
 
     def _force_foreground(self):
@@ -83,8 +227,12 @@ class IncomingCallDialog(wx.Dialog):
                     wintypes.DWORD, wintypes.DWORD, wintypes.BOOL
                 ]
                 user32.SetWindowPos.argtypes = [
-                    wintypes.HWND, wintypes.HWND,
-                    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                    wintypes.HWND,
+                    wintypes.HWND,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
+                    ctypes.c_int,
                     wintypes.UINT,
                 ]
                 user32.BringWindowToTop.argtypes = [wintypes.HWND]
@@ -93,36 +241,31 @@ class IncomingCallDialog(wx.Dialog):
                 foreground = user32.GetForegroundWindow()
                 current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
                 foreground_thread = (
-                    user32.GetWindowThreadProcessId(foreground, None)
-                    if foreground else 0
+                    user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
                 )
                 attached = bool(
                     foreground_thread
                     and foreground_thread != current_thread
-                    and user32.AttachThreadInput(
-                        current_thread, foreground_thread, True
-                    )
+                    and user32.AttachThreadInput(current_thread, foreground_thread, True)
                 )
                 try:
-                    # HWND_TOPMOST plus SHOWWINDOW makes the user-selected
-                    # popup visible even over a full-screen foreground app.
-                    user32.SetWindowPos(
-                        hwnd, wintypes.HWND(-1), 0, 0, 0, 0,
-                        0x0001 | 0x0002 | 0x0040,
-                    )
+                    # HWND_TOPMOST gets it above whatever app is in front right
+                    # now; HWND_NOTOPMOST straight after keeps it at the top of
+                    # the ordinary Z-order without pinning it there, so Alt+Tab
+                    # to another window -- WinZapp's own included -- works.
+                    swp_flags = 0x0001 | 0x0002 | 0x0040  # NOSIZE|NOMOVE|SHOWWINDOW
+                    user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, swp_flags)
+                    user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, swp_flags)
                     user32.BringWindowToTop(hwnd)
                     user32.SetForegroundWindow(hwnd)
                 finally:
                     if attached:
-                        user32.AttachThreadInput(
-                            current_thread, foreground_thread, False
-                        )
-            self._stop_button.SetFocus()
+                        user32.AttachThreadInput(current_thread, foreground_thread, False)
+            self._default_focus.SetFocus()
         except Exception:
-            # STAY_ON_TOP and Raise remain the portable fallback.
             try:
                 self.Raise()
-                self._stop_button.SetFocus()
+                self._default_focus.SetFocus()
             except Exception:
                 pass
 
@@ -133,16 +276,24 @@ class IncomingCallDialog(wx.Dialog):
         self._closing = True
         self.Destroy()
 
-    def _on_stop(self, _event):
+    def _finish_with(self, callback):
         if self._closing:
             return
         self._closing = True
-        self._on_stop_callback()
+        callback()
         self.Destroy()
 
+    def _on_answer(self, _event):
+        self._finish_with(self._on_answer_callback)
+
+    def _on_answer_without_video(self, _event):
+        self._finish_with(self._on_answer_without_video_callback)
+
+    def _on_reject(self, _event):
+        self._finish_with(self._on_reject_callback)
+
+    def _on_stop(self, _event):
+        self._finish_with(self._on_stop_callback)
+
     def _on_close(self, _event):
-        if self._closing:
-            return
-        self._closing = True
-        self._on_closed_callback()
-        self.Destroy()
+        self._finish_with(self._on_closed_callback)

@@ -138,6 +138,55 @@ def local_history_behind_server(chat: dict, verified_activity: int = 0) -> bool:
     return _seconds(marker["activity"]) > floor
 
 
+def timestamp_seconds(value) -> int:
+    """Public form of _seconds() for callers outside this module."""
+    return _seconds(value)
+
+
+def chat_activity_floor(chat: dict, counts_as_last_message, now: int = 0) -> int:
+    """Seconds of the newest stored message that counts as the chat's last one.
+
+    A chat's activity marker `t` can never honestly be older than a message we
+    hold that decides its preview — the chat was active at least then. A
+    list-chats snapshot claiming less is behind us, not ahead: WhatsApp Web
+    after a profile restore comes back with every marker from its snapshot,
+    up to a day old. Merging that `t` in lowered the local one, and on the
+    next round reconcile_snapshot_unread() saw the snapshot as current and
+    accepted its unread counts — which, for a snapshot taken after a mass
+    mark-as-read, put the whole list back near zero.
+
+    *counts_as_last_message* is MainWindow._counts_as_last_message, the same
+    filter sync_chat_messages() uses before raising `t` itself, so a system
+    event (a join, a revoke) cannot push the floor up. Returns 0 when nothing
+    counts, meaning "no floor".
+
+    A message still pending locally is skipped — it has not reached WhatsApp
+    and carries this PC's clock, not the server's — and so, when *now* is
+    given, is any message stamped after it: a clock running ahead must not
+    hold `t` (and with it an unread badge the server has since cleared) above
+    anything the server will ever report. Skipped rather than clamped to
+    *now*: a clamped floor would rise every round, reading as new activity
+    against the previous baseline and costing that chat a get-messages every
+    other poll for as long as the clock stays ahead.
+    """
+    best = 0
+    for message in chat_message_records(chat):
+        if isinstance(message, dict) and message.get("_local_pending"):
+            continue
+        try:
+            counts = counts_as_last_message(message)
+        except Exception:
+            counts = False
+        if not counts:
+            continue
+        seconds = _seconds(message_timestamp(message))
+        if now and seconds > now:
+            continue
+        if seconds > best:
+            best = seconds
+    return best
+
+
 def chat_sync_change_reason(chat: dict, baseline: dict,
                             verified_activity: int = 0) -> str:
     """Which signal says this chat changed, or "" when none does.
@@ -232,6 +281,46 @@ def classify_chat_sync(
     if reason:
         return "incremental", reason
     return "skip", "unchanged"
+
+
+def select_stale_rechecks(candidates, verified_at, now, per_round, after):
+    """Which skipped chats have gone too long without an actual get-messages.
+
+    Every signal classify_chat_sync() reads — `t`, `unreadCount`,
+    `lastReceivedKey`, `lastMessage` — is chat-list *metadata*. When that
+    metadata is stale for one chat, every signal agrees nothing changed and the
+    chat is skipped on every round, forever, while get-messages for it would
+    have returned newer messages the whole time. Nothing in the plan can break
+    out of that, which is why the only cure users found was F5 — a forced full
+    rebuild of every chat in the account (issue #181: two chats stuck at 200
+    messages, ending at 08:35 and 07:34, that F5 advanced to 17:12 and 17:11
+    by fetching 34 and 7 messages *newer* than anything stored).
+
+    The history-repair queue does not cover it either: that asks the phone for
+    history *older* than what is held, and these messages were newer.
+
+    So staleness is bounded by time rather than trusted to the markers. The
+    chats that have gone longest without a successful fetch are re-checked, a
+    few per round, whatever the markers say. Returned oldest-first and capped,
+    so the cost per round is fixed no matter how large the account is; a chat
+    with no recorded verification at all sorts first, because it is the one
+    nothing is known about.
+    """
+    if per_round <= 0 or after < 0:
+        return []
+    verified_at = verified_at if isinstance(verified_at, dict) else {}
+    due = []
+    for jid in candidates or ():
+        if not jid:
+            continue
+        try:
+            last = int(verified_at.get(jid, 0) or 0)
+        except (TypeError, ValueError):
+            last = 0
+        if now - last >= after:
+            due.append((last, jid))
+    due.sort()
+    return [jid for _, jid in due[:per_round]]
 
 
 def next_incremental_limit(

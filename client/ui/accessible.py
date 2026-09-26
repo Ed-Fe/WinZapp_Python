@@ -3,6 +3,74 @@ import sys
 import wx
 
 
+def split_mnemonic(label):
+    """Split a locale label such as "&Answer" into ("Answer", "A").
+
+    The returned label has no `&`, so Windows creates no mnemonic for it: a
+    mnemonic also fires on the BARE letter while a button has focus (Win32's
+    IsDialogMessage), which is how a letter typed into the composer answered
+    or rejected a ringing call. The letter is handed back so the caller can
+    register it as an Alt+<letter> accelerator instead. `&&` is a literal `&`.
+    """
+    plain = []
+    letter = None
+    i = 0
+    while i < len(label):
+        char = label[i]
+        if char == "&" and i + 1 < len(label):
+            following = label[i + 1]
+            if following == "&":
+                plain.append("&")
+            else:
+                plain.append(following)
+                if letter is None:
+                    upper = following.upper()
+                    letter = upper if len(upper) == 1 else following
+            i += 2
+            continue
+        plain.append(char)
+        i += 1
+    return "".join(plain), letter
+
+
+def accelerator_keycode(letter):
+    """The key code to register for Alt+<letter>, or None if it cannot fire.
+
+    An accelerator entry on Windows takes a virtual-key code, which equals the
+    character only for ASCII letters and digits. Any other letter (Romanian
+    "Î") is resolved through the active keyboard layout; None when the layout
+    has no plain key for it.
+    """
+    if not letter or len(letter) != 1:
+        return None
+    if letter.isascii() and letter.isalnum():
+        return ord(letter.upper())
+    if sys.platform != "win32":
+        return None
+    import ctypes
+
+    scan = ctypes.windll.user32.VkKeyScanW
+    scan.restype = ctypes.c_short
+    # Scan the lowercase form: an uppercase letter reports Shift in the high
+    # byte, which would wrongly read as "needs a modifier".
+    result = scan(ord(letter.lower()))
+    if result == -1 or (result >> 8) & 0xFF:  # unmapped, or needs Shift/Ctrl/Alt
+        return None
+    return result & 0xFF
+
+
+class AccessibleAltShortcutButton(wx.Accessible):
+    """Reports Alt+<letter> as the keyboard shortcut of a button whose
+    shortcut is an accelerator-table entry rather than a `&` mnemonic."""
+
+    def __init__(self, letter):
+        super().__init__()
+        self._letter = letter
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, f"Alt+{self._letter}")
+
+
 class AccessibleSearchInConversation(wx.Accessible):
     """Reports Ctrl+Shift+F as the keyboard shortcut for the search-in-conversation button."""
 
@@ -81,6 +149,13 @@ class AccessibleSaveAs(wx.Accessible):
         return (wx.ACC_OK, "Ctrl+Shift+S")
 
 
+class AccessibleShowInFolder(wx.Accessible):
+    """Reports Ctrl+Enter as the shortcut for the Show-in-folder button."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Enter")
+
+
 class AccessibleStatusCopyText(wx.Accessible):
     """Reports Ctrl+C as the keyboard shortcut for the status copy-text button."""
 
@@ -95,11 +170,79 @@ class AccessibleReadMoreButton(wx.Accessible):
         return (wx.ACC_OK, "Alt+L")
 
 
+class AccessibleReturnCallButton(wx.Accessible):
+    """Reports Ctrl+Shift+R as the shortcut for the Return-call button.
+
+    Shared with "react to message": the button only exists while a missed
+    call is focused, and a call record cannot be reacted to, so the two
+    never compete for the same row."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Shift+R")
+
+
 class AccessibleConversationDataButton(wx.Accessible):
     """Reports Ctrl+Shift+D as the keyboard shortcut for the conversation-data button."""
 
     def GetKeyboardShortcut(self, childId):
         return (wx.ACC_OK, "Ctrl+Shift+D")
+
+
+class AccessibleVoiceCallButton(wx.Accessible):
+    """Reports Ctrl+Shift+V as the keyboard shortcut for the Voice call button."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Shift+V")
+
+
+class AccessibleVideoCallButton(wx.Accessible):
+    """Reports Ctrl+Alt+Shift+V as the keyboard shortcut for the Video call button."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Alt+Shift+V")
+
+
+class AccessibleCallEndButton(wx.Accessible):
+    """Reports Ctrl+Shift+Q as the keyboard shortcut for the active-call
+    window's end-call button."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Shift+Q")
+
+
+class AccessibleCallMuteButton(wx.Accessible):
+    """Reports Ctrl+M as the keyboard shortcut for the active-call window's
+    mute/unmute microphone button — same shortcut whether the button is
+    currently offering to mute or unmute, so it stays accurate across the
+    label swap."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+M")
+
+
+class AccessibleCallPromoteVideoButton(wx.Accessible):
+    """Reports Ctrl+P as the keyboard shortcut for the active-call window's
+    "switch to video" button, shown only while the call is voice."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+P")
+
+
+class AccessibleCallSettingsButton(wx.Accessible):
+    """Reports Ctrl+C as the keyboard shortcut for the active-call window's
+    settings button."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+C")
+
+
+class AccessibleCallVideoToggleButton(wx.Accessible):
+    """Reports Ctrl+V as the keyboard shortcut for the active-call window's
+    video on/off toggle button — same shortcut regardless of which state
+    it's in."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+V")
 
 
 class AccessibleAddAttachmentButton(wx.Accessible):
@@ -126,18 +269,27 @@ class AccessibleEmojiButton(wx.Accessible):
 class _VoiceButtonAccessible(wx.Accessible):
     """Base for voice-recording buttons with custom keyboard shortcuts.
 
-    The native wx label must always remain available to MSAA. Recording-start
-    focus announcements are suppressed separately and only at the instant the
-    application moves focus, so navigating back to the button with Tab still
-    announces its real name and role.
+    It can also host the reusable MSAA focus-cloak state for callers that
+    genuinely must move focus. Voice-recording start no longer relies on that
+    cloak: silent recording mode avoids the Send/Discard focus move entirely.
+    Keeping the state here preserves keyboard-shortcut metadata if another
+    caller arms the generic cloak helper.
     """
 
-    def __init__(self, main_window):
+    def __init__(self, main_window, window=None):
         super().__init__()
         self._mw = main_window
+        self.cloaked = False
+        if window is not None:
+            setattr(window, "_winzapp_focus_cloak", self)
 
     def GetName(self, childId):
         return (wx.ACC_NOT_IMPLEMENTED, "")
+
+    def GetState(self, childId):
+        if self.cloaked and childId == 0:
+            return (wx.ACC_OK, wx.ACC_STATE_SYSTEM_FOCUSABLE)
+        return (wx.ACC_NOT_IMPLEMENTED, 0)
 
 
 class AccessibleDiscardVoiceMessage(_VoiceButtonAccessible):
@@ -150,8 +302,8 @@ class AccessibleDiscardVoiceMessage(_VoiceButtonAccessible):
 class AccessiblePauseResumeRecording(_VoiceButtonAccessible):
     """Reports Ctrl+Shift+P as the keyboard shortcut for the Pause/Resume button."""
 
-    def __init__(self, main_window=None):
-        super().__init__(main_window)
+    def __init__(self, main_window=None, window=None):
+        super().__init__(main_window, window)
 
     def GetKeyboardShortcut(self, childId):
         return (wx.ACC_OK, "Ctrl+Shift+P")
@@ -342,7 +494,16 @@ class CompatListBoxMessagesCtrl(wx.ListBox):
 
     def _on_char_hook(self, event):
         if self.HasFocus():
-            if event.GetKeyCode() == wx.WXK_RETURN:
+            if (event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
+                    and event.ControlDown()
+                    and self._key_down_handler is not None):
+                # Modified Enter belongs to the panel's shortcut handler.
+                # Sending it through the plain activation path made
+                # Ctrl+Enter play videos instead of handling issue #94.
+                self._key_down_handler(event)
+                if not event.GetSkipped():
+                    return
+            elif event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
                 row = self.GetSelection()
                 if row != wx.NOT_FOUND and self._activated_handler is not None:
                     self._activated_handler(MockListEvent(row))

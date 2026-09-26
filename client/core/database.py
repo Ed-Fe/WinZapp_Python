@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS messages (
     status          INTEGER DEFAULT 0,
     PRIMARY KEY (message_id, remote_jid)
 );
+-- The Calls tab reads every call record of every chat (get_call_logs()).
+CREATE INDEX IF NOT EXISTS idx_msgs_type_ts
+    ON messages(message_type, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_msgs_jid_ts
     ON messages(remote_jid, timestamp DESC);
 
@@ -740,6 +743,46 @@ class DatabaseManager:
             msg = self._decrypt_json(row["message_json"])
             if msg:
                 result.append(msg)
+        return result
+
+    async def get_message_by_id(self, remote_jid: str, message_id: str) -> dict | None:
+        """Return one stored message of a chat by its id, or None."""
+        if not message_id:
+            return None
+        conn = await self._ensure_conn()
+        jids = self._jid_variants(remote_jid)
+        placeholders = ",".join("?" for _ in jids)
+        cursor = await conn.execute(
+            f"""SELECT message_json FROM messages
+               WHERE message_id = ? AND remote_jid IN ({placeholders})
+               LIMIT 1""",
+            (message_id, *jids),
+        )
+        row = await cursor.fetchone()
+        return (self._decrypt_json(row["message_json"]) or None) if row else None
+
+    async def get_call_logs(self, limit: int = 1000) -> list[tuple[str, dict]]:
+        """Every stored call record of every chat, newest first, as
+        ``(remote_jid, msg)`` -- what the Calls tab lists (core/call_log.py).
+
+        ``message_type`` is stored in clear, so only the matching rows are
+        decrypted. Both spellings: builds before the call-log branch stored the
+        raw WhatsApp type.
+        """
+        conn = await self._ensure_conn()
+        cursor = await conn.execute(
+            """SELECT remote_jid, message_json FROM messages
+               WHERE message_type IN ('callLogMessage', 'call_log')
+               ORDER BY timestamp DESC
+               LIMIT ?""",
+            (int(limit),),
+        )
+        rows = await cursor.fetchall()
+        result = []
+        for row in rows:
+            msg = self._decrypt_json(row["message_json"])
+            if msg:
+                result.append((row["remote_jid"], msg))
         return result
 
     async def get_message_count(self, remote_jid: str) -> int:

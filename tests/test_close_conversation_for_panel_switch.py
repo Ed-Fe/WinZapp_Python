@@ -71,9 +71,15 @@ class _Stub:
         self._search_result_idx = -1
         self._msg_bookmarks = {}
         self._msg_temp_bookmarks = {}
+        # Cleared on close like the temporary bookmarks — see
+        # tests/test_selection_mode.py for what that clear is for.
+        self.selected_messages = set()
         self._expanded_visible_count = 0
         self._expanded_oldest_msg_id = ""
         self.conversation_panel = _FakeWidget(shown=True)
+        # Hidden with the conversation: the call button is only meaningful
+        # while a callable chat is open.
+        self._voice_call_btn = _FakeWidget(shown=True)
         self.message_field = _FakeWidget()
         self.restore_calls = []
         self.restore_archived_calls = []

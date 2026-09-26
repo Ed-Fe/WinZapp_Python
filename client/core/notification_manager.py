@@ -31,6 +31,7 @@ Design decisions:
     toaster is created in one thread and show_toast() called in another.
 """
 
+import ctypes
 import logging
 import os
 import queue
@@ -466,6 +467,21 @@ def format_toast_unread_suffix(unread_count: int, i18n) -> str:
     return f"✉️ {text}"
 
 
+def format_locked_notification(unread_count: int, i18n, app_name="WinZapp") -> tuple[str, str]:
+    """Privacy-preserving title/body for a locked conversation.
+
+    The count belongs to the originating chat, not the account-wide total.
+    Contact/group names and message content deliberately never enter either
+    returned string.
+    """
+    count = max(1, int(unread_count or 0))
+    if count == 1:
+        body = i18n.t("chat_lock_notification_singular")
+    else:
+        body = i18n.t("chat_lock_notification_plural").format(count=count)
+    return app_name or "WinZapp", body
+
+
 def format_notification_title(msg: dict, main_window, i18n) -> str:
     """
     Build the notification title for a toast notification.
@@ -610,6 +626,51 @@ def announce_background_message(main_window, i18n, title: str, body: str) -> Non
         wx.CallAfter(main_window.output, spoken)
     except Exception as e:
         print(f"[NotificationManager] fallback announcement failed: {e}")
+
+
+_ERROR_INSUFFICIENT_BUFFER = 122
+
+
+def packaged_process_aumid(kernel32=None) -> str:
+    """The AUMID Windows gave this process when it runs inside a package, or "".
+
+    Python from the Microsoft Store is an MSIX package, and so is every venv
+    created from it: the process carries the package's identity. A toast
+    notifier created for "WinZapp" there becomes "<package>!WinZapp", an app
+    the package's manifest does not declare -- Windows accepts every toast
+    and shows none. Measured 2026-09-23 running from source: the sound played,
+    show_toast() returned in ~15 ms with no error, no banner ever appeared, and
+    the notification settings held a "PythonSoftwareFoundation.Python.3.13_
+    qbz5n2kfra8p0!WinZapp" entry. The process's own AUMID ("...!Python") is a
+    declared app, so its toasts are shown.
+    """
+    try:
+        from ctypes import wintypes
+        get_aumid = (kernel32 or ctypes.WinDLL("kernel32")).GetCurrentApplicationUserModelId
+        length = wintypes.UINT(0)
+        # Unpackaged processes answer APPMODEL_ERROR_NO_APPLICATION (15703).
+        if get_aumid(ctypes.byref(length), None) != _ERROR_INSUFFICIENT_BUFFER:
+            return ""
+        buffer = ctypes.create_unicode_buffer(length.value)
+        if get_aumid(ctypes.byref(length), buffer) != 0:
+            return ""
+        return buffer.value
+    except Exception:
+        return ""
+
+
+def toaster_aumid_candidates(app_id: str, fallback: str, packaged_aumid: str = "") -> list:
+    """AUMIDs to build the toaster with, in order of preference.
+
+    Creating a notifier for an AUMID Windows will never display succeeds just
+    the same, so the list cannot rely on failures to fall through: a packaged
+    process has to START with its own AUMID (see packaged_process_aumid()).
+    """
+    candidates = [packaged_aumid] if packaged_aumid else []
+    for aumid in (app_id, fallback):
+        if aumid and aumid not in candidates:
+            candidates.append(aumid)
+    return candidates
 
 
 class NotificationManager:
@@ -799,7 +860,11 @@ class NotificationManager:
             fallback = self._outer_exe_path()
         else:
             fallback = sys.executable
-        candidates = [self.APP_ID, fallback]
+        packaged = packaged_process_aumid()
+        if packaged:
+            logging.info("[NotificationManager] running inside a package; toasts "
+                         "use its AUMID %s", packaged)
+        candidates = toaster_aumid_candidates(self.APP_ID, fallback, packaged)
 
         for app_id in candidates:
             # Try interactable first (supports inline reply text box).
@@ -888,6 +953,22 @@ class NotificationManager:
             )
             return
 
+        main_window = getattr(self, "main_window", None)
+        get_chat = getattr(main_window, "get_chat", None)
+        if callable(get_chat):
+            chat = get_chat(remote_jid)
+        else:
+            chat = getattr(main_window, "chats", {}).get(remote_jid)
+        locked = bool(
+            getattr(main_window, "is_chat_locked", lambda _jid: False)(remote_jid)
+        )
+        if locked:
+            from core.utils import effective_unread_count
+            title, body = format_locked_notification(
+                effective_unread_count(chat or {}), self.i18n,
+                getattr(main_window, "app_name", "WinZapp"),
+            )
+
         if not self._toaster:
             # _setup_toaster() exhausted every AUMID candidate (or
             # windows_toasts is not importable at all): there will be no
@@ -903,7 +984,6 @@ class NotificationManager:
             self.i18n.get_language()
             reply_hint = self.i18n.t("notif_reply_hint")
 
-            chat = self.main_window.chats.get(remote_jid)
             # A chat WinZapp just discovered via this very live message (see
             # on_new_message()) starts its local unreadCount at an assumed 0
             # and counts up from there — the phone may already have a much
@@ -918,7 +998,8 @@ class NotificationManager:
             # Alt+3/the chat itself shows moments later; there is no single
             # later point to re-sample from once the banner is already up.
             unread_suffix = ""
-            if chat is not None and not chat.get("_unread_count_unsynced"):
+            if (not locked and chat is not None
+                    and not chat.get("_unread_count_unsynced")):
                 unread_suffix = format_toast_unread_suffix(effective_unread_count(chat), self.i18n)
 
             # Fire the custom sound BEFORE any of the WinRT/COM work below
@@ -978,7 +1059,7 @@ class NotificationManager:
             jid_snapshot = remote_jid
             msg_key_snapshot = msg_key
 
-            if self._interactable:
+            if self._interactable and not locked:
                 # `caption` (-> the toast XML's `title` attribute) renders as
                 # its own visible line ABOVE the field — setting it to the
                 # same text as `placeholder` (-> `placeHolderContent`, the

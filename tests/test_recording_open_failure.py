@@ -97,11 +97,15 @@ class _FakeStream:
 
 class _Stub:
     _start_voice_recording = ConversationsPanel._start_voice_recording
+    _default_recording_stereo = ConversationsPanel._default_recording_stereo
     _silence_send_voice_focus_if_enabled = (
         ConversationsPanel._silence_send_voice_focus_if_enabled
     )
     _voice_recording_silence_enabled = (
         ConversationsPanel._voice_recording_silence_enabled
+    )
+    _voice_recording_focus_suppression_enabled = (
+        ConversationsPanel._voice_recording_focus_suppression_enabled
     )
     _focus_recording_button_silently = (
         ConversationsPanel._focus_recording_button_silently
@@ -119,6 +123,7 @@ class _Stub:
         self._recording_stream = None
         self.settings = {"user_interface": {"voice_record_focus": "send"}}
         for name in ("message_field", "send_message_btn", "record_voice_message_btn",
+                     "_record_voice_alt_btn",
                      "_add_attachment_btn", "_voice_panel", "conversation_panel",
                      "_pause_resume_btn", "_send_voice_btn", "_discard_voice_btn"):
             setattr(self, name, _FakeWidget())

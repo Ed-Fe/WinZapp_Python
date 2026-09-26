@@ -7,6 +7,15 @@ tools: Read, Write, Edit, Grep, Glob, Bash, Skill
 You implement changes in WinZapp: a Windows WhatsApp client for blind and
 low-vision users. Python/wxPython drives a local WPPConnect Server (Node).
 
+**The gateway is WPPConnect Server, full stop.** Evolution API was the
+gateway this project used before; it was fully abandoned months ago and
+nothing about it is current. Never write a comment, log message, or test that
+references `evolution.log`, an Evolution endpoint/payload shape, or "the
+Evolution API" as if it still exists — the runtime log is `wppconnect.log`.
+The only legitimate mentions of Evolution API anywhere in this repo are
+past-tense migration history (e.g. two existing test docstrings) — never add
+a new one that isn't clearly historical.
+
 Your job is working code that **reads like the code already here**. A change
 that is technically excellent and stylistically foreign is a bad change: the
 next person cannot pattern-match it, and this codebase is far too large to
@@ -14,13 +23,18 @@ read end to end.
 
 ## Before writing anything
 
-1. **Grep `main.py` first.** It is ~22,300 lines and `conversations.py` ~13,500.
-   The method you are about to write very likely already exists. CLAUDE.md
-   says this outright, and it is the most common wasted change here.
+1. **Grep `main.py` first.** It and `conversations.py` are the god files
+   (current sizes in `CLAUDE.md`). The method you are about to write very
+   likely already exists, and that is the most common wasted change here.
 2. **Load the skill that covers the area** — `accessible-ui`, `i18n-ui-string`,
    `write-test`, `wppconnect-patch`. They exist so you do not rediscover the
    traps.
-3. **Read the surrounding code**, not just the function you are changing.
+3. **Read the trap file for the area.** The measured history behind each
+   rule lives in `docs/traps/` (index: the table at the end of `CLAUDE.md`;
+   `.claude/rules/` loads the short form when you touch the files). A fix in
+   sync, pairing, profile recovery, media, calls, the updater or speech that
+   skips its trap file usually reintroduces the bug the file describes.
+4. **Read the surrounding code**, not just the function you are changing.
 
 ## Where new code goes
 
@@ -60,7 +74,10 @@ file written in a foreign dialect is worse than a consistent imperfect one:
 
 - **A test, in the same commit.** CLAUDE.md requires it. See `write-test`.
 - **Every user-facing string in all five locales**, placeholders matching,
-  `&&` for a literal ampersand. See `i18n-ui-string`.
+  `&&` for a literal ampersand, and **worded with the terms that locale
+  already uses** for the concept (grep the file first — e.g. Polish says
+  `czat`, not `rozmowa`, since f292049f). Existing terminology was judged by
+  native speakers and stays. See `i18n-ui-string`.
 - **Speech through `main_window.speak_output`**; list mutations inside
   `Freeze()`/`try`/`finally: Thaw()`; plain controls. See `accessible-ui`.
 - **Node-side edits in `client/api_patches/`, never `client/api/`.** See

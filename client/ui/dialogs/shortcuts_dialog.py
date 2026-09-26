@@ -84,11 +84,25 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_alt1_label"),
             i18n.t("shortcut_alt4_label"),
             i18n.t("shortcut_alt5_label"),
+            i18n.t("shortcut_alt6_label"),
+        ]
+        # Alt+7 opens the locked-chats vault. Once the user chose to hide the
+        # vault (hide_navigation) this dialog must not advertise it; a vault
+        # never set up is visible in the navigation list too, so it is listed.
+        vault = getattr(main_window, "_chat_lock_vault", None)
+        if vault is not None and not (
+                getattr(vault, "configured", False)
+                and getattr(vault, "hide_navigation", False)):
+            lines.append(i18n.t("shortcut_alt7_label"))
+            if getattr(vault, "configured", False):
+                lines.append(i18n.t("shortcut_ctrl_shift_k_vault_label"))
+        lines += [
             i18n.t("shortcut_alt_nav_label").format(letter=nav_letter),
             i18n.t("shortcut_ctrl_comma_label"),
             i18n.t("shortcut_f1_label"),
             i18n.t("shortcut_ctrl_n_label"),
             i18n.t("shortcut_ctrl_shift_q_list_label"),
+            i18n.t("shortcut_ctrl_shift_t_list_label"),
             i18n.t("shortcut_ctrl_shift_alt_m_label"),
             i18n.t("shortcut_ctrl_alt_shift_d_label"),
             i18n.t("shortcut_ctrl_alt_shift_q_label"),
@@ -111,6 +125,13 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_alt_shift_num_label"),
             i18n.t("shortcut_ctrl_alt_shift_num_label"),
             i18n.t("shortcut_ctrl_r_label"),
+            i18n.t("shortcut_ctrl_shift_g_label"),
+            # Also listed under "ações em massa" below, the way
+            # shortcut_shift_home_label/shortcut_shift_end_label already are:
+            # Space's primary meaning is playing the focused audio or video,
+            # and someone looking for that will not think to read a mass-
+            # actions section.
+            i18n.t("shortcut_space_label"),
             i18n.t("shortcut_esc_ctrl_w_label"),
             i18n.t("shortcut_ctrl_shift_j_label"),
             i18n.t("shortcut_ctrl_shift_d_label"),
@@ -149,6 +170,7 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_alt_shift_t_label"),
             "",
             section("shortcuts_bulk_section"),
+            i18n.t("shortcut_space_label"),
             i18n.t("shortcut_ctrl_space_label"),
             i18n.t("shortcut_shift_down_label"),
             i18n.t("shortcut_shift_home_label"),
@@ -175,12 +197,27 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_ctrl_left_label"),
             i18n.t("shortcut_ctrl_right_label"),
             "",
+            section("shortcuts_calls_section"),
+            i18n.t("shortcut_calls_alt_l_label"),
+            i18n.t("shortcut_calls_ctrl_tab_label"),
+            i18n.t("shortcut_calls_enter_label"),
+            i18n.t("shortcut_calls_ctrl_shift_r_label"),
+            i18n.t("shortcut_calls_f5_label"),
+            "",
+            section("shortcuts_call_window_section"),
+            i18n.t("shortcut_call_ctrl_shift_q_label"),
+            i18n.t("shortcut_call_ctrl_m_label"),
+            i18n.t("shortcut_call_ctrl_p_label"),
+            i18n.t("shortcut_call_ctrl_v_label"),
+            i18n.t("shortcut_call_ctrl_c_label"),
+            "",
             section("shortcuts_search_section"),
             i18n.t("shortcut_search_enter_label"),
             i18n.t("shortcut_search_shift_enter_label"),
             "",
             section("shortcuts_sync_section"),
             i18n.t("shortcut_f5_label"),
+            i18n.t("shortcut_shift_f5_label"),
             i18n.t("shortcut_ctrl_shift_alt_b_label"),
             i18n.t("shortcut_ctrl_alt_shift_o_label"),
         ]

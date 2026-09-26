@@ -77,6 +77,8 @@ class _Stub:
         self._deleted_chats = set()
         self.chats = {}
         self.settings = {"user_interface": {"messages_page_size": 200}}
+        self._active_voice_call = None
+        self._voice_call_pause_since = 0.0
         self.calls = []
         self.requested = []
 
@@ -114,7 +116,8 @@ def _make(pages, oldest=None, advances=True):
     stub = _Stub(pages, oldest, advances)
     for name in ("deep_backfill_chat", "_oldest_stored_message",
                  "_chats_needing_deep_history", "history_page_target",
-                 "_persist_exhausted_chats", "_anchor_identity"):
+                 "_persist_exhausted_chats", "_anchor_identity",
+                 "_voice_call_in_progress"):
         raw = MainWindow.__dict__[name]
         if isinstance(raw, (staticmethod, classmethod)):
             setattr(stub, name, getattr(MainWindow, name))
@@ -122,6 +125,7 @@ def _make(pages, oldest=None, advances=True):
             setattr(stub, name, types.MethodType(raw, stub))
     for const in ("_DEEP_PAGES_PER_VISIT", "_DEEP_PAGE_DELAY",
                   "_DEEP_CHATS_PER_PASS", "_DEEP_STALL_RETRY_SECONDS",
+                  "_VOICE_CALL_PAUSE_MAX_SECONDS",
                   # Gates asking the phone again for a chat still stalled at
                   # the same anchor.
                   "_OLDER_REQUEST_GRACE"):
@@ -183,6 +187,20 @@ class TestWalkingOneChatBack:
         stub = _make([[_msg(1)]], oldest=_msg(5))
         stub.offline_mode = True
         assert stub.deep_backfill_chat("chat@g.us") == 0
+
+    def test_it_stops_between_pages_when_a_voice_call_starts(self):
+        stub = _make([[_msg(4)], [_msg(3)], [_msg(2)]], oldest=_msg(5))
+        original_fetch = stub.fetch_older_messages
+
+        def _fetch_then_start_call(*args, **kwargs):
+            page = original_fetch(*args, **kwargs)
+            stub._active_voice_call = {"id": "call"}
+            return page
+
+        stub.fetch_older_messages = _fetch_then_start_call
+
+        assert stub.deep_backfill_chat("chat@g.us") == 1
+        assert len(stub.calls) == 1
 
     def test_the_anchor_comes_from_the_database_not_from_memory(self):
         """Anchoring on the in-memory list would re-request the newest window
@@ -324,7 +342,14 @@ class _LoopStub:
 def _loop(deep_pending, pending=(), names=()):
     stub = _LoopStub(deep_pending, pending, names)
     for name in ("_backfill_empty_chats", "_collapse_and_list_backfill_pending",
-                 "_backfill_state_guard", "_canonical_backfill_jid"):
+                 "_backfill_state_guard", "_canonical_backfill_jid",
+                 # Bound explicitly, not left to __getattr__: the backfill loop
+                 # asks whether a voice call is up, and a stub answering with a
+                 # truthy lambda makes the pause permanent — the loop then
+                 # sleeps a second per iteration until its whole deadline
+                 # elapses, which is how one guard turned this file into a
+                 # multi-hour CI run.
+                 "_voice_call_in_progress"):
         setattr(stub, name, types.MethodType(MainWindow.__dict__[name], stub))
     for name in ("_initial_backfill_delay", "_background_backfill_work_allowed",
                  "_backfill_short_queue_delays"):
@@ -333,8 +358,12 @@ def _loop(deep_pending, pending=(), names=()):
                   "_BACKFILL_FIRST_DELAY", "_BACKFILL_CHUNK_DELAY",
                   "_BACKFILL_MAX_DELAY",
                   "_BACKFILL_CHUNK", "_BACKFILL_WORKERS",
-                  "_DEEP_CHATS_PER_PASS"):
+                  "_DEEP_CHATS_PER_PASS", "_VOICE_CALL_PAUSE_MAX_SECONDS"):
         setattr(stub, const, getattr(MainWindow, const))
+    # Same reason as the binding above: this must be a real falsy value, not
+    # whatever __getattr__ would invent for it.
+    stub._active_voice_call = None
+    stub._voice_call_pause_since = 0.0
     stub._backfill_empty_chats()
     return stub
 
@@ -539,3 +568,51 @@ class TestBackgroundNeverFloodsThePhone:
         stub.deep_backfill_chat("chat@g.us")
 
         assert stub.requested == []
+
+
+class TestOlderHistoryIsToldApartFromANewMessage:
+    """The signal the backfill's phone requests are budgeted on.
+
+    `_backfill_empty_chats()` used to read "the record count grew" as "the ask
+    we spent this chat's budget on worked", which handed the chat a fresh
+    budget — and two more sync notifications on the user's phone — every time
+    anyone wrote in it. Reported on 2026-09-08 as notifications firing while
+    sending a message. The oldest stored message can only stay put or move
+    further back (see `_anchor_identity`), so it answers the narrower question
+    the budget actually meant to ask.
+    """
+
+    OLD = {"key": {"id": "OLD"}, "messageTimestamp": 1000}
+    OLDER = {"key": {"id": "OLDER"}, "messageTimestamp": 500}
+
+    def _stub(self, oldest):
+        stub = _Stub(pages=[])
+        stub.db = _DB({"5511@s.whatsapp.net": oldest})
+        return stub
+
+    def _anchor(self, stub):
+        return MainWindow._anchor_identity(
+            MainWindow._oldest_stored_message(stub, "5511@s.whatsapp.net"))
+
+    def test_a_newer_message_leaves_the_anchor_untouched(self):
+        # Sending or receiving adds at the top; the oldest row does not move.
+        stub = self._stub(self.OLD)
+        before = self._anchor(stub)
+        stub.db.oldest["5511@s.whatsapp.net"] = self.OLD   # unchanged
+        assert self._anchor(stub) == before
+
+    def test_older_history_landing_moves_the_anchor(self):
+        stub = self._stub(self.OLD)
+        before = self._anchor(stub)
+        stub.db.oldest["5511@s.whatsapp.net"] = self.OLDER
+        assert self._anchor(stub) != before
+
+    def test_two_messages_sharing_a_timestamp_are_still_told_apart(self):
+        # Why identity and not order: get_messages_asc() breaks a tie on id.
+        a = MainWindow._anchor_identity({"key": {"id": "A"}, "messageTimestamp": 1000})
+        b = MainWindow._anchor_identity({"key": {"id": "B"}, "messageTimestamp": 1000})
+        assert a != b
+
+    def test_an_empty_chat_has_a_stable_anchor(self):
+        stub = self._stub(None)
+        assert self._anchor(stub) == self._anchor(stub)

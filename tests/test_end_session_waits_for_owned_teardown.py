@@ -43,10 +43,19 @@ class _Event:
 
 
 class _Stub:
+    # The body these tests exercise moved out of _on_end_session when the
+    # teardown was hoisted to WM_QUERYENDSESSION (Windows can kill our Node
+    # before WM_ENDSESSION arrives). Both handlers now delegate to it, so the
+    # cases below are still driven through the handler, exactly as production
+    # reaches them.
+    _run_windows_session_teardown = MainWindow._run_windows_session_teardown
     _WINDOWS_SHUTDOWN_BUDGET = 4
     _END_SESSION_UNSTICK_SECONDS = 60.0
     _TEARDOWN_OWNED_ELSEWHERE_WAIT_SECONDS = 80.0
     stopped_with = None
+
+    def _restart_wpp_after_cancelled_shutdown(self):
+        pass
 
     def __init__(self, already_tearing_down):
         self._teardown_started_lock = threading.Lock()
@@ -86,7 +95,11 @@ class TestTeardownOwnedElsewhere:
             "the losing branch returned immediately — Windows then terminates "
             "the process while the owning path is still mid _stop_wpp_server()"
         )
-        assert evt.skipped
+        # Deliberately NOT skipped: Skip() resumes the handler search and
+        # reaches wxApp::OnEndSession (DeleteAllTLWs/OnExit/exit()), spending a
+        # Windows budget this teardown has already used. See
+        # tests/test_windows_shutdown_handlers.py.
+        assert evt.skipped is False
         # It must NOT start a competing teardown of its own; that is exactly
         # what the lock is there to prevent.
         assert stub.stopped_with is None
@@ -99,7 +112,11 @@ class TestTeardownOwnedElsewhere:
 
         assert stub.stopped_with == stub._WINDOWS_SHUTDOWN_BUDGET
         assert stub._shutting_down is True
-        assert evt.skipped
+        # Deliberately NOT skipped: Skip() resumes the handler search and
+        # reaches wxApp::OnEndSession (DeleteAllTLWs/OnExit/exit()), spending a
+        # Windows budget this teardown has already used. See
+        # tests/test_windows_shutdown_handlers.py.
+        assert evt.skipped is False
 
 
 class TestUnstickTimer:
@@ -108,7 +125,7 @@ class TestUnstickTimer:
         _teardown_started_lock everywhere else. Unlocked, this timer can clear
         an event belonging to a LATER teardown that genuinely finished,
         stranding that teardown's loser for its whole 80s wait."""
-        src = inspect.getsource(MainWindow._on_end_session)
+        src = inspect.getsource(MainWindow._run_windows_session_teardown)
         unstick = src[src.index("def _unstick_if_still_running"):]
         assert "with self._teardown_started_lock:" in unstick.split("try:")[0]
 

@@ -1,236 +1,236 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository. This file holds only
+what applies to *every* task; the reasoning behind each rule — measured
+incidents, discarded hypotheses, log excerpts — lives under `docs/` and is
+read when you touch that area (see the index at the end and `.claude/rules/`).
+
+## Rules that protect users — read before running anything
+
+1. **A plain `pytest` must never open a window.** WinZapp is maintained by
+   blind developers; a test window taking focus steals whatever they had open
+   and has crashed NVDA. Frames go through `tests/conftest.py`'s
+   `hidden_frame()`; modules that build a real `Dialog` carry the `wxgui`
+   marker and are skipped by default. **`--run-wx-gui` (or
+   `WINZAPP_RUN_WX_GUI_TESTS=1`) is for CI only.** Never pass it on a
+   developer machine and never tell an agent, script or helper to pass it —
+   background agents run on the user's own desktop. The same goes for ad-hoc
+   scripts that construct a wx window or hook WinEvents. Enforced by
+   `tests/test_no_desktop_visible_windows.py`; history in
+   `docs/traps/tests-never-open-windows.md`.
+2. **Every user-facing string goes into every registered locale file**
+   (`client/languages/{pt-BR,pt-PT,en-US,es-ES,pl,tr-TR}.json`; the set is
+   data, driven by `language_map.json`, not a hardcoded count). `I18n.t()` has
+   no per-key fallback: a missing key renders as the raw key name. Reuse the
+   words that locale already uses for the concept (`docs/reference/i18n-terminology.md`).
+   `tests/test_language_files_in_sync.py` enforces it.
+3. **A new function or fix ships with a test in the same change**, in the
+   repo's style: pure logic extracted, or the unbound method bound onto a
+   plain stub (`MainWindow`/`ConversationsPanel` cannot be instantiated
+   without a wx.App). Async tests are plain `async def` (`asyncio_mode=auto`).
+4. **Only edit `client/api_patches/`, never `client/api/`** — the latter is
+   a vendored checkout that `setup_api.py`/`build.py` overwrite from the
+   patches. Third-party JS inside `node_modules` is patched by the
+   `client/core/wppconnect_*_layer_patch.py` modules instead (see below).
+5. **All speech goes through `MainWindow.speak_output`** (via
+   `MainWindow.output()`); UI is plain wx controls only, list mutations
+   inside `Freeze()`/`Thaw()`, titles and rows show names, never raw JIDs.
 
 ## What this is
 
-WinZapp is a free, self-hosted Windows desktop WhatsApp client built specifically for **accessibility** (blind/low-vision users via NVDA/JAWS/Narrator through `accessible_output2`). It's a hybrid app: a Python 3.13 + wxPython GUI process drives a locally-run **WPPConnect Server** (Node.js, cloned/built from the upstream `wppconnect-team/wppconnect-server` repo) that acts as the actual WhatsApp Web gateway. The two processes talk over local HTTP REST (`http://127.0.0.1:6300/api/...`) and Socket.IO (real-time events).
+WinZapp is a free, self-hosted Windows desktop WhatsApp client built for
+**accessibility** (NVDA/JAWS/Narrator through `accessible_output2`). A Python
+3.13 + wxPython GUI process drives a locally-run **WPPConnect Server**
+(Node.js, cloned and built from `wppconnect-team/wppconnect-server`) that is
+the actual WhatsApp Web gateway. They talk over local HTTP REST
+(`http://127.0.0.1:6300/api/...`) and Socket.IO. One account per process;
+several accounts run in parallel, each with its own Node, port and window.
 
 ## Commands
 
-### Dev setup
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install -r requirements-dev.txt   # adds pytest, pytest-cov, pytest-asyncio
-python setup_api.py                   # clones + builds client/api/ (WPPConnect Server) — one-time, requires Node
+uv sync && uv run setup-api            # fresh checkout (uv fetches Python 3.13); setup-api clones+builds client/api/
+python -m venv venv; .\venv\Scripts\Activate.ps1; pip install -r requirements.txt -r requirements-dev.txt; python setup_api.py   # venv route — must keep working
+uv run winzapp                         # or: cd client; python main.py   (ALWAYS from client/, or a second empty data/ install appears)
+pytest                                 # from repo root; pytest.ini sets pythonpath=client, asyncio_mode=auto
+pytest tests/test_database.py::TestChats::test_upsert_chat_creates_record
+uv run build-installer                 # onedir: WinZappInstaller.exe + WinZapp.zip   (or: venv\Scripts\python.exe build.py)
+uv run build-onefile                   # single-file WinZapp.exe                       (or: build.py --onefile)
 ```
-`setup_api.py` clones WPPConnect Server into `client/api/`, restores WinZapp's custom patched files (`start.js`, `config.json`, plus `src/config.ts`, `src/index.ts`, `src/util/{createSessionUtil,sessionUtil,functions}.ts`, `src/middleware/statusConnection.ts`, `src/controller/{deviceController,messageController,sessionController,statusController}.ts`, `src/routes/index.ts`, `decrypt.js` — the full, current list is `CUSTOM_ROOT_FILES + CUSTOM_SRC_FILES` at the top of the script), then runs `npm install` and `npm run build` inside `client/api/`. `package.json` is handled separately by `_merge_package_json_dependencies()` (overrides only WinZapp's specific dependency entries, not a full-file restore — see that function's own docstring for why). Re-run it any time `client/api/` needs to be rebuilt — it preserves `node_modules` and the custom files across re-clones. `build.py` also auto-detects when `client/api/` has drifted from `client/api_patches/` (a patch edited but this script never re-run) and re-runs it automatically before compiling — see the Packaging section below.
 
-### Run the client in dev mode
-```powershell
-cd client
-python main.py
-```
-Entry point is `client/main.py`, guarded by `if __name__ == "__main__":` near the bottom of the file. There is no separate "start the API server" dev command — `main.py` launches/manages the local Node WPPConnect Server process itself.
-
-### Tests
-```powershell
-pytest                                   # from repo root; pytest.ini sets pythonpath=client, asyncio_mode=auto
-pytest tests/test_database.py            # single file
-pytest tests/test_database.py::TestChats::test_upsert_chat_creates_record  # single test
-pytest --run-wx-gui                      # ...including the ones that open a real dialog
-```
-**A plain `pytest` never opens anything in the foreground, and that is a
-deliberate default, not a convenience.** WinZapp is maintained by blind
-developers: a test window taking focus does not break the test run, it breaks
-whatever they had open in another window — and it has crashed NVDA outright.
-NVDA takes focus on the throwaway window and is still enumerating its children
-over COM (`event_gainFocus` → `getDialogText` → `IAccessible._get_children` →
-`oleacc.AccessibleObjectFromEvent`) when the test destroys it; confirmed live
-from NVDA's own traceback. "Remember to pass a flag" was the wrong shape for
-that risk — forgetting costs the person least able to absorb it.
-
-So the suite stays off the desktop two ways. Frames go through
-`tests/conftest.py`'s `hidden_frame()`: real, fully functional parents, but
-off-screen tool windows with no taskbar button, so they never become
-foreground. The handful of modules that construct a real `Dialog` subclass —
-which owns its own construction and cannot be positioned from outside — carry
-the `wxgui` marker and are **skipped unless explicitly asked for**, via
-`--run-wx-gui` or `WINZAPP_RUN_WX_GUI_TESTS=1`.
-
-Every CI workflow passes `--run-wx-gui`, so the coverage is never actually
-lost — it just stops running on a human's desktop by accident.
-
-**`--run-wx-gui` is for CI, and for nothing else.** Do not pass it on a
-developer machine, and do not instruct an agent, script or helper to pass it:
-background agents run on the *user's own desktop*, not somewhere else, so a
-subagent told to "just run the full suite" opens those dialogs in that user's
-face. It has already happened once — a review agent was told to use the flag on
-the reasoning that no human was at that desktop, and the pairing dialog's
-country list was read aloud by the user's screen reader mid-session. The same
-applies to ad-hoc probe scripts: anything that constructs a real wx window, or
-hooks WinEvents to watch one, belongs in CI or nowhere.
-`tests/test_no_desktop_visible_windows.py` enforces all of it: no module may
-reintroduce a bare `wx.Frame(None)`, a new module building a real dialog must
-carry the marker, and a CI step running a bare `pytest` fails the suite rather
-than silently dropping the dialog tests.
-Tests cover `client/core/database.py` and `client/core/database_bridge.py` (async SQLite layer + its sync façade) and small islands of pure logic pulled out of `main.py`/`core/notification_manager.py`/`ui/conversations.py` (e.g. `tests/test_sender_names.py`, `tests/test_notifications.py`, `tests/test_delivery_status.py`, `tests/test_send_jid_resolution.py`, `tests/test_message_bookmarks.py`) by binding their unbound methods onto a plain stub object — `MainWindow`/`ConversationsPanel` are wx.Frame/wx.Panel and can't be instantiated without a running wx.App, so the stub carries only the attributes the method under test actually touches. There are no tests for the wx UI in bulk. Async tests use `pytest-asyncio` in `auto` mode — no `@pytest.mark.asyncio` decorator needed, just declare test functions `async def`. **New functions/features should come with a test in this style as part of the same change.**
-
-### Building the distributable
-```powershell
-venv\Scripts\python.exe build.py             # onedir: WinZappInstaller.exe + WinZapp.zip
-venv\Scripts\python.exe build.py --onefile   # single-file WinZapp.exe + WinZapp.zip
-```
-Requires, in addition to the venv: `client/node/` (portable Windows x64 Node.js extracted there), `client/api/dist/server.js` built (via `setup_api.py`), and — for `--onedir` only — `gcc`/`windres` in `PATH` (MSYS2 UCRT64) to compile the C installer/uninstaller stubs in `installer/`. `client/api/` and `client/node/` are git-ignored and must be prepared locally before building; see `.github/workflows/release.yml` for the exact CI sequence if reproducing a release build. `check_tools()` (step 1) also diffs every patched file in `client/api_patches/` against its live copy in `client/api/` and, on drift, re-runs `setup_api.py` automatically before continuing — a patch edited only in `client/api_patches/` without rebuilding used to ship a stale/reverted `dist/server.js` with no warning.
+`pyproject.toml`/`uv.lock` and `requirements.txt` pin the same versions; change
+both and run `uv lock` (`tests/test_requirements_in_sync.py`). The bundled Node
+version is named once, in `client/node_download_config.py`. `client/api/` and
+`client/node/` are git-ignored and must exist before building. Details:
+`docs/reference/build-and-setup.md`.
 
 ## Architecture
 
-### Two-process split
-- **`client/` (Python/wxPython)** — all UI, business logic, local persistence, notifications, sounds. This is what you'll be editing almost all of the time.
-- **`client/api/` (Node/TypeScript, vendored via `setup_api.py`, not committed)** — WPPConnect Server, a Puppeteer-driven WhatsApp Web automation server. WinZapp keeps a small set of patched files on top of upstream (`start.js`, `config.json`, several `src/**/*.ts` controllers/middleware/util files — see the Dev setup section above for the current list) tracked permanently in `client/api_patches/` — `setup_api.py` (and `build.py`, on detected drift) re-applies these after every clone/checkout. Treat `client/api/` itself as mostly third-party; only ever edit the tracked copy under `client/api_patches/`, then re-run `setup_api.py` (or let `build.py` do it) to propagate the change into `client/api/`.
-- **node_modules patches**: four files patch `@wppconnect-team/wppconnect`'s own *compiled* `node_modules` output (not WPPConnect Server's own source, so they can't go through the `client/api_patches/` mechanism above) — `client/core/wppconnect_host_layer_patch.py` (pairing-code rotation cooldown, `host.layer.js`), `client/core/wppconnect_status_layer_patch.py` (status-post success/failure reporting, `status.layer.js`), `client/core/wppconnect_sender_layer_patch.py` (attachment sending: real error detail and the bounded/chunked transfer, `sender.layer.js`) and `client/core/wppconnect_welcome_layer_patch.py` (`welcome.js`). All of them hold the patch source text as shared constants, applied via idempotent search-and-replace from two independent call sites that must stay in sync: `setup_api.py` (dev/CI) and `ApiSetupDialog._apply_node_modules_patches()` (`client/ui/dialogs/api_setup.py`, the real end-user install flow, since `npm install` on an end user's machine re-fetches unpatched `node_modules` fresh). This is the established pattern for any future bug that requires patching third-party JS inside `node_modules` rather than WPPConnect Server's own source.
+- **`client/` (Python/wxPython)** — all UI, logic, persistence, notifications,
+  sounds. Almost every change lands here.
+- **`client/api/` (Node/TypeScript, vendored, not committed)** — WPPConnect
+  Server. WinZapp's patched files (`start.js`, `config.json`, `src/config.ts`,
+  `src/index.ts`, several `src/{controller,middleware,util}/*.ts`,
+  `src/routes/index.ts` — the list is `CUSTOM_ROOT_FILES + CUSTOM_SRC_FILES`
+  in `setup_api.py`) are tracked in `client/api_patches/` and re-applied on
+  every clone. `package.json` is merged, not restored
+  (`_merge_package_json_dependencies()`).
+- **node_modules patches**: four files patch `@wppconnect-team/wppconnect`'s
+  own *compiled* `node_modules` output (not WPPConnect Server's own source, so
+  they can't go through the `client/api_patches/` mechanism above) —
+  `client/core/wppconnect_host_layer_patch.py` (pairing-code lifecycle,
+  `host.layer.js`), `client/core/wppconnect_status_layer_patch.py`
+  (status-post reporting, `status.layer.js`),
+  `client/core/wppconnect_sender_layer_patch.py` (attachment sending, chunked
+  transfer, `sender.layer.js`) and `client/core/wppconnect_welcome_layer_patch.py`
+  (`welcome.js`). Each is idempotent search-and-replace applied from two call
+  sites that must stay in sync: `setup_api.py` and
+  `ApiSetupDialog._apply_node_modules_patches()` (`client/ui/dialogs/api_setup.py`).
+  Never edit a shipped `_V<n>` constant in place — add a version and a
+  migration (`docs/traps/large-media.md`).
+- **Send contract**: wppconnect/wa-js are exact pins in
+  `api_patches/package.json`; every send endpoint passes through
+  `auditSendResult()` and Python through `core/send_contract.py` — a 201
+  without a real message id is a failure. `docs/traps/send-contract.md`.
+- **The god objects**: `client/main.py` (`MainWindow`, ~32,700 lines) holds
+  WebSocket/HTTP calls, JID normalization, chat state, sync, sounds, menus,
+  updates; `client/ui/conversations.py` (`ConversationsPanel`, ~17,500 lines)
+  holds the message list and composer. **grep them first** — the method you
+  need very likely exists. Extraction is a skill (`extract-from-god-file`).
 
-### Attachment size ceilings — 2 GB for documents, 1 GB for everything else
+### Message pipeline (short form — `docs/reference/message-pipeline.md`)
 
-WhatsApp's own limit is **2 GB for documents** and **1 GB for photos, videos and audio**. WinZapp capped documents at 1 GB too until it was noticed, for no reason other than one shared constant. A large document therefore crosses **four independent gates, and all four have to agree** — miss one and the send fails somewhere the user cannot see:
-
-1. `ConversationsPanel._on_send_attachment()` (`_MAX_DOCUMENT_BYTES` / `_MAX_MEDIA_BYTES`) — the pre-send dialog, the only one the user is told about.
-2. `MainWindow.send_media_attachment()` — what the message queue actually calls.
-3. `WebSocketClient._set_wpp_limits()`'s `maxFileSize` — one flat cap for every type, so it must be set to the **largest** of them (2 GB), not per type.
-4. WhatsApp Web's own `MediaGatingUtils.getUploadLimit`, wrapped inside the page by `wppconnect_sender_layer_patch.py`.
-
-`tests/test_large_file_patch.py::test_every_gate_a_large_document_passes_agrees_on_2gb` pins all four together rather than one by one. Size alone stopped being the constraint once the sender-layer patch started streaming files into Chromium in bounded chunks (the old single oversized CDP argument is what used to kill the session), so these ceilings are WhatsApp's, not WinZapp's.
-
-Raising the page-side ceiling is the delicate half, because that patch is applied by idempotent search-and-replace to `node_modules`: an installation already patched with the previous text will not match the pristine source any more, so a **new block version plus a migration from the old one** is required, exactly as `_BROWSER_ATTACHMENT_LIMIT_PATCH_V3` derives from `_BROWSER_ATTACHMENT_LIMIT_PATCH_V2` and `patch_sender_layer_source()` rewrites V2 into V3 at both nesting depths. Never edit a shipped `_V<n>` constant in place — it is the left-hand side of a migration, and changing it strands every install that carries it. Order matters too: the V2→V3 ceiling rewrite must run *after* the WAV-bypass removal, whose match has V2 as its prefix.
-
-### `client/main.py` — the god object
-Almost everything (WebSocket/HTTP calls to WPPConnect, JID normalization, chat/contact state, sync, sound/notification dispatch, menu wiring, update checks) lives on the single `MainWindow(wx.Frame)` class in `client/main.py` (~22,300 lines). When making a change, `grep` this file first — the method you need very likely already exists here rather than in a smaller module. `client/ui/conversations.py` (`ConversationsPanel`, ~13,500 lines) is the other large file, holding essentially all message-list/composer UI and behavior.
-
-### Message/data pipeline
-1. **`client/core/websocket_client.py`** (`WebSocketClient`) connects to WPPConnect's Socket.IO and normalizes raw WPPConnect/Baileys event payloads into WinZapp's canonical message dict shape: `{"key": {"remoteJid", "fromMe", "id", "participant"?}, "message": {...}, "messageType": "...", "messageTimestamp": ..., "pushName": "..."}`. All downstream code (`main.py`, `core/database.py`, `ui/conversations.py`) assumes this shape.
-2. **`MainWindow.on_new_message()`** (live messages) and **`on_historical_message()`** (history-sync backfill) in `main.py` are the two funnels every incoming/echoed message passes through: they resolve `@lid`↔phone duplicates, match echoes of our own sends against locally-registered "pending" virtual messages, update in-memory `self.chats`, and schedule a debounced persist. Both — plus `_extract_lid_mapping()`, which `WebSocketClient.on_messages_upsert()` also calls directly on the Socket.IO thread, bypassing the other two entirely — are gated by `MainWindow._live_events_ready()`: a reused pairing WebSocket can start delivering events before `prepare_sync()` has created `self.db`, or before the initial sync has actually started, and processing a message that early either crashes (attribute doesn't exist yet) or lets a live event sneak a chat into the list ahead of the sync about to fetch the authoritative state. `is_countable_message()` (module-level in `main.py`) further excludes WhatsApp/WPPConnect system events (`groupNotification`, `protocolMessage` — group join/leave, settings changes, revokes) from ever bumping a chat's sort position, incrementing its unread badge, or firing a notification; they're still stored and shown as a timeline entry when the conversation is opened. **Edits**: WhatsApp re-delivers an edited message under its *original* `key.id` — `on_new_message()`'s same-id dedup check routes that into `_apply_possible_edit()`, which compares old vs. new text and updates the stored record in place if it changed. This only works live because `client/api_patches/src/util/createSessionUtil.ts` explicitly listens for wppconnect's `onMessageEdit` event and re-emits it through the same `'received-message'` Socket.IO event as a normal new message — an edit from someone else never fires `onAnyMessage` at all, so without that explicit listener the edit would be silently dropped server-side and never reach Python.
-3. **Outgoing sends**: UI code in `client/ui/conversations.py` builds a "virtual" pending message dict (`_local_pending: True`, `_local_id: <uuid4>`) shown immediately in the UI, and hands it to **`client/core/message_queue.py`**'s `MessageQueue` (one background thread). The queue calls the matching `send_*` method on `MainWindow` (`send_text_message`, `send_audio_message`, `send_media_attachment`, `send_contact_attachment`), which POSTs to a WPPConnect REST endpoint and returns the real WhatsApp message ID. A send failure is classified before it's retried: an explicit "Disconnected" response leaves the message queued untouched, a timeout/dropped connection is treated as *ambiguous* (WhatsApp Web may have accepted it into its own outbox already) and is handed off without a resend, and only a definite server-side failure retries — at most 4 times. This exists because retrying an ambiguous failure used to duplicate real sends when connectivity flapped. Separately, the *same* sent message also arrives back through the WebSocket echo path (`on_new_message`, `from_me=True`) — since WPPConnect gives no client-side correlation ID on that echo, it's matched against pending virtual messages **by message type** (text/audio/image/etc.), not by content. Be careful here: matching the wrong pending message swaps real WhatsApp IDs between unrelated messages (wrong status, wrong audio file playback).
-4. **`client/core/database.py`** (`DatabaseManager`) is a fully async `aiosqlite` layer — single serialized connection, WAL mode, per-write `asyncio.Lock`. Indexed columns (`jid`, `timestamp`) are plaintext; payload columns (`message_json`, `last_message_json`) are Fernet-encrypted with a per-install key (`data/secret.key`). Storage is SQLite-only (`messages.db`) — there is no `messages.dat` fallback or migration path any more; that legacy format was retired.
-5. **`client/core/database_bridge.py`** (`DatabaseBridge`) is the sync façade `main.py` actually calls: it runs a dedicated background asyncio event loop in its own thread and dispatches every `DatabaseManager` call via `asyncio.run_coroutine_threadsafe(...).result(timeout=...)`, blocking the calling (wx/worker) thread until the call finishes or the timeout elapses. This exists because wx and the rest of the app are synchronous/thread-based, but the DB layer is async. The timeout (and `close()` refusing new calls / waiting briefly for in-flight ones to drain before stopping the loop) exist specifically to keep a stuck coroutine from freezing the whole app forever — that used to be the most commonly reported "WinZapp stopped responding" symptom.
-6. **In-app video/audio playback — `client/core/video_player.py`** (`VideoPlayer`): audio is decoded directly from the source file by BASS (`sound_lib`, same engine used for voice messages elsewhere), while video frames are produced by a background `ffmpeg` process piping a low-rate MJPEG sequence into a `wx.StaticBitmap` via a `wx.Timer`. Shared by `ConversationsPanel` (Enter on a video message — `_play_toggle_video_message()`, applying the conversation's configured playback speed via BASS's Tempo FX) and `StatusPanel` (Enter/Space on a video or audio status). BASS has no video output at all, hence the separate ffmpeg frame pipe; sync between the two is deliberately approximate (`ffmpeg -re` real-time pacing), not frame-exact — see the module's own docstring for the full reasoning, including the EOF/tail-cutoff race it guards against via a `_generation` counter.
-
-### Sync completion — the trap that keeps being rediscovered
-
-`message_sync_ok = not message_failures` gates everything downstream: it decides whether `_persist_successful_sync_state()` runs, which clears the `force_full_pending` latch, which is what stops the next round being another full sync. **One chat in `message_failures` is enough to hold the whole account "not synced" forever** — and the consequences are worse than they look: the list-chats snapshot of unread/pin/archive is never committed for *any* chat, the health checker resyncs (announcing itself, out loud, to a screen-reader user) on every cooldown, and the live-event gate drops every `chats.update`.
-
-So the rule: **only a genuine I/O fault belongs in `message_failures`.** A definite answer from the server is not a failure, even when it means "no messages". Two cases have now hit this, both reported as "it resyncs in a loop and never finishes":
-
-- **Empty delta** — a chat whose `t` advanced on an event `_normalize_fetched_messages()` filters out entirely (a reaction, a `groupNotification`) yields nothing to fetch, permanently. Carried by `_delta_unsatisfied_chats`.
-- **`chat_not_found`** — an `e2e_notification` mints a chat entry for an `@lid` with no chat behind it, and `get-messages` answers 404 forever. Carried by `_absent_chats`. Recognised by the literal phrase `"chat not found"` in the body, deliberately *not* by the 404 status or the `reason` field: `deviceController.ts` classifies with `/not found|no such chat/i`, which also matches `"Session not found"`, and treating one of those as a nonexistent chat would hide a real fault. If the wording changes the match stops and the chat counts as a failure again — degrading to the old bug, never to a false success.
-
-Both follow the same shape: subtracted from `successful_jids`, folded into the durable `_message_retry_jids`, **never** added to `failed_jids`. Both are bounded (3 attempts) so the persisted retry list cannot grow without bound. If you add a third such case, follow it — do not invent a fourth mechanism.
-
-### The incremental round (`client/core/incremental_sync.py`)
-
-`_capture_chat_sync_baseline()` snapshots `self.chats`, and `get_remote_chats()` merges the server's `t`/`lastReceivedKey` into those same dicts. **So the baseline is a copy of the previous list-chats snapshot, not a record of what was actually stored.** A round that commits an activity marker without the message it refers to poisons the next baseline with its own claim: every snapshot-vs-snapshot signal then agrees the chat is unchanged, forever, and only F5 repairs it. That state is reachable in normal operation (`_MAX_EMPTY_DELTA_RETRIES` commits the marker of a delta that never produced a message), and it was measured at 20 of 155 chats on a real install, one stuck for 15 days.
-
-`local_history_behind_server()` exists for exactly that: it compares the server's claim against the content on disk, so no previously written marker can talk it out of a refresh. `_note_verified_activity()` bounds the cost and is **deliberately per-session and in memory** — not persisting is what guarantees every launch takes one confirming look at a marker that reached the DB without its message.
-
-**Activity is compared strictly forward (`>`), and changing that to `!=` is a trap that has already been caught in review once.** Several paths raise `chat["t"]` locally above the server's own marker — `sync_chat_messages()` itself when the newest displayable message is newer than `t`, and `on_historical_message()`, which writes an un-normalised millisecond timestamp straight into it. Treating "different" as changed pins every such chat into a re-fetch on every 60s poll for the rest of the session, because the fetch it triggers raises `t` again and re-arms the next round. The state a forward-only comparison misses is the one the content signal covers.
-
-### The WhatsApp Web version pin (`client/api_patches/start.js`)
-
-WPPConnect pins by default and serves the pinned build's HTML from `@wppconnect/wa-version`; WinZapp's patch changes *which* build (newest servable, never hardcoded) and *how* the substitution is installed. **Interception and the pin are the same mechanism** — serving pinned HTML means intercepting the document request. You cannot remove one and keep the other.
-
-Three constraints, each paid for with a real bug:
-
-- **The interception must stay document-only.** Measured: `setRequestInterception(true)` is a blanket `Fetch.enable` and puppeteer never answers a dedicated Worker's CORS requests — they hang, silently, forever. That starved `WAWebBackendWorker`, so `isBackendWorkerBridgeReady()` stayed false, so every history chunk parked at `notification_stored`. That was the "only the last ~15 messages ever load" report. Do not widen it, and do not widen the exact `urlPattern` either — matching the `?post_logout=` navigation too makes the page loop every ~10s and pairing never completes.
-- **Never run unpinned.** Unpinned, WPPConnect falls back to "using latest as fallback", WhatsApp serves its newest build, and the bundled wa-js may lag it — which showed up as sending to an individual contact failing **in silence** (usync hanging, `isSendFailure` with ack 0, REST still answering 200; groups unaffected, they use sender keys). Silent send failure is worse than a loud one, especially here.
-- **The catalogue expires.** Each `versions.json` entry carries `released`/`expire` (~2-month window), and `getPageContent()` only proves the HTML can be assembled *locally* — it keeps succeeding long after Meta stops serving those assets. `selectServableVersion()` now skips expired entries (expiry checked *before* the HTML read; reading ~400 files would be minutes of startup I/O). When the whole catalogue has expired, `fetchLiveWhatsappDocument()` asks Meta for the document it is serving right now and pins that — still substituted, still document-only, and by definition a build Meta serves. **Only in that branch**, never as the default, because a live build can be ahead of the bundled wa-js.
-
-Note what keeps the catalogue fresh in the field: **only the user reinstalling the API from within the app** (which runs `npm install`). Rebuilding locally does nothing for a user running a CI-built release. Assume any user's catalogue is as old as their install.
+1. `client/core/websocket_client.py` normalizes WPPConnect events into the
+   canonical dict `{"key": {"remoteJid","fromMe","id","participant"?},
+   "message", "messageType", "messageTimestamp", "pushName"}`.
+2. `MainWindow.on_new_message()` (live) and `on_historical_message()`
+   (history) are the two funnels; both gated by `_live_events_ready()`.
+   `is_countable_message()` keeps system events out of badges/sort/notify;
+   `_is_undecrypted_placeholder()` drops a live `ciphertext`; one a sync stored is
+   shown and later replaced by its decrypted copy (`message-pipeline.md`). An edit
+   arrives under the *original* `key.id` and goes to `_apply_possible_edit()`.
+3. Sends: `client/ui/conversations.py` shows a virtual pending message
+   (`_local_pending`, `_local_id`), `client/core/message_queue.py` calls
+   `MainWindow.send_*`; the echo comes back through `on_new_message` and is
+   matched to the pending message **by type**. Ambiguous failures (timeout,
+   5xx) are never resent.
+4. `client/core/database.py` is async aiosqlite (payloads Fernet-encrypted
+   with `data/secret.key`); `client/core/database_bridge.py` is the sync
+   façade with a timeout so a stuck coroutine cannot freeze the app.
+5. `client/core/video_player.py` plays video (ffmpeg frames) and audio (BASS).
 
 ### JID handling — the recurring source of bugs
-WhatsApp JIDs come in several forms and normalizing them wrong is the single most common bug source in this codebase:
-- `@s.whatsapp.net` — modern phone JID (canonical form WinZapp normalizes everything to).
-- `@c.us` — legacy phone JID format some WPPConnect responses still use; normalized to `@s.whatsapp.net` on load (`MainWindow.deduplicate_chats`, `_normalize_jid`).
-- `@lid` — a linked/multi-device identifier (not a phone number). Must be bridged to a phone JID via the `_lid_to_phone` / `_phone_to_lid` caches (`main.py`) before it's usable for display, sending, or contact lookup. Brazilian numbers additionally need 8/9-digit interchangeability handling.
-- `@g.us` — group JID. **Not trustworthy on its own**: WPPConnect/Baileys can emit a self-chat echo (seen with self-sent documents) whose `remoteJid` is built from a participant's own `@lid` digits but suffixed `@g.us` — i.e. a fake "group" whose JID equals a participant's JID, which real WhatsApp groups never do. `MainWindow.deduplicate_chats()` has a guard pass for this; `on_new_message()` redirects it at the source. If you touch group-detection logic, keep this invariant (`group_jid` digits are never a participant's digits) in mind.
-- `@broadcast` — status/stories, routed to `_store_status_update`, never a normal conversation.
-- `@newsletter` — WhatsApp channels; explicitly ignored.
 
-### Pairing flow — nested modal dialogs
-`Connect.show_connection_dial()` and `show_pairing_dial()` (`client/ui/dialogs/connect.py`) are both shown via `ShowModal()`, with `pairing_dial` nested inside `connection_dial`'s own modal loop (opened from a button handler running inside it). `WebSocketClient.on_pairing_complete()` (`core/websocket_client.py`) closes them once pairing succeeds — but wx only allows `EndModal()` on the loop that is actually running, and `EndModal()` doesn't unwind its loop immediately (it only signals it; that loop keeps dispatching pending events, including any `wx.CallAfter` queued from inside it). So `connection_dial` can only be closed from `show_pairing_dial()` itself, right after its own `ShowModal()` call has genuinely returned — not from `on_pairing_complete()`, inline or via a chained `CallAfter`, which both hit a `wx._core.wxAssertionError` ("IsRunning() failed") on the still-suspended parent loop. Getting this wrong reproduces as: pairing appears to succeed (connected sound plays), but the main window and tray icon never appear, sync never starts, and nothing is logged unless you instrument `EndModal()` calls directly — `MainWindow.__init__` just never returns from `show_connection_dial()`.
+- `@s.whatsapp.net` — canonical phone JID; everything is normalized to it.
+- `@c.us` — legacy phone form still in some WPPConnect responses; normalized
+  on load (`MainWindow.deduplicate_chats`, `_normalize_jid`).
+- `@lid` — linked-device id, **not a phone number**. Bridge through
+  `_lid_to_phone`/`_phone_to_lid` (`main.py`) before display, send or contact
+  lookup. Brazilian numbers also need 8/9-digit interchangeability.
+- `@g.us` — group. Not trustworthy alone: a self-chat echo can carry a
+  participant's `@lid` digits suffixed `@g.us`. Invariant: a group JID's
+  digits are never a participant's digits (`deduplicate_chats()` guard,
+  `on_new_message()` redirect).
+- `@broadcast` — statuses, `_store_status_update`, never a conversation.
+  `@newsletter` — channels, ignored.
+- Sends go to `@lid` when known (`_resolve_jid_for_send`), falling back to
+  `@c.us` only on a definite refusal. Message ids for WPPConnect lookups are
+  built by `_serialize_msg_id` and keep whatever form the store used.
 
-**Pairing codes are rate-limited server-side, per phone number, and the quota outlives the process.** `checkQrCode` is registered on `conn.auth_code_change`, so a session left running after a logout keeps requesting codes unattended — 10 codes in 12 minutes was enough to earn `IQErrorRateOverlimit` (429), which is why the first code a user asks for fails and the second, a minute later, works. `wppconnect_host_layer_patch.py` (v8) backs the reuse cooldown off exponentially, **ceiling 4 minutes — do not raise it**: `checkQrCode` is the only thing that refreshes the code shown in the pairing dialog, and WhatsApp rotates the code about every 3.5 minutes, so a longer ceiling leaves a blind user typing a code that is already dead with nothing said about it. Every manual retry mints a fresh session and resets the counters, so no backoff can strand someone at the dialog.
+### Sync — the one rule that keeps being rediscovered
 
-**A code stream nobody is watching is a ban, not a nuisance — and `connection_mode` cannot tell you whether anyone is watching.** `WebSocketClient.on_qrcode_update()`'s two dialog-refresh branches used to key on `connect.connection_mode` alone. That attribute is written once, when the user picks a pairing method, and never reset: on an install that paired by QR it stays `"qrcode"` for the rest of the process's life. So when WhatsApp later dropped the session and WPPConnect went back to minting a fresh code every ~20-30s, every one of those events took the first branch — the sound, the spoken "O QR-CODE foi atualizado" over the conversation list, and a redraw of widgets destroyed hours earlier — and, being the first branch of an `if/elif` chain, permanently shadowed the proactive re-pairing branch below it, which was the only thing that would have told the user the session was gone. Reported live, and the account was banned for the volume of pairing attempts. Both branches now require `_is_pairing_dialog_active()`, and everything that *counts* a code as unattended goes through `_pairing_attended()`, which consults `_pairing_in_progress` as well — the dialog alone leaves the window between `on_pairing_complete()`'s `EndModal` and `messages.set`, where a just-paired install would have had its first sync closed under it (same two-signal rule, and the same reason, as `check_wa_connection_http()`'s own early return).
+`message_sync_ok = not message_failures` gates persisting the sync state.
+**Only a genuine I/O fault belongs in `message_failures`**; a definite server
+answer ("no messages", `chat not found`) is not a failure, or the account stays
+"not synced" forever and resyncs out loud. Two bounded exceptions already exist
+(`_delta_unsatisfied_chats`, `_absent_chats`) — follow their shape, never
+invent a third mechanism. Every on-demand history request notifies the user's
+phone, so they are strictly bounded. Full reasoning: `docs/traps/sync-completion.md`.
 
-Surfacing it is only half of it: nothing bounded the stream itself. `autoClose`/`deviceSyncTimeout` are pinned to 0 (`client/api_patches/src/config.ts`) precisely so WPPConnect never closes a code-producing session on its own — the right answer while somebody is looking at the dialog, since a blind user needs unbounded time to pair, and the wrong one when nobody is. So a code arriving with no dialog on screen now goes to `_handle_unattended_qr()`: it opens the re-pairing dialog on the first event (paired installs), and after `_UNATTENDED_QR_LIMIT` events with still no dialog it calls `MainWindow._halt_unattended_qr_session()`, which closes the session and latches `_qr_flood_halted`. **The latch is the load-bearing half** — `check_wa_connection_http()`'s CLOSED branch fires `/start-session` on the very next poll otherwise, reviving the browser and restarting the same stream ~30s later, so the close alone buys one poll cycle rather than a fix. It is deliberately *not* folded into `_self_inflicted_teardown_expected()`: that makes `_set_wa_connected()` show "connecting" and swallow the offline announcement, and here the session is genuinely gone and the user needs to hear so — which the halt says itself (error sound + `unattended_qr_session_closed`), because by construction the flood only happens while already offline, so the next poll's `_set_wa_connected(False, …)` hits its no-change early return and says nothing. An install that never paired, which the re-pairing dialog above skips, gets that dialog opened after the halt: it is the only thing that clears the latch, so without it the app is offline for good with no route back. Nothing is wiped — token and `paired` are untouched — and the latch clears on a real reconnect and when the pairing dialog opens.
+### Paths, config, data
 
-### Status tab (`client/status_panel.py`, Alt+5)
-`StatusPanel` shows other contacts' WhatsApp statuses (stories) grouped by sender in `_status_list`, plus a `MyStatusDialog` for the user's own posted statuses. WPPConnect exposes no REST endpoint to query other users' statuses — the list is built entirely from `MainWindow._status_updates` (populated live by `_store_status_update()` as `status@broadcast` messages arrive over Socket.IO), not fetched on demand. Text/image/video/audio/document/sticker/contact status types all funnel through the module-level `_status_content_label()` helper for a translated content preview — every one of the panel's own near-duplicate copies of that switch used to fall through to the raw `messageType` string (e.g. literal `"audioMessage"`) for anything past text/image/video, so any future status type added here should go through that shared helper rather than a new inline copy. Video/audio playback reuses `core/video_player.py` (see above); Enter/Space on an already-open video or audio status list item toggles play/pause instead of re-selecting (which would otherwise `stop()` and restart the player — see `_is_current_status_playable()`). Reacting to (liking) someone else's status needs the poster's own `StatusV3Model` resolved via `WPP.status.get(posterJid).getAllMsgs()` in the Node layer (`deviceController.ts`'s `reactMessage`) — the general `Store.Msg.models` collection that `WPP.chat.sendReactionToMessage()` searches by default never contains another person's status at all.
+- `client/app_paths.py`: `resource_path()` for bundled assets, `data_path()` /
+  `log_path()` for runtime data — never hardcode. `client/config.py` loads an
+  optional `.env` (`WINZAPP_GITHUB_REPO`, …).
+- Runtime data: `messages.db`, `secret.key`, `settings.json` (seeded from
+  `client/data/settings_default.json`), `voice_messages/`, `media/`. Changing
+  a default needs a one-shot migration with its own flag
+  (`docs/traps/settings-migrations.md`).
+- `languages/language_map.json` is the source of truth for locales.
+  `core/locale_format.py` reads Windows regional format;
+  `core/utils.get_downloads_folder()` resolves the real Downloads folder.
+- WA_token: only through `MainWindow._get_wa_token()`/`_set_wa_token()`
+  (`client/core/token_vault.py`, Fernet, portable by design — not DPAPI).
+- Logs: `log.log` is truncated every launch; `shutdown_audit.log` is
+  append-only and is where the *previous* run's ending is. Ask for both
+  (`docs/reference/diagnosing-from-logs.md`).
 
-### Paths, config, i18n
-- `client/app_paths.py` abstracts dev-mode vs. frozen (PyInstaller onedir/onefile, and legacy Nuitka onefile) path resolution — always go through `resource_path()` (read-only bundled assets: sounds/, languages/, lib/) and `data_path()`/`log_path()` (writable runtime data next to the exe) rather than hardcoding paths.
-- `client/config.py` loads an optional `.env` next to the exe (or repo root in dev) for overrides like `WINZAPP_GITHUB_REPO` (used by the auto-updater).
-- `client/languages/{pt-BR,pt-PT,en-US,es-ES,pl}.json` + `client/core/i18n.py` (`I18n.t(key)`) — pt-BR is the locale the app *defaults* to, but it is **not** a per-key fallback: `I18n.t()` is `translations.get(key, key)`, so a key missing from the active language file renders as the raw key name (`about_license`) in the UI, not as its pt-BR text. **When adding any user-facing string, add the key to all five files**, not just one. The set of locales is data, not code: `languages/language_map.json` (`{ code: display name }`, order = order of the Settings combobox) is the source of truth, and adding a locale means dropping in `<code>.json` plus an entry there — no rebuild. All five locales are equal here: Polish is user-selectable exactly like the other four, and a key missing from it is as much a bug as one missing from en-US (`tests/test_language_files_in_sync.py` enforces this).
-- Runtime data (`data_path()`): `messages.db` (SQLite), `secret.key` (Fernet key), `settings.json` (seeded from `client/data/settings_default.json`), `voice_messages/`, `media/`.
-- `core/utils.get_downloads_folder()` resolves the user's real Windows Downloads folder via `SHGetKnownFolderPath`/`FOLDERID_Downloads` (falling back to `~/Downloads` off-Windows or on API failure) — used as the default `defaultDir` for every "Save As" dialog (message attachments, status media). Never assume `~/Downloads` directly; it's wrong whenever the user has redirected Downloads elsewhere.
-- `core/locale_format.py` reads the user's actual Windows "Regional format" (`GetLocaleInfoEx`) and translates it to `strftime` patterns for date/time display, instead of a format hardcoded per UI language — falls back to the language file's own `time_fmt`/`date_fmt`/`datetime_fmt` off-Windows or on API failure.
-- Logging (`log_path()`): a single `log.log`, truncated at the start of every launch (plain `logging.FileHandler(mode="w")`, not a `RotatingFileHandler` — there are deliberately no `log.log.1`/`.2` backups). `setup_logging()` runs only after the single-instance mutex is acquired, so a second launch while WinZapp is already running never wipes the log of the instance actually doing the work. When diagnosing anything startup/pairing-related, this file's breadcrumb `logging.info(...)` calls (`[prepare_sync]`, `[init_UI]`, `[show_connection_dial]`, `[show_pairing_dial]`, `[on_pairing_complete]`, ...) are the fastest way to pinpoint exactly which step never happened — always ask for the current run's `log.log` rather than guessing.
+### Multi-account modules
 
-  **Ask for `shutdown_audit.log` as well, and always for anything that looks like a lost session.** It sits beside `log.log` and is opened in append mode, so unlike `log.log` it survives every launch: it is the only place a *previous* run's ending is recorded (`STARTUP` with the active session and store contents, `_stop_wpp_server START`, the `flush poll` sequence, `FLUSH OK`, the final `taskkill`). That distinction decides the diagnosis. A user reporting "it asks me to pair again" hands over a `log.log` that begins with the session *already* dead — the cause is in the run before, whose log was overwritten the moment they reopened the app to check. Read against `shutdown_audit.log`, the answer is usually immediate: a run that ends with `FLUSH OK — session reached CLOSED` shut down cleanly and its session should have survived, while a `STARTUP` line with no `_stop_wpp_server` before it means the previous process was killed rather than closed, so WhatsApp's auth state never flushed to `userDataDir` and the profile comes back unusable. Note that killing the process (Task Manager, a harness stopping it, a crash) is enough to cause that — it is not a bug on its own, and mistaking it for one costs a lot of time.
+`client/accounts.py`, `client/account_ui.py`, `client/account_launcher.py`,
+`client/account_bootstrap.py`, `client/account_migration.py` (account manager);
+`client/ipc.py` (foreground/quit between processes); `client/node_coord.py`,
+`client/node_ports.py` (one Node port per account); `client/session_store.py`;
+`client/connection_state.py` (resume/suspend/single-flight);
+`client/coord_locks.py`; `client/app_settings.py`, `client/window_title.py`,
+`client/update_coord.py`; `client/api_patches/src/middleware/auth.ts`.
 
-### One-shot settings migrations (`core/utils.py`, run from `MainWindow._migrate_settings()`)
+### Other places
 
-Changing a default or splitting a setting is never just editing `DEFAULT_SETTINGS` and `settings_default.json`: every existing install already has the old value written to its own `settings.json` (it was seeded from the same file), so a default change reaches new installs only. Two migrations now exist — `migrate_voice_messages_media_types()` and `migrate_voice_message_mode_default()` — and both follow the same shape, which is the one to copy.
+`client/status_panel.py` (Alt+5, `docs/reference/status-tab.md`);
+`client/calls_panel.py` (Alt+6, every call record of every chat; logic in
+`client/core/call_log.py`, `docs/reference/message-pipeline.md` 3a);
+`client/updater.py` (`docs/traps/updater-channels.md`);
+`client/core/release_signature.py` (`docs/traps/release-integrity.md`);
+`build.py` + `installer/` (PyInstaller via CLI args, no spec file; onedir
+also compiles the C installer stubs); `client/changelog_*.txt`
+(`docs/reference/writing-changelogs.md`).
 
-**Each carries its own flag in `settings["general"]`, and the flag is not optional.** After the migration, the state it produces is byte-identical to what a user leaves behind by changing the setting *back*; without something recording that it already ran, every launch re-applies it and silently overwrites the choice the user just made — and the user who cares enough to change it back is exactly the one who suffers. `_migrate_settings()` must run *before* `backfill_missing_defaults()`, or the migration operates on a value it just invented. A missing or unparseable value is left alone; an explicitly empty list stays empty (unchecking everything is a legitimate choice — see `auto_download_allows()`). The flags live per account, not in `app_settings._GENERAL_GLOBAL`, because these settings are per account.
+## Before touching an area, read its trap file
 
-Related: `is_voice_message()` is the single test separating voice notes from audio files, and `"voice_messages"` is now its own media category alongside `"audios"`. `group_media_category()` must consult it **before** the type table (a voice note's `messageType` is `audioMessage` too) but **only for audio-capable types** — the helper reads `ptt`/`isPtt` at the top of the record before checking the type, so an unguarded call reclassified any photo or document carrying a stray `ptt` flag as a voice note. And "is this media downloaded?" spans two directories: `media/<id>.wzmedia` **and** `voice_messages/<id>.msv`. Go through `local_media_cache_paths()`; a second copy of that answer is how the filter starts disagreeing with whatever wrote the file.
+| Area / files | Read first |
+|---|---|
+| Sync, backfill, `incremental_sync.py`, `message_failures` | `docs/traps/sync-completion.md` |
+| Pairing, QR, `connect.py`, `host_layer_patch` | `docs/traps/pairing-flow.md` |
+| `profile_recovery.py`, session teardown, `WM_QUERYENDSESSION` | `docs/traps/profile-recovery.md` |
+| `createSessionUtil.ts`, `ensure_wpp_running()`, background launch | `docs/traps/session-startup.md` |
+| `start.js`, WhatsApp Web version, `wa-version` | `docs/traps/whatsapp-web-version-pin.md` |
+| `wpp_minimum_version.txt`, `api_patches/package.json` | `docs/traps/wppconnect-upgrade.md` |
+| Media download/upload, size limits, `sender_layer_patch` | `docs/traps/large-media.md` |
+| Send endpoints, `send_contract.py`, `messageController.ts` | `docs/traps/send-contract.md` |
+| Voice calls (`call_audio.py`, `callMediaBridge.ts`, `callController.ts`) | `docs/traps/voice-calls.md` |
+| `speak_output`, `focus_cloak.py`, list-row repaints | `docs/traps/screen-reader-speech.md` |
+| `sound_system.py`, BASS devices | `docs/traps/audio-devices.md` |
+| `updater.py`, `update_coord.py`, release workflows | `docs/traps/updater-channels.md`, `docs/traps/release-integrity.md` |
+| Settings defaults, `_migrate_settings()` | `docs/traps/settings-migrations.md` |
+| `tests/conftest.py`, anything creating a wx window in a test | `docs/traps/tests-never-open-windows.md` |
+| Logging a JID, phone number or contact/pushname anywhere | `docs/traps/log-pii.md` |
 
-### Secrets — WA_token storage (`client/core/token_vault.py`)
-The WPPConnect session token is Fernet-encrypted with the same per-install key that backs DB payload encryption (`secret.key`, `MainWindow.retrieve_secret_key()`), not stored as plain JSON. Windows DPAPI was tried first but rejected: it ties the encrypted blob to one Windows user/machine, which would permanently break copying the whole WinZapp data folder to another device to carry a paired session over — a deliberately supported use case. Fernet with a key that travels alongside `settings.json` in the same folder keeps that portable. `MainWindow._get_wa_token()`/`_set_wa_token()` are the *only* sanctioned access points — every read/write of `settings["privateinfo"]["WA_token"]`/`WA_token_protected` must go through them (`main.py`, `connect.py`, `websocket_client.py` all do). `_get_wa_token()` transparently migrates a legacy plaintext `WA_token` to the protected field on first read; a value that fails to decrypt (corrupted, or encrypted under a different `secret.key`) is treated exactly like "no token saved" — never a crash.
+## Agent skills
 
-### Accessibility constraints
-This is the app's core differentiator, not an afterthought: UI is built from plain wx controls (`wx.ListCtrl`, `wx.TextCtrl`, standard menus/dialogs) specifically because screen readers can read them reliably — avoid custom-drawn/owner-drawn controls. Batch list mutations inside `Freeze()`/`Thaw()` so screen readers get one accessibility event instead of a flood. Dialog titles and list items must resolve human-readable names (contact/group name) rather than raw JIDs — NVDA will otherwise read out raw phone-number/JID digits.
+The `mattpocock-skills` plugin (enabled in `.claude/settings.json`) provides
+the idea → ship flow: `/grill-with-docs` → `/to-spec` → `/to-tickets` →
+`/implement` → `/code-review`, plus `/triage` and `/diagnosing-bugs`. Three
+WinZapp-specific bounds on it:
 
-`MainWindow.speak_output` — the single funnel every spoken announcement in the app goes through, both via `MainWindow.output()` and the handful of call sites that reach it directly (`main.py`, `ui/conversations.py`, `core/websocket_client.py`, `ui/dialogs/connect.py`) — is an `AccessibleSpeechOutput` (`client/core/accessible_speech.py`) wrapping accessible_output2's `outputs.auto.Auto()`, not the bare `Auto()` instance. It gates every call on **Settings > Acessibilidade** (`settings["accessibility"]`, tab inserted right before Conteúdo Falado in `settings_dialog.py` — inserting/removing a tab there means bumping every hardcoded `_notebook.SetSelection(N)`/`SetPageText(N, ...)` for tabs after it, both in that file and in `main.py`'s custom-API first-run flow): `extended_sr_compat_enabled` (default on) is a master switch — off means `speak_output` never calls into accessible_output2 at all, silently, on the assumption the user is relying on the visual UI only; `sapi_fallback_enabled` (default on, matches the historical behavior) controls whether losing/never having an active screen reader falls back to the system SAPI voice the way `Auto()` does on its own (SAPI5 reports `is_active()` unconditionally True and outranks nothing missing) — off restricts `speak_output` to real screen readers only (`is_system_output() == False`), checked live on every call so turning NVDA/JAWS off mid-session silences WinZapp immediately rather than SAPI quietly taking over.
+- "Run the full test suite" means a plain `pytest` — **never** `--run-wx-gui`
+  (rule 1 at the top of this file).
+- `/implement` says "commit your work"; here a commit happens only when the
+  user asks for one.
+- The "documented coding standards" `/code-review` looks for are this file,
+  `docs/traps/` and the project skills in `.claude/skills/`; there is no
+  `CONTRIBUTING.md`.
 
-**Suppressing a focus announcement is a different problem from silencing speech, and cancelling is the wrong half of it.** Settings > Conteúdo Falado's "silence while recording a voice message" started as a `silence_screen_reader_focus()` burst fired right after `SetFocus()` on the Enviar/Descartar button. That is a race the app loses either way: Windows delivers `EVENT_OBJECT_FOCUS` synchronously, but NVDA speaks it asynchronously on its own thread, so a cancel at 0 ms cancels nothing and one at 80 ms lands after speech has begun. Users on air heard "enviar mensagem de voz, botão, Ctrl+R" clipped part-way. Blanking the accessible name was tried and removed (it strips the control's identity for every consumer); `wx.Window.SetName()` was tried too and does nothing at all — it sets wx's internal window name, never the MSAA name.
+### Issue tracker
 
-`client/core/focus_cloak.py` is the actual mechanism. NVDA decides whether a focus event is worth speaking *before* speaking it, in `IAccessibleHandler.processFocusNVDAEvent()` → `IAccessible._get_shouldAllowIAccessibleFocusEvent`, which walks the object and its ancestors for `State.FOCUSED` and discards the event when none has it — and never recovers it, because NVDA reacts to events and does not poll the system focus. So a `wx.Accessible` on the button briefly reports its MSAA state without `STATE_SYSTEM_FOCUSED` and the announcement is never produced. Three things keep it safe, and each is load-bearing: the shim answers `wx.ACC_NOT_IMPLEMENTED` whenever it is not armed (wx then falls back to the standard MSAA object, so the control is untouched the rest of the time); it is installed **once per window and reused** via a flag, because `SetAccessible()` hands ownership to C++; and it disarms after ~500 ms, because it must hide only the focus move *WinZapp* performs — swallowing the announcement of a Tab the user pressed themselves would be far worse than the noise being removed. The `silence()` burst stays behind it as the weaker fallback (a control read over UIA rather than MSAA), no longer as the mechanism. `ConversationsPanel` and `StatusPanel` each keep their own copy of `_voice_recording_silence_enabled()` / `_focus_recording_button_silently()` / `_silence_send_voice_focus_if_enabled()`; they must stay in step, and both key on the silence toggle **alone** — `extended_sr_compat_enabled` being off means "stop talking to my screen reader", never "start interrupting it".
+GitHub Issues on `gabrielhhaber/WinZapp_Python`, via `gh`. See `docs/agents/issue-tracker.md`.
 
-**The same lesson, one control over: a list row must never be rewritten while focus is moving off it.** A wx.ListCtrl row is a single MSAA object whose *name* is the whole rendered line, and NVDA's `NVDAObject.event_nameChange` speaks it only `if self is api.getFocusObject()` — so marking a finished voice note "reproduzido" makes NVDA read the **entire row** back, ahead of the newly focused one, whenever it lands while NVDA still believes the finished row has focus. Two successive attempts to fix this by *ordering* the two events failed, and both are measurable on the real code path (`tests/test_audio_chain_played_repaint_hold.py`): `refresh_message_status()` does not write anything, it queues the row behind a 120 ms coalescing timer, so the write landed 142 ms after the focus move — a margin, not a guarantee; and `mark_audio_message_played()`'s own played receipt echoes back from WhatsApp onto `on_message_status_update()` with `skip_panel_refresh=False`, repainting the row without passing through the chain at all — measured writing it **95 ms before** the focus move. `ConversationsPanel._release_chain_held_repaints()` is the actual fix: while the chain is moving focus, `_flush_status_repaints()` writes nothing at all and parks every queued row, releasing them when the sequence ends — at which point focus is on the last voice note and every held row is an earlier one, so NVDA is silent by its own rule rather than by timing. The hold is armed in `on_audio_timer()` *before* `mark_audio_message_played()` runs, which is what catches the echo. If you add another place that can end a sequence, call the release there too; it is idempotent but does not itself check whether the chain is still running.
+### Triage labels
 
-### Auto-updater (`client/updater.py`)
-`UpdateChecker` polls the GitHub Releases API (repo from `config.GITHUB_REPO`), compares `version.__version__` against the latest tag, and on acceptance downloads the release's ZIP asset, extracts it, and hands off to a generated `.bat` script that waits for the current process to exit, kills stray WPPConnect/Postgres processes on ports 6300/5433, copies files over the install dir, and relaunches — because Windows won't let a running process overwrite its own files.
+The five default roles as-is (`needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
 
-**Two release channels.** Stable releases are cut by hand; alpha builds are published automatically by `.github/workflows/alpha-release.yml` for every commit that lands on `main` (a direct push or a PR merge). Both live in the same GitHub Releases list, and the *only* thing separating them is the literal word **"alpha"** in the tag and release name — that's what `is_alpha_release()` matches on, and why the workflow bakes it into both. Deliberately *not* keyed on the API's `prerelease` flag, which `prerelease-test.yml`'s unrelated `-pre` builds also set (those are a third thing: not alpha, and not parseable as a version, so neither channel ever selects them).
+### Domain docs
 
-`select_release()` picks the newest *eligible* release: alphas are skipped unless the user ticked **Configurações > Geral > "Verificar atualizações alpha"** (`general.alpha_updates_enabled`, install-wide via `app_settings.py`, off by default); drafts, unparseable tags, and releases with no ZIP asset always are. It compares parsed versions rather than trusting the API's date order — the list interleaves both channels, so the newest stable is routinely several entries down.
-
-**Alpha version scheme.** An alpha is derived from the *current stable version* (`client/version.py`, kept current by `release.yml`'s `bump-version` job) with the commit count in the fourth component: base `0.25.0.0beta` + `git rev-list --count HEAD` → **`0.25.0.2154alpha`**. Given `_PRE_ORDER`'s alpha < beta < final, that yields `0.25.0.0beta` < `0.25.0.2154alpha` < `0.25.0.2155alpha` < `0.26.0.0beta` — an alpha outranks the stable it was cut from, alphas advance among themselves, and the *next* stable outranks every alpha, so an alpha user is pulled back onto the stable line instead of being stranded. The commit count (not a timestamp) makes it strictly monotonic, unique per commit, and immune to two commits landing in the same minute. **A date-shaped version here would be catastrophic**: `2026.x` outranks every `0.x` stable release, so once one shipped no future stable release could ever be offered again. **The one rule this relies on**: the next stable release must bump the patch component or higher (`0.25.0.x` → `0.25.1.0`/`0.26.0.0`), never just the fourth — `release.yml`'s "Reject a stable tag that alphas have already passed" step enforces that rather than trusting it, failing the `test` job so `reject-on-test-failure` deletes the bad release, and naming the exact tag to use instead.
-
-Only `major.minor.patch` is read off the base version, so **none of this changes when the stable line eventually drops the `beta` suffix** and ships plain `a.b.c.d`: base `1.0.0.0` + N → `1.0.0.<N>alpha`, still newer than `1.0.0.0`, still older than `1.1.0.0` (`parse_version()` treats the suffix as optional and compares the numeric components first). The one transition that does *not* work is declaring stability by deleting the suffix while keeping the numbers (`0.25.0.0beta` → `0.25.0.0`): that leaves the numbers unchanged, so alphas published since still outrank it and every alpha user is stranded. Advance the numbers instead (`0.26.0.0`, `1.0.0.0`) — the guard catches it either way. Same reason a hotfix that only bumps the fourth component (`1.0.0.1`) is refused while alphas are out.
-
-**Why the updater reads two endpoints.** `UpdateChecker._fetch_releases()` merges `/releases?per_page=100` *and* `/releases/latest`. The listing is the only place alphas appear but it is paged; alphas land far more often than stable releases, so given enough of them the newest stable falls off the first page and stable-channel users would silently stop being offered anything. `/releases/latest` is defined by GitHub as the newest non-draft non-prerelease, so it always resolves to the current stable no matter how many alphas exist — which is also why alphas are published with `prerelease: true`. Either request failing alone is survivable; only a total failure propagates.
-
-`alpha-release.yml` is a deliberate near-verbatim copy of `release.yml`'s build pipeline (**keep them in sync**; only the blocks marked ALPHA-SPECIFIC differ). It has no `bump-version` job — committing an alpha version into `main`'s `version.py` would both corrupt the stable version line and push to `main`, which is this workflow's own trigger. A new commit **cancels** an in-flight alpha build (`concurrency: cancel-in-progress`), since a build superseded before it finished is of no use; to keep a cancellation from leaving a half-uploaded release behind, the release is created as a **draft** and published only once every asset is up. That last step patches the release **by its numeric id** (`steps.draft_release.outputs.id`), never by tag: a draft has no tag yet — GitHub creates it on publish — so anything resolving a release by tag name (`gh release edit <tag>`, `GET /releases/tags/<tag>`) simply does not find a draft. Alpha build #1 failed exactly there, compiling and uploading fine and then stranding the release as an invisible draft. Because cancellation is routine, a sweep step deletes leftover alpha drafts before creating each run's own.
-
-`release.yml`'s ordering guard lives in `.github/scripts/check_stable_release_ordering.py` (tested by `tests/test_release_ordering_guard.py`) rather than inline in the workflow, because a wrong answer is expensive both ways: a false negative strands alpha users, a false positive makes `reject-on-test-failure` delete a good release. Note it only compares against alpha tags `parse_version()` accepts — the repo carries historical alpha tags predating this channel, one of which (`v0.3.4.0alpha1`, trailing digit) is unparseable, and `is_newer()` returns False for an unparseable operand, so counting those would have rejected every future stable release forever.
-
-**Stable releases can leave `main` ahead of what they ship.** Stable is cut from a `release/x.x.x.x` branch, not necessarily `main` HEAD — `main` keeps taking every commit and gets its own alpha per push, so at release time `main` (and its most recent alpha) can already hold commits/features this stable release deliberately doesn't include. `bump-version`'s commit still overwrites `main`'s `client/version.py` with the new stable's number regardless, which on its own would be a problem: `select_release()` compares by parsed number only, so the instant that commit lands, alpha-channel users would be offered this stable — numerically newer, but potentially *behind* the alpha they're already running — and silently lose whatever `main` had that this release didn't. To close that, `bump-version`'s last step (`release.yml`) dispatches `alpha-release.yml` (its `workflow_dispatch` trigger) right after the version.py commit succeeds, building current `main` — which still has everything the previous alpha had — under the just-bumped base. That produces `X.Y.Z.<commit count>alpha` with a nonzero fourth component, so it outranks the stable's own `X.Y.Z.0` immediately: every stable release is paired with a same-numbered alpha the moment it ships, and alpha users never get pulled backwards in content, only in the visible major.minor.patch. The trigger is skipped if the version.py commit itself didn't land (`if: steps.commit_version.outcome == 'success'`) — dispatching off an unbumped base would accomplish nothing.
-
-### Packaging (`build.py`, `installer/`)
-`build.py` runs PyInstaller (via CLI args with `--collect-all`; there is no checked-in PyInstaller spec file — the old one under client/ was removed and git-ignored in c752124, so any local copy is yours alone and `build.py` ignores it) to compile `client/main.py`, then for onedir builds also compiles the C installer/uninstaller stubs in `installer/` (gcc + windres), zips the staged app as a `ZIP_STORED` payload, and appends it to the installer stub to produce a single self-extracting `dist/WinZappInstaller.exe`, plus a plain `dist/WinZapp.zip` portable build. `client/api/` and `client/node/` are excluded from git and must exist on disk before running it.
-
----
-
-## Multi-conta (módulos ainda sem seção própria acima)
-
-O WinZapp roda **uma conta por processo** e coordena várias em paralelo: cada conta tem
-seu próprio processo Node, sua própria porta, sua própria sessão WPPConnect e sua própria
-janela. Os módulos abaixo sustentam isso e ainda não têm seção própria na documentação
-acima — a lista está aqui para que dê para saber que eles existem antes de reimplementar
-algo que já está pronto:
-
-- `client/accounts.py`, `client/account_ui.py`, `client/account_launcher.py`,
-  `client/account_bootstrap.py`, `client/account_migration.py` — gerenciador de contas.
-- `client/ipc.py` — IPC nível de conta (foreground/quit entre processos).
-- `client/node_coord.py`, `client/node_ports.py` — porta Node dedicada por conta.
-- `client/session_store.py` — registro/isolamento de sessões WPPConnect por conta.
-- `client/connection_state.py` — estado de conexão (resume/suspend/single-flight).
-- `client/coord_locks.py` — locks de coordenação entre contas.
-- `client/app_settings.py`, `client/window_title.py`, `client/update_coord.py` —
-  configuração compartilhada / título por conta / coordenação de updates.
-- `client/api_patches/src/middleware/auth.ts` — validação extra de token (restaurado
-  como qualquer outro patch, via `setup_api.py`/`ApiSetupDialog`).
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by
+`/domain-modeling`. See `docs/agents/domain.md`.

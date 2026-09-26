@@ -16,11 +16,23 @@
 import { create, SocketState, StatusFind } from '@wppconnect-team/wppconnect';
 import { exec, execFile, execSync } from 'child_process';
 import { Request } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { download } from '../controller/sessionController';
 import { WhatsAppServer } from '../types/WhatsAppServer';
 import chatWootClient from './chatWootClient';
-import { autoDownload, callWebHook, startHelper } from './functions';
+import {
+  ensureCallMediaBridge,
+  prepareLinuxCallAudioEnvironment,
+  warmCallVoipRuntime,
+} from './callMediaBridge';
+import {
+  autoDownload,
+  callWebHook,
+  probeIsConnected,
+  startHelper,
+} from './functions';
 import { clientsArray, eventEmitter } from './sessionUtil';
 import Factory from './tokenStore/factory';
 
@@ -38,6 +50,26 @@ import Factory from './tokenStore/factory';
  * Falls back to forceKillByUserDataDir() (below) when no page/pid is
  * available, e.g. mid-pairing, before create() has returned.
  */
+/**
+ * Page-side half of the call-state poll watchdog (runs via page.evaluate, so
+ * it must stay self-contained). Re-arms the poll when its last tick is older
+ * than `staleMs`; the poll ticks every 250 ms, so a stale heartbeat means its
+ * timer is gone, not slow.
+ */
+export const CALL_STATE_POLL_WATCHDOG_MS = 3000;
+export const CALL_STATE_POLL_STALE_MS = 2000;
+export function reviveStalledCallStatePoll(staleMs: number): string {
+  const w = window as any;
+  if (typeof w.__winzappRearmCallStatePoll !== 'function') return 'absent';
+  const last = Math.min(
+    Number(w.__winzappCallStatePollLastTick || 0),
+    Number(w.__winzappIncomingCallPollLastTick || 0)
+  );
+  if (Date.now() - last < staleMs) return 'ok';
+  w.__winzappRearmCallStatePoll();
+  return 'rearmed';
+}
+
 function forceKillBrowserProcess(page: any, logger?: any): boolean {
   let pid: number | undefined;
   try {
@@ -83,8 +115,109 @@ function forceKillBrowserProcess(page: any, logger?: any): boolean {
  * `taskkill /F /T` the whole Node process tree once its grace period ran
  * out, tearing down Chrome's profile (a LevelDB store) mid-write.
  */
-function forceKillByUserDataDir(userDataDir: string, logger?: any) {
-  if (!userDataDir) return;
+/** How long a graceful browser close gets before the kill takes over. */
+const GRACEFUL_CLOSE_MS = 8000;
+
+/**
+ * Ask this session's browser to close itself, and wait for it to actually go.
+ *
+ * Every force-kill in this file is a SIGKILL-equivalent (`taskkill /F`,
+ * `Stop-Process -Force`, `pkill -9`) delivered to a Chrome that may be
+ * mid-write. What it writes is WhatsApp Web's IndexedDB — the sole carrier of
+ * the login, since WPPConnect's token store is empty on a real install — and
+ * the failure that follows is not a corrupt database. Measured across several
+ * losses on a real install: the profile comes back structurally perfect,
+ * differing from a working snapshot only by ordinary LevelDB compaction, its
+ * shutdown fingerprint identical to the one the next launch reads, and
+ * WhatsApp Web still answers `post_logout=1` seven seconds in while an older
+ * copy of the same profile authenticates. Nothing on disk is broken; the state
+ * in it has stopped matching what the server expects, which is what killing a
+ * browser part-way through a key rotation would produce.
+ *
+ * So: ask first, kill second. `client.close()` is wppconnect's own teardown
+ * (browser.close(), which lets the page run its unload path and flush), and
+ * this waits for the process to be gone rather than trusting the call.
+ *
+ * Returns true only when the browser is confirmed gone. Never throws — a
+ * failure here just means the caller force-kills, which is what it did
+ * unconditionally before.
+ */
+async function closeBrowserGracefully(
+  session: string,
+  logger?: any,
+  timeoutMs: number = GRACEFUL_CLOSE_MS,
+  candidate?: any
+): Promise<boolean> {
+  const client: any = candidate ?? clientsArray[session];
+  const page: any = client?.page;
+  let proc: any;
+  try {
+    proc = page?.browser?.()?.process?.();
+  } catch (e) {}
+  if (!client && !proc) return false;
+  try {
+    if (typeof client?.close === 'function') {
+      await Promise.race([
+        client.close(),
+        new Promise((r) => setTimeout(r, timeoutMs)),
+      ]);
+    } else if (page?.browser) {
+      await Promise.race([
+        page.browser().close(),
+        new Promise((r) => setTimeout(r, timeoutMs)),
+      ]);
+    }
+  } catch (e: any) {
+    logger?.warn?.(
+      `[${session}] graceful browser close raised: ${e?.message || e}`
+    );
+  }
+  // With no process handle there is nothing to observe, and the loop below
+  // would read `alive` as false on its very first pass and report success in
+  // the same millisecond it was called — for a browser it never touched. That
+  // is not a confirmation, it is the absence of one, and the callers treat the
+  // two as opposites: `true` means "the profile is free, go ahead", so a
+  // caller that is about to relaunch skips the kill and walks straight back
+  // into the lock. Measured on 2026-09-10, where it kept an account offline
+  // through every 30s retry for hours. Say so instead; an unconfirmed close
+  // costs the caller a force-kill, which is what it did unconditionally
+  // before this function existed.
+  if (!proc) {
+    logger?.warn?.(
+      `[${session}] no browser process handle to confirm the close against — ` +
+        'treating it as unconfirmed.'
+    );
+    return false;
+  }
+  // The call returning is not the process being gone. Poll for the exit so a
+  // caller that is about to relaunch against this very profile does not race
+  // a Chrome that is still flushing it.
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const alive = proc.exitCode === null && proc.signalCode === null;
+    if (!alive) {
+      logger?.info?.(`[${session}] browser closed gracefully.`);
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  logger?.warn?.(
+    `[${session}] browser did not close within ${timeoutMs}ms — falling back to the kill.`
+  );
+  return false;
+}
+
+function forceKillByUserDataDir(
+  userDataDir: string,
+  logger?: any
+): Promise<void> {
+  if (!userDataDir) return Promise.resolve();
+  // Returns a promise so a caller that must not race the kill can await it.
+  // Every pre-existing call site ignores the return value and keeps the old
+  // fire-and-forget behaviour unchanged; only the stale-browser recovery
+  // below needs to know when the process is actually gone, because it relaunches
+  // Chrome against the very profile this is unlocking.
+  return new Promise<void>((resolve) => {
   if (process.platform === 'win32') {
     // Windows has no built-in "kill by command-line substring" either, so
     // this uses PowerShell's CIM/WMI process query — the closest equivalent
@@ -139,10 +272,261 @@ function forceKillByUserDataDir(userDataDir: string, logger?: any) {
             `[forceKillByUserDataDir] PowerShell kill failed: ${err.message}`
           );
         }
+        resolve();
       }
     );
   } else {
-    exec(`pkill -9 -f "${userDataDir}"`, () => {});
+    exec(`pkill -9 -f "${userDataDir}"`, () => resolve());
+  }
+  });
+}
+
+/**
+ * Chrome files that let a profile reopen the tabs it had last time.
+ *
+ * `Sessions/Session_*` and `Sessions/Tabs_*` are the live records; the four
+ * loose files are the legacy pair plus the copy Chrome promotes on startup.
+ * All of them are caches of window state, never credentials — the WhatsApp
+ * login lives in the profile's IndexedDB and nothing here touches it.
+ */
+const RESTORABLE_SESSION_FILES = [
+  'Last Session',
+  'Last Tabs',
+  'Current Session',
+  'Current Tabs',
+];
+
+/**
+ * Stop this session's Chrome profile from restoring the tabs it had open, and
+ * do it before every launch.
+ *
+ * WPPConnect drives exactly one page. A profile that restores tabs hands it
+ * more, and the extra ones are actively harmful rather than merely untidy:
+ * they are opened by Chrome itself, so they never pass through start.js's
+ * document-only interception (they load whatever build Meta is serving right
+ * now, not the pinned one) and never receive wppconnect's user-agent
+ * override, so WhatsApp answers them with "WhatsApp works with Google Chrome
+ * 100 or newer". They still share the profile's IndexedDB and the single
+ * WAWebBackendWorker with the page that matters, and they are enough to push
+ * it past the 30s `injectApi()` waits for `WAPI && Store && WPP.isReady`.
+ *
+ * Measured live on 2026-09-10, by attaching to the wedged browser: three
+ * web.whatsapp.com tabs, two of them on the unsupported-browser screen with
+ * `HeadlessChrome/148.0.0.0` and no wa-js at all, and one — the puppeteer
+ * page, user-agent `Chrome/102.0.5005.63` — fully logged in with
+ * `WPP.isReady === true`, having got there only *after* injectApi had already
+ * timed out. The session was never logged out; it was starved.
+ *
+ * The loop is self-feeding, which is why it never recovered on its own: the
+ * timeout leaves Chrome alive, the recovery force-kills it, a force-killed
+ * Chrome has no clean exit recorded, and the next launch therefore restores
+ * the tabs of the run before — one more each time.
+ *
+ * Two halves, because either one alone leaves a way back in. The files are
+ * removed, and `exit_type` is set to `Normal` in Preferences, since a profile
+ * whose last exit was not recorded as clean is one Chrome offers to restore
+ * regardless of what is left in Sessions/.
+ *
+ * Best-effort by construction: every failure is swallowed. This runs on the
+ * startup path of every session, and a profile that cannot be tidied is not a
+ * reason to refuse to start one.
+ */
+function clearRestorableSession(profileDir: string, logger?: any): void {
+  if (!profileDir) return;
+  try {
+    const defaultDir = path.join(profileDir, 'Default');
+    const sessionsDir = path.join(defaultDir, 'Sessions');
+    let removed = 0;
+    try {
+      for (const name of fs.readdirSync(sessionsDir)) {
+        if (!/^(Session|Tabs)_/.test(name)) continue;
+        try {
+          fs.unlinkSync(path.join(sessionsDir, name));
+          removed++;
+        } catch (e) {}
+      }
+    } catch (e) {}
+    for (const name of RESTORABLE_SESSION_FILES) {
+      try {
+        fs.unlinkSync(path.join(defaultDir, name));
+        removed++;
+      } catch (e) {}
+    }
+
+    // Merge, never rewrite. Preferences carries far more than the exit
+    // record, and replacing the file would drop settings this profile has
+    // accumulated. An unreadable or unparseable file is left exactly as it
+    // is — the file deletions above already do most of the work.
+    const prefsPath = path.join(defaultDir, 'Preferences');
+    try {
+      const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
+      if (prefs && typeof prefs === 'object') {
+        prefs.profile = prefs.profile || {};
+        if (
+          prefs.profile.exit_type !== 'Normal' ||
+          prefs.profile.exited_cleanly !== true
+        ) {
+          prefs.profile.exit_type = 'Normal';
+          prefs.profile.exited_cleanly = true;
+          // Temp + rename, never in place. writeFileSync truncates first, and
+          // this can run while a stale Chrome still owns the profile (rung one
+          // runs before any kill) — a death between the truncate and the write
+          // would hand Chrome an unparseable Preferences and a reset profile.
+          // Chrome writes this file the same way, for the same reason.
+          const prefsTmp = prefsPath + '.winzapp.tmp';
+          fs.writeFileSync(prefsTmp, JSON.stringify(prefs), 'utf8');
+          fs.renameSync(prefsTmp, prefsPath);
+        }
+      }
+    } catch (e) {}
+
+    if (removed) {
+      logger?.info?.(
+        `[clearRestorableSession] dropped ${removed} restorable-tab file(s) ` +
+          `from ${profileDir}`
+      );
+    }
+  } catch (e: any) {
+    logger?.warn?.(
+      `[clearRestorableSession] could not tidy ${profileDir}: ${e?.message || e}`
+    );
+  }
+}
+
+/**
+ * Does this launch failure mean "a Chrome we lost track of still holds the
+ * profile"?
+ *
+ * puppeteer's ChromeLauncher throws it verbatim:
+ *
+ *   The browser is already running for <dir>. Use a different `userDataDir`
+ *   or stop the running browser first.
+ *
+ * Matched on the wording rather than on an error class because puppeteer
+ * throws a plain Error here. Deliberately narrow: it must NOT match
+ * "Session not found"-style messages, for the same reason `chat not found`
+ * is matched by its exact phrase and not by its status code.
+ */
+function isStaleBrowserLockError(error: any): boolean {
+  const message = String(error?.message ?? error ?? '');
+  return /browser is already running for/i.test(message);
+}
+
+// How long to let Windows finish releasing the profile lock after the kill
+// returns. Stop-Process is asynchronous with respect to the file handles the
+// process held: relaunching Chrome the same millisecond hits the identical
+// error and burns the one retry for nothing.
+const STALE_BROWSER_RELEASE_MS = 1500;
+
+/**
+ * Start a session, and if the only thing standing in the way is a Chrome
+ * nobody is holding a handle to any more, kill it and try once more.
+ *
+ * This is a recovery from a state WinZapp can reach on its own and could not
+ * leave. Whenever a session dies *after* its browser launched — the injection
+ * of wa-js timing out is the case that produced this, but a crashed
+ * WPPConnect-side await does it too — the browser stays alive holding
+ * `userDataDir/<session>`, while `client.status` goes to CLOSED. Python's
+ * health checker sees CLOSED and POSTs /start-session, puppeteer refuses
+ * because the profile is locked, the status stays CLOSED, and the next poll
+ * does exactly the same thing 30s later. Forever: nothing in that loop ever
+ * touches the process holding the lock. Measured on a real install
+ * (2026-09-07), identically across two consecutive launches, and only broken
+ * by the user giving up and disconnecting by hand.
+ *
+ * Killing here is safe precisely because of where it sits. createSessionUtil()
+ * has already refused to run for any session whose status is not CLOSED, so a
+ * browser still holding this profile is by definition one no live session
+ * owns — and the profile is per session, so nothing another account is using
+ * can match. That is also why the kill is scoped to this session's
+ * userDataDir and never to "Chrome".
+ *
+ * Exactly one retry: if the relaunch hits the same error, something is holding
+ * that profile that we cannot kill (another Windows user, a debugger, an
+ * antivirus), and a loop would spin Chrome launches forever. Let it fail and
+ * be logged instead.
+ */
+async function launchWithStaleBrowserRecovery(
+  launch: () => Promise<any>,
+  userDataDir: string,
+  session: string,
+  logger?: any,
+  profileDir?: string
+): Promise<any> {
+  // Before every attempt, not just the first: an attempt that got far enough
+  // to start Chrome can write a fresh Sessions/ record on its way down.
+  const attempt = () => {
+    if (profileDir) clearRestorableSession(profileDir, logger);
+    return launch();
+  };
+  try {
+    return await attempt();
+  } catch (error: any) {
+    if (!isStaleBrowserLockError(error)) throw error;
+    logger?.warn?.(
+      `[${session}] Chrome is still holding this session's profile although no ` +
+        'session owns it — killing it and starting once more.'
+    );
+    // The orphan holding this profile very often still has its client object
+    // in clientsArray — createSessionUtil() refuses to run unless the session
+    // reports CLOSED, but a status of CLOSED does not mean the browser went
+    // away. When it is reachable, close it properly rather than SIGKILLing a
+    // Chrome that is holding this session's login database open.
+    let forceKilled = false;
+    if (!(await closeBrowserGracefully(session, logger))) {
+      await forceKillByUserDataDir(userDataDir, logger);
+      forceKilled = true;
+    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, STALE_BROWSER_RELEASE_MS)
+    );
+    try {
+      const client = await attempt();
+      logger?.info?.(
+        `[${session}] Recovered from a stale browser profile lock.`
+      );
+      return client;
+    } catch (retryError: any) {
+      // The graceful close reporting success is not evidence that THIS
+      // profile was released — it only ever speaks for the client object in
+      // clientsArray, and the Chrome holding the lock is very often a
+      // different, older process that no client object points at any more.
+      // Measured on 2026-09-10: the close and its "browser closed gracefully"
+      // line landed in the same millisecond as the warning above (nothing was
+      // actually closed — there was no process handle to watch), the kill was
+      // skipped because of it, the retry hit the identical lock, and the
+      // account stayed offline through fifteen accumulated orphan Chromes.
+      // The profile still being locked is the proof, so escalate on it.
+      if (!forceKilled && isStaleBrowserLockError(retryError)) {
+        logger?.warn?.(
+          `[${session}] the graceful close did not free the profile — ` +
+            'killing whatever still holds it.'
+        );
+        await forceKillByUserDataDir(userDataDir, logger);
+        await new Promise((resolve) =>
+          setTimeout(resolve, STALE_BROWSER_RELEASE_MS)
+        );
+        try {
+          const client = await attempt();
+          logger?.info?.(
+            `[${session}] Recovered from a stale browser profile lock after ` +
+              'the fallback kill.'
+          );
+          return client;
+        } catch (finalError: any) {
+          logger?.error?.(
+            `[${session}] Still could not start after killing the profile ` +
+              `holder: ${finalError?.message ?? finalError}`
+          );
+          throw finalError;
+        }
+      }
+      logger?.error?.(
+        `[${session}] Still could not start after clearing the profile lock: ` +
+          `${retryError?.message ?? retryError}`
+      );
+      throw retryError;
+    }
   }
 }
 
@@ -221,85 +605,85 @@ async function restoreMsgKeySerialized(
 }
 
 /**
- * Adapt WA-JS's status sender to WhatsApp Web's current object argument.
+ * Adapt WhatsApp Web's status sender to WA-JS's positional call.
  *
- * WA-JS still calls encryptAndSendStatusMsg(msg, proto, reporters), while the
- * current WhatsApp module expects { sendMsgRecord, msgProtobuf,
- * metricsReporter }. The old call throws inside the page, WA-JS swallows it,
- * and the API only sees messageSendResult=ERROR_UNKNOWN.
+ * WA-JS 4.6.0 wraps WAWebSendMsgJob.encryptAndSendMsg and, for a
+ * status@broadcast record, calls encryptAndSendStatusMsg(msg, proto, reporter)
+ * positionally, inside a try/catch that turns ANY error into `return null`.
+ * Current WhatsApp takes one object, { sendMsgRecord, msgProtobuf,
+ * metricsReporter }, so the positional call throws, WA-JS swallows it and the
+ * API only ever sees messageSendResult=ERROR_UNKNOWN - for text, image, video
+ * and audio statuses alike.
+ *
+ * The first version of this shim wrapped encryptAndSendMsg itself, which only
+ * works while it is the OUTERMOST wrapper. Measured over CDP on 2026-09-23
+ * (WhatsApp Web 2.3000.1048298845): WA-JS's wrapper had ended up outside ours,
+ * a fake status record reached encryptAndSendStatusMsg with 3 positional
+ * arguments, and every post failed again. So the adapter now sits on
+ * encryptAndSendStatusMsg: WA-JS reads that export live (the same probe saw a
+ * replacement take effect), so both call shapes are served whatever order the
+ * wrappers were installed in. An object call - WhatsApp's own - passes
+ * through untouched.
  */
 async function restoreStatusSender(page: any, logger: any, session: string) {
   if (!page) return;
   try {
     const result = await page.evaluate(() => {
-      const install = () => {
+      // Returns what it did as a string, or '' when WhatsApp is not ready yet:
+      // the log line is the first thing read when statuses fail again, so it
+      // must say "skipped" when it skipped, and which length it saw.
+      const install = (): string => {
         const wpp = (window as any).WPP;
-        if (!wpp?.loader?.moduleRequire) return false;
-        if ((window as any).__winzappStatusSenderInstalled) return true;
+        if (!wpp?.loader?.moduleRequire) return '';
 
         try {
-          const sendModule = wpp.loader.moduleRequire('WAWebSendMsgJob');
           const statusModule = wpp.loader.moduleRequire(
             'WAWebEncryptAndSendStatusMsg'
           );
-          const protoModule = wpp.loader.moduleRequire(
-            'WAWebE2EProtoGenerator'
-          );
-          const original = sendModule?.encryptAndSendMsg;
           const sendStatus = statusModule?.encryptAndSendStatusMsg;
-
-          // The legacy function accepts positional arguments and needs no shim.
-          if (
-            typeof original !== 'function' ||
-            typeof sendStatus !== 'function' ||
-            typeof protoModule?.createMsgProtobuf !== 'function' ||
-            sendStatus.length !== 1
-          ) {
-            return false;
+          if (typeof sendStatus !== 'function') return '';
+          if (sendStatus.__winzappPositionalAdapter) return 'already installed';
+          // Current WhatsApp takes one object (length 1); a wrapper around it
+          // - WA-JS's own wrapFunction shape, (...r) => t(e, ...r) - reports 0.
+          // Only a sender declaring 2+ parameters still takes the positional
+          // call WA-JS makes, and needs no adapter.
+          if (sendStatus.length > 1) {
+            return `skipped: sender takes ${sendStatus.length} positional args`;
           }
 
-          sendModule.encryptAndSendMsg = async function (
-            sendMsgRecord: any,
-            metricsReporter: any,
-            ...additionalArgs: any[]
-          ) {
-            if (
-              sendMsgRecord?.data?.to?.toString?.() !== 'status@broadcast'
-            ) {
-              return original.apply(this, [
-                sendMsgRecord,
-                metricsReporter,
-                ...additionalArgs,
-              ]);
+          const adapted = function (this: any, first: any, ...rest: any[]) {
+            if (first && typeof first === 'object' && 'sendMsgRecord' in first) {
+              return sendStatus.call(this, first, ...rest);
             }
-
-            await sendStatus({
-              sendMsgRecord,
-              msgProtobuf: protoModule.createMsgProtobuf(sendMsgRecord.data),
+            const [msgProtobuf, metricsReporter] = rest;
+            return sendStatus.call(this, {
+              sendMsgRecord: first,
+              msgProtobuf,
               metricsReporter,
             });
-
-            return {
-              t: sendMsgRecord.data.t,
-              sync: null,
-              phash: null,
-              addressingMode: null,
-              count: null,
-              error: null,
-            };
           };
-
-          (window as any).__winzappStatusSenderInstalled = true;
-          return true;
+          (adapted as any).__winzappPositionalAdapter = true;
+          statusModule.encryptAndSendStatusMsg = adapted;
+          return `installed (sender length ${sendStatus.length})`;
         } catch (e) {
-          return false;
+          return '';
         }
       };
 
-      if (install()) return 'installed';
+      const now = install();
+      if (now) return now;
       let tries = 0;
       const timer = setInterval(() => {
-        if (install() || ++tries > 60) clearInterval(timer);
+        const outcome = install();
+        if (outcome || ++tries > 60) {
+          clearInterval(timer);
+          // Reaches wppconnect.log through the page console forwarder.
+          console.log(
+            `[browser-evaluate] status sender shim: ${
+              outcome || 'gave up (WhatsApp modules never became ready)'
+            }`
+          );
+        }
       }, 500);
       return 'scheduled (WhatsApp modules not ready yet)';
     });
@@ -337,7 +721,10 @@ async function restoreStatusSender(page: any, logger: any, session: string) {
  *   * No puppeteer overridePermissions() here. That call replaces the whole
  *     granted set for the origin, so asking for ['notifications'] flips
  *     durableStorage from 'prompt' to 'denied' — measurably worse than doing
- *     nothing. The CDP grant below covers notifications anyway.
+ *     nothing. The CDP grant below covers notifications anyway. The same single
+ *     grant also covers audioCapture so WhatsApp's VoIP bootstrap sees
+ *     microphone permission as granted while WinZapp's page patch still
+ *     replaces the physical microphone with the Python PCM bridge.
  *
  * Best-effort throughout: never throw from here.
  */
@@ -353,7 +740,9 @@ async function grantPersistentStorage(page: any, logger: any, session: string) {
     }
     await page.__wzPermissionSession.send('Browser.grantPermissions', {
       origin,
-      permissions: ['durableStorage', 'notifications'],
+      // This fork supports video calls. Grant both capture permissions while
+      // the page bridge substitutes Python-owned microphone/camera tracks.
+      permissions: ['durableStorage', 'notifications', 'audioCapture', 'videoCapture'],
     });
   } catch (e: any) {
     page.__wzPermissionSession = null;
@@ -401,9 +790,46 @@ async function grantPersistentStorage(page: any, logger: any, session: string) {
 }
 
 export default class CreateSessionUtil {
-  forceKillSession(session: string, logger?: any) {
-    const client: any = clientsArray[session];
+  /**
+   * `candidate` is for callers that clear `clientsArray[session]` immediately
+   * after calling this: the graceful close needs the client, and reading it
+   * back off the array would race that clear.
+   *
+   * `graceful` is false only where a close has *already* been tried and
+   * failed — asking twice would just spend the caller's budget again.
+   */
+  async forceKillSession(
+    session: string,
+    logger?: any,
+    candidate?: any,
+    graceful = true,
+    timeoutMs?: number
+  ) {
+    const client: any = candidate ?? clientsArray[session];
+    // Ask before killing — see closeBrowserGracefully() for what a SIGKILL
+    // mid-write costs here.
+    if (graceful && (await closeBrowserGracefully(session, logger, timeoutMs, client)))
+      return;
+    // The precise kill can only ever reach this client's own page, so it is
+    // unconditional. The directory scan cannot: it kills whoever holds the
+    // profile, which after a takeover is a successor's browser — the
+    // 03:55:50 incident killBrowserOrFallback() carries in its own comment.
+    //
+    // This guard is new because the path is new. closeBrowserGracefully()
+    // used to answer `true` for a client with no page at all (during
+    // create(), clientsArray[session] holds a stub and Object.assign() has
+    // not run yet), so this returned early and killed nothing — which is how
+    // the stale lock this branch fixes was reached in the first place. Now it
+    // answers `false`, honestly, and the fallback below actually runs.
     if (!forceKillBrowserProcess(client?.page, logger)) {
+      const current: any = clientsArray[session];
+      if (current && client && current !== client) {
+        logger?.warn?.(
+          `[${session}] not killing the browser by userDataDir: this session ` +
+            'has been taken over by a newer client, and the profile is its.'
+        );
+        return;
+      }
       forceKillByUserDataDir(`userDataDir/${session}`, logger);
     }
   }
@@ -423,9 +849,27 @@ export default class CreateSessionUtil {
     session: string,
     res?: any
   ) {
+    // Resolved once this attempt has taken ownership of the slot, so the catch
+    // at the bottom can tell whether the client it is about to touch is still
+    // its own. `client` itself is declared inside the try and is out of scope
+    // there, which is why the old catch had to re-resolve it through
+    // getClient() — and why it could not tell a superseded attempt apart.
+    let ownClient: any = null;
     try {
       let client = this.getClient(session) as any;
-      if (client.status != null && client.status !== 'CLOSED') return;
+      if (client.status != null && client.status !== 'CLOSED') {
+        // Silent until now, and the silence is most of why the deadlock below
+        // was so hard to see: this returns without starting anything while
+        // startSession() still answers HTTP 200, so WinZapp logs "Sent
+        // auto-start session command" every 30 s for a session that no code
+        // path is ever going to start.
+        req.logger?.info?.(
+          `[${session}] start-session ignored: status is ${client.status}, ` +
+            `not CLOSED — another attempt owns this session.`
+        );
+        return;
+      }
+      ownClient = client;
       client.status = 'INITIALIZING';
       client.config = req.body;
 
@@ -476,15 +920,74 @@ export default class CreateSessionUtil {
       // precise process-tree kill first and only falls back to the
       // userDataDir scan when no live page/pid is reachable yet.
       const killBrowserOrFallback = () => {
+        // Refuse the userDataDir fallback once this create() has been
+        // superseded. That scan kills whatever browser currently holds the
+        // profile, and after a takeover that is somebody else's — measured
+        // live, and it cost a working session:
+        //
+        //   03:55:50  Connected / inChat        (restored profile, syncing)
+        //   03:56:01  Auth probe has failed for 30s straight — giving up
+        //   03:56:02  shouldClose detected in statusFind. Force-killing browser.
+        //   03:56:02  browserClose
+        //
+        // The 30 s auth-probe bound belonged to a create() started 45 s
+        // earlier against the *broken* profile. While it was still counting,
+        // WinZapp restored the profile and the health poll started a second
+        // session that connected and began syncing. The old create() then
+        // timed out, could not reach its own page (`wppClient` is still in the
+        // temporal dead zone during create(), which is why the fallback exists
+        // at all), and killed the profile's browser by directory — the new
+        // one. WhatsApp logged that session out on the next load, and the
+        // once-per-launch profile recovery had already been spent.
+        //
+        // A precise kill stays unconditional: if forceKillBrowserProcess()
+        // can reach this create()'s own page, it is killing its own browser
+        // and cannot touch a successor.
         let killed = false;
         try {
           killed = forceKillBrowserProcess(wppClient?.page, req.logger);
         } catch (e) {}
-        if (!killed)
-          forceKillByUserDataDir(`userDataDir/${session}`, req.logger);
+        if (killed) return;
+        const current: any = clientsArray[session];
+        if (current && current !== client) {
+          req.logger.warn(
+            `[${session}] not killing the browser by userDataDir: this session ` +
+              `start was superseded by a newer one, which owns that profile now.`
+          );
+          return;
+        }
+        forceKillByUserDataDir(`userDataDir/${session}`, req.logger);
       };
 
-      const wppClient = await create(
+      // Same reasoning for the slot itself: clearing it would drop a
+      // successor's client, leaving the session unreachable while its browser
+      // keeps running.
+      const clearSessionSlotIfStillOurs = () => {
+        if (clientsArray[session] === undefined || clientsArray[session] === client) {
+          clientsArray[session] = undefined;
+        }
+      };
+
+      // Wrapped in a thunk purely so the stale-profile recovery below can call
+      // it twice. See launchWithStaleBrowserRecovery() for why that exists.
+      const launchWppClient = () => {
+        if (prepareLinuxCallAudioEnvironment(session, req.logger)) {
+          const puppeteerOptions = req.serverOptions.createOptions.puppeteerOptions || {};
+          // Puppeteer passes `puppeteerOptions.env` verbatim when it exists;
+          // changing process.env after server startup is therefore not enough.
+          // Bind this account's Chrome explicitly to its PulseAudio devices.
+          req.serverOptions.createOptions.puppeteerOptions = {
+            ...puppeteerOptions,
+            env: {
+              ...process.env,
+              ...(puppeteerOptions.env || {}),
+              PULSE_SERVER: process.env.PULSE_SERVER,
+              PULSE_SOURCE: process.env.PULSE_SOURCE,
+              PULSE_SINK: process.env.PULSE_SINK,
+            },
+          };
+        }
+        return create(
         Object.assign(
           {},
           { tokenStore: myTokenStore },
@@ -519,7 +1022,7 @@ export default class CreateSessionUtil {
                   `[${session}] shouldClose detected in catchLinkCode. Force-killing browser.`
                 );
                 killBrowserOrFallback();
-                clientsArray[session] = undefined;
+                clearSessionSlotIfStillOurs();
                 return;
               }
               this.exportPhoneCode(req, client.config.phone, code, client, res);
@@ -527,7 +1030,10 @@ export default class CreateSessionUtil {
             // Not a WPPConnect option — WinZapp's own host.layer.js patch reads
             // it off `this.options` (create() spreads the caller's options into
             // the Whatsapp instance verbatim, so an unknown key survives). See
-            // client/core/wppconnect_host_layer_patch.py, checkQrCode v4.
+            // client/core/wppconnect_host_layer_patch.py: checkQrCode v4
+            // introduced it, and on wppconnect >= 2.3.2 it is loginByCode and
+            // the two link-code hooks that call it, since that runtime mints
+            // the code from there rather than from checkQrCode.
             catchLinkCodeError: (failure: {
               name?: string;
               message?: string;
@@ -557,7 +1063,7 @@ export default class CreateSessionUtil {
                   `[${session}] shouldClose detected in catchQR. Force-killing browser.`
                 );
                 killBrowserOrFallback();
-                clientsArray[session] = undefined;
+                clearSessionSlotIfStillOurs();
                 return;
               }
               this.exportQR(req, base64Qr, urlCode, client, res);
@@ -572,7 +1078,7 @@ export default class CreateSessionUtil {
                     `[${session}] shouldClose detected in statusFind. Force-killing browser.`
                   );
                   killBrowserOrFallback();
-                  clientsArray[session] = undefined;
+                  clearSessionSlotIfStillOurs();
                   return;
                 }
                 eventEmitter.emit(
@@ -634,6 +1140,19 @@ export default class CreateSessionUtil {
           }
         )
       );
+      };
+
+      const wppClient = await launchWithStaleBrowserRecovery(
+        launchWppClient,
+        `userDataDir/${session}`,
+        session,
+        req.logger,
+        path.resolve(
+          req.serverOptions.customUserDataDir
+            ? req.serverOptions.customUserDataDir + session
+            : `userDataDir/${session}`
+        )
+      );
 
       // Poll every 2s: if shouldClose was set while create() is blocked, close browser immediately
       const shouldClosePoller = setInterval(() => {
@@ -643,7 +1162,7 @@ export default class CreateSessionUtil {
           );
           clearInterval(shouldClosePoller);
           killBrowserOrFallback();
-          clientsArray[session] = undefined;
+          clearSessionSlotIfStillOurs();
         }
       }, 2000);
 
@@ -685,12 +1204,25 @@ export default class CreateSessionUtil {
           // browser context), but the bucket request does not — persist() has
           // to be asked again by the new document, so re-run the whole thing.
           grantPersistentStorage(client.page, req.logger, session);
+          // The Python-owned call audio bridge lives in the page context and
+          // therefore has to be recreated after every WhatsApp Web reload.
+          ensureCallMediaBridge(client, req.io, req.logger);
+          // Warm the lazy WhatsApp VoIP backend after each page reload. This is
+          // deliberately fire-and-forget: normal messaging startup must never
+          // depend on the private calling backend becoming available.
+          setTimeout(() => {
+            void warmCallVoipRuntime(client, req.logger);
+          }, 1200);
         });
         await restoreMsgKeySerialized(client.page, req.logger, session);
         await restoreStatusSender(client.page, req.logger, session);
         await grantPersistentStorage(client.page, req.logger, session);
+        await ensureCallMediaBridge(client, req.io, req.logger);
       }
       await this.start(req, client);
+      // WhatsApp's VoIP bundle is lazy. Preload it while the session is idle so
+      // accepting an incoming call does not have to win the initialization race.
+      void warmCallVoipRuntime(client, req.logger);
 
       if (req.serverOptions.webhook.onParticipantsChanged) {
         await this.onParticipantsChanged(req, client);
@@ -712,9 +1244,51 @@ export default class CreateSessionUtil {
       }
     } catch (e) {
       req.logger.error(e);
-      if (e instanceof Error && e.name == 'TimeoutError') {
-        const client = this.getClient(session) as any;
-        client.status = 'CLOSED';
+      // A create() that threw owns no browser: whatever went wrong, this
+      // attempt is over. Leaving the status at INITIALIZING is not neutral,
+      // it is permanent — and it takes the whole account offline in silence.
+      // createSessionUtil() returns early for any status other than CLOSED
+      // (right at the top of this method), and WinZapp's health checker skips
+      // /start-session for every "active" state, so after one failed start
+      // neither side ever starts a session again. Upstream reset the status
+      // only for a TimeoutError, which covers exactly one of the ways create()
+      // can fail.
+      //
+      // Measured on 2026-09-09: a start-session that raced a profile restore
+      // failed with `The browser is already running for <userDataDir>` — an
+      // Error, not a TimeoutError, so the old branch did not fire. The
+      // recovery finished 6 s later and put a profile back that had
+      // authenticated fine hours earlier, and there was nothing left able to
+      // start it. status-session answered INITIALIZING for the rest of the
+      // process's life, with no chrome.exe in existence, while /start-session
+      // kept returning 200 and launching nothing. Only closing the app cleared
+      // it, because the wedged status lives in this process's memory.
+      //
+      // Two conditions, both load-bearing:
+      //
+      // * the slot must still hold OUR client. A create() superseded by a
+      //   newer one must never write CLOSED over the successor's status, or
+      //   the next /start-session launches a duplicate Chrome onto a profile a
+      //   live session is using — the same failure killBrowserOrFallback()
+      //   above refuses the userDataDir scan for, and it cost a working
+      //   session once already.
+      // * the status must still be INITIALIZING. Anything else means something
+      //   already promoted this session to a real state, and the throw came
+      //   from one of the webhook wirings that run past this.start(); reporting
+      //   a connected session as CLOSED would hand it the same duplicate
+      //   launch.
+      const failed: any = ownClient;
+      if (
+        failed &&
+        clientsArray[session] === failed &&
+        failed.status === 'INITIALIZING'
+      ) {
+        failed.status = 'CLOSED';
+        failed.qrcode = null;
+        req.logger.warn(
+          `[${session}] session start failed before it reached a real state — ` +
+            `status reset to CLOSED so the next /start-session can run.`
+        );
       }
     }
   }
@@ -800,7 +1374,8 @@ export default class CreateSessionUtil {
     // diagnosable after the fact.
     const attempt = failure?.attempt;
     const retryInSeconds = failure?.retryInSeconds;
-    // Set by checkQrCode v8 when WhatsApp answered rate-overlimit (429). The
+    // Set by the host.layer.js patch when WhatsApp answered rate-overlimit
+    // (429) — checkQrCode on wppconnect <= 2.3.1, loginByCode on 2.3.2. The
     // quota is per phone number and lives on WhatsApp's side, so it outlives
     // this session and this process — which is why the first pairing code
     // after a dropped session fails and the second one works. Forwarded so
@@ -907,10 +1482,30 @@ export default class CreateSessionUtil {
     // and skip status=CONNECTED entirely, leaving the session stuck reporting
     // INITIALIZING forever even though it connected seconds later. Bounded retry
     // until wa-js answers, and only accept an explicit `true`.
-    const maxAttempts = 20; // ~10s total; a warning, never a disconnect proof
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    //
+    // Bounded by wall clock rather than by attempt count, and each probe is
+    // raced against what is left of the budget. `attempts * sleep` was a fair
+    // estimate of the total while isConnected() answered straight away;
+    // wppconnect 2.3.2 made it await waitForPageLoad(), which sits on
+    // puppeteer's default 30s timeout waiting for WPP.isReady — so on a page
+    // that loads but never becomes ready one attempt cost ~30s and the loop
+    // ran for ~10 minutes, with everything registered after start()
+    // (onParticipantsChanged / onReactionMessage / onRevokedMessage /
+    // onPollResponse, back in createSessionUtil()) waiting behind all of it.
+    // message/ack/presence are safe either way: wireListeners() runs above
+    // this loop, deliberately.
+    const RETRY_WINDOW_MS = 10000; // ~10s total; a warning, never a disconnect proof
+    const deadline = Date.now() + RETRY_WINDOW_MS;
+    for (let attempt = 1; Date.now() < deadline; attempt++) {
+      // With a sliver of the window left, probeIsConnected() would resolve its
+      // own timer immediately and answer undefined: an attempt spent on
+      // nothing that still leaves one more isConnected() pending in the page.
+      if (deadline - Date.now() < 250) break;
       try {
-        const connected = await client.isConnected();
+        const connected = await probeIsConnected(
+          client,
+          deadline - Date.now()
+        );
         if (connected === true) {
           // Only promote if the state listener hasn't already moved us to a
           // newer terminal state (UNPAIRED/TIMEOUT/etc). The event wins.
@@ -925,7 +1520,7 @@ export default class CreateSessionUtil {
         // "WAPI is not defined" is an initialization race, NOT a session error.
         // Do not emit session-error for it; just wait for wa-js to load.
         req.logger.info(
-          `[${client.session}] isConnected() not ready yet (attempt ${attempt}/${maxAttempts})`
+          `[${client.session}] isConnected() not ready yet (attempt ${attempt})`
         );
       }
       await new Promise((r) => setTimeout(r, 500));
@@ -945,6 +1540,10 @@ export default class CreateSessionUtil {
    * regardless of how connection finalization resolves.
    */
   async wireListeners(req: Request, client: WhatsAppServer) {
+    // VoIP ringing is time-sensitive. Install this first so message history,
+    // presence subscriptions, and unread synchronization cannot delay or
+    // swallow the incoming-call notification.
+    await this.onIncomingCallDirect(client, req);
     await this.listenMessages(client, req);
 
     if (req.serverOptions.webhook.listenAcks) {
@@ -956,7 +1555,6 @@ export default class CreateSessionUtil {
     }
 
     await this.onUnreadCountChanged(client, req);
-    await this.onIncomingCallDirect(client, req);
   }
 
   /**
@@ -1092,10 +1690,43 @@ export default class CreateSessionUtil {
           // like the MsgKey._serialized and status sender shims. See this
           // method's own doc comment for why a single attempt was never
           // enough here.
+          // One timer per page, and it settles exactly once — neither of which
+          // clearInterval() can be trusted to deliver here.
+          //
+          // Measured on a user's session: a SINGLE scheduled installer logged
+          // "installed after 0 retries" every 500ms for three minutes and ten
+          // seconds, stopping only when the session was torn down. One timer,
+          // 364 lines. So the `if` body ran 364 times, which means
+          // clearInterval(timer) ran 364 times and did not stop it. The likely
+          // reason is that WhatsApp Web wraps setInterval for its own
+          // scheduler and returns a handle the native clearInterval does not
+          // recognise — but the fix must not depend on knowing that, because
+          // whatever the cause, a page.evaluate'd loop running at 2 Hz inside
+          // WhatsApp Web is not something to leave to a call that has already
+          // been observed to fail.
+          //
+          // `settled` closes over this one timer, so the callback becomes a
+          // bare return the moment its work is done. The interval may keep
+          // ticking; it can no longer do anything or say anything.
+          const w = window as any;
+          if (w.__winzappUnreadListenerScheduled) {
+            // A second installer would stack a second uncancellable timer on
+            // top of the first. page.on('load') can fire this repeatedly.
+            return 'already scheduled';
+          }
+          w.__winzappUnreadListenerScheduled = true;
           let tries = 0;
+          let settled = false;
           const timer = setInterval(() => {
+            if (settled) return;
             if (install() || ++tries > 60) {
-              clearInterval(timer);
+              settled = true;
+              w.__winzappUnreadListenerScheduled = false;
+              try {
+                clearInterval(timer);
+              } catch (e) {
+                /* see above — the timer is disarmed by `settled` regardless */
+              }
               // The evaluate below can only ever log 'scheduled' — it returns
               // long before this loop resolves — so without this line the log
               // cannot tell "installed three seconds later" apart from "gave
@@ -1171,7 +1802,7 @@ export default class CreateSessionUtil {
           callTimestamp: number,
           observedAt: number
         ) => {
-          req.io.emit('incomingcall', {
+          req.io.to(`session:${client.session}`).emit('incomingcall', {
             session: client.session,
             data: {
               event: event,
@@ -1191,6 +1822,42 @@ export default class CreateSessionUtil {
       // exposeFunction throws if a prior session already registered this
       // name on the same page (e.g. a reconnect reusing the browser) —
       // harmless, the existing binding still works.
+    }
+
+    try {
+      await client.page.exposeFunction(
+        '__winzappOnCallState',
+        (
+          event: string,
+          state: string,
+          peerJid: string,
+          callId: string,
+          isVideo: boolean,
+          isGroup: boolean,
+          groupJid: string,
+          outgoing: boolean,
+          callTimestamp: number,
+          observedAt: number
+        ) => {
+          req.io.to(`session:${client.session}`).emit('callstate', {
+            session: client.session,
+            data: {
+              event,
+              state,
+              peerJid,
+              id: callId,
+              isVideo,
+              isGroup,
+              groupJid,
+              outgoing,
+              timestamp: callTimestamp,
+              observedAt,
+            },
+          });
+        }
+      );
+    } catch (e) {
+      // Same reconnect case as the incoming-call binding above.
     }
 
     const installListener = (attempt = 0) => {
@@ -1215,20 +1882,65 @@ export default class CreateSessionUtil {
           // firing the expected Backbone event, so retain and poll by call id.
           const trackedCalls = new Map<string, any>();
           const ignoredHistoricalCallIds = new Set<string>();
+          // Call-control actions run in separate page.evaluate() calls. Expose
+          // one tiny bridge so a successful accept/reject/end can retire the
+          // incoming-ring watchdog immediately instead of letting its 120 s
+          // timeout fire against an already handled call.
+          (window as any).__winzappForgetIncomingCall = (callId = '') => {
+            const id = String(callId || '');
+            if (id) trackedCalls.delete(id);
+          };
           const CALL_START_GRACE_MS = 5000;
+          let nativeCallCollection: any = null;
+          try {
+            const module = (window as any).require?.('WAWebCallCollection');
+            // The current native call implementation emits change:activeCall
+            // on the exported WAWebCallCollection object itself.  Prefer that
+            // exact event source even when activeCall is still undefined; the
+            // first transition is precisely the event we need to catch.
+            nativeCallCollection =
+              module && typeof module.on === 'function'
+                ? module
+                : module?.get?.() || module;
+          } catch (e) {
+            nativeCallCollection = null;
+          }
           const stores = [
+            nativeCallCollection,
             WPP?.whatsapp?.CallStore,
             WPP?.whatsapp?.CallCollection,
             (window as any).Store?.Call,
           ].filter((store, index, all) => store && all.indexOf(store) === index);
           const callIdOf = (call: any) =>
-            String(call?.id?._serialized || call?.id || '');
+            String(
+              call?.id?._serialized ||
+              call?.id?.toString?.() ||
+              call?.id ||
+              ''
+            );
           const groupJidOf = (call: any) =>
             String(
               call?.groupJid?._serialized ||
               call?.groupJid?.toString?.() ||
+              call?.get?.('groupJid')?._serialized ||
+              call?.get?.('groupJid')?.toString?.() ||
               ''
             );
+          const groupParticipantCountOf = (call: any): number => {
+            const participants = call?.groupCallParticipants ?? call?.get?.('groupCallParticipants');
+            if (Array.isArray(participants)) return participants.length;
+            try {
+              const models = participants?.getModelsArray?.();
+              if (Array.isArray(models)) return models.length;
+            } catch (_) {}
+            if (typeof participants?.size === 'number') return participants.size;
+            if (typeof participants?.length === 'number') return participants.length;
+            return 0;
+          };
+          const isGroupCall = (call: any): boolean =>
+            !!call?.isGroup || !!call?.isGroupCall ||
+            !!call?.get?.('isGroup') || !!call?.peerJid?.isGroupCall?.() ||
+            !!groupJidOf(call) || groupParticipantCountOf(call) > 1;
           const callStateOf = (call: any) => {
             const raw = String(
               call?.getState?.() || call?.state || call?.get?.('state') || ''
@@ -1254,6 +1966,26 @@ export default class CreateSessionUtil {
               '14': 'CALL_B_STARTING',
             };
             return numericStates[raw] || raw;
+          };
+          const isIncomingRingingCall = (call: any) => {
+            if (!call) return false;
+            const state = callStateOf(call);
+            const incomingRingStates = new Set([
+              'INCOMING_RING',
+              'PREACCEPT_RECEIVED',
+              'ReceivedCall',
+              'ReceivedCallWithoutOffer',
+            ]);
+            const isOutgoing =
+              call?.outgoing === true ||
+              call?.isOutgoing === true ||
+              call?.direction === 'outgoing';
+            return (
+              !isOutgoing &&
+              (incomingRingStates.has(state) ||
+                call?.isIncoming === true ||
+                call?.direction === 'incoming')
+            );
           };
           const callTimestampOf = (call: any) => {
             const raw =
@@ -1297,27 +2029,52 @@ export default class CreateSessionUtil {
             }
             return false;
           };
-          const emitCall = (event: string, call: any, state = '') => {
-            const peerJid =
+          const peerJidOf = (call: any) =>
+            String(
               call?.peerJid?._serialized ||
               call?.peerJid?.toString?.() ||
               call?.sender?._serialized ||
               call?.sender?.toString?.() ||
               call?.from?._serialized ||
               call?.from?.toString?.() ||
-              '';
-            if (!peerJid) return;
+              ''
+            );
+          const emitCallState = (event: string, call: any, state = '', evidence?: any) => {
+            const callId = callIdOf(call);
+            const peerJid = peerJidOf(call) || groupJidOf(call);
+            // Group activeCall models can be published before peerJid/groupJid
+            // is hydrated.  The call id is enough to keep the lifecycle alive;
+            // later state/model updates enrich the peer metadata.
+            if (!callId && !peerJid) return;
+            (window as any).__winzappOnCallState(
+              event,
+              state,
+              peerJid,
+              callId,
+              !!call?.isVideo || !!call?.isVideoCall,
+              isGroupCall(call) || isGroupCall(evidence),
+              groupJidOf(call) || groupJidOf(evidence),
+              !!call?.outgoing,
+              Math.floor(callTimestampOf(call) / 1000),
+              Math.floor(Date.now() / 1000)
+            );
+          };
+          const emitCall = (event: string, call: any, state = '', evidence?: any) => {
+            const callId = callIdOf(call);
+            const peerJid = peerJidOf(call) || groupJidOf(call);
+            if (!callId && !peerJid) return;
             (window as any).__winzappOnIncomingCall(
               event,
               state,
               peerJid,
-              callIdOf(call),
+              callId,
               !!call?.isVideo || !!call?.isVideoCall,
-              !!call?.isGroup || !!call?.isGroupCall,
-              groupJidOf(call),
+              isGroupCall(call) || isGroupCall(evidence),
+              groupJidOf(call) || groupJidOf(evidence),
               Math.floor(callTimestampOf(call) / 1000),
               Math.floor(Date.now() / 1000)
             );
+            emitCallState(event, call, state, evidence);
           };
           const rememberCall = (call: any) => {
             const id = callIdOf(call);
@@ -1333,6 +2090,13 @@ export default class CreateSessionUtil {
           const findCall = (id: string) => {
             for (const store of stores) {
               try {
+                // Newer WhatsApp Web builds keep an accepted native call only
+                // in CallStore.activeCall instead of the legacy collection.
+                // Without this lookup, the incoming-ring tracker kept polling
+                // its stale INCOMING_RING snapshot and fired NOT_ANSWERED at
+                // exactly 120 seconds even after WinZapp had accepted it.
+                const active = store?.activeCall || store?.get?.('activeCall');
+                if (active && callIdOf(active) === id) return active;
                 const direct = store?.get?.(id);
                 if (direct) return direct;
                 const models =
@@ -1353,8 +2117,8 @@ export default class CreateSessionUtil {
             const id = callIdOf(call);
             const richCall = findCall(id) || call;
             if (isHistoricalIncomingCall(richCall, source)) return;
-            const isGroup = !!richCall?.isGroup || !!richCall?.isGroupCall;
-            if (isGroup && !groupJidOf(richCall) && attempt < 10) {
+            const isGroup = isGroupCall(richCall) || isGroupCall(call);
+            if (isGroup && !groupJidOf(richCall) && !groupJidOf(call) && attempt < 10) {
               window.setTimeout(() => {
                 // A terminal Store event removes this id. Do not resurrect a
                 // call that ended while we were waiting for group metadata.
@@ -1363,7 +2127,7 @@ export default class CreateSessionUtil {
               }, 100);
               return;
             }
-            emitCall('offer', richCall, 'INCOMING_RING');
+            emitCall('offer', richCall, 'INCOMING_RING', call);
           };
 
           // ── Layer 1: WPP.on('call.incoming_call') ──────────────────
@@ -1390,10 +2154,53 @@ export default class CreateSessionUtil {
           }
 
           // ── Layer 2: direct internal CallStore access ──────────────
-          // If wa-js exposes the raw WhatsApp Web Store for calls, hook
-          // its collection's 'add' event directly. This bypasses wa-js's
-          // event plumbing entirely.
+          // Current WhatsApp Web promotes native VoIP calls through
+          // WAWebCallCollection.activeCall. Observe that property directly:
+          // relying only on collection `add` or WA-JS's public event misses
+          // real incoming calls on current builds.
           try {
+            if (nativeCallCollection && typeof nativeCallCollection.on === 'function') {
+              nativeCallCollection.on('change:activeCall', (call: any) => {
+                try {
+                  // Current WhatsApp Web passes the new active CallModel as the
+                  // handler argument.  Do not require peerJid here: group calls
+                  // can publish the model before peer/group metadata is hydrated.
+                  const activeCall = call || nativeCallCollection.activeCall;
+                  if (!activeCall) return;
+                  const callId = callIdOf(activeCall);
+                  const state = callStateOf(activeCall);
+                  const definitelyOutgoing =
+                    activeCall?.outgoing === true ||
+                    activeCall?.isOutgoing === true ||
+                    activeCall?.direction === 'outgoing' ||
+                    ['CALLING', 'PRE_CALLING', 'CALL_B_STARTING'].includes(state);
+                  const terminal = [
+                    'ENDED', 'REJECTED', 'FAILED', 'NOT_ANSWERED',
+                    'HANDLED_REMOTELY', 'REMOTE_CALL_IN_PROGRESS',
+                  ].includes(state);
+
+                  // An incoming activeCall may arrive one tick before its state
+                  // and peer fields.  The id plus a non-outgoing active slot is
+                  // sufficient to retain it and let emitIncomingOffer wait for
+                  // group metadata rather than dropping the only notification.
+                  const incomingCandidate =
+                    !definitelyOutgoing &&
+                    !terminal &&
+                    !!callId &&
+                    (isIncomingRingingCall(activeCall) || !state || isGroupCall(activeCall));
+                  if (incomingCandidate) {
+                    if (isHistoricalIncomingCall(activeCall, 'activeCallChange')) return;
+                    rememberCall(activeCall);
+                    emitIncomingOffer(activeCall, 0, 'activeCallChange');
+                  } else if (state) {
+                    emitCallState('state', activeCall, state);
+                  }
+                } catch (e) {
+                  // A later activeCall transition or poll can recover.
+                }
+              });
+            }
+
             for (const store of stores) {
               if (store && typeof store.on === 'function') {
                 store.on('add', (call: any) => {
@@ -1456,7 +2263,11 @@ export default class CreateSessionUtil {
 
           // Poll only active incoming calls. If a model disappears for 2.5s,
           // WhatsApp has removed it after answer/rejection/caller cancellation.
-          (window as any).__winzappIncomingCallPoll = window.setInterval(() => {
+          // Armed by armCallStatePoll() below, together with the activeCall
+          // poll: both are created at the same moment and can lose their
+          // timers the same way.
+          const incomingCallPollTick = () => {
+            (window as any).__winzappIncomingCallPollLastTick = Date.now();
             const now = Date.now();
             for (const [id, tracked] of trackedCalls.entries()) {
               try {
@@ -1489,7 +2300,221 @@ export default class CreateSessionUtil {
                 // The next poll can recover from a transient Store mutation.
               }
             }
-          }, 500);
+          };
+
+          // Native WhatsApp Web VoIP keeps the active call on CallStore.activeCall
+          // and may never add it to the legacy collection. Poll that slot so both
+          // incoming and outgoing calls expose their complete lifecycle to Python.
+          let lastActiveSignature = '';
+          let lastActiveCall: any = null;
+          let lastActiveIncomingOfferId = '';
+          let activeCallMissingSince = 0;
+          const ACTIVE_CALL_MISSING_GRACE_MS = 5000;
+          // The grace above exists for one real case: WhatsApp briefly
+          // replacing CallStore.activeCall mid-call. It cannot tell that apart
+          // from a call that is simply over, so every rejected, unanswered or
+          // remotely ended call waited the full 5 s before Python heard of it
+          // -- measured live on 2026-09-21: a rejection left activeCall gone
+          // (last state PREACCEPT_RECEIVED, absent from the collection) while
+          // the call window stayed up until the user hung up by hand.
+          //
+          // The VoIP engine is the source of truth, and it answers the
+          // question directly: getCallInfo() returns an empty string once no
+          // call is ongoing (verified live), JSON naming the call otherwise.
+          // So on each disappearance the engine is asked once; "no call" or
+          // "ending" ends it now, and anything else keeps the grace (see
+          // below for why "a different call_id" is not trusted).
+          let engineEndProbe: 'idle' | 'pending' | 'ended' | 'ongoing' = 'idle';
+          // Bumped on every return to 'idle'. A probe answers asynchronously;
+          // one that resolves after its absence is over (activeCall came back,
+          // or the grace already ended the call) must not leave its verdict
+          // behind for the NEXT absence -- a stale 'ongoing' would skip that
+          // probe and wait the full grace, a stale 'ended' would end the next
+          // call on its first brief activeCall swap.
+          let engineProbeGeneration = 0;
+          const resetEngineEndProbe = () => {
+            engineEndProbe = 'idle';
+            engineProbeGeneration += 1;
+          };
+          const probeEngineForEnd = () => {
+            const generation = engineProbeGeneration;
+            const settle = (verdict: 'ended' | 'ongoing') => {
+              if (generation === engineProbeGeneration) engineEndProbe = verdict;
+            };
+            engineEndProbe = 'pending';
+            try {
+              const getter =
+                WPP?.whatsapp?.functions?.getVoipStackInterface ||
+                WPP?.whatsapp?.getVoipStackInterface;
+              if (typeof getter !== 'function') {
+                settle('ongoing');
+                return;
+              }
+              Promise.resolve(getter())
+                .then((stack: any) => stack?.getCallInfo?.())
+                .then((raw: any) => {
+                  if (!raw) {
+                    settle('ended');
+                    return;
+                  }
+                  let info: any = raw;
+                  if (typeof raw === 'string') {
+                    try { info = JSON.parse(raw); } catch (_) { info = null; }
+                  }
+                  // Only "no call" and "ending" end it early. Whether the
+                  // engine's call_id has the same form as the CallStore id has
+                  // never been measured, so "the engine names another call" is
+                  // not trusted: a mismatch of form alone would end every
+                  // healthy call on its first brief activeCall swap.
+                  settle(!info || info.call_ending === true ? 'ended' : 'ongoing');
+                })
+                .catch(() => settle('ongoing'));
+            } catch (_) {
+              settle('ongoing');
+            }
+          };
+          const TERMINAL_CALL_STATES = new Set([
+            'ENDED', 'REJECTED', 'FAILED', 'NOT_ANSWERED',
+            'HANDLED_REMOTELY', 'REMOTE_CALL_IN_PROGRESS',
+          ]);
+          const callStatePollTick = () => {
+            (window as any).__winzappCallStatePollLastTick = Date.now();
+            try {
+              let activeCall: any = null;
+              for (const store of stores) {
+                activeCall = store?.activeCall || store?.get?.('activeCall') || activeCall;
+                if (activeCall) break;
+              }
+              if (!activeCall) {
+                activeCall =
+                  WPP?.whatsapp?.CallStore?.activeCall ||
+                  (window as any).Store?.Call?.activeCall ||
+                  null;
+              }
+
+              // WhatsApp replaces CallStore.activeCall during some internal
+              // state transitions/rejoins.  A single null poll used to become
+              // a synthetic ENDED immediately, which could tear down a healthy
+              // WinZapp call after it had been running for a while.  Recover
+              // the same call from the collection first, then require a short
+              // sustained absence before synthesizing an end event.
+              if (!activeCall && lastActiveCall) {
+                const previousId = callIdOf(lastActiveCall);
+                if (previousId) activeCall = findCall(previousId);
+              }
+
+              if (!activeCall) {
+                if (!lastActiveCall) {
+                  activeCallMissingSince = 0;
+                  return;
+                }
+                const previousState = callStateOf(lastActiveCall);
+                if (TERMINAL_CALL_STATES.has(previousState)) {
+                  emitCallState('state', lastActiveCall, previousState);
+                  lastActiveCall = null;
+                  lastActiveSignature = '';
+                  activeCallMissingSince = 0;
+                  return;
+                }
+                const now = Date.now();
+                activeCallMissingSince = activeCallMissingSince || now;
+                if (engineEndProbe === 'idle') probeEngineForEnd();
+                if (
+                  engineEndProbe !== 'ended' &&
+                  now - activeCallMissingSince < ACTIVE_CALL_MISSING_GRACE_MS
+                ) {
+                  return;
+                }
+                emitCallState('ended', lastActiveCall, 'ENDED');
+                lastActiveCall = null;
+                lastActiveSignature = '';
+                lastActiveIncomingOfferId = '';
+                activeCallMissingSince = 0;
+                resetEngineEndProbe();
+                return;
+              }
+
+              activeCallMissingSince = 0;
+              if (engineEndProbe !== 'idle') resetEngineEndProbe();
+              const state = callStateOf(activeCall);
+              // isVideo is part of the signature: a voice call upgraded to
+              // video keeps its CallModel, its id and its ACTIVE state --
+              // WhatsApp's handleVideoStateChange only flips isVideo on the
+              // same model (read from the bundle, 2026-09-26). Without it the
+              // upgrade never reached Python at all.
+              const signature = [
+                callIdOf(activeCall),
+                state,
+                peerJidOf(activeCall),
+                activeCall?.outgoing ? '1' : '0',
+                activeCall?.isVideo || activeCall?.isVideoCall ? 'v' : 'a',
+              ].join('|');
+              if (signature !== lastActiveSignature) {
+                const activeId = callIdOf(activeCall);
+                // Current WhatsApp Web can expose a ringing call only through
+                // CallStore.activeCall.  The public call.incoming_call event is
+                // not reliable enough to be the sole alert source (especially
+                // for group calls). Promote that active slot into the exact same
+                // incomingcall pipeline so Python rings, opens the accessible
+                // dialog and can answer it. emitCall() also emits callstate.
+                if (
+                  isIncomingRingingCall(activeCall) &&
+                  activeId &&
+                  activeId !== lastActiveIncomingOfferId &&
+                  !isHistoricalIncomingCall(activeCall, 'activeCall')
+                ) {
+                  rememberCall(activeCall);
+                  emitCall('offer', activeCall, 'INCOMING_RING');
+                  lastActiveIncomingOfferId = activeId;
+                } else {
+                  emitCallState('state', activeCall, state);
+                }
+                lastActiveSignature = signature;
+              }
+              lastActiveCall = activeCall;
+            } catch (e) {
+              // A later poll can recover from WhatsApp replacing CallStore.
+            }
+          };
+          // This listener is installed as soon as WA-JS appears, which can be
+          // before WhatsApp's own bundle has replaced window.setInterval and
+          // clearInterval with its JSScheduler wrappers. Measured live on
+          // 2026-09-21: the poll's native timer (id 4) had silently stopped
+          // -- a logpoint on its first line never fired while a fresh
+          // interval ticked normally -- so no call state reached Python at
+          // all: an outgoing call the other person rejected kept the call
+          // window open and the microphone capturing until the user hung up
+          // by hand. The closure (lastActiveCall and friends) is kept; only
+          // the timer is re-created, by the Node-side watchdog, whenever the
+          // last tick is stale.
+          // Both polls of this listener are (re)armed here. Clearing the old
+          // ids is for a false-positive rearm (page busy > 2 s, old timers
+          // alive); the first ids come from the browser's own setInterval, and
+          // WhatsApp's clearInterval wrapper only cancels ids it issued
+          // itself, so at worst an old timer keeps running once -- harmless,
+          // the closures dedupe by signature.
+          const armCallStatePoll = () => {
+            for (const name of ['__winzappCallStatePoll', '__winzappIncomingCallPoll']) {
+              try {
+                window.clearInterval((window as any)[name]);
+              } catch (_) {
+                // An id from before WhatsApp's wrapper: nothing to clear.
+              }
+            }
+            const now = Date.now();
+            (window as any).__winzappCallStatePollLastTick = now;
+            (window as any).__winzappIncomingCallPollLastTick = now;
+            (window as any).__winzappCallStatePoll = window.setInterval(
+              callStatePollTick,
+              250
+            );
+            (window as any).__winzappIncomingCallPoll = window.setInterval(
+              incomingCallPollTick,
+              500
+            );
+          };
+          (window as any).__winzappRearmCallStatePoll = armCallStatePoll;
+          armCallStatePoll();
           return true;
         }, listenerStartedAt)
         .then((installed: boolean) => {
@@ -1507,6 +2532,36 @@ export default class CreateSessionUtil {
     // Re-install on page reload (fresh JS context loses the listener)
     client.page.on('load', installListener);
     installListener();
+
+    // The page-side call-state poll can lose its timer (see
+    // armCallStatePoll above). Check its heartbeat from here and re-arm it;
+    // one watchdog per client, replaced when listeners are wired again.
+    const previousWatchdog = (client as any).__winzappCallPollWatchdog;
+    if (previousWatchdog) clearInterval(previousWatchdog);
+    let watchdogBusy = false;
+    const watchdog = setInterval(() => {
+      const page: any = client.page;
+      if (!page || page.isClosed?.()) {
+        clearInterval(watchdog);
+        return;
+      }
+      if (watchdogBusy) return;
+      watchdogBusy = true;
+      page
+        .evaluate(reviveStalledCallStatePoll, CALL_STATE_POLL_STALE_MS)
+        .then((result: string) => {
+          if (result === 'rearmed') {
+            req.logger.warn(
+              `[${client.session}] call-state poll had stopped ticking; re-armed`
+            );
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          watchdogBusy = false;
+        });
+    }, CALL_STATE_POLL_WATCHDOG_MS);
+    (client as any).__winzappCallPollWatchdog = watchdog;
   }
 
   /**
@@ -1697,7 +2752,7 @@ export default class CreateSessionUtil {
         return;
       }
 
-      req.io.emit('incomingcall', {
+      req.io.to(`session:${client.session}`).emit('incomingcall', {
         ...call,
         session: client.session,
         timestamp: offerTimeMs ? Math.floor(offerTimeMs / 1000) : 0,

@@ -25,6 +25,11 @@ from main import MainWindow
 
 class _Stub:
     _on_end_session = MainWindow._on_end_session
+    # The body moved here when the teardown was hoisted to WM_QUERYENDSESSION
+    # (Windows kills our Node before WM_ENDSESSION); _on_end_session now only
+    # delegates. Everything this file pins is behaviour of the shared method,
+    # reached through the handler exactly as production reaches it.
+    _run_windows_session_teardown = MainWindow._run_windows_session_teardown
     _END_SESSION_UNSTICK_SECONDS = 0.05
     _WINDOWS_SHUTDOWN_BUDGET = MainWindow._WINDOWS_SHUTDOWN_BUDGET
 
@@ -34,6 +39,10 @@ class _Stub:
         self._teardown_complete_event = threading.Event()
         self.stop_wpp_server_calls = 0
         self.flush_calls = 0
+        self.restart_calls = 0
+
+    def _restart_wpp_after_cancelled_shutdown(self):
+        self.restart_calls += 1
 
     def _shutdown_audit(self, msg):
         pass
@@ -65,7 +74,11 @@ class TestShuttingDownIsSetImmediately:
 
         assert s._shutting_down is True
         assert s.stop_wpp_server_calls == 1
-        assert event.skipped is True
+        # Deliberately NOT skipped: Skip() resumes the handler search and
+        # reaches wxApp::OnEndSession (DeleteAllTLWs/OnExit/exit()), spending a
+        # Windows budget this teardown has already used. See
+        # tests/test_windows_shutdown_handlers.py.
+        assert event.skipped is False
 
     def test_signals_teardown_complete_when_it_owns_teardown(self):
         """A real_exit()/_ipc_quit() call that lost the lock race waits on
@@ -99,7 +112,11 @@ class TestDoesNotDoubleTeardownWhenAlreadyInProgress:
 
         assert s.stop_wpp_server_calls == 0
         assert s.flush_calls == 0
-        assert event.skipped is True
+        # Deliberately NOT skipped: Skip() resumes the handler search and
+        # reaches wxApp::OnEndSession (DeleteAllTLWs/OnExit/exit()), spending a
+        # Windows budget this teardown has already used. See
+        # tests/test_windows_shutdown_handlers.py.
+        assert event.skipped is False
 
     def test_does_not_signal_completion_for_teardown_it_does_not_own(self):
         """This path only skips out of the way -- the OTHER path (still
@@ -146,6 +163,22 @@ class TestSelfHealingUnstick:
             "a Windows shutdown that never actually completed must not leave "
             "logout detection permanently disabled for the rest of the session"
         )
+
+    def test_unstick_puts_wppconnect_back(self):
+        """The unstick timer can only ever fire in a process that outlived the
+        shutdown, i.e. one another app cancelled. The teardown already ran at
+        WM_QUERYENDSESSION and killed Node, and nothing else in the app restarts
+        a dead Node PROCESS -- the health checker only re-issues /start-session,
+        which needs a server to talk to. Without this the app would sit offline
+        until the user relaunched it."""
+        s = _Stub()
+        s._on_end_session(_FakeEvent())
+
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline and s.restart_calls == 0:
+            time.sleep(0.01)
+
+        assert s.restart_calls == 1
 
     def test_unstick_also_clears_the_stale_completion_signal(self):
         """Left set, a LATER genuinely-new teardown's loser would see this

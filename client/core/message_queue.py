@@ -37,7 +37,8 @@ class PendingMessage:
                  contact_info: dict = None,
                  quoted: dict = None,
                  mentioned_jids: list = None,
-                 link_preview: dict = None):
+                 link_preview: dict = None,
+                 stereo: bool = False):
         # local_id matches the "_local_id" field in the virtual message dict
         # that was already added to the UI.
         self.local_id      = local_id
@@ -45,6 +46,9 @@ class PendingMessage:
         self.text          = text           # plain-text body
         self.audio_path    = audio_path     # path to recorded WAV
         self.ogg_bytes     = ogg_bytes      # pre-encoded OGG Opus (skips encoding on send)
+        # A stereo voice message (core/voice_stereo.py): a retry that has to
+        # encode audio_path again must keep the channels the first try had.
+        self.stereo        = bool(stereo)
         self.media_path    = media_path     # path to attached file (image/video/doc/audio)
         self.media_type    = media_type     # "image"|"video"|"audio"|"document"
         self.caption       = caption or ""  # optional caption for media
@@ -79,6 +83,7 @@ class MessageQueue:
         self._in_flight: set = set()
         self._lock   = threading.Lock()
         self._stop   = threading.Event()
+        self._held   = threading.Event()
         self._quick_event = threading.Event()
         self._media_event = threading.Event()
         self._workers = (
@@ -109,6 +114,66 @@ class MessageQueue:
         """
         self._quick_event.set()
         self._media_event.set()
+
+    # -- A planned disconnection (the profile backup) ------------------------
+    # A backup taken with WinZapp open closes the WhatsApp session for as long
+    # as the copy takes, which can be minutes
+    # (MainWindow._refresh_profile_snapshot_live). Every send attempted in that
+    # window is at best wasted work against a session that is deliberately
+    # gone, and at worst a message reported failed to the user. While held, the
+    # workers attempt nothing at all and every message simply waits, exactly as
+    # it does while offline. The caller must release() in a finally: a queue
+    # left held sends nothing for the rest of the launch. Single holder —
+    # MainWindow._live_snapshot_pending is what guarantees only one backup runs
+    # — so this is deliberately not reference counted.
+    #
+    # wait_until_idle() is the load-bearing half of the pair. The session
+    # middleware (api_patches/src/middleware/statusConnection.ts) already turns
+    # every "session gone" shape into the 404 that keeps a message queued, so a
+    # send attempted after the close is largely safe on its own; what nothing
+    # covers is a request already past that middleware when Chrome is killed,
+    # which becomes an *ambiguous* outcome the queue deliberately never retries.
+    #
+    # Note what a hold shares with offline mode: messages waiting in it are
+    # discarded without a report if the app is quit meanwhile (stop() waits only
+    # for what is on the wire). The window is the length of a backup, and unlike
+    # offline mode the app chose it while looking online to the user.
+
+    def hold(self):
+        """Stop attempting sends, keeping everything queued, until release()."""
+        self._held.set()
+
+    def release(self):
+        """Resume sending, and try right away rather than after the interval."""
+        if self._held.is_set():
+            self._held.clear()
+            self.flush()
+
+    def is_held(self) -> bool:
+        return self._held.is_set()
+
+    def has_work(self) -> bool:
+        """Whether any message is queued or being sent right now."""
+        with self._lock:
+            return bool(self._pending or self._in_flight)
+
+    def wait_until_idle(self, timeout: float) -> bool:
+        """Wait for sends already on the wire to finish. True when none is left.
+
+        Nothing can recall a request in flight, so a caller about to close the
+        session waits for it rather than cutting it off — that is what turns a
+        send seconds from succeeding into an unconfirmed one. Bounded, and the
+        caller decides what to do when it runs out. Polls at
+        _STOP_DRAIN_POLL_SECONDS, which stop()'s own drain shares.
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            with self._lock:
+                if not self._in_flight:
+                    return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(self._STOP_DRAIN_POLL_SECONDS)
 
     def cancel(self, local_id: str) -> bool:
         """Cancel a queued or in-flight message by its local UI identifier.
@@ -271,6 +336,11 @@ class MessageQueue:
             if self._stop.is_set():
                 break
 
+            # A planned disconnection owns the session: attempt nothing, so
+            # every message stays queued rather than spending its retries.
+            if self._held.is_set():
+                continue
+
             # While offline or WhatsApp disconnected: skip this cycle.
             if self.main_window.offline_mode:
                 continue
@@ -286,6 +356,8 @@ class MessageQueue:
             for msg in items:
                 if self._stop.is_set():
                     break
+                if self._held.is_set():
+                    break
                 if self.main_window.offline_mode:
                     break
                 if not getattr(self.main_window, "_wa_connected", True):
@@ -296,6 +368,13 @@ class MessageQueue:
                 # the send would be told "stopped for good" while this thread
                 # went on to send the message anyway.
                 with self._lock:
+                    # Under the same lock wait_until_idle() reads: checked only
+                    # outside it (above), a hold landing between that check and
+                    # this claim would be invisible to a caller about to close
+                    # the session, and the POST it let through would die with
+                    # the browser as an ambiguous send nothing ever retries.
+                    if self._held.is_set():
+                        break
                     if msg.cancel_event.is_set():
                         continue
                     self._in_flight.add(msg.local_id)
@@ -312,6 +391,7 @@ class MessageQueue:
                         real_id = self.main_window.send_audio_message(
                             msg.jid, msg.audio_path, quoted=msg.quoted,
                             ogg_bytes=msg.ogg_bytes,
+                            stereo=getattr(msg, "stereo", False),
                         )
                     elif msg.media_path:
                         def _media_progress(progress, pending=msg):
@@ -375,6 +455,16 @@ class MessageQueue:
                         # right here. main_window._wa_connected was just set to
                         # False by the send call, so the next loop iteration
                         # parks the whole queue until the connection is back.
+                        #
+                        # One 404 deliberately does not set it: the one that
+                        # carries reason "probe_timeout", where WPPConnect's own
+                        # connection probe went unanswered and nothing was
+                        # learned about WhatsApp (see
+                        # MainWindow._check_wa_connection_closed). The break
+                        # still applies — the send provably never reached a
+                        # controller — but with the flag untouched the queue
+                        # simply picks the message up again on the next cycle
+                        # instead of parking.
                         logging.info(
                             "[MessageQueue] %s stays queued — WhatsApp disconnected", msg.local_id
                         )

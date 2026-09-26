@@ -13,6 +13,8 @@
         "updates_enabled": true,
         "alpha_updates_enabled": false,
         "noise_reduction_enabled": false,
+        "voice_message_stereo": false,
+        "spell_check_mode": "windows",
         "first_run": true,
         "api_type_first_run_asked": false,
         "hotkey_first_run_asked": false,
@@ -36,19 +38,35 @@
         "alerts_enabled": true,
         "popup_enabled": true
     },
+    "profile_backup": {
+        "close_snapshot_min_hours": 24,
+        "live_snapshot_enabled": false,
+        "live_snapshot_interval_hours": 24,
+        "live_snapshot_confirm": true
+    },
+    "reactions": {
+        "fixed_quick_reactions": false,
+        "quick_reaction_slots": ["\u2764\ufe0f", "\ud83d\udc4d", "\ud83d\udc4e", "\ud83d\ude02", "\ud83d\ude2e", "\ud83d\ude22", "\ud83d\ude4f", "\ud83d\udd25", "\ud83c\udf89", "\ud83d\udcaf", "\ud83d\ude0e", "\ud83e\udd70"]
+    },
     "user_interface": {
         "messages_page_size": 200,
         "page_jump_size": 15,
         "focus_on_open": "message_field",
-        "voice_record_focus": "send_button",
+        "voice_record_focus": "send",
         "message_list_mode": "classic",
         "show_listbox_item_count": false,
-        "page_up_down_step": 10,
+        "page_up_down_step": 15,
         "self_reference_mode": "eu",
         "self_reference_custom_word": "",
         "show_delivery_status_in_chat_list": true,
         "preserve_typed_text_as_attachment_caption": true,
         "bulk_action_shortcuts": true,
+        "confirm_mark_all_read": true,
+        "confirm_resync_all": true,
+        "confirm_resync_conversation": true,
+        "warn_stereo_voice_iphone": true,
+        "space_selects_in_selection_mode": true,
+        "escape_clears_selection": true,
         "auto_focus_next_audio": true,
         "selected_announcement_position": "end",
         "show_yesterday_label": true,
@@ -67,6 +85,16 @@
         "output_device_name": "",
         "effects_output_device_name": "",
         "input_device_name": ""
+    },
+    "call_audio_devices": {
+        "output_device_name": "",
+        "input_device_name": "",
+        "exclusive_input": false,
+        "exclusive_output": false,
+        "echo_cancellation": false
+    },
+    "call_video_devices": {
+        "camera_name": ""
     },
     "accessibility": {
         "extended_sr_compat_enabled": true,
@@ -103,6 +131,7 @@
     },
     "conversation_sounds": {},
     "cleared_chats": {},
+    "cleared_starred_chats": {},
     "storage": {
         "auto_download_media": true,
         "auto_download_media_types": [

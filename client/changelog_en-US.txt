@@ -1,3 +1,129 @@
+V1.1.2.0
+
+This release fixes situations where WinZapp asked you to pair again when it did not need to, brings a faster way to select several items at once, and adds options to the confirmations for clearing a chat and for marking all chats as read.
+
+WHAT'S NEW
+
+- React with any emoji. "Add more reactions" at the end of the 12 quick choices opens the full picker; emojis you use often gradually take their place among those quick choices, most used first. If you would rather find each reaction in the same position every time, use the new Reactions tab in Settings: with "Use fixed quick reactions" on, the 12 positions no longer change with use, and Enter on a position opens the emoji picker to choose which reaction goes there.
+
+- Show a file saved with Save As in its folder. Once that user-chosen copy exists, use Ctrl+Enter, the "Show in folder" context-menu item or the Tab-reachable button beside Open and Save As to open File Explorer with it selected; internal downloads alone do not expose the action.
+
+- Choose whether starred messages stay when clearing a chat. The clear confirmation now has a "Keep starred messages" option, ticked by default, just like WhatsApp Web. Unticked, starred messages are cleared along with everything else, on your phone too. It applies to clearing one chat, several selected chats or an archived one.
+
+- Confirmation before marking all chats as read. The command now asks first, with No as the default, so a stray Alt followed by Enter no longer marks everything as read, on your phone too. The question has a "Don't show again" option: ticked and confirmed with Yes, later requests mark everything straight away. To be asked again, use the "Ask for confirmation before marking all chats as read" option in the User Interface tab of Settings.
+
+- Profile backup in Settings. The new Profile backup tab sets how often WinZapp renews, when it closes, the copy of the browser profile it uses to recover the connection, every 24 hours by default. The backup can also be taken while WinZapp is open, at the interval you choose: WhatsApp is disconnected while it runs, which can take a few minutes, and WinZapp can ask before each one. A new backup only replaces the previous one once WhatsApp has connected again with it.
+
+- Export and import your settings. In the File menu, “Export settings” writes your preferences to a file and “Import settings” applies that file here, right away, without restarting — for moving everything to another computer or another account. Your WhatsApp connection, and what belongs to one account such as cleared chats and per-chat sounds, stay out of the file. If you run your own API, its address, port and key travel with it.
+
+- Space plays and pauses the focused audio or video. That key did nothing in the message list before. It stays narrower than Enter: it never opens a link, a document, the viewer or a contact's conversation.
+
+- Selection mode. Once you have selected the first item with Ctrl+Space, Space on its own selects and deselects the following ones — in the chat list, in the message list and in the forward window — without holding Ctrl for every one of them. The screen reader says when the mode turns on and when it turns off, and it turns off by itself as soon as nothing is selected any more. If you would rather Space always played, untick "Use Space to select/deselect whenever a selection already exists" in Settings, User Interface.
+
+- Esc deselects before closing. With messages selected, the first Esc only deselects them all and just the second one closes the conversation. It can be turned off in Settings, User Interface too.
+
+- Stereo voice messages. With a microphone that really records in stereo, a voice message can keep the sound of both sides. Tick "Record voice messages in stereo by default" in the Audio Devices tab of Settings, or use the new button below "Record voice message" (Ctrl+Shift+G) to record just one message in the other mode: stereo when the default is mono, mono when it is stereo. People using an iPhone can't play stereo voice messages, so WinZapp warns you first, with a "Don't show again" option; to be warned again, use the matching option in the User Interface tab. If the microphone doesn't provide two channels, the message is recorded in mono and WinZapp tells you.
+
+- Resync only the open chat with Shift+F5, also in the Sync menu. Unlike F5, which deletes and downloads every chat again, Shift+F5 fetches the open chat's messages from WhatsApp again, puts any missing ones in the right place and removes the ones that no longer exist there, without touching older history. F5 and Shift+F5 now ask for confirmation, with No as the default and a "Don't show again" option; to be asked again, use the matching options in the User Interface tab of Settings.
+
+- The global hotkey that brings WinZapp back from the system tray now also sends it there: with WinZapp in the foreground, the same hotkey hides it to the tray. In every other situation it still brings the window to the front.
+
+FIXES
+
+- Starting a voice message with recording announcements silenced no longer lets the screen reader begin saying “Send” before being cut off. WinZapp now avoids the automatic focus move that caused the clipped announcement while keeping Ctrl+R, Ctrl+Shift+P and Ctrl+Shift+D available.
+
+- Answered incoming calls are no longer marked “not answered” two minutes later. WinZapp now retires the incoming-call timer when a call is answered, rejected or ended, and brief WhatsApp Web call-state transitions no longer end an active call by mistake.
+
+- Messages you had selected in a conversation stayed selected after you closed it, and came back selected when you opened it again. The selection now ends with the conversation.
+
+- When WhatsApp refused the connection right after the app was opened, the backup copy of the browser profile was never restored: if pairing codes started arriving in the first few seconds, WinZapp closed the session and sent you to pair again even with a good copy saved. It now restores the copy as soon as the first code appears, and only asks you to pair when the restore does not help.
+
+- Adding a group member by phone number did nothing: the "Add number" button added nobody and showed no error. It now adds the number right away and tells you whether it worked, and an invalid number is reported. In the same dialog, the search field is now read as "Search contact".
+
+- With a chat open, the message list shrank back to the configured limit every minute, and older messages disappeared — including from the stored history. WinZapp mistook messages outside the range it checks on WhatsApp for messages deleted on the phone. A message is now only removed when WhatsApp shows it really no longer exists — never just because it could not be found, and never within the period a profile recovery rolled back — and the list no longer shrinks while you read.
+
+- In groups with many participants, group info could sit on "Loading..." for minutes — Overview and the Participants list only appeared after WinZapp had looked up, one at a time, the number of every member whose number it did not know yet. It looked frozen, and only closing and reopening the dialog brought it back. The info now appears as soon as the group answers, and missing names and numbers are filled into the list afterwards, without moving you off the row you are on.
+
+- Changing the language in Settings and pressing Apply now translates every option. Some stayed in the previous language until Settings was closed and opened again, such as "When opening a chat, show up to this many messages" and "Messages to skip when pressing Page Up / Page Down".
+
+- The default audio playback speed no longer drops back to 1x on its own. When Settings opened, the field in the Audio playback tab was empty whatever speed was saved, and pressing Apply and then OK saved 1x over it. The saved speed is now shown selected and kept.
+
+- After WinZapp recovers the browser profile, chats with unread messages no longer show up as read.
+
+- Copying part of the message text window (Alt+C) brought along line breaks the message did not have, wherever the window splits long lines to make them easier to read. Copying now gives you the message as it was written, with only its own line breaks.
+
+- Messages WhatsApp had not managed to load yet disappeared from the chat, and a reply to one of them quoted a message that appeared nowhere. This happens, for example, with messages from someone who changed phones, until that person's phone sends them again. They now show as "Waiting for this message. This may take a while.", as in WhatsApp, and are replaced by the text as soon as it arrives, or earlier, when someone replies quoting the message.
+
+- A group's unread counter could disappear when someone reacted to a message, even with messages still unread, and in groups with system notices it went down on its own every minute. The counter now shows the messages that really are unread.
+
+- When copying a message (Ctrl+C), opening its text (Alt+C) or copying several at once, the people it mentioned came out as phone numbers, or as a meaningless string of digits, instead of the name shown in the message list. They now come out as names.
+
+- With a custom notification sound and no file chosen, in a chat's data or in the Alert Tones tab of Settings, the preview button stayed available and showed an error. It now only appears when the typed path leads to a file that exists.
+
+V1.1.1.0
+
+This release is about keeping your account connected. WinZapp now keeps a backup copy of the browser profile — which is where your WhatsApp connection actually lives — and restores it on its own when it stops being accepted, telling you what happened. Alongside it come fixes for the situations that broke the session and left the app asking you to pair again: shutting the computer down, suspending and resuming, and the app restarting the connection by itself. Spell checking in the message field and link actions arrived too.
+
+WHAT'S NEW
+
+- Automatic browser profile recovery. Your WhatsApp connection is stored in the browser profile WinZapp uses underneath, and when that profile stopped being accepted the only way out was to pair again. WinZapp now keeps a backup copy of it, keeps the previous copy as well, and restores it on its own when it sees the connection was refused — saying out loud that it restored and is reconnecting. It never offers back a copy WhatsApp has already refused, and when no usable copy exists it says so plainly instead of leaving you offline with no explanation.
+
+- Spell checking in the message field. In Settings you choose between following Windows' own spelling setting (the default), always on, or always off. There is also a dedicated spelling-error sound, configurable alongside the other sounds.
+
+- Link actions on messages. When a message contains links, the context menu now offers Open link and Copy link for the link you are on, and Ctrl+C copies that link instead of the whole message.
+
+- A warning when the internal browser is incomplete. If the browser WinZapp uses to connect to WhatsApp cannot start — usually because antivirus software removed part of it — the app says so in plain words and explains what to do, instead of looking like a WhatsApp problem.
+
+- A warning for an unconfirmed send. When WhatsApp accepts a message but does not confirm delivery, WinZapp tells you to check the conversation before resending, rather than risking the same message arriving twice.
+
+IMPROVEMENTS
+
+- Starting with Windows now connects far sooner. The app used to wait for the connection only after it had already tried to use it, and spent a long time showing "disconnected from WhatsApp" for no reason. It now waits for everything to be ready before appearing in the system tray.
+
+- The message list is no longer rebuilt in full every minute. Only the rows that actually changed are rewritten, so the screen reader stops re-reading the message you are on and the selection sound no longer fires by itself.
+
+- Fewer sync notifications on your phone. WinZapp only asks the phone for older history in conversations you have opened, one request at a time, and stops asking altogether once a conversation has answered that it has nothing more.
+
+- Conversations the sync had stopped looking at are checked again on their own, without you having to refresh with F5.
+
+- With several accounts open at once, a WinZapp update opens a single window instead of one per account.
+
+- Audio: WinZapp asks the microphone for its own sample rate before trying the fixed ones, and sound output recovers on its own when the default device changes or is unplugged.
+
+- Reactions that arrived while a conversation was closed now show up when you open it.
+
+- Line breaks in the message box can now be navigated normally by the screen reader.
+
+- Updated WhatsApp connection (WPPConnect 2.10.21), including security fixes, and WinZapp now notices on its own when that connection has drifted and needs reinstalling.
+
+FIXES
+
+- Shutting the computer down no longer breaks the session. WinZapp closed the WhatsApp connection too late in the Windows shutdown, once the process holding it had already been killed — and the profile came back unusable, asking to pair again next time. It now closes everything while Windows is still asking whether it may shut down.
+
+- Suspending the computer no longer breaks the session. On resume, WinZapp restarted the connection without waiting for the browser to finish writing what it had in hand, and that alone was enough to lose the pairing. It now waits.
+
+- Replying to a status works again. The reply failed saying it could not be sent.
+
+- An ambiguous send failure no longer produces duplicate messages: when there is no way to tell whether WhatsApp received it, WinZapp does not resend on its own.
+
+- Downloading large documents is possible again. Files of a few hundred megabytes announced "downloading" and produced nothing.
+
+- The upload and download progress indicator now reports the transfer that is actually happening, and no longer keeps spinning on a message that has finished or appears on the wrong row.
+
+- Cancelling or closing the pairing screen no longer deletes your conversations, and neither does a momentary authentication failure at startup. History is only cleared when a different phone number is genuinely connected — and WinZapp tells you when that happens.
+
+- The QR code is only announced once it is genuinely on screen. WinZapp used to say "the QR code was updated" before any code had been shown at all, which made the code seem to appear only on the second try. The pairing screen now says the code is being generated, announces it when it actually appears, and says when it could not be generated or when the pairing code has expired — instead of staying silent or announcing an update that never happened.
+
+- Unread counts: conversations no longer come back as unread without a new message having arrived.
+
+- The phantom character that appeared in the message field when returning from another program with NVDA running is gone.
+
+- Copying a voice message now works.
+
+- Conversations that showed a number instead of a name are now resolved.
+
+- Switching accounts now clears the previous account's media properly, which could otherwise be left behind on the computer.
+
 V1.1.0.0
 
 This release adds the Media tab, a media viewer in its own window, link previews, bulk actions and an Accessibility tab in settings. Conversation syncing is much faster, and the conversation list is no longer rebuilt on every message, which cuts down a great deal of screen-reader re-reading.
@@ -103,3 +229,13 @@ FIXES
 - Playing voice messages back to back no longer reads the whole previous row out loud over the new one.
 
 - The option to silence the screen reader while recording audio now stops the announcement at the source, instead of trying to cancel it after it has already started.
+
+- Adding a new contact through WinZapp could duplicate the conversation and leave its first message permanently stuck as "not confirmed" whenever WhatsApp recognized that number in a different format (e.g. with or without the 9th digit).
+
+- A group's name changed on WhatsApp is now picked up by WinZapp, including on an F5 resync. Before, the old name was never replaced.
+
+- Switching the sound output device in Settings while an audio was playing could make the first attempt to play another audio silently fail; it now plays on the first try.
+
+- Disconnecting from File > Disconnect no longer plays the "connected"/"sync started" sounds again or tries to reconnect on its own — the account stays properly disconnected.
+
+- The update installer's log now lives inside the account's own logs folder (alongside log.log and shutdown_audit.log), instead of loose in the program folder.

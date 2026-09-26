@@ -28,6 +28,8 @@ Same stub approach as tests/test_qrcode_auto_repair_dialog.py — WebSocketClien
 methods bound onto a plain object, no socketio and no wx.App.
 """
 
+import time
+
 import pytest
 
 from core.websocket_client import WebSocketClient
@@ -67,12 +69,20 @@ class _FakeField:
 
 
 class _FakeConnect:
-    def __init__(self, mode="qrcode", main_window=None):
+    def __init__(self, mode="qrcode", main_window=None, qr_displayed=True):
         self.connection_mode = mode
         self.main_window = main_window
         self.show_connection_dial_calls = 0
         self.displayed = []
         self.pairing_code_field = _FakeField()
+        # Whether a QR is already painted. The refresh announcement is gated on
+        # it, because the FIRST code arrives through this same branch — the
+        # single status-session poll fires 71 ms after /start-session, measured
+        # 5.4 s before the event — and calling that a refresh is what made the
+        # QR seem to appear only on the second try. Defaults True: every test
+        # here but one is about a rotation, which by definition has one on
+        # screen already. See tests/test_qr_is_announced_when_it_exists.py.
+        self._qr_displayed = qr_displayed
 
     def show_connection_dial(self):
         self.show_connection_dial_calls += 1
@@ -80,6 +90,16 @@ class _FakeConnect:
         # looking at the pairing UI, so both unattended-QR guards are dropped.
         # Without this the fake made the flood limit look one event closer
         # than production ever reaches it.
+        #
+        # It does NOT mirror the other half: the real dialog is modal, so in
+        # production every later code is attended and _update_ui() zeroes the
+        # counter on each one, before any branch runs (websocket_client.py) —
+        # _pairing_attended() is only the condition it tests, never the thing
+        # that writes. Here it keeps counting after the call.
+        # No test relies on that difference today — the dismissal tests
+        # model a dialog already closed — but a test that opens the dialog and
+        # then expects production's counts must set _pairing_dialog_active
+        # itself.
         self.main_window._reset_unattended_qr_guards()
 
     def display_qrcode_image(self, base64_img):
@@ -100,6 +120,28 @@ class _FakeMainWindow:
         self._pairing_in_progress = False
         self._auto_repair_dialog_shown = False
         self.halt_calls = 0
+        # Whether a snapshot exists to put back before the user is asked to
+        # pair by hand. False everywhere in this module: these tests are about
+        # what happens when nothing can be repaired, which is the path that
+        # still has to reach the dialog and the flood ceiling.
+        self.profile_restore_available = False
+        self.recover_calls = []
+        # Well past the startup grace window by default (see
+        # tests/test_qrcode_auto_repair_dialog.py::TestStartupGraceWindow
+        # for the dedicated coverage of that window itself) — nothing in
+        # this file is testing startup timing, so it should not interact.
+        self._wa_connect_announced = True
+        self._WA_STARTUP_GRACE_SECONDS = MainWindow._WA_STARTUP_GRACE_SECONDS
+        self._wa_startup_time = time.time() - (self._WA_STARTUP_GRACE_SECONDS * 10)
+
+    def _profile_restore_worth_trying(self):
+        return bool(self.profile_restore_available)
+
+    def _recover_suspect_profile(self, reason=None, on_give_up=None):
+        # on_give_up fires only when a restore was started and then failed;
+        # a False return means nothing was started. See the real method.
+        self.recover_calls.append(reason)
+        return bool(self.profile_restore_available)
 
     def _is_pairing_dialog_active(self):
         return self._pairing_dialog_active
@@ -123,8 +165,11 @@ class _Stub:
     on_qrcode_update = WebSocketClient.on_qrcode_update
     _pairing_attended = WebSocketClient._pairing_attended
     _handle_unattended_qr = WebSocketClient._handle_unattended_qr
+    _qr_within_startup_grace = WebSocketClient._qr_within_startup_grace
     _show_repair_dialog = WebSocketClient._show_repair_dialog
+    _repair_gave_up = WebSocketClient._repair_gave_up
     _UNATTENDED_QR_LIMIT = WebSocketClient._UNATTENDED_QR_LIMIT
+    _REPAIR_DIALOG_CONFIRM_EVENTS = WebSocketClient._REPAIR_DIALOG_CONFIRM_EVENTS
     _extract_qr_payload = staticmethod(WebSocketClient._extract_qr_payload)
 
     def __init__(self, main_window, connect):
@@ -170,15 +215,24 @@ class TestNoAnnouncementWithoutADialog:
 
     def test_it_surfaces_the_re_pairing_dialog_instead(self):
         """The branch the mode check used to shadow. This is what the user
-        should have seen instead of an endless 'QR code updated'."""
+        should have seen instead of an endless 'QR code updated' — once
+        confirmed by a second event (see
+        tests/test_qrcode_auto_repair_dialog.py::TestProactivePairingDialog
+        for why a single one is no longer enough)."""
         mw = _FakeMainWindow(paired=True, pairing_dialog_active=False)
         connect = _FakeConnect(mode="qrcode", main_window=mw)
         s = _Stub(mw, connect)
 
         s.on_qrcode_update(QR_EVENT)
+        s.on_qrcode_update(QR_EVENT)
 
         assert connect.show_connection_dial_calls == 1
         assert mw.restore_window_calls == 1
+        # Nothing has been closed or announced on this route, so the sound is
+        # the only cue the user gets before the modal takes focus. It is the
+        # other half of the post-halt route's play_sound=False: asserting one
+        # without the other lets the default be flipped with the suite green.
+        assert mw.error_sound.plays == 1
 
 
 class TestNormalRotationStillWorks:
@@ -194,6 +248,18 @@ class TestNormalRotationStillWorks:
         assert mw.speak_output.spoken == ["qrcode_image_updated"]
         assert connect.displayed == [QR_EVENT["data"]]
         assert connect.show_connection_dial_calls == 0
+
+    def test_the_very_first_code_is_not_announced_as_an_update(self):
+        """It still gets drawn — display_qrcode_image() is what announces it,
+        at the moment it is really on screen."""
+        mw = _FakeMainWindow(paired=True, pairing_dialog_active=True)
+        connect = _FakeConnect(mode="qrcode", main_window=mw, qr_displayed=False)
+        s = _Stub(mw, connect)
+
+        s.on_qrcode_update(QR_EVENT)
+
+        assert mw.speak_output.spoken == []
+        assert connect.displayed == [QR_EVENT["data"]]
 
     def test_phone_mode_updates_the_field(self):
         mw = _FakeMainWindow(paired=True, pairing_dialog_active=True)
@@ -275,20 +341,22 @@ class TestUnattendedFloodIsBounded:
         was dismissed. Without this the stream ran unbounded again, which is
         the exact shape of the original bug.
 
-        LIMIT + 1 events, not LIMIT: opening the dialog on the first one goes
-        through show_connection_dial(), which zeroes the counter (a human is
-        looking at the pairing UI), so the counted run only starts afterwards.
+        The dialog opens on the _REPAIR_DIALOG_CONFIRM_EVENTS'th event, which
+        goes through show_connection_dial() and zeroes the counter (a human
+        is looking at the pairing UI) — so the counted run towards the halt
+        only starts afterwards, and needs its own full _UNATTENDED_QR_LIMIT.
         """
         mw = _FakeMainWindow(paired=True, pairing_dialog_active=False)
         connect = _FakeConnect(mode="qrcode", main_window=mw)
         s = _Stub(mw, connect)
 
-        for _ in range(WebSocketClient._UNATTENDED_QR_LIMIT):
+        for _ in range(WebSocketClient._REPAIR_DIALOG_CONFIRM_EVENTS):
             s.on_qrcode_update(QR_EVENT)
         assert connect.show_connection_dial_calls == 1
         assert mw.halt_calls == 0
 
-        s.on_qrcode_update(QR_EVENT)
+        for _ in range(WebSocketClient._UNATTENDED_QR_LIMIT):
+            s.on_qrcode_update(QR_EVENT)
         assert mw.halt_calls == 1
 
     def test_halting_is_asked_for_once_per_outage(self):
@@ -386,6 +454,109 @@ class TestNeverPairedGetsARouteBack:
             s.on_qrcode_update(QR_EVENT)
 
         assert connect.show_connection_dial_calls == 1
+
+
+class TestAPairedInstallBarredByTheGraceWindowStillGetsTheExplanation:
+    """The one case the startup grace and _REPAIR_DIALOG_CONFIRM_EVENTS
+    changed the behaviour of, and the one nothing else covers: paired,
+    inside the grace window, and a full _UNATTENDED_QR_LIMIT of unattended
+    events.
+
+    TestStartupGraceWindow (tests/test_qrcode_auto_repair_dialog.py) stops at
+    two events, and the flood tests above are all outside the grace window —
+    one with paired=False, the other already past the dialog. In between,
+    every event walks past the proactive branch (withheld by the grace) and
+    reaches the halt with _auto_repair_dialog_shown still False, which is the
+    never-paired route: /close-session, which force-kills without flushing
+    auth, and then the generic pairing dialog with no word about the login
+    that was just lost. Routing that on `paired` instead is what keeps the
+    device_logged_out explanation for the user who has something to re-pair.
+
+    The halt itself must NOT move: it is the half of this protection an
+    account was banned for not having, so neither new condition may delay
+    it."""
+
+    def test_the_halt_still_fires_at_the_limit_and_the_user_is_told_why(self, monkeypatch):
+        boxes = []
+        monkeypatch.setattr(
+            "core.websocket_client.wx.MessageBox",
+            lambda text, *a, **kw: boxes.append(text),
+        )
+        mw = _FakeMainWindow(paired=True, pairing_dialog_active=False)
+        # A (re)connect that has never confirmed a live connection, seconds
+        # old: exactly the window _qr_within_startup_grace() withholds
+        # judgment for. Codes are not deduped on this path, so a boot-time
+        # burst spends the whole limit inside it.
+        mw._wa_connect_announced = False
+        mw._wa_startup_time = time.time()
+        connect = _FakeConnect(mode="qrcode", main_window=mw)
+        s = _Stub(mw, connect)
+
+        for _ in range(WebSocketClient._UNATTENDED_QR_LIMIT - 1):
+            s.on_qrcode_update(QR_EVENT)
+        # Withheld so far — that is what the grace window is for.
+        assert connect.show_connection_dial_calls == 0
+        assert mw.halt_calls == 0
+
+        s.on_qrcode_update(QR_EVENT)
+
+        assert mw.halt_calls == 1
+        assert boxes == ["device_logged_out"]
+        assert connect.show_connection_dial_calls == 1
+        assert mw.restore_window_calls == 1
+        # play_sound=False on this route: the real halt has just played this
+        # very error_sound object and spoken over it, and replaying the same
+        # stream ~0 ms later is heard as one truncated blip, not two cues.
+        # (_FakeMainWindow._halt_unattended_qr_session() plays nothing, so
+        # this counts only what _show_repair_dialog() itself did.) The
+        # MessageBox still carries its own MB_ICONERROR system sound, which
+        # is a different sound and not subject to that restart.
+        assert mw.error_sound.plays == 0
+
+    def test_a_never_paired_install_still_skips_the_logged_out_message(self, monkeypatch):
+        """The other side of the same routing: with nothing paired there is
+        no logged-out device to explain, and the halt has already played the
+        error sound and said what happened — so that install gets the pairing
+        dialog and no MessageBox, exactly as before."""
+        boxes = []
+        monkeypatch.setattr(
+            "core.websocket_client.wx.MessageBox",
+            lambda text, *a, **kw: boxes.append(text),
+        )
+        mw = _FakeMainWindow(paired=False, pairing_dialog_active=False)
+        connect = _FakeConnect(mode="qrcode", main_window=mw)
+        s = _Stub(mw, connect)
+
+        for _ in range(WebSocketClient._UNATTENDED_QR_LIMIT):
+            s.on_qrcode_update(QR_EVENT)
+
+        assert mw.halt_calls == 1
+        assert boxes == []
+        assert connect.show_connection_dial_calls == 1
+
+    def test_a_dismissed_dialog_is_not_reopened_for_a_paired_install(self, monkeypatch):
+        """The dismissal check has to keep running BEFORE the `paired` split.
+
+        Both guard the same block, and only the order separates them: swap
+        the two and a paired user who already dismissed the dialog gets a
+        fresh device_logged_out MessageBox on every flood. The pre-existing
+        cover for this branch is paired=False, which passes either way."""
+        boxes = []
+        monkeypatch.setattr(
+            "core.websocket_client.wx.MessageBox",
+            lambda text, *a, **kw: boxes.append(text),
+        )
+        mw = _FakeMainWindow(paired=True, pairing_dialog_active=False)
+        mw._auto_repair_dialog_shown = True
+        connect = _FakeConnect(mode="qrcode", main_window=mw)
+        s = _Stub(mw, connect)
+
+        for _ in range(WebSocketClient._UNATTENDED_QR_LIMIT * 3):
+            s.on_qrcode_update(QR_EVENT)
+
+        assert mw.halt_calls == 1
+        assert boxes == []
+        assert connect.show_connection_dial_calls == 0
 
 
 class TestConnectedSessionStillWins:

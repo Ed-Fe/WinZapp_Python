@@ -377,10 +377,20 @@ class TestTheTabIsAppendedAtTheEnd:
         assert self._add_pages()[-1] == "tab_transcription"
 
     def test_the_retranslation_enumerates_every_page_at_its_own_index(self):
-        """Missing line = a tab caption that never follows a language change."""
+        """Missing line = a tab caption that never follows a language change.
+
+        Every page but the last is retranslated at a fixed index. The last one
+        is Transcription, which comes after the conditional "Locked chats" tab
+        — its index is 14 or 15 depending on whether that tab is shown — so it
+        is looked up with FindPage() instead of numbered."""
         added = self._add_pages()
-        assert [key for _index, key in self._page_texts()] == added
-        assert [index for index, _key in self._page_texts()] == list(range(len(added)))
+        assert [key for _index, key in self._page_texts()] == added[:-1]
+        assert [index for index, _key in self._page_texts()] == list(range(len(added) - 1))
+        assert re.search(
+            r"SetPageText\(\s*self\._notebook\.FindPage\(self\._transcription_page\),"
+            r"\s*i18n\.t\(\"tab_transcription\"\),?\s*\)",
+            SETTINGS_DIALOG_SOURCE,
+        )
 
     def test_no_hardcoded_page_selection_reaches_the_new_tab(self):
         """Every SetSelection() in this file names a page below the new one, so

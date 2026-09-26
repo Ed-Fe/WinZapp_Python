@@ -8,6 +8,8 @@ from itertools import chain
 
 import wx
 
+from ui.dialogs.emoji_cldr_keywords_tr import EMOJI_CLDR_KEYWORDS_TR
+
 
 # Categories follow the official Unicode/CLDR emoji ordering (Emoji 17.0,
 # fully-qualified set); "frequent" stays a short curated shortcut row.
@@ -2112,6 +2114,15 @@ EMOJI_CLDR_KEYWORDS = {
 }
 # <<< EMOJI_CLDR_KEYWORDS
 
+# Search stays multilingual regardless of the selected UI language, matching
+# the established aliases above: a Turkish user may search for "mavi kalp"
+# without losing the existing English "blue heart" lookup.  The generated
+# module comes from the same Unicode CLDR release as the picker data.
+EMOJI_LOCALIZED_KEYWORD_INDEXES = (
+    EMOJI_CLDR_KEYWORDS,
+    EMOJI_CLDR_KEYWORDS_TR,
+)
+
 # Connector words describe the phrase, not the emoji. Ignoring them lets
 # natural searches such as "fone de ouvido", "bandeira do Brasil" and
 # "emoji de coração" validate against the meaningful terms.
@@ -2121,12 +2132,17 @@ SEARCH_STOP_WORDS = {
     "se", "um", "uma",
     "and", "for", "of", "the", "with",
     "con", "del", "el", "la", "las", "los", "y",
+    "bir", "icin", "ile", "ve",
 }
 
 
 def _search_text(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value or "")
-    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+    # Turkish "ı" is its own letter to Unicode, so neither NFKD nor casefold()
+    # turns it into "i" -- and casefold() lowers "I" to "i". Folding it here
+    # lets "kirmizi" and "KIRMIZI" find the CLDR term "kırmızı".
+    folded = "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+    return folded.replace("ı", "i")
 
 
 def _unicode_name(emoji: str) -> str:
@@ -2379,13 +2395,17 @@ def _build_search_index() -> tuple[dict[str, tuple[str, ...]],
             family = _family_of(emoji)
             rep = family[0] if family else emoji
             own_name = emoji if emoji == rep else ""
+            localized_keywords = tuple(
+                index.get(emoji, "")
+                for index in EMOJI_LOCALIZED_KEYWORD_INDEXES
+            )
             add(
                 words_by_row,
                 rep,
                 own_name,
                 _unicode_name(emoji),
                 alias_map.get(emoji, ""),
-                EMOJI_CLDR_KEYWORDS.get(emoji, ""),
+                *localized_keywords,
             )
             add(
                 names_by_row,
@@ -2509,9 +2529,16 @@ def insert_emoji(text_ctrl, emoji: str) -> bool:
 
 
 class EmojiPickerDialog(wx.Dialog):
-    def __init__(self, parent, i18n):
-        super().__init__(parent, title=i18n.t("emoji_picker_title"), size=(420, 480))
+    def __init__(self, parent, i18n, *, reaction_mode: bool = False,
+                 title: str | None = None, hint_text: str | None = None,
+                 ok_label: str | None = None):
+        """``reaction_mode`` picks exactly one emoji. ``title``/``hint_text``/
+        ``ok_label`` replace its reaction wording for other single-emoji uses
+        (Settings > Reactions), already translated by the caller."""
+        default_title = "react_dialog_title" if reaction_mode else "emoji_picker_title"
+        super().__init__(parent, title=title or i18n.t(default_title), size=(420, 480))
         self._i18n = i18n
+        self._reaction_mode = reaction_mode
         self._selected_emoji = ""
         self._queued_emojis: list[str] = []
         main_window = getattr(parent, "main_window", None)
@@ -2519,7 +2546,8 @@ class EmojiPickerDialog(wx.Dialog):
 
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
-        hint = wx.StaticText(panel, label=i18n.t("emoji_picker_hint"))
+        hint_key = "emoji_picker_reaction_hint" if reaction_mode else "emoji_picker_hint"
+        hint = wx.StaticText(panel, label=hint_text or i18n.t(hint_key))
         sizer.Add(hint, 0, wx.EXPAND | wx.ALL, 8)
 
         self._search_button = wx.Button(panel, label=i18n.t("emoji_picker_search"))
@@ -2568,7 +2596,8 @@ class EmojiPickerDialog(wx.Dialog):
         sizer.Add(self._list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
         buttons = wx.StdDialogButtonSizer()
-        insert_btn = wx.Button(panel, wx.ID_OK, i18n.t("emoji_picker_insert"))
+        ok_key = "react_to_message" if reaction_mode else "emoji_picker_insert"
+        insert_btn = wx.Button(panel, wx.ID_OK, ok_label or i18n.t(ok_key))
         cancel_btn = wx.Button(panel, wx.ID_CANCEL, i18n.t("cancel"))
         insert_btn.SetDefault()
         buttons.AddButton(insert_btn)
@@ -2664,7 +2693,10 @@ class EmojiPickerDialog(wx.Dialog):
         if (self._list.HasFocus()
                 and event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
                 and event.ControlDown()):
-            self._queue_current_emoji()
+            if self._reaction_mode:
+                self._on_ok(event)
+            else:
+                self._queue_current_emoji()
             return
         if (self._list.HasFocus()
                 and event.GetKeyCode() in (wx.WXK_LEFT, wx.WXK_RIGHT)):
@@ -2695,8 +2727,10 @@ class EmojiPickerDialog(wx.Dialog):
         return True
 
     def _final_selection(self) -> str:
-        """Queued emojis followed by the last, normally activated emoji."""
+        """One reaction, or queued composer emojis followed by the last one."""
         current = self._current_emoji()
+        if self._reaction_mode:
+            return current
         return "".join(self._queued_emojis) + current
 
     def _on_activated(self, event):
@@ -2724,5 +2758,19 @@ def choose_and_insert_emoji(parent, text_ctrl, i18n) -> bool:
             text_ctrl.SetFocus()
             return False
         return insert_emoji(text_ctrl, dialog.get_selected_emoji())
+    finally:
+        dialog.Destroy()
+
+
+def choose_reaction_emoji(parent, i18n, **texts) -> str | None:
+    """Select exactly one emoji from the complete catalogue.
+
+    ``texts`` (title, hint_text, ok_label) reword the dialog for a caller that
+    is not reacting to a message right now."""
+    dialog = EmojiPickerDialog(parent, i18n, reaction_mode=True, **texts)
+    try:
+        if dialog.ShowModal() == wx.ID_OK:
+            return dialog.get_selected_emoji() or None
+        return None
     finally:
         dialog.Destroy()

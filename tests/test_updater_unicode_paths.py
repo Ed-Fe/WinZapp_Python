@@ -146,13 +146,98 @@ class TestInstallerScript:
         move_line = s[move_idx:s.index("\n", move_idx)]
         assert ">NUL 2>&1" in move_line
 
+    def test_a_locked_file_is_retried_once_before_giving_up(self):
+        """Reported live: an update copied hundreds of files into the install
+        directory and then died on a sharing violation — an on-access antivirus
+        scan holding a .pyd xcopy had just written. WinZapp had already exited
+        and its Node was killed, so nothing of ours held it; seconds later it
+        was free. Without a retry that is a failed update over an install that
+        has ALREADY been half-overwritten."""
+        s = _script()
+        first = s.index("xcopy /E /Y /I /H")
+        retry = s.index("xcopy /E /Y /I /H", first + 1)
+        assert s.index("if errorlevel 4", first) < retry, (
+            "the second copy must be guarded by the first one's failure, not "
+            "run unconditionally"
+        )
+        assert "timeout /t 5 /nobreak" in s[first:retry], (
+            "retrying instantly retries the same lock"
+        )
+
+    def test_the_retry_is_the_same_idempotent_copy(self):
+        """Repeating it is only safe because /E /Y /I /H overwrites what the
+        first pass already wrote with the same bytes."""
+        s = _script()
+        copies = [line.strip() for line in s.splitlines()
+                  if line.strip().startswith("xcopy ")]
+        assert len(copies) == 2 and copies[0] == copies[1]
+
+    def test_an_identical_portable_node_is_not_reopened_for_writing(self):
+        s = _script()
+        compare = (
+            'fc /B "C:\\tmp\\ext\\node\\node.exe" '
+            '"C:\\WinZapp\\node\\node.exe"'
+        )
+        hold = (
+            'move /Y "C:\\tmp\\ext\\node\\node.exe" '
+            '"C:\\tmp\\ext.node.exe.winzapp-unchanged"'
+        )
+        restore = (
+            'move /Y "C:\\tmp\\ext.node.exe.winzapp-unchanged" '
+            '"C:\\tmp\\ext\\node\\node.exe"'
+        )
+        first_copy = s.index("xcopy /E /Y /I /H")
+        second_copy = s.index("xcopy /E /Y /I /H", first_copy + 1)
+
+        assert s.index(compare) < s.index(hold) < first_copy
+        assert s.index(restore) > second_copy
+        assert "if not errorlevel 1" in s[s.index(compare):first_copy]
+        assert "node.exe unchanged - skipping locked replacement" in s
+
+    def test_only_an_fc_result_of_exactly_zero_counts_as_identical(self):
+        # fc prints -1 on a syntax error; "if not errorlevel 1" is true for it.
+        s = _script()
+        compare = s.index(r'fc /B "C:\tmp\ext\node\node.exe"')
+        hold = s.index("move /Y", compare)
+        assert 'if "!ERRORLEVEL!"=="0" (' in s[compare:hold]
+
+    def test_a_failed_restore_of_the_held_node_is_logged(self):
+        s = _script()
+        restore = s.index(
+            r'move /Y "C:\tmp\ext.node.exe.winzapp-unchanged" '
+            r'"C:\tmp\ext\node\node.exe"'
+        )
+        assert "could not restore the held node.exe" in s[restore:restore + 250]
+
+    def test_the_held_node_is_outside_xcopys_source_tree(self):
+        s = _script()
+        assert r'"C:\tmp\ext.node.exe.winzapp-unchanged"' in s
+        assert r'"C:\tmp\ext\node\node.exe.winzapp-unchanged"' not in s
+
+    def test_restoring_the_staged_node_cannot_mask_xcopys_result(self):
+        s = _script()
+        first_copy = s.index("xcopy /E /Y /I /H")
+        second_copy = s.index("xcopy /E /Y /I /H", first_copy + 1)
+        save = s.index("set XCOPY_RESULT=!ERRORLEVEL!", second_copy)
+        restore = s.index("node.exe.winzapp-unchanged", save)
+        reinstate = s.index("cmd /c exit !XCOPY_RESULT!", restore)
+        verdict = s.index("if errorlevel 4", reinstate)
+
+        assert second_copy < save < restore < reinstate < verdict
+
     def test_a_failed_copy_marks_it_and_keeps_the_evidence(self):
         s = _script()
         assert r'echo update failed > "C:\WinZapp\update_failed.marker"' in s
-        failure_block = s[s.index("if errorlevel 4"):s.index(")\n", s.index("if errorlevel 4"))]
+        # The LAST errorlevel-4 block is the verdict; the first is the retry.
+        start = s.rindex("if errorlevel 4")
+        failure_block = s[start:s.index(")\n", start)]
         assert "exit /b 1" in failure_block
         assert 'del "%~f0"' not in failure_block, (
             "deleting the script on failure erases the only evidence of what went wrong"
+        )
+        assert "xcopy /E" not in failure_block, (
+            "the verdict block must not copy anything — it runs when the retry "
+            "above has already failed"
         )
 
     def test_a_successful_copy_relaunches_and_cleans_up(self):

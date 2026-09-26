@@ -12,6 +12,8 @@ docstring for why this dialog cannot be exercised against a stub.
 """
 
 import wx
+from cryptography.fernet import Fernet
+from core.chat_lock_vault import ChatLockVault
 import pytest
 
 from core import save_location
@@ -38,8 +40,13 @@ class _FakeSoundSystem:
         return True
 
 
-def _make_frame(settings):
+def _make_frame(settings, vault=None):
     frame = hidden_frame()
+    # SettingsDialog only adds the "Locked chats" tab when a vault object
+    # exists and is not hidden (chat_lock_tab_visible); a never-set-up vault
+    # keeps it visible, which is what these index assertions rely on.
+    frame._chat_lock_vault = vault if vault is not None else ChatLockVault(Fernet.generate_key())
+    frame._chat_lock_unlocked = False
     frame.settings = settings
     frame.app_name = "WinZapp"
     frame.i18n = I18n(frame)
@@ -61,8 +68,8 @@ def _make_frame(settings):
 def make_dialog(wx_app):
     created = []
 
-    def _make(settings=None):
-        dlg = SettingsDialog(_make_frame(settings if settings is not None else {}))
+    def _make(settings=None, vault=None):
+        dlg = SettingsDialog(_make_frame(settings if settings is not None else {}, vault))
         created.append(dlg)
         return dlg
 
@@ -86,6 +93,36 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         assert dialog._notebook.FindPage(dialog._audio_page) == 10
         assert dialog._notebook.FindPage(dialog._calls_page) == 11
 
+    def test_the_profile_backup_tab_is_appended_last(self, make_dialog):
+        """Added after Calls so no earlier index moved; SetPageText(12) in
+        _refresh_dialog_labels() relies on it being the thirteenth page."""
+        dialog = make_dialog()
+        assert dialog._notebook.FindPage(dialog._profile_backup_page) == 12
+
+    def test_the_reactions_tab_is_appended_after_profile_backup(self, make_dialog):
+        """Appended for the same reason; SetPageText(13) relies on it."""
+        dialog = make_dialog()
+        assert dialog._notebook.FindPage(dialog._reactions_page) == 13
+
+    def test_the_locked_chats_tab_is_appended_after_reactions(self, make_dialog):
+        """Rare vault policy stays after every fixed tab; SetPageText(14)
+        relies on it. Only Transcription comes after it, and that one is
+        retranslated through FindPage() rather than by number."""
+        dialog = make_dialog()
+        assert dialog._notebook.FindPage(dialog._chat_lock_page) == 14
+        assert dialog._notebook.GetPageCount() == 16
+
+    def test_a_hidden_vault_leaves_the_locked_chats_tab_out(self, make_dialog):
+        """A vault the user chose to hide must not be advertised by Settings."""
+        vault = ChatLockVault(Fernet.generate_key())
+        vault.configure("246810", "gizli-kod")
+        vault.set_hide_navigation(True)
+        dialog = make_dialog(vault=vault)
+        assert dialog._notebook.FindPage(dialog._chat_lock_page) == -1
+        assert dialog._notebook.GetPageCount() == 15
+        # Transcription is still the last page; it just moved up to fill the gap.
+        assert dialog._notebook.FindPage(dialog._transcription_page) == 14
+
     def test_the_tabs_that_are_opened_by_number_did_not_move(self, make_dialog):
         """main.py's custom-API first-run flow does SetSelection(4), and this
         file has SetSelection() calls up to 8. The new tab is below all of
@@ -108,8 +145,12 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         # grep cannot tell a Bind placed before _load_values() from one after;
         # the real notebook can.
         assert dialog._transcription_page_seen is False
-        assert dialog._notebook.FindPage(dialog._transcription_page) == 12
-        assert dialog._notebook.GetPageText(12) == dialog.main_window.i18n.t(
+        # After the conditional "Locked chats" tab (shown here — see
+        # _make_frame), so the last of sixteen pages.
+        last = dialog._notebook.GetPageCount() - 1
+        assert last == 15
+        assert dialog._notebook.FindPage(dialog._transcription_page) == last
+        assert dialog._notebook.GetPageText(last) == dialog.main_window.i18n.t(
             "tab_transcription"
         )
 
@@ -121,6 +162,9 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         assert dialog._notebook.GetPageText(9) == i18n.t("tab_files_saving")
         assert dialog._notebook.GetPageText(10) == i18n.t("tab_audio_playback")
         assert dialog._notebook.GetPageText(11) == i18n.t("tab_calls")
+        assert dialog._notebook.GetPageText(12) == i18n.t("tab_profile_backup")
+        assert dialog._notebook.GetPageText(13) == i18n.t("tab_reactions")
+        assert dialog._notebook.GetPageText(14) == i18n.t("locked_chats")
 
 
 class TestLoadingTheCurrentSetting:

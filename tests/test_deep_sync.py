@@ -49,7 +49,7 @@ class _SyncStub:
             self.settings.get("user_interface", {}).get("messages_page_size", 200)
         )
 
-    def sync_chat_messages(self, chat):
+    def sync_chat_messages(self, chat, expected_run_id=None):
         self.calls.append((chat.get("remoteJid"), chat.get("_sync_limit")))
 
 

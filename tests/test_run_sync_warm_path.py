@@ -33,6 +33,7 @@ The stub harness is tests/test_run_sync_broken_store.py's, imported rather than
 copied for the reason that module's own docstring gives.
 """
 
+import time
 import types
 
 import pytest
@@ -69,7 +70,7 @@ def _instrumented(stub):
         # gate, both counters below would move instead of staying at zero.
         return {"restarted": True, "recentCompleted": False}
 
-    def _wait(timeout=600):
+    def _wait(timeout=600, should_stop=None):
         stub.waits += 1
         stub._history_wait_outcome = "completed"
         return True
@@ -89,7 +90,7 @@ def _instrumented(stub):
         stub._history_still_landing = landing
         return landing
 
-    def _sync_remote(target_chats=None, incremental=False):
+    def _sync_remote(target_chats=None, incremental=False, expected_run_id=None):
         stub.message_sync_ran += 1
         # Captured here rather than after the run: refresh_history_still_landing()
         # re-reads the flag from the API later on, so the value the message
@@ -101,7 +102,7 @@ def _instrumented(stub):
         ))
         return set(stub.failing_jids)
 
-    def _media(jids=None):
+    def _media(jids=None, should_stop=None):
         stub.media_sync_ran += 1
         stub.media_scopes.append(None if jids is None else set(jids))
         return 0
@@ -125,6 +126,12 @@ def _warm_stub():
     stub = _make([len(_JIDS)] * 2, wa_web=len(_JIDS), local_chats=len(_JIDS))
     stub.chats = {jid: _chat(jid) for jid in _JIDS}
     stub._force_full_sync = False
+    # Every chat was fetched moments ago, which is what "warm" means. Without
+    # this they read as never verified, and _plan_message_sync()'s staleness
+    # net (issue #181) correctly promotes them — so these tests would be
+    # measuring that net rather than the signal each one is about. It has its
+    # own tests in tests/test_stale_chat_recheck.py.
+    stub._chat_verified_at = {jid: int(time.time()) for jid in _JIDS}
     return _instrumented(stub)
 
 
@@ -560,8 +567,8 @@ class TestARestoredShortChatIsNotRetiredEarly:
 
         inner = stub.sync_remote_chats
 
-        def _sync_and_report(target_chats=None, incremental=False):
-            failures = inner(target_chats, incremental)
+        def _sync_and_report(target_chats=None, incremental=False, expected_run_id=None):
+            failures = inner(target_chats, incremental, expected_run_id)
             # What the real sync_chat_messages() does at the end of every chat:
             # hand the answer it got to the queue bookkeeping.
             for chat in target_chats or []:

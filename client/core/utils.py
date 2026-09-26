@@ -7,6 +7,7 @@ import base64
 import unicodedata
 import requests
 from cryptography.fernet import Fernet
+from core.reaction_shortcuts import DEFAULT_QUICK_REACTIONS
 
 
 # How much Unicode folding searching applies, in the order the Settings radio
@@ -237,6 +238,34 @@ def normalize_line_separators(text) -> str:
     return text
 
 
+def to_editor_line_endings(text) -> str:
+    """The same text with CRLF breaks, for insertion into a MULTILINE field.
+
+    The inverse of normalize_line_separators(), and both are needed because
+    two consumers disagree about what a line break is:
+
+    * WhatsApp, the database and every comparison in this codebase want the
+      canonical ``\\n`` — which is what normalize_line_separators() produces and
+      what the send paths call on the field's value before posting.
+    * A screen reader navigating a ``wx.TextCtrl`` with the arrow keys wants
+      ``\\r\\n``. With a bare ``\\n``, NVDA reads a pasted block as ONE line and
+      Up/Down move through it as if the breaks were not there. Reported after
+      pasting a plain-LF file (a text file with 644 LF breaks and not one CR)
+      out of Notepad.
+
+    So the field holds the editor form and the send path collapses it back —
+    which it already did before this existed, for the CRLF that Windows
+    clipboard sources supply anyway. Nothing reaches WhatsApp with a stray CR.
+
+    **Only ever apply this to a multiline control.** A single-line
+    ``wx.TextCtrl`` cannot navigate lines, does not translate line endings the
+    way the multiline one does, and would simply hold the control characters
+    verbatim — the attachment caption field is exactly that, and shares the
+    paste handler with the message field.
+    """
+    return normalize_line_separators(text).replace("\n", "\r\n")
+
+
 _FORWARDABLE_SUB_KEYS = (
     "extendedTextMessage", "audioMessage", "imageMessage",
     "videoMessage", "documentMessage", "stickerMessage",
@@ -281,6 +310,15 @@ def is_voice_message(msg) -> bool:
     if msg.get("isPtt") or msg.get("ptt"):
         return True
     msg_type = msg.get("messageType") or msg.get("type")
+    if msg_type is None and isinstance(msg.get("audioMessage"), dict):
+        # A bare message BODY rather than a record: what a reply stores as
+        # contextInfo.quotedMessage when WinZapp itself builds it (the quoted
+        # message's own "message" dict). It carries no messageType, so it used
+        # to fall out here as "not a voice note" and every reply to a voice
+        # message read "mensagem citada: áudio". Only a body whose one media
+        # key is audioMessage gets here; a record always has messageType, so
+        # the guard below still keeps a stray ptt flag on a photo from counting.
+        msg_type = "audioMessage"
     if msg_type not in ("audioMessage", "audio", "ptt"):
         return False
     if msg_type == "ptt":
@@ -524,6 +562,117 @@ def migrate_voice_message_mode_default(settings) -> bool:
     return True
 
 
+# Marks that the one-shot spell_check_enabled -> spell_check_mode conversion
+# has already run. Its own flag, like the two above, for the same reason.
+SPELL_CHECK_MODE_MIGRATION_FLAG = "spell_check_mode_migrated"
+
+
+def migrate_spell_check_mode(settings) -> bool:
+    """Carry a legacy ``spell_check_enabled`` bool onto ``spell_check_mode``.
+
+    core/spell_checker.py's spell_check_mode() already knows how to read the
+    old bool, but that fallback is unreachable on a real install:
+    backfill_missing_defaults() inserts the new key (it is in DEFAULT_SETTINGS)
+    on the first launch after the update, before anything has read the setting,
+    so every later call finds a recognised mode and never looks at the legacy
+    value. A user who had turned spell checking off got it back on, while their
+    settings.json still said ``spell_check_enabled: false`` — the setting
+    looking honoured is what makes that hard to notice.
+
+    Hence a migration rather than a read-time fallback, run from
+    _migrate_settings() and therefore BEFORE the backfill that would otherwise
+    invent the value this reads.
+
+    Only an explicit False is carried across, matching what spell_check_mode()
+    already decided: True was the default nobody chose, so it means "expressed
+    no preference" and lands on the new default instead of being frozen into an
+    override that would ignore Windows forever. An already-present
+    ``spell_check_mode`` is never overwritten — that is a choice made under the
+    new setting and outranks the old one.
+
+    The flag is what keeps this one-shot: without it, a user who deliberately
+    goes back to "follow Windows" would find it reverted to "off" on the next
+    launch, and that is exactly the user who cares. Returns True whenever
+    *settings* changed, the flag included — an unwritten flag is no flag.
+    """
+    if not isinstance(settings, dict):
+        return False
+    general = settings.get("general")
+    if not isinstance(general, dict):
+        general = {}
+        settings["general"] = general
+    if general.get(SPELL_CHECK_MODE_MIGRATION_FLAG):
+        return False
+    if ("spell_check_mode" not in general
+            and general.get("spell_check_enabled") is False):
+        general["spell_check_mode"] = "off"
+    general[SPELL_CHECK_MODE_MIGRATION_FLAG] = True
+    return True
+
+
+# Marks that the one-shot call_audio_devices.exclusive_mode split has run.
+# Its own flag, like the three above, for the same reason.
+CALL_EXCLUSIVE_SPLIT_MIGRATION_FLAG = "call_exclusive_mode_split_migrated"
+
+
+def migrate_call_exclusive_mode_split(settings) -> bool:
+    """Split ``call_audio_devices.exclusive_mode`` into input/output flags.
+
+    One checkbox governed both directions, and the two have very different
+    costs: an exclusive MICROPHONE takes a device nothing else is using during
+    a call, while an exclusive SPEAKER silences every other application on it
+    -- the screen reader included, for the whole call, which for WinZapp's
+    users means losing the call window's own controls. They are now separate,
+    and only the output one carries a warning.
+
+    An install that already has the old key keeps its choice for the
+    MICROPHONE only. The speaker starts off, deliberately, even for a user
+    whose old box was ticked.
+
+    That looks like discarding an intent, and is the opposite. The old
+    checkbox never did anything: _stream_extra_settings() returns None for
+    any non-WASAPI device, and until this same release nothing ever resolved
+    to one, so exclusive mode could not engage at all. Nobody who ticked that
+    box has experienced its consequences. Carrying it onto the speaker would
+    mean this release does two things at once -- makes WASAPI reachable for
+    the first time AND converts a dead flag into a live one -- so a user who
+    ticked it months ago would update, answer their first call, and lose the
+    screen reader for the whole of it, with no idea why. They would never see
+    the warning either: it fires when the box is TICKED in Settings, and they
+    are not going to go and tick a box they believe is already on.
+
+    Preserving an intent that never had an effect is not preserving intent;
+    it is delivering a new effect without the consent this very feature
+    treats as necessary. Whoever wants exclusive output ticks the box and
+    reads the warning.
+
+    A missing old key is left alone -- backfill_missing_defaults() puts both
+    new keys there straight after, at their False defaults. The old key is
+    removed once carried across, so a later build cannot read a stale value
+    that no longer governs anything.
+
+    The flag is what makes this one-shot rather than a permanent override:
+    without it, a user who unticks the speaker box would find it back on at
+    the next launch, and that is exactly the user who cares. Returns True
+    whenever *settings* changed, the flag included.
+    """
+    if not isinstance(settings, dict):
+        return False
+    general = settings.get("general")
+    if not isinstance(general, dict):
+        general = {}
+        settings["general"] = general
+    if general.get(CALL_EXCLUSIVE_SPLIT_MIGRATION_FLAG):
+        return False
+    section = settings.get("call_audio_devices")
+    if isinstance(section, dict) and "exclusive_mode" in section:
+        legacy = bool(section.pop("exclusive_mode"))
+        section.setdefault("exclusive_input", legacy)
+        section.setdefault("exclusive_output", False)
+    general[CALL_EXCLUSIVE_SPLIT_MIGRATION_FLAG] = True
+    return True
+
+
 def auto_download_allows(settings, msg) -> bool:
     """Whether the background auto-download may fetch *msg*'s media.
 
@@ -735,10 +884,21 @@ DEFAULT_SETTINGS = {
         "notifications_enabled": True,
         "keep_muted_chats_silent_when_open": True,
         "updates_enabled": True,
-        # Alpha channel (one build per commit on main) — opt-in, see
+        # Alpha channel (one build per commit on main) - opt-in, see
         # client/updater.py's select_release().
         "alpha_updates_enabled": False,
         "noise_reduction_enabled": False,
+        # Stereo voice messages (issue #82, core/voice_stereo.py). Off: iPhone
+        # cannot play a stereo voice message.
+        "voice_message_stereo": False,
+        # Windows spell checking in the message field (core/spell_checker.py).
+        # One of SPELL_CHECK_MODES: "windows" (default — follow Windows' own
+        # Settings > Time & language > Typing > Spelling), or "on"/"off" to
+        # override it. The cue is a Sound Event, so a user who wants the
+        # checking but not the sound can silence just that event in Settings >
+        # Eventos Sonoros; "off" turns the checking itself off, which is
+        # also what stops the COM/dictionary work from ever being done.
+        "spell_check_mode": "windows",
         "first_run": True,
         "api_type_first_run_asked": False,
         "hotkey_first_run_asked": False,
@@ -765,19 +925,46 @@ DEFAULT_SETTINGS = {
         "alerts_enabled": True,
         "popup_enabled": True
     },
+    "profile_backup": {
+        "close_snapshot_min_hours": 24,
+        "live_snapshot_enabled": False,
+        "live_snapshot_interval_hours": 24,
+        "live_snapshot_confirm": True
+    },
+    # Settings > Reactions. Off: the twelve quick reactions are listed
+    # most-used first. On: exactly these rows, in this order, for users who
+    # pick a reaction by counting arrow presses (core/reaction_shortcuts.py).
+    "reactions": {
+        "fixed_quick_reactions": False,
+        "quick_reaction_slots": list(DEFAULT_QUICK_REACTIONS),
+    },
     "user_interface": {
         "messages_page_size": 200,
         "page_jump_size": 15,
         "focus_on_open": "message_field",
-        "voice_record_focus": "send_button",
+        "voice_record_focus": "send",
         "message_list_mode": "classic",
         "show_listbox_item_count": False,
-        "page_up_down_step": 10,
+        "page_up_down_step": 15,
         "self_reference_mode": "eu",
         "self_reference_custom_word": "",
         "show_delivery_status_in_chat_list": True,
         "preserve_typed_text_as_attachment_caption": True,
         "bulk_action_shortcuts": True,
+        "confirm_mark_all_read": True,
+        # Ask before F5 / Shift+F5 (MainWindow._confirm_resync()); the
+        # confirmations' own "don't show again" boxes clear these.
+        "confirm_resync_all": True,
+        "confirm_resync_conversation": True,
+        # Warn before a stereo voice message (ui/dialogs/stereo_voice_warning.py).
+        "warn_stereo_voice_iphone": True,
+        # Once a selection exists, plain Space keeps selecting instead of
+        # playing/pausing the focused message ("selection mode"), and Esc
+        # clears the message selection before it closes the conversation.
+        # Both on by default, both opt-out: they change muscle memory for
+        # users who already learned the previous behaviour.
+        "space_selects_in_selection_mode": True,
+        "escape_clears_selection": True,
         "auto_focus_next_audio": True,
         "selected_announcement_position": "end",
         "show_yesterday_label": True,
@@ -803,6 +990,27 @@ DEFAULT_SETTINGS = {
         "output_device_name": "",
         "effects_output_device_name": "",
         "input_device_name": ""
+    },
+    # Voice calls route through their own pair of devices, deliberately
+    # independent from audio_devices above: a headset chosen for calls must not
+    # silently become the microphone used to record voice messages.
+    "call_audio_devices": {
+        "output_device_name": "",
+        "input_device_name": "",
+        # Per direction, because the costs differ completely: an exclusive
+        # microphone takes a device nothing else is using mid-call, while an
+        # exclusive speaker silences every other application on it -- the
+        # screen reader included, for the whole call. Both default off.
+        "exclusive_input": False,
+        "exclusive_output": False,
+        # Adaptive echo cancellation on the outgoing microphone; off by default.
+        "echo_cancellation": False
+    },
+    # Camera choice for video calls, deliberately its own section for the
+    # same reason as call_audio_devices above: swap devices per-call without
+    # touching any other camera-using feature.
+    "call_video_devices": {
+        "camera_name": ""
     },
     "accessibility": {
         "extended_sr_compat_enabled": True,
@@ -852,6 +1060,7 @@ DEFAULT_SETTINGS = {
     },
     "conversation_sounds": {},
     "cleared_chats": {},
+    "cleared_starred_chats": {},
     "storage": {
         "auto_download_media": True,
         # Which categories the auto-download covers. All of them by default —
@@ -862,6 +1071,41 @@ DEFAULT_SETTINGS = {
         "probe_video_duration_on_download": False
     }
 }
+
+def clear_chat_keep_starred_echo(body):
+    """What a /clear-chat response says it applied for keepStarred.
+
+    True/False when the server echoed it; None when it did not — an older
+    client/api that ignores keepStarred and therefore kept the starred
+    messages. Anything unparseable is None too: only an explicit False may
+    make WinZapp treat starred messages as cleared for good.
+    """
+    if not isinstance(body, dict):
+        return None
+    response = body.get("response")
+    if not isinstance(response, dict):
+        return None
+    value = response.get("keepStarred")
+    return value if isinstance(value, bool) else None
+
+
+def clear_chat_applied(body, phone) -> bool:
+    """Whether a /clear-chat response says the clear itself succeeded for
+    *phone* — `response.data[phone]`, which wppconnect's clearChat() sets to
+    `WPP.chat.clear(...).status === 200`.
+
+    The keepStarred echo alone is not that: the controller echoes what it was
+    asked to apply even when WhatsApp Web answered the clear with a failure
+    and nothing threw, and recording the starred cutoff on that would hide,
+    in WinZapp only and for good, starred messages still on the phone. Only
+    an explicit True counts.
+    """
+    if not isinstance(body, dict):
+        return False
+    response = body.get("response")
+    data = response.get("data") if isinstance(response, dict) else None
+    return isinstance(data, dict) and data.get(phone) is True
+
 
 def generate_and_save_key(filepath):
     key = Fernet.generate_key()
@@ -996,6 +1240,27 @@ def _extract_mentioned_jids(quoted):
     return []
 
 
+#: How much of a quoted message's text a stored reply keeps. A quote whose
+#: text is exactly this long may have been cut here (core/quote_recovery.py).
+QUOTED_TEXT_CAP = 300
+
+
+def quoted_message_text(quoted) -> str:
+    """The full text of a quoted message, in any of the shapes it arrives in."""
+    if not isinstance(quoted, dict):
+        return ""
+    text = (
+        quoted.get("conversation")
+        or quoted.get("caption")
+        or quoted.get("body")
+        or (quoted.get("extendedTextMessage") or {}).get("text")
+        or ""
+    )
+    if not isinstance(text, str) or looks_like_binary_blob(text):
+        return ""
+    return text
+
+
 def _slim_quoted_message(quoted):
     """Reduce a quoted-message dict to only what the reply preview needs.
 
@@ -1014,20 +1279,16 @@ def _slim_quoted_message(quoted):
     """
     if not isinstance(quoted, dict):
         return quoted
-    text = (
-        quoted.get("conversation")
-        or quoted.get("caption")
-        or quoted.get("body")
-        or (quoted.get("extendedTextMessage") or {}).get("text")
-        or ""
-    )
-    if not isinstance(text, str) or looks_like_binary_blob(text):
-        text = ""
-    text = text[:300]  # a long pasted message must not be duplicated into replies
+    # a long pasted message must not be duplicated into replies
+    text = quoted_message_text(quoted)[:QUOTED_TEXT_CAP]
 
     qtype = quoted.get("type")
     slim: dict = {}
     if qtype and qtype not in ("chat", "text"):
+        # "audio" carrying a voice-note flag inside is still a voice note; the
+        # type alone would drop that flag and read "áudio" once saved.
+        if qtype == "audio" and is_voice_message(quoted):
+            qtype = "ptt"
         slim["type"] = qtype
         if text:
             slim["caption"] = text
@@ -1040,6 +1301,11 @@ def _slim_quoted_message(quoted):
                   "documentMessage", "stickerMessage", "contactMessage"):
             if k in quoted:
                 slim[k] = {}
+                # The one flag the label needs: without it a quoted voice note
+                # was stored as a generic audio file and read "áudio" even with
+                # voice messages distinguished (is_voice_message() reads it).
+                if k == "audioMessage" and is_voice_message(quoted):
+                    slim[k]["ptt"] = True
                 break
     mentioned = _extract_mentioned_jids(quoted)
     if mentioned:

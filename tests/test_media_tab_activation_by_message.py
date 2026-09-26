@@ -61,8 +61,12 @@ class _Panel:
     """Only what activate_message() touches on the branches under test."""
 
     activate_message = ConversationsPanel.activate_message
+    # The audio branch itself now lives in its own method, shared with plain
+    # Space (issue #99) — the clean_msg_id derivation asserted below is in it.
+    _toggle_audio_message_playback = ConversationsPanel._toggle_audio_message_playback
     _do_activate_message = ConversationsPanel._do_activate_message
     _extract_links = ConversationsPanel._extract_links
+    _message_own_links = ConversationsPanel._message_own_links
 
     def __init__(self, in_list=()):
         # Deliberately NOT the messages under test: the whole point is that
@@ -92,7 +96,7 @@ class _Panel:
     def _show_message_text_popup(self, msg):
         self.popups.append(msg)
 
-    def _render_message_line(self, msg):
+    def _render_message_line(self, msg, index=None, total=None, include_quoted_preview=True):
         return (msg.get("message") or {}).get("conversation", "")
 
 
