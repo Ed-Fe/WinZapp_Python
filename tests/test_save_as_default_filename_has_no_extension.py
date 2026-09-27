@@ -28,7 +28,7 @@ import wx
 from status_panel import StatusPanel, _status_media_save_info
 from ui.conversations import ConversationsPanel
 from ui.media_viewer import MediaViewerDialog
-from tests.god_modules import patch_conversations_global
+from tests.god_modules import patch_conversations_global, patch_status_panel_global
 
 
 class _CapturingFileDialog:
@@ -159,8 +159,8 @@ class TestStatusPanelSaveStatusMedia:
     def test_schedules_the_extension_deselect_fix(self, monkeypatch):
         monkeypatch.setattr(wx, "FileDialog", _CapturingFileDialog)
         calls = []
-        monkeypatch.setattr(
-            "status_panel.schedule_deselect_extension",
+        patch_status_panel_global(
+            monkeypatch, "schedule_deselect_extension",
             lambda base_name: calls.append(base_name),
         )
         panel = self._stub_cls()

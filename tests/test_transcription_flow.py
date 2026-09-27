@@ -40,6 +40,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 
 import pytest
 
@@ -57,7 +58,11 @@ from core.transcription import (
 )
 from core.transcription import stored as stored_transcription
 from core.transcription.backend import TranscriptionResult
-from tests.god_modules import conversations_source_files, main_window_source_files
+from tests.god_modules import (
+    conversations_source_files,
+    main_window_source_files,
+    status_panel_source_files,
+)
 from tests.test_transcription_message_run import (
     RESULT,
     WAV,
@@ -68,6 +73,7 @@ from tests.test_transcription_message_run import (
     _succeed,
 )
 from main import MainWindow
+from status_panel import StatusPanel
 from ui import transcription_flow
 from ui.conversations import ConversationsPanel
 from ui.dialogs import transcription_result
@@ -1023,13 +1029,15 @@ class TestAltShiftTIsOurs:
     """Alt+Shift+T must mean one thing. Alt+T (presence) lives in MainWindow's
     table, which is why a scan of the panel alone would not see a clash."""
 
-    # Every file MainWindow and ConversationsPanel are built from (their
-    # accelerator tables now sit in main_window/shortcuts.py and
-    # conversation_panel/accelerators.py), plus the two other tables.
+    # Every file MainWindow, ConversationsPanel and StatusPanel are built from
+    # (their accelerator tables now sit in main_window/shortcuts.py,
+    # conversation_panel/accelerators.py and status_panel.py), plus the media
+    # viewer's table. Globbed, so a new mixin is scanned without anyone
+    # remembering to list it here.
     @staticmethod
     def _modules():
         files = (main_window_source_files() + conversations_source_files()
-                 + [_REPO / "client/status_panel.py", _REPO / "client/ui/media_viewer.py"])
+                 + status_panel_source_files() + [_REPO / "client/ui/media_viewer.py"])
         return [f.relative_to(_REPO).as_posix() for f in files]
 
     def test_exactly_one_binding_in_the_whole_window(self):
@@ -1046,6 +1054,38 @@ class TestAltShiftTIsOurs:
         found = [binding for module in self._modules()
                  for binding in _accelerator_bindings(_REPO / module)]
         assert (frozenset({"ACCEL_ALT"}), 'ORD("T")', "self.ID_ALT_T") in found
+
+    def test_the_scan_sees_the_status_tab_table(self):
+        """Same guard for the Status tab. Attributed by file, because the media
+        viewer registers the very same Ctrl+Left: found only there, the scan
+        would look fine with StatusPanel's table out of it."""
+        status_files = {f.relative_to(_REPO).as_posix() for f in status_panel_source_files()}
+        owners = [module for module in self._modules() if module in status_files
+                  for binding in _accelerator_bindings(_REPO / module)
+                  if binding == (frozenset({"ACCEL_CTRL"}), "WX.WXK_LEFT", "self.ID_CTRL_LEFT")]
+        assert owners, "StatusPanel's Ctrl+Left (previous status) is not in the scan"
+
+    def test_the_scan_covers_every_module_the_windows_are_built_from(self):
+        """The StatusPanel split moved its code into client/status_tab/ while
+        this scan still read status_panel.py alone, and nothing failed: the
+        table happened to stay behind. The classes' own bases are the
+        authority on what they are made of, not a list kept by hand, so a
+        mixin package missing from the scan fails here whether or not it
+        registers a shortcut today."""
+        client = (_REPO / "client").resolve()
+        scanned = set(self._modules())
+        for window in (MainWindow, ConversationsPanel, StatusPanel):
+            for cls in window.__mro__:
+                source = getattr(sys.modules.get(cls.__module__), "__file__", None)
+                if not source:
+                    continue
+                path = pathlib.Path(source).resolve()
+                # wx's bases are a compiled extension inside client/venv.
+                if path.suffix != ".py" or not path.is_relative_to(client) \
+                        or path.is_relative_to(client / "venv"):
+                    continue
+                module = path.relative_to(_REPO.resolve()).as_posix()
+                assert module in scanned, f"{window.__name__} is built from {module}, not scanned"
 
     def test_the_shortcut_reaches_the_flow_with_the_selected_message(self, monkeypatch):
         seen = []

@@ -17,8 +17,9 @@ mixin module per responsibility:
   `refresh_labels`) + `client/ui/conversation_panel/*.py` (28 mixins + plain
   modules, including `ArchivedConversationsPanel`)
 
-The map of each package is its `__init__.py`. `client/status_panel.py`
-(~3,200 lines) was not split yet.
+`client/status_panel.py` (StatusPanel, the Alt+5 tab) followed: ~500 lines +
+`client/status_tab/*.py` (7 mixins + 2 plain modules). The map of each
+package is its `__init__.py`.
 
 That split moved code; it did not make it testable. A method on a mixin is
 still a method of a `wx.Frame`/`wx.Panel` and still needs a stub. So there
@@ -26,8 +27,8 @@ are now **two different jobs** this skill covers, and they are not the same
 size:
 
 1. **Extract logic from a method into a plain function** (the usual job).
-2. **Split a module** that outgrew its budget, or split `status_panel.py` the
-   way the other two were split (rare, mechanical, tool-driven).
+2. **Split a module** that outgrew its budget, or another large class the
+   way these three were split (rare, mechanical, tool-driven).
 
 ## Job 1 — extract logic into a plain function
 

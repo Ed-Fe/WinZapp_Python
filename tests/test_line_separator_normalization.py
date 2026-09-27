@@ -24,7 +24,7 @@ import wx
 from core.utils import normalize_line_separators
 from tests.conftest import hidden_frame, set_clipboard_text
 from ui.conversations import ConversationsPanel
-from tests.god_modules import conversations_source
+from tests.god_modules import conversations_source, status_panel_source
 
 
 class TestNormalizeLineSeparators:
@@ -196,7 +196,7 @@ class TestEveryOtherFieldThatReachesWhatsApp:
         import inspect
         from status_panel import StatusPanel
 
-        src = inspect.getsource(StatusPanel)
+        src = status_panel_source()
         assert "normalize_line_separators(self._media_caption_field.GetValue())" in src
 
 

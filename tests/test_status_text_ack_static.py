@@ -1,4 +1,5 @@
 from pathlib import Path
+from tests.god_modules import status_panel_source
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,7 +19,7 @@ def test_text_status_has_bounded_ack_wait():
 
 
 def test_status_http_timeout_allows_ack_fallback_to_finish():
-    source = (ROOT / "client" / "status_panel.py").read_text(encoding="utf-8")
+    source = status_panel_source()
     assert source.count(
         "api_post(url, json=payload, headers=headers, timeout=60)"
     ) >= 3

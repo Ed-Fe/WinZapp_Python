@@ -3,6 +3,7 @@ paths:
   - "client/core/sound_system.py"
   - "client/ui/conversation_panel/audio_playback.py"
   - "client/ui/conversation_panel/voice_recording.py"
+  - "client/status_tab/status_voice.py"
 ---
 
 # Audio devices

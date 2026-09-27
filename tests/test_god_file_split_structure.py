@@ -27,6 +27,7 @@ CLIENT = ROOT / "client"
 SPLITS = [
     ("main.py", "main_window", "MainWindow", 2_500),
     ("ui/conversations.py", "ui/conversation_panel", "ConversationsPanel", 1_800),
+    ("status_panel.py", "status_tab", "StatusPanel", 800),
 ]
 
 #: No single module of a split package may grow past this. The largest one

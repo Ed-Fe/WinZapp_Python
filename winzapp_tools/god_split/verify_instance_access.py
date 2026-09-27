@@ -39,6 +39,11 @@ TARGETS = {
         "package": "client/ui/conversation_panel",
         "aliases": r"(?:self\.)?_?(?:conversations_panel|conv_panel|conversation_panel|panel|cp)",
     },
+    "StatusPanel": {
+        "entry": "client/status_panel.py",
+        "package": "client/status_tab",
+        "aliases": r"(?:self\.)?_?(?:status_panel|status_tab|sp)",
+    },
 }
 
 

@@ -34,7 +34,7 @@ import ui.accessible as accessible_module
 import ui.conversations
 import ui.dialogs.incoming_call
 import ui.media_viewer
-from tests.god_modules import conversations_modules, main_window_modules
+from tests.god_modules import conversations_modules, main_window_modules, status_panel_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,7 +53,8 @@ FILES = (
     # _FocusedTransferGaugeAccessible) resolves.
     *(
         (f"client/{mod.__name__.replace('.', '/')}.py", mod)
-        for mod in conversations_modules()[1:] + main_window_modules()[1:]
+        for mod in (conversations_modules()[1:] + main_window_modules()[1:]
+                    + status_panel_modules()[1:])
     ),
 )
 

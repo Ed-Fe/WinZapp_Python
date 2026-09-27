@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "client"))
 sys.path.insert(0, str(ROOT))
 
-WATCHED = ("main", "ui.conversations")
-WATCHED_PREFIX = ("main_window", "ui.conversation_panel")
+WATCHED = ("main", "ui.conversations", "status_panel")
+WATCHED_PREFIX = ("main_window", "ui.conversation_panel", "status_tab")
 
 
 def watched(mod):
@@ -35,7 +35,9 @@ problems = []
 checked = 0
 import main  # noqa: E402  (loads everything)
 from ui.conversations import ConversationsPanel  # noqa: E402
-classes = {"MainWindow": main.MainWindow, "ConversationsPanel": ConversationsPanel}
+from status_panel import StatusPanel  # noqa: E402
+classes = {"MainWindow": main.MainWindow, "ConversationsPanel": ConversationsPanel,
+           "StatusPanel": StatusPanel}
 
 for f in files:
     tree = ast.parse(f.read_text(encoding="utf-8"))

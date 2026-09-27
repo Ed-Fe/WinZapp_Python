@@ -1,8 +1,9 @@
 from pathlib import Path
+from tests.god_modules import status_panel_source
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = (ROOT / "client" / "status_panel.py").read_text(encoding="utf-8")
+SOURCE = status_panel_source()
 
 
 def test_my_status_audio_starts_automatically():

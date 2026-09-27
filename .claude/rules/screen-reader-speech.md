@@ -4,6 +4,7 @@ paths:
   - "client/core/focus_cloak.py"
   - "client/ui/conversations.py"
   - "client/status_panel.py"
+  - "client/status_tab/*.py"
   - "client/ui/conversation_panel/*.py"
   - "client/main_window/shortcuts.py"
   - "client/main_window/chat_list.py"

@@ -36,6 +36,7 @@ import types
 
 import status_panel as status_panel_module
 from status_panel import StatusPanel
+from tests.god_modules import patch_status_panel_global
 
 
 class _FakeI18n:
@@ -427,7 +428,7 @@ class TestChooseVoiceStatusDegradesGracefullyWithoutPyaudio:
         Record or Ctrl+R), so the PyAudio availability test lives at the point
         recording actually starts. Asserting it on the open action instead
         tested a step that no longer decides anything."""
-        monkeypatch.setattr(status_panel_module, "pyaudio", None)
+        patch_status_panel_global(monkeypatch, "pyaudio", None)
         stub = _Stub()
 
         stub._start_voice_recording()
@@ -438,7 +439,7 @@ class TestChooseVoiceStatusDegradesGracefullyWithoutPyaudio:
     def test_opening_the_panel_no_longer_reports_anything(self, monkeypatch):
         """Preparing the panel is silent even with no PyAudio — the user has
         not asked to record yet."""
-        monkeypatch.setattr(status_panel_module, "pyaudio", None)
+        patch_status_panel_global(monkeypatch, "pyaudio", None)
         stub = _Stub()
 
         stub._on_choose_voice_status(None)
@@ -642,7 +643,7 @@ class TestVoiceStatusRecordingOpensOffTheUiThread:
                             lambda func, *a, **kw: call_after.append((func, a)))
         monkeypatch.setattr(status_panel_module.wx, "MessageBox",
                             lambda *a, **kw: (message_boxes if message_boxes is not None else []).append(a))
-        monkeypatch.setattr(status_panel_module, "pyaudio",
+        patch_status_panel_global(monkeypatch, "pyaudio",
                             types.SimpleNamespace(paInt16=8, paContinue=0))
 
     def test_the_driver_is_not_touched_before_the_thread_runs(self, monkeypatch):
@@ -663,7 +664,7 @@ class TestVoiceStatusRecordingOpensOffTheUiThread:
     def test_successful_open_arms_the_panel_from_the_callback(self, monkeypatch):
         scheduled = []
         self._patch(monkeypatch, scheduled)
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: 3)
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: 3)
         stub = _RecordingStub()
 
         stub._start_voice_recording()
@@ -680,7 +681,7 @@ class TestVoiceStatusRecordingOpensOffTheUiThread:
     def test_open_failure_releases_the_flag_and_warns(self, monkeypatch):
         scheduled, boxes = [], []
         self._patch(monkeypatch, scheduled, boxes)
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: 3)
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: 3)
         stub = _RecordingStub(pa_works=False)
 
         stub._start_voice_recording()
@@ -702,7 +703,7 @@ class TestVoiceStatusRecordingOpensOffTheUiThread:
         def _boom(*_a, **_kw):
             raise OSError("no default host API")
 
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", _boom)
+        patch_status_panel_global(monkeypatch, "find_input_device_index", _boom)
         stub = _RecordingStub()
 
         stub._start_voice_recording()
@@ -722,7 +723,7 @@ class TestVoiceStatusRecordingOpensOffTheUiThread:
     def test_a_stream_that_arrives_after_discard_is_thrown_away(self, monkeypatch):
         scheduled = []
         self._patch(monkeypatch, scheduled)
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: 3)
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: 3)
         stub = _RecordingStub()
 
         stub._start_voice_recording()
@@ -775,14 +776,14 @@ class TestVoiceStatusHostApiFallback:
                             lambda func, *a, **kw: call_after.append((func, a)))
         monkeypatch.setattr(status_panel_module.wx, "MessageBox",
                             lambda *a, **kw: (message_boxes if message_boxes is not None else []).append(a))
-        monkeypatch.setattr(status_panel_module, "pyaudio",
+        patch_status_panel_global(monkeypatch, "pyaudio",
                             types.SimpleNamespace(paInt16=8, paContinue=0))
 
     def test_a_failed_default_falls_back_to_an_enumerated_device(self, monkeypatch):
         scheduled, boxes = [], []
         self._patch(monkeypatch, scheduled, boxes)
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: None)
-        monkeypatch.setattr(status_panel_module, "fallback_input_device_indices",
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: None)
+        patch_status_panel_global(monkeypatch, "fallback_input_device_indices",
                             lambda pa, exclude=(): [12])
 
         stub = _RecordingStub(device_name="")
@@ -807,8 +808,8 @@ class TestVoiceStatusHostApiFallback:
             seen["exclude"] = exclude
             return []
 
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: 3)
-        monkeypatch.setattr(status_panel_module, "fallback_input_device_indices", _candidates)
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: 3)
+        patch_status_panel_global(monkeypatch, "fallback_input_device_indices", _candidates)
 
         stub = _RecordingStub(pa_works=False)
         stub._start_voice_recording()
@@ -821,8 +822,8 @@ class TestVoiceStatusHostApiFallback:
     def test_every_candidate_failing_still_warns(self, monkeypatch):
         scheduled, boxes = [], []
         self._patch(monkeypatch, scheduled, boxes)
-        monkeypatch.setattr(status_panel_module, "find_input_device_index", lambda *a, **kw: None)
-        monkeypatch.setattr(status_panel_module, "fallback_input_device_indices",
+        patch_status_panel_global(monkeypatch, "find_input_device_index", lambda *a, **kw: None)
+        patch_status_panel_global(monkeypatch, "fallback_input_device_indices",
                             lambda pa, exclude=(): [12, 18])
 
         stub = _RecordingStub(device_name="")

@@ -6,6 +6,7 @@ lines. They are now assembled from mixins, one module per responsibility:
 
 - ``client/main.py`` + ``client/main_window/*.py``
 - ``client/ui/conversations.py`` + ``client/ui/conversation_panel/*.py``
+- ``client/status_panel.py`` + ``client/status_tab/*.py`` (StatusPanel)
 
 Two kinds of test depended on the old single-file layout, and each gets one
 helper here instead of every test learning where a method now lives:
@@ -45,6 +46,11 @@ def conversations_source_files() -> list:
     """client/ui/conversations.py followed by every conversation_panel/*.py."""
     return _source_files(CLIENT / "ui" / "conversations.py",
                          CLIENT / "ui" / "conversation_panel")
+
+
+def status_panel_source_files() -> list:
+    """client/status_panel.py followed by every client/status_tab/*.py."""
+    return _source_files(CLIENT / "status_panel.py", CLIENT / "status_tab")
 
 
 def _joined(files) -> str:
@@ -91,6 +97,16 @@ def conversations_method_source(name: str) -> str:
     return _method_source(name, conversations_source_files())
 
 
+def status_panel_source() -> str:
+    """The whole text StatusPanel (and its dialogs) is built from."""
+    return _joined(status_panel_source_files())
+
+
+def status_panel_method_source(name: str) -> str:
+    """Source of one StatusPanel method, wherever its mixin lives."""
+    return _method_source(name, status_panel_source_files())
+
+
 def _package_modules(entry_name: str, package_name: str) -> list:
     mods = [importlib.import_module(entry_name)]
     package = importlib.import_module(package_name)
@@ -107,6 +123,11 @@ def main_window_modules() -> list:
 def conversations_modules() -> list:
     """The ``ui.conversations`` module and every ``ui.conversation_panel.*``."""
     return _package_modules("ui.conversations", "ui.conversation_panel")
+
+
+def status_panel_modules() -> list:
+    """The ``status_panel`` module and every ``status_tab.*`` module."""
+    return _package_modules("status_panel", "status_tab")
 
 
 def _patch_global(modules, monkeypatch, name, value):
@@ -128,3 +149,8 @@ def patch_main_global(monkeypatch, name: str, value) -> None:
 def patch_conversations_global(monkeypatch, name: str, value) -> None:
     """Same as patch_main_global() for ConversationsPanel's modules."""
     _patch_global(conversations_modules(), monkeypatch, name, value)
+
+
+def patch_status_panel_global(monkeypatch, name: str, value) -> None:
+    """Same as patch_main_global() for StatusPanel's modules."""
+    _patch_global(status_panel_modules(), monkeypatch, name, value)
