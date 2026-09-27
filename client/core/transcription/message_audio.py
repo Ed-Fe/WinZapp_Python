@@ -10,10 +10,10 @@ Three decisions carry this module, and the first one is the important one.
 * **An audio WinZapp cannot identify is refused here, so that it is refused in
   the right words.** The one real case being turned away is a voice note
   recorded here: it falls back to writing **raw PCM** into the `.msv` when the
-  OGG encode fails (`conversations.py`'s `ogg_bytes or audio_data`), and the
-  sample rate and channel count it was captured at (`_recording_actual_rate` /
-  `_recording_actual_ch`) are not written anywhere in that file, so there is no
-  saving it.
+  OGG encode fails (`ogg_bytes or audio_data` in
+  `ui/conversation_panel/voice_recording.py`), and the sample rate and channel
+  count it was captured at (`_recording_actual_rate` / `_recording_actual_ch`)
+  are not written anywhere in that file, so there is no saving it.
 
   What this sniff is *not* protecting against is an invented transcription.
   Measured against the bundled `client/lib/ffmpeg.exe` with `audio_prep`'s own

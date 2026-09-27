@@ -4,10 +4,11 @@ Four failures this pins, each of which is silent in a different way.
 
 * **A tab inserted in the middle renumbers every other one.** The settings
   dialog addresses its pages by hardcoded index — `_notebook.SetSelection(8)`
-  here, `SetSelection(4)` in main.py — and `_refresh_dialog_labels()` retitles
-  them by position. Appending is the one position that shifts nothing, but the
-  new index still owes that enumeration a line of its own: without it the tab
-  keeps its old caption after a language change, and nothing fails.
+  here, `SetSelection(4)` in main_window/settings.py — and
+  `_refresh_dialog_labels()` retitles them by position. Appending is the one
+  position that shifts nothing, but the new index still owes that enumeration
+  a line of its own: without it the tab keeps its old caption after a language
+  change, and nothing fails.
 
 * **A combobox item is one accessibility object.** The screen reader reads the
   whole string and nothing else, so "medium", "equilibrado", how big it is and
@@ -170,9 +171,10 @@ class _MainWindow:
         self.settings = settings if settings is not None else {}
         self.i18n = _I18n(locale)
         # `_app_settings`, with the underscore, because that is the only name
-        # MainWindow ever writes (main.py, _apply_global_settings()). A stub
-        # spelling it without one is how the tab shipped reading an attribute
-        # production does not have, with six green tests over it.
+        # MainWindow ever writes (main_window/settings.py,
+        # _apply_global_settings()). A stub spelling it without one is how the
+        # tab shipped reading an attribute production does not have, with six
+        # green tests over it.
         self._app_settings = app_settings
         self.speak_output = _SpeakOutput()
         self.error_sound = _Sound()
@@ -1147,8 +1149,8 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
 
     def test_the_tab_asks_for_exactly_that_name(self):
         """Read off the accessor's own source, so renaming the attribute in
-        main.py without renaming it here fails rather than silently answering
-        "the default folder" forever."""
+        main_window/settings.py without renaming it here fails rather than
+        silently answering "the default folder" forever."""
         tree = ast.parse(SETTINGS_DIALOG_SOURCE)
         accessor = next(
             node for node in ast.walk(tree)

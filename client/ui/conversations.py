@@ -82,8 +82,6 @@ from core.reaction_shortcuts import quick_reactions, remember_reaction
 from ui.dialogs.clear_chat_confirm import confirm_clear_chat
 from core.save_location import resolve_save_dialog_folder
 from core.save_dialog_selection import schedule_deselect_extension
-from core.transcription import message_audio
-from core.transcription import stored as stored_transcription
 from core.utils import history_window, reaction_targets_status, format_number, decrypt_bytes, is_phone_like, encrypt, effective_unread_count, first_unread_index, db_fetch_limit, looks_like_binary_blob, normalize_for_search, normalize_line_separators, to_editor_line_endings, parse_bool_flag as _parse_bool_flag, append_selected_marker, is_message_forwarded, is_voice_message, video_seconds, MEASURED_SECONDS_KEY, link_preview_text
 from core.locale_format import get_date_format, get_time_format, get_datetime_format
 from core.message_copy_format import format_copied_message

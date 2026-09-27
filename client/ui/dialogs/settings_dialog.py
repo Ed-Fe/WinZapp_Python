@@ -1354,9 +1354,9 @@ class SettingsDialog(wx.Dialog):
         # Placed right after Armazenamento, which is the neighbouring subject.
         # Inserting here shifts the two tabs below it, so the SetPageText
         # indices in _retranslate() move with it — but every hardcoded
-        # SetSelection() in this file and in main.py targets a tab at index 8
-        # or lower, so none of them needed touching. Adding a tab ABOVE index 8
-        # would be a different job.
+        # SetSelection() in this file and in main_window/settings.py targets a
+        # tab at index 8 or lower, so none of them needed touching. Adding a
+        # tab ABOVE index 8 would be a different job.
         self._files_page = wx.Panel(self._notebook)
         files_sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -1655,14 +1655,14 @@ class SettingsDialog(wx.Dialog):
 
         # ── Transcription tab ────────────────────────────────────────────────
         # Appended, never inserted. Every hardcoded _notebook.SetSelection(N)
-        # in this file and in main.py names a tab at index 8 or lower, and the
-        # SetPageText() enumeration in _refresh_dialog_labels() is positional,
-        # so the end is the one position that shifts nothing — but the tab
-        # still owes that enumeration a line of its own, or its caption stops
-        # following a language change. That line finds the page with
-        # FindPage() instead of a number: the "Locked chats" tab just above is
-        # added only when chat_lock_tab_visible() says so, which leaves this
-        # one at index 14 or 15.
+        # in this file and in main_window/settings.py names a tab at index 8 or
+        # lower, and the SetPageText() enumeration in _refresh_dialog_labels()
+        # is positional, so the end is the one position that shifts nothing —
+        # but the tab still owes that enumeration a line of its own, or its
+        # caption stops following a language change. That line finds the page
+        # with FindPage() instead of a number: the "Locked chats" tab just
+        # above is added only when chat_lock_tab_visible() says so, which
+        # leaves this one at index 14 or 15.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
 

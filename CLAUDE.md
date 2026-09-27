@@ -106,7 +106,7 @@ version is named once, in `client/node_download_config.py`. `client/api/` and
   `client/main.py` (~1,900 lines) keeps only `MainWindow.__init__`, `init_UI`
   and startup; every other method lives in one module per responsibility
   under `client/main_window/` (sync, connection, sending, calls, identity,
-  chat list, … — 28 mixins plus plain-function modules).
+  chat list, … — 29 mixins plus plain-function modules).
   `client/ui/conversations.py` (~1,200 lines, `ConversationsPanel`) likewise
   keeps `__init__`/`init_UI`; the message list, composer, playback, menus etc.
   live under `client/ui/conversation_panel/`.

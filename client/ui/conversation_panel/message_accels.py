@@ -237,9 +237,10 @@ class MessageAccelsMixin:
         self._on_menu_transcribe(msg)
 
     def _on_menu_transcribe(self, msg: dict):
-        # Imported here, like SettingsDialog in main.py: the flow pulls in the
-        # model store and the CUDA runtime (requests, TLS setup), and nobody
-        # should pay for that at startup before transcribing anything.
+        # Imported here, like SettingsDialog in main_window/settings.py: the
+        # flow pulls in the model store and the CUDA runtime (requests, TLS
+        # setup), and nobody should pay for that at startup before
+        # transcribing anything.
         from ui.transcription_flow import open_or_transcribe
 
         # A message with no audio answers with one sentence and opens nothing,

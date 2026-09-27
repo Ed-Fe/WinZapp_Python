@@ -3,11 +3,11 @@
 Whisper's encoder consumes 16 kHz mono PCM, and a voice message can be OGG
 Opus, OGG Vorbis, MP3, M4A, WAV or an MP4 with an audio track — so every run
 starts with a conversion. ffmpeg does it, and ffmpeg's *path* is a parameter:
-`MainWindow._find_api_ffmpeg()` already knows where the bundled binary is, and
-a core module importing main.py to ask would be a cycle through the largest
-file in the repository. The subprocess details (CREATE_NO_WINDOW, stderr kept
-and decoded with `errors="replace"`) follow core/audio_transcode.py, which has
-been converting audio here for far longer.
+`MainWindow._find_api_ffmpeg()` (main_window/sending.py) already knows where
+the bundled binary is, and a core module importing main to ask would be a
+cycle through every module MainWindow is built from. The subprocess details
+(CREATE_NO_WINDOW, stderr kept and decoded with `errors="replace"`) follow
+core/audio_transcode.py, which has been converting audio here for far longer.
 
 Two decisions carry most of the weight:
 

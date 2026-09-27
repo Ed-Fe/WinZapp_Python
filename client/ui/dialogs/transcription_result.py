@@ -4,8 +4,8 @@ A transcription is a block of text a screen-reader user needs to *read at
 their own pace* — word by word, back up a line, spell a name — so it lives in
 a read-only multi-line `wx.TextCtrl`, the one control every screen reader
 navigates like a document. The shape follows `_show_message_text_popup()`
-(conversations.py), made modal because three of its four buttons act on the
-conversation the user came from.
+(ui/conversation_panel/message_menu.py), made modal because three of its four
+buttons act on the conversation the user came from.
 
 Decisions worth keeping:
 

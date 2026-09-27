@@ -79,10 +79,10 @@ def make_dialog(wx_app):
 
 
 class TestTheTabIsWhereTheIndicesSayItIs:
-    """Every SetPageText() in this dialog is a hardcoded index, and main.py
-    opens the Connection tab by number too. Inserting a page silently shifts
-    every tab below it, so the position is worth asserting rather than
-    trusting."""
+    """Every SetPageText() in this dialog is a hardcoded index, and
+    main_window/settings.py opens the Connection tab by number too. Inserting
+    a page silently shifts every tab below it, so the position is worth
+    asserting rather than trusting."""
 
     def test_it_sits_right_after_storage(self, make_dialog):
         dialog = make_dialog()
@@ -124,9 +124,9 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         assert dialog._notebook.FindPage(dialog._transcription_page) == 14
 
     def test_the_tabs_that_are_opened_by_number_did_not_move(self, make_dialog):
-        """main.py's custom-API first-run flow does SetSelection(4), and this
-        file has SetSelection() calls up to 8. The new tab is below all of
-        them, which is the whole reason it went here."""
+        """main_window/settings.py's custom-API first-run flow does
+        SetSelection(4), and this file has SetSelection() calls up to 8. The
+        new tab is below all of them, which is the whole reason it went here."""
         dialog = make_dialog()
         assert dialog._notebook.FindPage(dialog._conn_page) == 4
         assert dialog._notebook.FindPage(dialog._storage_page) == 8

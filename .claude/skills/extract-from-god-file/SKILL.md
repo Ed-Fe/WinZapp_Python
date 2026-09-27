@@ -12,7 +12,7 @@ description: Pull logic out of WinZapp's big classes (MainWindow in client/main.
 mixin module per responsibility:
 
 - `client/main.py` (~1,900 lines: `__init__`, `init_UI`, startup) +
-  `client/main_window/*.py` (28 mixins + plain-function modules)
+  `client/main_window/*.py` (29 mixins + plain-function modules)
 - `client/ui/conversations.py` (~1,200 lines: `__init__`, `init_UI`,
   `refresh_labels`) + `client/ui/conversation_panel/*.py` (28 mixins + plain
   modules, including `ArchivedConversationsPanel`)

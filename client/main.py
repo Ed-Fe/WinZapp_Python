@@ -149,7 +149,6 @@ from core.chat_lock_vault import (
 )
 from core import token_vault
 from core.transcription import cuda_runtime
-from core.transcription import stored as stored_transcription
 from app_paths import resource_path, data_path, accounts_root
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -290,6 +289,7 @@ from main_window.contacts import ContactsMixin
 from main_window.backfill import BackfillMixin
 from main_window.conversation_sync import ConversationSyncMixin
 from main_window.media import MediaMixin
+from main_window.transcription_store import TranscriptionStoreMixin
 from main_window.chat_events import ChatEventsMixin
 from main_window.history import HistoryMixin
 from main_window.read_state import ReadStateMixin
@@ -332,6 +332,7 @@ class MainWindow(
     BackfillMixin,
     ConversationSyncMixin,
     MediaMixin,
+    TranscriptionStoreMixin,
     ChatEventsMixin,
     HistoryMixin,
     ReadStateMixin,

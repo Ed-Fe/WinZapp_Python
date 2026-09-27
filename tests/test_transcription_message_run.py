@@ -638,7 +638,8 @@ def _scan(path):
 
 def _scan_source(source, label):
     """The same scan over a piece of source — for a method inside a file
-    whose older code is not yet held to the rule (main.py, database.py)."""
+    whose older code is not yet held to the rule (the MainWindow and
+    ConversationsPanel mixins, database.py)."""
     tree = ast.parse(textwrap.dedent(source))
     offenders = []
     for node in ast.walk(tree):

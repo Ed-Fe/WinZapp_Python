@@ -59,6 +59,7 @@ from core.transcription.backend import TranscriptionResult
 from core.transcription.stored import TRANSCRIPTION_KEY
 from core.utils import MEASURED_SECONDS_KEY
 from main import MainWindow
+from main_window import transcription_store
 from tests.god_modules import patch_main_global
 from tests.test_deep_sync import _MessagesStub, _Resp
 from tests.test_historical_self_chat_guard import _DedupStub
@@ -1511,7 +1512,10 @@ _NEW_CODE = (
 
 
 def test_the_new_code_logs_nothing_private():
-    offenders = _scan(stored.__file__)
+    # The whole of main_window/transcription_store.py is this feature's code,
+    # so the file is scanned as well as its methods: one added there later is
+    # held to the rule without being listed in _NEW_CODE.
+    offenders = _scan(stored.__file__) + _scan(transcription_store.__file__)
     for function in _NEW_CODE:
         offenders += _scan_source(inspect.getsource(function), function.__qualname__)
     assert offenders == [], offenders
