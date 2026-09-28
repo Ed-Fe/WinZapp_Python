@@ -1,8 +1,24 @@
-V1.1.2.0
+V2.0.0.0
 
-This release fixes situations where WinZapp asked you to pair again when it did not need to, brings a faster way to select several items at once, and adds options to the confirmations for clearing a chat and for marking all chats as read.
+The big news in this release is calls: you can now place, answer and reject voice and video calls from WinZapp itself, without picking up your phone, with an accessible call window, keyboard shortcuts, dedicated audio settings and your call history in the new Calls tab. Locked chats, search in archived chats, Turkish and Romanian and several usability improvements arrived too, along with fixes for situations where WinZapp asked you to pair again when it did not need to. Under the hood, the program's code went through a major reorganization: it changes nothing in how you use WinZapp, but it makes it easier to maintain and to fix from here on.
 
 WHAT'S NEW
+
+- Voice and video calls. In a one-to-one chat, the "Voice call" (Ctrl+Shift+V) and "Video call" (Ctrl+Alt+Shift+V) buttons place the call from WinZapp itself. The call opens a window with Tab-reachable buttons and its own shortcuts: Ctrl+M mutes or unmutes the microphone, Ctrl+V turns the camera on or off in a video call, Ctrl+P turns a voice call into a video call, Ctrl+C opens the call settings and Ctrl+Shift+Q hangs up. The screen reader tells you when the call connects, when it is reconnecting and when it ends.
+
+- Answer and reject calls in WinZapp. The incoming call window now has "Answer", "Reject" and "Silence alert" buttons; for a video call, "Answer with video" and "Answer without video". That window's shortcuts only work with Alt and the underlined letter, so a key pressed by mistake does not answer or reject the call.
+
+- New Calls tab (Alt+6), with the call history of every chat, split into All, Missed, Declined and Answered; Ctrl+Tab and Ctrl+Shift+Tab switch between them. In the list, Enter opens the call's chat, Ctrl+Shift+R calls back a missed call and F5 refreshes the list.
+
+- Calls show up in the chat and in the chat list, as in WhatsApp: "Missed voice call", "Answered video call" and so on, at the point in the chat where they happened. On a missed call, the "Call back" button or Ctrl+Shift+R calls back.
+
+- Call audio and video settings. In the Calls tab of Settings, "Call audio settings" chooses the microphone and speaker used for calls, and "Call video settings" chooses the camera. Echo cancellation lives there too — it reduces your own sound coming back when you use speakers instead of headphones — along with exclusive mode for the microphone and for the speaker. During a call, the same options open with Ctrl+C.
+
+- Locked chats (Alt+7). "Lock chat", in the context menu or with Ctrl+Shift+T, moves the chat into a vault protected by a 6-to-12-digit PIN, out of the chat list, the archived chats, search and the forward window. Notifications for those chats only say how many new messages arrived, with no name and no content. When you set the vault up, WinZapp creates a recovery key, which can be read aloud or copied, to set a new PIN if you forget the current one. The vault closes by itself when WinZapp is minimized, hidden to the system tray or switched to another panel, and also, if you want, after a while without use; Ctrl+Shift+K closes and hides the vault at once. Locked chats can also be taken out of the navigation menu: the vault is then opened by typing a secret code into the chat search.
+
+- Search in archived chats. Archived chats (Alt+3) now have a search field, like the main list: Ctrl+F takes you there, and Down Arrow moves to the first result.
+
+- Two new languages: Turkish and Romanian. Choose them in Settings, General tab.
 
 - React with any emoji. "Add more reactions" at the end of the 12 quick choices opens the full picker; emojis you use often gradually take their place among those quick choices, most used first. If you would rather find each reaction in the same position every time, use the new Reactions tab in Settings: with "Use fixed quick reactions" on, the 12 positions no longer change with use, and Enter on a position opens the emoji picker to choose which reaction goes there.
 
@@ -22,17 +38,33 @@ WHAT'S NEW
 
 - Esc deselects before closing. With messages selected, the first Esc only deselects them all and just the second one closes the conversation. It can be turned off in Settings, User Interface too.
 
-- Stereo voice messages. With a microphone that really records in stereo, a voice message can keep the sound of both sides. Tick "Record voice messages in stereo by default" in the Audio Devices tab of Settings, or use the new button below "Record voice message" (Ctrl+Shift+G) to record just one message in the other mode: stereo when the default is mono, mono when it is stereo. People using an iPhone can't play stereo voice messages, so WinZapp warns you first, with a "Don't show again" option; to be warned again, use the matching option in the User Interface tab. If the microphone doesn't provide two channels, the message is recorded in mono and WinZapp tells you.
+- Stereo voice messages. With a microphone that really records in stereo, a voice message can keep the sound of both sides. Tick "Record voice messages in stereo by default" in the Audio Devices tab of Settings, or use the new button below "Record voice message" (Ctrl+Shift+G) to record just one message in the other mode: stereo when the default is mono, mono when it is stereo. Since iPhones can't play stereo voice messages, a stereo recording is sent as audio, and WinZapp tells you so first, with a "Don't show again" option; to be warned again, use the matching option in the User Interface tab. If the microphone doesn't provide two channels, the message is recorded in mono and WinZapp tells you.
 
 - Resync only the open chat with Shift+F5, also in the Sync menu. Unlike F5, which deletes and downloads every chat again, Shift+F5 fetches the open chat's messages from WhatsApp again, puts any missing ones in the right place and removes the ones that no longer exist there, without touching older history. F5 and Shift+F5 now ask for confirmation, with No as the default and a "Don't show again" option; to be asked again, use the matching options in the User Interface tab of Settings.
 
 - The global hotkey that brings WinZapp back from the system tray now also sends it there: with WinZapp in the foreground, the same hotkey hides it to the tray. In every other situation it still brings the window to the front.
 
+- Record the microphone together with computer audio. The new "Record microphone and computer audio" button (Ctrl+Shift+H) records your voice and whatever the computer is playing, such as a video, some music or the screen reader itself, into a single message. While recording, two sliders set the volume of other computer sounds and of NVDA separately; without NVDA, the second one is disabled. These volumes only affect the recording, not what you hear, and are remembered per account. Before it starts, WinZapp warns that everything playing on the computer goes into the recording, with a "Don't show again" option; to be warned again, use "Warn before recording computer audio" in the User Interface tab. The recording is sent as audio.
+
+- Close just the current account. With more than one account, "Close current account" in the Accounts menu (Ctrl+F4) closes only the account you are in, freeing its memory and connection, and moves you to another open account; the others keep running. To open it again, pick it from another account's Accounts menu or press Ctrl+Alt with its number. If it is the only open account, WinZapp asks first, since closing it quits the program.
+
+- Quickly switch the audio device. Ctrl+Alt+Shift+H opens the list of playback devices and Ctrl+Alt+Shift+G the list of recording devices, numbered 1 to 0: press the number to switch at once, or use the arrows and Enter. The switch applies to sounds, voice messages and calls — a call in progress moves to the new device without dropping — and to every open account, until you close WinZapp. The devices chosen in Settings stay as they are.
+
+- Choose what background notifications say. In the General tab of Settings, "Background notification content" offers three levels: sound, chat or group name and message text, as before; sound and chat or group name, without the text; or sound only, with no notification on screen and nothing read out. Notifications for locked chats still show neither name nor content.
+
+IMPROVEMENTS
+
+- A major reorganization of the code. WinZapp's two largest files, which on their own added up to more than 50,000 lines and held almost everything the program does, were split into dozens of smaller parts, each taking care of one thing: sync, connection, sending messages, calls, the chat list and so on. Nothing changes for you as a user. For developers it becomes much easier to find, understand and fix each part, and much harder for a fix to break something else unnoticed — which is what keeps WinZapp healthy in the long run.
+
+- WinZapp's logs and the local server's (log.log and wppconnect.log) no longer contain phone numbers, WhatsApp identifiers or contact names: they appear masked. You can now send your logs when reporting a problem without exposing your contacts.
+
+- The Polish translation was revised.
+
+- Audio files pasted into the message field with Ctrl+V can now be sent as audio or as a document, with the new "Audio files pasted into the message field (Ctrl+V)" option in the Files and saving tab of Settings; the default is audio. The message shows up in the chat with the type it will be sent as right away.
+
 FIXES
 
 - Starting a voice message with recording announcements silenced no longer lets the screen reader begin saying “Send” before being cut off. WinZapp now avoids the automatic focus move that caused the clipped announcement while keeping Ctrl+R, Ctrl+Shift+P and Ctrl+Shift+D available.
-
-- Answered incoming calls are no longer marked “not answered” two minutes later. WinZapp now retires the incoming-call timer when a call is answered, rejected or ended, and brief WhatsApp Web call-state transitions no longer end an active call by mistake.
 
 - Messages you had selected in a conversation stayed selected after you closed it, and came back selected when you opened it again. The selection now ends with the conversation.
 
@@ -59,6 +91,26 @@ FIXES
 - When copying a message (Ctrl+C), opening its text (Alt+C) or copying several at once, the people it mentioned came out as phone numbers, or as a meaningless string of digits, instead of the name shown in the message list. They now come out as names.
 
 - With a custom notification sound and no file chosen, in a chat's data or in the Alert Tones tab of Settings, the preview button stayed available and showed an error. It now only appears when the typed path leads to a file that exists.
+
+- With more than one account open, updating never finished: WinZapp reopened on the old version and offered the same update again, without explaining what had happened. It now closes the other accounts before installing, and if an update cannot be completed, it tells you the next time it opens.
+
+- Messages to Meta AI were not delivered, and its replies showed up empty. WhatsApp requires Meta AI's terms of service to be accepted before the first message: WinZapp now shows those terms, with a link to read them, and records your acceptance. If a message is still refused, the notice explains why, and Meta AI's replies show their text.
+
+- In a reply, the links of the quoted message were treated as the reply's own links: they became a Tab stop, could form the links list together with the reply's own links, and Enter opened the quoted link instead of showing the message text. Only the reply's own links count now.
+
+- Clicking a message notification while the Status panel was open opened the chat behind it and left keyboard focus stuck on an invisible control until you pressed Alt+1. The same happened when opening a participant's chat from a group's info. WinZapp now shows the chat list before opening the chat.
+
+- In a group's info, Enter on a participant you had never talked to, or who only showed as a number, closed the dialog and left you in the group. It now opens the private chat with them.
+
+- After adding a local contact from a chat's info, the message list kept showing the name the person uses on WhatsApp until WinZapp was restarted. The new name now shows right away.
+
+- When pairing a different number from the previous one, WinZapp deletes the old account's data, but a sync that was already running kept filling the list with that account's chats for a few minutes, which then disappeared again. That sync now stops at once.
+
+- After the audio output device changed — a USB or Bluetooth headset unplugged, the Windows default device switched, or the output changed in Settings — the audio message you asked to play could simply not play, with no warning, and only worked on the second try. WinZapp now moves to the default device and plays the message the first time.
+
+- When the computer woke from sleep with no internet yet, WinZapp could stay disconnected even after the internet came back, until it was closed and opened again. It now waits for the network before reopening the connection to WhatsApp.
+
+- When several messages from the same chat arrived together, right after you had read that chat in WinZapp, the unread counter could show fewer messages than arrived: three files sent at once showed as two unread. The counter now shows them all.
 
 V1.1.1.0
 

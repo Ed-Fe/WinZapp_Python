@@ -27,6 +27,8 @@ class ShortcutsMixin:
         self.ID_F1         = wx.NewIdRef()
         self.ID_ALT_T      = wx.NewIdRef()
         self.ID_CTRL_ALT_SHIFT_P = wx.NewIdRef()
+        self.ID_CTRL_ALT_SHIFT_H = wx.NewIdRef()
+        self.ID_CTRL_ALT_SHIFT_G = wx.NewIdRef()
 
         # navigation_panel's "&Navegação principal" label mnemonic is meant
         # to redirect Alt+N to nav_list, but that native StaticText-mnemonic
@@ -56,6 +58,10 @@ class ShortcutsMixin:
             (wx.ACCEL_NORMAL, wx.WXK_F1,  self.ID_F1),
             (wx.ACCEL_ALT,    ord('T'),    self.ID_ALT_T),
             (wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord('P'), self.ID_CTRL_ALT_SHIFT_P),
+            # Quick device switch (main_window/quick_audio_devices.py): H for
+            # output, G for recording, the pair side by side on the keyboard.
+            (wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord('H'), self.ID_CTRL_ALT_SHIFT_H),
+            (wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord('G'), self.ID_CTRL_ALT_SHIFT_G),
         ])
         self.SetAcceleratorTable(accel_tbl)
         self.Bind(wx.EVT_MENU, self.on_alt_1,       id=self.ID_ALT_1)
@@ -70,6 +76,8 @@ class ShortcutsMixin:
         self.Bind(wx.EVT_MENU, self.on_f1,          id=self.ID_F1)
         self.Bind(wx.EVT_MENU, self._on_global_alt_t, id=self.ID_ALT_T)
         self.Bind(wx.EVT_MENU, self._on_global_toggle_audio_playback, id=self.ID_CTRL_ALT_SHIFT_P)
+        self.Bind(wx.EVT_MENU, self._on_quick_output_devices, id=self.ID_CTRL_ALT_SHIFT_H)
+        self.Bind(wx.EVT_MENU, self._on_quick_input_devices, id=self.ID_CTRL_ALT_SHIFT_G)
 
     def _on_alt_nav(self, event):
         """Alt+N (or the localized equivalent): focus the main navigation list."""
@@ -343,4 +351,7 @@ class ShortcutsMixin:
         if not self.settings.get("speech_content", {}).get("silence_while_recording", False):
             return False
         cp = getattr(self, "conversations_panel", None)
-        return bool(cp is not None and getattr(cp, "_is_recording", False))
+        # Mixed capture intentionally includes screen-reader speech and must
+        # also announce device failures while the partial take stays open.
+        return bool(cp is not None and getattr(cp, "_is_recording", False)
+                    and not getattr(cp, "_recording_system_audio", False))

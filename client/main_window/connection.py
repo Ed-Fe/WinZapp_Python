@@ -1178,6 +1178,9 @@ class ConnectionMixin:
             # of the patched, pooled helpers).
             _http_session.head("https://web.whatsapp.com", timeout=6,
                                allow_redirects=False)
+            # Proof this probe works on this machine — see
+            # connection_state.offline_start_still_deferred().
+            self._whatsapp_probe_proven = True
             return True
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             logging.info("[_probe_whatsapp_host] network unreachable: %s", e)
@@ -1186,6 +1189,56 @@ class ConnectionMixin:
             # Anything else (odd TLS/proxy behaviour) still proves we reached
             # something — do not call that an outage.
             return True
+
+    #: How often a connected session may re-try proving the host probe after
+    #: a proof attempt failed (a probe losing a race to a busy sync, say).
+    _PROBE_PROOF_RETRY_SECONDS = 600.0
+
+    def _prove_whatsapp_probe_once(self):
+        """Fire one background _probe_whatsapp_host() while the session is
+        known to be connected, so a later deferred start can trust a failing
+        probe for the long cap instead of the short one
+        (connection_state.offline_start_still_deferred()).
+
+        Nothing else probes the host while things are working, so without
+        this the probe would usually be unproven exactly when a wake finds
+        the network gone. Once proven it never runs again this process.
+        """
+        if getattr(self, "_whatsapp_probe_proven", False):
+            return
+        now = time.monotonic()
+        last = getattr(self, "_whatsapp_probe_proof_at", None)
+        if last is not None and now - last < self._PROBE_PROOF_RETRY_SECONDS:
+            return
+        self._whatsapp_probe_proof_at = now
+        threading.Thread(target=self._probe_whatsapp_host, daemon=True,
+                         name="wa-probe-proof").start()
+
+    def _offline_start_deferral_holds(self) -> bool:
+        """True while a session start withheld by _restart_wpp_session() for
+        lack of network must keep waiting. Clears the deferral (and logs it)
+        the moment it no longer holds, so the caller can start the session.
+        """
+        since = getattr(self, "_offline_start_deferred_since", None)
+        if since is None:
+            return False
+        import connection_state as cs
+        deferred_for = time.monotonic() - since
+        network_up = self._probe_whatsapp_host()
+        probe_proven = getattr(self, "_whatsapp_probe_proven", False)
+        if cs.offline_start_still_deferred(
+            network_up=network_up,
+            probe_proven=probe_proven,
+            deferred_for=deferred_for,
+        ):
+            return True
+        self._offline_start_deferred_since = None
+        logging.info("[connection] Lifting the deferred session start after %.0fs "
+                     "(network %s).", deferred_for,
+                     "back" if network_up
+                     else "still unreachable, proven-probe cap reached" if probe_proven
+                     else "unproven, cap reached")
+        return False
 
     def _nudge_whatsapp_socket_stream(self) -> bool:
         """Ask WPPConnect to fire WPP.whatsapp.Cmd.openSocketStream() inside
@@ -1449,6 +1502,19 @@ class ConnectionMixin:
                 logging.info("[_restart_wpp_session] WinZapp is closing or "
                              "WPPConnect is updating — not starting a browser "
                              "under the teardown.")
+                return False
+            if not self._probe_whatsapp_host():
+                # A browser started with no route to WhatsApp authenticates
+                # from the profile and then waits forever for a main screen
+                # that never loads, stuck INITIALIZING — which nothing on
+                # either side restarts (see cs.AUTO_START_DEFERRED_OFFLINE).
+                # Left CLOSED instead, the health loop's CLOSED branch starts
+                # it once _offline_start_deferral_holds() sees the network.
+                if getattr(self, "_offline_start_deferred_since", None) is None:
+                    self._offline_start_deferred_since = time.monotonic()
+                logging.warning("[_restart_wpp_session] No route to WhatsApp — "
+                                "leaving the session closed until the network "
+                                "answers.")
                 return False
             start_url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/start-session"
             try:
@@ -1800,7 +1866,12 @@ class ConnectionMixin:
                 # is an observer of this poll and must never be able to change
                 # its verdict.
                 try:
-                    self._note_status_for_profile_health(status)
+                    import connection_state as cs
+                    if cs.counts_toward_profile_health(
+                        status,
+                        getattr(self, "_offline_start_deferred_since", None) is not None,
+                    ):
+                        self._note_status_for_profile_health(status)
                 except Exception:
                     logging.exception("[profile-health] observer failed (non-fatal)")
 
@@ -1859,7 +1930,9 @@ class ConnectionMixin:
                         self._set_wa_connected(False, "status-session CONNECTED but isConnected() false")
                         return
                     self._dead_browser_strikes = 0
+                    self._offline_start_deferred_since = None
                     self._set_wa_connected(True, "status-session CONNECTED")
+                    self._prove_whatsapp_probe_once()
                     try:
                         dev_url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/host-device"
                         dev_resp = api_get(dev_url, headers=headers, timeout=5)
@@ -1915,6 +1988,9 @@ class ConnectionMixin:
                         recovery_restart_active=self._session_restart_owned(),
                         self_inflicted_teardown=self._self_inflicted_teardown_expected(),
                     )
+                    # Asked only when nothing else blocks: it probes the network.
+                    if not block and self._offline_start_deferral_holds():
+                        block = cs.AUTO_START_DEFERRED_OFFLINE
                     if block:
                         logging.info("[check_wa_connection_http] Skipping auto-start — %s.", block)
                     else:

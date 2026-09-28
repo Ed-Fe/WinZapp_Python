@@ -1,4 +1,7 @@
-"""The warning before a stereo voice message: iPhone cannot play one.
+"""The notice before a stereo recording: it goes out as an audio message, not
+a voice message, because iPhone cannot play a stereo voice message
+(core/voice_stereo.py). The setting key keeps its old name so existing choices
+carry over.
 
 Shown in two places -- saving Settings with stereo newly on, and the second
 record button when it records in stereo -- with the same "don't show again"

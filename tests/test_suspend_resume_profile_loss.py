@@ -73,6 +73,9 @@ class _RestartStub:
     def _apply_offline_state(self, *a, **kw):
         pass
 
+    def _probe_whatsapp_host(self):
+        return True
+
 
 @pytest.fixture
 def restart(monkeypatch):

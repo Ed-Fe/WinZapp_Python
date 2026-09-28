@@ -13,6 +13,7 @@ import requests
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import wx
@@ -36,7 +37,7 @@ from app_paths import (
     resource_path,
 )
 from core.utils import encrypt
-from core.voice_stereo import opus_encode_args
+from core.voice_stereo import opus_encode_args, sends_as_audio_file
 
 # The directory layout _find_api_ffmpeg() searches is relative to main.py.
 _MAIN_PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
@@ -776,6 +777,41 @@ class SendingMixin:
             logging.error("[audio] ffmpeg conversion exception: %s", exc)
         return None
 
+    def _send_recording_as_audio_file(self, remote_jid: str, wav_path: str,
+                                      quoted=None, ogg_bytes: bytes = None):
+        """Send a stereo recording as an audio message rather than a voice
+        message: WhatsApp on iPhone cannot play a stereo voice message, while
+        it plays a stereo audio message (core/voice_stereo.py). The same
+        OGG/Opus bytes, uploaded through /send-file as type "audio" — which
+        sets no isPtt — instead of /send-voice-base64. Same result contract
+        as send_audio_message().
+        """
+        ogg_path = None
+        try:
+            if ogg_bytes:
+                fd, ogg_path = tempfile.mkstemp(suffix=".ogg")
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(ogg_bytes)
+            else:
+                # The pre-encode failed; same fallback as the voice path below.
+                ogg_path = self._convert_wav_to_ogg(wav_path, stereo=True)
+            if not ogg_path:
+                err_msg = self.i18n.t("audio_convert_failed")
+                logging.error("[send_audio_message] %s", err_msg)
+                return {"ok": False, "error": err_msg, "retry": False}
+            # Named, not tmpXXXX.ogg: the name is what a recipient who saves
+            # the audio gets.
+            return self.send_media_attachment(
+                remote_jid, ogg_path, "audio", quoted=quoted,
+                custom_filename=f"{self.i18n.t('default_filename_audio')}.ogg",
+            )
+        finally:
+            if ogg_path:
+                try:
+                    os.unlink(ogg_path)
+                except OSError:
+                    pass
+
     def send_audio_message(self, remote_jid: str, wav_path: str, quoted=None,
                            ogg_bytes: bytes = None, stereo: bool = False) -> bool:
         """
@@ -785,7 +821,13 @@ class SendingMixin:
         ogg_bytes: if provided (pre-encoded in background thread), skip the
                    disk read and OGG encoding entirely — just base64 + POST.
                    On retry (ogg_bytes=None) falls back to reading wav_path.
+
+        A stereo recording is sent as an audio message instead — see
+        _send_recording_as_audio_file().
         """
+        if sends_as_audio_file(stereo):
+            return self._send_recording_as_audio_file(remote_jid, wav_path, quoted=quoted,
+                                                      ogg_bytes=ogg_bytes)
         # Canonical destination: @lid when known, else the @c.us phone form —
         # see _resolve_jid_for_send's docstring for why @lid has to win here.
         import time as _time

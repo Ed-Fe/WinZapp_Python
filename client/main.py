@@ -295,6 +295,7 @@ from main_window.history import HistoryMixin
 from main_window.read_state import ReadStateMixin
 from main_window.chat_actions import ChatActionsMixin
 from main_window.message_actions import MessageActionsMixin
+from main_window.quick_audio_devices import QuickAudioDevicesMixin
 
 
 requests.get = _patched_get
@@ -338,6 +339,7 @@ class MainWindow(
     ReadStateMixin,
     ChatActionsMixin,
     MessageActionsMixin,
+    QuickAudioDevicesMixin,
     wx.Frame,
 ):
     def __init__(self, account_id=None, account_name=None, startup_source="user",
@@ -553,6 +555,12 @@ class MainWindow(
             # live API session, so it must never fire while pairing/the
             # initial sync is still settling in.
             wx.CallLater(90000, self._start_wpp_update_checker)
+            # One-time WPPConnect reinstall recommendation for accounts that
+            # predate 2.0 (migrate_wpp_reinstall_notice(), core/utils.py).
+            # 20s: past the two 15s callbacks above and the startup sound /
+            # initial sync announcements, so it doesn't talk over them, but
+            # well before the 90s WPPConnect update check.
+            wx.CallLater(20000, self._show_wpp_reinstall_notice_if_pending)
 
         # Terms of service – show once before anything else happens
         if not self.background_mode:

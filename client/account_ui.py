@@ -112,6 +112,26 @@ def can_pair(account: dict, current_account_id: str) -> tuple[bool, str]:
     return True, ""
 
 
+def account_to_foreground_after_close(accounts: list[dict], running_ids,
+                                      current_account_id: str) -> str | None:
+    """The account whose window takes over when the current one is closed
+    (Accounts > Close current account, Ctrl+F4), or None when no other account
+    is running — closing then quits WinZapp, which the caller confirms first.
+
+    Only accounts that are running already: bringing a closed one up would
+    spend the very resources closing is meant to free. Ordered like the menu
+    (the account's 'order'); a running account the registry does not list
+    (mid-removal, say) is still a window to land on, so it comes last rather
+    than being dropped."""
+    running = [r for r in (running_ids or ()) if r and r != current_account_id]
+    if not running:
+        return None
+    order = {a.get("id"): a.get("order", 0) for a in accounts}
+    known = sorted((r for r in running if r in order), key=lambda r: order[r])
+    unknown = [r for r in running if r not in order]
+    return (known + unknown)[0]
+
+
 def can_open(account: dict, current_account_id: str) -> tuple[bool, str]:
     """(allowed, reason_key). 'Abrir' traz para o foco / abre o processo da conta.
     Permitido para contas pareadas ou pendentes que não sejam a conta atual."""
@@ -311,8 +331,9 @@ class UnpairedStartDialog:
 def build_accounts_menu(menu, accounts, current_account_id, i18n, id_factory):
     """Populate a wx 'Accounts' menu (plan Zad 4.2). Adds a radio-style item per
     paired account with Ctrl+Shift+<n> for the first 9, a separator, then
-    'Switch account…' and 'Manage accounts…'. Returns a dict mapping wx ids to
-    an action: {'switch': account_id} or {'open_switch': True}/{'open_manager': True}.
+    'Switch account…', 'Manage accounts…' and 'Close current account'. Returns a
+    dict mapping wx ids to an action: {'switch': account_id} or
+    {'open_switch': True}/{'open_manager': True}/{'close_current': True}.
     """
     wx = _wx()
     id_map: dict = {}
@@ -330,6 +351,13 @@ def build_accounts_menu(menu, accounts, current_account_id, i18n, id_factory):
     mg_id = id_factory()
     menu.Append(mg_id, i18n.t("acc_menu_manage"))
     id_map[mg_id] = {"open_manager": True}
+    menu.AppendSeparator()
+    # Ctrl+F4 is handled by MainWindow._on_account_hotkey_char (frame-level
+    # EVT_CHAR_HOOK), for the same reason as Ctrl+Alt+1..9 above; the label
+    # only documents it.
+    close_id = id_factory()
+    menu.Append(close_id, f"{i18n.t('acc_menu_close_current')}\tCtrl+F4")
+    id_map[close_id] = {"close_current": True}
     return id_map
 
 

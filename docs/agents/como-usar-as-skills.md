@@ -8,7 +8,7 @@ Existem skills que **entram sozinhas** e skills que **você chama**.
 
 - **Automáticas** — o agente carrega quando a tarefa bate com a descrição.
   Você não digita nada. Exemplos: mexeu em texto da interface, a
-  `i18n-ui-string` entra e ele já sabe dos cinco idiomas; escreveu um teste, a
+  `i18n-ui-string` entra e ele já sabe de todos os idiomas registrados; escreveu um teste, a
   `write-test` entra. Todas as cinco skills do projeto são assim, e várias do
   Matt Pocock também (`tdd`, `code-review`, `diagnosing-bugs`, `prototype`,
   `research`, `domain-modeling`, `codebase-design`,
@@ -75,7 +75,7 @@ publicar.
 ### 3. `/to-tickets` — a divisão em partes
 
 **O que faz:** quebra o spec em tickets pequenos. Cada ticket é uma **fatia
-vertical**: tela + lógica + dados + teste + os cinco idiomas, entregável e
+vertical**: tela + lógica + dados + teste + todos os idiomas, entregável e
 testável sozinha. Nunca "camada de dados" num ticket e "tela" em outro. Cada
 ticket declara quais outros o bloqueiam. Publica um issue por ticket, em
 ordem de dependência.
@@ -125,7 +125,7 @@ mão antes de abrir PR.
 
 **Rode o `winzapp-reviewer` depois.** O `/code-review` do Matt olha
 estrutura e spec; o nosso agente olha o que quebra *este* repositório (JID,
-sync, echo matching, cinco idiomas, leitor de tela, patches). Não são
+sync, echo matching, todos os idiomas, leitor de tela, patches). Não são
 alternativos:
 ```
 usa o winzapp-reviewer pra revisar minha branch contra origin/main

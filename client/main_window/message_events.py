@@ -1236,12 +1236,25 @@ class MessageEventsMixin:
         # user turned it off.
         if not self.settings.get("general", {}).get("notifications_enabled", True):
             return
+        from core.notification_manager import (
+            background_notification_content, notification_content_level,
+        )
+        # How much the notification says (issue #258). A locked chat keeps its
+        # own private wording at every level but "sound only".
+        level = notification_content_level(self.settings)
+        if level == "sound":
+            if hasattr(self, "notification_manager"):
+                self.notification_manager.send_sound_only(remote_jid)
+            return
         if locked:
             title, body = format_locked_notification(
                 effective_unread_count(chat), self.i18n, self.app_name
             )
         else:
-            title = format_notification_title(msg, self, self.i18n)
+            title, body = background_notification_content(
+                level, format_notification_title(msg, self, self.i18n), body,
+                self.i18n.t("notif_hidden_message"),
+            )
 
         # The toast is the ONLY announcement a backgrounded message gets.
         # Speaking it through AO2 here as well used to make every background
@@ -1266,7 +1279,10 @@ class MessageEventsMixin:
         if should_speak_background_message(
             self.settings, hasattr(self, "notification_manager")
         ):
-            announce_background_message(self, self.i18n, title, body)
+            # Spoken as "New message from <name>" already, so at "name" the
+            # neutral line would only repeat it.
+            spoken_body = "" if (level == "name" and not locked) else body
+            announce_background_message(self, self.i18n, title, spoken_body)
             return
 
         # The unread suffix is deliberately NOT baked in here — see
@@ -1785,6 +1801,16 @@ class MessageEventsMixin:
             if not self.settings.get("general", {}).get("show_tray_icon", True):
                 return
             if hasattr(self, "notification_manager"):
-                self.notification_manager.send(title, body, remote_jid)
+                from core.notification_manager import (
+                    background_notification_content, notification_content_level,
+                )
+                content = background_notification_content(
+                    notification_content_level(self.settings), title, body,
+                    self.i18n.t("notif_hidden_reaction"),
+                )
+                if content is None:
+                    self.notification_manager.send_sound_only(remote_jid)
+                else:
+                    self.notification_manager.send(*content, remote_jid)
         except Exception:
             logging.exception("[_maybe_notify_reaction] failed")

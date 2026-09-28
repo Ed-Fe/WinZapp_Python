@@ -6,9 +6,10 @@ image. Stereo is now:
 
 - a default in Settings > Dispositivos de áudio (general.voice_message_stereo);
 - a second record button for the other mode, for one message;
-- warned about before use, since iPhone cannot play a stereo voice message,
-  with a "don't show again" that user_interface.warn_stereo_voice_iphone
-  (Settings > Interface) mirrors.
+- sent as an audio message rather than a voice message, since iPhone cannot
+  play a stereo voice message but plays a stereo audio message;
+- announced before use, with a "don't show again" that
+  user_interface.warn_stereo_voice_iphone (Settings > Interface) mirrors.
 
 Stereo is only what the microphone really gave: without two channels the
 capture falls back to mono and says so.
@@ -28,13 +29,16 @@ from core.utils import DEFAULT_SETTINGS
 from core.voice_stereo import (
     alternate_mode_is_stereo, alternate_record_label_key, encode_as_stereo,
     fell_back_to_mono, opus_encode_args, recording_configs_preferring,
+    sends_as_audio_file,
 )
 from main import MainWindow
 from ui import conversations
 from ui.conversations import ConversationsPanel
 from ui.dialogs import settings_dialog
 from ui.dialogs.settings_dialog import SettingsDialog
-from tests.god_modules import conversations_source, patch_conversations_global
+from tests.god_modules import (
+    conversations_source, patch_conversations_global, patch_main_global,
+)
 
 
 # ── The pure decisions ────────────────────────────────────────────────────────
@@ -137,6 +141,141 @@ def test_a_retried_send_keeps_the_channels_of_the_first_try():
     assert 'stereo=getattr(msg, "stereo", False)' in src
     send_src = inspect.getsource(MainWindow.send_audio_message)
     assert "self._convert_wav_to_ogg(wav_path, stereo=stereo)" in send_src
+
+
+# ── Stereo goes out as an audio message, not a voice message ─────────────────
+
+
+class _Sender:
+    """send_audio_message() against a stub: the stereo branch leaves before
+    anything a mono voice message needs is touched."""
+    send_audio_message = MainWindow.send_audio_message
+    _send_recording_as_audio_file = MainWindow._send_recording_as_audio_file
+
+    def __init__(self, encoded=b"OggS...OpusHead..."):
+        self.uploads = []
+        self.encoded = encoded
+        self.encode_calls = []
+        self.i18n = types.SimpleNamespace(t=lambda key: key)
+
+    def send_media_attachment(self, remote_jid, file_path, media_type, caption="",
+                              quoted=None, custom_filename="", **_kw):
+        with open(file_path, "rb") as fh:
+            body = fh.read()
+        self.uploads.append({"jid": remote_jid, "path": file_path, "type": media_type,
+                             "quoted": quoted, "body": body, "filename": custom_filename})
+        return "REAL_ID"
+
+    def _convert_wav_to_ogg(self, wav_path, stereo=False):
+        self.encode_calls.append((wav_path, stereo))
+        if self.encoded is None:
+            return None
+        path = wav_path + ".ogg"
+        open(path, "wb").write(self.encoded)
+        return path
+
+
+def test_only_stereo_sends_as_an_audio_file():
+    assert sends_as_audio_file(True) is True
+    assert sends_as_audio_file(False) is False
+
+
+class TestStereoSendsAsAudio:
+    def test_the_pre_encoded_bytes_go_out_as_an_audio_upload(self, monkeypatch, tmp_path):
+        patch_main_global(monkeypatch, "api_post", lambda *a, **kw: pytest.fail(
+            "a stereo recording reached /send-voice-base64"))
+        s = _Sender()
+        quoted = {"key": {"id": "Q1"}}
+
+        result = s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
+                                      quoted=quoted, ogg_bytes=b"OPUS-STEREO", stereo=True)
+
+        assert result == "REAL_ID"
+        assert len(s.uploads) == 1
+        upload = s.uploads[0]
+        assert upload["type"] == "audio"
+        assert upload["body"] == b"OPUS-STEREO"
+        assert upload["path"].endswith(".ogg")
+        assert upload["quoted"] is quoted
+        assert s.encode_calls == []  # the pre-encode is reused, not redone
+
+    def test_the_temporary_file_is_removed(self, tmp_path):
+        s = _Sender()
+        s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
+                             ogg_bytes=b"OPUS", stereo=True)
+        assert not main.os.path.exists(s.uploads[0]["path"])
+
+    def test_without_the_pre_encode_it_encodes_the_wav_in_stereo(self, tmp_path):
+        s = _Sender(encoded=b"FROM-WAV")
+        wav = str(tmp_path / "v.wav")
+
+        s.send_audio_message("j@s.whatsapp.net", wav, ogg_bytes=None, stereo=True)
+
+        assert s.encode_calls == [(wav, True)]
+        assert s.uploads[0]["body"] == b"FROM-WAV"
+        assert not main.os.path.exists(wav + ".ogg")
+
+    def test_an_encode_failure_is_a_definite_failure(self, tmp_path):
+        """Nothing reached WhatsApp, so the queue may report it and stop."""
+        s = _Sender(encoded=None)
+        result = s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
+                                      ogg_bytes=None, stereo=True)
+        assert result == {"ok": False, "error": "audio_convert_failed", "retry": False}
+        assert s.uploads == []
+
+    def test_mono_still_goes_out_as_a_voice_message(self, monkeypatch, tmp_path):
+        posted = []
+
+        def _post(url, json=None, **_kw):
+            posted.append((url, json))
+            return types.SimpleNamespace(status_code=200, text="{}",
+                                         json=lambda: {"response": [{"id": "R1"}]})
+        patch_main_global(monkeypatch, "api_post", _post)
+        s = _Sender()
+        s.wpp_server, s.wpp_port, s.token = "http://127.0.0.1", 6300, "tok"
+        s._resolve_jid_for_send = lambda jid: jid
+        s._set_wa_connected = lambda *a, **kw: None
+        s._send_recording_as_audio_file = lambda *a, **kw: pytest.fail(
+            "a mono recording was sent as an audio file")
+
+        s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
+                             ogg_bytes=b"OPUS-MONO", stereo=False)
+
+        assert s.uploads == []
+        assert posted[0][0].endswith("/send-voice-base64")
+        assert "base64Ptt" in posted[0][1]
+
+    def test_the_pending_row_already_reads_as_audio(self):
+        """The row shown while sending must say what is going out. Checked
+        through is_voice_message() itself: the row keeps _is_voice_recording
+        (the sent sound needs it), and that flag used to win over ptt."""
+        from core.utils import is_voice_message
+        src = inspect.getsource(ConversationsPanel._send_voice_message)
+        assert '"ptt":     not (mixed_audio or sends_as_audio_file(stereo_out)),' in src
+
+        def row(ptt):
+            return {"_is_voice_recording": True, "messageType": "audioMessage",
+                    "message": {"audioMessage": {"seconds": 3, "ptt": ptt}}}
+        assert is_voice_message(row(False)) is False   # stereo / mixed: audio
+        assert is_voice_message(row(True)) is True     # mono: voice message
+        legacy = {"_is_voice_recording": True, "messageType": "audioMessage",
+                  "message": {"audioMessage": {"seconds": 3}}}
+        assert is_voice_message(legacy) is True        # no ptt stated: as before
+
+    def test_the_upload_is_named_not_a_temp_file(self, tmp_path):
+        """A recipient who saves the audio gets this name."""
+        s = _Sender()
+        s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
+                             ogg_bytes=b"OPUS", stereo=True)
+        assert s.uploads[0]["filename"] == "default_filename_audio.ogg"
+
+    def test_the_notice_says_audio_instead_of_iphone_cannot_play(self):
+        import json
+        from pathlib import Path
+        path = Path(__file__).parents[1] / "client" / "languages" / "en-US.json"
+        strings = json.loads(path.read_text(encoding="utf-8"))
+        assert "sent as audio" in strings["stereo_voice_iphone_warning"]
+        assert "can't play" not in strings["stereo_voice_iphone_warning"]
 
 
 # ── The second record button ──────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 >
 > Moved verbatim out of `CLAUDE.md` so it is read when the area is touched, not on every session. Keep it here: this is measured history, not a summary.
 
-## Writing the changelogs (`client/changelog_{pt-BR,pt-PT,en-US,es-ES,pl}.txt`)
+## Writing the changelogs (`client/changelog_<locale>.txt`, one per locale in `language_map.json`)
 
 **The unit is stable-to-stable, and that is the whole difficulty.** A changelog entry describes what a user *receives*, and a user upgrading from the previous stable release receives the net effect of everything between the two tags — never the path taken to get there. So the diff to read is `git log <previous stable tag>..main`, and the alpha line in between is working material, not content.
 
@@ -24,4 +24,4 @@ Three rules follow, and all three are about the same mistake:
 
 That does not change what a changelog *is*, and the rule survives intact at the other end: **entries are for stable releases only, and the unit stays stable-to-stable.** So a line added during the alpha cycle is a draft, not a commitment — at release time it still has to answer the two questions above (did the user have this before? is this the same item as three others?) and it can still be merged away or deleted. Writing as you go removes the archaeology, not the editing pass.
 
-Keep the existing shape: version header, one short paragraph saying what the release is *about*, then NOVIDADES / MELHORIAS / CORREÇÕES. Newest version on top, older ones untouched below. Write for the person using the app, not for the person who fixed it — name the symptom they saw, not the function that caused it. **All five files, always**, same items in the same order; the locales are equal, exactly as they are for the UI strings.
+Keep the existing shape: version header, one short paragraph saying what the release is *about*, then NOVIDADES / MELHORIAS / CORREÇÕES. Newest version on top, older ones untouched below. Write for the person using the app, not for the person who fixed it — name the symptom they saw, not the function that caused it. **Every registered locale, always** — the set is `client/languages/language_map.json`, never a count written down here (this line said "all five files" while Romanian shipped with no changelog at all, and the updater silently showed Romanian users the English notes). Same items in the same order; the locales are equal, exactly as they are for the UI strings. A locale added mid-cycle gets the full history, translated, not only the version it arrives in: someone reading WinZapp in Romanian reads every release in Romanian, exactly as for the older locales (Romanian arrived in 2.0.0.0 with that version alone and was completed later). Translate from en-US, reuse that locale's own terms from its language file, and quote every UI label with the value its key has in that locale. `tests/test_changelogs_in_sync.py` enforces the file per locale and the same item count per heading in the newest section.

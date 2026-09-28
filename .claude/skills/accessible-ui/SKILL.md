@@ -131,7 +131,7 @@ genuinely differ, as the key-handler wiring does.
   phone-number digits, or worse, `@lid` digits that are not even a phone
   number.
 
-Every user-facing string added here also has to exist in all five locales —
+Every user-facing string added here also has to exist in every registered locale —
 see the `i18n-ui-string` skill.
 
 ## Verify

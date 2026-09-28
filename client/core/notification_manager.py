@@ -565,6 +565,33 @@ def format_notification_title(msg: dict, main_window, i18n) -> str:
     return title
 
 
+#: How much a background notification says (Settings > General, issue #258):
+#: "full" — chat or group name and the message (what WinZapp always did);
+#: "name" — the name only, the text replaced by a neutral line;
+#: "sound" — the sound alone, no banner and nothing spoken.
+NOTIFICATION_CONTENT_LEVELS = ("full", "name", "sound")
+DEFAULT_NOTIFICATION_CONTENT = "full"
+
+
+def notification_content_level(settings) -> str:
+    """The configured level; anything unknown reads as the default, so a
+    hand-edited or future value never silences notifications by accident."""
+    value = ((settings or {}).get("general") or {}).get("notification_content")
+    return value if value in NOTIFICATION_CONTENT_LEVELS else DEFAULT_NOTIFICATION_CONTENT
+
+
+def background_notification_content(level: str, title: str, body: str,
+                                    hidden_body: str):
+    """The (title, body) a background notification carries at *level*, or
+    None when it is sound only. *hidden_body* is the neutral line ("New
+    message", "New reaction") that stands in for the text at "name"."""
+    if level == "sound":
+        return None
+    if level == "name":
+        return title, hidden_body
+    return title, body
+
+
 def should_speak_background_message(settings, has_notification_manager: bool) -> bool:
     """Whether a backgrounded message needs its own AO2 announcement.
 
@@ -622,7 +649,9 @@ def announce_background_message(main_window, i18n, title: str, body: str) -> Non
         speech = getattr(main_window, "settings", {}).get("speech_content", {})
         if not speech.get("speak_other_conv_messages", True):
             return
-        spoken = i18n.t("fg_new_msg").format(name=title) + f": {body}"
+        spoken = i18n.t("fg_new_msg").format(name=title)
+        if body:
+            spoken += f": {body}"
         wx.CallAfter(main_window.output, spoken)
     except Exception as e:
         print(f"[NotificationManager] fallback announcement failed: {e}")
@@ -933,6 +962,12 @@ class NotificationManager:
         *instead of* the toast, never alongside it.
         """
         self.i18n.get_language()
+        # At the "name" level the body is only the neutral line, and the
+        # announcement already starts "New message from <name>". Only the
+        # message line: a hidden reaction keeps "New reaction", or it would
+        # be announced as a message that is not there.
+        if body == self.i18n.t("notif_hidden_message"):
+            body = ""
         announce_background_message(self.main_window, self.i18n, title, body)
 
     def _dispatch(self, title: str, body: str, remote_jid: str, msg_key: dict = None):
@@ -951,6 +986,12 @@ class NotificationManager:
                 "[notify] %s suppressed entirely — Windows is in a "
                 "do-not-disturb state.", remote_jid,
             )
+            return
+
+        if title is None:
+            # send_sound_only(): the "sound only" notification level. No
+            # banner, so nothing for _announce_unshown() to stand in for.
+            wx.CallAfter(self._play_sound, remote_jid)
             return
 
         main_window = getattr(self, "main_window", None)
@@ -1153,6 +1194,13 @@ class NotificationManager:
         # tell our own queue from the Windows notification pipeline from the
         # screen reader's own queue — three suspects, no evidence.
         self._queue.put((title, body, remote_jid, msg_key, time.monotonic()))
+
+    def send_sound_only(self, remote_jid: str):
+        """The "sound only" notification level: the background sound, and no
+        banner or speech. Queued like a toast, so it is coalesced with a burst
+        and waits behind any toast still being shown, and _dispatch() applies
+        Do Not Disturb to it exactly as to the sound of a full notification."""
+        self._queue.put((None, None, remote_jid, None, time.monotonic()))
 
     # ── Callbacks (called on wx main thread via CallAfter) ────────────────────
 

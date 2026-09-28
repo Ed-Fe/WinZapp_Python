@@ -1,0 +1,293 @@
+V2.0.0.0
+
+Marea noutate a acestei versiuni sunt apelurile: acum puteți iniția, prelua și respinge apeluri vocale și video direct din WinZapp, fără să luați telefonul, cu o fereastră de apel accesibilă, comenzi rapide de la tastatură, setări audio proprii și istoricul în noua filă Apeluri. Au mai sosit conversațiile blocate, căutarea în conversațiile arhivate, limbile turcă și română și mai multe îmbunătățiri de utilizare, precum și corecții pentru situațiile în care WinZapp cerea o nouă asociere fără să fie nevoie. În spate, codul programului a trecut printr-o reorganizare amplă: nu schimbă nimic în utilizare, dar face WinZapp mai ușor de întreținut și de corectat de acum înainte.
+
+NOUTĂȚI
+
+- Apeluri vocale și video. Într-o conversație individuală, butoanele „Apel vocal” (Ctrl+Shift+V) și „Apel video” (Ctrl+Alt+Shift+V) inițiază apelul direct din WinZapp. Apelul deschide o fereastră cu butoane accesibile cu Tab și comenzi rapide proprii: Ctrl+M dezactivează sau reactivează microfonul, Ctrl+V pornește sau oprește camera într-un apel video, Ctrl+P transformă un apel vocal în apel video, Ctrl+C deschide setările apelului, iar Ctrl+Shift+Q închide apelul. Cititorul de ecran anunță când apelul se conectează, când se reconectează și când se încheie.
+
+- Preluarea și respingerea apelurilor în WinZapp. Fereastra de apel primit are acum butoanele „Răspundeți”, „Respingeți” și „Opriți alerta”; la un apel video, „Răspundeți cu video” și „Răspundeți fără video”. Comenzile rapide din această fereastră funcționează doar cu Alt și litera subliniată, pentru ca o tastă apăsată din greșeală să nu preia și să nu respingă apelul.
+
+- Noua filă Apeluri (Alt+6), cu istoricul apelurilor din toate conversațiile, împărțit în Toate, Pierdute, Respinse și Preluate; Ctrl+Tab și Ctrl+Shift+Tab comută între ele. În listă, Enter deschide conversația apelului, Ctrl+Shift+R sună înapoi la un apel pierdut, iar F5 reîmprospătează lista.
+
+- Apelurile apar în conversație și în lista de conversații, ca în WhatsApp: „Apel vocal pierdut”, „Apel video preluat” și așa mai departe, în locul din conversație în care au avut loc. La un apel pierdut, butonul „Sună înapoi” sau Ctrl+Shift+R sună înapoi.
+
+- Setări audio și video pentru apeluri. În fila Apeluri din Setări, „Setări audio pentru apeluri” alege microfonul și difuzorul folosite la apeluri, iar „Setări video pentru apeluri” alege camera. Tot acolo se află anularea ecoului, care reduce întoarcerea propriului sunet când folosiți difuzoare în loc de căști, și modul exclusiv pentru microfon și pentru difuzor. În timpul unui apel, aceleași opțiuni se deschid cu Ctrl+C.
+
+- Conversații blocate (Alt+7). „Blocați conversația”, din meniul contextual sau cu Ctrl+Shift+T, mută conversația într-un seif protejat de un PIN de 6 până la 12 cifre, în afara listei de conversații, a celor arhivate, a căutării și a ferestrei de redirecționare. Notificările acestor conversații spun doar câte mesaje noi au sosit, fără nume și fără conținut. La configurarea seifului, WinZapp creează o cheie de recuperare, care poate fi citită cu voce tare sau copiată, pentru a stabili un PIN nou dacă îl uitați pe cel actual. Seiful se închide singur când WinZapp este minimizat, ascuns în bara de sistem sau când treceți la alt panou și, dacă doriți, după o perioadă de inactivitate; Ctrl+Shift+K închide și ascunde seiful imediat. Conversații blocate poate fi scos și din meniul de navigare: în acest caz, seiful se deschide tastând un cod secret în căutarea conversațiilor.
+
+- Căutare în conversațiile arhivate. Conversațiile arhivate (Alt+3) au acum un câmp de căutare, ca lista principală: Ctrl+F vă duce la el, iar săgeata în jos trece la primul rezultat.
+
+- Două limbi noi: turca și româna. Le puteți alege în Setări, fila Generale.
+
+- Reacție cu orice emoji. „Adăugați mai multe reacții”, la sfârșitul celor 12 reacții rapide, deschide selectorul complet de emoji; emoji-urile folosite des își fac treptat loc printre cele 12 reacții rapide, cele mai folosite primele. Dacă preferați să găsiți fiecare reacție mereu în aceeași poziție, folosiți noua filă Reacții din Setări: cu „Folosiți reacții rapide fixe” bifat, cele 12 poziții nu se mai schimbă odată cu utilizarea, iar Enter pe o poziție deschide selectorul de emoji pentru a alege ce reacție stă acolo.
+
+- Afișarea în folder a unui fișier salvat cu Salvați ca. După ce există acea copie aleasă de dumneavoastră, folosiți Ctrl+Enter, elementul „Afișați în folder” din meniul contextual sau butonul accesibil cu Tab de lângă Deschide și Salvați ca, pentru a deschide Explorer cu fișierul selectat; descărcările interne ale WinZapp nu oferă această acțiune.
+
+- Alegeți dacă mesajele marcate cu stea rămân la golirea unei conversații. Confirmarea de golire are acum opțiunea „Păstrați mesajele marcate cu stea”, bifată implicit, ca în WhatsApp Web. Debifată, mesajele marcate cu stea sunt șterse împreună cu restul, și pe telefon. Se aplică la golirea unei conversații, a mai multor conversații selectate sau a uneia arhivate.
+
+- Confirmare înainte de a marca toate conversațiile ca citite. Comanda întreabă acum mai întâi, cu Nu ca răspuns implicit, pentru ca un Alt urmat din greșeală de Enter să nu mai marcheze totul ca citit, și pe telefon. Întrebarea are opțiunea „Nu mai afișați”: bifată și confirmată cu Da, data viitoare totul se marchează direct. Pentru a fi întrebat din nou, folosiți opțiunea „Cereți confirmare înainte de a marca toate conversațiile ca citite” din fila Interfață utilizator a Setărilor.
+
+- Copia de siguranță a profilului în Setări. Noua filă Copie de siguranță a profilului stabilește cât de des reînnoiește WinZapp, la închidere, copia profilului de browser pe care o folosește pentru a recupera conexiunea, implicit la fiecare 24 de ore. Copia poate fi făcută și cu WinZapp deschis, la intervalul ales: WhatsApp rămâne deconectat cât timp se face, ceea ce poate dura câteva minute, iar WinZapp poate întreba înainte de fiecare dată. Noua copie o înlocuiește pe cea anterioară doar după ce WhatsApp s-a conectat din nou cu ea.
+
+- Exportul și importul setărilor. În meniul Fișier, „Exportați setările” salvează preferințele într-un fișier, iar „Importați setările” aplică acel fișier aici, pe loc, fără repornire — pentru a muta totul pe alt calculator sau în alt cont. Conexiunea cu WhatsApp și ce ține de un singur cont, cum ar fi conversațiile golite și sunetele pe conversație, nu intră în fișier. Dacă folosiți propriul API, adresa, portul și cheia acestuia sunt incluse.
+
+- Spațiu redă și întrerupe mesajul audio sau video focalizat. Înainte, tasta nu făcea nimic în lista de mesaje. Rămâne mai restrânsă decât Enter: nu deschide niciodată un link, un document, vizualizatorul sau conversația unui contact.
+
+- Modul de selecție. După ce ați selectat primul element cu Ctrl+Spațiu, Spațiu singur selectează și deselectează următoarele — în lista de conversații, în lista de mesaje și în fereastra de redirecționare — fără să mai țineți Ctrl apăsat pentru fiecare. Cititorul de ecran anunță când modul pornește și când se oprește, iar el se oprește singur imediat ce nu mai este nimic selectat. Dacă preferați ca Spațiu să redea mereu, debifați „Folosiți Spațiu pentru a selecta/deselecta când există deja o selecție” în Setări, Interfață utilizator.
+
+- Esc deselectează înainte de a închide. Cu mesaje selectate, primul Esc doar le deselectează pe toate și abia al doilea închide conversația. Și acest comportament poate fi dezactivat în Setări, Interfață utilizator.
+
+- Mesaje vocale stereo. Cu un microfon care înregistrează cu adevărat în stereo, un mesaj vocal poate păstra sunetul ambelor părți. Bifați „Înregistrați implicit mesajele vocale în stereo” în fila Dispozitive audio din Setări sau folosiți noul buton de sub „Înregistrați mesajul vocal” (Ctrl+Shift+G) pentru a înregistra un singur mesaj în celălalt mod: stereo când implicit este mono și mono când implicit este stereo. Deoarece iPhone nu redă mesaje vocale stereo, înregistrarea stereo este trimisă ca audio, iar WinZapp vă anunță acest lucru mai întâi, cu opțiunea „Nu mai afișați”; pentru a fi avertizat din nou, folosiți opțiunea corespunzătoare din fila Interfață utilizator. Dacă microfonul nu oferă două canale, mesajul este înregistrat în mono și WinZapp vă anunță.
+
+- Resincronizarea doar a conversației deschise cu Shift+F5, și din meniul Sincronizare. Spre deosebire de F5, care șterge și descarcă din nou toate conversațiile, Shift+F5 preia din nou de la WhatsApp mesajele conversației deschise, pune la locul potrivit mesajele care lipseau și le elimină pe cele care nu mai există acolo, fără să atingă istoricul mai vechi. F5 și Shift+F5 cer acum confirmare, cu Nu ca răspuns implicit și opțiunea „Nu mai afișați”; pentru a fi întrebat din nou, folosiți opțiunile corespunzătoare din fila Interfață utilizator a Setărilor.
+
+- Tasta rapidă globală care aduce WinZapp înapoi din bara de sistem îl și trimite acum acolo: cu WinZapp în prim-plan, aceeași tastă rapidă îl ascunde în bara de sistem. În orice altă situație, aduce în continuare fereastra în față.
+
+- Înregistrarea microfonului împreună cu sunetul computerului. Noul buton „Înregistrați microfonul și sunetul computerului” (Ctrl+Shift+H) înregistrează într-un singur mesaj vocea și tot ce redă computerul, cum ar fi un videoclip, muzică sau chiar cititorul de ecran. În timpul înregistrării, două glisoare reglează separat volumul celorlalte sunete ale computerului și volumul NVDA; fără NVDA, al doilea este dezactivat. Aceste volume se aplică doar înregistrării, nu și sunetului pe care îl auziți, și sunt reținute pentru fiecare cont. Înainte de a începe, WinZapp vă avertizează că tot ce se redă pe computer ajunge în înregistrare, cu opțiunea „Nu mai afișați”; pentru a fi avertizat din nou, folosiți opțiunea „Avertizați înainte de înregistrarea sunetului computerului” din fila Interfață utilizator. Înregistrarea este trimisă ca audio.
+
+- Închiderea doar a contului curent. Cu mai multe conturi, „Închideți contul curent” din meniul Conturi (Ctrl+F4) închide doar contul în care vă aflați, eliberându-i memoria și conexiunea, și vă mută în alt cont deschis; celelalte continuă să funcționeze. Pentru a-l redeschide, alegeți-l din meniul Conturi al altui cont sau apăsați Ctrl+Alt cu numărul lui. Dacă este singurul cont deschis, WinZapp întreabă mai întâi, deoarece închiderea lui închide programul.
+
+- Schimbarea rapidă a dispozitivului audio. Ctrl+Alt+Shift+H deschide lista dispozitivelor de redare, iar Ctrl+Alt+Shift+G pe cea a dispozitivelor de înregistrare, numerotate de la 1 la 0: apăsați numărul pentru a schimba imediat sau folosiți săgețile și Enter. Schimbarea se aplică sunetelor, mesajelor vocale și apelurilor — un apel în curs trece pe noul dispozitiv fără să se întrerupă — și tuturor conturilor deschise, până la închiderea WinZapp. Dispozitivele alese în Setări rămân neschimbate.
+
+- Alegerea a ceea ce spun notificările de fundal. În fila Generale din Setări, „Conținutul notificărilor de fundal” oferă trei niveluri: sunet, numele conversației sau al grupului și textul mesajului, ca până acum; sunet și numele conversației sau al grupului, fără text; sau doar sunet, fără notificare pe ecran și fără să fie citit ceva. Notificările conversațiilor blocate continuă să nu afișeze nici numele, nici conținutul.
+
+ÎMBUNĂTĂȚIRI
+
+- Reorganizare amplă a codului. Cele mai mari două fișiere ale WinZapp, care singure însumau peste 50.000 de linii și cuprindeau aproape tot ce face programul, au fost împărțite în zeci de părți mai mici, fiecare ocupându-se de un singur lucru: sincronizare, conexiune, trimiterea mesajelor, apeluri, lista de conversații și așa mai departe. Pentru utilizator nu se schimbă nimic. Pentru dezvoltatori devine mult mai ușor să găsească, să înțeleagă și să corecteze fiecare parte și mult mai greu ca o corecție să strice altceva fără să observe nimeni — asta menține WinZapp sănătos pe termen lung.
+
+- Jurnalele WinZapp și ale serverului local (log.log și wppconnect.log) nu mai conțin numere de telefon, identificatori WhatsApp sau nume de contacte: acestea apar mascate. Astfel, puteți trimite jurnalele când raportați o problemă fără a vă expune contactele.
+
+- Traducerea în poloneză a fost revizuită.
+
+- Fișierele audio lipite în câmpul de mesaj cu Ctrl+V pot fi trimise acum ca audio sau ca document, prin noua opțiune „Fișiere audio lipite în câmpul de mesaj (Ctrl+V)” din fila Fișiere și salvare din Setări; implicit, ca audio. Mesajul apare în conversație de la început cu tipul cu care va fi trimis.
+
+CORECTĂRI
+
+- Când porneați un mesaj vocal cu anunțurile înregistrării dezactivate, cititorul de ecran nu mai începe să spună „Trimiteți” înainte de a fi întrerupt. WinZapp evită acum mutarea automată a focalizării care provoca acest fragment, păstrând disponibile Ctrl+R, Ctrl+Shift+P și Ctrl+Shift+D.
+
+- Mesajele selectate într-o conversație rămâneau selectate după închiderea ei și reapăreau selectate la redeschidere. Acum selecția se încheie odată cu conversația.
+
+- Când WhatsApp refuza conexiunea imediat după deschiderea programului, copia de siguranță a profilului de browser nu ajungea să fie restaurată: dacă în primele secunde începeau să apară coduri de asociere, WinZapp închidea sesiunea și cerea o nouă asociere chiar dacă avea o copie bună salvată. Acum restaurează copia de îndată ce apare primul cod și cere asocierea doar dacă restaurarea nu rezolvă problema.
+
+- Adăugarea unui membru în grup după numărul de telefon nu făcea nimic: butonul „Adăugați numărul” nu adăuga pe nimeni și nu afișa nicio eroare. Acum adaugă numărul pe loc și spune dacă a reușit, iar un număr nevalid este semnalat. În același dialog, câmpul de căutare este citit acum ca „Căutați contact”.
+
+- Cu o conversație deschisă, lista de mesaje se micșora la fiecare minut înapoi la limita configurată, iar mesajele mai vechi dispăreau — inclusiv din istoricul salvat. WinZapp confunda mesajele din afara intervalului pe care îl verifică în WhatsApp cu mesaje șterse de pe telefon. Acum un mesaj este eliminat doar când WhatsApp arată că într-adevăr nu mai există — niciodată doar pentru că nu a fost găsit și niciodată în perioada pe care o recuperare a profilului a lăsat-o în urmă — iar lista nu se mai micșorează în timp ce citiți.
+
+- În grupurile cu mulți participanți, datele grupului puteau rămâne minute întregi la „Se încarcă...” — Prezentare generală și lista Participanți apăreau doar după ce WinZapp căuta, pe rând, numărul fiecărui membru al cărui număr nu îl cunoștea încă. Părea blocat și își revenea doar închizând și redeschizând dialogul. Acum datele apar imediat ce grupul răspunde, iar numele și numerele lipsă sunt completate apoi în listă, fără să vă mute de pe rândul pe care vă aflați.
+
+- Schimbarea limbii în Setări și apăsarea pe Aplicați traduce acum toate opțiunile. Unele rămâneau în limba anterioară până la închiderea și redeschiderea Setărilor, cum ar fi „Când deschideți o conversație, afișați cel mult acest număr de mesaje” și „Mesaje de sărit atunci când apăsați Pagina în sus / Pagina în jos”.
+
+- Viteza implicită de redare audio nu mai revine singură la 1x. La deschiderea Setărilor, câmpul din fila Redare audio apărea gol, indiferent de viteza salvată, iar apăsarea pe Aplicați și apoi pe OK salva 1x peste ea. Acum viteza salvată apare selectată și este păstrată.
+
+- După ce WinZapp recuperează profilul de browser, conversațiile cu mesaje necitite nu mai apar ca citite.
+
+- La copierea unei porțiuni din fereastra cu textul mesajului (Alt+C), textul venea cu întreruperi de rând pe care mesajul nu le avea, în locurile în care fereastra împarte rândurile lungi pentru o citire mai ușoară. Acum copia redă mesajul așa cum a fost scris, doar cu propriile întreruperi de rând.
+
+- Mesajele pe care WhatsApp nu reușise încă să le încarce dispăreau din conversație, iar un răspuns la unul dintre ele cita un mesaj care nu apărea nicăieri. Se întâmplă, de exemplu, cu mesajele cuiva care și-a schimbat telefonul, până când telefonul acelei persoane le retrimite. Acum apar ca „Se așteaptă acest mesaj. Acest lucru poate dura ceva timp.”, ca în WhatsApp, și sunt înlocuite de text imediat ce acesta sosește sau chiar mai devreme, când cineva răspunde citând mesajul.
+
+- Contorul de mesaje necitite al unui grup putea dispărea când cineva reacționa la un mesaj, chiar dacă existau încă mesaje necitite, iar în grupurile cu notificări de sistem scădea singur la fiecare minut. Acum contorul arată mesajele care sunt cu adevărat necitite.
+
+- La copierea unui mesaj (Ctrl+C), la deschiderea textului său (Alt+C) sau la copierea mai multor mesaje deodată, persoanele menționate apăreau ca numere de telefon sau ca un șir de cifre fără sens, în locul numelui afișat în lista de mesaje. Acum apar cu numele.
+
+- Cu un sunet de notificare personalizat fără fișier ales, în datele unei conversații sau în fila Tonuri de alertă din Setări, butonul de ascultare a previzualizării rămânea disponibil și afișa o eroare. Acum apare doar când calea introdusă duce la un fișier care există.
+
+- Cu mai multe conturi deschise, actualizarea nu se termina: WinZapp se redeschidea în versiunea veche și oferea din nou aceeași actualizare, fără să explice ce se întâmplase. Acum închide celelalte conturi înainte de instalare și, dacă o actualizare nu poate fi finalizată, vă anunță la următoarea deschidere.
+
+- Mesajele către Meta AI nu erau livrate, iar răspunsurile ei apăreau goale. WhatsApp cere acceptarea termenilor de utilizare ai Meta AI înainte de primul mesaj: acum WinZapp afișează acești termeni, cu un link pentru a-i citi, și înregistrează acceptarea. Dacă un mesaj este totuși refuzat, avertismentul explică motivul, iar răspunsurile Meta AI apar cu textul lor.
+
+- Într-un răspuns, linkurile din mesajul citat erau tratate ca linkuri ale răspunsului însuși: deveneau o oprire pentru Tab, puteau forma lista de linkuri împreună cu linkurile răspunsului, iar Enter deschidea linkul citat în loc să afișeze textul mesajului. Acum contează doar linkurile răspunsului însuși.
+
+- Un clic pe o notificare de mesaj cu panoul Stare deschis deschidea conversația în spatele lui și lăsa focalizarea tastaturii blocată pe un control invizibil, până la apăsarea Alt+1. Același lucru se întâmpla la deschiderea conversației unui participant din datele unui grup. Acum WinZapp afișează lista de conversații înainte de a deschide conversația.
+
+- În datele unui grup, Enter pe un participant cu care nu ați vorbit niciodată sau care apărea doar ca număr închidea dialogul și vă lăsa în grup. Acum deschide conversația privată cu acea persoană.
+
+- După adăugarea unui contact local din datele unei conversații, lista de mesaje afișa în continuare numele pe care persoana îl folosește în WhatsApp, până la repornirea WinZapp. Acum noul nume apare imediat.
+
+- La asocierea unui număr diferit de cel anterior, WinZapp șterge datele contului vechi, dar o sincronizare aflată deja în desfășurare continua câteva minute să umple lista cu conversațiile acelui cont, care apoi dispăreau din nou. Acum această sincronizare se oprește imediat.
+
+- După schimbarea dispozitivului de ieșire audio — căști USB sau Bluetooth deconectate, dispozitivul implicit din Windows schimbat sau ieșirea modificată în Setări — mesajul audio pe care îl porneați putea pur și simplu să nu se redea, fără niciun avertisment, și funcționa abia la a doua încercare. Acum WinZapp trece la dispozitivul implicit și redă mesajul chiar de prima dată.
+
+- Când computerul revenea din modul de repaus încă fără internet, WinZapp putea rămâne deconectat chiar și după revenirea internetului, până era închis și redeschis. Acum așteaptă revenirea rețelei înainte de a redeschide conexiunea cu WhatsApp.
+
+- Când mai multe mesaje din aceeași conversație soseau împreună, imediat după ce ați citit acea conversație în WinZapp, contorul de mesaje necitite putea arăta mai puține mesaje decât au sosit: trei fișiere trimise deodată apăreau ca două necitite. Acum contorul le arată pe toate.
+
+V1.1.1.0
+
+Această versiune se concentrează pe menținerea contului conectat. WinZapp păstrează acum o copie de siguranță a profilului browserului — locul în care se află de fapt conexiunea cu WhatsApp — și o restaurează singur atunci când nu mai este acceptată, spunându-vă ce s-a întâmplat. Împreună cu aceasta vin corecții pentru situațiile care stricau sesiunea și lăsau aplicația să ceară o nouă asociere: închiderea computerului, suspendarea și reluarea și repornirea conexiunii de către aplicație. Au sosit și verificarea ortografică în câmpul de mesaj și acțiunile pentru linkuri.
+
+NOUTĂȚI
+
+- Recuperarea automată a profilului browserului. Conexiunea cu WhatsApp este stocată în profilul browserului pe care WinZapp îl folosește în fundal, iar când acest profil nu mai era acceptat, singura soluție era o nouă asociere. WinZapp păstrează acum o copie de siguranță a acestuia, păstrează și copia anterioară și o restaurează singur când observă că conexiunea a fost refuzată, anunțând cu voce tare că a restaurat-o și că se reconectează. Nu oferă niciodată înapoi o copie pe care WhatsApp a refuzat-o deja, iar când nu există nicio copie utilizabilă, spune acest lucru clar, în loc să vă lase deconectat fără nicio explicație.
+
+- Verificare ortografică în câmpul de mesaj. În Setări puteți alege între a urma setarea de ortografie din Windows (implicit), activată mereu sau dezactivată mereu. Există și un sunet dedicat pentru erorile de ortografie, configurabil împreună cu celelalte sunete.
+
+- Acțiuni pentru linkuri în mesaje. Când un mesaj conține linkuri, meniul contextual oferă acum „Deschideți linkul” și „Copiați linkul” pentru linkul pe care vă aflați, iar Ctrl+C copiază acel link în locul întregului mesaj.
+
+- Avertisment când browserul intern este incomplet. Dacă browserul pe care WinZapp îl folosește pentru a se conecta la WhatsApp nu poate porni — de obicei pentru că un antivirus a eliminat o parte din el —, aplicația spune acest lucru în cuvinte simple și explică ce trebuie făcut, în loc să pară o problemă a WhatsApp.
+
+- Avertisment pentru o trimitere neconfirmată. Când WhatsApp acceptă un mesaj, dar nu confirmă livrarea, WinZapp vă spune să verificați conversația înainte de a-l retrimite, în loc să riște ca același mesaj să ajungă de două ori.
+
+ÎMBUNĂTĂȚIRI
+
+- Pornirea odată cu Windows se conectează acum mult mai repede. Aplicația aștepta conexiunea abia după ce încercase deja să o folosească și afișa mult timp „WhatsApp a fost deconectat” fără motiv. Acum așteaptă ca totul să fie gata înainte de a apărea în bara de sistem.
+
+- Lista de mesaje nu mai este reconstruită complet în fiecare minut. Sunt rescrise doar rândurile care s-au schimbat efectiv, așa că cititorul de ecran nu mai recitește mesajul pe care vă aflați, iar sunetul de selecție nu mai pornește singur.
+
+- Mai puține notificări de sincronizare pe telefon. WinZapp cere telefonului istoricul mai vechi doar pentru conversațiile pe care le-ați deschis, câte o cerere pe rând, și nu mai cere deloc după ce o conversație a răspuns că nu mai are nimic.
+
+- Conversațiile pe care sincronizarea nu le mai verifica sunt verificate din nou automat, fără să trebuiască să reîmprospătați cu F5.
+
+- Cu mai multe conturi deschise simultan, o actualizare WinZapp deschide o singură fereastră în loc de câte una pentru fiecare cont.
+
+- Audio: WinZapp întreabă microfonul care este propria rată de eșantionare înainte de a le încerca pe cele fixe, iar ieșirea de sunet se recuperează singură când dispozitivul implicit se schimbă sau este deconectat.
+
+- Reacțiile sosite cât timp o conversație era închisă apar acum când o deschideți.
+
+- Rupturile de rând din caseta de mesaj pot fi acum parcurse normal de cititorul de ecran.
+
+- Conexiune cu WhatsApp actualizată (WPPConnect 2.10.21), inclusiv corecții de securitate, iar WinZapp observă acum singur când această conexiune s-a desincronizat și trebuie reinstalată.
+
+CORECTĂRI
+
+- Închiderea computerului nu mai strică sesiunea. WinZapp închidea conexiunea cu WhatsApp prea târziu în timpul închiderii Windows, după ce procesul care o ținea fusese deja oprit, iar profilul revenea inutilizabil, cerând o nouă asociere data următoare. Acum închide totul cât timp Windows încă întreabă dacă se poate închide.
+
+- Suspendarea computerului nu mai strică sesiunea. La reluare, WinZapp repornea conexiunea fără să aștepte ca browserul să termine de scris ce avea în lucru, iar numai asta era suficient pentru a pierde asocierea. Acum așteaptă.
+
+- Răspunsul la o stare funcționează din nou. Răspunsul eșua, spunând că nu poate fi trimis.
+
+- O eroare de trimitere ambiguă nu mai produce mesaje duplicate: când nu se poate ști dacă WhatsApp l-a primit, WinZapp nu îl retrimite singur.
+
+- Descărcarea documentelor mari este din nou posibilă. Fișierele de câteva sute de megaocteți anunțau „descărcare” și nu produceau nimic.
+
+- Indicatorul de progres pentru încărcări și descărcări arată acum transferul care are loc efectiv și nu mai continuă să se rotească pe un mesaj terminat și nici nu mai apare pe rândul greșit.
+
+- Anularea sau închiderea ecranului de asociere nu mai șterge conversațiile și nici o eroare de autentificare de moment la pornire. Istoricul este șters doar când este conectat cu adevărat un alt număr de telefon, iar WinZapp vă spune când se întâmplă acest lucru.
+
+- Codul QR este anunțat doar când apare cu adevărat pe ecran. WinZapp spunea „Codul QR a fost actualizat.” înainte să fi fost afișat vreun cod, ceea ce făcea ca, aparent, codul să apară abia la a doua încercare. Ecranul de asociere spune acum că se generează codul, îl anunță când apare efectiv și spune când nu a putut fi generat sau când codul de asociere a expirat, în loc să tacă sau să anunțe o actualizare care nu a avut loc.
+
+- Contoare de mesaje necitite: conversațiile nu mai revin ca necitite fără să fi sosit un mesaj nou.
+
+- Caracterul fantomă care apărea în câmpul de mesaj la revenirea dintr-un alt program cu NVDA pornit a dispărut.
+
+- Copierea unui mesaj vocal funcționează acum.
+
+- Conversațiile care afișau un număr în loc de nume sunt acum rezolvate.
+
+- Schimbarea contului curăță acum corect fișierele media ale contului anterior, care altfel puteau rămâne pe computer.
+
+V1.1.0.0
+
+Această versiune adaugă fila Media, un vizualizator media în fereastra proprie, previzualizări ale linkurilor, acțiuni în bloc și o filă Accesibilitate în setări. Sincronizarea conversațiilor este mult mai rapidă, iar lista de conversații nu mai este reconstruită la fiecare mesaj, ceea ce reduce mult recitirile cititorului de ecran.
+
+NOUTĂȚI
+
+- Fila Media în conversații și grupuri. Afișează fotografii, videoclipuri, fișiere audio, mesaje vocale, documente și linkuri, cu filtrare după tip și după descărcat sau nedescărcat, încărcarea întregului istoric și acțiuni de deschidere, salvare și ștergere pentru fiecare mesaj. Fișierele audio și mesajele vocale au filtre separate: puteți afișa doar unele sau doar celelalte și puteți alege dacă descărcarea automată le preia pe unele, pe celelalte sau pe ambele.
+
+- Vizualizator media în fereastra proprie, cu redare și pauză, salt înainte și înapoi cu 10 secunde, poziție, volum și viteză. Alegeți în setări dacă videoclipurile din conversații și stările se deschid în el.
+
+- Previzualizări ale linkurilor în mesaje. Când un mesaj are două sau mai multe linkuri, acestea devin o listă pe care o puteți parcurge. Mesajele pe care le trimiteți au acum și ele o previzualizare.
+
+- Acțiuni în bloc pentru mesaje și conversații: copierea, marcarea cu stea, fixarea, redirecționarea, salvarea și ștergerea mesajelor; marcarea conversațiilor ca citite sau necitite, arhivarea și golirea lor. Fiecare acțiune are propria comandă rapidă, iar Ctrl+C copiază selecția.
+
+- Fila Accesibilitate în setări, cu compatibilitate extinsă cu cititoarele de ecran și opțiunea de a folosi vocea SAPI când nu rulează niciun cititor de ecran.
+
+- Fila Fișiere și salvare, pentru a alege dacă dialogurile de salvare se deschid în ultimul folder folosit, în folderul Descărcări sau într-un folder pe care îl alegeți.
+
+- Reacții: acum puteți vedea care reacție vă aparține și o puteți elimina selectând-o din nou.
+
+- Salvarea unui mesaj de contact primit ca contact, cu Enter sau Spațiu.
+
+- Redarea sunetului deja înregistrat în timp ce înregistrarea este în pauză, cu Ctrl+P.
+
+- Selector de țară refăcut în dialogul de asociere: folosește țara și limba configurate în Windows, este sortat alfabetic, acceptă căutarea prin tastarea mai multor litere și protejează prefixul țării de editarea accidentală.
+
+- Setări noi: afișarea „ieri” în locul datei, anunțarea „Redirecționat” înaintea expeditorului, diferențierea mesajelor vocale de fișierele audio, care este acum implicită în locul citirii tuturor ca audio, determinarea duratei unui videoclip imediat ce este descărcat, alegerea tipurilor de media afișate implicit și oprirea marcării fișierelor audio ca redate.
+
+- Căutare în listele de contacte („Atașați contactul” și „Adăugați membru”): câmpul primește focusul imediat ce se deschide lista, filtrează după nume (inclusiv numele de familie) și după număr pe măsură ce tastați, iar golirea lui afișează din nou toate contactele.
+
+- Card de contact primit: un meniu contextual cu afișarea numelui și a numărului, copierea numărului cu Ctrl+C și „Chat”. Când cardul conține mai multe numere, WinZapp întreabă pe care să îl folosească.
+
+ÎMBUNĂTĂȚIRI
+
+- Documentele pot avea acum până la 2 GB, care este limita reală a WhatsApp. WinZapp le oprea la 1 GB fără motiv. Fotografiile, videoclipurile și fișierele audio rămân la 1 GB, limita WhatsApp pentru acestea.
+
+- Sincronizare incrementală a conversațiilor. Pornirea aplicației și reîmprospătarea sunt mult mai rapide, iar WinZapp anunță când începe și când se termină actualizarea.
+
+- Lista de conversații este mult mai rapidă. Un mesaj nou sau o confirmare de livrare actualizează doar acel rând în loc să reconstruiască întreaga listă. În practică, cititorul de ecran recitește mult mai puțin.
+
+- Acțiunile asupra unui mesaj actualizează și ele doar rândul acelui mesaj, iar editarea unui mesaj nu mai blochează interfața.
+
+- Notificările respectă Asistentul de concentrare din Windows.
+
+- Grupuri: un aviz când doar administratorii pot trimite mesaje, cu câmpul de mesaj setat doar pentru citire. Dialogul de adăugare a membrilor afișează nume în loc de numere și raportează cine nu a putut fi adăugat.
+
+- Atașarea unui contact: lista nu are duplicate, este sortată și nu mai afișează intrări nerezolvate.
+
+- Audio: fișierele OGG pe care aplicația nu le putea decoda sunt acum convertite automat, iar trimiterea fișierelor WAV funcționează.
+
+CORECTĂRI
+
+- Sesiune întreruptă de WhatsApp: WinZapp spune acum acest lucru imediat și deschide asocierea, în loc să vă lase în lista de conversații repetând că codul QR a fost actualizat. Dacă nimeni nu se află pe ecranul de asociere, sesiunea este închisă în loc să rămână cerând la nesfârșit un cod nou de la WhatsApp — acest șir nesfârșit de cereri putea duce la blocarea contului —, iar WinZapp anunță cu voce tare că a închis sesiunea și că trebuie să vă conectați din nou.
+
+- Contoare de mesaje necitite: mesajele deja citite nu mai revin ca noi, o conversație citită pe telefon este respectată, iar conversația deschisă nu își mai pierde contorul.
+
+- Separatorul de mesaje necitite și poziția de citire nu se mai pierd în timp ce citiți. Conversația deschisă era reconstruită periodic, ceea ce întrerupea cititorul de ecran în mijlocul propoziției.
+
+- Sesiune: închiderea și redeschiderea WinZapp nu mai cer o nouă asociere. Închiderea așteaptă acum ca sesiunea să fie salvată înainte de a se încheia.
+
+- Asociere: când WhatsApp refuză codul, este afișat motivul real, iar o actualizare a serverului nu mai întrerupe o asociere în curs.
+
+- Actualizările automate funcționează din nou când aplicația este instalată într-un folder cu diacritice sau alte caractere speciale.
+
+- Confidențialitate: aplicația nu mai scrie conținutul mesajelor sau datele de autentificare în fișierul jurnal.
+
+- Trimitere: anularea unui mesaj care fusese deja trimis este acum explicată clar, iar încărcările mari nu se mai pierd pe drum.
+
+- Videoclipurile fără durată raportată nu mai afișează „0 secunde”.
+
+- Primul mesaj de la un contact nu mai dispare la deschiderea conversației.
+
+- Accesibilitate: comanda rapidă pentru emoji este acum anunțată cititorului de ecran, Alt+T funcționează din nou într-o conversație, iar vorbirea nu mai este întreruptă de fiecare confirmare de livrare.
+
+- Sincronizarea nu mai repornește iar și iar. O singură conversație pe care WhatsApp nu o recunoaște, și care nu a fost niciodată o conversație reală, era suficientă ca WinZapp să creadă că sincronizarea nu se terminase niciodată: o lua de la capăt la câteva minute, anunțându-se de fiecare dată, chiar și cu totul deja încărcat.
+
+- Reîmprospătarea rapidă a conversațiilor nu mai sare peste conversațiile care au primit mesaje noi. Acestea rămâneau cu conținutul vechi până când apăsați F5 și sincronizați totul, ceea ce anula rostul reîmprospătării rapide.
+
+- WinZapp cunoaște acum data de expirare a versiunii WhatsApp Web pe care o folosește. Când aceasta expiră, preia versiunea pe care WhatsApp o oferă în prezent, în loc să insiste pe una care nu mai este acceptată. Aceasta era cauza blocării sincronizării, a listei de conversații goale și, în final, a eliminării computerului dintre dispozitivele asociate de către WhatsApp.
+
+- Primul cod de asociere după o conexiune întreruptă nu mai eșuează. WinZapp cerea coduri singur, în fundal, până când WhatsApp refuza din cauza prea multor cereri; acum așteaptă între cereri, iar când WhatsApp refuză totuși, mesajul explică motivul în loc să afișeze o eroare internă.
+
+- Filtrul media „Nedescărcat/linkuri” afișa mesaje vocale aflate deja pe computer, inclusiv pe cele redate în aplicație.
+
+- Un document pe care îl trimiteți își afișează acum dimensiunea imediat ce apare în lista de mesaje, așa cum se întâmpla deja cu cele primite.
+
+- WinZapp preferă acum o versiune stabilă de WhatsApp Web uneia alfa atunci când ambele sunt disponibile: folosirea unei versiuni alfa făcea ca dispozitivul să fie dezasociat la câteva ore după asociere. Sincronizarea inițială este, de asemenea, mai tolerantă la lentoare înainte de a decide că conexiunea este întreruptă.
+
+- Conversația „Eu (mesaje pentru mine)” nu mai afișează confirmări de livrare și de citire și nici marcajul „redat” pentru fișierele audio: nu au sens într-o conversație cu propriul număr.
+
+- „Ștergeți pentru toată lumea” în conversația „Eu (mesaje pentru mine)” funcționează acum cu adevărat. Mesajul dispărea doar local și revenea la următoarea sincronizare.
+
+- Alt+2, Alt+3 și Ctrl+W fără nicio conversație deschisă spun acum „Niciun chat nu este deschis.” în loc să nu facă nimic.
+
+- Alt+2 într-o conversație goală spune „Acest chat este gol.” în loc să rămână tăcut.
+
+- Lista de conversații revine la rândul pe care se afla efectiv focusul, nu întotdeauna la conversația care fusese deschisă.
+
+- Separatorul de mesaje necitite nu mai dispare și nu mai arată un număr greșit când aplicația este minimizată în bara de sistem cu conversația deschisă.
+
+- O conversație arhivată nu mai este anunțată cu voce tare când sosește un mesaj nou în timp ce aplicația este în prim-plan.
+
+- Redarea mesajelor vocale una după alta nu mai citește cu voce tare întregul rând anterior peste cel nou.
+
+- Opțiunea de a opri cititorul de ecran în timpul înregistrării audio oprește acum anunțul de la sursă, în loc să încerce să îl anuleze după ce a început deja.
+
+- Adăugarea unui contact nou prin WinZapp putea duplica conversația și lăsa primul ei mesaj blocat permanent ca „neconfirmat” ori de câte ori WhatsApp recunoștea acel număr într-un alt format (de exemplu, cu sau fără a 9-a cifră).
+
+- Un nume de grup schimbat în WhatsApp este acum preluat de WinZapp, inclusiv la o resincronizare cu F5. Înainte, numele vechi nu era înlocuit niciodată.
+
+- Schimbarea dispozitivului de ieșire a sunetului în Setări în timp ce se reda un fișier audio putea face ca prima încercare de a reda alt fișier audio să eșueze fără niciun semnal; acum se redă de la prima încercare.
+
+- Deconectarea din Fișier > Deconectare nu mai redă din nou sunetele „conectat”/„sincronizare pornită” și nu mai încearcă să se reconecteze singură: contul rămâne deconectat corect.
+
+- Jurnalul programului de instalare a actualizărilor se află acum în folderul de jurnale al contului (alături de log.log și shutdown_audit.log), în loc să stea liber în folderul programului.

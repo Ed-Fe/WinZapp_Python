@@ -52,6 +52,16 @@ SCENARIOS = {
         set=lambda d, t: d._lang_combo.SetSelection(d._lang_codes.index("en-US")),
         shows=lambda d, t: d._lang_codes[d._lang_combo.GetSelection()] == "en-US",
     ),
+    "pasted_audio_as": dict(
+        saves={("general", "pasted_audio_as"): "document"},
+        set=lambda d, t: d._pasted_audio_radio.SetSelection(1),
+        shows=lambda d, t: d._pasted_audio_radio.GetSelection() == 1,
+    ),
+    "notification_content": dict(
+        saves={("general", "notification_content"): "sound"},
+        set=lambda d, t: d._notification_content_radio.SetSelection(2),
+        shows=lambda d, t: d._notification_content_radio.GetSelection() == 2,
+    ),
     "spell_check_mode": dict(
         saves={("general", "spell_check_mode"): "off"},
         set=lambda d, t: d._spell_check_radio.SetSelection(SPELL_CHECK_MODES.index("off")),

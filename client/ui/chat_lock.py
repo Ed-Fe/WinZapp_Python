@@ -30,8 +30,12 @@ class ChatLockSetupDialog(wx.Dialog):
     def __init__(self, parent, i18n):
         super().__init__(parent, title=i18n.t("chat_lock_setup_title"))
         sizer = wx.BoxSizer(wx.VERTICAL)
+        # Shown from "Lock chat" on one conversation, so a bare "PIN" read as
+        # a PIN for that conversation. It is the vault's one PIN — every
+        # locked chat opens with it — and the label is what the screen reader
+        # speaks on focus, so that is where it has to say so.
         self.pin = _labelled_text(
-            self, sizer, i18n.t("chat_lock_pin_label"), password=True
+            self, sizer, i18n.t("chat_lock_setup_pin_label"), password=True
         )
         self.confirm = _labelled_text(
             self, sizer, i18n.t("chat_lock_pin_confirm_label"), password=True

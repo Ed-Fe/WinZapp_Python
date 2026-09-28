@@ -10,7 +10,7 @@ import tempfile
 import threading
 import wx
 from ui.dialogs.emoji_picker import choose_and_insert_emoji
-from core.attachment_types import classify_attachment_media_type
+from core.attachment_types import DEFAULT_PASTED_AUDIO_AS, pasted_attachment_media_type
 from core.link_preview import (
     fetch_link_preview,
     find_first_url,
@@ -75,10 +75,14 @@ class ComposerMixin:
             self.send_message_btn.Show()
             self.record_voice_message_btn.Hide()
             self._record_voice_alt_btn.Hide()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Hide()
         else:
             self.send_message_btn.Hide()
             self.record_voice_message_btn.Show()
             self._record_voice_alt_btn.Show()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Show()
         # Sync typing status with WPPConnect (only on state transitions)
         if self.conversation is not None:
             jid = self.conversation.get("remoteJid", "")
@@ -464,11 +468,18 @@ class ComposerMixin:
             if wx.TheClipboard.GetData(data):
                 paths = [p for p in data.GetFilenames() if os.path.isfile(p)]
                 if paths:
+                    # An audio file goes out as audio or as a document by the
+                    # user's choice (Settings > Files and saving), so the row
+                    # shown while sending already has the type WhatsApp will
+                    # show — not one a later refresh corrects.
+                    pasted_audio_as = self.main_window.settings.get(
+                        "general", {}).get("pasted_audio_as", DEFAULT_PASTED_AUDIO_AS)
                     for path in paths:
                         self._staged_attachments.append(
                             {
                                 "path": path,
-                                "media_type": classify_attachment_media_type(path),
+                                "media_type": pasted_attachment_media_type(
+                                    path, pasted_audio_as),
                             }
                         )
                     self._show_attachment_panel()

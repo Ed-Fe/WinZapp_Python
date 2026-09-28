@@ -271,6 +271,13 @@ class WindowChromeMixin:
                     # install, or fewer than <slot> paired accounts) — there
                     # is nothing to switch to, so this combo isn't actually
                     # ours; fall through to event.Skip() below.
+            elif (event.GetModifiers() == wx.MOD_CONTROL
+                    and event.GetKeyCode() == wx.WXK_F4
+                    and getattr(self, "_accounts_menu_id_map", None)):
+                # Ctrl+F4 → Accounts > Close current account. Only while the
+                # Accounts menu exists, i.e. under the account system.
+                self._close_current_account()
+                return
         except Exception:
             logging.exception("[accounts] hotkey char handler failed")
         event.Skip()
@@ -412,8 +419,84 @@ class WindowChromeMixin:
                     self, self.registry, self.account_id, self.i18n,
                     self.global_dir, on_pair=self._switch_to_account).show()
                 self._rebuild_accounts_menu()
+            elif action.get("close_current"):
+                self._close_current_account()
         except Exception:
             logging.exception("[accounts] menu action failed")
+
+    def _other_running_account_ids(self) -> list:
+        """Accounts other than this one whose process is running now, read from
+        the per-account Node leases — the same source quit_all_accounts() uses."""
+        gd = getattr(self, "global_dir", None)
+        acc_id = getattr(self, "account_id", None)
+        if not (gd and acc_id):
+            return []
+        import node_coord
+        import update_coord
+        running = [l.get("account_id") for l in node_coord.live_node_leases(
+            gd, is_alive=update_coord.lease_alive) if not l.get("_corrupt")]
+        return [a for a in running if a and a != acc_id]
+
+    def _close_current_account(self):
+        """Accounts > Close current account (Ctrl+F4): end only this account's
+        process — its WhatsApp session, Node and memory — and leave the others
+        running, so an account not in use stops costing the machine anything.
+
+        Reopening needs nothing new: switching to a closed account (its item in
+        another account's Accounts menu, Ctrl+Alt+<n>, Switch account…) starts
+        its process again, see account_launcher.switch_to_account().
+
+        Another running account's window is brought forward first, so focus
+        (and the screen reader) lands on it instead of on whatever window
+        Windows picks. With no other account running, closing this one quits
+        WinZapp, which is asked first; No is the default for the same reason
+        as the other confirmations: Space activates the focused button.
+        """
+        gd = getattr(self, "global_dir", None)
+        acc_id = getattr(self, "account_id", None)
+        if not (gd and acc_id):
+            return
+        import account_ui
+        try:
+            others = self._other_running_account_ids()
+        except Exception:
+            logging.exception("[accounts] listing running accounts failed")
+            others = []
+        target = account_ui.account_to_foreground_after_close(
+            self.registry.list() if getattr(self, "registry", None) else [],
+            others, acc_id)
+        if target is None:
+            if wx.MessageBox(
+                self.i18n.t("acc_close_current_last_confirm"),
+                self.i18n.t("acc_menu_close_current"),
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+                self,
+            ) != wx.YES:
+                return
+            logging.info("[accounts] closing %s, the only account running", acc_id)
+            self.real_exit()
+            return
+
+        logging.info("[accounts] closing %s; bringing %s forward", acc_id, target)
+        self.output(self.i18n.t("acc_close_current_done").format(
+            name=getattr(self, "account_name", "") or acc_id), interrupt=True)
+        try:
+            self.Hide()
+        except Exception:
+            pass
+
+        def _hand_over_then_exit():
+            # Off the wx thread: the activation is an IPC round trip to
+            # another process (see test_shutdown_paths_off_main_thread.py).
+            try:
+                from account_launcher import switch_to_account
+                switch_to_account(gd, target)
+            except Exception:
+                logging.exception("[accounts] bringing %s forward failed", target)
+            wx.CallAfter(self.real_exit)
+
+        threading.Thread(target=_hand_over_then_exit, daemon=True,
+                         name="winzapp-close-account").start()
 
     def _switch_to_account(self, account_id: str):
         """Activation-first switch (plan Zad 4.1): bring the target account's
@@ -575,6 +658,9 @@ class WindowChromeMixin:
                     name="winzapp-ipc-quit").start(),
                 released_predicate=lambda: getattr(self, "_ipc_released", False),
                 window_ready_predicate=lambda: getattr(self, "_window_ready", False),
+                # Another account's quick device switch (Ctrl+Alt+Shift+H/G).
+                on_audio_device=lambda kind, name: wx.CallAfter(
+                    self._ipc_audio_device, kind, name),
             )
             self._ipc_listener.start()
             ready = self._ipc_listener.wait_ready(timeout=3.0)

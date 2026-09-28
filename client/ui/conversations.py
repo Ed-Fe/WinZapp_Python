@@ -132,6 +132,7 @@ from ui.conversation_panel.accelerators import AcceleratorsMixin
 from ui.conversation_panel.conversation_navigation import ConversationNavigationMixin
 from ui.conversation_panel.composer import ComposerMixin
 from ui.conversation_panel.voice_recording import VoiceRecordingMixin
+from ui.conversation_panel.system_audio_recording import SystemAudioRecordingMixin
 from ui.conversation_panel.text_sending import TextSendingMixin
 from ui.conversation_panel.list_refresh import ListRefreshMixin
 from ui.conversation_panel.chat_menu import ChatMenuMixin
@@ -163,6 +164,7 @@ class ConversationsPanel(
     ConversationNavigationMixin,
     ComposerMixin,
     VoiceRecordingMixin,
+    SystemAudioRecordingMixin,
     TextSendingMixin,
     ListRefreshMixin,
     ChatMenuMixin,
@@ -306,6 +308,9 @@ class ConversationsPanel(
         # switch/close that happens mid-open discard the stream once it opens.
         self._recording_starting    = False
         self._recording_open_token  = 0
+        self._system_audio_session = None
+        self._recording_system_audio = False
+        self._system_audio_interrupted = False
 
         # ── Attachment staging ──────────────────────────────────────────────
         # list of {"path": str, "media_type": str}
@@ -953,6 +958,15 @@ class ConversationsPanel(
         self._record_voice_alt_btn.Bind(wx.EVT_BUTTON, self._on_record_alternate_mode)
         conv_sizer.Add(self._record_voice_alt_btn, 0, wx.LEFT | wx.BOTTOM, 5)
 
+        self._record_voice_system_btn = wx.Button(
+            self.conversation_panel, label=i18n.t("record_voice_message_system_audio")
+        )
+        self._record_voice_system_btn.SetAccessible(
+            AccessibleRecordVoiceMessage("Ctrl+Shift+H")
+        )
+        self._record_voice_system_btn.Bind(wx.EVT_BUTTON, self._on_record_system_audio)
+        conv_sizer.Add(self._record_voice_system_btn, 0, wx.LEFT | wx.BOTTOM, 5)
+
         # ── Attachment staging panel (hidden until files are chosen) ─────────
         self._attachment_panel = wx.Panel(self.conversation_panel)
         attach_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -1039,6 +1053,8 @@ class ConversationsPanel(
         )
         self._send_voice_btn.Bind(wx.EVT_BUTTON, self._send_voice_message)
         voice_sizer.Add(self._send_voice_btn, 0, wx.LEFT | wx.BOTTOM, 5)
+        self._create_system_audio_volume_controls(voice_sizer)
+        self._create_nvda_volume_controls(voice_sizer)
 
         self._voice_panel.SetSizer(voice_sizer)
         self._voice_panel.Hide()
@@ -1194,6 +1210,8 @@ class ConversationsPanel(
             self._remove_quote_btn.SetLabel(i18n.t("remove_quote"))
         self.record_voice_message_btn.SetLabel(i18n.t("record_voice_message"))
         self.refresh_alternate_record_button()
+        if hasattr(self, "_record_voice_system_btn"):
+            self._record_voice_system_btn.SetLabel(i18n.t("record_voice_message_system_audio"))
         self._add_attachment_btn.SetLabel(i18n.t("add_attachment"))
         self._add_more_btn.SetLabel(i18n.t("add_more_files"))
         self._caption_label.SetLabel(i18n.t("attachment_caption_hint"))
@@ -1203,6 +1221,7 @@ class ConversationsPanel(
         self._return_call_btn.SetLabel(i18n.t("return_call_button"))
         self._discard_voice_btn.SetLabel(i18n.t("discard_voice_message"))
         self._send_voice_btn.SetLabel(i18n.t("send_voice_message"))
+        self._relabel_system_audio_volume_controls()
         if self._is_recording and self._recording_paused:
             self._pause_resume_btn.SetLabel(i18n.t("resume_recording"))
         else:

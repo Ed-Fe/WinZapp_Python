@@ -106,6 +106,8 @@ class ConversationNavigationMixin:
             self.send_message_btn.Disable()
             self.record_voice_message_btn.Disable()
             self._record_voice_alt_btn.Disable()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Disable()
             self._add_attachment_btn.Disable()
             self._emoji_btn.Disable()
         elif admins_only_group:
@@ -122,6 +124,8 @@ class ConversationNavigationMixin:
             self.send_message_btn.Disable()
             self.record_voice_message_btn.Disable()
             self._record_voice_alt_btn.Disable()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Disable()
             self._add_attachment_btn.Disable()
             self._emoji_btn.Disable()
         else:
@@ -130,6 +134,8 @@ class ConversationNavigationMixin:
             self.send_message_btn.Enable()
             self.record_voice_message_btn.Enable()
             self._record_voice_alt_btn.Enable()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Enable()
             self._add_attachment_btn.Enable()
             self._emoji_btn.Enable()
 

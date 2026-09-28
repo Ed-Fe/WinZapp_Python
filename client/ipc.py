@@ -109,8 +109,13 @@ class IpcListener:
         on_quit: Callable[[], None],
         released_predicate: Optional[Callable[[], bool]] = None,
         window_ready_predicate: Optional[Callable[[], bool]] = None,
+        on_audio_device: Optional[Callable[[str, str], None]] = None,
     ):
         self.global_dir = global_dir
+        # Quick audio-device switch passed on by another account (see
+        # main_window/quick_audio_devices.py). Optional: a listener without it
+        # just acknowledges nothing for that command.
+        self.on_audio_device = on_audio_device
         self.account_id = account_id
         self.on_activate = on_activate
         self.on_quit = on_quit
@@ -415,6 +420,11 @@ class IpcListener:
         if cmd == "activate":
             replies.append(json.dumps({"request_id": rid, "ack": True}))
             self._dispatch_activate(req.get("source", "user"))
+        elif cmd == "audio_device" and self.on_audio_device is not None:
+            kind, name = req.get("kind"), req.get("name")
+            if isinstance(kind, str) and isinstance(name, str):
+                replies.append(json.dumps({"request_id": rid, "ack": True}))
+                self.on_audio_device(kind, name)
         elif cmd == "quit":
             replies.append(json.dumps({"request_id": rid, "ack": True}))
             # Trigger shutdown, then wait until the process actually releases.
@@ -521,6 +531,22 @@ def request_activate(global_dir: str, account_id: str, source: str = "user",
     Returns True if a listener acknowledged; False if none is running.
     """
     replies = _send(global_dir, account_id, _make_request("activate", source), timeout)
+    if not replies:
+        return False
+    return any(r.get("ack") for r in replies)
+
+
+def request_audio_device(global_dir: str, account_id: str, kind: str, name: str,
+                         timeout: float = 3.0) -> bool:
+    """Ask the process owning account_id to switch its *kind* ("output" or
+    "input") audio device to *name* ("" = system default) for this session.
+
+    Returns True if a listener acknowledged; False if none is running.
+    """
+    req = _make_request("audio_device")
+    req["kind"] = kind
+    req["name"] = name
+    replies = _send(global_dir, account_id, req, timeout)
     if not replies:
         return False
     return any(r.get("ack") for r in replies)

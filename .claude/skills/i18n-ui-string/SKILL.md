@@ -1,6 +1,6 @@
 ---
 name: i18n-ui-string
-description: Add, change or remove a user-facing string in WinZapp. Use whenever a change introduces text a person can read or a screen reader can speak — dialog titles, buttons, menu items, list labels, error boxes, notifications, tooltips — or whenever a file under client/languages/ needs editing. Covers all five locales, the mnemonic and placeholder rules, and the tests that enforce them.
+description: Add, change or remove a user-facing string in WinZapp. Use whenever a change introduces text a person can read or a screen reader can speak — dialog titles, buttons, menu items, list labels, error boxes, notifications, tooltips — or whenever a file under client/languages/ needs editing. Covers every registered locale (language_map.json), the mnemonic and placeholder rules, and the tests that enforce them.
 ---
 
 # Adding a user-facing string
@@ -19,8 +19,9 @@ were added, and nothing failed until someone switched the app to Polish
 `recording_paused` when *no* locale had them, so NVDA read those two literal
 strings to users.
 
-So: **a key added anywhere is owed by every locale.** All five files, same
-commit.
+So: **a key added anywhere is owed by every locale.** Every file in
+`language_map.json` (seven today: pt-BR, pt-PT, en-US, es-ES, pl, tr-TR, ro —
+read the map, never a count), same commit.
 
 ## The procedure
 
@@ -51,7 +52,7 @@ commit.
   one that invents a placeholder the call site does not pass raises `KeyError`
   at runtime. The check compares all locales that define the key against each
   other, not against a reference file.
-- **The expected key set is the union of all five files, not pt-BR's.** Adding
+- **The expected key set is the union of all locale files, not pt-BR's.** Adding
   a key to en-US and forgetting pt-BR is exactly as broken as the reverse, and
   the failure lands on the default locale. Whichever file is behind is the one
   that fails.
@@ -75,10 +76,10 @@ commit.
 pytest tests/test_language_files_in_sync.py tests/test_i18n_keys_exist.py
 ```
 
-The first checks the five files against each other (union of keys, no blanks,
+The first checks the locale files against each other (union of keys, no blanks,
 mnemonics, placeholders). The second scans `client/**/*.py` for literal
 `i18n.t("...")` calls and asserts every key the code asks for exists — that is
-the direction the first one cannot see, since five files can agree perfectly
+the direction the first one cannot see, since every file can agree perfectly
 while all missing the same key.
 
 ## Adding a whole new locale

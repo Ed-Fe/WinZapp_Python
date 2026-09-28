@@ -14,6 +14,8 @@ from core.audio_devices import (
     enumerate_output_devices, enumerate_input_devices, test_input_device,
 )
 from core.spell_checker import SPELL_CHECK_MODES, spell_check_mode
+from core.notification_manager import NOTIFICATION_CONTENT_LEVELS
+from core.attachment_types import PASTED_AUDIO_MODES
 from core.reaction_shortcuts import (
     DEFAULT_QUICK_REACTIONS,
     assign_quick_reaction,
@@ -444,6 +446,15 @@ def _transcription_cuda_status_text(i18n, state) -> str:
     )
 
 
+#: Radio labels for Settings > General > notification content, in the order
+#: of core.notification_manager.NOTIFICATION_CONTENT_LEVELS.
+NOTIFICATION_CONTENT_LABEL_KEYS = (
+    "notification_content_full",
+    "notification_content_name",
+    "notification_content_sound",
+)
+
+
 def chat_lock_tab_visible(main_window) -> bool:
     """Whether Settings may show the "Locked chats" tab at all.
 
@@ -558,6 +569,23 @@ class SettingsDialog(wx.Dialog):
             self._general_page, label=i18n.t("notifications_label")
         )
         gen_sizer.Add(self._notifications_check, 0, wx.ALL, 8)
+
+        # How much a background notification says (issue #258). A radio
+        # group, like the spell-check one below, so the screen reader reads
+        # the question and the chosen answer together. Only meaningful while
+        # notifications are on, so it follows that box's state.
+        self._notification_content_radio = wx.RadioBox(
+            self._general_page,
+            label=i18n.t("notification_content_label"),
+            choices=[i18n.t(key) for key in NOTIFICATION_CONTENT_LABEL_KEYS],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        gen_sizer.Add(self._notification_content_radio, 0, wx.EXPAND | wx.ALL, 8)
+        self._notifications_check.Bind(
+            wx.EVT_CHECKBOX,
+            lambda e: (self._sync_notification_content_enabled(), e.Skip()),
+        )
 
         self._keep_muted_silent_check = wx.CheckBox(
             self._general_page, label=i18n.t("keep_muted_chats_silent_when_open_label")
@@ -851,6 +879,13 @@ class SettingsDialog(wx.Dialog):
         )
         ui_sizer.Add(
             self._warn_stereo_voice_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        self._warn_system_audio_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_warn_system_audio_recording")
+        )
+        ui_sizer.Add(
+            self._warn_system_audio_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
         )
 
         self._space_selects_cb = wx.CheckBox(
@@ -1403,6 +1438,17 @@ class SettingsDialog(wx.Dialog):
         self._save_folder_browse_btn.Bind(
             wx.EVT_BUTTON, self._on_browse_save_folder
         )
+
+        # What an audio file pasted into the message field (Ctrl+V) is sent
+        # as, in the order of core.attachment_types.PASTED_AUDIO_MODES.
+        self._pasted_audio_radio = wx.RadioBox(
+            self._files_page,
+            label=i18n.t("pasted_audio_label"),
+            choices=[i18n.t("pasted_audio_as_audio"), i18n.t("pasted_audio_as_document")],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        files_sizer.Add(self._pasted_audio_radio, 0, wx.EXPAND | wx.ALL, 8)
 
         self._files_page.SetSizer(files_sizer)
         self._notebook.AddPage(self._files_page, i18n.t("tab_files_saving"))
@@ -3077,6 +3123,12 @@ class SettingsDialog(wx.Dialog):
         mode = spell_check_mode(self.main_window.settings.get("general", {}))
         self._spell_check_radio.SetSelection(SPELL_CHECK_MODES.index(mode))
 
+    def _sync_notification_content_enabled(self):
+        """The notification-content choice only applies while background
+        notifications are on; greyed out otherwise, but kept, so turning them
+        back on restores the level the user had picked."""
+        self._notification_content_radio.Enable(self._notifications_check.GetValue())
+
     def _load_values(self):
         """Populate controls from current settings."""
         lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
@@ -3087,6 +3139,13 @@ class SettingsDialog(wx.Dialog):
 
         notifs = self.main_window.settings.get("general", {}).get("notifications_enabled", True)
         self._notifications_check.SetValue(notifs)
+        content = self.main_window.settings.get("general", {}).get("notification_content", "full")
+        # An unknown value opens on the default, as notification_content_level()
+        # reads it everywhere else.
+        self._notification_content_radio.SetSelection(
+            NOTIFICATION_CONTENT_LEVELS.index(content)
+            if content in NOTIFICATION_CONTENT_LEVELS else 0)
+        self._sync_notification_content_enabled()
 
         call_settings = self.main_window.settings.get("calls", {})
         self._call_alerts_check.SetValue(call_settings.get("alerts_enabled", True))
@@ -3114,6 +3173,11 @@ class SettingsDialog(wx.Dialog):
         )
         self._set_quick_reaction_slots(reactions.get("quick_reaction_slots"))
         self._update_quick_reaction_fields()
+
+        pasted_audio_as = self.main_window.settings.get("general", {}).get("pasted_audio_as", "audio")
+        self._pasted_audio_radio.SetSelection(
+            PASTED_AUDIO_MODES.index(pasted_audio_as)
+            if pasted_audio_as in PASTED_AUDIO_MODES else 0)
 
         files_settings = self.main_window.settings.get(save_location.SECTION, {})
         self._save_folder_radio.SetSelection(
@@ -3253,6 +3317,9 @@ class SettingsDialog(wx.Dialog):
             "warn_stereo_voice_iphone", True
         )
         self._warn_stereo_voice_cb.SetValue(bool(warn_stereo_voice))
+        self._warn_system_audio_cb.SetValue(bool(
+            self.main_window.settings.get("user_interface", {}).get(
+                "warn_system_audio_recording", True)))
 
         space_selects = self.main_window.settings.get("user_interface", {}).get(
             "space_selects_in_selection_mode", True
@@ -4479,6 +4546,9 @@ class SettingsDialog(wx.Dialog):
             self._save_folder_radio.GetSelection())
         files_section[save_location.CUSTOM_KEY] = (
             self._save_folder_custom_field.GetValue() or "").strip()
+        self.main_window.settings.setdefault("general", {})["pasted_audio_as"] = (
+            PASTED_AUDIO_MODES[self._pasted_audio_radio.GetSelection()]
+        )
 
         # UI: focus on open
         focus_on_open = (
@@ -4531,6 +4601,9 @@ class SettingsDialog(wx.Dialog):
         self.main_window.settings.setdefault("user_interface", {})[
             "warn_stereo_voice_iphone"
         ] = self._warn_stereo_voice_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "warn_system_audio_recording"
+        ] = self._warn_system_audio_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
             "space_selects_in_selection_mode"
         ] = self._space_selects_cb.GetValue()
@@ -4665,13 +4738,18 @@ class SettingsDialog(wx.Dialog):
         input_name = self._audio_input_device_names[input_sel - 1] if input_sel > 0 else ""
         self.main_window.settings.setdefault("audio_devices", {})["input_device_name"] = input_name
         self.main_window.effective_input_device_name = input_name
+        # The devices just applied are an explicit choice: a quick switch
+        # (Ctrl+Alt+Shift+H/G) made earlier this session stops overriding them.
+        end_session = getattr(self.main_window, "end_session_audio_devices", None)
+        if end_session is not None:
+            end_session(general=True)
 
         self.main_window.settings.setdefault("general", {})["noise_reduction_enabled"] = (
             self._noise_reduction_check.GetValue()
         )
 
-        # Turning stereo voice messages on warns first that iPhone cannot play
-        # them (ui/dialogs/stereo_voice_warning.py). Read from this dialog's own
+        # Turning stereo voice messages on says first that they go out as audio
+        # messages (ui/dialogs/stereo_voice_warning.py). Read from this dialog's own
         # box, not from settings: it may have been unticked in this same save.
         # No leaves stereo off; "don't show again" unticks the box here too, so
         # a later Apply cannot write it back on.
@@ -4686,6 +4764,9 @@ class SettingsDialog(wx.Dialog):
         # Notifications
         self.main_window.settings.setdefault("general", {})["notifications_enabled"] = (
             self._notifications_check.GetValue()
+        )
+        self.main_window.settings.setdefault("general", {})["notification_content"] = (
+            NOTIFICATION_CONTENT_LEVELS[self._notification_content_radio.GetSelection()]
         )
         self.main_window.settings.setdefault("general", {})["keep_muted_chats_silent_when_open"] = (
             self._keep_muted_silent_check.GetValue()
@@ -4972,6 +5053,9 @@ class SettingsDialog(wx.Dialog):
         self._noise_reduction_check.SetLabel(i18n.t("noise_reduction_label"))
         self._voice_stereo_check.SetLabel(i18n.t("voice_stereo_default_label"))
         self._notifications_check.SetLabel(i18n.t("notifications_label"))
+        self._notification_content_radio.SetLabel(i18n.t("notification_content_label"))
+        for _i, _key in enumerate(NOTIFICATION_CONTENT_LABEL_KEYS):
+            self._notification_content_radio.SetItemLabel(_i, i18n.t(_key))
         self._call_alerts_check.SetLabel(i18n.t("calls_alerts_enabled_label"))
         self._call_popup_check.SetLabel(i18n.t("calls_popup_enabled_label"))
         self._call_audio_settings_button.SetLabel(i18n.t("calls_audio_settings_button"))
@@ -4993,6 +5077,9 @@ class SettingsDialog(wx.Dialog):
         )):
             self._search_norm_radio.SetItemLabel(_i, i18n.t(_key))
         self._save_folder_radio.SetLabel(i18n.t("save_folder_mode_label"))
+        self._pasted_audio_radio.SetLabel(i18n.t("pasted_audio_label"))
+        self._pasted_audio_radio.SetItemLabel(0, i18n.t("pasted_audio_as_audio"))
+        self._pasted_audio_radio.SetItemLabel(1, i18n.t("pasted_audio_as_document"))
         for _i, _key in enumerate((
             "save_folder_mode_last",
             "save_folder_mode_downloads",
@@ -5070,6 +5157,7 @@ class SettingsDialog(wx.Dialog):
         self._confirm_resync_all_cb.SetLabel(i18n.t("ui_confirm_resync_all"))
         self._confirm_resync_conversation_cb.SetLabel(i18n.t("ui_confirm_resync_conversation"))
         self._warn_stereo_voice_cb.SetLabel(i18n.t("ui_warn_stereo_voice_iphone"))
+        self._warn_system_audio_cb.SetLabel(i18n.t("ui_warn_system_audio_recording"))
         self._space_selects_cb.SetLabel(i18n.t("ui_space_selects_in_selection_mode"))
         self._escape_clears_selection_cb.SetLabel(i18n.t("ui_escape_clears_selection"))
         self._auto_focus_next_audio_cb.SetLabel(i18n.t("ui_auto_focus_next_audio"))

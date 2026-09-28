@@ -16,6 +16,7 @@ Where to look (and where new code goes):
     composer                 message field: spell check, link preview, keys, paste
     text_sending             sending/editing text, pending rows, cancelled sends
     voice_recording          recording and sending voice messages
+    system_audio_recording   mixed microphone + system-audio (WASAPI loopback) recording
     list_refresh             populate_messages, repaints, incoming messages
     message_list             moving in the message list: select, activate, jump
     message_rendering        a message record -> its row text

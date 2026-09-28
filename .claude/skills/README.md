@@ -12,7 +12,7 @@ primeiro vem junto com o `git clone`.
 
 Uma skill **carrega sozinha** quando a tarefa bate com a descrição dela. Mexeu
 em `client/languages/`, a `i18n-ui-string` entra em cena e o agente já sabe dos
-cinco arquivos, do `&&` e dos placeholders — você não precisa lembrar de nada.
+arquivos de todos os idiomas registrados, do `&&` e dos placeholders — você não precisa lembrar de nada.
 Para forçar, digite `/nome-da-skill`.
 
 ### Agentes: você chama pelo nome
@@ -95,7 +95,7 @@ próprio agente quando a tarefa se encaixa na descrição — não é preciso in
 
 | skill | quando ela vale |
 | --- | --- |
-| `i18n-ui-string` | Qualquer texto que o usuário lê ou o leitor de tela fala. `I18n.t()` é `translations.get(key, key)`, sem fallback por chave: uma chave faltando vira o nome cru dela na tela, lido em voz alta. Cobre os cinco locales, `&` como mnemônico do wx (um `&` literal se escreve `&&`) e placeholders `{}`. |
+| `i18n-ui-string` | Qualquer texto que o usuário lê ou o leitor de tela fala. `I18n.t()` é `translations.get(key, key)`, sem fallback por chave: uma chave faltando vira o nome cru dela na tela, lido em voz alta. Cobre todos os idiomas de `language_map.json`, `&` como mnemônico do wx (um `&` literal se escreve `&&`) e placeholders `{}`. |
 | `write-test` | Teste novo ou estendido. `MainWindow` é `wx.Frame` e `ConversationsPanel` é `wx.Panel`: nenhum dos dois instanciável sem `wx.App`, então ou a lógica sai para nível de módulo, ou o método real é ligado a um stub. Também as fixtures do `conftest.py` e o `asyncio_mode=auto` (teste async é só `async def`, sem decorator). |
 | `wppconnect-patch` | Conserto do lado Node. São três mecanismos de patch diferentes, cada um com suas listas; escolher o errado é silencioso, e a mudança some no próximo `setup_api.py`. Nunca editar `client/api/` direto. |
 | `accessible-ui` | Qualquer mexida em `client/ui/`, `status_panel.py` ou no wx do `main.py`. Controles padrão do wx, toda fala por `speak_output`, `Freeze`/`Thaw` com `try/finally` em volta de mutação de lista, e o limite de 511 caracteres do SysListView32. |
@@ -195,7 +195,7 @@ exige um comando que fique vermelho *neste* bug antes de teorizar.
 
 **Onde o `winzapp-reviewer` entra:** o `/code-review` do Matt cobre estrutura
 e spec; o nosso cobre o que quebra *este* repositório (JID, sync gate, echo
-matching, cinco locales, leitor de tela, mecanismo de patch). Não são
+matching, todos os idiomas, leitor de tela, mecanismo de patch). Não são
 alternativos — rode os dois antes de abrir PR, o do Matt primeiro.
 
 `/improve-codebase-architecture` acha candidatos a extração; a execução é o

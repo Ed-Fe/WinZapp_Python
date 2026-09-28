@@ -143,6 +143,16 @@ class TestNewAppLevelShortcutsAreDocumented:
         assert "shortcut_ctrl_alt_shift_q_label" in text
 
 
+class TestMentionsShortcutIsDocumented:
+    """Alt+Shift+M jumps to the previous message mentioning the user
+    (ConversationsPanel._on_accel_mentions) — GitHub issue: it had no F1
+    entry even though every other bound accelerator does."""
+
+    def test_shortcut_alt_shift_m_label_is_present(self):
+        text = ShortcutsDialog._build_text(_FakeI18n())
+        assert "shortcut_alt_shift_m_label" in text
+
+
 class TestBulkActionShortcutsAreDocumented:
     """Each entry of the "Ações em massa" submenu has its own shortcut (see
     ConversationsPanel._on_accel_bulk_*), reachable whatever the "Substituir

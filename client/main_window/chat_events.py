@@ -890,7 +890,17 @@ class ChatEventsMixin:
                     unread_count = min(unread_count, local_new)
                 self._locally_read_at.pop(normalized, None)
                 self._persist_locally_read_at()
-                if hasattr(self, "_new_since_read"):
+                # The read-ack is consumed; the arrival counter is not. It
+                # still counts every message since the local read, which is
+                # what the anchored clamp above takes it for on the next
+                # chats-update. Dropping it here made on_new_message() restart
+                # it from 1 under an anchor that still vouched for it, and
+                # WhatsApp Web announces a chat's new total BEFORE the message
+                # itself: three documents received in one second went
+                # 1 -> 1, 2 -> 1 (the clamp against the restarted counter),
+                # and the badge settled on 2. Only a read on another device
+                # starts the count over.
+                if unread_count == 0 and _remote_read and hasattr(self, "_new_since_read"):
                     self._new_since_read.pop(normalized, None)
         logging.info(
             "[unread] %s: %s -> %s (previous=%s, open=%s, read_ack=%s).",

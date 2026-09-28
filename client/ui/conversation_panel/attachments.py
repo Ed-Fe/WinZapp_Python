@@ -192,6 +192,8 @@ class AttachmentsMixin:
         self.send_message_btn.Hide()
         self.record_voice_message_btn.Hide()
         self._record_voice_alt_btn.Hide()
+        if hasattr(self, "_record_voice_system_btn"):
+            self._record_voice_system_btn.Hide()
         self._add_attachment_btn.Hide()
         self._attachment_panel.Show()
         self.conversation_panel.Layout()
@@ -269,6 +271,8 @@ class AttachmentsMixin:
             else:
                 self.record_voice_message_btn.Show()
                 self._record_voice_alt_btn.Show()
+                if hasattr(self, "_record_voice_system_btn"):
+                    self._record_voice_system_btn.Show()
             self._add_attachment_btn.Show()
         if hasattr(self, "conversation_panel") and self.conversation_panel.IsShown():
             self.conversation_panel.Layout()

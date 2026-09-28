@@ -372,6 +372,67 @@ def auto_start_block_reason(*, pairing_dialog_active: bool,
     return None
 
 
+# A session started while the machine cannot reach WhatsApp does not come back
+# when the network does. Measured 2026-09-26: a wake-from-suspend found the
+# browser dead (detached frame), _restart_wpp_session() closed it and POSTed
+# /start-session while DNS still failed. WhatsApp Web loaded from cache,
+# authenticated from the profile, and wppconnect's waitForInChat() then polled
+# WPP.conn.isMainReady() forever — deviceSyncTimeout is pinned to 0, so that
+# loop has no exit — leaving the status INITIALIZING. The network came back two
+# hours later and nothing moved: the health loop skips every "active" status,
+# and the post-resume stuck-INITIALIZING restart is gated off
+# (_RESUME_RESTART_STUCK_INITIALIZING). So the restart leaves the session
+# CLOSED instead, and the CLOSED auto-start holds until the network answers.
+AUTO_START_DEFERRED_OFFLINE = (
+    "a session restart found no route to WhatsApp; waiting for the network "
+    "before starting the browser"
+)
+
+# The deferral trusts _probe_whatsapp_host(). On a machine where that probe
+# fails even though Chrome gets through (a PAC-only proxy that Python's
+# requests does not follow, say) an unbounded wait would keep the account
+# offline for good. So until the probe has answered at least once this run,
+# the wait is capped and then falls back to starting anyway, which is what
+# happened before the deferral existed.
+OFFLINE_START_UNPROVEN_PROBE_CAP_SECONDS = 600.0
+
+# A proven probe gets a long cap, not none. The proof is usually earned on
+# another network (at home, before the laptop slept) and says nothing about a
+# hotel portal or an authenticated proxy that only the browser gets through
+# on the network it wakes on. Long enough for the outage this was measured
+# on (2 h 05 min), short enough that such a network is not offline for good.
+OFFLINE_START_PROVEN_PROBE_CAP_SECONDS = 3 * 3600.0
+
+
+def offline_start_still_deferred(*, network_up: bool, probe_proven: bool,
+                                 deferred_for: float,
+                                 unproven_cap: float = OFFLINE_START_UNPROVEN_PROBE_CAP_SECONDS,
+                                 proven_cap: float = OFFLINE_START_PROVEN_PROBE_CAP_SECONDS,
+                                 ) -> bool:
+    """Whether a deferred session start must keep waiting for the network.
+
+    ``network_up`` is this poll's _probe_whatsapp_host() answer;
+    ``probe_proven`` is whether that probe has ever answered this run, which
+    is what makes a failing probe believable; ``deferred_for`` is how long the
+    start has already been held, in seconds.
+    """
+    if network_up:
+        return False
+    return deferred_for < (proven_cap if probe_proven else unproven_cap)
+
+
+def counts_toward_profile_health(status: str, start_deferred_offline: bool) -> bool:
+    """Whether a status reading may be fed to ProfileHealthTracker.
+
+    The tracker reads a CLOSED as the end of a failed start cycle, and three
+    of them restore a profile snapshot. A closed session held on purpose while
+    a start waits for the network is not a start that failed, so it must not
+    count — whichever of the statuses the CLOSED auto-start branch handles it
+    reads as (CLOSED, DESTROYED, or an empty answer).
+    """
+    return not (start_deferred_offline and (status or "").upper() in ("CLOSED", "DESTROYED", ""))
+
+
 def classify_unlinked(
     status: str,
     *,

@@ -1,6 +1,6 @@
 ---
 name: winzapp-implementer
-description: Implements a feature or fix in WinZapp, following this codebase's own conventions rather than generic best practice. Use when building something new in client/, fixing a reported bug, or working through a spec or ticket. Knows where code belongs, what ships with it (test, five locales), and which mechanisms already exist for problems that look new.
+description: Implements a feature or fix in WinZapp, following this codebase's own conventions rather than generic best practice. Use when building something new in client/, fixing a reported bug, or working through a spec or ticket. Knows where code belongs, what ships with it (test, every registered locale), and which mechanisms already exist for problems that look new.
 tools: Read, Write, Edit, Grep, Glob, Bash, Skill
 ---
 
@@ -90,7 +90,8 @@ file written in a foreign dialect is worse than a consistent imperfect one:
 ## Non-negotiables that ship with the change
 
 - **A test, in the same commit.** CLAUDE.md requires it. See `write-test`.
-- **Every user-facing string in all five locales**, placeholders matching,
+- **Every user-facing string in every locale of `language_map.json`** (seven
+  today — never trust a remembered count), placeholders matching,
   `&&` for a literal ampersand, and **worded with the terms that locale
   already uses** for the concept (grep the file first — e.g. Polish says
   `czat`, not `rozmowa`, since f292049f). Existing terminology was judged by

@@ -3,6 +3,7 @@ conversation: skip the file picker and go straight to the attachment panel,
 same shortcut the official WhatsApp client offers.
 """
 
+import types
 import os
 import tempfile
 import time
@@ -28,6 +29,8 @@ class _Stub:
         self._staged_attachments = []
         self.panel_shown_calls = 0
         self.message_field = _FakeMessageField()
+        # No pasted_audio_as saved: the default, audio stays audio.
+        self.main_window = types.SimpleNamespace(settings={})
 
     def _show_attachment_panel(self):
         self.panel_shown_calls += 1

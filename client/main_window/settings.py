@@ -29,6 +29,7 @@ from core.utils import (
     migrate_spell_check_mode,
     migrate_voice_message_mode_default,
     migrate_voice_messages_media_types,
+    migrate_wpp_reinstall_notice,
 )
 from core.i18n import I18n
 from version import __version__
@@ -225,6 +226,55 @@ class SettingsMixin:
                 self.i18n.t("autostart_success_title"),
                 wx.OK | wx.ICON_INFORMATION,
             )
+
+    # ── WPPConnect reinstall notice (2.0) ────────────────────────────────────
+
+    def _show_wpp_reinstall_notice_if_pending(self):
+        """One-time recommendation to reinstall WPPConnect, for accounts that
+        predate 2.0 (see migrate_wpp_reinstall_notice() in core/utils.py).
+
+        Scheduled from __init__ via wx.CallLater, well after the main window
+        (and its chat-navigation list) is visible, and never in
+        background_mode — same shape as _announce_previous_update_failure().
+        Checking the flag first makes every later launch, after the first,
+        free: no dialog was ever built, no i18n lookup happened.
+
+        Whatever the user answers, the pending flag is cleared and saved
+        immediately, so this can only ever fire once per install.
+        """
+        general = self.settings.get("general", {})
+        if not general.get("wpp_reinstall_notice_pending", False):
+            return
+
+        # Pending means only "this settings.json predates 2.0", not "this
+        # WPPConnect lacks calls". An install reinstalled since — every alpha
+        # tester was asked to do it by hand — already carries the catalogue the
+        # notice offers, and was being told it may be missing calls anyway
+        # (reported 2026-09-27, pinned 2.3000.1047835881-alpha of 430). Its
+        # catalogue answers the question; unreadable counts as "ask".
+        from core.wa_version_catalogue import catalogue_supports_calls, newest_build, read_catalogue
+        catalogue = read_catalogue(resource_path(
+            "api", "node_modules", "@wppconnect", "wa-version", "versions.json"))
+        if catalogue_supports_calls(catalogue):
+            logging.info("[wpp_reinstall_notice] not shown: the installed catalogue "
+                         "already reaches %s.", newest_build(catalogue))
+            self.settings.setdefault("general", {})["wpp_reinstall_notice_pending"] = False
+            self.save_settings()
+            return
+
+        message = self.i18n.t("wpp_reinstall_notice_message")
+        self.output(message, interrupt=False)
+        result = wx.MessageBox(
+            message,
+            self.i18n.t("wpp_reinstall_notice_title"),
+            wx.YES_NO | wx.ICON_QUESTION,
+        )
+
+        self.settings.setdefault("general", {})["wpp_reinstall_notice_pending"] = False
+        self.save_settings()
+
+        if result == wx.YES:
+            self._on_force_reinstall_wpp(None)
 
     def _apply_autostart(self, enable: bool):
         """
@@ -526,6 +576,13 @@ class SettingsMixin:
         # see migrate_spell_check_mode().
         if migrate_spell_check_mode(self.settings):
             changed = True
+        # Pre-2.0 install detection: no settings.json in existence today can
+        # have been written by a 2.0+ build (see migrate_wpp_reinstall_notice's
+        # docstring), so its absent flag alone arms the one-time WPPConnect
+        # reinstall recommendation. Must run here too, ahead of the backfill
+        # that would otherwise plant the (already-True) shipped default first.
+        if migrate_wpp_reinstall_notice(self.settings):
+            changed = True
         if changed:
             self.save_settings()
 
@@ -602,8 +659,8 @@ class SettingsMixin:
         # change (plan Zad 2.3b). Best-effort; never blocks the save.
         self._persist_global_settings()
 
-    def _schedule_save_settings(self):
-        """Debounce save_settings: coalesce rapid calls into one write after 2 s.
+    def _schedule_save_settings(self, delay=2.0):
+        """Debounce save_settings; recording sliders request 0.5 s, others 2 s.
 
         Used when background events (e.g. presence.update bursts) update settings
         frequently — avoids hammering the disk on every event.
@@ -611,6 +668,9 @@ class SettingsMixin:
         with self._save_timer_lock:
             existing = getattr(self, "_settings_save_timer", None)
             if existing is not None:
+                # Background changes must not postpone a slider's short save.
+                if existing.interval < delay:
+                    return
                 existing.cancel()
             def _fire():
                 # Clear the handle FIRST: left dangling after the timer
@@ -618,11 +678,12 @@ class SettingsMixin:
                 # still-pending write and re-saves settings.json on every
                 # single shutdown from the first settings change onwards.
                 with self._save_timer_lock:
-                    if self._settings_save_timer is t:
-                        self._settings_save_timer = None
+                    if self._settings_save_timer is not t:
+                        return  # superseded or already flushed during shutdown
+                    self._settings_save_timer = None
                 self.save_settings()
 
-            t = threading.Timer(2.0, _fire)
+            t = threading.Timer(delay, _fire)
             t.daemon = True
             self._settings_save_timer = t
             t.start()
@@ -896,8 +957,20 @@ class SettingsMixin:
 
         _step("live connection", _reconnect_socket)
 
+        # The imported devices are an explicit choice: a quick switch
+        # (Ctrl+Alt+Shift+H/G) stops overriding them, for calls too.
+        _step("quick device switch",
+              lambda: self.end_session_audio_devices(general=True, call=True))
         _step("audio devices", self._apply_configured_audio_devices)
         _step("sounds", self.load_sounds)
+
+        def _move_active_call():
+            # A call in progress moves to the imported call devices too, as
+            # the in-call settings do; it would stay on the quick-switched one.
+            if getattr(self, "_call_audio_session", None) is not None:
+                self._restart_active_voice_call_audio()
+
+        _step("call audio", _move_active_call)
 
         def _clear_sound_cache():
             cache = getattr(self, "_notification_sound_cache", None)

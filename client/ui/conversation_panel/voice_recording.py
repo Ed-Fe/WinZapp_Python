@@ -20,6 +20,7 @@ from core.voice_stereo import (
     alternate_record_label_key,
     encode_as_stereo,
     fell_back_to_mono,
+    sends_as_audio_file,
 )
 from ui.dialogs.stereo_voice_warning import (
     ask_stereo_voice,
@@ -62,7 +63,8 @@ class VoiceRecordingMixin:
 
     def _on_record_alternate_mode(self, event):
         """The second record button: one message in the mode Settings did not
-        pick. Recording in stereo warns first that iPhone cannot play it."""
+        pick. Recording in stereo says first that it goes out as an audio
+        message, not a voice message (core/voice_stereo.py)."""
         if self._is_recording or self._recording_starting:
             return
         # Ctrl+Shift+G reaches here even when the button is disabled -- a
@@ -97,6 +99,8 @@ class VoiceRecordingMixin:
 
     def _voice_recording_silence_enabled(self):
         """Whether all WinZapp spoken content is muted during recording."""
+        if getattr(self, "_recording_system_audio", False):
+            return False
         settings = getattr(self.main_window, "settings", None) or {}
         return bool(
             settings.get("speech_content", {}).get("silence_while_recording", False)
@@ -155,6 +159,8 @@ class VoiceRecordingMixin:
         as possible. Each call is idempotent, so the
         repeats are harmless.
         """
+        if getattr(self, "_recording_system_audio", False):
+            return
         if not self._voice_recording_focus_suppression_enabled():
             return
         speak_output = getattr(self.main_window, "speak_output", None)
@@ -171,6 +177,10 @@ class VoiceRecordingMixin:
         )
 
         def _silence_now():
+            # A previous mic-only recording may have queued this burst before
+            # the user discarded it and started mixed capture.
+            if getattr(self, "_recording_system_audio", False):
+                return
             silence_focus()
             if callable(silence_all):
                 silence_all()
@@ -204,6 +214,9 @@ class VoiceRecordingMixin:
             return
 
         self._recording_frames = []
+        # An old mic callback may finish after discard and mixed capture
+        # starts. Keep it bound to its own list, never the next session's.
+        recording_frames = self._recording_frames
         self._recording_paused = False
         # None: the Settings default. The second record button passes the other.
         want_stereo = self._default_recording_stereo() if stereo is None else bool(stereo)
@@ -219,7 +232,7 @@ class VoiceRecordingMixin:
                 # diagnosable; the larger frames_per_buffer below minimises it.
                 logging.debug("[audio] input stream status flag: %s", status)
             if not self._recording_paused:
-                self._recording_frames.append(in_data)
+                recording_frames.append(in_data)
             pa_cont = getattr(pyaudio, "paContinue", 0) if pyaudio is not None else 0
             return (None, pa_cont)
 
@@ -240,7 +253,7 @@ class VoiceRecordingMixin:
                 import sounddevice as sd
                 def _sd_callback(indata, frames, time_info, status):
                     if not self._recording_paused:
-                        self._recording_frames.append(indata.tobytes())
+                        recording_frames.append(indata.tobytes())
                 self._recording_actual_rate = 48000
                 self._recording_actual_ch = 1
                 self._is_recording = True
@@ -261,6 +274,8 @@ class VoiceRecordingMixin:
                 self.send_message_btn.Hide()
                 self.record_voice_message_btn.Hide()
                 self._record_voice_alt_btn.Hide()
+                if hasattr(self, "_record_voice_system_btn"):
+                    self._record_voice_system_btn.Hide()
                 self._add_attachment_btn.Hide()
                 self._pause_resume_btn.SetLabel(self.main_window.i18n.t("pause_recording"))
                 self._voice_panel.Show()
@@ -486,6 +501,8 @@ class VoiceRecordingMixin:
             self.send_message_btn.Hide()
             self.record_voice_message_btn.Hide()
             self._record_voice_alt_btn.Hide()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Hide()
             self._add_attachment_btn.Hide()
             self._pause_resume_btn.SetLabel(
                 self.main_window.i18n.t("pause_recording")
@@ -520,7 +537,15 @@ class VoiceRecordingMixin:
             self._recording_stream = None
 
     def _on_destroy(self, event):
-        """Clean up PyAudio resources when the panel is destroyed."""
+        """Clean up capture resources when the panel itself is destroyed."""
+        if event.GetEventObject() is not self:
+            event.Skip()
+            return
+        if getattr(self, "_recording_system_audio", False):
+            self._stop_system_audio_recording()
+            self._recording_system_audio = False
+            self._is_recording = False
+            self._recording_frames = []
         if self._recording_pa is not None:
             try:
                 self._recording_pa.terminate()
@@ -534,6 +559,12 @@ class VoiceRecordingMixin:
     def _hide_voice_panel(self):
         """Hide the voice panel and restore the message field / record /
         send button visibility (sent or discarded — both call this)."""
+        if getattr(self, "_recording_system_audio", False):
+            self._pause_resume_btn.Enable()
+            self._send_voice_btn.Enable()
+            self._recording_system_audio = False
+            self._system_audio_interrupted = False
+        self._update_system_audio_volume_controls()
         self._stop_recorded_audio_preview()
         self._play_recorded_btn.Hide()
         self._voice_panel.Hide()
@@ -545,15 +576,21 @@ class VoiceRecordingMixin:
         else:
             self.record_voice_message_btn.Show()
             self._record_voice_alt_btn.Show()
+            if hasattr(self, "_record_voice_system_btn"):
+                self._record_voice_system_btn.Show()
         self._add_attachment_btn.Show()
         self.conversation_panel.Layout()
 
     def _discard_voice_message(self, event):
         """Discard the current recording without sending."""
-        if not self._is_recording:
+        mixed = getattr(self, "_recording_system_audio", False)
+        if not self._is_recording and not (mixed and self._recording_starting):
             return
+        if mixed:
+            self._stop_system_audio_recording()
         self.main_window.voicemsg_discard_sound.play()
-        threading.Thread(target=self._stop_recording_stream, daemon=True).start()
+        if not mixed:
+            threading.Thread(target=self._stop_recording_stream, daemon=True).start()
         self._is_recording     = False
         self._recording_paused = False
         self._recording_frames = []
@@ -566,7 +603,10 @@ class VoiceRecordingMixin:
 
     def _toggle_pause_recording(self, event):
         """Pause or resume the ongoing recording."""
-        if not self._is_recording:
+        if not self._is_recording or getattr(self, "_system_audio_interrupted", False):
+            return
+        if getattr(self, "_recording_system_audio", False):
+            self._toggle_system_audio_pause()
             return
         self.main_window.voicemsg_pauserecording_sound.play()
         self._recording_paused = not self._recording_paused
@@ -590,6 +630,9 @@ class VoiceRecordingMixin:
         stable only while paused (the PyAudio callback skips appending while
         self._recording_paused, see on_record_voice_message's _callback)."""
         if not self._is_recording or not self._recording_paused:
+            return
+        session = getattr(self, "_system_audio_session", None)
+        if session is not None and session.get("transition"):
             return
         if self._recorded_audio_sound is not None:
             self._stop_recorded_audio_preview()
@@ -667,14 +710,27 @@ class VoiceRecordingMixin:
         """Stop recording and enqueue the audio for delivery."""
         if not self._is_recording:
             return
+        session = getattr(self, "_system_audio_session", None)
+        if session is not None:
+            if session.get("transition"):
+                return
+            if not session.get("stopped"):
+                self._finish_system_audio_for_send(event)
+                return
 
         import time as _time
         _t0 = _time.perf_counter()
         logging.info("[VOICE_TIMING] T+0.000s — user clicked send, stopping recording stream")
 
+        # Snapshot the mode before stop/hide clears it; the worker belongs to
+        # this recording even when another conversation/recording is opened.
+        mixed_audio = bool(getattr(self, "_recording_system_audio", False))
         # Stop the recording stream in background FIRST so the audio device is fully released
         # without blocking the UI thread before BASS plays the send sound.
-        threading.Thread(target=self._stop_recording_stream, daemon=True).start()
+        if mixed_audio:
+            self._stop_system_audio_recording()
+        else:
+            threading.Thread(target=self._stop_recording_stream, daemon=True).start()
         self._is_recording     = False
         self._recording_paused = False
 
@@ -725,7 +781,12 @@ class VoiceRecordingMixin:
             "message": {
                 "audioMessage": {
                     "seconds": duration_sec,
-                    "ptt":     True,
+                    # Microphone + computer audio, and a stereo recording, both
+                    # go out as an audio message rather than a voice message
+                    # (core/voice_stereo.py) — say so already.
+                    "ptt":     not (mixed_audio or sends_as_audio_file(stereo_out)),
+                    **({"mimetype": "audio/mp4", "fileName": f"{local_id}.m4a"}
+                       if mixed_audio else {}),
                 }
             },
             "messageTimestamp": int(time.time()),
@@ -774,7 +835,7 @@ class VoiceRecordingMixin:
                          _time.perf_counter() - _t0, len(audio_data), len(frames))
 
             # Apply microphone noise reduction if enabled in settings
-            if mw.settings.get("general", {}).get("noise_reduction_enabled", False):
+            if not mixed_audio and mw.settings.get("general", {}).get("noise_reduction_enabled", False):
                 try:
                     logging.info("[VOICE_TIMING] Applying microphone noise reduction...")
                     from core.audio_processing import apply_noise_gate
@@ -784,6 +845,7 @@ class VoiceRecordingMixin:
                     logging.error("[VOICE_TIMING] Failed to apply noise reduction: %s", ex)
 
             # 2. Write WAV temp file (used for ffmpeg conversion, backup, and retry fallback).
+            tmp = None
             try:
                 tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
                 tmp.close()
@@ -797,6 +859,20 @@ class VoiceRecordingMixin:
                              _time.perf_counter() - _t0, wav_path)
             except Exception as exc:
                 logging.error("[_send_voice_message] failed to write WAV: %s", exc)
+                if mixed_audio:
+                    if tmp is not None:
+                        try:
+                            os.unlink(tmp.name)
+                        except OSError:
+                            pass
+                    wx.CallAfter(mw._on_message_failed, local_id,
+                                 mw.i18n.t("media_audio_convert_failed"), True)
+                return
+
+            if mixed_audio:
+                self._enqueue_system_audio_file(
+                    wav_path, local_id, remote_jid, quoted_msg, enc_key, virtual_msg,
+                )
                 return
 
             # 3. Encode OGG Opus via ffmpeg conversion.
@@ -864,15 +940,23 @@ class VoiceRecordingMixin:
         # finishes.
         self._recording_open_token += 1
         self._recording_starting = False
-        if not self._is_recording:
+        mixed = getattr(self, "_recording_system_audio", False)
+        if mixed:
+            self._stop_system_audio_recording()
+        if not self._is_recording and not mixed:
             return
-        self._stop_recording_stream()
+        if not mixed:
+            self._stop_recording_stream()
         self._is_recording     = False
         self._recording_paused = False
         self._recording_frames = []
         _rec_jid = self.conversation.get("remoteJid", "") if self.conversation else ""
         if _rec_jid and not _rec_jid.endswith("@newsletter"):
             self.main_window.send_recording_status(_rec_jid, False, _rec_jid.endswith("@g.us"))
+        if mixed:
+            self._hide_voice_panel()
         self._voice_panel.Hide()
         self.record_voice_message_btn.Show()
         self._record_voice_alt_btn.Show()
+        if hasattr(self, "_record_voice_system_btn"):
+            self._record_voice_system_btn.Show()

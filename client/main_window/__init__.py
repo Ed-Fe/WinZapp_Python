@@ -39,6 +39,7 @@ Where to look (and where new code goes):
     groups              group metadata, permissions, group management
     calls               voice/video calls, call bar, call-log watcher
     chat_lock           locked-chats vault
+    quick_audio_devices Ctrl+Alt+Shift+H/G quick output/recording device switch
 
   Plain functions (import and test them directly — no wx, no stub)
     message_rules       unread/history-gap/countable-message rules

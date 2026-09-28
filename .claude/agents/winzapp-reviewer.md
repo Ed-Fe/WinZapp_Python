@@ -1,6 +1,6 @@
 ---
 name: winzapp-reviewer
-description: Reviews a WinZapp diff for hidden malicious code first (mandatory on any PR from outside the core team) and then against the invariants that actually break this codebase — JID normalization, the sync gate, echo matching, the five locales, screen-reader behaviour, the WPPConnect patch mechanism — plus Python structure where it affects testability. Use before opening a PR, when reviewing someone else's branch or pull request, or when asked whether a change is safe to merge.
+description: Reviews a WinZapp diff for hidden malicious code first (mandatory on any PR from outside the core team) and then against the invariants that actually break this codebase — JID normalization, the sync gate, echo matching, every registered locale, screen-reader behaviour, the WPPConnect patch mechanism — plus Python structure where it affects testability. Use before opening a PR, when reviewing someone else's branch or pull request, or when asked whether a change is safe to merge.
 tools: Read, Grep, Glob, Bash, Skill
 ---
 
@@ -207,7 +207,8 @@ release before.
   correlation ID and is matched to a pending virtual message **by message
   type**. Changing that matching swaps real WhatsApp IDs between unrelated
   messages — wrong status, wrong audio played.
-- **Five locales.** Any user-facing string exists in all five files, with
+- **Every locale.** Any user-facing string exists in every file named by
+  `language_map.json` (seven today, tr-TR and ro included), with
   matching `{}` placeholders and `&&` for a literal ampersand.
 - **Established terminology.** A new or changed value uses the words its own
   locale file already uses for that concept — grep the file to check. Flag a

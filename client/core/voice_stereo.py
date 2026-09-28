@@ -6,9 +6,12 @@ QuadCast 2) lost its left/right image on the way. Stereo is now a choice: a
 default in Settings > Dispositivos de áudio, and a second record button for
 the other mode, for one message.
 
-It stays opt-in because WhatsApp on iPhone cannot play a stereo voice message
--- the reason WinZapp's early stereo recordings were removed -- so choosing it
-warns first (ui/dialogs/stereo_voice_warning.py).
+WhatsApp on iPhone cannot play a stereo voice message -- the reason WinZapp's
+early stereo recordings were removed -- while it plays a stereo *audio*
+message in any format. So a recording that really is stereo goes out as an
+audio message instead (the same OGG/Opus bytes, sent as a file rather than as
+push-to-talk); only a mono recording is still sent as a voice message.
+Choosing stereo tells the user so first (ui/dialogs/stereo_voice_warning.py).
 
 Stereo is only ever what the microphone really delivered: when it will not
 open with two channels the capture falls back to mono and says so, instead of
@@ -52,6 +55,12 @@ def opus_encode_args(stereo: bool) -> list:
     if stereo:
         return ["-ac", "2", "-c:a", "libopus", "-b:a", STEREO_BITRATE]
     return ["-ac", "1", "-c:a", "libopus", "-b:a", MONO_BITRATE]
+
+
+def sends_as_audio_file(stereo: bool) -> bool:
+    """A stereo recording goes out as an audio message, never as a voice
+    message (push-to-talk), which an iPhone cannot play in stereo."""
+    return bool(stereo)
 
 
 def alternate_mode_is_stereo(default_stereo: bool) -> bool:

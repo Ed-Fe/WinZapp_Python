@@ -314,8 +314,10 @@ class CallsMixin:
         from core.call_audio import CallAudioConfig, CallAudioSession
 
         audio_settings = self.settings.get("call_audio_devices", {})
-        input_name = audio_settings.get("input_device_name", "")
-        output_name = audio_settings.get("output_device_name", "")
+        # A quick device switch (Ctrl+Alt+Shift+H/G) overrides the saved call
+        # devices for this session — see main_window/quick_audio_devices.py.
+        input_name = self.call_audio_device("input")
+        output_name = self.call_audio_device("output")
         exclusive_input = bool(audio_settings.get("exclusive_input", False))
         exclusive_output = bool(audio_settings.get("exclusive_output", False))
         echo_cancellation = bool(audio_settings.get("echo_cancellation", False))
@@ -1215,6 +1217,15 @@ class CallsMixin:
         root.Add(buttons, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
         first_combo = input_combo if input_combo is not None else camera_combo
 
+        # What each device box showed when the dialog opened. Only a box the
+        # user changed is a device choice: OK pressed to turn on echo
+        # cancellation must not undo a quick switch (Ctrl+Alt+Shift+H/G) the
+        # call is using, which these boxes (filled from the saved setting)
+        # do not show.
+        shown_devices = ({"input": input_combo.GetSelection(),
+                          "output": output_combo.GetSelection()}
+                         if include_audio else {})
+
         def apply(_evt=None):
             if include_audio:
                 audio_cfg["input_device_name"] = "" if input_combo.GetStringSelection() == default_name else input_combo.GetStringSelection()
@@ -1222,6 +1233,15 @@ class CallsMixin:
                 audio_cfg["exclusive_input"] = exclusive_input_check.GetValue()
                 audio_cfg["exclusive_output"] = exclusive_output_check.GetValue()
                 audio_cfg["echo_cancellation"] = echo_check.GetValue()
+                # A device chosen here ends a quick switch's override of that
+                # call device (main_window/quick_audio_devices.py).
+                changed = tuple(kind for kind, combo in (("input", input_combo),
+                                                          ("output", output_combo))
+                                if combo.GetSelection() != shown_devices[kind])
+                if changed:
+                    self.end_session_audio_devices(call=True, kinds=changed)
+                    shown_devices.update(input=input_combo.GetSelection(),
+                                         output=output_combo.GetSelection())
             if include_camera:
                 video_cfg["camera_name"] = "" if camera_combo.GetStringSelection() == default_name else camera_combo.GetStringSelection()
             self.save_settings()
