@@ -711,13 +711,23 @@ class SettingsMixin:
         window either. _on_window_activate() calls this again on
         deactivation.
 
+        Not while a call window is on screen, either. The voice-call frame and
+        the incoming-call popup are top-level windows of their own, so during
+        a call the main window is inactive while one of them holds the focus
+        -- and apply_language_changes() relabels them too
+        (_refresh_call_language_surfaces()): NVDA would read the focused
+        Mute or Answer button again in the other language, and a ringing
+        popup's Alt+letter shortcuts would move under the user's fingers.
+        When the call ends focus comes back to the main window, and its next
+        deactivation brings this back.
+
         A language equal to what the window already shows (changed and
         changed back, or chosen in this window's dialog meanwhile) costs
         nothing.
         """
         if not getattr(self, "_pending_language_switch", False):
             return
-        if getattr(self, "_main_window_active", False):
+        if getattr(self, "_main_window_active", False) or self._call_window_on_screen():
             return
         self._pending_language_switch = False
         configured = self.settings.get("general", {}).get("language", "pt-BR")
@@ -732,6 +742,20 @@ class SettingsMixin:
                          "(chosen in another account)", configured)
         except Exception:
             logging.exception("[settings] switching to the pulled language failed")
+
+    def _call_window_on_screen(self):
+        """Whether a call window of this process is showing: a ringing
+        incoming-call popup, or the voice-call frame (created once at startup,
+        shown only while a call is up). See _apply_pending_language_switch()."""
+        if getattr(self, "_incoming_call_dialogs", None):
+            return True
+        window = getattr(self, "voice_call_window", None)
+        if window is None:
+            return False
+        try:
+            return bool(window.IsShown())
+        except RuntimeError:  # the C++ window is already gone
+            return False
 
     def _migrate_settings(self):
         """Migrate settings from old section names to current ones."""

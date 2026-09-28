@@ -908,6 +908,9 @@ class MainWindow(
         # every path into it (the live event above, and the periodic
         # health-checker) is covered by one guard.
         self._shutting_down = False
+        # Kept by _on_window_activate(); read by _apply_pending_language_switch()
+        # before the first activation event has arrived.
+        self._main_window_active = False
 
         # Track whether the user went through the pairing flow this session
         self._just_paired = False

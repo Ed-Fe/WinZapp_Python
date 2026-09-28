@@ -29,6 +29,7 @@ import inspect
 import json
 import textwrap
 import threading
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -81,6 +82,7 @@ class _Window:
     install_wide_values = MainWindow.install_wide_values
     _apply_pulled_global_settings = MainWindow._apply_pulled_global_settings
     _apply_pending_language_switch = MainWindow._apply_pending_language_switch
+    _call_window_on_screen = MainWindow._call_window_on_screen
     _on_window_activate = MainWindow._on_window_activate
     _sync_tray_icon_with_setting = MainWindow._sync_tray_icon_with_setting
     save_settings = MainWindow.save_settings
@@ -989,6 +991,33 @@ class TestAPulledValue:
         assert a.i18n.language == "en-US"
         a.apply_language_changes.assert_called_once()
 
+    @pytest.mark.parametrize("call_window", ["voice_call_window", "_incoming_call_dialogs"])
+    def test_nor_while_a_call_window_has_the_focus(self, tmp_path, call_window):
+        """During a call the main window is inactive, but the call frame or
+        the ringing popup holds the focus -- and they are relabelled too."""
+        a = self._showing(tmp_path, "pt-BR", active=False)
+        a._set_bookmark_zero_hotkey = Mock()
+        if call_window == "voice_call_window":
+            a.voice_call_window = Mock(IsShown=Mock(return_value=True))
+        else:
+            a._incoming_call_dialogs = {"call-1": object()}
+        b = _started(tmp_path, general={"language": "pt-BR"})
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        a.apply_language_changes.assert_not_called()
+
+        # The call ends; focus comes back to the main window and leaves it.
+        if call_window == "voice_call_window":
+            a.voice_call_window.IsShown.return_value = False
+        else:
+            a._incoming_call_dialogs.clear()
+        a._on_window_activate(Mock(GetActive=Mock(return_value=True)))
+        a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+
+        assert a.i18n.language == "en-US"
+        a.apply_language_changes.assert_called_once()
+
     def test_a_language_the_window_already_shows_repaints_nothing(self, tmp_path):
         """Changed and changed back before the window lost focus."""
         a = self._showing(tmp_path, "pt-BR", active=True)
@@ -1027,27 +1056,39 @@ class TestEveryReconciliationHoldsTheSaveLock:
         _persist_global_settings() call holds _save_lock -- the first-run
         questions used to call it bare, right after a save_settings() that had
         already reconciled. Allowed: inside `with self._save_lock:`, or in
-        _save_settings_locked(), which save_settings() runs under it."""
-        tree = ast.parse(inspect.getsource(settings_module))
-        parents = {child: node for node in ast.walk(tree)
-                   for child in ast.iter_child_nodes(node)}
-        bare = []
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                    and node.func.attr == "_persist_global_settings"):
-                continue
-            up, held = node, False
-            while up in parents:
-                up = parents[up]
-                if isinstance(up, ast.With) and any(
-                        ast.unparse(item.context_expr) == "self._save_lock"
-                        for item in up.items):
-                    held = True
-                    break
-                if isinstance(up, ast.FunctionDef):
-                    held = up.name == "_save_settings_locked"
-                    break
-            if not held:
-                bare.append(node.lineno)
+        _save_settings_locked(), which save_settings() runs under it. Every
+        module MainWindow is made of, so a call added to another mixin is
+        held to the same rule."""
+        package = Path(settings_module.__file__).parent
+        modules = sorted(package.glob("*.py")) + [package.parent / "main.py"]
+
+        bare = [f"{module.name}:{line}" for module in modules
+                for line in _bare_reconciliations(module)]
 
         assert bare == []
+
+
+def _bare_reconciliations(module):
+    """Lines of `_persist_global_settings(...)` calls not under _save_lock."""
+    tree = ast.parse(module.read_text(encoding="utf-8"))
+    parents = {child: node for node in ast.walk(tree)
+               for child in ast.iter_child_nodes(node)}
+    bare = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "_persist_global_settings"):
+            continue
+        up, held = node, False
+        while up in parents:
+            up = parents[up]
+            if isinstance(up, ast.With) and any(
+                    ast.unparse(item.context_expr) == "self._save_lock"
+                    for item in up.items):
+                held = True
+                break
+            if isinstance(up, ast.FunctionDef):
+                held = up.name == "_save_settings_locked"
+                break
+        if not held:
+            bare.append(node.lineno)
+    return bare
