@@ -582,6 +582,24 @@ class TestTheLanguageList:
         for locale in LOCALES:
             assert preferences.interface_language_code(locale) is not None, locale
 
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_every_app_locale_opens_the_list_and_is_the_preference(self, locale):
+        """The test above only asks that some code comes back; this is what the
+        user gets from it — their own language first in the picker, and the
+        same code as the preference on untouched settings."""
+        own = preferences.interface_language_code(locale)
+        assert preferences.language_choices(locale)[0] == (own, preferences.LANGUAGE_NAMES[own])
+        assert preferences.preferred_language({}, locale) == own
+
+    def test_the_two_locales_after_the_first_five_map_to_their_own_languages(self):
+        """ro and tr-TR arrived after the feature: one untagged, one tagged,
+        and the tagged one's region must be dropped rather than make the code
+        unknown to Whisper."""
+        assert preferences.interface_language_code("ro") == "ro"
+        assert preferences.interface_language_code("tr-TR") == "tr"
+        assert preferences.language_name("ro") == "română"
+        assert preferences.language_name("tr") == "Türkçe"
+
     def test_the_languages_the_issue_names_are_right(self):
         assert preferences.language_name("pl") == "polski"
         assert preferences.language_name("pt") == "português"

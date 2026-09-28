@@ -49,6 +49,7 @@ from core.transcription import (
     narration,
     preferences,
 )
+from tests.conftest import words_found_in
 
 
 def _result(text="olá", language="pt", probability=0.98, vad_used=True):
@@ -311,6 +312,23 @@ _CLAIMS_A_CHOICE = {
     "en-US": ("chose", "chosen", "choose", "picked", "selected"),
     "es-ES": ("elig", "eleg", "escog"),
     "pl": ("wybra", "wybór", "wybor"),
+    "ro": ("ales", "alege", "aleg", "selectat", "prefer"),
+    "tr-TR": ("seç", "tercih"),
+}
+
+
+#: The word each locale uses for "text", for the voice-filter note below. Keyed
+#: by locale, like _CLAIMS_A_CHOICE, so a locale added to language_map fails
+#: loudly instead of passing unchecked. Turkish drops a vowel when the noun
+#: takes a suffix ("metin" → "metni", "metne"), hence the second stem.
+_TEXT_WORDS = {
+    "pt-BR": ("texto",),
+    "pt-PT": ("texto",),
+    "en-US": ("text",),
+    "es-ES": ("texto",),
+    "pl": ("tekst",),
+    "ro": ("text",),
+    "tr-TR": ("metin", "metn"),
 }
 
 
@@ -354,8 +372,8 @@ class TestTheLanguageNoteOnUntouchedSettings:
             f"{locale} is new here: decide which of its words would claim a "
             "choice and add them, rather than letting the note go unchecked"
         )
-        text = _translations(locale)[narration.LANGUAGE_DIFFERS_I18N_KEY].lower()
-        offenders = [word for word in _CLAIMS_A_CHOICE[locale] if word in text]
+        text = _translations(locale)[narration.LANGUAGE_DIFFERS_I18N_KEY]
+        offenders = words_found_in(text, _CLAIMS_A_CHOICE[locale])
         assert offenders == [], (
             f"{locale}.json tells the user this differs from a language they "
             f"chose, which on default settings they did not: {offenders}"
@@ -502,8 +520,11 @@ class TestEveryKeyIsTranslated:
         warning to be about. A sentence ending "the text may end with a phrase
         nobody said" read out over nothing is the app describing content it did
         not produce."""
-        text = _translations(locale)[narration.VAD_UNAVAILABLE_I18N_KEY].lower()
-        offenders = [w for w in ("texto", "text", "tekst") if w in text]
+        assert locale in _TEXT_WORDS, (
+            f"{locale} is new here: add the word it uses for a text to _TEXT_WORDS"
+        )
+        text = _translations(locale)[narration.VAD_UNAVAILABLE_I18N_KEY]
+        offenders = words_found_in(text, _TEXT_WORDS[locale])
         assert offenders == [], (
             f"{locale}.json describes a transcribed text this note also fires "
             f"without: {offenders}"

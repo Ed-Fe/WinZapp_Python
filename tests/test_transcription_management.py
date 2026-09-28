@@ -55,6 +55,7 @@ from core.transcription import (
     model_catalog,
     model_store,
 )
+from tests.conftest import words_found_in
 
 
 def _load_language(name):
@@ -905,25 +906,53 @@ class TestAnnouncement:
         said = management.announcement(management.ACTION_INSTALL_CUDA_RUNTIME, (None, (), None))
         assert said.i18n_key == management.CUDA_INSTALLED_UNVERIFIED_I18N_KEY
 
+    #: The stems each locale uses for "settings" — every one its own file uses,
+    #: which is why pt-PT carries both its dialog's word and its menu's, and ro
+    #: both "setări" and "configurare". Keyed by locale for the same reason as
+    #: _DOWNLOAD_WORD below.
+    _SETTINGS_WORDS = {
+        "pt-BR": ("configura",), "pt-PT": ("definições", "configura"),
+        "en-US": ("settings",), "es-ES": ("configura",), "pl": ("ustawieni",),
+        "ro": ("setăr", "configur"), "tr-TR": ("ayar",),
+    }
+
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_unusable_sentence_does_not_send_the_user_back_to_the_settings(self, locale):
         # The circular advice: "download them in the transcription settings" is
         # the screen the user is on and the button they just pressed.
+        assert locale in self._SETTINGS_WORDS, (
+            f"{locale} is new here: add the words it uses for the settings"
+        )
         table = _load_language(locale)
-        text = table[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY].lower()
-        for word in ("configura", "settings", "definições", "ustawieni"):
-            assert word not in text
-        assert text != table["transcription_device_cuda_libraries_missing"].lower()
+        text = table[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY]
+        assert words_found_in(text, self._SETTINGS_WORDS[locale]) == []
+        assert text.lower() != table["transcription_device_cuda_libraries_missing"].lower()
 
-    @pytest.mark.parametrize("locale, word", [
-        ("pt-BR", "baixad"), ("pt-PT", "transferid"), ("en-US", "download"),
-        ("es-ES", "descargad"), ("pl", "pobran"),
-    ])
-    def test_the_unusable_sentence_does_not_claim_a_download(self, locale, word):
+    #: The stem each locale uses for "downloaded". Keyed by locale and checked
+    #: against language_map rather than parametrized over a written-out list,
+    #: which is what let ro and tr-TR arrive without being checked at all.
+    _DOWNLOAD_WORD = {
+        "pt-BR": "baixad", "pt-PT": "transferid", "en-US": "download",
+        "es-ES": "descargad", "pl": "pobran", "ro": "descărca", "tr-TR": "indir",
+    }
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_the_unusable_sentence_does_not_claim_a_download(self, locale):
         # install_cuda_runtime() downloads nothing when the libraries are
         # already on disk and the probe still says no.
+        assert locale in self._DOWNLOAD_WORD, (
+            f"{locale} is new here: add the word it uses for a download"
+        )
         text = _load_language(locale)[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY]
-        assert word not in text.lower()
+        assert words_found_in(text, (self._DOWNLOAD_WORD[locale],)) == []
+
+    def test_the_word_search_sees_a_turkish_capital_i(self):
+        # The hole the two checks above had with str.lower(): "İ".lower() keeps
+        # a combining dot, so a sentence opening "İndir…" never contained
+        # "indir". Pinned here so the helper cannot regress to lower() quietly.
+        assert "indir" not in "İndirildi".lower()
+        assert words_found_in("İndirildi.", ("indir",)) == ["indir"]
+        assert words_found_in("DEFINIÇÕES", ("definições",)) == ["definições"]
 
     def test_a_partial_move_says_what_went_and_what_stayed(self):
         said = management.announcement(
