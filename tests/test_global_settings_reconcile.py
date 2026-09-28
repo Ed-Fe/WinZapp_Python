@@ -83,6 +83,10 @@ class _Window:
     _apply_pulled_global_settings = MainWindow._apply_pulled_global_settings
     _apply_pending_language_switch = MainWindow._apply_pending_language_switch
     _call_window_on_screen = MainWindow._call_window_on_screen
+    _retry_pending_language_switch = MainWindow._retry_pending_language_switch
+    _sync_voice_call_bar = MainWindow._sync_voice_call_bar
+    _close_incoming_call_dialog = MainWindow._close_incoming_call_dialog
+    _forget_incoming_call_dialog = MainWindow._forget_incoming_call_dialog
     _on_window_activate = MainWindow._on_window_activate
     _sync_tray_icon_with_setting = MainWindow._sync_tray_icon_with_setting
     save_settings = MainWindow.save_settings
@@ -1014,6 +1018,67 @@ class TestAPulledValue:
             a._incoming_call_dialogs.clear()
         a._on_window_activate(Mock(GetActive=Mock(return_value=True)))
         a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+
+        assert a.i18n.language == "en-US"
+        a.apply_language_changes.assert_called_once()
+
+    def _in_a_call_when_the_language_arrives(self, tmp_path):
+        """A on a call (its call frame holds the focus, the main window is
+        inactive) while B changes the language: the switch is pending."""
+        a = self._showing(tmp_path, "pt-BR", active=False)
+        a._set_bookmark_zero_hotkey = Mock()
+        a._active_voice_call = {"peer_jid": "5511999999999@s.whatsapp.net"}
+        a.voice_call_window = Mock(IsShown=Mock(return_value=True))
+        a.call_video_image = Mock()
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        a.apply_language_changes.assert_not_called()
+        return a
+
+    @staticmethod
+    def _end_the_call(window, focus_returns_to_the_main_window):
+        """_sync_voice_call_bar() with no call hides the frame. Windows
+        activates the next window inside that Hide(), synchronously."""
+        def _hide():
+            window.voice_call_window.IsShown.return_value = False
+            if focus_returns_to_the_main_window:
+                window._main_window_active = True
+        window.voice_call_window.Hide.side_effect = _hide
+        window._active_voice_call = None
+        window._sync_voice_call_bar()
+
+    def test_the_call_ending_switches_it_when_focus_goes_to_another_program(self, tmp_path):
+        """The main window gets no activation change at all then, so its
+        deactivation cannot be what applies the language."""
+        a = self._in_a_call_when_the_language_arrives(tmp_path)
+
+        self._end_the_call(a, focus_returns_to_the_main_window=False)
+
+        assert a.i18n.language == "en-US"
+        a.apply_language_changes.assert_called_once()
+
+    def test_and_waits_when_the_main_window_takes_the_focus_back(self, tmp_path):
+        a = self._in_a_call_when_the_language_arrives(tmp_path)
+
+        self._end_the_call(a, focus_returns_to_the_main_window=True)
+        a.apply_language_changes.assert_not_called()
+
+        a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+        a.apply_language_changes.assert_called_once()
+
+    @pytest.mark.parametrize("closing", ["_close_incoming_call_dialog",
+                                         "_forget_incoming_call_dialog"])
+    def test_a_ringing_popup_closing_switches_it(self, tmp_path, closing):
+        a = self._showing(tmp_path, "pt-BR", active=False)
+        a._incoming_call_dialogs = {"call-1": Mock()}
+        a._sync_incoming_call_bar = Mock()
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        a.apply_language_changes.assert_not_called()
+
+        getattr(a, closing)("call-1")
 
         assert a.i18n.language == "en-US"
         a.apply_language_changes.assert_called_once()

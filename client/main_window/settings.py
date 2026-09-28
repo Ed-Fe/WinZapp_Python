@@ -718,8 +718,15 @@ class SettingsMixin:
         (_refresh_call_language_surfaces()): NVDA would read the focused
         Mute or Answer button again in the other language, and a ringing
         popup's Alt+letter shortcuts would move under the user's fingers.
-        When the call ends focus comes back to the main window, and its next
-        deactivation brings this back.
+        Retried (_retry_pending_language_switch()) whenever one of those
+        guards may have stopped holding: the main window losing the focus, and
+        a call window closing -- the call frame hidden by
+        _sync_voice_call_bar(), the popup closed or forgotten. Closing a call
+        window can hand the activation to another program rather than to the
+        main window, which then sees no activation change at all; without the
+        second trigger the switch would wait for the user to come in and out
+        of the window again. If the main window did get it, the Hide() that
+        gave it is synchronous, so it is already active by the time this runs.
 
         A language equal to what the window already shows (changed and
         changed back, or chosen in this window's dialog meanwhile) costs
@@ -742,6 +749,12 @@ class SettingsMixin:
                          "(chosen in another account)", configured)
         except Exception:
             logging.exception("[settings] switching to the pulled language failed")
+
+    def _retry_pending_language_switch(self):
+        """Try a deferred language switch again once the current event is
+        done -- see _apply_pending_language_switch() for who calls this."""
+        if getattr(self, "_pending_language_switch", False):
+            wx.CallAfter(self._apply_pending_language_switch)
 
     def _call_window_on_screen(self):
         """Whether a call window of this process is showing: a ringing

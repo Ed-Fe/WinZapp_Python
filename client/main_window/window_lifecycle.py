@@ -48,8 +48,8 @@ class WindowLifecycleMixin:
         # A language another account chose while this window was the active
         # one waited for this: switching it with focus here would have NVDA
         # read the focused control again (_apply_pending_language_switch()).
-        if not active and getattr(self, "_pending_language_switch", False):
-            wx.CallAfter(self._apply_pending_language_switch)
+        if not active:
+            self._retry_pending_language_switch()
         if active:
             # Disabling the popup means "do not interrupt what I am doing",
             # not "hide the call controls". Once the user deliberately comes
