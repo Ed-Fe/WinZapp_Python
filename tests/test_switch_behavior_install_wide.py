@@ -15,10 +15,19 @@ with the other spelling is what hid the same mistake on the transcription tab
 """
 
 import json
+import threading
+
+import pytest
 
 from app_settings import AppSettings
 from main import MainWindow
+from main_window import settings as settings_module
 from ui.dialogs.settings_dialog import SettingsDialog
+
+
+@pytest.fixture(autouse=True)
+def _call_after_inline(monkeypatch):
+    monkeypatch.setattr(settings_module.wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
 
 
 class _Radio:
@@ -38,8 +47,17 @@ class _MainWindow:
         # `_app_settings`, with the underscore: the only name MainWindow writes.
         self._app_settings = app_settings
         self.global_dir = global_dir
+        self._save_lock = threading.Lock()
+        self.tray_icon = None
 
     _apply_global_settings = MainWindow._apply_global_settings
+    _persist_global_settings = MainWindow._persist_global_settings
+    choose_global_settings = MainWindow.choose_global_settings
+    _apply_pulled_global_settings = MainWindow._apply_pulled_global_settings
+    _sync_tray_icon_with_setting = MainWindow._sync_tray_icon_with_setting
+
+    def _init_tray(self):
+        pass
 
 
 class _Dialog:
@@ -54,6 +72,13 @@ class _Dialog:
     _load_switch_behavior = SettingsDialog._load_switch_behavior
     _apply_switch_behavior = SettingsDialog._apply_switch_behavior
     _global_control_changed = SettingsDialog._global_control_changed
+
+
+def _apply(dialog):
+    """What OK does with the radio: collect the choice, then store it."""
+    choices = {}
+    dialog._apply_switch_behavior(choices)
+    dialog.main_window.choose_global_settings(choices)
 
 
 def _stored(global_dir):
@@ -103,7 +128,7 @@ class TestSaving:
         dialog = _Dialog(window)
         dialog._switch_behavior_keep_open_rb.SetValue(True)
 
-        dialog._apply_switch_behavior()
+        _apply(dialog)
 
         assert _stored(tmp_path) == "keep_open"
         # And the account's copy agrees: it is what a legacy install reads,
@@ -118,7 +143,7 @@ class TestSaving:
         dialog = _Dialog(window)
 
         dialog._load_switch_behavior()
-        dialog._apply_switch_behavior()
+        _apply(dialog)
 
         assert _stored(tmp_path) == "keep_open"
         assert window.settings["general"]["switch_behavior"] == "keep_open"
@@ -129,6 +154,6 @@ class TestSaving:
         dialog = _Dialog(window)
         dialog._switch_behavior_keep_open_rb.SetValue(True)
 
-        dialog._apply_switch_behavior()
+        _apply(dialog)
 
         assert window.settings["general"]["switch_behavior"] == "keep_open"

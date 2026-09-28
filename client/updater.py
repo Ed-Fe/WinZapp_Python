@@ -1368,7 +1368,11 @@ class UpdateChecker:
 
         # Prefer a local, per-version changelog file (see resolve_changelog())
         # over the GitHub release body — only used as a last resort.
-        lang_code = self._mw.i18n.get_language() if hasattr(self._mw, "i18n") else "pt-BR"
+        # The language the window shows, not re-read from settings: that is
+        # install-wide and another account may have changed it since (see
+        # core.i18n.I18n.get_language()), and re-reading it on the window's own
+        # instance switched every string drawn from here on.
+        lang_code = self._mw.i18n.language if hasattr(self._mw, "i18n") else "pt-BR"
         changelog = resolve_changelog(local_version, remote_version, lang_code, data.get("body", ""))
 
         if not self._claim_prompt(remote_version):

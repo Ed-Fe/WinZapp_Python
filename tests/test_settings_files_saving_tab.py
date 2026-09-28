@@ -21,6 +21,7 @@ from core.i18n import I18n
 from core.sound_system import DEFAULT_PACK_ID
 from ui.dialogs.settings_dialog import SettingsDialog
 from tests.conftest import hidden_frame
+from tests.settings_dialog_frame import give_global_settings
 
 # Creates a REAL top-level wx dialog - see the wxgui marker in pytest.ini.
 pytestmark = pytest.mark.wxgui
@@ -57,6 +58,7 @@ def _make_frame(settings, vault=None):
     frame._default_sound_pack = {"name": "Default", "path": ""}
     frame.set_global_hotkey = lambda vk, mod: None
     frame.save_settings = lambda: None
+    give_global_settings(frame)
     frame.load_sounds = lambda: None
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()

@@ -35,6 +35,7 @@ from pathlib import Path
 
 import pytest
 
+from app_settings import _CONNECTION_GLOBAL
 from core.utils import DEFAULT_SETTINGS
 
 SETTINGS_DIALOG = (
@@ -126,6 +127,15 @@ def _unwrap_bool(node):
     return node
 
 
+def _chosen_section(target):
+    """Section of `choices["key"] = ...`: an install-wide key the dialog hands
+    to MainWindow.choose_global_settings(), which stores it under the section
+    app_settings files it in -- still a save of that settings key."""
+    if isinstance(target.value, ast.Name) and target.value.id == "choices":
+        return "connection" if target.slice.value in _CONNECTION_GLOBAL else "general"
+    return None
+
+
 def _parse():
     """{attr: {"page", "line", "loads": [(section, key, default)],
     "saves": [(section, key)]}} for every wx.CheckBox in SettingsDialog."""
@@ -201,6 +211,8 @@ def _parse():
                 # <section>["key"] = self._cb.GetValue() / = x
                 if isinstance(target, ast.Subscript) and isinstance(target.slice, ast.Constant):
                     section = _section_of(target.value, section_names)
+                    if section is None:
+                        section = _chosen_section(target)
                     if section is None:
                         continue
                     if is_getvalue(value):

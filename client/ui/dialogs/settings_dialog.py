@@ -2058,22 +2058,21 @@ class SettingsDialog(wx.Dialog):
         else:
             self._switch_behavior_single_rb.SetValue(True)
 
-    def _apply_switch_behavior(self):
-        """Store the "when switching accounts" choice, install-wide — only
-        when the user changed it here (see _global_control_changed())."""
+    def _apply_switch_behavior(self, choices):
+        """Add the "when switching accounts" choice to `choices` — only when
+        the user changed it here (see _global_control_changed()).
+
+        It used to go straight to the shared file with its own app.set(), a
+        second write path beside _persist_global_settings(); it now goes with
+        the rest through MainWindow.choose_global_settings(), which writes the
+        shared file and the local copy (the only one a legacy install without
+        a shared file has) together.
+        """
         new_switch_behavior = (
             "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
         )
         if self._global_control_changed("switch_behavior", new_switch_behavior):
-            app_settings = self._install_wide_settings()
-            if app_settings is not None:
-                app_settings.set("switch_behavior", new_switch_behavior)
-            # Kept too: settings["general"] is this window's own copy, the only
-            # one a legacy install without a shared file has, and the one
-            # _persist_global_settings() reconciles on the next save — a value
-            # differing from what it last saw is written, so this agrees with
-            # the write above rather than competing with it.
-            self.main_window.settings.setdefault("general", {})["switch_behavior"] = new_switch_behavior
+            choices["switch_behavior"] = new_switch_behavior
 
     def _global_control_values(self):
         """{key: value its control shows now} for every install-wide key
@@ -2126,7 +2125,15 @@ class SettingsDialog(wx.Dialog):
 
         A half of _load_values() of its own so a stub can drive it with the
         apply half below (tests/test_global_settings_reconcile.py).
+
+        The local copy is brought up to date with the shared file first
+        (MainWindow.refresh_global_settings()): it is otherwise only as fresh
+        as this account's last save, and the dialog showed a value another
+        account had changed since — the account-switch radio alone read the
+        shared file. What is shown here is also the baseline OK compares with,
+        so it has to be the value in effect for the install.
         """
+        self.main_window.refresh_global_settings()
         lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
         if lang_code in self._lang_codes:
             self._lang_combo.SetSelection(self._lang_codes.index(lang_code))
@@ -2181,29 +2188,63 @@ class SettingsDialog(wx.Dialog):
         write the same values again over a change another account made in
         between.
         """
+        # Every install-wide key the user changed here, handed over at once to
+        # MainWindow.choose_global_settings(): an explicit choice, written to
+        # the shared file even when it equals what this account last pulled,
+        # and under the save lock — see that method for the race each closes.
+        choices = {}
+
         old_lang = self.main_window.i18n.language
         sel = self._lang_combo.GetSelection()
         new_lang = self._lang_codes[sel] if sel != wx.NOT_FOUND else "pt-BR"
         language_changed = False
         if self._global_control_changed("language", new_lang):
-            self.main_window.settings.setdefault("general", {})["language"] = new_lang
+            choices["language"] = new_lang
             language_changed = new_lang != old_lang
 
         # Updates
         updates = self._updates_check.GetValue()
         if self._global_control_changed("updates_enabled", updates):
-            self.main_window.settings.setdefault("general", {})["updates_enabled"] = updates
+            choices["updates_enabled"] = updates
         alpha_updates = self._alpha_updates_check.GetValue()
         if self._global_control_changed("alpha_updates_enabled", alpha_updates):
-            self.main_window.settings.setdefault("general", {})["alpha_updates_enabled"] = alpha_updates
+            choices["alpha_updates_enabled"] = alpha_updates
 
         # Account switch behavior
-        self._apply_switch_behavior()
+        self._apply_switch_behavior(choices)
 
-        # Tray icon
+        # Tray icon: stored before the icon is created below, since
+        # _init_tray() reads the setting it is about to follow.
         new_show_tray = self._tray_icon_check.GetValue()
         if self._global_control_changed("show_tray_icon", new_show_tray):
-            self.main_window.settings.setdefault("general", {})["show_tray_icon"] = new_show_tray
+            choices["show_tray_icon"] = new_show_tray
+        tray_changed = "show_tray_icon" in choices
+
+        # Connection settings. The port is not here: it is this account's own
+        # (the Node server it runs), written by _apply_values() every time.
+        custom_api = self._custom_api_check.GetValue()
+        if self._global_control_changed("wpp_custom_api", custom_api):
+            choices["wpp_custom_api"] = custom_api
+            self.main_window.wpp_custom_api = custom_api
+
+        server = self._server_field.GetValue().strip()
+        if self._global_control_changed("wpp_server", server):
+            choices["wpp_server"] = server
+            self.main_window.wpp_server = server
+
+        ws_server = self._ws_server_field.GetValue().strip()
+        if self._global_control_changed("wpp_ws_server", ws_server):
+            choices["wpp_ws_server"] = ws_server
+            self.main_window.wpp_ws_server = ws_server
+
+        api_key = self._api_key_field.GetValue().strip()
+        if self._global_control_changed("wpp_api_key", api_key):
+            choices["wpp_api_key"] = api_key
+            self.main_window.wpp_api_key = api_key
+
+        self.main_window.choose_global_settings(choices)
+
+        if tray_changed:
             if new_show_tray:
                 # Enable tray icon
                 if self.main_window.tray_icon is None:
@@ -2216,28 +2257,6 @@ class SettingsDialog(wx.Dialog):
                 except Exception:
                     pass
                 self.main_window.tray_icon = None
-
-        # Connection settings. The port is not here: it is this account's own
-        # (the Node server it runs), written by _apply_values() every time.
-        custom_api = self._custom_api_check.GetValue()
-        if self._global_control_changed("wpp_custom_api", custom_api):
-            self.main_window.settings.setdefault("connection", {})["wpp_custom_api"] = custom_api
-            self.main_window.wpp_custom_api = custom_api
-
-        server = self._server_field.GetValue().strip()
-        if self._global_control_changed("wpp_server", server):
-            self.main_window.settings.setdefault("connection", {})["wpp_server"] = server
-            self.main_window.wpp_server = server
-
-        ws_server = self._ws_server_field.GetValue().strip()
-        if self._global_control_changed("wpp_ws_server", ws_server):
-            self.main_window.settings.setdefault("connection", {})["wpp_ws_server"] = ws_server
-            self.main_window.wpp_ws_server = ws_server
-
-        api_key = self._api_key_field.GetValue().strip()
-        if self._global_control_changed("wpp_api_key", api_key):
-            self.main_window.settings.setdefault("connection", {})["wpp_api_key"] = api_key
-            self.main_window.wpp_api_key = api_key
 
         self._loaded_global_values = self._global_control_values()
         return language_changed

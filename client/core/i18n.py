@@ -52,7 +52,27 @@ class I18n:
         self.language = "pt-BR"  # default, overwritten by get_language()
 
     def get_language(self):
-        """Read the current language from settings and cache it in self.language."""
+        """Set self.language to the language this window shows, and return it.
+
+        The window's own instance (`main_window.i18n`) reads it from settings:
+        it is asked only where a language is being applied -- startup, the
+        Settings dialog's OK, a settings import -- each followed by
+        apply_language_changes(). Every other instance (the tray, the
+        notification manager, the WebSocket client, a few dialogs) follows
+        that instance instead of the settings.
+
+        They used to read the settings too, and the language setting is
+        install-wide: when another account changes it, this window's copy is
+        updated on its next save while the window itself keeps its language
+        until the user applies one. The helpers then switched on their own --
+        toasts and tray menus in the new language over a window still in the
+        old one. Before the window's instance exists (early startup), there is
+        nothing to follow and the settings are read.
+        """
+        window_i18n = getattr(self.main_window, "i18n", None)
+        if isinstance(window_i18n, I18n) and window_i18n is not self:
+            self.language = window_i18n.language
+            return self.language
         self.language = self.main_window.settings.get("general", {}).get("language", "pt-BR")
         return self.language
 

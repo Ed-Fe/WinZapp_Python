@@ -41,6 +41,13 @@ from ui.dialogs.settings_dialog import SettingsDialog
 
 
 @pytest.fixture(autouse=True)
+def _call_after_inline(monkeypatch):
+    """A pulled value is applied on the main thread through wx.CallAfter; no
+    wx.App here, so it runs inline."""
+    monkeypatch.setattr(settings_module.wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
+
+
+@pytest.fixture(autouse=True)
 def _account_dir(tmp_path, monkeypatch):
     """settings.json goes to a scratch folder, never to the real data dir."""
     account = tmp_path / "account"
@@ -61,9 +68,17 @@ class _Window:
         self.i18n = Mock()
         self.app_name = "WinZapp"
         self.apply_settings_live = Mock()
+        self.tray_icon = None
+        self._init_tray = Mock()
+        self._window_hidden = False
+        self.background_mode = False
 
     _apply_global_settings = MainWindow._apply_global_settings
     _persist_global_settings = MainWindow._persist_global_settings
+    choose_global_settings = MainWindow.choose_global_settings
+    refresh_global_settings = MainWindow.refresh_global_settings
+    _apply_pulled_global_settings = MainWindow._apply_pulled_global_settings
+    _sync_tray_icon_with_setting = MainWindow._sync_tray_icon_with_setting
     save_settings = MainWindow.save_settings
     _save_settings_locked = MainWindow._save_settings_locked
     import_settings_from_file = MainWindow.import_settings_from_file
@@ -114,7 +129,9 @@ def _choose(window, behavior):
         dialog._switch_behavior_single_rb.SetValue(False)
     else:
         dialog._switch_behavior_keep_open_rb.SetValue(False)
-    dialog._apply_switch_behavior()
+    choices = {}
+    dialog._apply_switch_behavior(choices)
+    window.choose_global_settings(choices)
     window.save_settings()
 
 
@@ -457,8 +474,6 @@ class _SettingsDialog(_Dialog):
 
 def _opened(window):
     window.i18n.language = window.settings["general"].get("language") or "pt-BR"
-    window.tray_icon = None
-    window._init_tray = Mock()
     dialog = _SettingsDialog(window)
     dialog._load_install_wide_values()
     return dialog
@@ -500,6 +515,16 @@ def _set_control(dialog, key, value):
         control.SetValue(value)
 
 
+def _chosen_key(node):
+    """KEY of `choices[KEY] = ...`: a choice handed to choose_global_settings()."""
+    if (isinstance(node, ast.Assign) and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Subscript)
+            and isinstance(node.targets[0].slice, ast.Constant)
+            and ast.unparse(node.targets[0].value) == "choices"):
+        return node.targets[0].slice.value
+    return None
+
+
 def _written_key(node):
     """KEY of `<...settings...>[KEY] = ...` or `<...settings...>.set(KEY, ...)`."""
     if (isinstance(node, ast.Assign) and len(node.targets) == 1
@@ -536,11 +561,15 @@ class TestEveryInstallWideControlIsKnown:
         assert every - edited == set(NOT_EDITED_BY_THE_DIALOG)
         assert set(_ANOTHER_VALUE) == edited
 
-    def test_every_global_write_on_ok_is_behind_the_check(self):
-        """By source, for _apply_values() itself, which no stub can run: a
-        global key written there unguarded would bring the bug back."""
+    def test_every_global_write_on_ok_is_a_guarded_choice(self):
+        """By source, for _apply_values() itself, which no stub can run. A
+        global key reaches the shared file only as a choice, each behind the
+        check for its own key: one chosen unguarded would bring the untouched
+        -OK bug back, and one written to the settings directly would skip
+        choose_global_settings() -- by difference it can be lost, and without
+        the save lock it races a background save."""
         every = set(_GENERAL_GLOBAL) | set(_CONNECTION_GLOBAL)
-        guarded, unguarded, port = set(), [], []
+        guarded, unguarded, direct, port = set(), [], [], []
         for name in ("_apply_values", "_apply_install_wide_values", "_apply_switch_behavior"):
             tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(SettingsDialog, name))))
             parents = {child: node for node in ast.walk(tree)
@@ -549,6 +578,9 @@ class TestEveryInstallWideControlIsKnown:
                 key = _written_key(node)
                 if key == "wpp_port":
                     port.append(_under_guard(node, parents, key))
+                if key in every:
+                    direct.append(f"{name}: {key}")
+                key = _chosen_key(node)
                 if key not in every:
                     continue
                 if _under_guard(node, parents, key):
@@ -556,6 +588,7 @@ class TestEveryInstallWideControlIsKnown:
                 else:
                     unguarded.append(f"{name}: {key}")
 
+        assert direct == []
         assert unguarded == []
         assert guarded == set(_ANOTHER_VALUE)
         # The port is this account's own, not install-wide: written every
@@ -622,6 +655,9 @@ class TestAnUntouchedDialogDoesNotUndoAnotherAccount:
 
         _change_elsewhere(b, "show_tray_icon", True)
         _unrelated_save(a)
+        # The pulled value itself brings the icon up (see TestAPulledValue);
+        # what matters here is that OK does not act on it a second time.
+        a._init_tray.reset_mock()
         _ok(dialog)
 
         a._init_tray.assert_not_called()
@@ -689,3 +725,210 @@ class TestAChangeMadeInTheDialogIsWritten:
         assert _ok(dialog) is False  # OK
 
         assert _stored(tmp_path, "wpp_server") == "http://192.0.2.30"
+
+
+# ── A choice made in the dialog is explicit, not inferred ────────────────────
+# Reproduced by review, three events: A's dialog opens on "pt-BR"; B sets
+# "en-US" and a background save in A pulls it (A's snapshot "en-US"); B sets
+# "es-ES"; the user of A picks "en-US" and presses OK. Equal to the snapshot,
+# so by difference the save read "unchanged", pulled "es-ES", and A's choice --
+# the newest of the three -- was gone without a word.
+
+
+class TestADialogChoiceIsExplicit:
+    def test_three_events_the_latest_choice_wins(self, tmp_path):
+        a = _started(tmp_path, general={"language": "pt-BR"})
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        dialog = _opened(a)
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        assert a._global_settings_snapshot["language"] == "en-US"
+        _change_elsewhere(b, "language", "es-ES")
+        dialog._lang_combo.SetSelection(_LANGS.index("en-US"))
+        _ok(dialog)
+
+        assert _stored(tmp_path, "language") == "en-US"
+        assert a.settings["general"]["language"] == "en-US"
+        _unrelated_save(b)
+        assert b.settings["general"]["language"] == "en-US"
+
+    @pytest.mark.parametrize("key", sorted(_ANOTHER_VALUE))
+    def test_for_every_key_the_dialog_edits(self, tmp_path, key):
+        """The same three events for each key: the value chosen is the one
+        pulled in between, and another account moved on since."""
+        a = _started(tmp_path)
+        b = _started(tmp_path)
+        dialog = _opened(a)
+        chosen = _ANOTHER_VALUE[key]
+        later = {"language": "en-US", "wpp_server": "http://192.0.2.99",
+                 "wpp_ws_server": "ws://192.0.2.99", "wpp_api_key": "terceira"}.get(
+                     key, dialog._loaded_global_values[key])
+
+        _change_elsewhere(b, key, chosen)
+        _unrelated_save(a)
+        _change_elsewhere(b, key, later)
+        _set_control(dialog, key, chosen)
+        _ok(dialog)
+
+        assert _stored(tmp_path, key) == chosen
+
+    def test_a_choice_held_off_by_a_running_save_cannot_land_inside_it(self, tmp_path):
+        """The TOCTOU: a background save compares a key, reads the file, and
+        pulls -- two steps. OK used to write the local copy with no lock, so
+        its write could land between them (interleaved here inside app.all(),
+        as the tests above do). It now waits for the save to finish: the
+        local copy the pull sees is untouched, and the choice is written
+        right after."""
+        a = _started(tmp_path, general={"language": "pt-BR"})
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        dialog = _opened(a)
+        _change_elsewhere(b, "language", "en-US")
+        dialog._lang_combo.SetSelection(_LANGS.index("es-ES"))
+
+        seen_during_the_pull = []
+        ok_thread = []
+
+        def _ok_now():
+            thread = threading.Thread(target=dialog._apply_install_wide_values)
+            ok_thread.append(thread)
+            thread.start()
+            thread.join(0.3)
+            seen_during_the_pull.append(a.settings["general"]["language"])
+
+        _while_the_file_is_read(a, _ok_now)
+        _unrelated_save(a)
+        ok_thread[0].join(5)
+
+        assert not ok_thread[0].is_alive()
+        assert seen_during_the_pull == ["pt-BR"]
+        assert _stored(tmp_path, "language") == "es-ES"
+        assert a.settings["general"]["language"] == "es-ES"
+
+    def test_an_import_still_writes_what_the_file_carries(self, tmp_path):
+        """Not a regression of the import path the dialog now shares."""
+        a = _started(tmp_path, general={"switch_behavior": "single"})
+        b = _started(tmp_path, general={"switch_behavior": "single"})
+        _choose(b, "keep_open")
+        path = tmp_path / "export.json"
+        path.write_text(json.dumps(build_export({"general": {"switch_behavior": "single"}})),
+                        encoding="utf-8")
+
+        a.import_settings_from_file(str(path))
+
+        assert _stored(tmp_path, "switch_behavior") == "single"
+
+
+# ── The dialog opens on the value in effect, and a pulled value is applied ───
+# A value another account chose reached this copy only on this account's next
+# save, and the dialog loaded language, updates, tray and connection from that
+# copy -- the account-switch radio alone read the shared file.
+
+
+class TestTheDialogShowsTheSharedValue:
+    @pytest.mark.parametrize("key", sorted(_ANOTHER_VALUE))
+    def test_with_no_save_in_between(self, tmp_path, key):
+        a = _started(tmp_path)
+        b = _started(tmp_path)
+
+        _change_elsewhere(b, key, _ANOTHER_VALUE[key])
+        dialog = _opened(a)
+
+        assert dialog._global_control_values()[key] == _ANOTHER_VALUE[key]
+        # And that is the baseline: OK untouched writes nothing back.
+        _ok(dialog)
+        assert _stored(tmp_path, key) == _ANOTHER_VALUE[key]
+
+    def test_opening_writes_this_accounts_own_pending_change(self, tmp_path):
+        """The refresh is the reconciliation a save runs, so a change made
+        here and not saved yet is written, not pulled over."""
+        a = _started(tmp_path)
+        a.settings["general"]["updates_enabled"] = False
+
+        dialog = _opened(a)
+
+        assert dialog._updates_check.GetValue() is False
+        assert _stored(tmp_path, "updates_enabled") is False
+
+
+class _Icon:
+    def __init__(self):
+        self.removed = False
+
+    def RemoveIcon(self):
+        self.removed = True
+
+    def Destroy(self):
+        pass
+
+
+class TestAPulledValue:
+    def test_the_tray_icon_comes_up_when_another_account_turns_it_on(self, tmp_path):
+        a = _started(tmp_path, general={"show_tray_icon": False})
+        b = _started(tmp_path, general={"show_tray_icon": False})
+
+        _change_elsewhere(b, "show_tray_icon", True)
+        _unrelated_save(a)
+
+        a._init_tray.assert_called_once()
+
+    def test_and_goes_away_when_it_is_turned_off_on_a_visible_window(self, tmp_path):
+        a = _started(tmp_path)
+        b = _started(tmp_path)
+        icon = a.tray_icon = _Icon()
+
+        _change_elsewhere(b, "show_tray_icon", False)
+        _unrelated_save(a)
+
+        assert icon.removed is True
+        assert a.tray_icon is None
+
+    @pytest.mark.parametrize("hidden", ["_window_hidden", "background_mode"])
+    def test_but_stays_while_the_window_is_hidden(self, tmp_path, hidden):
+        """Without the icon only the hotkey or another account's switch could
+        bring a hidden window back; nobody chose that for this window."""
+        a = _started(tmp_path)
+        b = _started(tmp_path)
+        icon = a.tray_icon = _Icon()
+        setattr(a, hidden, True)
+
+        _change_elsewhere(b, "show_tray_icon", False)
+        _unrelated_save(a)
+        assert a.tray_icon is icon and icon.removed is False
+
+        setattr(a, hidden, False)  # what restore_window() does, then:
+        a._sync_tray_icon_with_setting()
+        assert a.tray_icon is None and icon.removed is True
+
+    def test_restoring_the_window_applies_a_deferred_change(self):
+        source = inspect.getsource(MainWindow.restore_window)
+        assert "self._sync_tray_icon_with_setting()" in source
+
+    def test_the_language_is_not_switched_under_the_user(self, tmp_path):
+        """Stored for the next start and shown by the dialog, but the window
+        keeps what it shows until someone chooses a language here."""
+        a = _started(tmp_path, general={"language": "pt-BR"})
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        a.apply_language_changes = Mock()
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+
+        assert a.settings["general"]["language"] == "en-US"
+        a.apply_language_changes.assert_not_called()
+
+    def test_the_connection_this_process_uses_stays(self, tmp_path):
+        """self.wpp_* say where this process's session lives; moving them
+        mid-session abandons its Node. They change at the next start."""
+        a = _started(tmp_path)
+        b = _started(tmp_path)
+        a.wpp_server = a.settings["connection"]["wpp_server"]
+        a.wpp_custom_api = a.settings["connection"]["wpp_custom_api"]
+
+        _change_elsewhere(b, "wpp_server", "http://192.0.2.10")
+        _change_elsewhere(b, "wpp_custom_api", True)
+        _unrelated_save(a)
+
+        assert a.settings["connection"]["wpp_server"] == "http://192.0.2.10"
+        assert a.wpp_server == "http://127.0.0.1"
+        assert a.wpp_custom_api is False

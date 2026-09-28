@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from app_settings import _CONNECTION_GLOBAL
 from core import save_location
 from core.utils import DEFAULT_SETTINGS
 from tests.test_settings_checkboxes_wiring import checkbox_keys
@@ -179,6 +180,10 @@ def _writes(cls):
             section = _section(target.value, names)
             if section is not None:
                 writes.add((section, key))
+            elif isinstance(target.value, ast.Name) and target.value.id == "choices":
+                # An install-wide key handed to MainWindow.choose_global_
+                # settings(), which stores it under app_settings' section.
+                writes.add(("connection" if key in _CONNECTION_GLOBAL else "general", key))
             elif _is_settings(target.value):
                 if isinstance(node.value, ast.Dict):
                     for k in node.value.keys:

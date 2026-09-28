@@ -852,8 +852,12 @@ class WppServerMixin:
         _resolve_wpp_port() itself allocates a port for — a custom/remote
         API's port, or single-account/legacy mode, is left untouched.
         """
-        conn = self.settings.get("connection", {})
-        if conn.get("wpp_custom_api"):
+        # The attribute, not settings["connection"]: that block is install-wide,
+        # and another account's change reaches this copy mid-session while this
+        # process keeps the API it started with (self.wpp_* stay the source of
+        # truth until the next start -- _apply_pulled_global_settings()). A
+        # restart of Node here must follow the API this process actually uses.
+        if self.wpp_custom_api:
             return
         if getattr(self, "registry", None) is None or getattr(self, "account_id", None) is None:
             return

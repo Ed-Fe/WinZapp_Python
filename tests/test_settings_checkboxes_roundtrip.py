@@ -29,6 +29,7 @@ from core.i18n import I18n
 from core.sound_system import DEFAULT_PACK_ID
 from core.utils import DEFAULT_SETTINGS
 from tests.conftest import hidden_frame
+from tests.settings_dialog_frame import give_global_settings
 from tests.test_settings_checkboxes_wiring import checkbox_keys
 from ui.dialogs.settings_dialog import SettingsDialog
 
@@ -73,6 +74,7 @@ def _make_frame(settings):
     frame._default_sound_pack = {"name": "Default", "path": ""}
     frame.set_global_hotkey = lambda vk, mod: None
     frame.save_settings = lambda: None
+    give_global_settings(frame)
     frame.load_sounds = lambda: None
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()

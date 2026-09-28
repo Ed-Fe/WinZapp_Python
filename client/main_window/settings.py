@@ -529,12 +529,15 @@ class SettingsMixin:
         One lock around the read and the writes, so another account's change
         cannot land between them and be pulled back out as this one's.
 
-        The pull does not hold this window's own writers off, though: the
-        Settings dialog writes self.settings without `_save_lock`, so its OK
-        can land between the comparison and the pull — seen by review as a
+        The pull does not hold this window's own writers off, though, unless
+        they take `_save_lock` too. The Settings dialog used not to — its OK
+        could land between the comparison and the pull, seen by review as a
         background save reading the file while OK set the language, pulling
         the old one over it, and OK's own save then finding "equal to the
-        snapshot" and writing nothing. So a key is pulled only while it still
+        snapshot" and writing nothing. It now goes through
+        choose_global_settings(), under the lock and as `explicit`; the
+        first-run questions still write the local copy on their own, and for
+        them the check below remains. So a key is pulled only while it still
         holds the value compared; one that moved meanwhile keeps the new value,
         and its snapshot entry becomes the value compared rather than the
         file's. The new value differs from the compared one by definition, so
@@ -569,16 +572,102 @@ class SettingsMixin:
                             app.set(k, section[k])
                 current = app.all()
             new_snapshot = {}
+            pulled = {}
             for section, keys in sections:
                 for k in keys:
                     if k in compared and section.get(k) != compared[k]:
                         new_snapshot[k] = compared[k]
                         continue
+                    if k in section and section[k] != current[k]:
+                        pulled[k] = current[k]
                     section[k] = current[k]
                     new_snapshot[k] = current[k]
             self._global_settings_snapshot = new_snapshot
+            if pulled:
+                # This runs on whatever thread saved, holding _save_lock;
+                # applying touches wx, so it waits for the main thread.
+                wx.CallAfter(self._apply_pulled_global_settings, pulled)
         except Exception:
             logging.exception("[settings] persisting global app.json failed (non-fatal)")
+
+    def choose_global_settings(self, choices):
+        """Store install-wide settings the user just chose: {key: value}.
+
+        The Settings dialog's way in, and the reason it has one. By difference
+        alone a choice is lost whenever it happens to equal this account's
+        snapshot: the dialog opens on "pt-BR", another account sets "en-US", a
+        background save here pulls it (snapshot "en-US"), the other account
+        sets "es-ES", and the user picks "en-US" and presses OK -- equal to
+        the snapshot, so the save reads "unchanged" and pulls "es-ES" over the
+        newest choice of all, without a word. A choice is an explicit write,
+        exactly like a settings import, so it goes through the same
+        `explicit` of the same _persist_global_settings(): one write path to
+        the shared file, not a second one to keep in step with it.
+
+        And under _save_lock, the lock every _persist_global_settings() call
+        runs under (save_settings(), the import). The dialog used to write the
+        local copy with no lock at all, so its write could land between a
+        background save comparing a key and pulling it -- the gap the
+        `compared` check in _persist_global_settings() narrows but, being two
+        separate steps, cannot close. Holding the lock closes it for the
+        dialog; the check stays for the first-run questions, which still write
+        the local copy on their own.
+        """
+        if not choices:
+            return
+        from app_settings import _CONNECTION_GLOBAL
+        with self._save_lock:
+            for key, value in choices.items():
+                section = "connection" if key in _CONNECTION_GLOBAL else "general"
+                self.settings.setdefault(section, {})[key] = value
+            self._persist_global_settings(explicit=tuple(choices))
+
+    def refresh_global_settings(self):
+        """Bring the install-wide keys of the local copy up to date with the
+        shared file now, rather than on the next save.
+
+        Called by the Settings dialog before it loads its controls: otherwise
+        it showed whatever this account last pulled, which can be a value
+        another account has changed since. Writes this account's own pending
+        changes too -- it is the same reconciliation a save runs.
+        """
+        with self._save_lock:
+            self._persist_global_settings()
+
+    def _apply_pulled_global_settings(self, pulled):
+        """Make install-wide values another account chose take effect here,
+        where that is safe to do without anyone asking.
+
+        Decided key by key; only the tray icon needs work now:
+
+        - show_tray_icon: applied (_sync_tray_icon_with_setting()). The same
+          setting already switches Windows toasts off the moment it is pulled
+          (notification_manager.should_speak_background_message() and the
+          background notification path read it live), so an icon left up
+          would be a window whose toasts are off while its icon says
+          otherwise.
+        - language: NOT applied. The window keeps the language it shows until
+          the user changes it here or WinZapp starts again; switching a whole
+          window's language under someone who did not ask for it is a
+          product decision, and core.i18n makes every helper follow the
+          window's language rather than this copy.
+        - wpp_server / wpp_ws_server / wpp_api_key / wpp_custom_api: NOT
+          applied. They say where this process's session lives; moving it
+          mid-session abandons the Node it runs. The attributes (self.wpp_*)
+          stay the source of truth for this process until the next start.
+        - updates_enabled / alpha_updates_enabled / switch_behavior /
+          autostart / the first-run flags: nothing to do. Each is read where
+          it is used, from this copy or the shared file, or mirrors state
+          (the Run entry) that is already shared.
+        """
+        # Key names only: the connection values are an address and a key.
+        logging.info("[settings] install-wide value(s) changed by another account: %s",
+                     ", ".join(sorted(pulled)))
+        if "show_tray_icon" in pulled:
+            try:
+                self._sync_tray_icon_with_setting()
+            except Exception:
+                logging.exception("[settings] applying the pulled tray setting failed")
 
     def _migrate_settings(self):
         """Migrate settings from old section names to current ones."""
