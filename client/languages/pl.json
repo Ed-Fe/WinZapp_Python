@@ -1498,6 +1498,8 @@
     "transcription_saved_opened": "Zapisana transkrypcja, wykonana {when} przy użyciu modelu {model}.",
     "transcription_saved_opened_no_model": "Zapisana transkrypcja, wykonana {when}.",
     "transcription_not_saved_unsent": "Ta transkrypcja nie została zapisana, ponieważ wiadomość nie została jeszcze wysłana. Po wysłaniu transkrybuj ją ponownie, aby ją zapisać.",
+    "transcription_media_still_preparing": "Dźwięk tej wiadomości jest jeszcze przygotowywany do wysłania. Spróbuj transkrybować ją ponownie za chwilę.",
+    "transcription_media_send_failed": "W tej wiadomości nie ma dźwięku do transkrypcji: wysyłanie nie powiodło się, a nagranie nie zostało zapisane.",
     "transcription_not_saved_missing": "Ta transkrypcja nie została zapisana, ponieważ wiadomości nie ma już w tej rozmowie.",
     "transcription_discarded_withdrawn": "Wiadomość została usunięta u wszystkich w trakcie transkrypcji, więc transkrypcja została odrzucona.",
     "transcription_store_failed": "Nie udało się zapisać transkrypcji.",

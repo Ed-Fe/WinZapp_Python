@@ -1,4 +1,5 @@
 import ctypes
+import logging
 import os
 import wx
 from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
@@ -2005,29 +2006,246 @@ class SettingsDialog(wx.Dialog):
         group.Add(row, 1, wx.EXPAND | wx.ALL, 4)
         sizer.Add(group, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
-    # ── Transcription tab ────────────────────────────────────────────────────
-    # Kept together rather than spread across this file's Helpers/Event
-    # handlers sections: the tab is one subject, and the populate/load/apply
-    # halves only make sense read against each other.
+    # ── Install-wide settings ────────────────────────────────────────────────
+    # The dialog's one way to the shared file, and the controls whose keys are
+    # install-wide (app_settings._GENERAL_GLOBAL / _CONNECTION_GLOBAL): loaded
+    # and written back together, each only when changed here.
 
-    def _transcription_app_settings(self):
+    def _install_wide_settings(self):
         """This window's install-wide settings object, or None.
+
+        The one place in this dialog that reaches for it; the transcription
+        tab and the account-switch behaviour both go through here.
 
         **`_app_settings`, with the underscore** — that is the attribute
         `MainWindow._apply_global_settings()` writes and `_persist_global_
         settings()` reads, and nothing in the app ever sets a bare
-        `app_settings` on the window. The two `switch_behavior` call sites in
-        this file spell it without one and survive only because they fall back
-        to `settings["general"]`, which `_apply_global_settings()` overlays for
-        them; the models folder is not in `_GENERAL_GLOBAL` and has no such
-        second route, so a wrong spelling here means the folder the user chose
-        is silently never written and never read back.
+        `app_settings` on the window. The two `switch_behavior` call sites
+        once spelled it without one and fell back to `settings["general"]`,
+        the copy `_apply_global_settings()` put there at startup: the dialog
+        showed that copy even after another account had changed the choice.
+        Reading the shared file directly is what makes it show the current
+        value; `_persist_global_settings()` no longer writes a stale copy
+        back — it writes a global key only when this account changed it.
+        The models folder is not in `_GENERAL_GLOBAL` and has no second route
+        at all, so a wrong spelling there means the folder the user chose is
+        silently never written and never read back.
 
         `getattr` is kept rather than a plain attribute read because
         `_apply_global_settings()` returns early when there is no `global_dir`
         (a legacy, account-less install), leaving the attribute unset.
         """
         return getattr(self.main_window, "_app_settings", None)
+
+    def _load_switch_behavior(self):
+        """Show the stored "when switching accounts" choice.
+
+        Install-wide: read from the shared file, not from the copy
+        `_apply_global_settings()` left in `settings["general"]` at startup,
+        which another account may have changed since. That copy is seeded
+        into the shared file on startup when the file lacks the key, so no
+        value that only lived there is lost by reading the file instead.
+        """
+        switch_behavior = "single"
+        app_settings = self._install_wide_settings()
+        if app_settings is not None:
+            switch_behavior = app_settings.get("switch_behavior")
+        elif getattr(self.main_window, "settings", None):
+            switch_behavior = self.main_window.settings.get("general", {}).get("switch_behavior", "single")
+
+        if switch_behavior == "keep_open":
+            self._switch_behavior_keep_open_rb.SetValue(True)
+        else:
+            self._switch_behavior_single_rb.SetValue(True)
+
+    def _apply_switch_behavior(self):
+        """Store the "when switching accounts" choice, install-wide — only
+        when the user changed it here (see _global_control_changed())."""
+        new_switch_behavior = (
+            "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
+        )
+        if self._global_control_changed("switch_behavior", new_switch_behavior):
+            app_settings = self._install_wide_settings()
+            if app_settings is not None:
+                app_settings.set("switch_behavior", new_switch_behavior)
+            # Kept too: settings["general"] is this window's own copy, the only
+            # one a legacy install without a shared file has, and the one
+            # _persist_global_settings() reconciles on the next save — a value
+            # differing from what it last saw is written, so this agrees with
+            # the write above rather than competing with it.
+            self.main_window.settings.setdefault("general", {})["switch_behavior"] = new_switch_behavior
+
+    def _global_control_values(self):
+        """{key: value its control shows now} for every install-wide key
+        (app_settings._GENERAL_GLOBAL / _CONNECTION_GLOBAL) this dialog edits.
+
+        Each value is read exactly as _apply_install_wide_values() reads it,
+        so "differs from what was loaded" compares like with like. The other
+        global keys are not controls here: the three first-run flags are set
+        by the first-run questions, and autostart mirrors the Windows Run
+        entry, applied through MainWindow._apply_autostart() only when the box
+        differs from the registry.
+        """
+        sel = self._lang_combo.GetSelection()
+        return {
+            "language": self._lang_codes[sel] if sel != wx.NOT_FOUND else "pt-BR",
+            "updates_enabled": self._updates_check.GetValue(),
+            "alpha_updates_enabled": self._alpha_updates_check.GetValue(),
+            "show_tray_icon": self._tray_icon_check.GetValue(),
+            "switch_behavior": (
+                "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
+            ),
+            "wpp_custom_api": self._custom_api_check.GetValue(),
+            "wpp_server": self._server_field.GetValue().strip(),
+            "wpp_ws_server": self._ws_server_field.GetValue().strip(),
+            "wpp_api_key": self._api_key_field.GetValue().strip(),
+        }
+
+    def _global_control_changed(self, key, value) -> bool:
+        """Whether the user changed this install-wide control in this dialog.
+
+        OK used to write every control back, touched or not, and these keys
+        are shared by every account: a value this dialog merely showed went
+        back over whatever another account chose while it was open — directly
+        for switch_behavior, and through the next save for the rest, since a
+        value differing from this account's snapshot is written by
+        _persist_global_settings(). An untouched key is left alone instead,
+        so it stays equal to the snapshot and the other account's value is
+        pulled.
+
+        No baseline (a caller that never ran _load_install_wide_values(),
+        which the real dialog always runs from _load_values()) answers True:
+        writing is what the dialog always did.
+        """
+        loaded = getattr(self, "_loaded_global_values", None) or {}
+        return key not in loaded or value != loaded[key]
+
+    def _load_install_wide_values(self):
+        """Show every install-wide setting this dialog edits, and remember
+        what was shown — the baseline _global_control_changed() compares with.
+
+        A half of _load_values() of its own so a stub can drive it with the
+        apply half below (tests/test_global_settings_reconcile.py).
+        """
+        lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
+        if lang_code in self._lang_codes:
+            self._lang_combo.SetSelection(self._lang_codes.index(lang_code))
+        else:
+            self._lang_combo.SetSelection(0)
+
+        show_tray = self.main_window.settings.get("general", {}).get("show_tray_icon", True)
+        self._tray_icon_check.SetValue(show_tray)
+
+        updates = self.main_window.settings.get("general", {}).get("updates_enabled", True)
+        self._updates_check.SetValue(updates)
+
+        # Off unless explicitly enabled — including on installs whose
+        # settings.json predates the option and has no key at all.
+        alpha_updates = self.main_window.settings.get("general", {}).get(
+            "alpha_updates_enabled", False
+        )
+        self._alpha_updates_check.SetValue(alpha_updates)
+
+        self._load_switch_behavior()
+
+        conn = self.main_window.settings.get("connection", {})
+        custom_api = conn.get("wpp_custom_api", False)
+        self._custom_api_check.SetValue(custom_api)
+
+        server = conn.get("wpp_server", "http://127.0.0.1")
+        self._server_field.SetValue(server)
+
+        ws_server = conn.get("wpp_ws_server", "ws://127.0.0.1")
+        self._ws_server_field.SetValue(ws_server)
+
+        # The shipped default rather than a placeholder. load_settings() and the
+        # defaults backfill normally fill the key before this runs, so this is
+        # consistency more than a live path — but a fallback that differs from
+        # DEFAULT_SETTINGS would be written back on OK if it ever were reached.
+        api_key = conn.get("wpp_api_key", DEFAULT_SETTINGS["connection"]["wpp_api_key"])
+        self._api_key_field.SetValue(api_key)
+
+        self._loaded_global_values = self._global_control_values()
+
+    def _apply_install_wide_values(self) -> bool:
+        """Write back the install-wide settings the user changed in this
+        dialog, and apply them; returns whether the language changed.
+
+        Each key only when its control differs from what was loaded — see
+        _global_control_changed(). The language is reloaded only for a change
+        made here: comparing the combo with the language on screen instead
+        switched this window's language on an untouched OK whenever another
+        account had changed it since this one started.
+
+        What was applied becomes the new baseline, so OK after Apply does not
+        write the same values again over a change another account made in
+        between.
+        """
+        old_lang = self.main_window.i18n.language
+        sel = self._lang_combo.GetSelection()
+        new_lang = self._lang_codes[sel] if sel != wx.NOT_FOUND else "pt-BR"
+        language_changed = False
+        if self._global_control_changed("language", new_lang):
+            self.main_window.settings.setdefault("general", {})["language"] = new_lang
+            language_changed = new_lang != old_lang
+
+        # Updates
+        updates = self._updates_check.GetValue()
+        if self._global_control_changed("updates_enabled", updates):
+            self.main_window.settings.setdefault("general", {})["updates_enabled"] = updates
+        alpha_updates = self._alpha_updates_check.GetValue()
+        if self._global_control_changed("alpha_updates_enabled", alpha_updates):
+            self.main_window.settings.setdefault("general", {})["alpha_updates_enabled"] = alpha_updates
+
+        # Account switch behavior
+        self._apply_switch_behavior()
+
+        # Tray icon
+        new_show_tray = self._tray_icon_check.GetValue()
+        if self._global_control_changed("show_tray_icon", new_show_tray):
+            self.main_window.settings.setdefault("general", {})["show_tray_icon"] = new_show_tray
+            if new_show_tray:
+                # Enable tray icon
+                if self.main_window.tray_icon is None:
+                    self.main_window._init_tray()
+            elif self.main_window.tray_icon is not None:
+                # Disable tray icon
+                try:
+                    self.main_window.tray_icon.RemoveIcon()
+                    self.main_window.tray_icon.Destroy()
+                except Exception:
+                    pass
+                self.main_window.tray_icon = None
+
+        # Connection settings. The port is not here: it is this account's own
+        # (the Node server it runs), written by _apply_values() every time.
+        custom_api = self._custom_api_check.GetValue()
+        if self._global_control_changed("wpp_custom_api", custom_api):
+            self.main_window.settings.setdefault("connection", {})["wpp_custom_api"] = custom_api
+            self.main_window.wpp_custom_api = custom_api
+
+        server = self._server_field.GetValue().strip()
+        if self._global_control_changed("wpp_server", server):
+            self.main_window.settings.setdefault("connection", {})["wpp_server"] = server
+            self.main_window.wpp_server = server
+
+        ws_server = self._ws_server_field.GetValue().strip()
+        if self._global_control_changed("wpp_ws_server", ws_server):
+            self.main_window.settings.setdefault("connection", {})["wpp_ws_server"] = ws_server
+            self.main_window.wpp_ws_server = ws_server
+
+        api_key = self._api_key_field.GetValue().strip()
+        if self._global_control_changed("wpp_api_key", api_key):
+            self.main_window.settings.setdefault("connection", {})["wpp_api_key"] = api_key
+            self.main_window.wpp_api_key = api_key
+
+        self._loaded_global_values = self._global_control_values()
+        return language_changed
+
+    # ── Transcription tab ────────────────────────────────────────────────────
+    # Kept together rather than spread across this file's Helpers/Event
+    # handlers sections: the tab is one subject, and the populate/load/apply
+    # halves only make sense read against each other.
 
     def _stored_transcription_models_dir(self) -> str:
         """The install-wide models folder as stored: "" means the default.
@@ -2037,7 +2255,7 @@ class SettingsDialog(wx.Dialog):
         app_settings' own comment on the key).
         """
         return transcription_preferences.stored_models_dir(
-            self._transcription_app_settings()
+            self._install_wide_settings()
         )
 
     def _refresh_transcription_models(self):
@@ -2660,7 +2878,14 @@ class SettingsDialog(wx.Dialog):
         sentences = [i18n.t(announcement.i18n_key).format(**announcement.values)]
         sentences.extend(i18n.t(key) for key in self._transcription_last_outcome_extra)
         if announcement.outcome == transcription_management.OUTCOME_FAILED:
-            self.main_window.error_sound.play()
+            # Guarded (docs/traps/audio-devices.md): a sound that raises would
+            # otherwise take the sentence below with it, and the failure would
+            # be told by nothing at all.
+            try:
+                self.main_window.error_sound.play()
+            except Exception as exc:
+                logging.warning("[transcription] could not play the error sound: %s",
+                                transcription_errors.exception_report(exc))
         # One call, and no interrupt: two announcements in a row talk over
         # each other, and cutting the reader off to say this is worse than
         # waiting for it to finish what it was reading.
@@ -2948,7 +3173,7 @@ class SettingsDialog(wx.Dialog):
         # The models folder is install-wide, so it goes to app_settings and not
         # into this account's settings.json — app_settings.set() raises KeyError
         # for anything that is not global, which is what keeps it that way.
-        app_settings = self._transcription_app_settings()
+        app_settings = self._install_wide_settings()
         if (app_settings is not None
                 and self._transcription_models_dir != self._stored_transcription_models_dir()):
             # The files move here and nowhere else — see
@@ -3131,11 +3356,10 @@ class SettingsDialog(wx.Dialog):
 
     def _load_values(self):
         """Populate controls from current settings."""
-        lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
-        if lang_code in self._lang_codes:
-            self._lang_combo.SetSelection(self._lang_codes.index(lang_code))
-        else:
-            self._lang_combo.SetSelection(0)
+        # Language, updates, tray icon, account switch and the API connection:
+        # install-wide, and loaded together because OK writes them back only
+        # when changed here — see _global_control_changed().
+        self._load_install_wide_values()
 
         notifs = self.main_window.settings.get("general", {}).get("notifications_enabled", True)
         self._notifications_check.SetValue(notifs)
@@ -3210,19 +3434,6 @@ class SettingsDialog(wx.Dialog):
         from autostart import is_autostart_enabled
         self._autostart_check.SetValue(is_autostart_enabled())
 
-        show_tray = self.main_window.settings.get("general", {}).get("show_tray_icon", True)
-        self._tray_icon_check.SetValue(show_tray)
-
-        updates = self.main_window.settings.get("general", {}).get("updates_enabled", True)
-        self._updates_check.SetValue(updates)
-
-        # Off unless explicitly enabled — including on installs whose
-        # settings.json predates the option and has no key at all.
-        alpha_updates = self.main_window.settings.get("general", {}).get(
-            "alpha_updates_enabled", False
-        )
-        self._alpha_updates_check.SetValue(alpha_updates)
-
         hk = self.main_window.settings.get("general", {}).get("global_hotkey")
         if hk and isinstance(hk, dict) and hk.get("vk"):
             from main_window.win32_helpers import _vk_mod_to_str
@@ -3233,17 +3444,6 @@ class SettingsDialog(wx.Dialog):
             self._hotkey_field.SetValue("")
             self._hotkey_field._vk  = 0
             self._hotkey_field._mod = 0
-
-        switch_behavior = "single"
-        if getattr(self.main_window, "app_settings", None):
-            switch_behavior = self.main_window.app_settings.get("switch_behavior")
-        elif getattr(self.main_window, "settings", None):
-            switch_behavior = self.main_window.settings.get("general", {}).get("switch_behavior", "single")
-
-        if switch_behavior == "keep_open":
-            self._switch_behavior_keep_open_rb.SetValue(True)
-        else:
-            self._switch_behavior_single_rb.SetValue(True)
 
         page_size = self.main_window.settings.get("user_interface", {}).get("messages_page_size", 200)
         self._messages_page_size_field.SetValue(str(page_size))
@@ -3418,24 +3618,8 @@ class SettingsDialog(wx.Dialog):
         self._speak_other_conv_check.SetValue(speech.get("speak_other_conv_messages", True))
         self._silence_while_recording_check.SetValue(speech.get("silence_while_recording", False))
 
-        conn = self.main_window.settings.get("connection", {})
-        custom_api = conn.get("wpp_custom_api", False)
-        self._custom_api_check.SetValue(custom_api)
-
-        server = conn.get("wpp_server", "http://127.0.0.1")
-        self._server_field.SetValue(server)
-
-        ws_server = conn.get("wpp_ws_server", "ws://127.0.0.1")
-        self._ws_server_field.SetValue(ws_server)
-
+        # The rest of the connection block is loaded by _load_install_wide_values().
         self._port_field.SetValue(str(self.main_window.wpp_port))
-
-        # The shipped default rather than a placeholder. load_settings() and the
-        # defaults backfill normally fill the key before this runs, so this is
-        # consistency more than a live path — but a fallback that differs from
-        # DEFAULT_SETTINGS would be written back on OK if it ever were reached.
-        api_key = conn.get("wpp_api_key", DEFAULT_SETTINGS["connection"]["wpp_api_key"])
-        self._api_key_field.SetValue(api_key)
 
         self._update_fields_state()
 
@@ -4519,12 +4703,9 @@ class SettingsDialog(wx.Dialog):
         if not self._validate():
             return False
 
-        # Language
-        old_lang = self.main_window.i18n.language
-        sel = self._lang_combo.GetSelection()
-        new_lang = self._lang_codes[sel] if sel != wx.NOT_FOUND else "pt-BR"
-        language_changed = new_lang != old_lang
-        self.main_window.settings.setdefault("general", {})["language"] = new_lang
+        # Language, updates, account switch, tray icon and the API connection:
+        # install-wide, so each only when changed here.
+        language_changed = self._apply_install_wide_values()
 
         # UI: messages page size
         page_size = int(self._messages_page_size_field.GetValue().strip())
@@ -4700,26 +4881,11 @@ class SettingsDialog(wx.Dialog):
             "silence_while_recording"
         ] = self._silence_while_recording_check.GetValue()
 
-        # Connection settings
-        custom_api = self._custom_api_check.GetValue()
-        self.main_window.settings.setdefault("connection", {})["wpp_custom_api"] = custom_api
-        self.main_window.wpp_custom_api = custom_api
-
-        server = self._server_field.GetValue().strip()
-        self.main_window.settings.setdefault("connection", {})["wpp_server"] = server
-        self.main_window.wpp_server = server
-
-        ws_server = self._ws_server_field.GetValue().strip()
-        self.main_window.settings.setdefault("connection", {})["wpp_ws_server"] = ws_server
-        self.main_window.wpp_ws_server = ws_server
-
+        # Connection: this account's own port. Server, websocket, key and the
+        # custom-API switch are install-wide (_apply_install_wide_values()).
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port
-
-        api_key = self._api_key_field.GetValue().strip()
-        self.main_window.settings.setdefault("connection", {})["wpp_api_key"] = api_key
-        self.main_window.wpp_api_key = api_key
 
         # Audio devices — output was already switched live during _validate()
         # (that's the only way to test it); here we just persist the choice
@@ -4823,40 +4989,6 @@ class SettingsDialog(wx.Dialog):
             self.main_window._apply_autostart(enable=new_autostart)
             # Resync the checkbox in case _apply_autostart failed and rolled back
             self._autostart_check.SetValue(is_autostart_enabled())
-
-        # Updates
-        self.main_window.settings.setdefault("general", {})["updates_enabled"] = (
-            self._updates_check.GetValue()
-        )
-        self.main_window.settings.setdefault("general", {})["alpha_updates_enabled"] = (
-            self._alpha_updates_check.GetValue()
-        )
-
-        # Account switch behavior
-        new_switch_behavior = (
-            "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
-        )
-        if getattr(self.main_window, "app_settings", None):
-            self.main_window.app_settings.set("switch_behavior", new_switch_behavior)
-        self.main_window.settings.setdefault("general", {})["switch_behavior"] = new_switch_behavior
-
-        # Tray icon
-        new_show_tray = self._tray_icon_check.GetValue()
-        old_show_tray = self.main_window.settings.get("general", {}).get("show_tray_icon", True)
-        self.main_window.settings.setdefault("general", {})["show_tray_icon"] = new_show_tray
-        if new_show_tray and not old_show_tray:
-            # Enable tray icon
-            if self.main_window.tray_icon is None:
-                self.main_window._init_tray()
-        elif not new_show_tray and old_show_tray:
-            # Disable tray icon
-            if self.main_window.tray_icon is not None:
-                try:
-                    self.main_window.tray_icon.RemoveIcon()
-                    self.main_window.tray_icon.Destroy()
-                except Exception:
-                    pass
-                self.main_window.tray_icon = None
 
         # Audio playback speed
         speed_sel = self._audio_speed_combo.GetSelection()

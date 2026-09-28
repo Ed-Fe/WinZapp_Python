@@ -364,6 +364,122 @@ class TestTheMedia:
         assert watcher.finished == [(RESULT, None)]
 
 
+def _own_unsent(**flags):
+    msg = _msg()
+    msg["key"]["fromMe"] = True
+    msg.update(flags)
+    return msg
+
+
+class TestAnOwnNoteStillBeingPrepared:
+    """Alt+Shift+T on an own voice note before its file has been written.
+
+    The recording reaches voice_messages/ from a worker thread after the
+    encode, seconds after the row appears. The id is a local UUID WhatsApp has
+    never seen, so a download could only fail — and did, and the user heard
+    "the link may have expired" about a note they had just recorded.
+    """
+
+    @pytest.mark.parametrize("flags", [
+        {"_local_pending": True, "_local_id": _LEAKY_ID},
+        # No pending flag, but still known by its local id: the second half of
+        # stored.is_unsent(), the same test that refuses to store the result.
+        {"_local_id": _LEAKY_ID},
+    ])
+    @pytest.mark.parametrize("online", [True, False])
+    def test_no_download_is_attempted_and_the_status_says_preparing(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, flags, online
+    ):
+        fetched = []
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=False, online=online,
+                              msg=_own_unsent(**flags),
+                              fetch=lambda msg, path: fetched.append(path))
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.MEDIA_NOT_DOWNLOADED
+        # Offline included: the file is written locally, connected or not,
+        # so "wait for the connection" would be as wrong as the download.
+        assert run.media_status == message_run.MEDIA_PREPARING
+        assert fetched == []
+        assert message_run.PHASE_DOWNLOADING_MEDIA not in watcher.phases
+        assert run.jobs == []
+
+    def test_with_the_file_written_it_transcribes_normally(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        # Running is allowed; only storing the result is refused, and that is
+        # the flow's business, not this run's.
+        fetched = []
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=True,
+                              msg=_own_unsent(_local_pending=True, _local_id=_LEAKY_ID),
+                              fetch=lambda msg, path: fetched.append(path))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.media_status == message_run.MEDIA_PRESENT
+        assert fetched == []
+
+    def test_a_sent_note_whose_local_id_was_replaced_still_downloads(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        # Confirmed by WhatsApp: key.id is the real id now, and a missing
+        # file is a real download again.
+        fetched = []
+        run, _watcher = _build(tmp_path, fernet_key, fernet, cached=False,
+                               msg=_own_unsent(_local_id="a-local-uuid"),
+                               fetch=lambda msg, path: fetched.append(path) or False)
+        _go(run)
+        assert fetched == [run.media_file]
+        assert run.media_status == message_run.MEDIA_FAILED
+
+    def test_a_received_note_without_its_file_still_downloads(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        fetched = []
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=False,
+                              fetch=lambda msg, path: fetched.append(path) or False)
+        _go(run)
+        assert fetched == [run.media_file]
+        assert message_run.PHASE_DOWNLOADING_MEDIA in watcher.phases
+        assert run.media_status == message_run.MEDIA_FAILED
+
+
+class TestAnOwnNoteWhoseSendFailedBeforeItsFileWasWritten:
+    """A mixed recording whose AAC encode or write failed: the half-written
+    file is deleted and the row marked the way ConversationsPanel.
+    _mark_message_failed() leaves it — `_local_pending` False, `_send_failed`
+    True, key.id still the local UUID. is_unsent() says yes to that, and the
+    run answered "still being prepared, try again in a moment" for ever."""
+
+    _FAILED = {"_local_pending": False, "_send_failed": True, "_local_id": _LEAKY_ID}
+
+    @pytest.mark.parametrize("online", [True, False])
+    def test_it_is_a_failure_with_no_download_and_no_retry_invited(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, online
+    ):
+        fetched = []
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=False, online=online,
+                              msg=_own_unsent(**self._FAILED),
+                              fetch=lambda msg, path: fetched.append(path))
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.MEDIA_NOT_DOWNLOADED
+        assert run.media_status == message_run.MEDIA_SEND_FAILED
+        assert fetched == []
+        assert message_run.PHASE_DOWNLOADING_MEDIA not in watcher.phases
+        assert run.jobs == []
+
+    def test_with_the_file_there_after_all_it_transcribes(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        # A failed send whose file was written (a network failure, not an
+        # encode one) is an ordinary recording on disk.
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=True,
+                              msg=_own_unsent(**self._FAILED))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.media_status == message_run.MEDIA_PRESENT
+
+
 class TestTheDecryptedTemporaryGoesEveryWayOut:
     """A private recording in clear. Every exit from the run deletes it."""
 

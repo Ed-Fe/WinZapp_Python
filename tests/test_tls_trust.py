@@ -37,13 +37,21 @@ import requests
 from core import tls_trust
 from core.transcription import errors, model_catalog, model_store
 
-# The three modules that fetch from the internet. Everything else in the app
+# The modules that reach the internet over HTTPS from Python. Most of the app
 # talks to the local WPPConnect server over plain HTTP on 127.0.0.1, where
 # there is no certificate to verify and nothing here applies.
 _DOWNLOADERS = (
     os.path.join("client", "updater.py"),
     os.path.join("client", "ui", "dialogs", "node_download.py"),
     os.path.join("client", "core", "transcription", "model_store.py"),
+    # Not a download, but the same certificate: the reachability probe's HEAD
+    # at web.whatsapp.com. On the bundled CA list an intercepted machine read
+    # as offline (tests/test_offline_session_start_deferral.py::
+    # TestAnInterceptedCertificateIsNotAnOutage pins the behaviour, this
+    # only the wiring). Its retry on http_pool's certifi session after an
+    # SSLError is deliberate, not a way back to the bundled list:
+    # ::TestAStoreThatCannotBuildTheChainIsNotAnOutageEither, in that module.
+    os.path.join("client", "main_window", "connection.py"),
 )
 
 

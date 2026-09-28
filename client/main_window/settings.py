@@ -490,25 +490,93 @@ class SettingsMixin:
             connection = self.settings.setdefault("connection", {})
             for k in _CONNECTION_GLOBAL:
                 connection[k] = app.get(k)
+            # What this account last saw in the shared file — the baseline
+            # _persist_global_settings() tells this account's own changes from
+            # a copy that has merely gone stale. See its docstring.
+            self._global_settings_snapshot = {
+                **{k: general[k] for k in _GENERAL_GLOBAL},
+                **{k: connection[k] for k in _CONNECTION_GLOBAL},
+            }
         except Exception:
             logging.exception("[settings] applying global app.json failed (non-fatal)")
 
-    def _persist_global_settings(self):
-        """Mirror the global keys of self.settings back into global/app.json so a
-        change made by this account is seen by the others (plan Zad 2.3b)."""
+    def _persist_global_settings(self, explicit=()):
+        """Reconcile the global keys of self.settings with global/app.json
+        (plan Zad 2.3b): write the ones this account changed, and take the
+        shared value for every other one.
+
+        By difference, not wholesale. This runs on every save_settings(), and
+        most of those have nothing to do with settings (an audio speed, a
+        recent reaction, the session token). Copying every global key over on
+        each of them wrote this account's copy — as old as its last startup —
+        over whatever another account had chosen since, so the last account to
+        save anything at all won every install-wide setting at once: choose
+        "keep both open" in one account, let another store a reaction, and the
+        choice was gone. So a key is written only when its local value differs
+        from `_global_settings_snapshot`, the value this account last took from
+        the shared file; a key that did not change here is pulled instead, and
+        is how an account comes to see a change made in another. Both update
+        the snapshot. Two accounts changing the same key: the later write wins.
+
+        `explicit` names keys that were just chosen and must be written even
+        when they equal the snapshot — a settings import, which can set a key
+        back to the value this account started with while another account has
+        changed it since; by difference that would read as "unchanged" and be
+        pulled over.
+
+        A key the shared file does not hold yet is seeded from the local copy,
+        as every save used to do: nobody chose anything there to overwrite.
+        One lock around the read and the writes, so another account's change
+        cannot land between them and be pulled back out as this one's.
+
+        The pull does not hold this window's own writers off, though: the
+        Settings dialog writes self.settings without `_save_lock`, so its OK
+        can land between the comparison and the pull — seen by review as a
+        background save reading the file while OK set the language, pulling
+        the old one over it, and OK's own save then finding "equal to the
+        snapshot" and writing nothing. So a key is pulled only while it still
+        holds the value compared; one that moved meanwhile keeps the new value,
+        and its snapshot entry becomes the value compared rather than the
+        file's. The new value differs from the compared one by definition, so
+        the next save always reads it as a change and writes it; a snapshot
+        taken from the file would lose it whenever the two happened to agree,
+        e.g. OK choosing back the value this save had just pulled away from.
+        """
         app = getattr(self, "_app_settings", None)
         if app is None:
             return
         try:
             from app_settings import _GENERAL_GLOBAL, _CONNECTION_GLOBAL
-            general = self.settings.get("general", {})
-            for k in _GENERAL_GLOBAL:
-                if k in general:
-                    app.set(k, general[k])
-            connection = self.settings.get("connection", {})
-            for k in _CONNECTION_GLOBAL:
-                if k in connection:
-                    app.set(k, connection[k])
+            from coord_locks import app_settings_lock
+            # A key the snapshot does not know (startup failed half-way) is
+            # never treated as changed: with no baseline, a stale copy and a
+            # new choice look the same, and writing would be the old bug.
+            snapshot = getattr(self, "_global_settings_snapshot", None) or {}
+            sections = (
+                (self.settings.setdefault("general", {}), _GENERAL_GLOBAL),
+                (self.settings.setdefault("connection", {}), _CONNECTION_GLOBAL),
+            )
+            compared = {}
+            with app_settings_lock(app.global_dir):
+                stored = app._read()
+                for section, keys in sections:
+                    for k in keys:
+                        if k not in section:
+                            continue
+                        compared[k] = section[k]
+                        changed = k in explicit or (k in snapshot and section[k] != snapshot[k])
+                        if changed or k not in stored:
+                            app.set(k, section[k])
+                current = app.all()
+            new_snapshot = {}
+            for section, keys in sections:
+                for k in keys:
+                    if k in compared and section.get(k) != compared[k]:
+                        new_snapshot[k] = compared[k]
+                        continue
+                    section[k] = current[k]
+                    new_snapshot[k] = current[k]
+            self._global_settings_snapshot = new_snapshot
         except Exception:
             logging.exception("[settings] persisting global app.json failed (non-fatal)")
 
@@ -893,8 +961,22 @@ class SettingsMixin:
         # clear() first — `merged` already holds every key this install had —
         # and under the save lock: a save on another thread in between would
         # otherwise iterate a dict changing size, or write settings.json empty.
+        #
+        # The install-wide keys the file set are written to the shared file
+        # here, as explicit choices, before save_settings() reconciles the
+        # rest: by difference alone, one equal to the value this account
+        # started with would read as unchanged and be pulled back over.
+        from app_settings import _GENERAL_GLOBAL, _CONNECTION_GLOBAL
+        imported_global = [
+            k for section, keys in (("general", _GENERAL_GLOBAL),
+                                    ("connection", _CONNECTION_GLOBAL))
+            if isinstance(incoming.get(section), dict) and section not in ignored
+            for k in keys
+            if k in incoming[section] and f"{section}.{k}" not in ignored
+        ]
         with self._save_lock:
             self.settings.update(merged)
+            self._persist_global_settings(explicit=imported_global)
         self.save_settings()
         self.apply_settings_live()
         logging.info("[settings-transfer] %d setting(s) imported from %s", applied, path)
@@ -909,9 +991,9 @@ class SettingsMixin:
         leave the rest unapplied, and none of them may take the app down — the
         settings are already saved by the time this runs.
         """
-        # The install-wide copy every account reads is written by
-        # save_settings() itself (_persist_global_settings), which the import
-        # calls before this — including the connection block.
+        # The install-wide copy every account reads is written by the import
+        # itself before this runs (_persist_global_settings with the keys the
+        # file set as `explicit`) — including the connection block.
 
         def _step(what, fn):
             try:

@@ -614,6 +614,39 @@ class TestFailuresAreToldOnce:
         assert world.main_window.speak_output.spoken == [_t("media_download_failed")]
         assert world.main_window.error_sound.played == 1
 
+    @pytest.mark.parametrize("connected", [True, False])
+    def test_an_own_note_still_being_written_is_not_called_a_download(self, world, connected):
+        """Alt+Shift+T in the seconds between the row appearing and its file
+        being written: no download (the id is local), and no "the link may
+        have expired" — nor, offline, "wait for the connection"."""
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+        world.main_window._wa_connected = connected
+        target = _msg(from_me=True)
+        target["_local_pending"] = True
+        target["_local_id"] = _ID
+        downloads = []
+        world.panel._download = lambda msg, path: downloads.append(path) or False
+        _start(world, target)
+        assert world.main_window.speak_output.spoken == [_t("transcription_media_still_preparing")]
+        assert downloads == []
+        assert world.jobs == []
+        assert _FakeResultDialog.made == []
+
+    def test_an_own_note_whose_send_failed_without_a_file_is_not_called_preparing(self, world):
+        """The row as ConversationsPanel._mark_message_failed() leaves it after
+        the mixed recording's encode failed and its file was deleted. "Try
+        again in a moment" would be a promise nothing keeps."""
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+        target = _msg(from_me=True)
+        target.update({"_local_pending": False, "_send_failed": True, "_local_id": _ID})
+        downloads = []
+        world.panel._download = lambda msg, path: downloads.append(path) or False
+        _start(world, target)
+        assert world.main_window.speak_output.spoken == [_t("transcription_media_send_failed")]
+        assert world.main_window.error_sound.played == 1
+        assert downloads == []
+        assert world.jobs == []
+
     def test_a_full_temporary_disk_is_not_called_a_download(self, world, monkeypatch):
         """The voice note is on disk and nothing is being downloaded: the
         downloads' "not enough space for this download" would send the user
@@ -1158,6 +1191,57 @@ class TestTheSilentDownloadHelper:
         assert len(posted) == 2
         assert posted[1][0] is conversations.wx.MessageBox
         assert posted[1][1] == _t("media_download_failed")
+
+
+class _RaisingSound:
+    """error_sound on a device that went away: BASS raises from play()."""
+
+    def __init__(self):
+        self.attempts = 0
+
+    def play(self):
+        self.attempts += 1
+        raise RuntimeError("5, invalid handle")
+
+
+class TestASoundThatRaisesCostsNothing:
+    """docs/traps/audio-devices.md: a sound on an error path must never take
+    the outcome with it. Each of these plays the error sound *before* the
+    thing the user is waiting for."""
+
+    def test_the_text_still_opens_when_storing_raised(self, world, caplog):
+        # The worst of them: the sound comes before the result window, and a
+        # raise there lost minutes of transcription to sys.excepthook.
+        def _broken(jid, msg_id, value):
+            raise RuntimeError("store exploded")
+
+        world.main_window.store_message_transcription = _broken
+        world.main_window.error_sound = _RaisingSound()
+        caplog.set_level(logging.DEBUG)
+        _start(world)
+
+        [dialog] = _FakeResultDialog.made
+        assert dialog.text == RESULT.text
+        assert _t("transcription_store_failed") in dialog.notes
+        assert world.main_window.error_sound.attempts == 1
+        assert "could not play the error sound: RuntimeError: 5, invalid handle" in caplog.text
+        assert _ID not in caplog.text
+        assert RESULT.text not in caplog.text
+
+    def test_a_failure_is_still_said(self, world):
+        world.voice.joinpath(f"{_ID}.msv").unlink()
+        world.main_window.error_sound = _RaisingSound()
+        _start(world)
+        assert world.main_window.speak_output.spoken == [_t("media_download_failed")]
+        assert _row_focus(world.panel) == [("Focus", 1)]
+
+    def test_a_refused_background_write_is_still_said(self, world):
+        # MainWindow._say_transcription_not_stored(), the mixin's own sound.
+        world.main_window.db.fail = True
+        world.main_window.error_sound = _RaisingSound()
+        _start(world)
+        assert world.main_window.speak_output.spoken[-1] == _t("transcription_store_failed")
+        assert world.main_window.error_sound.attempts == 1
 
 
 class TestOpeningTheSettingsTab:

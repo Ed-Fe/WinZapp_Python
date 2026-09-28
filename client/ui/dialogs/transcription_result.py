@@ -249,7 +249,16 @@ class TranscriptionResultDialog(wx.Dialog):
             )
             error_sound = getattr(self._main_window, "error_sound", None)
             if error_sound is not None:
-                error_sound.play()
+                # A sound that raises must not cost the sentence below — the
+                # only thing that tells the user the file was not written.
+                # The type only, not exception_report(): raised in here, the
+                # sound's exception carries the OSError above as its
+                # __context__, and that one's text is the path the user picked.
+                try:
+                    error_sound.play()
+                except Exception as sound_exc:
+                    logging.warning("[transcription] could not play the error sound: %s",
+                                    type(sound_exc).__name__)
             self._main_window.speak_output.output(
                 i18n.t(errors.error_i18n_key(errors.SAVE_FAILED))
             )

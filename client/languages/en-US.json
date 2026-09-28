@@ -1498,6 +1498,8 @@
     "transcription_saved_opened": "Saved transcription, made on {when} with the {model} model.",
     "transcription_saved_opened_no_model": "Saved transcription, made on {when}.",
     "transcription_not_saved_unsent": "This transcription was not saved, because the message has not been sent yet. Once it is sent, transcribe it again to save it.",
+    "transcription_media_still_preparing": "This message's audio is still being prepared for sending. Try transcribing it again in a moment.",
+    "transcription_media_send_failed": "There is no audio to transcribe in this message: sending it failed and the recording was not saved.",
     "transcription_not_saved_missing": "This transcription was not saved, because the message is no longer in this conversation.",
     "transcription_discarded_withdrawn": "The message was deleted for everyone while it was being transcribed, so the transcription was discarded.",
     "transcription_store_failed": "The transcription could not be saved.",

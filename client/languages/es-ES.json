@@ -1498,6 +1498,8 @@
     "transcription_saved_opened": "Transcripción guardada, hecha el {when} con el modelo {model}.",
     "transcription_saved_opened_no_model": "Transcripción guardada, hecha el {when}.",
     "transcription_not_saved_unsent": "Esta transcripción no se guardó porque el mensaje aún no se ha enviado. Cuando se envíe, vuelve a transcribirlo para guardarla.",
+    "transcription_media_still_preparing": "El audio de este mensaje todavía se está preparando para el envío. Vuelve a transcribirlo en unos instantes.",
+    "transcription_media_send_failed": "No hay audio que transcribir en este mensaje: el envío falló y la grabación no se guardó.",
     "transcription_not_saved_missing": "Esta transcripción no se guardó porque el mensaje ya no está en esta conversación.",
     "transcription_discarded_withdrawn": "El mensaje se eliminó para todos mientras se transcribía, así que la transcripción se descartó.",
     "transcription_store_failed": "No se pudo guardar la transcripción.",

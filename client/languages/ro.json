@@ -1442,6 +1442,8 @@
     "transcription_saved_opened": "Transcriere salvată, făcută la {when} cu modelul {model}.",
     "transcription_saved_opened_no_model": "Transcriere salvată, făcută la {when}.",
     "transcription_not_saved_unsent": "Această transcriere nu a fost salvată, deoarece mesajul nu a fost încă trimis. După trimitere, transcrieți-l din nou pentru a o salva.",
+    "transcription_media_still_preparing": "Înregistrarea audio a acestui mesaj este încă în curs de pregătire pentru trimitere. Încercați din nou să o transcrieți peste câteva momente.",
+    "transcription_media_send_failed": "Acest mesaj nu are nicio înregistrare audio de transcris: trimiterea a eșuat, iar înregistrarea nu a fost salvată.",
     "transcription_not_saved_missing": "Această transcriere nu a fost salvată, deoarece mesajul nu mai este în această conversație.",
     "transcription_discarded_withdrawn": "Mesajul a fost șters pentru toată lumea în timp ce era transcris, așa că s-a renunțat la transcriere.",
     "transcription_store_failed": "Transcrierea nu a putut fi salvată.",

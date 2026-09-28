@@ -519,9 +519,13 @@ class WindowChromeMixin:
                     wx.OK | wx.ICON_ERROR,
                 )
                 return
+            # `_app_settings`, with the underscore: the bare spelling is an
+            # attribute nothing sets, so this used to read the startup copy in
+            # settings["general"] and miss a change made in another account.
             switch_behavior = "single"
-            if getattr(self, "app_settings", None):
-                switch_behavior = self.app_settings.get("switch_behavior")
+            app_settings = getattr(self, "_app_settings", None)
+            if app_settings is not None:
+                switch_behavior = app_settings.get("switch_behavior")
             elif getattr(self, "settings", None):
                 switch_behavior = self.settings.get("general", {}).get("switch_behavior", "single")
 

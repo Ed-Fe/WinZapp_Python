@@ -77,6 +77,7 @@ from core.transcription import (
     message_audio,
     model_store,
     preferences,
+    stored,
 )
 
 # The one wait this layer adds in front of job.py's three. Announced before
@@ -92,6 +93,22 @@ PHASE_DOWNLOADING_MEDIA = "downloading_media"
 MEDIA_PRESENT = "present"
 MEDIA_OFFLINE = "offline"
 MEDIA_FAILED = "failed"
+# An own message not sent yet whose audio has not reached the disk: the
+# recording is written by a worker thread after the encode (and the mix with
+# the system audio adds an AAC encode to that wait), so a key pressed in the
+# first seconds finds nothing. There is nothing to download either — the id
+# is a local UUID WhatsApp has never seen — and "the link may have expired"
+# would be false; the file is on its way.
+MEDIA_PREPARING = "preparing"
+# An own message whose send failed before its audio reached the disk: a mixed
+# recording whose AAC encode or write failed deletes the half-written file and
+# marks the row `_send_failed`, leaving the local UUID as its id. is_unsent()
+# still says yes to it — so without this it was "still being prepared, try
+# again in a moment", for ever. Nothing will ever write that file and nothing
+# can be downloaded under a UUID WhatsApp never saw, so the sentence must not
+# invite a retry. Its own status rather than MEDIA_FAILED, whose sentence
+# ("the link may have expired") is about a download that never happened here.
+MEDIA_SEND_FAILED = "send_failed"
 
 # The fraction the job reports is turned into the throttle's integer scale.
 # A thousand steps is finer than the gauge can show and coarse enough that the
@@ -155,8 +172,8 @@ class MessageTranscription:
         #: same one even if the setting changes in between.
         self.models_root = None
         self.ffmpeg = None
-        #: MEDIA_PRESENT / MEDIA_OFFLINE / MEDIA_FAILED once the media has been
-        #: looked for; None before that.
+        #: MEDIA_PRESENT / MEDIA_OFFLINE / MEDIA_FAILED / MEDIA_PREPARING /
+        #: MEDIA_SEND_FAILED once the media has been looked for; None before.
         self.media_status = None
         #: The TranscriptionJob, once there is one.
         self.job = None
@@ -329,6 +346,23 @@ class MessageTranscription:
         if os.path.isfile(media_path):
             self.media_status = MEDIA_PRESENT
             return
+        # Before the connection check: the file is written locally whether or
+        # not WhatsApp is connected, so "wait for the connection" would be as
+        # wrong here as a download. The same test that refuses to *store* a
+        # transcription of an unsent message — running one is fine once the
+        # file is there, which the branch above already let through.
+        if stored.is_unsent(self._msg):
+            # A failed send is unsent too, and its file is not coming — see
+            # MEDIA_SEND_FAILED.
+            if isinstance(self._msg, dict) and self._msg.get("_send_failed"):
+                self.media_status = MEDIA_SEND_FAILED
+                raise errors.TranscriptionError(
+                    errors.MEDIA_NOT_DOWNLOADED, "media fetch: send failed, no file"
+                )
+            self.media_status = MEDIA_PREPARING
+            raise errors.TranscriptionError(
+                errors.MEDIA_NOT_DOWNLOADED, "media fetch: unsent, not written yet"
+            )
         if not self._is_online():
             self.media_status = MEDIA_OFFLINE
             raise errors.TranscriptionError(errors.MEDIA_NOT_DOWNLOADED, "media fetch: offline")

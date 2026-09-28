@@ -56,6 +56,9 @@ class _Stub:
     export_settings_to_file = MainWindow.export_settings_to_file
     import_settings_from_file = MainWindow.import_settings_from_file
     apply_settings_live = MainWindow.apply_settings_live
+    # The real one: with no `_app_settings` (no shared file here) it returns
+    # at once. tests/test_global_settings_reconcile.py drives it for real.
+    _persist_global_settings = MainWindow._persist_global_settings
 
     def __init__(self, settings=None):
         self.settings = settings if settings is not None else _settings()

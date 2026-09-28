@@ -176,6 +176,28 @@ class TestSaving:
         assert "Ana Souza" not in caplog.text
         assert str(tmp_path) not in caplog.text
 
+    def test_a_sound_that_raises_does_not_cost_the_sentence(self, tmp_path, caplog):
+        """docs/traps/audio-devices.md: the output device may be gone, and
+        the sentence is the only thing that says the file was not written."""
+        caplog.set_level(logging.DEBUG)
+        folder = tmp_path / "Ana Souza"
+        folder.mkdir()
+        dialog = _Dialog()
+
+        class _Raising:
+            def play(self):
+                raise RuntimeError("5, invalid handle")
+
+        dialog._main_window.error_sound = _Raising()
+        assert dialog._save_to(str(folder)) is False
+        assert dialog._main_window.speak_output.spoken == [
+            errors.error_i18n_key(errors.SAVE_FAILED)]
+        assert "could not play the error sound" in caplog.text
+        # Raised inside the OSError's handler, the sound's exception carries
+        # that OSError — and the chosen path — as its __context__.
+        assert "Ana Souza" not in caplog.text
+        assert str(tmp_path) not in caplog.text
+
 
 class TestFileNames:
     @pytest.mark.parametrize("name", ['Ana / trabalho', 'a:b*c?"d<e>f|g', "   ", "x" * 300])

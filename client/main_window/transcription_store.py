@@ -9,6 +9,7 @@ instance, so every attribute set in MainWindow.__init__ is available here.
 import logging
 import time
 import wx
+from core.transcription import errors as transcription_errors
 from core.transcription import stored as stored_transcription
 
 
@@ -133,7 +134,14 @@ class TranscriptionStoreMixin:
         carry it, but nothing promises it will be there next time.
         """
         if hasattr(self, "error_sound"):
-            self.error_sound.play()
+            # Guarded, as every sound on an error path must be
+            # (docs/traps/audio-devices.md): raising here would swallow the
+            # sentence, and it is the only news that the text was not kept.
+            try:
+                self.error_sound.play()
+            except Exception as exc:
+                logging.warning("[transcription] could not play the error sound: %s",
+                                transcription_errors.exception_report(exc))
         self.output(self.i18n.t("transcription_store_failed"))
 
     def _transcription_storage_jids(self, jid: str) -> list:

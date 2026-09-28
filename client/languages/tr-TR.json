@@ -1498,6 +1498,8 @@
   "transcription_saved_opened": "Kayıtlı döküm, {when} tarihinde {model} modeliyle oluşturuldu.",
   "transcription_saved_opened_no_model": "Kayıtlı döküm, {when} tarihinde oluşturuldu.",
   "transcription_not_saved_unsent": "Bu döküm kaydedilmedi, çünkü mesaj henüz gönderilmedi. Mesaj gönderildikten sonra kaydetmek için yeniden yazıya dökün.",
+  "transcription_media_still_preparing": "Bu mesajın sesi gönderim için hâlâ hazırlanıyor. Lütfen birazdan yeniden yazıya dökmeyi deneyin.",
+  "transcription_media_send_failed": "Bu mesajda yazıya dökülecek ses yok: gönderim başarısız oldu ve ses kaydı saklanmadı.",
   "transcription_not_saved_missing": "Bu döküm kaydedilmedi, çünkü mesaj artık bu sohbette değil.",
   "transcription_discarded_withdrawn": "Mesaj yazıya dökülürken herkesten silindi, bu yüzden döküm atıldı.",
   "transcription_store_failed": "Döküm kaydedilemedi.",

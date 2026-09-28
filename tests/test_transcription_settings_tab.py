@@ -201,7 +201,7 @@ class _TabOwner:
         self.dirtied += 1
 
     _build_transcription_page = SettingsDialog._build_transcription_page
-    _transcription_app_settings = SettingsDialog._transcription_app_settings
+    _install_wide_settings = SettingsDialog._install_wide_settings
     _stored_transcription_models_dir = SettingsDialog._stored_transcription_models_dir
     _show_transcription_models_dir = SettingsDialog._show_transcription_models_dir
     _populate_transcription_model_choices = (
@@ -1143,8 +1143,8 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         assigned = self._self_attributes_assigned_in(main_window_source())
         assert "_app_settings" in assigned
         assert "app_settings" not in assigned, (
-            "MainWindow grew a second spelling — the transcription tab reads "
-            "_app_settings and has no fallback the way switch_behavior does"
+            "MainWindow grew a second spelling — the settings dialog reads "
+            "_app_settings, and the transcription tab has no other route"
         )
 
     def test_the_tab_asks_for_exactly_that_name(self):
@@ -1155,7 +1155,7 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         accessor = next(
             node for node in ast.walk(tree)
             if isinstance(node, ast.FunctionDef)
-            and node.name == "_transcription_app_settings"
+            and node.name == "_install_wide_settings"
         )
         names = [
             node.value for node in ast.walk(accessor)
@@ -1164,16 +1164,19 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         ]
         assert names == ["_app_settings"]
 
-    def test_no_transcription_method_reaches_for_the_bare_spelling(self):
-        """The two pre-existing switch_behavior call sites keep theirs — they
-        survive on a settings["general"] fallback this key does not have."""
+    def test_no_method_reaches_for_the_bare_spelling(self):
+        """Every method of the dialog, not only the tab's: the two
+        switch_behavior call sites spelled it without the underscore until
+        part G of #112, and so never read or wrote the shared file
+        (tests/test_switch_behavior_install_wide.py)."""
         tree = ast.parse(SETTINGS_DIALOG_SOURCE)
         for node in ast.walk(tree):
-            if not (isinstance(node, ast.FunctionDef)
-                    and "transcription" in node.name):
+            if not isinstance(node, ast.FunctionDef):
                 continue
             for inner in ast.walk(node):
-                if isinstance(inner, ast.Constant) and inner.value == "app_settings":
+                if ((isinstance(inner, ast.Constant) and inner.value == "app_settings")
+                        or (isinstance(inner, ast.Attribute)
+                            and inner.attr == "app_settings")):
                     raise AssertionError(
                         f"{node.name} names the attribute MainWindow never sets"
                     )
@@ -2067,6 +2070,28 @@ class TestWhatTheUserIsTold:
         tab._select_transcription_model("small")
         tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
         assert tab.main_window.error_sound.plays == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(errors.error_i18n_key(errors.MODEL_DOWNLOAD_FAILED))
+        ]
+
+    def test_a_sound_that_raises_does_not_cost_the_sentence(
+        self, tab, monkeypatch, confirm_yes
+    ):
+        """docs/traps/audio-devices.md: a failure told by nothing at all is
+        what an unguarded play() on a vanished device produced here."""
+        class _Raising:
+            def play(self):
+                raise RuntimeError("5, invalid handle")
+
+        tab.main_window.error_sound = _Raising()
+        _install_fake_progress(monkeypatch, [(
+            None,
+            errors.TranscriptionError(errors.MODEL_DOWNLOAD_FAILED, "no line"),
+            (),
+        )])
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._start_transcription_action(management.ACTION_REMOVE_MODEL)
         assert tab.main_window.speak_output.spoken == [
             tab.main_window.i18n.t(errors.error_i18n_key(errors.MODEL_DOWNLOAD_FAILED))
         ]

@@ -91,6 +91,13 @@ _OWN_PHASE_I18N_KEYS = {
 _MEDIA_STATUS_I18N_KEYS = {
     message_run.MEDIA_OFFLINE: "media_download_offline",
     message_run.MEDIA_FAILED: "media_download_failed",
+    # The transcription's own: an unsent note whose file is still being
+    # written is no download at all, and neither existing sentence is true
+    # of it.
+    message_run.MEDIA_PREPARING: "transcription_media_still_preparing",
+    # Also the transcription's own, and deliberately not "try again": the
+    # send failed before the file was written, so no later attempt finds it.
+    message_run.MEDIA_SEND_FAILED: "transcription_media_send_failed",
 }
 
 #: The failures whose answer lives on the Transcription tab — download a model,
@@ -143,6 +150,7 @@ FLOW_I18N_KEYS = (
         "transcription_delete_failed",
     )
     + tuple(NOT_SAVED_I18N_KEYS.values())
+    + tuple(_MEDIA_STATUS_I18N_KEYS.values())
 )
 
 
@@ -413,7 +421,7 @@ class MessageTranscriptionFlow:
             data_path("voice_messages"),
             data_path("media"),
             # `_app_settings`, with the underscore — the attribute the window
-            # really has. SettingsDialog._transcription_app_settings() records
+            # really has. SettingsDialog._install_wide_settings() records
             # what the other spelling cost: a folder that was never read back.
             stored_models_dir=preferences.stored_models_dir(getattr(mw, "_app_settings", None)),
             ui_language=getattr(self._i18n, "language", ""),
@@ -697,9 +705,19 @@ class MessageTranscriptionFlow:
         wx.CallAfter(self._main_window.output, sentence)
 
     def _play_error_sound(self):
+        # Guarded: a sound is never worth the outcome it goes with
+        # (docs/traps/audio-devices.md). The output device can vanish or be
+        # mid-switch, and Sound.play() then raises from BASS — here, before
+        # the result window has opened with the text minutes of work
+        # produced, or before the sentence that says what failed.
         sound = getattr(self._main_window, "error_sound", None)
-        if sound is not None:
+        if sound is None:
+            return
+        try:
             sound.play()
+        except Exception as exc:
+            logging.warning("[transcription] could not play the error sound: %s",
+                            errors.exception_report(exc))
 
     def _focus_message(self):
         """Back to the message the user came from — found by its id.
