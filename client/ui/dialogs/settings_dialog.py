@@ -2126,36 +2126,35 @@ class SettingsDialog(wx.Dialog):
         A half of _load_values() of its own so a stub can drive it with the
         apply half below (tests/test_global_settings_reconcile.py).
 
-        The local copy is brought up to date with the shared file first
-        (MainWindow.refresh_global_settings()): it is otherwise only as fresh
-        as this account's last save, and the dialog showed a value another
-        account had changed since — the account-switch radio alone read the
-        shared file. What is shown here is also the baseline OK compares with,
-        so it has to be the value in effect for the install.
+        Read from the shared file (MainWindow.install_wide_values()), not
+        from this account's copy, which is only as fresh as its last save:
+        the dialog showed a value another account had changed since. What is
+        shown here is also the baseline OK compares with, so it has to be the
+        value in effect for the install.
         """
-        self.main_window.refresh_global_settings()
-        lang_code = self.main_window.settings.get("general", {}).get("language", "pt-BR")
+        install_wide = self.main_window.install_wide_values()
+        lang_code = install_wide.get("general", {}).get("language", "pt-BR")
         if lang_code in self._lang_codes:
             self._lang_combo.SetSelection(self._lang_codes.index(lang_code))
         else:
             self._lang_combo.SetSelection(0)
 
-        show_tray = self.main_window.settings.get("general", {}).get("show_tray_icon", True)
+        show_tray = install_wide.get("general", {}).get("show_tray_icon", True)
         self._tray_icon_check.SetValue(show_tray)
 
-        updates = self.main_window.settings.get("general", {}).get("updates_enabled", True)
+        updates = install_wide.get("general", {}).get("updates_enabled", True)
         self._updates_check.SetValue(updates)
 
         # Off unless explicitly enabled — including on installs whose
         # settings.json predates the option and has no key at all.
-        alpha_updates = self.main_window.settings.get("general", {}).get(
+        alpha_updates = install_wide.get("general", {}).get(
             "alpha_updates_enabled", False
         )
         self._alpha_updates_check.SetValue(alpha_updates)
 
         self._load_switch_behavior()
 
-        conn = self.main_window.settings.get("connection", {})
+        conn = install_wide.get("connection", {})
         custom_api = conn.get("wpp_custom_api", False)
         self._custom_api_check.SetValue(custom_api)
 

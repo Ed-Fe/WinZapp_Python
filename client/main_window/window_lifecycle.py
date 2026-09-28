@@ -45,6 +45,11 @@ class WindowLifecycleMixin:
         # Read by _window_can_ask() from the poll thread, which cannot ask wx.
         self._main_window_active = active
         self._set_bookmark_zero_hotkey(active)
+        # A language another account chose while this window was the active
+        # one waited for this: switching it with focus here would have NVDA
+        # read the focused control again (_apply_pending_language_switch()).
+        if not active and getattr(self, "_pending_language_switch", False):
+            wx.CallAfter(self._apply_pending_language_switch)
         if active:
             # Disabling the popup means "do not interrupt what I am doing",
             # not "hide the call controls". Once the user deliberately comes
@@ -171,14 +176,16 @@ class WindowLifecycleMixin:
         Neither direction moves focus or says anything.
         """
         show = self.settings.get("general", {}).get("show_tray_icon", True)
-        if show and self.tray_icon is None:
+        # getattr: a pull can land before init_UI() has set the attribute.
+        tray_icon = getattr(self, "tray_icon", None)
+        if show and tray_icon is None:
             self._init_tray()
-        elif not show and self.tray_icon is not None:
+        elif not show and tray_icon is not None:
             if getattr(self, "_window_hidden", False) or getattr(self, "background_mode", False):
                 return
             try:
-                self.tray_icon.RemoveIcon()
-                self.tray_icon.Destroy()
+                tray_icon.RemoveIcon()
+                tray_icon.Destroy()
             except Exception:
                 logging.exception("[tray] removing the icon failed")
             self.tray_icon = None

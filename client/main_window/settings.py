@@ -104,7 +104,6 @@ class SettingsMixin:
             self.wpp_custom_api = False
             self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
             self.save_settings()
-            self._persist_global_settings()
         elif result == wx.NO:
             # User wants to specify a custom/remote API
             self.settings.setdefault("connection", {})["wpp_custom_api"] = True
@@ -122,7 +121,6 @@ class SettingsMixin:
                 # Successfully configured! Mark as asked.
                 self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
                 self.save_settings()
-                self._persist_global_settings()
             else:
                 # User cancelled or closed settings dialog. Roll back and exit.
                 self.settings.setdefault("connection", {})["wpp_custom_api"] = False
@@ -144,7 +142,6 @@ class SettingsMixin:
         # Mark as done before showing the dialog
         self.settings.setdefault("general", {})["first_run"] = False
         self.save_settings()
-        self._persist_global_settings()
 
         result = wx.MessageBox(
             self.i18n.t("autostart_ask_message"),
@@ -156,7 +153,6 @@ class SettingsMixin:
         else:
             self.settings.setdefault("general", {})["autostart"] = False
             self.save_settings()
-            self._persist_global_settings()
 
     def _check_hotkey_first_run(self):
         """
@@ -174,12 +170,10 @@ class SettingsMixin:
         if gen.get("global_hotkey"):
             self.settings.setdefault("general", {})["hotkey_first_run_asked"] = True
             self.save_settings()
-            self._persist_global_settings()
             return
 
         self.settings.setdefault("general", {})["hotkey_first_run_asked"] = True
         self.save_settings()
-        self._persist_global_settings()
 
         from ui.dialogs.settings_dialog import _HotkeyCapture
 
@@ -622,23 +616,46 @@ class SettingsMixin:
                 self.settings.setdefault(section, {})[key] = value
             self._persist_global_settings(explicit=tuple(choices))
 
-    def refresh_global_settings(self):
-        """Bring the install-wide keys of the local copy up to date with the
-        shared file now, rather than on the next save.
+    def install_wide_values(self):
+        """{"general": {...}, "connection": {...}} holding every install-wide
+        key as the shared file has it now -- what the Settings dialog shows.
 
-        Called by the Settings dialog before it loads its controls: otherwise
-        it showed whatever this account last pulled, which can be a value
-        another account has changed since. Writes this account's own pending
-        changes too -- it is the same reconciliation a save runs.
+        The local copy is only as fresh as this account's last save, so the
+        dialog loading from it showed values another account had changed
+        since (the account-switch radio alone read the shared file). Read
+        here, not reconciled: bringing the copy up to date takes _save_lock,
+        which save_data() holds across a whole database write during a sync
+        (up to database_bridge's 120 s bulk timeout) -- opening Settings
+        would freeze the window for as long. The dialog does not need the
+        copy current: what the user changes goes through
+        choose_global_settings() as explicit, and the next save pulls the
+        rest. Only the shared file's own lock is taken, by AppSettings.all().
+
+        Same shape as self.settings so the dialog reads it the same way; the
+        local copy stands in on a legacy install with no shared file, or if
+        the file cannot be read.
         """
-        with self._save_lock:
-            self._persist_global_settings()
+        from app_settings import _GENERAL_GLOBAL, _CONNECTION_GLOBAL
+        shared = None
+        app = getattr(self, "_app_settings", None)
+        if app is not None:
+            try:
+                shared = app.all()
+            except Exception:
+                logging.exception("[settings] reading global app.json failed; "
+                                  "showing this account's copy")
+        view = {}
+        for name, keys in (("general", _GENERAL_GLOBAL), ("connection", _CONNECTION_GLOBAL)):
+            local = self.settings.get(name) or {}
+            source = shared if shared is not None else local
+            view[name] = {k: source[k] for k in keys if k in source}
+        return view
 
     def _apply_pulled_global_settings(self, pulled):
         """Make install-wide values another account chose take effect here,
         where that is safe to do without anyone asking.
 
-        Decided key by key; only the tray icon needs work now:
+        Decided key by key; the tray icon and the language need work now:
 
         - show_tray_icon: applied (_sync_tray_icon_with_setting()). The same
           setting already switches Windows toasts off the moment it is pulled
@@ -646,11 +663,11 @@ class SettingsMixin:
           background notification path read it live), so an icon left up
           would be a window whose toasts are off while its icon says
           otherwise.
-        - language: NOT applied. The window keeps the language it shows until
-          the user changes it here or WinZapp starts again; switching a whole
-          window's language under someone who did not ask for it is a
-          product decision, and core.i18n makes every helper follow the
-          window's language rather than this copy.
+        - language: applied to the whole window, as the Settings dialog's OK
+          does (product decision: an install has one interface language) --
+          but only while the window is not the active one; see
+          _apply_pending_language_switch(). core.i18n makes every helper
+          follow the window's language, so nothing switches on its own first.
         - wpp_server / wpp_ws_server / wpp_api_key / wpp_custom_api: NOT
           applied. They say where this process's session lives; moving it
           mid-session abandons the Node it runs. The attributes (self.wpp_*)
@@ -663,11 +680,58 @@ class SettingsMixin:
         # Key names only: the connection values are an address and a key.
         logging.info("[settings] install-wide value(s) changed by another account: %s",
                      ", ".join(sorted(pulled)))
+        # The teardown's own last saves still pull, and the UI thread keeps
+        # pumping through _stop_wpp_server(): a tray icon created now, after
+        # _perform_shutdown() removed this window's, is never removed again --
+        # os._exit leaves it in the notification area.
+        if getattr(self, "_shutting_down", False):
+            return
         if "show_tray_icon" in pulled:
             try:
                 self._sync_tray_icon_with_setting()
             except Exception:
                 logging.exception("[settings] applying the pulled tray setting failed")
+        if "language" in pulled:
+            self._pending_language_switch = True
+            self._apply_pending_language_switch()
+
+    def _apply_pending_language_switch(self):
+        """Switch this whole window to the configured language, if another
+        account changed it -- now when the window is not the active one,
+        otherwise the moment it stops being active.
+
+        apply_language_changes() renames every control and rewrites the
+        rendered rows, and NVDA speaks a name change of the object that has
+        focus (docs/traps/screen-reader-speech.md). With the window active,
+        that is the focused row or button read out again in another language
+        with nobody having asked. Hidden, minimised, behind another program
+        or behind one of WinZapp's own dialogs, the focus is elsewhere and the
+        repaint is silent; populate_messages(preserve_focus=True) only calls
+        SetFocus when the list already had it, so it cannot activate the
+        window either. _on_window_activate() calls this again on
+        deactivation.
+
+        A language equal to what the window already shows (changed and
+        changed back, or chosen in this window's dialog meanwhile) costs
+        nothing.
+        """
+        if not getattr(self, "_pending_language_switch", False):
+            return
+        if getattr(self, "_main_window_active", False):
+            return
+        self._pending_language_switch = False
+        configured = self.settings.get("general", {}).get("language", "pt-BR")
+        if configured == self.i18n.language:
+            return
+        try:
+            from core.i18n import I18n
+            I18n.invalidate_cache()
+            self.i18n.get_language()
+            self.apply_language_changes()
+            logging.info("[settings] interface language switched to %s "
+                         "(chosen in another account)", configured)
+        except Exception:
+            logging.exception("[settings] switching to the pulled language failed")
 
     def _migrate_settings(self):
         """Migrate settings from old section names to current ones."""
@@ -1067,11 +1131,11 @@ class SettingsMixin:
             self.settings.update(merged)
             self._persist_global_settings(explicit=imported_global)
         self.save_settings()
-        self.apply_settings_live()
+        self.apply_settings_live(imported_global)
         logging.info("[settings-transfer] %d setting(s) imported from %s", applied, path)
         return "", applied
 
-    def apply_settings_live(self):
+    def apply_settings_live(self, imported_global=None):
         """Make the settings currently in self.settings take effect now.
 
         The Settings dialog applies each control as it saves it; an import
@@ -1079,6 +1143,17 @@ class SettingsMixin:
         instead. Every step is guarded on its own: one that fails must not
         leave the rest unapplied, and none of them may take the app down — the
         settings are already saved by the time this runs.
+
+        `imported_global` names the install-wide keys the import carried
+        (None: all of them). The import's own reconciliation has just pulled
+        every other install-wide key into self.settings from the shared file,
+        so those hold what another account chose, not what this import did:
+        a file with only sounds in it would otherwise move this process onto
+        another account's API — the attributes are the API this process uses
+        until it starts again — and switch the window to another account's
+        language with the user's focus on it. Those follow their own rules
+        (_apply_pulled_global_settings(), which the same reconciliation has
+        already scheduled).
         """
         # The install-wide copy every account reads is written by the import
         # itself before this runs (_persist_global_settings with the keys the
@@ -1102,13 +1177,22 @@ class SettingsMixin:
         # Outside _step() on purpose: connection_runtime() cannot raise (it is
         # total over anything self.settings may hold), and these five have to
         # move together or not at all. Anything added here needs its own guard.
-        runtime = _connection_runtime(self.settings, {
+        in_use = {
             "wpp_custom_api": self.wpp_custom_api,
             "wpp_server": self.wpp_server,
             "wpp_ws_server": self.wpp_ws_server,
             "wpp_port": getattr(self, "wpp_port", None),
             "wpp_api_key": getattr(self, "wpp_api_key", None),
-        })
+        }
+        source = self.settings
+        if imported_global is not None:
+            from app_settings import _CONNECTION_GLOBAL
+            connection = dict(self.settings.get("connection") or {})
+            for key in _CONNECTION_GLOBAL:
+                if key not in imported_global:
+                    connection[key] = in_use[key]
+            source = {**self.settings, "connection": connection}
+        runtime = _connection_runtime(source, in_use)
         socket_moved = (runtime["wpp_ws_server"] != getattr(self, "wpp_ws_server", None)
                         or runtime["wpp_port"] != getattr(self, "wpp_port", None))
         self.wpp_custom_api = runtime["wpp_custom_api"]
@@ -1156,7 +1240,8 @@ class SettingsMixin:
             self.i18n.get_language()
             self.apply_language_changes()
 
-        _step("language", _reload_language)
+        if imported_global is None or "language" in imported_global:
+            _step("language", _reload_language)
 
         def _apply_tray():
             show = general.get("show_tray_icon", True)

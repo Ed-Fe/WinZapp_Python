@@ -63,10 +63,13 @@ class I18n:
 
         They used to read the settings too, and the language setting is
         install-wide: when another account changes it, this window's copy is
-        updated on its next save while the window itself keeps its language
-        until the user applies one. The helpers then switched on their own --
-        toasts and tray menus in the new language over a window still in the
-        old one. Before the window's instance exists (early startup), there is
+        updated on its next save, and the window applies it as a whole only
+        once it is not the active one
+        (MainWindow._apply_pending_language_switch()). The helpers switched on
+        their own before that -- toasts and tray menus in the new language
+        over a window still in the old one, or the window's own strings
+        switching one at a time. Before the window's instance exists (early
+        startup), there is
         nothing to follow and the settings are read.
         """
         window_i18n = getattr(self.main_window, "i18n", None)

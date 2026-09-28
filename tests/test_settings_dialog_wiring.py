@@ -107,7 +107,11 @@ def _constant(node):
 
 
 def _is_settings(node):
-    """`self.main_window.settings`."""
+    """`self.main_window.settings`, or `install_wide`: the same sections as
+    the shared file holds them (MainWindow.install_wide_values()), which is
+    where _load_install_wide_values() reads the install-wide controls from."""
+    if isinstance(node, ast.Name) and node.id == "install_wide":
+        return True
     return (
         isinstance(node, ast.Attribute)
         and node.attr == "settings"

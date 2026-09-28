@@ -34,6 +34,7 @@ from unittest.mock import Mock
 import pytest
 
 from app_settings import _CONNECTION_GLOBAL, _GENERAL_GLOBAL, AppSettings
+from core.i18n import I18n
 from core.settings_transfer import build_export
 from main import MainWindow
 from main_window import settings as settings_module
@@ -68,6 +69,7 @@ class _Window:
         self.i18n = Mock()
         self.app_name = "WinZapp"
         self.apply_settings_live = Mock()
+        self.apply_language_changes = Mock()
         self.tray_icon = None
         self._init_tray = Mock()
         self._window_hidden = False
@@ -76,8 +78,10 @@ class _Window:
     _apply_global_settings = MainWindow._apply_global_settings
     _persist_global_settings = MainWindow._persist_global_settings
     choose_global_settings = MainWindow.choose_global_settings
-    refresh_global_settings = MainWindow.refresh_global_settings
+    install_wide_values = MainWindow.install_wide_values
     _apply_pulled_global_settings = MainWindow._apply_pulled_global_settings
+    _apply_pending_language_switch = MainWindow._apply_pending_language_switch
+    _on_window_activate = MainWindow._on_window_activate
     _sync_tray_icon_with_setting = MainWindow._sync_tray_icon_with_setting
     save_settings = MainWindow.save_settings
     _save_settings_locked = MainWindow._save_settings_locked
@@ -839,16 +843,34 @@ class TestTheDialogShowsTheSharedValue:
         _ok(dialog)
         assert _stored(tmp_path, key) == _ANOTHER_VALUE[key]
 
-    def test_opening_writes_this_accounts_own_pending_change(self, tmp_path):
-        """The refresh is the reconciliation a save runs, so a change made
-        here and not saved yet is written, not pulled over."""
+    def test_opening_does_not_wait_for_a_save_in_progress(self, tmp_path):
+        """save_data() holds _save_lock across a whole database write during
+        a sync (up to database_bridge's 120 s bulk timeout). Reconciling the
+        local copy before loading took that lock on the UI thread, so opening
+        Settings froze the window for as long; the values are read from the
+        shared file instead, under its own lock only."""
         a = _started(tmp_path)
-        a.settings["general"]["updates_enabled"] = False
+        b = _started(tmp_path)
+        _change_elsewhere(b, "wpp_server", "http://192.0.2.10")
+        opened = []
 
-        dialog = _opened(a)
+        with a._save_lock:  # a sync's save_data(), mid-write
+            worker = threading.Thread(target=lambda: opened.append(_opened(a)))
+            worker.start()
+            worker.join(2)
+            finished_while_held = not worker.is_alive()
+        worker.join(5)
+
+        assert finished_while_held
+        assert opened[0]._server_field.GetValue() == "http://192.0.2.10"
+
+    def test_a_legacy_install_shows_its_own_copy(self, tmp_path):
+        """No shared file (no global_dir): the account's copy is all there is."""
+        window = _Window(tmp_path, general={"updates_enabled": False})
+
+        dialog = _opened(window)
 
         assert dialog._updates_check.GetValue() is False
-        assert _stored(tmp_path, "updates_enabled") is False
 
 
 class _Icon:
@@ -900,22 +922,87 @@ class TestAPulledValue:
         a._sync_tray_icon_with_setting()
         assert a.tray_icon is None and icon.removed is True
 
+    def test_nothing_is_applied_once_the_window_is_shutting_down(self, tmp_path):
+        """The teardown's last saves still pull, after _perform_shutdown()
+        removed the icon; one created then is never removed (os._exit)."""
+        a = _started(tmp_path, general={"show_tray_icon": False})
+        b = _started(tmp_path, general={"show_tray_icon": False})
+        a._shutting_down = True
+
+        _change_elsewhere(b, "show_tray_icon", True)
+        _unrelated_save(a)
+
+        a._init_tray.assert_not_called()
+
+    def test_a_pull_before_the_window_has_a_tray_attribute(self, tmp_path):
+        a = _started(tmp_path, general={"show_tray_icon": False})
+        b = _started(tmp_path, general={"show_tray_icon": False})
+        del a.tray_icon
+
+        _change_elsewhere(b, "show_tray_icon", True)
+        _unrelated_save(a)
+
+        a._init_tray.assert_called_once()
+
     def test_restoring_the_window_applies_a_deferred_change(self):
         source = inspect.getsource(MainWindow.restore_window)
         assert "self._sync_tray_icon_with_setting()" in source
 
-    def test_the_language_is_not_switched_under_the_user(self, tmp_path):
-        """Stored for the next start and shown by the dialog, but the window
-        keeps what it shows until someone chooses a language here."""
-        a = _started(tmp_path, general={"language": "pt-BR"})
+    def _showing(self, tmp_path, language, active):
+        """A started window showing `language`, the real I18n on it, and
+        apply_language_changes() -- the repaint itself -- recorded."""
+        window = _started(tmp_path, general={"language": language})
+        window.i18n = I18n(window)
+        window.i18n.get_language()
+        window.apply_language_changes = Mock()
+        window._main_window_active = active
+        return window
+
+    def test_the_language_switches_the_whole_window_when_it_is_not_active(self, tmp_path):
+        """Product decision: an install has one interface language, so a
+        language chosen in another account reaches this window too -- the
+        whole window at once, as the Settings dialog's OK does."""
+        a = self._showing(tmp_path, "pt-BR", active=False)
         b = _started(tmp_path, general={"language": "pt-BR"})
-        a.apply_language_changes = Mock()
 
         _change_elsewhere(b, "language", "en-US")
         _unrelated_save(a)
 
-        assert a.settings["general"]["language"] == "en-US"
+        assert a.i18n.language == "en-US"
+        a.apply_language_changes.assert_called_once()
+
+    def test_but_not_under_the_users_focus_it_waits_for_the_window_to_lose_it(self, tmp_path):
+        """With the window active, renaming the focused control would have
+        NVDA read it again in another language. The switch waits for the
+        deactivation, which _on_window_activate() reports."""
+        a = self._showing(tmp_path, "pt-BR", active=True)
+        a._set_bookmark_zero_hotkey = Mock()
+        b = _started(tmp_path, general={"language": "pt-BR"})
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        assert a.i18n.language == "pt-BR"
         a.apply_language_changes.assert_not_called()
+
+        a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+
+        assert a.i18n.language == "en-US"
+        a.apply_language_changes.assert_called_once()
+
+    def test_a_language_the_window_already_shows_repaints_nothing(self, tmp_path):
+        """Changed and changed back before the window lost focus."""
+        a = self._showing(tmp_path, "pt-BR", active=True)
+        a._set_bookmark_zero_hotkey = Mock()
+        b = _started(tmp_path, general={"language": "pt-BR"})
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        _change_elsewhere(b, "language", "pt-BR")
+        _unrelated_save(a)
+        a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+
+        a.apply_language_changes.assert_not_called()
+        assert a._pending_language_switch is False
 
     def test_the_connection_this_process_uses_stays(self, tmp_path):
         """self.wpp_* say where this process's session lives; moving them
@@ -932,3 +1019,35 @@ class TestAPulledValue:
         assert a.settings["connection"]["wpp_server"] == "http://192.0.2.10"
         assert a.wpp_server == "http://127.0.0.1"
         assert a.wpp_custom_api is False
+
+
+class TestEveryReconciliationHoldsTheSaveLock:
+    def test_by_source(self):
+        """choose_global_settings() closes the TOCTOU only if every
+        _persist_global_settings() call holds _save_lock -- the first-run
+        questions used to call it bare, right after a save_settings() that had
+        already reconciled. Allowed: inside `with self._save_lock:`, or in
+        _save_settings_locked(), which save_settings() runs under it."""
+        tree = ast.parse(inspect.getsource(settings_module))
+        parents = {child: node for node in ast.walk(tree)
+                   for child in ast.iter_child_nodes(node)}
+        bare = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "_persist_global_settings"):
+                continue
+            up, held = node, False
+            while up in parents:
+                up = parents[up]
+                if isinstance(up, ast.With) and any(
+                        ast.unparse(item.context_expr) == "self._save_lock"
+                        for item in up.items):
+                    held = True
+                    break
+                if isinstance(up, ast.FunctionDef):
+                    held = up.name == "_save_settings_locked"
+                    break
+            if not held:
+                bare.append(node.lineno)
+
+        assert bare == []
