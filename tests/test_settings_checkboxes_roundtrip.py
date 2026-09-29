@@ -6,7 +6,9 @@ remembered to test.
 The list of checkboxes is not written out here. It comes from the same parse
 tests/test_settings_checkboxes_wiring.py uses, so a checkbox added to any tab
 is covered the moment it exists, and that file fails loudly if the parse stops
-finding them.
+finding them. A box whose section is read through its own module (the
+Transcrição tab's) is not visible to that parse; it is declared there, with
+the key it writes, in WIRED_THROUGH_A_MODULE, and driven here all the same.
 
 The static file proves load and save name the same key; this one proves that
 wiring actually carries the value through wx, which a source reading cannot

@@ -480,6 +480,9 @@ class TestInsertingAfterTheVaultClosed:
         assert vault.panel.message_field.value == "ok, então"
         assert spoken[-1] == _t(INSERT_REFUSED)
         assert _t(HIDDEN_NOT_SAVED) not in spoken
+        # Two, not one: the window's "could not be saved" note sounds as it
+        # opens, and the refused Insert sounds again afterwards.
+        assert vault.main_window.error_sound.played == 2
 
     def test_with_the_vault_still_open_it_inserts_as_always(self, vault, monkeypatch):
         monkeypatch.setattr(transcription_flow, "TranscriptionResultDialog", _FakeResultDialog)

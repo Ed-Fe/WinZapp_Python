@@ -36,6 +36,7 @@ from pathlib import Path
 import pytest
 
 from app_settings import _CONNECTION_GLOBAL
+from core.transcription import preferences as transcription_preferences
 from core.utils import DEFAULT_SETTINGS
 
 SETTINGS_DIALOG = (
@@ -59,14 +60,19 @@ NOT_BACKED_BY_SETTINGS = {
 
 #: Checkboxes that DO mirror a settings.json key, but through a module that
 #: owns the section instead of a literal settings.get("sec", {}).get("key")
-#: here — a shape this parse cannot follow. Each entry names where its round
-#: trip is tested instead, and must still be a checkbox this file sees.
+#: here — a shape this parse cannot follow. Each entry declares the
+#: (section, key) it writes, taken from the owning module's own names rather
+#: than retyped, so checkbox_keys() can still hand it to the real-dialog round
+#: trip; without the pair the box dropped out of that test entirely and was
+#: covered only by a stub. Each must still be a checkbox this file sees.
 WIRED_THROUGH_A_MODULE = {
     "_transcription_detect_language_check": (
+        (transcription_preferences.SECTION,
+         transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE),
         "the Transcrição tab reads its section through "
         "core.transcription.preferences.read_section(), which validates every "
-        "value and owns the key names (SETTING_AUTO_DETECT_LANGUAGE); the round "
-        "trip is tests/test_transcription_settings_tab.py::"
+        "value and owns the key names; the stub-level round trip is "
+        "tests/test_transcription_settings_tab.py::"
         "TestEverySettingIsReadBackAndWritten"
     ),
 }
@@ -262,12 +268,15 @@ WIRED = sorted(
 
 
 def checkbox_keys():
-    """[(attr, section, key)] for the round-trip test, from the same parse."""
+    """[(attr, section, key)] for the round-trip test, from the same parse plus
+    the pairs WIRED_THROUGH_A_MODULE declares."""
     out = []
     for attr in WIRED:
         saves = BOXES[attr]["saves"]
         if len(saves) == 1:
             out.append((attr, saves[0][0], saves[0][1]))
+    for attr, ((section, key), _reason) in WIRED_THROUGH_A_MODULE.items():
+        out.append((attr, section, key))
     return out
 
 
@@ -300,7 +309,7 @@ def test_the_parse_finds_the_checkboxes_on_every_tab():
         "_chat_lock_page",
     ):
         assert page in pages, f"no checkbox found on {page}"
-    assert len(checkbox_keys()) == len(WIRED)
+    assert len(checkbox_keys()) == len(WIRED) + len(WIRED_THROUGH_A_MODULE)
 
 
 def test_every_exception_still_exists_and_is_really_unwired():
@@ -318,13 +327,28 @@ def test_every_exception_still_exists_and_is_really_unwired():
 
 
 def test_every_module_wired_checkbox_still_exists_and_is_not_wired_here():
-    for attr, reason in WIRED_THROUGH_A_MODULE.items():
+    for attr, ((section, key), reason) in WIRED_THROUGH_A_MODULE.items():
         assert attr in BOXES, f"{attr} is no longer a checkbox; drop it from WIRED_THROUGH_A_MODULE"
         assert BOXES[attr]["loads"] == [] and BOXES[attr]["saves"] == [], (
             f"{attr} is now wired in the shape this file checks "
             f"({BOXES[attr]['loads']!r} / {BOXES[attr]['saves']!r}); remove it from "
             f"WIRED_THROUGH_A_MODULE so it is checked like every other ({reason})"
         )
+        # The round trip reads the expected state off DEFAULT_SETTINGS, so a
+        # declared pair that is not a shipped default would only surface there
+        # as a KeyError, in CI.
+        assert key in DEFAULT_SETTINGS.get(section, {}), (
+            f"{attr} declares {section}.{key}, which is not in core/utils.py DEFAULT_SETTINGS"
+        )
+
+
+def test_the_transcription_detection_box_is_handed_to_the_real_dialog_round_trip():
+    """Pinned by the settings.json spelling, not the module's constants: the
+    round trip exercises exactly the tuples checkbox_keys() returns, and this
+    box once fell out of that list without any test noticing."""
+    assert (
+        "_transcription_detect_language_check", "transcription", "auto_detect_language"
+    ) in checkbox_keys()
 
 
 @pytest.mark.parametrize("attr", WIRED)

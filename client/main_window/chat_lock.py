@@ -337,7 +337,8 @@ class ChatLockMixin:
         self._persist_chat_lock_vault()
         cp = getattr(self, "conversations_panel", None)
         if cp is not None and cp.conversation is not None:
-            # Not is_chat_hidden_by_vault(): the vault is still open here and closes just below.
+            # Not is_chat_hidden_by_vault(): the vault is usually still open here
+            # (it closes just below); the chat just locked must close either way.
             if self.is_chat_locked(cp.conversation.get("remoteJid", "")):
                 cp.close_conversation_for_panel_switch()
         self._chat_lock_unlocked = False
