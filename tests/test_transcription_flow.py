@@ -177,8 +177,21 @@ class _MainWindow:
         self._transcription_write_queue = _Inline()
         self.conversations_panel = None
         self.saves = []
+        # The locked-chats vault as _load_chat_lock_vault() leaves it on an
+        # account that never set one up: nothing locked, nothing hidden. The
+        # flow asks the real is_chat_hidden_by_vault() before showing a text
+        # (tests/test_transcription_chat_lock.py sets a vault up).
+        self._chat_lock_vault = None
+        self._chat_lock_fingerprints = set()
+        self._chat_lock_unlocked = False
+        self._chat_lock_timeout_timer = None
+        self._lid_to_phone = {}
+        self._phone_to_lid = {}
 
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _chat_lock_candidates = MainWindow._chat_lock_candidates
+    is_chat_locked = MainWindow.is_chat_locked
+    is_chat_hidden_by_vault = MainWindow.is_chat_hidden_by_vault
     get_chat = MainWindow.get_chat
     _transcription_copies = MainWindow._transcription_copies
     _transcription_storage_jids = MainWindow._transcription_storage_jids

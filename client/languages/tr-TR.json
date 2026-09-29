@@ -1503,6 +1503,9 @@
   "transcription_not_saved_missing": "Bu döküm kaydedilmedi, çünkü mesaj artık bu sohbette değil.",
   "transcription_discarded_withdrawn": "Mesaj yazıya dökülürken herkesten silindi, bu yüzden döküm atıldı.",
   "transcription_store_failed": "Döküm kaydedilemedi.",
+  "transcription_hidden_vault_closed": "Yazıya döküm tamamlandı, ancak kilitli sohbetler kasası kapatıldı. Dökümü görmek için kasayı açın.",
+  "transcription_hidden_vault_closed_not_saved": "Yazıya döküm tamamlandı, ancak kilitli sohbetler kasası kapatıldı ve döküm kaydedilmedi.",
+  "transcription_insert_refused_vault_closed": "Kilitli sohbetler kasası kapatıldı ve döküm mesaja eklenmedi.",
   "profile_restored_from_snapshot": "Tarayıcı profili hasar görmüştü ve son kaydedilen kopyadan geri yüklendi. WhatsApp'a yeniden bağlanılıyor.",
   "profile_corrupted_repair_needed": "WhatsApp'a bağlanmak için kullanılan tarayıcı profili hasarlı ve geri yüklenebilecek kayıtlı bir kopya yok. Oturum bağlantısını kesip tekrar eşlemeniz gerekecektir.",
   "browser_install_broken": "WinZapp'in WhatsApp'a bağlanmak için kullandığı yerleşik tarayıcı eksik ve başlatılamıyor. Ayarlar'ı açın ve API'yi yeniden yükleyin. Tekrar olursa, yeniden yüklemeden önce WinZapp klasörünü antivirüs dışlamalarınıza ekleyin."

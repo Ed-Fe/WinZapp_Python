@@ -1503,6 +1503,9 @@
     "transcription_not_saved_missing": "This transcription was not saved, because the message is no longer in this conversation.",
     "transcription_discarded_withdrawn": "The message was deleted for everyone while it was being transcribed, so the transcription was discarded.",
     "transcription_store_failed": "The transcription could not be saved.",
+    "transcription_hidden_vault_closed": "The transcription finished, but the locked-chats vault was closed. Open the vault to see the transcription.",
+    "transcription_hidden_vault_closed_not_saved": "The transcription finished, but the locked-chats vault was closed, and the transcription was not saved.",
+    "transcription_insert_refused_vault_closed": "The locked-chats vault was closed, and the transcription was not inserted into the message.",
     "profile_restored_from_snapshot": "The browser profile was damaged and has been restored from the last saved copy. Reconnecting to WhatsApp.",
     "profile_corrupted_repair_needed": "The browser profile used to connect to WhatsApp is damaged and there is no saved copy to restore. You will need to disconnect the session and pair again.",
     "browser_install_broken": "The built-in browser WinZapp uses to connect to WhatsApp is incomplete and cannot start. Open Settings and reinstall the API. If it happens again, add the WinZapp folder to your antivirus exclusions before reinstalling."

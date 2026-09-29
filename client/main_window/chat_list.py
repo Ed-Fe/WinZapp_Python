@@ -64,7 +64,7 @@ class ChatListMixin:
                 jid = existing.get("remoteJid") or jid
 
         if getattr(self, "is_chat_locked", lambda _jid: False)(jid):
-            if not self._chat_lock_unlocked:
+            if self.is_chat_hidden_by_vault(jid):
                 if not self.unlock_chat_lock_vault(show_panel=False):
                     return
             wanted = self._chat_lock_candidates(jid)

@@ -53,6 +53,30 @@ away minutes of work with one key. A run that finishes after the sender deleted
 the message for everyone is neither kept nor shown: one sentence says so, and
 no window opens (`WITHDRAWN_I18N_KEY`).
 
+A locked chat's content stays behind the vault, and the vault can close in
+the middle of a run: the auto-lock timer fires inside the progress dialog's
+modal loop, closes the conversation and says so. So before anything of the
+result is shown or said, the vault is asked again whether the chat is hidden
+now (`MainWindow.is_chat_hidden_by_vault()`, `_hidden_by_vault()` here). If it
+is, no window opens, no headline or note is said — "no speech was found" and
+the detected language are about the recording too — and the focus stays where
+the vault put it. The result is still kept when storing still finds the
+message with the conversation closed: it goes into the message's encrypted
+record like the rest of that chat, where nothing shows it until the vault is
+opened, and it spares the user the minutes they already waited. Storing
+finds it in the chat's own records; a note brought in by "mensagens
+anteriores" lives only in the conversation panel's lists, which the closed
+conversation no longer offers, so it is not kept (SAVE_MISSING) where it
+would have been with the vault open. One sentence says which of the two
+happened, and nothing more (`HIDDEN_BY_VAULT_I18N_KEY`). Failures and
+cancellations are still said as always: they describe the run, not the note.
+The same question is asked once more when the result window closes through
+"Inserir na mensagem": the vault can close while the user is reading, and the
+message field would carry the text into whichever conversation opens next.
+That refusal has a sentence of its own (`INSERT_REFUSED_BY_VAULT_I18N_KEY`):
+nothing finished then — the window may hold a transcription reopened from
+storage — and what the user needs to hear is that the text was not inserted.
+
 Nothing here logs the message, its id, the contact or a path: the same rule as
 the whole transcription package, checked by `tests/test_transcription_flow.py`.
 """
@@ -130,6 +154,15 @@ WITHDRAWN_I18N_KEY = "transcription_discarded_withdrawn"
 #: are said the same way.
 STORE_FAILED_I18N_KEY = "transcription_store_failed"
 
+#: What is said, instead of anything about the result, when the chat has been
+#: locked away by the vault while it was being transcribed — kept, and not.
+HIDDEN_BY_VAULT_I18N_KEY = "transcription_hidden_vault_closed"
+HIDDEN_BY_VAULT_NOT_SAVED_I18N_KEY = "transcription_hidden_vault_closed_not_saved"
+
+#: What is said when "Inserir na mensagem" is refused because the vault closed
+#: while the result window was open.
+INSERT_REFUSED_BY_VAULT_I18N_KEY = "transcription_insert_refused_vault_closed"
+
 #: Every key this module asks for besides the ones narration/errors/preferences
 #: own. The i18n test reads this rather than a list of its own.
 FLOW_I18N_KEYS = (
@@ -145,6 +178,9 @@ FLOW_I18N_KEYS = (
         SAVED_OPENED_NO_MODEL_I18N_KEY,
         WITHDRAWN_I18N_KEY,
         STORE_FAILED_I18N_KEY,
+        HIDDEN_BY_VAULT_I18N_KEY,
+        HIDDEN_BY_VAULT_NOT_SAVED_I18N_KEY,
+        INSERT_REFUSED_BY_VAULT_I18N_KEY,
         "transcription_delete_question",
         "transcription_deleted",
         "transcription_delete_failed",
@@ -355,6 +391,11 @@ class MessageTranscriptionFlow:
 
     def start(self):
         """Transcribe the message, report, and put the focus back."""
+        if self._hidden_by_vault():
+            # Not reachable from the conversation — a locked chat is open only
+            # while the vault is — and kept so that no future entry point can
+            # spend minutes producing a text it may not show.
+            return
         if not message_audio.is_transcribable(self._msg):
             # Nothing opens: the user pressed a shortcut on a message that
             # holds no speech, and the answer is one short sentence.
@@ -507,6 +548,11 @@ class MessageTranscriptionFlow:
             ),
         )
         if result is None or result.is_empty:
+            if self._hidden_by_vault():
+                # "No speech was found" is about the recording, as much as
+                # its text would be. Nothing was kept either — see below.
+                self._say_hidden_by_vault(kept=False)
+                return
             # No window for an empty result: an empty text box is
             # indistinguishable from a bug to someone who cannot see it. The
             # sentence says there was no speech, and the filter warning still
@@ -534,6 +580,15 @@ class MessageTranscriptionFlow:
             # writes format_exception() to the log with nothing scrubbed.
             store_raised = True
             answer = None
+        if self._hidden_by_vault():
+            # Asked after storing, not before: keeping it reveals nothing (see
+            # the module docstring), and the sentence has to say whether the
+            # text will be there once the vault is opened. Ahead of every
+            # answer below, a withdrawal included — that one is news about
+            # the locked chat as well, and "not kept" is all that is true of
+            # it that the user can act on.
+            self._say_hidden_by_vault(kept=answer == stored_transcription.SAVE_STORED)
+            return
         if store_raised:
             if not self._withdrawn_now():
                 # Once, here: the window plays nothing of its own, and the
@@ -593,6 +648,35 @@ class MessageTranscriptionFlow:
             current = None
         return (stored_transcription.is_withdrawn(current)
                 or stored_transcription.is_withdrawn(self._msg))
+
+    def _hidden_by_vault(self):
+        """Whether the vault has the message's chat locked away right now.
+
+        Asked every time, never remembered: the vault can close at any moment
+        of a run. Of the chat the flow was started in and of the message's
+        own `remoteJid` both, either one hidden being enough — the vault
+        resolves @lid and phone forms itself, and a check that fails closed on
+        an odd key costs one sentence, where one that fails open costs the
+        note.
+        """
+        key = (self._msg.get("key") or {}) if isinstance(self._msg, dict) else {}
+        hidden = self._main_window.is_chat_hidden_by_vault
+        return hidden(self._jid) or hidden(key.get("remoteJid", ""))
+
+    def _say_hidden_by_vault(self, kept):
+        """The one sentence for a result the vault has taken off the screen.
+
+        No focus move first, unlike `_say_after_focus()`: the vault closed
+        the conversation and put the focus on the chat list, and that is
+        where it stays. Still through `wx.CallAfter`, for the progress dialog
+        that has just closed and whose focus change the screen reader is
+        announcing. With the error sound when nothing was kept, like every run
+        that ends without the text the user asked for.
+        """
+        if not kept:
+            self._play_error_sound()
+        key = HIDDEN_BY_VAULT_I18N_KEY if kept else HIDDEN_BY_VAULT_NOT_SAVED_I18N_KEY
+        wx.CallAfter(self._main_window.output, self._i18n.t(key))
 
     def _store(self, result):
         """Keep `result` with the message; storing's SAVE_* answer.
@@ -656,6 +740,12 @@ class MessageTranscriptionFlow:
 
     def _open_result_window(self, result, announcement, notes):
         """The result window over `result` — fresh or stored, the same one."""
+        if self._hidden_by_vault():
+            # The one place the text reaches the screen, so the last word on
+            # it. A fresh result has already been answered for in _report();
+            # "Ver transcrição" gets here only from an open conversation, which
+            # a locked chat is not while the vault is closed.
+            return
         i18n = self._i18n
         _spoken, shown = split_result_notes(announcement, notes)
         name = title_name(self._panel, self._msg)
@@ -675,6 +765,32 @@ class MessageTranscriptionFlow:
             insert = dialog.insert_requested
         finally:
             dialog.Destroy()
+        if insert and self._hidden_by_vault():
+            # Asked again after the window, not only before it: the user can
+            # read in it for as long as they like, keys pressed in a dialog
+            # never reach the vault's timer, and the timer closes the chat
+            # meanwhile. The message field does not belong to the chat: it
+            # outlives closing the conversation (only a send, an edit or an
+            # attachment empties it), so the next conversation opened, whoever
+            # it is with, would show the note's text ready for Enter to send
+            # to them. Nothing is written, and the focus stays on the chat
+            # list where the vault put it.
+            #
+            # Copy and Save in the window are left alone, on purpose: they put
+            # the text where the user explicitly sends it, from a window that
+            # is still showing it — like the message-text popup, which the
+            # vault does not close either — and not into a place that belongs
+            # to another conversation.
+            #
+            # Not _say_hidden_by_vault(): its sentences are for the end of a
+            # run, and none ran here — this may be a stored transcription
+            # opened again. A text that was not kept, the window's notes have
+            # already said so; the one answer owed now is that the insertion
+            # asked for did not happen, and the error sound says so first.
+            # Like there, no focus move, and after the window has closed.
+            self._play_error_sound()
+            wx.CallAfter(self._main_window.output, self._i18n.t(INSERT_REFUSED_BY_VAULT_I18N_KEY))
+            return
         if insert:
             self._insert_into_message_field(result.text)
         else:
@@ -727,7 +843,13 @@ class MessageTranscriptionFlow:
         other message by now. A message no longer in the list (deleted,
         revoked, scrolled out of the loaded window) leaves the focus on the
         list itself rather than on a neighbour it was never on.
+
+        Nowhere at all when the vault closed the conversation meanwhile: it
+        put the focus on the chat list, and pulling it back to a message list
+        of that chat is the one thing the vault closed it to prevent.
         """
+        if self._hidden_by_vault():
+            return
         panel = self._panel
         index = panel._find_index_by_msg_id(self._msg_id)
         if index >= 0:

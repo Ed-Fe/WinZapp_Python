@@ -1503,6 +1503,9 @@
     "transcription_not_saved_missing": "Esta transcripción no se guardó porque el mensaje ya no está en esta conversación.",
     "transcription_discarded_withdrawn": "El mensaje se eliminó para todos mientras se transcribía, así que la transcripción se descartó.",
     "transcription_store_failed": "No se pudo guardar la transcripción.",
+    "transcription_hidden_vault_closed": "La transcripción terminó, pero la caja fuerte de chats bloqueados se cerró. Abre la caja fuerte para ver la transcripción.",
+    "transcription_hidden_vault_closed_not_saved": "La transcripción terminó, pero la caja fuerte de chats bloqueados se cerró y la transcripción no se guardó.",
+    "transcription_insert_refused_vault_closed": "La caja fuerte de chats bloqueados se cerró y la transcripción no se insertó en el mensaje.",
     "profile_restored_from_snapshot": "El perfil del navegador estaba dañado y se ha restaurado desde la última copia guardada. Reconectando a WhatsApp.",
     "profile_corrupted_repair_needed": "El perfil del navegador que se usa para conectar con WhatsApp está dañado y no hay ninguna copia guardada para restaurar. Tendrás que desconectar la sesión y vincular de nuevo.",
     "browser_install_broken": "El navegador interno que WinZapp usa para conectarse a WhatsApp está incompleto y no puede iniciarse. Ve a Configuración y reinstala la API. Si vuelve a ocurrir, añade la carpeta de WinZapp a las exclusiones de tu antivirus antes de reinstalar."

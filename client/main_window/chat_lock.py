@@ -116,6 +116,25 @@ class ChatLockMixin:
             for candidate in candidates
         )
 
+    def is_chat_hidden_by_vault(self, jid: str) -> bool:
+        """Whether *jid*'s content must stay off the screen right now.
+
+        A locked chat while the vault is closed. The one rule for it, asked
+        by lock_chat_vault() when it closes the open conversation, by
+        navigate_to_conversation_jid() before it opens one (asking for the
+        PIN first), and by the transcription flow. For work that
+        outlives the moment it began in — a transcription takes minutes, and
+        the auto-lock timer fires inside its modal loop — this is asked again
+        at the end, since the answer at the start no longer holds.
+        lock_chat() is the one exception: it closes the conversation while the
+        vault is still open, just before closing the vault itself.
+        """
+        return (
+            bool(jid)
+            and self.is_chat_locked(jid)
+            and not getattr(self, "_chat_lock_unlocked", False)
+        )
+
     def chat_lock_navigation_visible(self) -> bool:
         vault = getattr(self, "_chat_lock_vault", None)
         if vault is None:
@@ -318,6 +337,7 @@ class ChatLockMixin:
         self._persist_chat_lock_vault()
         cp = getattr(self, "conversations_panel", None)
         if cp is not None and cp.conversation is not None:
+            # Not is_chat_hidden_by_vault(): the vault is still open here and closes just below.
             if self.is_chat_locked(cp.conversation.get("remoteJid", "")):
                 cp.close_conversation_for_panel_switch()
         self._chat_lock_unlocked = False
@@ -532,7 +552,7 @@ class ChatLockMixin:
         self._chat_lock_unlocked = False
         cp = getattr(self, "conversations_panel", None)
         if cp is not None and cp.conversation is not None:
-            if self.is_chat_locked(cp.conversation.get("remoteJid", "")):
+            if self.is_chat_hidden_by_vault(cp.conversation.get("remoteJid", "")):
                 cp.close_conversation_for_panel_switch()
         panel = getattr(self, "locked_conversations_panel", None)
         if panel is not None:
