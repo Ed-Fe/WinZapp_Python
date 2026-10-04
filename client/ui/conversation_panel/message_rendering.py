@@ -7,6 +7,7 @@ ConversationsPanel.__init__/init_UI is available here.
 
 import logging
 import threading
+from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE
 from core.call_log import (
     CALL_LOG_MESSAGE_TYPE,
     LEGACY_CALL_LOG_TYPE,
@@ -125,6 +126,11 @@ class MessageRenderingMixin:
             return i18n.t("unsupported_message").format(
                 app_name=self.main_window.app_name
             )
+
+        # A view-once message: WhatsApp keeps it on the phone, nothing is on
+        # its way here (core/view_once.py).
+        if msg_type == VIEW_ONCE_UNAVAILABLE_TYPE:
+            return i18n.t("view_once_message")
 
         # Received but not decrypted by WhatsApp Web yet; the real copy
         # replaces this record when it arrives (MainWindow._fill_stored_placeholder).
@@ -509,6 +515,8 @@ class MessageRenderingMixin:
             # countable nor a chat preview (is_countable_message(),
             # MainWindow._PREVIEW_MESSAGE_TYPES).
             "ciphertext",
+            # A view-once message, kept on the phone (core/view_once.py).
+            VIEW_ONCE_UNAVAILABLE_TYPE,
             # A voice/video call (core/call_log.py); the legacy type is what
             # builds before it stored, with no call data.
             CALL_LOG_MESSAGE_TYPE,

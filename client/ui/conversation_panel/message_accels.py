@@ -136,7 +136,7 @@ class MessageAccelsMixin:
         self._on_menu_react(msg)
 
     def _on_accel_star(self, event):
-        """Ctrl+Shift+I: star/favourite the focused message."""
+        """Ctrl+Shift+O: star/favourite the focused message."""
         index = self.messages_list.GetFirstSelected()
         if 0 <= index < len(self._sorted_messages):
             msg = self._sorted_messages[index]

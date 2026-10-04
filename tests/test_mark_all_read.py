@@ -191,6 +191,8 @@ class _Stub:
     _anchor_unread_to_local_read = MainWindow._anchor_unread_to_local_read
     _drop_unread_local_read_anchor = MainWindow._drop_unread_local_read_anchor
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _note_server_unread = MainWindow._note_server_unread
+    _pop_server_unread = MainWindow._pop_server_unread
 
     def __init__(self, chats, settings=None):
         self.chats = chats
@@ -428,6 +430,8 @@ class _SenderStub:
     _sync_conversation_read_state = MainWindow._sync_conversation_read_state
     _send_read_state_blocking = MainWindow._send_read_state_blocking
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _note_server_unread = MainWindow._note_server_unread
+    _pop_server_unread = MainWindow._pop_server_unread
 
     def __init__(self):
         self.wpp_server = "http://127.0.0.1"

@@ -55,6 +55,9 @@ class _FakeSoundSystem:
 def dialog(wx_app):
     frame = hidden_frame()
     frame.settings = {}
+    # _apply_values() reports storage changes to the main window; the stub
+    # has no sweep to start.
+    frame._on_auto_download_settings_changed = lambda old, new: None
     frame.app_name = "WinZapp"
     frame.i18n = I18n(frame)
     frame.i18n.get_language()

@@ -168,3 +168,25 @@ class TestAnAbsentChatDoesNotFailTheRound:
         )
         stub._absent_chats = {A}
         assert MainWindow.sync_remote_chats(stub, incremental=True) == {B}
+
+
+class TestShiftF5CanTellTheTwoEmptyAnswersApart:
+    """Both chat_not_found and an empty page return True with nothing
+    fetched; only the first is WhatsApp saying the chat has no messages.
+    outcome_out is how Shift+F5 tells them apart (core/conversation_resync.
+    resync_outcome())."""
+
+    def test_chat_not_found_is_reported_as_absent(self, monkeypatch):
+        _chat_not_found(monkeypatch)
+        outcome = {}
+        assert MainWindow.sync_chat_messages(
+            _AbsentStub(), {"remoteJid": ABSENT, "t": 100}, outcome_out=outcome) is True
+        assert outcome == {"chat_absent": True}
+
+    def test_an_empty_page_is_not(self, monkeypatch):
+        monkeypatch.setattr(main_module.requests, "get",
+                            lambda url, **kwargs: _Resp(200, {"response": []}))
+        outcome = {}
+        assert MainWindow.sync_chat_messages(
+            _AbsentStub(), {"remoteJid": ABSENT, "t": 100}, outcome_out=outcome) is True
+        assert outcome == {"chat_absent": False}

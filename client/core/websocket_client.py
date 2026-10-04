@@ -11,6 +11,7 @@ from core.i18n import I18n
 from core.message_edit import MESSAGE_EDIT, clean_message_id, server_marks_edited
 from core.meta_ai import rich_response_text
 from core.sync_contracts import observe_payload
+from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE, is_view_once_unavailable
 from core.utils import looks_like_binary_blob, looks_like_jid, _slim_quoted_message, parse_bool_flag as _parse_bool_flag
 
 # ── Message delivery status ──────────────────────────────────────────────────
@@ -2744,7 +2745,14 @@ class WebSocketClient:
         message_content = {}
         _promoted_to_extended_text = False
         _is_edit_event = False
-        if msg_type == "chat":
+        if is_view_once_unavailable(wpp_msg):
+            # A view-once message, which WhatsApp never delivers to a linked
+            # device: a `ciphertext` that is not waiting for anything. Its own
+            # type, so the live funnel does not drop it as a placeholder and
+            # it counts, notifies and reads out (core/view_once.py, #47).
+            msg_type = VIEW_ONCE_UNAVAILABLE_TYPE
+            message_content = {VIEW_ONCE_UNAVAILABLE_TYPE: {}}
+        elif msg_type == "chat":
             if _has_link_preview:
                 message_content = {
                     "extendedTextMessage": _with_link_preview({"text": conversation})

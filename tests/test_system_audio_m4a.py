@@ -339,6 +339,8 @@ class TestMixedComposer(unittest.TestCase):
         self.assertEqual((pm.media_path, pm.media_type, pm.jid),
                          (str(self.m4a_paths[0]), 'audio', 'first-chat'))
         self.assertTrue(pm.owns_media_path)
+        self.assertEqual(pm.custom_filename, 'default_filename_audio.m4a')
+        self.assertNotEqual(os.path.basename(pm.media_path), pm.custom_filename)
         self.assertEqual(pm.quoted['key']['id'], 'quoted')
         cache = self.folder / 'voice_messages' / (pm.local_id + '.msv')
         self.assertEqual(self.decrypt(cache.read_bytes()), self.encoded)
@@ -400,6 +402,68 @@ class TestMixedComposer(unittest.TestCase):
         self.assertFalse(self.m4a_paths[0].exists())
         self.assertFalse((self.folder / 'voice_messages' / (local_id + '.msv')).exists())
 
+    def _enqueued_after_send(self):
+        self.p._send_voice_message(None)
+        self.threads.drain()
+        self.drain_ui()
+        return self.p.main_window.message_queue.enqueue.call_args.args[0]
+
+    def test_stereo_microphone_voice_message_takes_the_same_m4a_route_as_mixed(self):
+        """Stereo OGG/Opus does not play on iPhone; the Ctrl+Shift+H M4A does."""
+        mixed = self._enqueued_after_send()
+        mixed_row = dict(self.p._sorted_messages[0]['message']['audioMessage'])
+
+        self.p.main_window.message_queue.enqueue.reset_mock()
+        self.p._sorted_messages.clear()
+        self.p._is_recording = True
+        self.p._recording_system_audio = False
+        self.p._system_audio_session = None
+        self.p._recording_frames = [b'\x01\x00\x02\x00' * 480]
+        self.encoder.reset_mock()
+        self.gate.reset_mock()
+        stereo = self._enqueued_after_send()
+
+        self.encoder.assert_called_once()
+        self.p.main_window._convert_wav_to_ogg.assert_not_called()
+        self.gate.assert_called_once()  # the microphone keeps its noise gate
+        for pm in (mixed, stereo):
+            self.assertIsNone(pm.audio_path)
+            self.assertIsNone(pm.ogg_bytes)
+            self.assertEqual((pm.media_type, pm.jid), ('audio', 'first-chat'))
+            self.assertTrue(pm.media_path.endswith('recording.m4a'))
+            self.assertTrue(pm.owns_media_path)
+            self.assertEqual(pm.custom_filename, 'default_filename_audio.m4a')
+        row =self.p._sorted_messages[0]['message']['audioMessage']
+        self.assertEqual({k: row[k] for k in ('ptt', 'mimetype')},
+                         {k: mixed_row[k] for k in ('ptt', 'mimetype')})
+        self.assertIs(row['ptt'], False)
+        self.assertTrue(row['fileName'].endswith('.m4a'))
+
+    def test_stereo_encode_failure_is_visible_and_never_falls_back_to_ogg(self):
+        self.p._recording_system_audio = False
+        self.p._system_audio_session = None
+        self.encoder.side_effect = None
+        self.encoder.return_value = None
+        self.p._send_voice_message(None)
+        local_id = self.p._sorted_messages[0]['_local_id']
+        self.threads.drain()
+        self.drain_ui()
+        self.p.main_window.message_queue.enqueue.assert_not_called()
+        self.p.main_window._convert_wav_to_ogg.assert_not_called()
+        self.p.main_window._on_message_failed.assert_called_once_with(
+            local_id, 'media_audio_convert_failed', True)
+
+    def test_two_channel_wav_in_mono_mode_stays_a_ptt_voice_note(self):
+        """A microphone that only opens with two channels, recorded in mono."""
+        self.p._recording_system_audio = False
+        self.p._system_audio_session = None
+        self.p._recording_stereo = False
+        pm = self._enqueued_after_send()
+        self.encoder.assert_not_called()
+        self.assertIsNone(pm.media_path)
+        self.assertIs(self.p._sorted_messages[0]['message']['audioMessage']['ptt'], True)
+        os.unlink(pm.audio_path)
+
     def test_ordinary_voice_remains_ptt_with_noise_gate_and_existing_ogg_encoder(self):
         self.p._recording_system_audio = False
         self.p._system_audio_session = None
@@ -413,7 +477,7 @@ class TestMixedComposer(unittest.TestCase):
         self.p.main_window._convert_wav_to_ogg.assert_called_once()
         pm = self.p.main_window.message_queue.enqueue.call_args.args[0]
         self.assertIsNone(pm.media_path)
-        self.assertFalse(pm.stereo)
+        self.assertFalse(hasattr(pm, 'stereo'))
         self.assertIs(self.p._sorted_messages[0]['message']['audioMessage']['ptt'], True)
         self.assertTrue(Path(pm.audio_path).exists())
         os.unlink(pm.audio_path)

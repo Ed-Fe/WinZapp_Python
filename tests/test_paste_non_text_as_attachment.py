@@ -14,6 +14,10 @@ import wx
 from tests.conftest import set_clipboard_data, set_clipboard_text
 from ui.conversations import ConversationsPanel
 
+# The system clipboard is one shared resource: in a parallel run these tests
+# must share a worker with the other clipboard file.
+pytestmark = pytest.mark.xdist_group("clipboard")
+
 
 _SENTINEL = object()
 

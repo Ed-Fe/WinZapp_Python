@@ -444,7 +444,7 @@ class MentionsMixin:
                 logging.info(f"[mention] Active conversation changed. Aborting fetch for {jid}.")
                 return
             try:
-                data = self.main_window.get_group_info(jid)
+                data = self.main_window.get_group_info_recent(jid)
                 participants = data.get("participants", [])
                 logging.info(f"[mention] get_group_info({jid}) attempt {attempt+1}/{max_retries} → {len(participants)} participants")
                 if participants:

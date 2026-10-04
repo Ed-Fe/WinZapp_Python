@@ -45,6 +45,7 @@
         "popup_enabled": true
     },
     "profile_backup": {
+        "snapshots_disabled": false,
         "close_snapshot_min_hours": 24,
         "live_snapshot_enabled": false,
         "live_snapshot_interval_hours": 24,
@@ -70,7 +71,6 @@
         "confirm_mark_all_read": true,
         "confirm_resync_all": true,
         "confirm_resync_conversation": true,
-        "warn_stereo_voice_iphone": true,
         "warn_system_audio_recording": true,
         "system_audio_consent_revision": 0,
         "space_selects_in_selection_mode": true,
@@ -99,7 +99,8 @@
         "input_device_name": "",
         "exclusive_input": false,
         "exclusive_output": false,
-        "echo_cancellation": false
+        "echo_cancellation": false,
+        "noise_suppression": false
     },
     "call_video_devices": {
         "camera_name": ""

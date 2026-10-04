@@ -50,6 +50,8 @@ class I18n:
     def __init__(self, main_window):
         self.main_window = main_window
         self.language = "pt-BR"  # default, overwritten by get_language()
+        # Whether get_language() has read the settings yet; see t().
+        self._language_read = False
 
     def get_language(self):
         """Set self.language to the language this window shows, and return it.
@@ -77,10 +79,30 @@ class I18n:
             self.language = window_i18n.language
             return self.language
         self.language = self.main_window.settings.get("general", {}).get("language", "pt-BR")
+        self._language_read = True
         return self.language
 
     def t(self, key: str) -> str:
-        """Translate *key* using the language currently stored in self.language."""
+        """Translate *key* into the user's current language.
+
+        The language is refreshed on every lookup: an I18n starts at "pt-BR"
+        and used to follow the user's choice only after someone called
+        get_language(), so text produced before that came out in Portuguese
+        on, say, an English install (seen with the pairing error
+        "no_pairing_code_received"). The read is a dict lookup.
+
+        Except on the window's own instance once it has a language: that one
+        changes only when asked (see get_language()). Refreshing it here read
+        the settings another account's change had just reached, so each
+        string drawn after that came out in the new language over a window
+        still in the old one, and _apply_pending_language_switch() then found
+        the language "already applied" and never repainted the rest.
+        """
+        if not (self._language_read and getattr(self.main_window, "i18n", None) is self):
+            try:
+                self.get_language()
+            except Exception:
+                pass  # no settings yet: keep the last known language
         lang = self.language
         translations = _TRANSLATIONS_CACHE.get(lang)
         if translations is None:

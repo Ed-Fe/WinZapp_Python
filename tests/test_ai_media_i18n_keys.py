@@ -1,0 +1,141 @@
+"""The AI media feature has one set of translation keys: none unused, none twice.
+
+Two features were merged into this one (photo descriptions, and transcriptions
+with descriptions). Nothing here may fall back to a key of either original:
+every string is declared once, in every locale, and used by the code.
+"""
+import ast
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+CLIENT = ROOT / "client"
+LANGUAGES = CLIENT / "languages"
+LOCALES = tuple(json.loads((LANGUAGES / "language_map.json").read_text(encoding="utf-8")))
+
+#: The modules that own this feature's text; any key in a string literal of
+#: these files counts as used.
+SOURCES = (
+    *sorted((CLIENT / "core" / "ai_media").glob("*.py")),
+    *sorted((CLIENT / "ui" / "dialogs").glob("ai_*.py")),
+    CLIENT / "ui" / "conversation_panel" / "ai_actions.py",
+    CLIENT / "ui" / "conversation_panel" / "message_menu.py",
+    CLIENT / "ui" / "dialogs" / "shortcuts_dialog.py",
+    CLIENT / "ui" / "ai_media_demo.py",
+    CLIENT / "core" / "sound_system.py",
+)
+KEY = re.compile(r"^(?:ai_[a-z0-9_]*[a-z0-9]|tab_ai_[a-z0-9_]*[a-z0-9]|sound_event_ai_[a-z0-9_]*[a-z0-9])$")
+#: Dialog and tab texts that reach the screen through a generic key, not an ai_ one.
+OWNED = re.compile(r"^(?:ai_|tab_ai_|sound_event_ai_)")
+
+
+def strings(path):
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return {node.value for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)}
+
+
+def error_categories():
+    """The ``ai_error_<category>`` keys: one per category a DescriptionError can carry."""
+    found = set()
+    for path in sorted((CLIENT / "core" / "ai_media").glob("*.py")) + sorted(
+            (CLIENT / "ui").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "DescriptionError"
+                    and node.args and isinstance(node.args[0], ast.Constant)):
+                found.add(f"ai_error_{node.args[0].value}")
+    return found
+
+
+def used_keys():
+    keys = set()
+    for path in SOURCES:
+        keys |= {s for s in strings(path) if KEY.match(s)}
+    keys |= error_categories()
+    # sound_system lists the event as "ai_processing"; its label is derived.
+    if "ai_processing" in strings(CLIENT / "core" / "sound_system.py"):
+        keys.add("sound_event_ai_processing")
+    keys.discard("ai_processing")
+    keys.discard("ai_media")  # the settings block and package name, not a string shown to anyone
+    return keys
+
+
+def locale(name):
+    return json.loads((LANGUAGES / f"{name}.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def used():
+    return used_keys()
+
+
+def test_the_scan_finds_the_feature(used):
+    assert len(used) > 80 and "ai_consent" in used and "ai_error_media_size" in used
+
+
+@pytest.mark.parametrize("name", LOCALES)
+def test_every_key_the_code_uses_exists_and_is_not_blank(used, name):
+    strings_ = locale(name)
+    assert [k for k in sorted(used) if not str(strings_.get(k, "")).strip()] == []
+
+
+def test_no_key_is_declared_without_being_used(used):
+    declared = {k for k in locale("en-US") if OWNED.match(k)}
+    assert sorted(declared - used) == []
+
+
+def test_the_keys_of_the_two_original_features_are_gone():
+    """Names that existed only in one of the merged pull requests; a second
+    copy of a string comes back under one of these."""
+    gone = {
+        "ai_title", "ai_enabled", "ai_provider", "ai_status", "ai_describe_photo", "ai_describe_prompt",
+        "ai_description_loading", "ai_send_photo", "ai_error_image_size", "ai_error_image_format",
+        "ai_privacy_notice", "ai_privacy_notice_title", "ai_not_configured_msg", "ai_pdf_only_msg",
+        "ai_media_download_error_msg", "ai_unexpected_error_msg", "ai_still_processing_msg",
+        "ai_result_ask_btn", "ai_result_copy_all_btn", "ai_result_ask_label", "ai_result_blocks_label",
+        "ai_result_sticker_title", "ai_transcribe_sticker_menu", "ai_transcribe_stickers_label",
+        "sound_event_photo_describing",
+        *(f"{p}_{s}" for p in ("gemini", "openai", "claude", "groq", "openrouter")
+          for s in ("api_key_label", "api_key_help_label", "model_label", "model_help_label")),
+    }
+    for name in LOCALES:
+        assert sorted(gone & set(locale(name))) == [], name
+
+
+def test_no_two_keys_say_the_same_thing():
+    texts = {}
+    for key, value in locale("en-US").items():
+        if OWNED.match(key):
+            texts.setdefault(value.strip().lower().rstrip(".:…"), []).append(key)
+    same = [sorted(keys) for keys in texts.values() if len(keys) > 1]
+    # Two media kinds keep their own menu entry so each can be reworded alone.
+    assert same == [["ai_describe_image_menu", "ai_describe_video_menu"]]
+
+
+@pytest.mark.parametrize("name", LOCALES)
+def test_no_label_carries_a_shortcut_or_a_mnemonic(name):
+    """Shortcuts are announced by ui/accessible.py objects. Only the demo's
+    explanatory note is allowed to name one (the F1 list line is not an ai_ key)."""
+    for key, value in locale(name).items():
+        if OWNED.match(key) and key != "ai_demo_notice":
+            assert "&" not in value.replace("&&", ""), key
+            assert not re.search(r"\b(?:Ctrl|Alt|Shift)\+", value), key
+
+
+def test_the_menu_and_window_titles_are_declared_keys(used):
+    from core.ai_media import config
+    assert set(config.MENU_KEY.values()) <= used and set(config.TITLE_KEY.values()) <= used
+
+
+@pytest.mark.parametrize("name", LOCALES)
+def test_the_provider_and_kind_names_fill_their_placeholders(name):
+    strings_ = locale(name)
+    assert strings_["ai_provider_button"].format(provider="X")
+    assert "X" in strings_["ai_consent"].format(providers="X")
+    assert "X" in strings_["ai_provider_supports"].format(kinds="X")
+    assert "X" in strings_["ai_answered_by"].format(provider="X")
+    assert strings_["ai_attempt_line"].format(provider="A", reason="B") == "A: B"

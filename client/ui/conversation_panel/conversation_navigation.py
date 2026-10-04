@@ -8,6 +8,7 @@ ConversationsPanel.__init__/init_UI is available here.
 import logging
 import threading
 import wx
+from core.conversation_view import ARCHIVED, LOCKED
 from core.utils import (
     db_fetch_limit,
     effective_unread_count,
@@ -211,14 +212,58 @@ class ConversationNavigationMixin:
             "records": db_msgs
         }
 
-    def navigate_to_conversation(self, conversation):
+    def _open_focus_target(self) -> str:
+        """Where opening a conversation puts keyboard focus: "messages_list" or
+        "message_field". Settings > User Interface > "focus_on_open" — the
+        messages list when it is "unread_or_last", and also whenever the
+        message field cannot take input (a read-only group, say). One rule for
+        a conversation being opened and for one that was already open."""
+        setting = self.main_window.settings.get("user_interface", {}).get(
+            "focus_on_open", "message_field")
+        if setting == "unread_or_last" or not self.message_field.IsEnabled():
+            return "messages_list"
+        return "message_field"
+
+    def _focus_already_open_conversation(self):
+        """Apply "focus_on_open" to a conversation that is already on screen:
+        the message field, or the messages list on the unread separator when
+        there is one and on the last message otherwise — the row a fresh open
+        would have selected."""
+        if self._open_focus_target() == "message_field":
+            self.message_field.SetFocus()
+            return
+        count = self.messages_list.GetItemCount()
+        if count > 0:
+            sep = self._unread_sep_idx
+            # A separator the user already moved past stays on screen but no
+            # longer anchors anything: a fresh open would find nothing unread.
+            if getattr(self, "_sep_anchors_read_position", False):
+                sep = -1
+            target = sep if 0 <= sep < count else count - 1
+            self.messages_list.Focus(target)
+            self.messages_list.Select(target)
+            self.messages_list.EnsureVisible(target)
+        self.messages_list.SetFocus()
+
+    def navigate_to_conversation(self, conversation, *, origin=None,
+                                 take_focus=True):
+        """Open `conversation`. `origin` is the panel it belongs to (MAIN,
+        ARCHIVED or LOCKED); left out, it follows resolve_origin()."""
+        self._begin_conversation_visit(conversation, origin)
         if self.conversation is not None and self.conversation.get("remoteJid") == conversation.get("remoteJid"):
             self.conversation = conversation
             self._sync_voice_call_button(conversation.get("remoteJid", ""))
+            # It may have been hidden behind another panel and is being opened
+            # from this one now.
+            self.conversation_panel.Show()
             self.conversation_panel.Layout()
             self.Layout()
-            # Conversation already open — just focus the message input field.
-            wx.CallAfter(self.message_field.SetFocus)
+            # Conversation already open: nothing to reload, but choosing it in
+            # the list is still "opening" it, so the same "focar ao abrir"
+            # setting decides where focus goes (it used to be the message
+            # field unconditionally, and ignored take_focus).
+            if take_focus:
+                wx.CallAfter(self._focus_already_open_conversation)
             return
         # Record that the user actually looked at this conversation. It is the
         # gate on asking the *phone* for its older history: every such request
@@ -230,6 +275,8 @@ class ConversationNavigationMixin:
         except Exception:
             logging.exception("[conversations] could not record the open (non-fatal)")
         self._stop_typing_for_current_conversation()
+        if hasattr(self, "close_ai_media"):
+            self.close_ai_media()
         self._cancel_active_recording()
         # Leaving the conversation invalidates any pending auto-chain timers —
         # they captured a target_msg from THIS conversation's list and would
@@ -402,7 +449,9 @@ class ConversationNavigationMixin:
             except Exception:
                 logging.exception("[navigate_to_conversation] message_field.SetFocus() raised")
 
-        if focus_setting == "unread_or_last" or not self.message_field.IsEnabled():
+        if not take_focus:
+            pass
+        elif self._open_focus_target() == "messages_list":
             wx.CallAfter(_do_focus_messages_list)
         else:
             wx.CallAfter(_do_focus_message_field)
@@ -483,6 +532,8 @@ class ConversationNavigationMixin:
             self._hide_mention_suggestions()
             self.message_field.SetFocus()
             return False, ""
+        if hasattr(self, "close_ai_media"):
+            self.close_ai_media()
         self._stop_typing_for_current_conversation()
         self._cancel_active_recording()
         self._hide_audio_controls()
@@ -512,6 +563,7 @@ class ConversationNavigationMixin:
         self._reset_expanded_window()
         closed_jid = self._last_open_jid
         self.conversation = None
+        self._conversation_origin = None
         self._voice_call_btn.Hide()
         self.conversation_panel.Hide()
         self.Layout()
@@ -548,20 +600,20 @@ class ConversationNavigationMixin:
         self.close_conversation(event)
 
     def close_conversation(self, event=None):
+        origin = getattr(self, "_conversation_origin", None)
         closed, closed_jid = self._close_conversation_core()
         if not closed:
             return  # _close_conversation_core() only handled the mention popup
         mw = self.main_window
-        # If the conversation being closed is archived, it was opened from the
-        # archived list (ArchivedConversationsPanel), which stays hidden behind
-        # this panel while the conversation is open — so Esc must send focus
-        # back there instead of the regular conversations list.
-        if (closed_jid
-                and getattr(mw, "is_chat_locked", lambda _jid: False)(closed_jid)
+        # Esc returns to the list the conversation was opened from, whatever
+        # the chat is (an archived chat found through the main search box
+        # belongs to the main list). The archived and locked lists sit
+        # hidden behind this panel while their conversation is open.
+        if (origin == LOCKED and closed_jid
                 and getattr(mw, "_chat_lock_unlocked", False)
                 and hasattr(mw, "locked_conversations_panel")):
             wx.CallAfter(self._restore_to_locked_list, closed_jid)
-        elif (closed_jid and mw.is_chat_archived(closed_jid)
+        elif (origin == ARCHIVED and closed_jid
                 and hasattr(mw, "archived_conversations_panel")):
             wx.CallAfter(self._restore_to_archived_list, closed_jid)
         else:

@@ -292,6 +292,17 @@ class TestStillPendingMessageIsUnaffected:
         assert stub.main_window.everyone_calls == []
 
 
+def _run_and_join_threads(fn):
+    """Join only the threads ``fn`` started. Joining every live thread also
+    waits out the 2 s timeout on each daemon thread an earlier test left
+    behind, which cost this file 40 s in a full run."""
+    import threading
+    before = set(threading.enumerate())
+    fn()
+    for t in set(threading.enumerate()) - before:
+        t.join(timeout=2)
+
+
 class TestANormalSentMessageIsUnaffected:
     """Regression guard: a message with a real WhatsApp id must still go
     through the actual revoke API, not the local-only shortcut."""
@@ -304,11 +315,7 @@ class TestANormalSentMessageIsUnaffected:
                              lambda fn, *a, **kw: fn(*a, **kw))
         stub = _DeleteStub(_real_sent_msg())
 
-        stub._on_menu_delete_message(0)
-        import threading
-        for t in threading.enumerate():
-            if t is not threading.current_thread():
-                t.join(timeout=2)
+        _run_and_join_threads(lambda: stub._on_menu_delete_message(0))
 
         assert stub.main_window.everyone_calls == [(REMOTE, {"id": "REAL_ID", "fromMe": True, "remoteJid": REMOTE})]
 
@@ -316,11 +323,7 @@ class TestANormalSentMessageIsUnaffected:
         _patch_delete_dialog(monkeypatch, result=wx.ID_OK, everyone_selected=False, tmp_path=tmp_path)
         stub = _DeleteStub(_real_sent_msg())
 
-        stub._on_menu_delete_message(0)
-        import threading
-        for t in threading.enumerate():
-            if t is not threading.current_thread():
-                t.join(timeout=2)
+        _run_and_join_threads(lambda: stub._on_menu_delete_message(0))
 
         assert stub.main_window.for_me_calls == [(REMOTE, {"id": "REAL_ID", "fromMe": True, "remoteJid": REMOTE})]
 

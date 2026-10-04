@@ -273,6 +273,7 @@ class HistoryLoadingMixin:
                     logging.info(f"[_load_older_messages] Returned newest from DB: id={displayable[-1].get('key', {}).get('id')}, ts={displayable[-1].get('timestamp')}")
                     self.messages_list.Freeze()
                     try:
+                        _old_rows = list(self._sorted_messages)
                         old_count = len(self._sorted_messages)
                         self._all_sorted_messages = self._deduplicate_messages(displayable + self._all_sorted_messages)
                         self._sorted_messages     = self._deduplicate_messages(displayable + self._sorted_messages)
@@ -285,10 +286,8 @@ class HistoryLoadingMixin:
                             self._remember_expanded_window()
                             self._recompute_unread_sep_idx()
                                 
-                            self.messages_list.DeleteAllItems()
-                            for msg in self._sorted_messages:
-                                self.messages_list.Append((self._render_message_line(msg),))
-                                
+                            self._sync_message_rows(_old_rows, self._sorted_messages)
+
                             self.messages_list.Focus(n_new)
                             self.messages_list.Select(n_new, True)
                             self.messages_list.EnsureVisible(n_new)
@@ -419,6 +418,7 @@ class HistoryLoadingMixin:
             
         self.messages_list.Freeze()
         try:
+            _old_rows = list(self._sorted_messages)
             old_count = len(self._sorted_messages)
             self._all_sorted_messages = self._deduplicate_messages(displayable + self._all_sorted_messages)
             self._sorted_messages     = self._deduplicate_messages(displayable + self._sorted_messages)
@@ -455,10 +455,8 @@ class HistoryLoadingMixin:
             
             self._recompute_unread_sep_idx()
 
-            self.messages_list.DeleteAllItems()
-            for msg in self._sorted_messages:
-                self.messages_list.Append((self._render_message_line(msg),))
-                
+            self._sync_message_rows(_old_rows, self._sorted_messages)
+
             self.messages_list.Focus(n_new)
             self.messages_list.Select(n_new, True)
             self.messages_list.EnsureVisible(n_new)
@@ -482,16 +480,15 @@ class HistoryLoadingMixin:
             n_new = len(new_msgs)
 
             # Extend the in-memory list and update the offset
+            _old_rows = list(self._sorted_messages)
             self._sorted_messages   = new_msgs + self._sorted_messages
             self._messages_offset   = new_start
             self._remember_expanded_window()
             if self._unread_sep_idx >= 0:
                 self._unread_sep_idx += n_new
 
-            # Rebuild the wx.ListCtrl from the updated _sorted_messages
-            self.messages_list.DeleteAllItems()
-            for msg in self._sorted_messages:
-                self.messages_list.Append((self._render_message_line(msg),))
+            # Insert only the older page above what is already listed.
+            self._sync_message_rows(_old_rows, self._sorted_messages)
 
             # Keep the previously-first item in view (now at index n_new)
             self.messages_list.Focus(n_new)

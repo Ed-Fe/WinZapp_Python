@@ -8,6 +8,7 @@ available here.
 import logging
 import time
 import wx
+from core.conversation_view import conversation_in_view
 from main_window.message_rules import (
     _discount_non_countable_unread,
     note_unread_discount_state,
@@ -505,6 +506,10 @@ class ChatEventsMixin:
                     else speech.get("announce_recording", True)
                 )
                 active_match = is_active_chat(chat_jid_norm, conv_jid)
+                # The open conversation only counts while it is on screen: one
+                # left open behind another panel (Alt+4, Status, Calls, ...) is
+                # not being read, same gate as mark-as-read and the sounds.
+                in_view = conversation_in_view(panel)
                 # Typing/recording indicators are only meaningful while the user
                 # is actually looking at WinZapp — a conversation left open when
                 # the window was minimized to the tray must not keep announcing.
@@ -514,9 +519,9 @@ class ChatEventsMixin:
                     and not self.IsIconized()
                     and self.IsActive()
                 )
-                logging.info("[on_presence_update] announce_enabled=%s, is_active_chat=%s, window_active=%s (chat_jid_norm=%s, conv_jid=%s)",
-                             announce_enabled, active_match, window_active, chat_jid_norm, conv_jid)
-                if announce_enabled and active_match and window_active:
+                logging.info("[on_presence_update] announce_enabled=%s, is_active_chat=%s, window_active=%s, in_view=%s (chat_jid_norm=%s, conv_jid=%s)",
+                             announce_enabled, active_match, window_active, in_view, chat_jid_norm, conv_jid)
+                if announce_enabled and active_match and window_active and in_view:
                     # Mute/archive suppress background notifications, not the
                     # live state of a conversation the user deliberately has
                     # open. The active-chat and active-window gates above are
@@ -641,6 +646,9 @@ class ChatEventsMixin:
                 jid, normalized, unread_count, previous_unread,
             )
             return
+        # Recorded whatever the guards below decide for the badge: it is what
+        # the server believes, and opening the chat has to correct it.
+        self._note_server_unread(normalized, unread_count)
         # During the initial sync the WPPConnect handshake can emit
         # chats-update with unreadCount=0 BEFORE get_remote_chats() has
         # fetched the real list — accepting that would wipe the locally
@@ -726,8 +734,7 @@ class ChatEventsMixin:
         # through to the ordinary closed-chat branches, which already refuse
         # a server count below the local one and accept an honest higher one.
         _open_now = (
-            cp is not None
-            and cp.conversation is not None
+            conversation_in_view(cp)
             and cp.conversation.get("remoteJid") == normalized
             and self._unread_anchored_to_local_read(normalized)
         )

@@ -8,6 +8,8 @@ paths:
   - "client/ui/conversation_panel/*.py"
   - "client/main_window/shortcuts.py"
   - "client/main_window/chat_list.py"
+  - "client/main_window/chat_lock.py"
+  - "client/ui/navigation.py"
 ---
 
 # Screen reader speech
@@ -15,3 +17,5 @@ paths:
 **Read `docs/traps/screen-reader-speech.md` before changing these files.** Short form:
 
 Suppressing a focus announcement is done by the focus cloak (MSAA state without FOCUSED, disarmed after ~500 ms), never by cancelling speech. A list row must not be rewritten while focus is moving off it — hold repaints and release them when the sequence ends.
+
+Switching to a chat panel (Alt+1, Alt+4, locked, navigation list) goes through `show_chat_panel()` only: it always hides the open conversation's pane (the conversation stays open, never reshown by a switch: that was a perceptible delay), focuses the panel's chat list (never a message list), and never rebuilds, loads or requests anything. The conversation returns only on an explicit ask (Alt+M, Alt+2, Alt+3: `reveal_open_conversation()`, in the panel it belongs to) or by opening a chat.

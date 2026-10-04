@@ -220,3 +220,56 @@ class TestTheMarkerIsRegisteredAndUsed:
             "these modules construct a real wx dialog but are not marked "
             f"`wxgui`: {unmarked}"
         )
+
+
+def _is_wx(node):
+    """`wx`, `wx.adv`, ... or `sys.modules["wx..."]`."""
+    while isinstance(node, ast.Attribute):
+        node = node.value
+    if isinstance(node, ast.Name):
+        return node.id == "wx"
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(node.slice.value, str)
+        and node.slice.value.split(".")[0] == "wx"
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "modules"
+    )
+
+
+def _import_time_wx_assignments(body):
+    """Lines that assign onto wx while the module is imported. Function and
+    class bodies run later (and can use monkeypatch); an `except ImportError`
+    handler only runs when wx is not installed, so it stubs a fake module, not
+    the real one."""
+    lines = []
+    for node in body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Attribute) and _is_wx(t.value) for t in targets):
+                lines.append(node.lineno)
+        for field in ("body", "orelse", "finalbody"):
+            lines += _import_time_wx_assignments(getattr(node, field, None) or [])
+        for handler in getattr(node, "handlers", None) or []:
+            name = handler.type
+            if not (isinstance(name, ast.Name) and name.id in ("ImportError", "ModuleNotFoundError")):
+                lines += _import_time_wx_assignments(handler.body)
+    return lines
+
+
+@pytest.mark.parametrize("path", _test_modules(), ids=lambda p: p.name)
+def test_no_module_changes_the_real_wx_for_the_tests_after_it(path):
+    """`wx.CallAfter = <run now>` at module level stays in force for the rest
+    of the run. test_group_presence_isgroup_fallback.py did exactly that, and a
+    later pairing test's background thread then ran connect.py's error handler
+    on the spot and showed a real wx.MessageBox on the user's desktop. Patch wx
+    inside a test or fixture with monkeypatch, which undoes it afterwards."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    lines = _import_time_wx_assignments(tree.body)
+    assert not lines, (
+        f"{path.name} line(s) {lines} change wx when the module is imported, "
+        f"for every test that runs after it. Use monkeypatch in a fixture."
+    )

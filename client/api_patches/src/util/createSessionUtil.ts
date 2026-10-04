@@ -624,6 +624,15 @@ async function restoreMsgKeySerialized(
  * replacement take effect), so both call shapes are served whatever order the
  * wrappers were installed in. An object call - WhatsApp's own - passes
  * through untouched.
+ *
+ * WA-JS 4.6.1 learned the object form itself (its wrapper calls
+ * encryptAndSendStatusMsg({ metricsReporter, msgProtobuf, sendMsgRecord })
+ * when the export's .length is 1, positionally otherwise). It reads the export
+ * live too, so the two do not double-wrap: this adapter has length 1, WA-JS
+ * then makes the object call, and the adapter passes it through. On 4.6.0, or
+ * when something wrapping the sender reports length 0, the positional call is
+ * what arrives and the adapter converts it. Both libraries are served by the
+ * same code.
  */
 async function restoreStatusSender(page: any, logger: any, session: string) {
   if (!page) return;
@@ -1552,6 +1561,7 @@ export default class CreateSessionUtil {
 
     if (req.serverOptions.webhook.onPresenceChanged) {
       await this.onPresenceChanged(client, req);
+      await this.onGroupPresenceBridge(client, req);
     }
 
     await this.onUnreadCountChanged(client, req);
@@ -2777,6 +2787,122 @@ export default class CreateSessionUtil {
       });
       callWebHook(client, req, 'onpresencechanged', presenceChangedEvent);
     });
+  }
+
+  /**
+   * WinZapp patch: "typing…" / "recording audio…" in GROUPS.
+   *
+   * wa-js builds `chat.presence_change` from the presence model's singular
+   * `chatstate`, and for a group fills `participants` from its `chatstates`
+   * collection. Current WhatsApp Web keeps who is typing in a group in the
+   * model's `typingUserIds` / `recordingUserIds` arrays instead (measured live
+   * on 2026-10-01, wa-js 4.6.0): the event still fires for the group, but with
+   * `participants: []`, and WinZapp's client -- which can only say WHO is typing
+   * in a group -- dropped every one of them in silence. One-to-one chats carry
+   * their state in `chatstate` and were never affected, which is why only
+   * groups went quiet.
+   *
+   * This bridge watches those two arrays on every group presence model and
+   * hands wppconnect's own exposed `onPresenceChanged` function the event shape
+   * the client already understands (participants with a state; 'paused' for
+   * one that stopped). It only ADDS events: wa-js's own (participant-less)
+   * group event keeps arriving and is ignored client-side as before.
+   *
+   * Idempotent in the page, so it is simply re-run on every load; the retry
+   * covers wa-js / the exposed function not being there yet.
+   */
+  async onGroupPresenceBridge(client: WhatsAppServer, req: Request) {
+    const installBridge = (attempt = 0) => {
+      client.page
+        .evaluate(() => {
+          const win = window as any;
+          const wpp = win.WPP;
+          const store = wpp && wpp.whatsapp && wpp.whatsapp.PresenceStore;
+          if (
+            !wpp ||
+            !wpp.isFullReady ||
+            !store ||
+            typeof win.onPresenceChanged !== 'function'
+          ) {
+            return false;
+          }
+          const idOf = (x: any): string => (x && x._serialized) || String(x);
+          const last: Map<string, Map<string, string>> =
+            win.__winzappGroupPresenceLast ||
+            (win.__winzappGroupPresenceLast = new Map());
+          const emit = (model: any) => {
+            const id = idOf(model.id);
+            const now = new Map<string, string>();
+            for (const p of model.typingUserIds || []) now.set(idOf(p), 'typing');
+            for (const p of model.recordingUserIds || [])
+              now.set(idOf(p), 'recording_audio');
+            const before = last.get(id) || new Map<string, string>();
+            // Typing and recording are two attributes, so one keystroke can
+            // raise two change events with nothing different in between.
+            if (
+              now.size === before.size &&
+              Array.from(now).every(([pid, st]) => before.get(pid) === st)
+            ) {
+              return;
+            }
+            const participants: any[] = [];
+            now.forEach((state, pid) =>
+              participants.push({ id: pid, state, shortName: '' })
+            );
+            before.forEach((_state, pid) => {
+              if (!now.has(pid)) {
+                participants.push({ id: pid, state: 'paused', shortName: '' });
+              }
+            });
+            if (now.size) last.set(id, now);
+            else last.delete(id);
+            if (!participants.length) return;
+            win.onPresenceChanged({
+              id,
+              isOnline: false,
+              isGroup: true,
+              isUser: false,
+              shortName: '',
+              state: participants[0].state,
+              t: Date.now(),
+              participants,
+            });
+          };
+          const attach = (model: any) => {
+            if (
+              !model ||
+              !String(model.id).endsWith('@g.us') ||
+              model.__winzappGroupPresence
+            ) {
+              return;
+            }
+            model.__winzappGroupPresence = true;
+            model.on('change:typingUserIds', () => emit(model));
+            model.on('change:recordingUserIds', () => emit(model));
+          };
+          store.getModelsArray().forEach(attach);
+          if (!win.__winzappGroupPresenceAdd) {
+            win.__winzappGroupPresenceAdd = true;
+            // A group presence model created after this ran (a group joined
+            // later, or one WhatsApp had not materialised yet).
+            store.on('add', attach);
+          }
+          return true;
+        })
+        .then((installed: boolean) => {
+          if (!installed && attempt < 120) {
+            setTimeout(() => installBridge(attempt + 1), 500);
+          } else if (installed) {
+            req.logger.info(`[${client.session}] group presence bridge installed`);
+          }
+        })
+        .catch((e: any) =>
+          req.logger.warn(`[onGroupPresenceBridge] install failed: ${e?.message || e}`)
+        );
+    };
+    // A page reload is a fresh JS context: the bridge goes with it.
+    client.page.on('load', () => installBridge());
+    installBridge();
   }
 
   async onReactionMessage(client: WhatsAppServer, req: Request) {

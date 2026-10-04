@@ -53,8 +53,10 @@ def _store(root, payload):
 
 
 @pytest.fixture
-def gd(tmp_path):
-    return str(tmp_path)
+def gd(tmp_path_factory):
+    # Short on purpose: tmp_path embeds the test's name, and the snapshot paths
+    # under it pass Windows' 260-character limit in a parallel run.
+    return str(tmp_path_factory.mktemp("gd"))
 
 
 def _seed(gd, session=SESSION, live=None, snapshot=None, previous=None):

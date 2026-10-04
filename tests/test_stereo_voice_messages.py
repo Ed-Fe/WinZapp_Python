@@ -6,39 +6,36 @@ image. Stereo is now:
 
 - a default in Settings > Dispositivos de áudio (general.voice_message_stereo);
 - a second record button for the other mode, for one message;
-- sent as an audio message rather than a voice message, since iPhone cannot
-  play a stereo voice message but plays a stereo audio message;
-- announced before use, with a "don't show again" that
-  user_interface.warn_stereo_voice_iphone (Settings > Interface) mirrors.
+- sent as an audio message rather than a voice message, in exactly the
+  format of microphone + computer audio (Ctrl+Shift+H): AAC-LC M4A through
+  the attachment route, which iPhone plays (stereo OGG/Opus it does not);
+  tests/test_system_audio_m4a.py checks that route against the pipeline.
 
 Stereo is only what the microphone really gave: without two channels the
 capture falls back to mono and says so.
 
-Panel and dialog methods run against stubs; nothing here opens a window.
+Panel methods run against stubs; nothing here opens a window.
 """
 
 import inspect
+import json
 import types
+from pathlib import Path
 
 import pytest
 
 import main
 from core import audio_devices
 from core.message_queue import PendingMessage
-from core.utils import DEFAULT_SETTINGS
+from core.utils import DEFAULT_SETTINGS, backfill_missing_defaults
 from core.voice_stereo import (
     alternate_mode_is_stereo, alternate_record_label_key, encode_as_stereo,
     fell_back_to_mono, opus_encode_args, recording_configs_preferring,
     sends_as_audio_file,
 )
 from main import MainWindow
-from ui import conversations
 from ui.conversations import ConversationsPanel
-from ui.dialogs import settings_dialog
-from ui.dialogs.settings_dialog import SettingsDialog
-from tests.god_modules import (
-    conversations_source, patch_conversations_global, patch_main_global,
-)
+from tests.god_modules import conversations_source, patch_main_global
 
 
 # ── The pure decisions ────────────────────────────────────────────────────────
@@ -87,11 +84,8 @@ class TestWhatGoesOut:
         assert fell_back_to_mono(True, 2) is False
         assert fell_back_to_mono(False, 1) is False
 
-    def test_the_encoder_arguments(self):
-        assert opus_encode_args(False)[:2] == ["-ac", "1"]
-        assert "64k" in opus_encode_args(False)
-        assert opus_encode_args(True)[:2] == ["-ac", "2"]
-        assert "96k" in opus_encode_args(True)
+    def test_the_opus_arguments_are_those_of_a_mono_voice_message(self):
+        assert opus_encode_args() == ["-ac", "1", "-c:a", "libopus", "-b:a", "64k"]
 
     def test_the_second_button_offers_the_other_mode(self):
         assert alternate_mode_is_stereo(False) is True
@@ -100,9 +94,40 @@ class TestWhatGoesOut:
         assert alternate_record_label_key(True) == "record_voice_message_mono"
 
 
-def test_the_defaults_keep_mono_and_warn():
+def test_the_default_keeps_mono():
     assert DEFAULT_SETTINGS["general"]["voice_message_stereo"] is False
-    assert DEFAULT_SETTINGS["user_interface"]["warn_stereo_voice_iphone"] is True
+
+
+def test_the_iphone_warning_setting_is_gone():
+    assert "warn_stereo_voice_iphone" not in DEFAULT_SETTINGS["user_interface"]
+    root = Path(__file__).parents[1] / "client"
+    defaults = json.loads((root / "data" / "settings_default.json").read_text(encoding="utf-8"))
+    assert "warn_stereo_voice_iphone" not in defaults["user_interface"]
+    assert not (root / "ui" / "dialogs" / "stereo_voice_warning.py").exists()
+
+
+def test_an_old_settings_file_with_the_removed_key_still_loads():
+    """The key is simply left where it is: nothing reads it, nothing fails."""
+    stored = {"general": {"voice_message_stereo": True},
+              "user_interface": {"warn_stereo_voice_iphone": False,
+                                 "confirm_mark_all_read": False}}
+
+    backfill_missing_defaults(stored, DEFAULT_SETTINGS)
+
+    assert stored["general"]["voice_message_stereo"] is True
+    assert stored["user_interface"]["confirm_mark_all_read"] is False
+    assert "confirm_resync_all" in stored["user_interface"]
+
+
+def test_no_locale_keeps_the_iphone_warning_strings():
+    languages = Path(__file__).parents[1] / "client" / "languages"
+    for path in languages.glob("*.json"):
+        if path.name == "language_map.json":
+            continue
+        strings = json.loads(path.read_text(encoding="utf-8"))
+        for key in ("stereo_voice_iphone_warning", "stereo_voice_warning_title",
+                    "ui_warn_stereo_voice_iphone"):
+            assert key not in strings, (path.name, key)
 
 
 # ── Encoding and sending ──────────────────────────────────────────────────────
@@ -115,8 +140,7 @@ class _Encoder:
         return __file__  # any existing file stands in for ffmpeg
 
 
-@pytest.mark.parametrize("stereo, channels", [(False, "1"), (True, "2")])
-def test_the_encoder_is_asked_for_the_right_channel_count(monkeypatch, tmp_path, stereo, channels):
+def test_the_voice_message_encoder_is_always_mono(monkeypatch, tmp_path):
     calls = []
 
     def _run(args, **_kw):
@@ -127,52 +151,24 @@ def test_the_encoder_is_asked_for_the_right_channel_count(monkeypatch, tmp_path,
     wav = tmp_path / "voz.wav"
     wav.write_bytes(b"RIFF")
 
-    assert _Encoder()._convert_wav_to_ogg(str(wav), stereo=stereo)
+    assert _Encoder()._convert_wav_to_ogg(str(wav))
 
     args = calls[0]
-    assert args[args.index("-ac") + 1] == channels
+    assert args[args.index("-ac") + 1] == "1"
+    assert args[args.index("-b:a") + 1] == "64k"
 
 
-def test_a_retried_send_keeps_the_channels_of_the_first_try():
-    assert PendingMessage("L1", "j@s.whatsapp.net", audio_path="a.wav", stereo=True).stereo is True
-    assert PendingMessage("L1", "j@s.whatsapp.net", audio_path="a.wav").stereo is False
+def test_a_pending_voice_message_no_longer_carries_a_channel_choice():
+    assert not hasattr(PendingMessage("L1", "j@s.whatsapp.net", audio_path="a.wav"), "stereo")
     from core import message_queue
-    src = inspect.getsource(message_queue)
-    assert 'stereo=getattr(msg, "stereo", False)' in src
-    send_src = inspect.getsource(MainWindow.send_audio_message)
-    assert "self._convert_wav_to_ogg(wav_path, stereo=stereo)" in send_src
+    assert "stereo" not in inspect.getsource(message_queue.MessageQueue)
 
 
 # ── Stereo goes out as an audio message, not a voice message ─────────────────
 
 
 class _Sender:
-    """send_audio_message() against a stub: the stereo branch leaves before
-    anything a mono voice message needs is touched."""
     send_audio_message = MainWindow.send_audio_message
-    _send_recording_as_audio_file = MainWindow._send_recording_as_audio_file
-
-    def __init__(self, encoded=b"OggS...OpusHead..."):
-        self.uploads = []
-        self.encoded = encoded
-        self.encode_calls = []
-        self.i18n = types.SimpleNamespace(t=lambda key: key)
-
-    def send_media_attachment(self, remote_jid, file_path, media_type, caption="",
-                              quoted=None, custom_filename="", **_kw):
-        with open(file_path, "rb") as fh:
-            body = fh.read()
-        self.uploads.append({"jid": remote_jid, "path": file_path, "type": media_type,
-                             "quoted": quoted, "body": body, "filename": custom_filename})
-        return "REAL_ID"
-
-    def _convert_wav_to_ogg(self, wav_path, stereo=False):
-        self.encode_calls.append((wav_path, stereo))
-        if self.encoded is None:
-            return None
-        path = wav_path + ".ogg"
-        open(path, "wb").write(self.encoded)
-        return path
 
 
 def test_only_stereo_sends_as_an_audio_file():
@@ -180,50 +176,8 @@ def test_only_stereo_sends_as_an_audio_file():
     assert sends_as_audio_file(False) is False
 
 
-class TestStereoSendsAsAudio:
-    def test_the_pre_encoded_bytes_go_out_as_an_audio_upload(self, monkeypatch, tmp_path):
-        patch_main_global(monkeypatch, "api_post", lambda *a, **kw: pytest.fail(
-            "a stereo recording reached /send-voice-base64"))
-        s = _Sender()
-        quoted = {"key": {"id": "Q1"}}
-
-        result = s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
-                                      quoted=quoted, ogg_bytes=b"OPUS-STEREO", stereo=True)
-
-        assert result == "REAL_ID"
-        assert len(s.uploads) == 1
-        upload = s.uploads[0]
-        assert upload["type"] == "audio"
-        assert upload["body"] == b"OPUS-STEREO"
-        assert upload["path"].endswith(".ogg")
-        assert upload["quoted"] is quoted
-        assert s.encode_calls == []  # the pre-encode is reused, not redone
-
-    def test_the_temporary_file_is_removed(self, tmp_path):
-        s = _Sender()
-        s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
-                             ogg_bytes=b"OPUS", stereo=True)
-        assert not main.os.path.exists(s.uploads[0]["path"])
-
-    def test_without_the_pre_encode_it_encodes_the_wav_in_stereo(self, tmp_path):
-        s = _Sender(encoded=b"FROM-WAV")
-        wav = str(tmp_path / "v.wav")
-
-        s.send_audio_message("j@s.whatsapp.net", wav, ogg_bytes=None, stereo=True)
-
-        assert s.encode_calls == [(wav, True)]
-        assert s.uploads[0]["body"] == b"FROM-WAV"
-        assert not main.os.path.exists(wav + ".ogg")
-
-    def test_an_encode_failure_is_a_definite_failure(self, tmp_path):
-        """Nothing reached WhatsApp, so the queue may report it and stop."""
-        s = _Sender(encoded=None)
-        result = s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
-                                      ogg_bytes=None, stereo=True)
-        assert result == {"ok": False, "error": "audio_convert_failed", "retry": False}
-        assert s.uploads == []
-
-    def test_mono_still_goes_out_as_a_voice_message(self, monkeypatch, tmp_path):
+class TestVoiceSender:
+    def test_the_voice_sender_only_posts_a_ptt_voice_message(self, monkeypatch, tmp_path):
         posted = []
 
         def _post(url, json=None, **_kw):
@@ -235,23 +189,25 @@ class TestStereoSendsAsAudio:
         s.wpp_server, s.wpp_port, s.token = "http://127.0.0.1", 6300, "tok"
         s._resolve_jid_for_send = lambda jid: jid
         s._set_wa_connected = lambda *a, **kw: None
-        s._send_recording_as_audio_file = lambda *a, **kw: pytest.fail(
-            "a mono recording was sent as an audio file")
 
         s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
-                             ogg_bytes=b"OPUS-MONO", stereo=False)
+                             ogg_bytes=b"OPUS-MONO")
 
-        assert s.uploads == []
         assert posted[0][0].endswith("/send-voice-base64")
         assert "base64Ptt" in posted[0][1]
+
+    def test_the_old_stereo_ogg_file_route_is_gone(self):
+        assert not hasattr(MainWindow, "_send_recording_as_audio_file")
+        assert "stereo" not in inspect.signature(MainWindow.send_audio_message).parameters
+        assert "stereo" not in inspect.signature(MainWindow._convert_wav_to_ogg).parameters
 
     def test_the_pending_row_already_reads_as_audio(self):
         """The row shown while sending must say what is going out. Checked
         through is_voice_message() itself: the row keeps _is_voice_recording
-        (the sent sound needs it), and that flag used to win over ptt."""
+        (the sent sound needs it), and that flag used to win over ptt. That
+        _send_voice_message writes ptt False for a stereo recording is
+        checked by running it, in tests/test_system_audio_m4a.py."""
         from core.utils import is_voice_message
-        src = inspect.getsource(ConversationsPanel._send_voice_message)
-        assert '"ptt":     not (mixed_audio or sends_as_audio_file(stereo_out)),' in src
 
         def row(ptt):
             return {"_is_voice_recording": True, "messageType": "audioMessage",
@@ -262,29 +218,13 @@ class TestStereoSendsAsAudio:
                   "message": {"audioMessage": {"seconds": 3}}}
         assert is_voice_message(legacy) is True        # no ptt stated: as before
 
-    def test_the_upload_is_named_not_a_temp_file(self, tmp_path):
-        """A recipient who saves the audio gets this name."""
-        s = _Sender()
-        s.send_audio_message("j@s.whatsapp.net", str(tmp_path / "v.wav"),
-                             ogg_bytes=b"OPUS", stereo=True)
-        assert s.uploads[0]["filename"] == "default_filename_audio.ogg"
-
-    def test_the_notice_says_audio_instead_of_iphone_cannot_play(self):
-        import json
-        from pathlib import Path
-        path = Path(__file__).parents[1] / "client" / "languages" / "en-US.json"
-        strings = json.loads(path.read_text(encoding="utf-8"))
-        assert "sent as audio" in strings["stereo_voice_iphone_warning"]
-        assert "can't play" not in strings["stereo_voice_iphone_warning"]
-
 
 # ── The second record button ──────────────────────────────────────────────────
 
 
 class _PanelMainWindow:
-    def __init__(self, default_stereo=False, warn=True):
-        self.settings = {"general": {"voice_message_stereo": default_stereo},
-                         "user_interface": {"warn_stereo_voice_iphone": warn}}
+    def __init__(self, default_stereo=False):
+        self.settings = {"general": {"voice_message_stereo": default_stereo}}
         self.i18n = types.SimpleNamespace(t=lambda key: key)
         self.saves = 0
 
@@ -310,12 +250,14 @@ class _Panel:
 
 @pytest.fixture
 def answer(monkeypatch):
-    state = {"answer": (True, False), "asked": 0}
+    """The warning dialog is gone: any attempt to ask would fail the test."""
+    from ui.dialogs import checkbox_confirm
+    state = {"asked": 0}
 
-    def _ask(parent, i18n):
+    def _ask(*a, **kw):
         state["asked"] += 1
-        return state["answer"]
-    patch_conversations_global(monkeypatch, "ask_stereo_voice", _ask)
+        pytest.fail("the second record button opened a confirmation")
+    monkeypatch.setattr(checkbox_confirm, "confirm_with_checkbox", _ask)
     return state
 
 
@@ -325,34 +267,15 @@ class TestTheSecondButton:
 
         panel._on_record_alternate_mode(None)
 
-        assert answer["asked"] == 1
         assert panel.started == [True]
 
-    def test_no_to_the_iphone_warning_records_nothing(self, answer):
-        answer["answer"] = (False, False)
+    def test_with_the_default_mono_it_never_asks(self, answer):
         panel = _Panel()
 
         panel._on_record_alternate_mode(None)
 
-        assert panel.started == []
-
-    def test_dont_show_again_with_yes_turns_the_warning_off(self, answer):
-        answer["answer"] = (True, True)
-        panel = _Panel()
-
-        panel._on_record_alternate_mode(None)
-
-        assert panel.main_window.settings["user_interface"]["warn_stereo_voice_iphone"] is False
-        assert panel.main_window.saves == 1
         assert panel.started == [True]
-
-    def test_with_the_warning_off_it_does_not_ask(self, answer):
-        panel = _Panel(warn=False)
-
-        panel._on_record_alternate_mode(None)
-
         assert answer["asked"] == 0
-        assert panel.started == [True]
 
     def test_with_stereo_as_default_it_records_one_mono_message_without_asking(self, answer):
         panel = _Panel(default_stereo=True)
@@ -387,82 +310,18 @@ class TestTheSecondButton:
         assert panel._record_voice_alt_btn.label == "record_voice_message_mono"
 
 
-# ── Settings: warning when stereo is turned on ────────────────────────────────
+# ── Settings ──────────────────────────────────────────────────────────────────
 
 
-class _Box:
-    def __init__(self, value):
-        self.value = value
-
-    def GetValue(self):
-        return self.value
-
-    def SetValue(self, value):
-        self.value = value
-
-
-class _SettingsDialog:
-    _confirm_stereo_voice_if_newly_enabled = SettingsDialog._confirm_stereo_voice_if_newly_enabled
-
-    def __init__(self, ticked=True, was_on=False, warn_box=True):
-        self._voice_stereo_check = _Box(ticked)
-        self._warn_stereo_voice_cb = _Box(warn_box)
-        self.main_window = _PanelMainWindow(default_stereo=was_on)
-
-
-@pytest.fixture
-def settings_answer(monkeypatch):
-    state = {"answer": (True, False), "asked": 0}
-
-    def _ask(parent, i18n):
-        state["asked"] += 1
-        return state["answer"]
-    monkeypatch.setattr(settings_dialog, "ask_stereo_voice", _ask)
-    return state
-
-
-class TestSavingSettings:
-    def test_turning_stereo_on_asks(self, settings_answer):
-        dialog = _SettingsDialog()
-
-        dialog._confirm_stereo_voice_if_newly_enabled()
-
-        assert settings_answer["asked"] == 1
-        assert dialog._voice_stereo_check.value is True
-
-    def test_no_leaves_stereo_off(self, settings_answer):
-        settings_answer["answer"] = (False, False)
-        dialog = _SettingsDialog()
-
-        dialog._confirm_stereo_voice_if_newly_enabled()
-
-        assert dialog._voice_stereo_check.value is False
-
-    def test_dont_show_again_unticks_the_warning_box_too(self, settings_answer):
-        settings_answer["answer"] = (True, True)
-        dialog = _SettingsDialog()
-
-        dialog._confirm_stereo_voice_if_newly_enabled()
-
-        assert dialog._warn_stereo_voice_cb.value is False
-        assert dialog.main_window.settings["user_interface"]["warn_stereo_voice_iphone"] is False
-
-    def test_already_on_is_not_asked_again(self, settings_answer):
-        _SettingsDialog(was_on=True)._confirm_stereo_voice_if_newly_enabled()
-        assert settings_answer["asked"] == 0
-
-    def test_the_warning_box_unticked_in_this_same_save_is_honoured(self, settings_answer):
-        _SettingsDialog(warn_box=False)._confirm_stereo_voice_if_newly_enabled()
-        assert settings_answer["asked"] == 0
-
-    def test_stereo_left_off_is_not_asked(self, settings_answer):
-        _SettingsDialog(ticked=False)._confirm_stereo_voice_if_newly_enabled()
-        assert settings_answer["asked"] == 0
-
-    def test_the_save_asks_before_writing_the_key(self):
-        src = inspect.getsource(SettingsDialog._apply_values)
-        assert src.index("self._confirm_stereo_voice_if_newly_enabled()") < src.index(
-            '["voice_message_stereo"]')
+def test_the_settings_dialog_has_no_stereo_warning_left():
+    from ui.dialogs.settings_dialog import SettingsDialog
+    import ui.dialogs.settings_dialog as module
+    source = inspect.getsource(module)
+    assert "stereo_voice_warning" not in source
+    assert "warn_stereo_voice" not in source
+    assert "ui_warn_stereo_voice_iphone" not in source
+    assert not hasattr(SettingsDialog, "_confirm_stereo_voice_if_newly_enabled")
+    assert '["voice_message_stereo"]' in source  # the default itself stays
 
 
 # ── The recording pipeline ────────────────────────────────────────────────────
@@ -478,8 +337,8 @@ class TestThePipelineIsWired:
     def test_the_message_is_encoded_and_queued_with_the_decision(self):
         src = conversations_source()
         assert "stereo_out      = encode_as_stereo(self._recording_stereo, actual_ch)" in src
-        assert "mw._convert_wav_to_ogg(wav_path, stereo=stereo_out)" in src
-        assert "stereo=stereo_out)" in src
+        assert "mw._convert_wav_to_ogg(wav_path)" in src
+        assert "if as_audio_file:\n                self._enqueue_system_audio_file(" in src.replace("\r\n", "\n")
 
     def test_the_second_button_follows_the_first_everywhere(self):
         """Every Hide/Show/Enable/Disable of the record button is mirrored."""
@@ -535,3 +394,50 @@ class TestTheShortcut:
         panel._on_record_alternate_mode(None)
 
         assert panel.started == [True]
+
+
+# ── The name the recipient sees ───────────────────────────────────────────────
+
+
+class _MediaSender:
+    send_media_attachment = MainWindow.send_media_attachment
+
+    def __init__(self):
+        self.wpp_server, self.wpp_port, self.token = "http://127.0.0.1", 6300, "tok"
+        self.i18n = types.SimpleNamespace(t=lambda key: key)
+        self._resolve_jid_for_send = lambda jid: jid
+        self._find_api_ffmpeg = lambda: None
+        self._set_wa_connected = lambda *a, **kw: None
+
+
+def test_a_recorded_audio_upload_carries_the_localized_name_and_audio_mp4(monkeypatch, tmp_path):
+    bodies = []
+
+    def _post(url, headers=None, data=None, **_kw):
+        bodies.append(data)
+        return types.SimpleNamespace(status_code=200, text="{}",
+                                     json=lambda: {"response": [{"id": "R1"}]})
+    patch_main_global(monkeypatch, "api_post", _post)
+    m4a = tmp_path / "winzapp-mixed-abc123.m4a"
+    m4a.write_bytes(b"\x00\x00\x00\x20ftypM4A " + b"x" * 64)
+
+    _MediaSender().send_media_attachment(
+        "j@s.whatsapp.net", str(m4a), "audio",
+        custom_filename="default_filename_audio.m4a")
+
+    body = bodies[0]
+    assert body.filename == "default_filename_audio.m4a"
+    assert body.mime_type == "audio/mp4"
+    sent = b"".join(body)
+    assert b'name="filename"' in sent
+    assert sent.count(b"default_filename_audio.m4a") == 2  # the field and the file part
+    assert b"winzapp-mixed" not in sent
+
+
+def test_the_pending_message_carries_the_custom_filename_to_the_sender():
+    from core import message_queue
+    pm = PendingMessage("L1", "j@s.whatsapp.net", media_path="x.m4a", media_type="audio",
+                        custom_filename="Audio.m4a")
+    assert pm.custom_filename == "Audio.m4a"
+    assert PendingMessage("L2", "j", media_path="x.bin").custom_filename == ""
+    assert "custom_filename=msg.custom_filename" in inspect.getsource(message_queue)

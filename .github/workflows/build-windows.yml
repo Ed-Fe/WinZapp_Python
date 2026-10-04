@@ -88,13 +88,14 @@ jobs:
       # the C installer/uninstaller.  libopus-0.dll is committed to client/lib/
       # so no opus package is needed here.
       - name: Set up MSYS2 (GCC + windres)
-        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: UCRT64
           update: false
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-binutils
+            mingw-w64-ucrt-x86_64-zlib
 
       # cygpath resolves /ucrt64/bin to the real Windows path regardless of
       # where the runner installed MSYS2 (avoids hard-coding C:\msys64).
@@ -108,7 +109,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           # uv itself, pinned like every action: "latest" would let a release
           # build change toolchains on the day uv ships.

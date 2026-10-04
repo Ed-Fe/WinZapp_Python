@@ -61,8 +61,11 @@ def _write_login_store(root, payload):
 
 
 @pytest.fixture
-def gd(tmp_path):
-    return str(tmp_path)
+def gd(tmp_path_factory):
+    # A short directory name, not tmp_path: tmp_path embeds the test's name,
+    # and the snapshot's IndexedDB path under it passes Windows' 260-character
+    # limit as soon as a parallel run adds its worker directory.
+    return str(tmp_path_factory.mktemp("gd"))
 
 
 def _seed(gd, live=None, snapshot=None, previous=None):

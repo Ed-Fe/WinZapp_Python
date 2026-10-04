@@ -213,11 +213,15 @@ class ConversationSyncMixin:
         return payload if isinstance(payload, dict) else None
 
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full",
-                           fetched_ids_out=None):
+                           fetched_ids_out=None, outcome_out=None):
         # fetched_ids_out: an optional set that receives the ids get-messages
         # actually returned for this chat, before they are merged with local
         # records -- the only way a caller can tell the server's answer apart
         # from what was already stored (Shift+F5, core/conversation_resync.py).
+        # outcome_out: an optional dict that receives "chat_absent", whether
+        # the store answered chat_not_found. Both that and an empty page return
+        # True with nothing fetched, and only the first is WhatsApp saying the
+        # chat has no messages (core/conversation_resync.resync_outcome()).
         # Deliberately NOT gated on an active voice call. sync_remote_chats()
         # counts only a False return as a failure, so bailing out here reported
         # every skipped chat as a *successful* fetch: message_sync_ok stayed
@@ -1068,6 +1072,8 @@ class ConversationSyncMixin:
         # _delta_unsatisfied_chats/_absent_chats, which sync_remote_chats()
         # folds into the durable retry list without letting either count as a
         # failed run.
+        if outcome_out is not None:
+            outcome_out["chat_absent"] = bool(chat_absent)
         return bool((api_ok or chat_absent) and persist_ok)
 
     # ── Phone-side deletions/clears — active conversation only ──────────────

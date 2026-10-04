@@ -12,7 +12,7 @@ YENİLİKLER
 
 - Aramalar, WhatsApp'ta olduğu gibi sohbet akışında ve sohbet listesinde görünür: "Cevapsız sesli arama", "Cevaplanan görüntülü arama" gibi kayıtlar, sohbette gerçekleştikleri sırada yer alır. Cevapsız bir arama kaydı üzerindeyken "Geri ara" düğmesi veya Ctrl+Shift+R kısayolu ile ilgili kişi doğrudan geri aranabilir.
 
-- Aramalar için ses ve görüntü ayarları. Ayarlar penceresindeki Aramalar sekmesinde yer alan "Arama ses ayarları", görüşmelerde kullanılacak mikrofon ve hoparlörü; "Görüntülü arama ayarları" ise kamerayı seçmenizi sağlar. Kulaklık yerine hoparlör kullanıldığında sesin yankı yapmasını önleyen yankı engelleme özelliği ile mikrofon ve hoparlör için doğrudan erişim (exclusive) modu da burada bulunur. Arama esnasında aynı seçeneklere Ctrl+C ile erişilebilir.
+- Aramalar için ses ve görüntü ayarları. Ayarlar penceresindeki Aramalar sekmesinde yer alan "Arama ses ayarları", görüşmelerde kullanılacak mikrofon ve hoparlörü; "Görüntülü arama ayarları" ise kamerayı seçmenizi sağlar. Kulaklık yerine hoparlör kullanıldığında sesin yankı yapmasını önleyen yankı engelleme özelliği, sabit gürültüleri (fan sesi, cızırtı gibi) azaltan mikrofon gürültü azaltma özelliği ile mikrofon ve hoparlör için doğrudan erişim (exclusive) modu da burada bulunur. Arama esnasında aynı seçeneklere Ctrl+C ile erişilebilir.
 
 - Kilitli sohbetler (Alt+7). Bağlam menüsündeki "Sohbeti kilitle" öğesi veya Ctrl+Shift+T kısayolu, sohbeti 6 ila 12 haneli bir PIN ile korunan güvenli bir kasaya taşır. Kilitlenen sohbet; ana listede, arşivde, arama sonuçlarında ve mesaj iletme penceresinde görünmez. Bu sohbetlerin bildirimleri yalnızca kaç yeni mesaj geldiğini belirtir; kişi adı ve mesaj içeriği göstermez. Kasayı kurarken WinZapp, PIN kodunu unutursanız yeni bir PIN belirlemenizi sağlayan, sesli okunabilen veya kopyalanabilen bir kurtarma anahtarı oluşturur. Kasa; WinZapp simge durumuna küçültüldüğünde, sistem tepsisine gizlendiğinde veya başka bir panele geçildiğinde ve ayrıca belirlenen bir süre işlem yapılmadığında kendiliğinden kilitlenir; Ctrl+Shift+K kasayı hemen kilitleyip gizler. Kilitli sohbetler sekmesi sol gezinme menüsünden de kaldırılabilir: Bu durumda kasaya yalnızca sohbet arama alanına gizli bir kod yazılarak erişilir.
 
@@ -28,7 +28,7 @@ YENİLİKLER
 
 - Tüm sohbetleri okundu olarak işaretlemeden önce onay isteme. Bu komut çalıştırıldığında artık varsayılan yanıtı Hayır olan bir onay iletişim kutusu açılır; böylece yanlışlıkla basılan bir tuş kombinasyonu telefonunuz da dahil tüm sohbetleri istenmeden okundu durumuna getirmez. İletişim kutusunda bir "Tekrar gösterme" onay kutusu bulunur: İşaretlenip Evet ile onaylandığında sonraki işlemler tüm sohbetleri doğrudan okundu olarak işaretler. Bu onayın yeniden sorulmasını isterseniz Ayarlar > Kullanıcı Arayüzü sekmesindeki "Tüm sohbetleri okundu olarak işaretlemeden önce onay iste" seçeneğini etkinleştirebilirsiniz.
 
-- Ayarlar'da Profil yedekleme sekmesi. Yeni Profil yedekleme sekmesi, WinZapp'in bağlantıyı kurtarmak için kullandığı tarayıcı profili yedeğini uygulama kapanırken ne sıklıkla yenileyeceğini belirler (varsayılan: her 24 saatte bir). Yedekleme, WinZapp açıkken de belirlediğiniz aralıklarla alınabilir: İşlem birkaç dakika sürebilir ve yedekleme sırasında WhatsApp bağlantısı geçici olarak kesilir; WinZapp her işlemden önce onayınızı sorabilir. Yeni bir yedek, ancak WhatsApp bu yedekle tekrar başarılı bir şekilde bağlandığında bir öncekinin yerini alır.
+- Ayarlar'da Profil yedekleme sekmesi. Yeni Profil yedekleme sekmesi, WinZapp'in bağlantıyı kurtarmak için kullandığı tarayıcı profili yedeğini uygulama kapanırken ne sıklıkla yenileyeceğini belirler (varsayılan: her 24 saatte bir). Yedekleme, WinZapp açıkken de belirlediğiniz aralıklarla alınabilir: İşlem birkaç dakika sürebilir ve yedekleme sırasında WhatsApp bağlantısı geçici olarak kesilir; WinZapp her işlemden önce onayınızı sorabilir. Yeni bir yedek, ancak WhatsApp bu yedekle tekrar başarılı bir şekilde bağlandığında bir öncekinin yerini alır. Yedeğe yer ayırmak istemeyenler "Profil yedeklerini saklama" seçeneğini işaretleyebilir; bu durumda profil hasar görürse tekrar eşlemek gerekir. Seçenek işaretlendiğinde WinZapp yedeklerin ne kadar yer kapladığını söyler ve silinip silinmeyeceğini sorar.
 
 - Ayarlarınızı dışa ve içe aktarma. Dosya menüsündeki "Ayarları dışa aktar" seçeneği tercihlerinizi bir dosyaya kaydeder; "Ayarları içe aktar" seçeneği ise ayarlarınızı başka bir bilgisayara veya hesaba taşımak için bu dosyayı uygulamayı yeniden başlatmaya gerek kalmadan anında uygular. WhatsApp bağlantınız ile temizlenen sohbetler veya sohbete özel sesler gibi hesaba özgü veriler bu dosyanın dışında tutulur. Kendi API'nizi kullanıyorsanız sunucu adresi, portu ve anahtarı da dosyayla birlikte aktarılır.
 
@@ -38,9 +38,9 @@ YENİLİKLER
 
 - Esc tuşu kapatmadan önce seçimi kaldırır. Mesajlar seçiliyken Esc tuşuna ilk basış yalnızca mevcut seçimleri kaldırır; tuşa ikinci kez basıldığında ise sohbet kapatılır. Bu davranış da Ayarlar > Kullanıcı Arayüzü sekmesinden isteğe bağlı olarak devre dışı bırakılabilir.
 
-- Stereo sesli mesajlar. Stereo kayıt yeteneğine sahip bir mikrofonla sesli mesajlar her iki kanalın sesini (stereo ses ayrımını) koruyabilir. Ayarlar > Ses Cihazları sekmesindeki "Sesli mesajları varsayılan olarak stereo kaydet" seçeneğini işaretleyebilir ya da yalnızca tek bir mesajı diğer modda kaydetmek için "Sesli mesaj kaydet" düğmesinin altındaki yeni düğmeyi (Ctrl+Shift+G) kullanabilirsiniz: Varsayılan mono ise stereo, stereo ise mono olarak kaydeder. iPhone stereo sesli mesajları oynatamadığı için stereo kayıt ses olarak gönderilir; WinZapp bunu önce "Tekrar gösterme" onay kutusu barındıran bir uyarıyla bildirir. Bu uyarının yeniden gösterilmesi için Kullanıcı Arayüzü sekmesindeki ilgili seçeneği kullanabilirsiniz. Mikrofon iki kanal sağlamıyorsa mesaj otomatik olarak mono kaydedilir ve WinZapp bunu sesli olarak bildirir.
+- Stereo sesli mesajlar. Stereo kayıt yeteneğine sahip bir mikrofonla sesli mesajlar her iki kanalın sesini (stereo ses ayrımını) koruyabilir. Ayarlar > Ses Cihazları sekmesindeki "Sesli mesajları varsayılan olarak stereo kaydet" seçeneğini işaretleyebilir ya da yalnızca tek bir mesajı diğer modda kaydetmek için "Sesli mesaj kaydet" düğmesinin altındaki yeni düğmeyi (Ctrl+Shift+G) kullanabilirsiniz: Varsayılan mono ise stereo, stereo ise mono olarak kaydeder. Stereo kayıt sesli mesaj olarak değil ses mesajı olarak gönderilir, bu nedenle iPhone'da da oynatılır. Mikrofon iki kanal sağlamıyorsa mesaj otomatik olarak mono kaydedilir ve WinZapp bunu sesli olarak bildirir.
 
-- Shift+F5 ile yalnızca açık sohbeti yeniden eşitleme (Eşitle menüsünde de bulunur). Tüm sohbetleri silip yeniden indiren F5'in aksine Shift+F5; açık sohbetin mesajlarını WhatsApp'tan yeniden alır, eksik olanları doğru yere yerleştirir ve artık orada bulunmayanları kaldırır; eski geçmişe dokunmaz. F5 ve Shift+F5 komutları artık onay istemektedir; iletişim kutusunda varsayılan yanıt Hayır olup "Tekrar gösterme" seçeneği de yer alır. Tekrar sorulmasını isterseniz Ayarlar > Kullanıcı Arayüzü sekmesindeki ilgili seçenekleri kullanabilirsiniz.
+- Shift+F5 ile yalnızca açık sohbeti yeniden eşitleme (Eşitle menüsünde de bulunur). Tüm sohbetleri silip yeniden indiren F5'in aksine Shift+F5; açık sohbetin mesajlarını WhatsApp'tan yeniden alır, eksik olanları doğru yere yerleştirir ve artık orada bulunmayanları kaldırır; eski geçmişe dokunmaz. F5 ve Shift+F5 komutları artık onay istemektedir; iletişim kutusunda varsayılan yanıt Hayır olup "Tekrar gösterme" seçeneği de yer alır. Tekrar sorulmasını isterseniz Ayarlar > Kullanıcı Arayüzü sekmesindeki ilgili seçenekleri kullanabilirsiniz. Sohbet zaten güncelse ya da WhatsApp'ta sohbete ait mesaj yoksa, Shift+F5 yeniden eşitlenemedi demek yerine bunu söyler.
 
 - WinZapp'i sistem tepsisinden geri getiren genel kısayol tuşu artık onu tepsiye de gönderiyor. WinZapp ön plandayken bu kısayola basıldığında pencere sistem tepsisine gizlenir; diğer tüm durumlarda ise pencereyi öne getirmeyi sürdürür.
 
@@ -52,6 +52,8 @@ YENİLİKLER
 
 - Arka plan bildirimlerinin ne söyleyeceğini seçme. Ayarlar'ın Genel sekmesindeki "Arka plan bildirimlerinin içeriği" üç düzey sunar: eskisi gibi ses, sohbet veya grup adı ve mesaj metni; metin olmadan ses ve sohbet veya grup adı; ya da ekranda bildirim göstermeden ve hiçbir şey okunmadan yalnızca ses. Kilitli sohbetlerin bildirimleri yine ad veya içerik göstermez.
 
+- Medyayı yapay zekâ ile yazıya dökün ve betimleyin. Ayarlar'daki yeni "Yazıya Dökme ve Betimleme" sekmesi yapay zekâ özelliklerini açar (varsayılan olarak kapalıdır) ve bir veya daha fazla sağlayıcının — Gemini, OpenAI, Claude, Groq ve OpenRouter — API anahtarını alır; sağlayıcılar belirlediğiniz sırayla denenir, böylece biri başarısız olduğunda veya kotası bittiğinde sıradaki yanıt verir. Bir mesajın bağlam menüsünde ya da Ctrl+Shift+I ile "Yazıya dök" sesli mesajı metne çevirir, "Betimle" fotoğrafı veya videoyu anlatır, "Çıkartmayı betimle" çıkartmayı anlatır, "Erişilebilir metne dönüştür" ise bir PDF'yi sade ve okunabilir metne çevirir. Sonuç metinle birlikte bir pencerede açılır; fotoğraf ve videolarda bu pencerede ek sorular sorabilirsiniz. WinZapp medyayı bir sağlayıcıya göndermeden önce sorar, kilitli sohbetlerde her seferinde yeniden sorar; anahtarlarınız bilgisayarınızda şifrelenir ve yalnızca ait oldukları sağlayıcıya gönderilir. Sağlayıcı çalışırken bir bekleme sesi çalar ve yanıtlar otomatik olarak sesli okunabilir. Metin, uygulamanın dilini izler.
+
 İYİLEŞTİRMELER
 
 - Kodun büyük ölçüde yeniden düzenlenmesi (Refactoring). WinZapp'in yalnızca ikisi toplamda 50 binden fazla satıra ulaşan ve programın yaptığı neredeyse her şeyi barındıran en büyük iki dosyası, her biri tek bir işten sorumlu onlarca küçük parçaya bölündü: Eşitleme, bağlantı, mesaj gönderme, aramalar, sohbet listesi ve benzeri modüller ayrıştırıldı. Bu mimari dönüşüm kullanıcı deneyiminde hiçbir şeyi değiştirmez. Geliştiriciler için her parçayı bulmak, anlamak ve geliştirmek çok daha kolay hale gelirken, bir düzeltmenin fark edilmeden başka bir yeri bozma riski en aza iner. WinZapp'i uzun vadede sağlıklı ve kararlı tutan da bu modüler yapıdır.
@@ -62,7 +64,25 @@ YENİLİKLER
 
 - Ctrl+V ile mesaj alanına yapıştırılan ses dosyaları artık, Ayarlar'ın Dosyalar ve kaydetme sekmesindeki yeni "Mesaj alanına yapıştırılan ses dosyaları (Ctrl+V)" seçeneğiyle ses ya da belge olarak gönderilebilir; varsayılan olarak ses olarak gönderilir. Mesaj, sohbette en baştan gönderileceği türle görünür.
 
+- Arşivlenmiş ve kilitli sohbetler artık ana sohbetler gibi seçilebiliyor: Ctrl+Boşluk, Shift+ok tuşları, Shift+Home/End, Ctrl+Shift+Boşluk ve seçim modundaki Boşluk; aynı ses ve aynı duyurularla. "Toplu işlemler" menüsü (kendi kısayollarıyla) arşivlenmişlerde arşivden çıkarma, temizleme, silme ve okundu/okunmadı işaretleme; kilitlilerde kilit kaldırma ve okundu/okunmadı işaretleme sağlar.
+
+- Otomatik medya indirme artık Ayarlar'ın Depolama sekmesindeki "Medyayı otomatik olarak indir" seçeneğine anında uyuyor: işareti kaldırmak süren indirmeyi durdurur, işaretlemek (ya da bir medya türü daha işaretlemek) bir sonraki eşitlemeyi beklemeden indirmeyi başlatır. İşaretsizken artık WinZapp açıkken gelen mesajlardaki medya için de geçerlidir ve tür listesi, işaretli olanları koruyarak devre dışı kalır.
+
+- WinZapp artık WhatsApp Web sürüm listesini güncel tutuyor. Başlarken, varsa daha yeni bir listeyi arka planda indirir ve bir sonraki başlatılışında uygular; bu, listesi geride kalmış kurulumlarda başarısız olan aramaları düzeltir.
+
+- Kullanılan WhatsApp Web sürümü aramaları desteklemediği için bir arama başlatılamadığında WinZapp artık bunu ve ne denenebileceğini (WinZapp'ı yeniden başlatmak ya da Yardım menüsünden "WPPConnect'i yeniden yüklemeye zorla" seçeneğini seçmek) söylüyor; bir hata kodu okumuyor.
+
+- Kurulum programının indirme boyutu artık çok daha küçük: içindeki WinZapp dosyaları, taşınabilir ZIP'te olduğu gibi sıkıştırılmıştır ve kurulum programı kurulum sırasında her dosyayı denetler.
+
+- Kurulum programı ve kaldırma programı artık WinZapp'in sunulduğu tüm dillerde görünüyor: Brezilya Portekizcesi, Avrupa Portekizcesi, İspanyolca, Lehçe, Rumence, Türkçe ve İngilizce. Windows görüntüleme dilini izliyor, diğer tüm dillerde İngilizce gösteriyor.
+
+- WinZapp'ın kullandığı WhatsApp kitaplığı güncellendi. Geliştiricilerinin notları, WhatsApp Web'in son sürümlerinde grup oluşturma, grup davet bağlantısını alma ve sıfırlama, grup açıklamasını düzenleme, profil adını değiştirme ve medya gönderme için düzeltmeler listeliyor. WinZapp başlangıçta WPPConnect'i güncellemeyi önerirse kabul edin; yeni kitaplık böylece kurulur.
+
 DÜZELTMELER
+
+- Kaldırma programı artık her zaman Portekizce görünmek yerine, kurulum programı gibi Windows görüntüleme dilini izliyor.
+
+- Mesajları iletme, her iletimin “forwardMessages function is not available” hatasıyla reddedildiği son WhatsApp Web sürümlerinde artık başarısız olmuyor.
 
 - Sesli mesaj kayıt anonsları susturulduğunda, kayıt başlatılırken ekran okuyucunun sözü kesilmeden önce "Gönder" düğmesini seslendirmesi sorunu giderildi. WinZapp artık anonsun yarıda kesilmesine (kırpılmasına) yol açan otomatik odak hareketini önlerken Ctrl+R, Ctrl+Shift+P ve Ctrl+Shift+D kısayollarını kullanılabilir durumda tutar.
 
@@ -111,6 +131,34 @@ DÜZELTMELER
 - Bilgisayar, internet henüz yokken uykudan uyandığında WinZapp, internet geri geldikten sonra bile kapatılıp yeniden açılana kadar bağlantısız kalabiliyordu. Artık WhatsApp bağlantısını yeniden açmak için ağın geri gelmesini bekliyor.
 
 - Aynı sohbetten birkaç mesaj, o sohbeti WinZapp'ta okuduktan hemen sonra aynı anda geldiğinde, okunmamış sayacı gelenlerden daha az mesaj gösterebiliyordu: aynı anda gönderilen üç dosya iki okunmamış olarak görünüyordu. Artık sayaç hepsini gösteriyor.
+
+- Bir sohbeti açık bırakıp arşivlenmiş sohbetlere geçmek (Alt+4), WinZapp'ın o sohbeti hâlâ okuduğunuz sohbet gibi görmesine yol açıyordu: yeni mesajları okundu olarak işaretleniyor, açık sohbet sesi çalıyor ve başka bir paneldeyken bile sesli okunuyordu. Artık bu yalnızca sohbetin paneli ekrandayken olur; sohbet açık kalır ve geri döndüğünüzde onu bıraktığınız yerde bulursunuz.
+
+- Arşivlenmiş sohbetlerde Alt+M, ana sohbetlerde olduğu gibi açık sohbetin mesaj listesine götürmüyordu. Artık panelin her yerinden çalışıyor.
+
+- Bir listede açık olan sohbet, başka bir listeye geçtiğinizde artık gizlenir: ana sohbetler (Alt+1), arşivlenmiş sohbetler (Alt+4) veya kilitli sohbetler. Geçiş yalnızca listeyi değiştirir ve sizi o listeye götürür; açık sohbeti göstermez ve yeniden yüklemez. Sohbet açık kalır; onu Alt+M, Alt+2 veya Alt+3 ile ya da yeniden açarak geri getirirsiniz, ardından açıldığı listede görünür. Bu, arşivlenmiş bir sohbetin ana sohbetlerde ekranda kalması sorununu da düzeltir. Ana sohbetlerden açılan bir sohbet onlara aittir, arama alanıyla bulunan arşivlenmiş bir sohbet bile.
+
+- Aynısı Durumlar veya Aramalar gibi diğer tüm paneller için de geçerli: arkasında açık bir sohbet varken o sohbetin yeni mesajları diğer sohbetlerinki gibi duyurulur ve okundu olarak işaretlenmez. Arşivlenmiş sohbetlerin mesajları yalnızca arşivlenmiş listesi ekrandayken duyurulur.
+
+- Bir sohbet başka bir panelin arkasında açık kaldığında (Alt+4, Durumlar, Aramalar...) “yazıyor” ve “ses kaydediyor” duyuruları yapılmaya devam ediyordu. Artık bu duyurular yalnızca ilgili sohbet ekrandayken yapılıyor; okundu olarak işaretleme ve sesler zaten böyle çalışıyordu.
+
+- Daha önce en az bir kez temizlenmiş bir sohbette, bir mesaj geldikten yaklaşık bir dakika sonra okunmamış sayacı kendiliğinden kayboluyordu ve sohbeti açmak onu telefonda okundu olarak işaretlemiyordu. Bu çoğunlukla yoğun ve sessize alınmış gruplarda oluyordu. Artık sayaç siz sohbeti okuyana kadar kalıyor ve WinZapp'te okumak sohbeti telefonda da okundu olarak işaretliyor.
+
+- Bir kez görüntülenebilen mesajlar sayaç, ses ve bildirim olmadan geliyor, bir eşitlemeden sonra da hâlâ yüklenmeyi bekleyen bir mesaj olarak kalıyordu. Artık yeni bir mesajın sesi ve bildirimiyle birlikte "Bir kez görüntülenebilen mesaj. Görmek için telefonunuzda açın." görünüyor. İçeriğin kendisi, WhatsApp Web'de olduğu gibi yalnızca telefonda kalıyor.
+
+- Bir ağ klasöründen açıldığında —örneğin Mac'teki bir Parallels sanal makinesinin, aslında diğer bilgisayarda bulunan İndirilenler klasöründen— WinZapp yerel sunucuyu kuramıyor ve anlaşılmaz bir hata gösteriyordu. Artık oradan çalışamayacağını söylüyor ve nasıl çözüleceğini açıklıyor: WinZappInstaller ile kurmak ya da klasörü bu bilgisayardaki bir diske taşımak.
+
+- WinZapp henüz başlarken güncelleme istemini yanıtlamak, programı penceresiz ve arka planda çalışır durumda bırakabiliyordu; yeniden açılması ancak işlem sonlandırıldıktan veya bilgisayar yeniden başlatıldıktan sonra mümkündü. Artık istem ana pencerenin açılmasını bekliyor ve kapanış takılırsa WinZapp takılı kalmak yerine kendini sonlandırıyor.
+
+- Ekran okuyucu artık açık sohbette odaktaki iletiyi sebepsiz yere yeniden okumuyor. Yeni bir ileti bir tepkiyle birlikte geldiğinde (ya da sizin gönderdiğiniz bir iletiden sonra) otomatik yenileme tüm ileti listesini yeniden yazıyor ve NVDA üzerinde bulunduğunuz öğeyi tekrarlıyordu; artık liste satır satır güncelleniyor ve yalnızca gerçekten değişen satırlara dokunuluyor.
+
+- "Yazıyor" ve "ses kaydediyor" duyuruları gruplarda yeniden seslendiriliyor. WhatsApp, kimin yazdığını WinZapp'ın okumadığı bir biçimde bildirmeye başlamıştı; bu yüzden yalnızca bireysel sohbetlerde duyuruluyordu.
+
+- Listeden zaten açık olan bir sohbeti seçmek artık "Bir sohbet açıldığında odaklanılacak yer" ayarına uyuyor (mesaj alanı veya okunmamışlar ayırıcısı / son mesaj); önceden odak her zaman mesaj alanına gidiyordu.
+
+- Bir iletiye yanıt verirken yanıtta birinden bahsedildiğinde, WinZapp onu yanıt olarak gösterse de alıcılara alıntısız yeni bir ileti olarak ulaşıyordu. Alıntı artık bahsetmeyle birlikte gönderilir.
+
+- Güncelleme bildirimleri artık WinZapp Windows ile başladığında da görünüyor: bu durumda ne WinZapp'in kendi güncellemesi ne de WPPConnect Server güncellemesi sunuluyordu. WPPConnect Server bildirimi ayrıca artık WinZapp ile test edilenden daha yeni bir sürümü, reddedebileceğiniz önerilen bir güncelleme olarak sunuyor; önceden yalnızca WinZapp gereken sürümü yükselttiğinde sunuluyordu.
 
 V1.1.1.0
 

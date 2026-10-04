@@ -314,8 +314,8 @@ class MessageActionsMixin:
     def forward_message(self, source_jid: str, msg_key: dict, target_jid: str,
                         source_msg: dict = None) -> bool:
         """Forward a message of any type (text, media, document, …) via
-        POST /api/session/forward-messages, which wraps WPP.chat.forwardMessagesV2
-        — the real WhatsApp forward, so it carries over media/captions/etc.
+        POST /api/session/forward-messages, which calls WhatsApp's own
+        forwardMessages (client/api_patches/src/util/forwardRuntime.ts) — the real WhatsApp forward, so it carries over media/captions/etc.
         without WinZapp having to re-extract and re-send content itself.
         """
         lid_jid = getattr(self, "_phone_to_lid", {}).get(source_jid, "")
@@ -348,15 +348,19 @@ class MessageActionsMixin:
         # _expect_forwarded_duration).
         duration_token = self._expect_forwarded_duration(target_jid, source_msg)
 
-        # forwardMessagesV2 drives WhatsApp Web's own Puppeteer-side Store the
-        # same way a live user forward does. Fired back-to-back for several
+        # The server calls WhatsApp Web's own forwardMessages the same way a
+        # live user forward does. Fired back-to-back for several
         # messages selected at once (mass forward), the very next call can
         # land before the Store has settled from the previous one and the
         # server answers with a transient error even though nothing is
         # actually wrong — reported live as forwarding several messages at
         # once failing where forwarding one at a time never does. One retry
         # after a short pause clears this in practice; a failure that
-        # survives the retry is treated as real.
+        # survives the retry is treated as real. A retry after the 20 s
+        # timeout overlaps the first request while its page.evaluate still
+        # runs; the page body holds an in-flight guard keyed on chat + ids, so
+        # the overlapping retry waits for the first result instead of sending
+        # (docs/traps/send-contract.md).
         for attempt in range(2):
             try:
                 r = api_post(url, json=payload, headers=headers, timeout=20)

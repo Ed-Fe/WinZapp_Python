@@ -26,6 +26,10 @@ from tests.conftest import hidden_frame, set_clipboard_text
 from ui.conversations import ConversationsPanel
 from tests.god_modules import conversations_source, status_panel_source
 
+# The system clipboard is one shared resource: in a parallel run these tests
+# must share a worker with the other clipboard file.
+pytestmark = pytest.mark.xdist_group("clipboard")
+
 
 class TestNormalizeLineSeparators:
     @pytest.mark.parametrize("sep", ["\u2028", "\u2029", "\u0085", "\x0b", "\x0c"])

@@ -217,10 +217,15 @@ const { initServer } = require(path.join(distPath, 'index'));
 // Chromium version we actually launch instead of an unrelated legacy build.
 try {
   const uaModule = require('@wppconnect-team/wppconnect/dist/config/WAuserAgente');
-  const versionMatch = String(chromeExecutable || '').match(/(?:win64-|chrome-)(\d+\.\d+\.\d+\.\d+)/i);
+  const versionMatch = String(chromeExecutable || '').match(/(?:win64-|chrome-|mac(?:_arm)?-)(\d+\.\d+\.\d+\.\d+)/i);
   const chromeVersion = versionMatch?.[1] || '148.0.7778.97';
+  // WhatsApp names the linked device after this platform ("Chrome (Windows)"
+  // / "Chrome (Mac OS)"), so report the one we actually run on.
+  const uaPlatform = process.platform === 'darwin'
+    ? 'Macintosh; Intel Mac OS X 10_15_7'
+    : 'Windows NT 10.0; Win64; x64';
   uaModule.useragentOverride =
-    `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ` +
+    `Mozilla/5.0 (${uaPlatform}) AppleWebKit/537.36 ` +
     `(KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
   console.log(`[WinZapp] Chromium user-agent aligned to Chrome/${chromeVersion}`);
 } catch (error) {

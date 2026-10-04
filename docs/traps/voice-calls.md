@@ -287,6 +287,43 @@ until someone opens WinZapp in the foreground. When a tester reports calls not
 working, the `Pinning WhatsApp Web to ...` line at the top of `wppconnect.log`
 is the first thing to compare against a working install.
 
+**A catalogue that is old by a few weeks fails the same way, and the cause is
+skew between the pinned page and Meta's live workers (measured 2026-10-01,
+over CDP on a live session).** The symptom is the one above, but this time the
+newest entry was 2.3000.1048298845 (23 Sep) and the page's pthread VoIP workers
+died with `Aborted(No EM_ASM constant found at address 1367423)`, so
+`WAWebVoipInit` never became ready. start.js pins only the main document;
+WhatsApp serves the workers and the glue they load live, and Meta had changed
+the worker bundle since that build. The pinned main glue's `EM_ASM` table ended
+at 1367423, the worker asked for an address beyond it, and the abort is the
+mismatch, not a wa-js or WinZapp defect. After `npm install
+@wppconnect/wa-version@1.5.4964` (newest build 2.3000.1048960956) VoIP
+initialised and calls worked. So "the catalogue's newest entry reaches
+`CALLS_MINIMUM_BUILD`" is necessary and **not sufficient**: the newest entry
+has to keep up with what Meta serves.
+
+That is why `core/wa_version_refresh.py` exists. The catalogue used to move only
+when `node_modules` was rebuilt, so testers kept an old one silently. At every
+launch a daemon thread asks the registry for `@wppconnect/wa-version/latest`
+(3 KB; never the packument, 7.6 MB abbreviated) at most every 6 hours, and
+**stages** a newer same-major, in-range, non-prerelease package in
+`wa-version.staged-<version>` beside the live one: the tarball is 42.6 MB (about
+35 s on a 10 Mbit link), so Node must not wait for it. The swap, with rollback,
+happens right before this process spawns Node, on a worker (never the UI
+thread: `_start_wpp_background_after_catalogue()`), under an OS lock separate
+from the download's, with the 161 MB old copy only renamed aside and deleted on
+a background thread. It is skipped ("busy", package left staged) while another
+account holds a live node-lease, because `start.js` re-reads
+`html/<build>.html` from this package every time a session's page is created,
+not once per Node, so a rename under a live Node can fail a session start. A
+staged package must also carry the html of the newest build in its own
+`versions.json`, or it is never promoted. Consequences to remember: the first update lands one launch after it was downloaded (unless the
+download beat the 3 s wait), a launch that is closed mid-download wastes the
+download, and a package whose declared dependencies the install lacks is skipped
+(the in-app reinstall remains the fallback). The failure the user sees when it
+has not caught up is classified by `core/call_voip_errors.py` and spoken as
+`voice_call_voip_unavailable` instead of an HTTP code.
+
 **A call placed without an entry trust waits for a popup nobody can answer.**
 From WhatsApp Web 2.3000.1048x, `startWAWebVoipCall(peer, isVideo, fromUi,
 ?, callId, options)` first awaits
@@ -300,8 +337,28 @@ found over CDP on 2026-09-23, on build 1048298845, with an up-to-date
 catalogue and server 2.10.27, so reinstalling could not help). The controller
 now calls `startWAWebVoipCall` itself with `{ entryTrust: 'user_gesture' }`,
 which is what a keystroke in WinZapp is, and keeps `WPP.call.offer()` only as
-the fallback where the function is not exposed. If offers hang again, look
+the fallback where the function is not exposed. wa-js 4.6.1's
+`WPP.call.offer()` makes the same call natively (same arguments, then polls
+`CallStore`), so the fallback works there too; the direct path stays primary
+because it behaves identically on 4.6.0 and 4.6.1. If offers hang again, look
 for `[role="dialog"]` in the page over CDP before anything else.
+
+**Other notices can still stop an offer the same way.** Calling a WhatsApp
+Business account for the first time opens "About this call — This business
+uses a secure service from Meta to manage this call…" with *Learn more* and
+*Continue* (seen 2026-09-29): same symptom, the offer aborted at 75 s and the
+call never rang; the next call to that business goes through, which makes it
+look intermittent. `offerCall()` now runs `watchOutgoingCallNotices()` while
+the offer is pending: an informational dialog that appears during it (one
+with a "Learn more" link and at most three buttons) gets its last (primary)
+button pressed — the user asked for this call, and the position, not the
+wording, keeps it working in every UI language. A dialog with no link is a
+decision (e.g. "Unblock X to call?" with Cancel/Unblock, whose last button
+would unblock someone) and is left alone, as are dialogs already open before
+the call. The log line `[call-notice]` records only the button count, never the
+dialog text, which can hold a contact or business name. The watcher stops after
+60 s. If a new notice still stalls an offer, look at its DOM over CDP: the link
+test is a guess at how WhatsApp marks "informational", not a guarantee.
 
 **A call event names the peer in whichever address form its source happened to
 hold, and the two sources disagree.** The offer arrives through
@@ -603,3 +660,14 @@ least one real call to learn, so read before touching the video path.
 - **The proof:** removing the reload alone connected on the next start.
 
 `start.js` now calls `registerCallMediaBridgeBeforeLoad(page)` from its `initWhatsapp` wrapper, before WPPConnect's first `goto()`. `ensureCallMediaBridge()` only installs into the running page, and if the early registration is missing it logs a warning instead of reloading. The page script looks the `__winzappOnCall*` bindings up at use time, so running before `exposeFunction` is safe. If a session is ever stuck in `INITIALIZING` with an unresponsive page, the first thing to check is whether anything reloads it during startup.
+
+## Echo cancellation and noise suppression on the microphone (2026-09-30)
+
+A tester with speakers reported the other person hearing their own voice, only in WinZapp (the official app and Meet were fine: they run WebRTC's own AEC, which never sees WinZapp's synthetic microphone track, so **nothing on the page can do this — Python owns the signal and must**). The setting existed, and did close to nothing.
+
+- **The test was the bug.** `EchoCanceller` (NLMS) was tested with stationary white noise through a pure delay, where it reached 52 dB. On real speech (Windows SAPI voices through a synthetic room, `tests/test_echo_canceller.py` builds the same kind of signal) it reached **1-4 dB**, and never converged in 60 s. Cause: it normalised by a power smoothed over 10 blocks, which lags every syllable onset, so the step was wildly too large at each onset and a divergence guard then halved the weights. Removing the guard only got it to ~8 dB. A frequency-domain **Kalman** filter reaches ~20 dB after a few seconds on SAPI speech (the synthetic signals in the tests give 8-13 dB, which is what they assert). Do not "fix" an AEC by testing it on noise.
+- **Alignment is the other half.** Microphone and reference are paired by sample index, but the streams start at different moments and each device adds latency, so the echo can arrive *before* its paired reference (no causal filter models that) or beyond the 320 ms tail. The old code also silently changed the pairing whenever it trimmed its 120 ms reference buffer or the sender dropped stale microphone frames. Now: absolute sample indexes, a GCC-PHAT lag estimate twice a second, the reference re-read so the echo starts ~40 ms into the filter (the learned path shifts along), and `skip_microphone()` for every frame the sender drops.
+- **The gate matters as much as the filter.** With a headset there is no echo path; an ungated filter fits noise and adds the other person's voice back, inverted, at about -13 dB. The estimate is subtracted only while the correlation keeps finding a confident peak *and* the filter has been seen to reduce the microphone energy.
+- **Measured limits, so nobody has to rediscover them (SAPI speech):** ~20 dB steady state (a speaker-to-mic echo at -15 dB ends near -35 dB), ~5 dB in the first 5 s, a path change takes ~6 s to recover, clock drift between two different devices costs ~5 dB per 100 ppm (a shared-clock headset or laptop has none), and a clipping speaker leaves ~10 dB. There is no residual-echo suppressor; if testers still hear a faint echo, that is the next step, not another filter.
+- `[call_audio] echo canceller: {...}` in `log.log` every ~5 s gives `cancelling`, `echo_lag_ms` and `reduction_db`. `cancelling: False` with speakers means the correlation found no echo (device muted, or the reference is not what the speaker plays: an exclusive/virtual device).
+- **Noise suppression** (`core/noise_suppressor.py`, `call_audio_devices.noise_suppression`, same dialog as echo cancellation, after it in the chain) is a spectral Wiener filter. Its first noise tracker took the minimum of the smoothed power over 1.5 s and mistook continuous speech for noise: 12 dB SNR on a *clean* recording. Gains are deliberately not smoothed across frequency (it attenuates voiced harmonics). Both are off by default, deliberately unchanged: turning them on for existing users needs a settings migration (`settings-migrations.md`) and a hardware check that this session could not do.

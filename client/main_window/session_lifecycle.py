@@ -15,6 +15,8 @@ from core.profile_backup import (
     close_snapshot_max_age as _close_snapshot_max_age,
     live_snapshot_due as _live_snapshot_due,
     live_snapshot_policy as _live_snapshot_policy,
+    size_text as _snapshot_size_text,
+    snapshots_disabled as _snapshots_disabled,
 )
 from core.api_client import (
     api_get,
@@ -558,6 +560,8 @@ class SessionLifecycleMixin:
             return          # not ours to start
         if self._is_wpp_running():
             return
+        from core.wa_version_refresh import wait_for_refresh
+        wait_for_refresh()
         self._start_wpp_background()
         deadline = time.time() + 120
         while time.time() < deadline:
@@ -1173,6 +1177,13 @@ class SessionLifecycleMixin:
             return
         try:
             from core import profile_recovery
+            if _snapshots_disabled(getattr(self, "settings", {})):
+                # The user chose the disk space over a restore point
+                # (Settings > Cópia de segurança). Still drop a staged copy:
+                # nothing will ever promote it.
+                self._shutdown_audit("profile snapshot skipped — copies turned off")
+                profile_recovery.discard_pending_snapshot(global_dir, session_name)
+                return
             # How old the snapshot may be before a clean close refreshes it is
             # the user's choice (Settings > Cópia de segurança), 24 h by default.
             if profile_recovery.capture_snapshot(
@@ -1259,6 +1270,42 @@ class SessionLifecycleMixin:
                             "(%s) — the copy is not kept.", status or "?")
             return False
         return True
+
+    def profile_snapshots_size(self) -> int:
+        """Bytes this account's Chrome-profile restore points take on disk."""
+        global_dir, session_name = self._live_snapshot_session()
+        if session_name is None:
+            return 0
+        from core import profile_recovery
+        return profile_recovery.snapshots_size_bytes(global_dir, session_name)
+
+    def delete_profile_snapshots(self):
+        """Delete this account's restore points in the background, and say
+        how much was freed.
+
+        Settings > Cópia de segurança asks first; a 2 GB tree takes seconds to
+        remove, so the dialog closes without waiting. The announcement goes
+        through output() without interrupting whatever is being read.
+        """
+        global_dir, session_name = self._live_snapshot_session()
+        if session_name is None:
+            return
+        from core import profile_recovery
+
+        def _run():
+            try:
+                freed = profile_recovery.delete_snapshots(global_dir, session_name)
+            except Exception:
+                logging.exception("[profile-snapshot] deleting the restore points failed")
+                freed = None
+            if freed is None:
+                text = self.i18n.t("profile_backup_delete_failed")
+            else:
+                text = self.i18n.t("profile_backup_deleted").format(
+                    size=_snapshot_size_text(freed, self.i18n.t("decimal_separator")))
+            wx.CallAfter(self.output, text)
+
+        threading.Thread(target=_run, daemon=True, name="delete-profile-snapshots").start()
 
     def _live_snapshot_session(self):
         """(global_dir, session_name), or (None, None) when there is none."""
@@ -1460,6 +1507,13 @@ class SessionLifecycleMixin:
                 # confirmed below.
                 queue.release()
                 held = False
+            if _snapshots_disabled(getattr(self, "settings", {})):
+                # "Keep no copies" was ticked while this one was being made:
+                # the user chose the space. Dropped below (finally), and not
+                # announced as a failure.
+                logging.info("[profile-backup] copies were turned off during the "
+                             "backup; the staged copy is dropped.")
+                return
             if (restarted and staged.get("copy")
                     and self._live_snapshot_session_accepted()
                     and profile_recovery.promote_pending_snapshot(global_dir, session_name)):

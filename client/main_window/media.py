@@ -16,6 +16,8 @@ import wx
 from core.utils import (
     MEASURED_SECONDS_KEY,
     auto_download_allows,
+    auto_download_enabled,
+    auto_download_newly_wanted,
     encrypt,
     video_seconds,
 )
@@ -142,6 +144,37 @@ class MediaMixin:
             logging.warning(
                 "[media_failures] failed to remove media_failed.json: %s", exc)
 
+    def _on_auto_download_settings_changed(self, old_storage, new_storage) -> bool:
+        """Start a sweep when Settings just asked for media nothing has
+        fetched yet. Returns whether one was started or queued.
+
+        Called by the settings dialog after it saved. Without this, turning
+        the auto-download on (or ticking another category) did nothing until
+        the next sync happened to run its media phase — on a synced account,
+        possibly not before the next launch.
+
+        It goes through the deferred-phase mechanism rather than a new thread
+        of its own: that is the sweep that announces its start and end, stops
+        when the setting is switched off again, and waits for RECENT history
+        to finish landing (the backfill loop starts it then).
+        """
+        if not auto_download_newly_wanted(old_storage, new_storage):
+            return False
+        if getattr(self, "_media_sync_running", False):
+            # The running sweep reads the category list per message, so what
+            # it has not reached yet already follows the new choice.
+            return False
+        if (not getattr(self, "_sync_completed", False)
+                or not getattr(self, "_wa_connected", False)
+                or getattr(self, "offline_mode", False)):
+            # The sync still to come runs its own media phase with the
+            # setting as it is now; queueing a second sweep would repeat it.
+            return False
+        self._media_sync_deferred = True
+        if not getattr(self, "_history_still_landing", False):
+            self._start_deferred_media_sync()
+        return True
+
     def _is_conversation_open_for(self, msg) -> bool:
         """True if msg belongs to the conversation currently shown on screen."""
         cp = getattr(self, "conversations_panel", None)
@@ -154,16 +187,26 @@ class MediaMixin:
         msg_jid = self._normalize_jid(key.get("remoteJid", ""))
         return msg_jid == self._normalize_jid(open_jid)
 
-    def sync_if_media(self, msg, timeout=60):
+    def sync_if_media(self, msg, timeout=60, explicit=False):
         """Download media for a single message during the background sync phase.
 
         Returns True only when a file was actually downloaded. Every skip
-        below — offline, not a media message, past the CDN TTL, past the
-        user's day/size caps, a known-expired id, already on disk — returns
-        False, so sync_media_for_all_chats() can count real work rather than
-        candidates.
+        below — offline, auto-download switched off, not a media message, past
+        the CDN TTL, past the user's day/size caps, a known-expired id, already
+        on disk — returns False, so sync_media_for_all_chats() can count real
+        work rather than candidates.
+
+        ``explicit`` is the menu's "Baixar mídias": the user asked, so the
+        auto-download switch is not consulted. The category list and the caps
+        still are.
         """
         if not getattr(self, "_wa_connected", False) or getattr(self, "offline_mode", False):
+            return False
+        # Configuracoes > Armazenamento > "Baixar midias automaticamente": the
+        # master switch for everything fetched without being asked. Here, in
+        # the funnel, so a message arriving live obeys it exactly as the
+        # sweeps do.
+        if not explicit and not auto_download_enabled(self.settings):
             return False
         message_type = msg.get("messageType", "")
         if not message_type and msg.get("type"):
@@ -260,7 +303,7 @@ class MediaMixin:
             pass
         return False
 
-    def handle_media_message(self, msg, progress_callback=None, timeout=60):
+    def handle_media_message(self, msg, progress_callback=None, timeout=60, *, max_bytes=None, cancel_check=None):
         """Download and encrypt a document/image/sticker/video to data/media/.
 
         Returns True only when this call actually wrote a new file — every
@@ -295,6 +338,7 @@ class MediaMixin:
         content = self.fetch_media_bytes(
             msg, progress_callback=progress_callback,
             timeout=media_fetch_timeout(msg, timeout),
+            **({"max_bytes": max_bytes, "cancel_check": cancel_check} if max_bytes is not None else {}),
         )
         if not content:
             return False
@@ -378,11 +422,13 @@ class MediaMixin:
             # row that just gained a duration clause.
             cp._repaint_message_rows([msg_id])
 
-    def handle_audio_message(self, msg, timeout=60):
+    def handle_audio_message(self, msg, timeout=60, *, max_bytes=None, cancel_check=None):
         """Download and encrypt a voice message to data/voice_messages/.
 
         Returns True only when this call actually wrote a new file — see
-        handle_media_message(), which follows the same contract.
+        handle_media_message(), which follows the same contract. ``max_bytes``
+        and ``cancel_check`` opt in to the bounded, cancellable download the AI
+        actions use, exactly as in handle_media_message().
         """
         voice_messages_dir = data_path("voice_messages")
         msg_id = msg.get('key', {}).get('id', '')
@@ -396,13 +442,17 @@ class MediaMixin:
             # See handle_media_message() — same reasoning applies to audio.
             logging.info("[handle_audio_message] Skipping download for %s — not connected.", msg_id)
             return False
+        if max_bytes is not None:
+            audio_content = self.fetch_media_bytes(
+                msg, timeout=timeout, max_bytes=max_bytes, cancel_check=cancel_check)
+            return bool(audio_content) and self.save_audio_locally(msg, audio_content)
         base64_audio = self.get_base64_from_media(msg, timeout=timeout)
         if not base64_audio:
             return False
         audio_content = base64.b64decode(base64_audio)
         return self.save_audio_locally(msg, audio_content)
 
-    def fetch_media_bytes(self, media, progress_callback=None, timeout=60):
+    def fetch_media_bytes(self, media, progress_callback=None, timeout=60, *, max_bytes=None, cancel_check=None):
         """The media file itself, as bytes — never as base64.
 
         Preferred over get_base64_from_media() by anything that just wants to
@@ -418,10 +468,11 @@ class MediaMixin:
         return self.get_base64_from_media(
             media, progress_callback=progress_callback, timeout=timeout,
             _binary=True,
+            **({"max_bytes": max_bytes, "cancel_check": cancel_check} if max_bytes is not None else {}),
         ) or b""
 
     def get_base64_from_media(self, media, progress_callback=None, timeout=60,
-                              _binary=False):
+                              _binary=False, max_bytes=None, cancel_check=None):
         """
         Fetch encrypted media from WPPConnect and return its base64 string.
 
@@ -521,6 +572,14 @@ class MediaMixin:
         # through @lid/@c.us rewriting on both sides, so matching on it would
         # mean re-deriving the same guess in two places.
         body_data["progressId"] = _key.get("id", "") or msg_id
+
+        if max_bytes is not None and _binary:
+            # Opt-in bounded path shares all the existing message/key/JID
+            # preparation, but never buffers an unlimited body or retries a
+            # cancelled photo operation. Ordinary media behaviour is unchanged.
+            from core.ai_media.media_input import fetch_bounded_media
+            return fetch_bounded_media(url, headers, body_data, max_bytes, cancel_check,
+                                       timeout=timeout, post=api_post)
 
         has_media_key = bool(body_data.get("mediaKey"))
         has_client_url = bool(body_data.get("clientUrl"))

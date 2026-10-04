@@ -27,6 +27,8 @@ comparable_local_records()), reused rather than restated:
   second read that could confirm a bigger batch, so it is left alone.
 """
 
+import json
+
 from core.incremental_sync import timestamp_seconds
 from core.remote_deletions import comparable_local_records
 from core.remote_reconcile import MAX_MIRRORED_DELETIONS
@@ -78,3 +80,45 @@ def deletions_to_apply(stale) -> list:
     """
     stale = list(stale or ())
     return stale if len(stale) <= MAX_MIRRORED_DELETIONS else []
+
+
+def record_fingerprints(records) -> dict:
+    """id -> what the record says, to tell a Shift+F5 that changed a message
+    under its own id (a waiting placeholder decrypted, an edit applied) from
+    one that changed nothing. Content only: an ack or a local flag moving is
+    not what the user asked about."""
+    fingerprints = {}
+    for record in records or ():
+        if not isinstance(record, dict) or not _record_id(record):
+            continue
+        fingerprints[_record_id(record)] = json.dumps(
+            [record.get("messageType"), record.get("message")],
+            sort_keys=True, default=str)
+    return fingerprints
+
+
+def resync_outcome(ok, chat_absent, fetched_ids, known_before, removed,
+                   withheld, content_changed) -> str:
+    """The i18n key Shift+F5 ends with. Each one is a claim to the user, so
+    each is said only when the answer proves it:
+
+    - nothing_remote only on chat_not_found, WhatsApp's own answer. An empty
+      page is not one: it is indistinguishable from WhatsApp Web not having
+      loaded the chat's history yet, routine right after a reconnect
+      (conversation_sync.py), so with local history it is a failure to retry.
+    - up_to_date only when nothing arrived, nothing changed under a known id
+      and no deletion the server implied was held back (after a profile
+      restore, or over the cap): "nothing removed on WhatsApp" is not known
+      then, and the neutral "resynced" is said instead.
+    """
+    if not ok:
+        return "resync_conversation_failed"
+    if not fetched_ids:
+        if chat_absent:
+            return "resync_conversation_nothing_remote"
+        if known_before:
+            return "resync_conversation_failed"
+        return "resync_conversation_up_to_date"
+    if removed or withheld or content_changed or set(fetched_ids) - set(known_before):
+        return "resync_conversation_done"
+    return "resync_conversation_up_to_date"

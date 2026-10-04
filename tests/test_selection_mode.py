@@ -128,6 +128,10 @@ class _Stub:
     _all_selectable_message_ids = ConversationsPanel._all_selectable_message_ids
     _on_messages_list_key_down = ConversationsPanel._on_messages_list_key_down
     _on_conv_list_key_down = ConversationsPanel._on_conv_list_key_down
+    _handle_chat_selection_key = ConversationsPanel._handle_chat_selection_key
+    _repaint_chat_selection = ConversationsPanel._repaint_chat_selection
+    _announce_chat_selected = ConversationsPanel._announce_chat_selected
+    _reset_after_chat_cleared = ConversationsPanel._reset_after_chat_cleared
     _on_escape_conversation = ConversationsPanel._on_escape_conversation
 
     def __init__(self, sorted_messages=None, chats_list=None, ui_settings=None,

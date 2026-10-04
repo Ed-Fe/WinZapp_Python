@@ -312,6 +312,33 @@ def note_unread_discount_state(chat: dict, discounted: bool) -> None:
         chat[_UNREAD_UNDISCOUNTED] = True
 
 
+def clear_hides_unread(cleared_cutoff, last_message_ts, activity_t) -> bool:
+    """Whether a chat-list entry for a cleared chat shows nothing newer than
+    the clear, so its unread count is what the clear already wiped.
+
+    The list-chats merge used to decide this by `lastMessage` alone, and
+    list-chats never carries one (WPP.chat.list serialises msgs as null): every
+    chat the user had ever cleared came back with no lastMessage, so every
+    60-second merge set its badge to 0 — for good, since the cutoff is
+    permanent. Reported by several users as the unread counter of a busy
+    group "disappearing on its own"; measured on one log, a group at 62-96
+    unread on the server held at 0 locally between every live event. Worse,
+    with the local count at 0, opening the chat sent no read receipt, so the
+    phone kept it unread as well.
+
+    The chat's activity timestamp `t` does come with list-chats, and a message
+    newer than the clear moves it past the cutoff. Anything at or before the
+    cutoff is what the clear covered. Both sides are compared in seconds
+    (see _unread_seconds() for why that matters).
+    """
+    cutoff = _timestamp_seconds(cleared_cutoff or 0)
+    if not cutoff:
+        return False
+    newest = max(_timestamp_seconds(last_message_ts or 0),
+                 _timestamp_seconds(activity_t or 0))
+    return newest <= cutoff
+
+
 def records_cover_snapshot(records, snapshot_t) -> bool:
     """True when *records* reach the chat-list snapshot's last activity.
 

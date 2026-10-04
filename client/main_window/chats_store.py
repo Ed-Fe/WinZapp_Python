@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import wx
+from core.conversation_view import conversation_in_view
 from main_window.log_files import (
     _LazyLogFile,
     _consolidate_legacy_log_dir,
@@ -23,6 +24,7 @@ from core.incremental_sync import (
 from main_window.message_rules import (
     _discount_non_countable_unread,
     _log_refused_read_receipt,
+    clear_hides_unread,
     note_unread_discount_state,
     reconcile_open_chat_unread,
     reconcile_snapshot_unread,
@@ -808,6 +810,9 @@ class ChatsStoreMixin:
                     if jid.endswith("@lid"):
                         phone_jid = getattr(self, "_lid_to_phone", {}).get(jid)
                         if phone_jid and phone_jid in chats:
+                            # The chat lives under its phone JID, but this is
+                            # still WhatsApp's count for it (see below).
+                            self._note_server_unread(phone_jid, chat.get("unreadCount"))
                             continue
                     if jid in deleted:
                         continue
@@ -819,6 +824,10 @@ class ChatsStoreMixin:
                         lid_jid = getattr(self, "_phone_to_lid", {}).get(jid)
                         if lid_jid and lid_jid in deleted:
                             continue
+                    # What WhatsApp itself says, before anything below discounts
+                    # or zeroes it: opening the chat must reach the server
+                    # whenever the server still counts it unread.
+                    self._note_server_unread(jid, chat.get("unreadCount"))
                     cleared_cutoff = cleared.get(jid)
                     if cleared_cutoff:
                         # A "clear chat" only wipes messages, it must not make the
@@ -827,6 +836,7 @@ class ChatsStoreMixin:
                         # that predates the clear so the conversation shows as empty
                         # instead of resurrecting the pre-clear preview.
                         last_msg = chat.get("lastMessage")
+                        lm_ts = 0
                         if isinstance(last_msg, dict):
                             try:
                                 lm_ts = int(last_msg.get("messageTimestamp", 0) or 0)
@@ -834,7 +844,12 @@ class ChatsStoreMixin:
                                 lm_ts = 0
                             if not lm_ts or lm_ts < cleared_cutoff:
                                 chat["lastMessage"] = None
-                        if not chat.get("lastMessage"):
+                        # Judged on the chat's activity, not on lastMessage:
+                        # list-chats never carries one (msgs is serialised as
+                        # null), so the old `if not lastMessage` zeroed every
+                        # cleared chat on every merge, for good. See
+                        # clear_hides_unread().
+                        if clear_hides_unread(cleared_cutoff, lm_ts, chat.get("t")):
                             chat["unreadCount"] = 0
                     # WPPConnect's list-chats returns every entry in WhatsApp's
                     # internal ChatStore, which includes 1:1 "phantom" chats the
@@ -1008,8 +1023,7 @@ class ChatsStoreMixin:
                                 # that state a minute later. See the comment on
                                 # _open_now in on_chat_unread_update().
                                 open_now = (
-                                    _cp is not None
-                                    and _cp.conversation is not None
+                                    conversation_in_view(_cp)
                                     and self._normalize_jid(
                                         _cp.conversation.get("remoteJid", "")
                                     ) == jid

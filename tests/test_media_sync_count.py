@@ -132,8 +132,11 @@ class _SyncIfMediaStub:
         # Configuracoes > Armazenamento > "Tipos de midia a serem baixados
         # automaticamente". No key at all means every category is allowed,
         # which is what a settings.json predating the option looks like.
-        self.settings = ({"storage": {"auto_download_media_types": list(allowed_types)}}
-                         if allowed_types is not None else {})
+        # The master switch is on throughout: these tests are about what an
+        # enabled auto-download fetches. Off is tests/test_auto_download_setting.py.
+        self.settings = {"storage": {"auto_download_media": True}}
+        if allowed_types is not None:
+            self.settings["storage"]["auto_download_media_types"] = list(allowed_types)
 
     def _media_max_download_days(self):
         return 0

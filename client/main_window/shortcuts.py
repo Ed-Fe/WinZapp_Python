@@ -6,6 +6,7 @@ available here.
 """
 
 import wx
+from core.conversation_view import ARCHIVED, MAIN
 
 
 class ShortcutsMixin:
@@ -85,35 +86,19 @@ class ShortcutsMixin:
             self.navigation_panel.nav_list.SetFocus()
 
     def _ensure_conversations_panel_visible(self):
-        """Bring conversations_panel to the front if some other top-level
-        panel (archived/status/settings) is currently showing instead.
+        """Show the open conversation, in the panel it belongs to, for an
+        explicit ask (Alt+2, Alt+3, Alt+M from any panel).
 
-        _on_global_alt2/_on_global_alt3 act on whichever conversation is
-        open regardless of which panel currently has focus — but a
-        conversation staying "open" (self.conversations_panel.conversation
-        still set) after the user switched to, say, the Status tab used to
-        mean Alt+2/Alt+3 jumped focus inside a conversations_panel that
-        stayed hidden: nothing visibly happened, reported live as "doesn't
-        switch to the right panel" when called from anywhere but the
-        conversations/archived panels.
+        A plain panel switch leaves the conversation open but hidden, so
+        these shortcuts would otherwise jump focus inside a hidden pane and
+        nothing would visibly happen. This reveals it first
+        (ConversationsPanel.reveal_open_conversation) and moves no focus: the
+        caller puts it on the messages.
         """
-        if self.conversations_panel.IsShown():
-            return
-        if hasattr(self, "archived_conversations_panel"):
-            self.archived_conversations_panel.Hide()
-        if hasattr(self, "locked_conversations_panel"):
-            self.locked_conversations_panel.Hide()
-        if hasattr(self, "status_panel"):
-            self.status_panel.Hide()
-        if hasattr(self, "calls_panel"):
-            self.calls_panel.Hide()
-        # Deliberately does NOT touch conversations_label/conversations_list
-        # visibility (unlike on_alt_1(), which always returns to the LIST
-        # view) — a conversation being open here means the detail pane, not
-        # the list, is what should already be showing; whichever of the two
-        # was visible before the user switched away stays as-is.
-        self.conversations_panel.Show()
-        self.content_panel.Layout()
+        # A plain panel switch leaves the open conversation hidden, so this
+        # explicit ask is what shows it, in the panel it belongs to. The
+        # caller puts focus (on the messages), so none is moved here.
+        self.conversations_panel.reveal_open_conversation()
 
     def _on_global_alt2(self, event):
         """Alt+2: jump to last message regardless of which panel has focus."""
@@ -128,6 +113,16 @@ class ShortcutsMixin:
         if cp is not None and cp.conversation is not None:
             self._ensure_conversations_panel_visible()
             cp._on_accel_jump_unread(event)
+
+    def _on_global_focus_messages(self, event):
+        """Alt+M from a panel that has no messages label of its own (the
+        archived list): bring the open conversation forward and focus its
+        messages list, like _on_global_alt2 does for the last message."""
+        cp = getattr(self, "conversations_panel", None)
+        if cp is not None and cp.conversation is not None:
+            self._ensure_conversations_panel_visible()
+        if cp is not None:
+            cp._on_accel_focus_list(event)
 
     def on_f1(self, event):
         from ui.dialogs.shortcuts_dialog import ShortcutsDialog
@@ -250,48 +245,16 @@ class ShortcutsMixin:
 
     def on_alt_1(self, event):
         self.lock_chat_vault(silent=True, show_conversations=False)
-        if hasattr(self, "archived_conversations_panel"):
-            self.archived_conversations_panel.Hide()
-        if hasattr(self, "locked_conversations_panel"):
-            self.locked_conversations_panel.Hide()
-        if hasattr(self, "status_panel"):
-            self.status_panel.Hide()
-        if hasattr(self, "calls_panel"):
-            self.calls_panel.Hide()
-        # ArchivedConversationsPanel.on_conversation_selected() hides
-        # conversations_panel's own conversations_label/conversations_list
-        # (leaving only the conversation detail pane visible) when an
-        # archived chat is opened, since ConversationsPanel is the shared
-        # widget both the normal and archived lists open messages in. Alt+1
-        # showed conversations_panel itself but never undid that hide, so
-        # the list _restore_conversation_selection() below focuses/selects
-        # a control that stayed hidden — NVDA still announced the row
-        # (Select() fires an accessibility event regardless of visibility)
-        # but keyboard focus had nothing visible to actually land on,
-        # reported live as "announces the first conversation but focus
-        # itself is lost", reproducing only when an archived conversation
-        # was open.
-        self.conversations_panel.conversations_label.Show()
-        self.conversations_panel.conversations_list.Show()
-        self.conversations_panel.Show()
-        self.content_panel.Layout()
-        # Restore focus AND selection so the list never ends up empty-focused
-        # when navigating back from a conversation or another panel.
-        self.conversations_panel._restore_conversation_selection()
+        # Brings the main chat list back (a conversation opened from the
+        # archived or locked list had hidden it), hides any conversation that
+        # belongs to another panel, and restores focus AND selection in the
+        # list so it never ends up empty-focused.
+        self.conversations_panel.show_chat_panel(MAIN)
 
     def on_alt_4(self, event):
         self.lock_chat_vault(silent=True, show_conversations=False)
-        self.conversations_panel.Hide()
-        if hasattr(self, "locked_conversations_panel"):
-            self.locked_conversations_panel.Hide()
-        if hasattr(self, "status_panel"):
-            self.status_panel.Hide()
-        if hasattr(self, "calls_panel"):
-            self.calls_panel.Hide()
         if hasattr(self, "archived_conversations_panel"):
-            self.archived_conversations_panel.Show()
-            self.content_panel.Layout()
-            self.archived_conversations_panel.restore_selection()
+            self.conversations_panel.show_chat_panel(ARCHIVED)
 
     def on_alt_5(self, event):
         self.lock_chat_vault(silent=True, show_conversations=False)

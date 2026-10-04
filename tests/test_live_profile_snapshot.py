@@ -327,6 +327,22 @@ class TestTheBackup:
         assert stub.spoken == ["profile_backup_live_started", "profile_backup_live_failed"]
         assert stub.audits == []
 
+    def test_copies_turned_off_during_the_backup_are_dropped_quietly(self, snapshot, answer):
+        """"Keep no profile backups" ticked while the copy was being made: the
+        user chose the space, so the copy is not promoted — and nothing
+        failed, so nothing says so."""
+        stub = _Stub(live_snapshot_confirm=False)
+        restart = stub._restart_wpp_session
+
+        def _restart_then_turn_copies_off(**kw):
+            stub.settings["profile_backup"]["snapshots_disabled"] = True
+            return restart(**kw)
+
+        stub._restart_wpp_session = _restart_then_turn_copies_off
+        _due(stub)
+        assert snapshot.promoted == [] and snapshot.discarded == ["sess"]
+        assert stub.spoken == ["profile_backup_live_started"]
+
     def test_a_copy_that_was_not_written_is_announced(self, snapshot, answer):
         snapshot.staged = False
         stub = _Stub(live_snapshot_confirm=False)

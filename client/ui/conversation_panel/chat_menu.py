@@ -36,35 +36,18 @@ class ChatMenuMixin:
         menu = wx.Menu()
 
         if getattr(self, "selected_chats", None):
-            mass_menu = wx.Menu()
-
             # Each entry carries its own dedicated shortcut (see
             # create_accelerator_table's ID_BULK_*_CHATS) — those work
             # whatever "Substituir atalhos por ações em massa..." is set to,
             # unlike the single-chat shortcuts this submenu's actions used to
             # be reachable through only when that setting was on.
-            clear_item = mass_menu.Append(
-                wx.ID_ANY, f"{i18n.t('clear_selected_chats')}\tCtrl+Alt+Shift+L")
-            self.Bind(wx.EVT_MENU, self._on_mass_clear_chats, clear_item)
-
-            delete_item = mass_menu.Append(
-                wx.ID_ANY, f"{i18n.t('delete_selected_chats')}\tCtrl+Shift+Delete")
-            self.Bind(wx.EVT_MENU, self._on_mass_delete_chats, delete_item)
-
-            archive_item = mass_menu.Append(
-                wx.ID_ANY, f"{i18n.t('archive_selected_chats')}\tCtrl+Alt+Shift+A")
-            self.Bind(wx.EVT_MENU, self._on_mass_archive_chats, archive_item)
-
-            read_item = mass_menu.Append(
-                wx.ID_ANY, f"{i18n.t('mark_selected_read')}\tCtrl+Alt+Shift+R")
-            self.Bind(wx.EVT_MENU, self._on_mass_mark_read_chats, read_item)
-
-            unread_item = mass_menu.Append(
-                wx.ID_ANY, f"{i18n.t('mark_selected_unread')}\tCtrl+Alt+Shift+U")
-            self.Bind(wx.EVT_MENU, self._on_mass_mark_unread_chats, unread_item)
-
-            menu.AppendSubMenu(mass_menu, i18n.t("mass_actions"))
-            menu.AppendSeparator()
+            self._append_chat_mass_menu(menu, [
+                ("clear_selected_chats", "Ctrl+Alt+Shift+L", self._on_mass_clear_chats),
+                ("delete_selected_chats", "Ctrl+Shift+Delete", self._on_mass_delete_chats),
+                ("archive_selected_chats", "Ctrl+Alt+Shift+A", self._on_mass_archive_chats),
+                ("mark_selected_read", "Ctrl+Alt+Shift+R", self._on_mass_mark_read_chats),
+                ("mark_selected_unread", "Ctrl+Alt+Shift+U", self._on_mass_mark_unread_chats),
+            ])
 
         # ── Conversation / group data ─────────────────────────────────────
         data_label = i18n.t("group_data") if is_group else i18n.t("conversation_data")
@@ -309,8 +292,9 @@ class ChatMenuMixin:
         """
         if not (self.conversation and self.conversation.get("remoteJid") == jid):
             return
+        _old_rows = self._sorted_messages
         self._sorted_messages = []
-        self.messages_list.DeleteAllItems()
+        self._sync_message_rows(_old_rows, [])
         self.selected_messages.clear()
         # _unread_sep_idx pointed into the list just emptied above — left
         # stale, a live message arriving right after (on_incoming_message,

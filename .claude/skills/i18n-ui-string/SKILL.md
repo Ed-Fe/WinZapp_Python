@@ -5,96 +5,50 @@ description: Add, change or remove a user-facing string in WinZapp. Use whenever
 
 # Adding a user-facing string
 
-## The invariant
+`I18n.t()` is `translations.get(key, key)` (`client/core/i18n.py`): no
+fallback to another locale. A missing key is not an error — the screen reader
+speaks the raw key name. So **a key added anywhere is owed by every locale
+file listed in `client/languages/language_map.json`, in the same change.**
 
-`I18n.t()` is `translations.get(key, key)` (`client/core/i18n.py`). There is **no
-per-key fallback to any other locale** — not even to pt-BR, the locale the app
-defaults to. A key missing from the file in use is not an error and is not
-logged: the raw key name is what reaches the UI, and in an app built for blind
-users, `about_license` is what the screen reader says out loud.
+## Procedure
 
-That is not hypothetical. `pl.json` once drifted 68 keys behind while features
-were added, and nothing failed until someone switched the app to Polish
-(`fe73e81`). Separately, the Status recorder asked for `voice_recording` and
-`recording_paused` when *no* locale had them, so NVDA read those two literal
-strings to users.
+1. Name the key in English `snake_case`, after its role
+   (`status_reply_send`, not `send_button_2`).
+2. Add it to every locale file in `client/languages/` with a real
+   translation; a blank value fails the suite.
+3. Call it as a literal: `i18n.t("my_key")`. A key built at runtime escapes
+   the static check.
+4. Run the tests below.
 
-So: **a key added anywhere is owed by every locale.** Every file in
-`language_map.json` (seven today: pt-BR, pt-PT, en-US, es-ES, pl, tr-TR, ro —
-read the map, never a count), same commit.
+## Rules
 
-## The procedure
-
-1. Pick a key name: `snake_case`, English, descriptive of the role rather than
-   the text (`status_reply_send`, not `send_button_2`). Keys are never
-   translated — only values are.
-2. Add the key to **all five** files in `client/languages/`:
-   `pt-BR.json`, `pt-PT.json`, `en-US.json`, `es-ES.json`, `pl.json`.
-   Every one gets a real translation; a blank value fails the suite.
-   **Before writing each value, grep that locale for the words it already
-   uses for the concept** (conversation, chat, read, status, attachment…) and
-   use exactly those. See "Reuse the established terminology" below.
-3. Call it as a **literal**: `i18n.t("my_key")` / `self.i18n.t("my_key")`. A key
-   assembled at runtime (f-string, variable) cannot be resolved statically, so
-   it escapes the code-side check entirely and is back to failing silently.
-4. Run the tests (below) before committing.
-
-## The traps the tests exist for
-
-- **`&` is a wx mnemonic, not the word "and".** wx reads `&` in a label as "the
-  next character is this control's Alt shortcut", so a translator writing
-  "Fotos & vídeos" silently eats a character and hands the shortcut to whatever
-  followed — which is how pt-PT shipped a broken label. A literal ampersand
-  must be written `&&`. Which letter carries the mnemonic is a per-language
-  decision; the locales are not required to agree on placement.
-- **Placeholders must match exactly across locales.** Every string goes through
-  `str.format()`. A translation that drops `{name}` silently loses information;
-  one that invents a placeholder the call site does not pass raises `KeyError`
-  at runtime. The check compares all locales that define the key against each
-  other, not against a reference file.
-- **The expected key set is the union of all locale files, not pt-BR's.** Adding
-  a key to en-US and forgetting pt-BR is exactly as broken as the reverse, and
-  the failure lands on the default locale. Whichever file is behind is the one
-  that fails.
-- **Reuse the established terminology — no test catches this one.** Each
-  language file's existing vocabulary has been reviewed by native speakers
-  and is the accepted term there; keep it. A Polish PR (f292049f) moved all of
-  `pl.json` from `rozmowa` to `czat` for "conversation", so a new Polish
-  string saying `rozmowy` silently reintroduces what they removed. Follow the
-  file you are writing into, not another locale's choice: en-US says "chats",
-  pt-BR "conversas". Where a file is mixed (es-ES has both "conversaciones"
-  and "chats"), match the closest strings for the same feature. Changing an established term is a
-  native speaker's decision across the whole file, never a side effect of
-  adding one string.
-- **Accessibility outranks brevity.** The string is spoken, not skimmed. Dialog
-  titles and list items must resolve a human-readable name (contact/group)
-  rather than a raw JID, or NVDA reads phone-number digits aloud.
+- **`&` is a wx mnemonic.** A literal ampersand is written `&&`. Which letter
+  carries the mnemonic is each locale's choice.
+- **Placeholders match across locales.** Every string goes through
+  `str.format()`; a dropped `{name}` loses information, an invented one
+  raises `KeyError`.
+- **Reuse the locale's own vocabulary — no test catches this.** Grep the file
+  for the term it already uses for the concept (pl says `czat`, en-US
+  "chats", pt-BR "conversas") and use it. Where a file is mixed, match the
+  strings of the same feature. Changing an established term is a native
+  speaker's decision, never a side effect. See
+  `docs/reference/i18n-terminology.md`.
+- **The string is spoken.** Titles and list items show a contact or group
+  name, never a raw JID.
 
 ## Verify
 
 ```
-pytest tests/test_language_files_in_sync.py tests/test_i18n_keys_exist.py
+uv run pytest tests/test_language_files_in_sync.py tests/test_i18n_keys_exist.py
 ```
 
-The first checks the locale files against each other (union of keys, no blanks,
-mnemonics, placeholders). The second scans `client/**/*.py` for literal
-`i18n.t("...")` calls and asserts every key the code asks for exists — that is
-the direction the first one cannot see, since every file can agree perfectly
-while all missing the same key.
+The first compares the locale files with each other (keys, blanks,
+mnemonics, placeholders); the second checks every literal `i18n.t("...")` in
+`client/**/*.py` exists.
 
-## Adding a whole new locale
+## Adding a locale
 
-Rarer, and the locale list is data rather than code: drop `<code>.json` into
-`client/languages/` and add `"<code>": "<Display Name>"` to
-`language_map.json`. Dict order there is the order of the Settings combobox.
-No rebuild is needed.
-
-Every test that iterates locales derives the list from `language_map.json`,
-so a new locale is picked up on its own — `test_language_files_in_sync.py`,
-`test_i18n_keys_exist.py`, `test_menu_mnemonics_dont_collide.py`,
-`test_self_reference_label.py` and `test_mute.py`. Keep it that way: a list
-written out in a test file goes stale the moment a locale is added and
-silently stops checking it, which is exactly how `pl` ended up unchecked by
-`test_self_reference_label.py` — the only place that verifies
-`ui_self_reference_eu` and `ui_self_reference_voce` are *distinct*, since the
-union check catches a missing or blank value but never two identical ones.
+Drop `<code>.json` into `client/languages/` and add
+`"<code>": "<Display Name>"` to `language_map.json` (dict order is the
+Settings combobox order). Tests derive the locale list from the map — never
+write the list out in a test.

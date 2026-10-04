@@ -97,6 +97,8 @@ class TestTheHistorySyncCorrection:
 class _LiveStub:
     on_chat_unread_update = MainWindow.on_chat_unread_update
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _note_server_unread = MainWindow._note_server_unread
+    _pop_server_unread = MainWindow._pop_server_unread
     _remote_read_confirmed = staticmethod(MainWindow._remote_read_confirmed)
     _resolve_chat_for_event = MainWindow._resolve_chat_for_event
     _persist_locally_read_at = MainWindow._persist_locally_read_at

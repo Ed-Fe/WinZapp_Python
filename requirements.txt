@@ -28,6 +28,7 @@ colorama==0.4.6
 coverage==7.14.3
 cryptography==46.0.3
 ctranslate2==4.8.2
+execnet==2.1.2
 fastapi==0.123.4
 faster-whisper==1.2.1
 filelock==3.32.5
@@ -45,6 +46,7 @@ numpy==2.4.6
 onnxruntime==1.29.0
 packaging==25.0
 pefile==2024.8.26
+pillow==12.3.0
 platform_utils==1.6.0
 platformdirs==4.5.0
 pluggy==1.6.0
@@ -60,6 +62,7 @@ pyperclip==1.11.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
+pytest-xdist==3.8.0
 python-dotenv==1.2.1
 python-engineio==4.12.3
 python-socketio==5.15.1

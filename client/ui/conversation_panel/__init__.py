@@ -13,6 +13,7 @@ Where to look (and where new code goes):
   Mixins (methods of ConversationsPanel)
     accelerators             accelerator tables (list and open conversation)
     conversation_navigation  open/close/restore a conversation, chat-list filter
+    panel_visibility         which panel an open conversation belongs to, and showing it only there
     composer                 message field: spell check, link preview, keys, paste
     text_sending             sending/editing text, pending rows, cancelled sends
     voice_recording          recording and sending voice messages
@@ -20,6 +21,7 @@ Where to look (and where new code goes):
     list_refresh             populate_messages, repaints, incoming messages
     message_list             moving in the message list: select, activate, jump
     message_rendering        a message record -> its row text
+    message_rows             writing rows into the list one by one, never clearing it
     unread_separator         the unread-messages separator row
     history_loading          loading older history into the open conversation
     message_menu             message context menu and read-only actions
@@ -31,13 +33,15 @@ Where to look (and where new code goes):
     attachments              attaching files and contacts
     contact_messages         contact (vCard) and location messages
     media_files              opening/saving/downloading media, transfer progress
+    ai_actions               transcribe/describe a message's media with the person's AI providers
     audio_playback           voice/audio playback, chaining, speed, seek
     links                    links panel of the focused message
     mentions                 @mentions panel and suggestions
     bookmarks                message bookmarks
     message_search           search inside the conversation
     chat_menu                conversations-list context menu and chat actions
-    chat_selection           multi-selection of chats and bulk chat actions
+    chat_list_selection      chat multi-selection shared by every chat list (main, archived, locked)
+    chat_selection           the conversations list's keys and bulk chat actions
     conversation_info        conversation data, profile, presence note
     formatting               timestamps, dates, durations, file sizes
 

@@ -20,10 +20,10 @@ from tests.god_modules import patch_conversations_global
 
 class _FakeMessagesList:
     def __init__(self):
-        self.delete_all_calls = 0
+        self.emptied = 0
 
     def DeleteAllItems(self):
-        self.delete_all_calls += 1
+        raise AssertionError("the message list must never be cleared in one go")
 
 
 class _FakeMainWindow:
@@ -50,6 +50,14 @@ class _Stub:
     _on_menu_clear_chat = ConversationsPanel._on_menu_clear_chat
     _on_mass_clear_chats = ConversationsPanel._on_mass_clear_chats
     _reset_view_after_chat_cleared = ConversationsPanel._reset_view_after_chat_cleared
+    _reset_after_chat_cleared = ConversationsPanel._reset_after_chat_cleared
+    _repaint_chat_selection = ConversationsPanel._repaint_chat_selection
+
+    def _sync_message_rows(self, old_rows, new_rows):
+        # Stand-in for the per-row write: what matters here is that the open
+        # chat's list was emptied (never via DeleteAllItems).
+        if not new_rows:
+            self.messages_list.emptied += 1
 
     def __init__(self, jid):
         self.main_window = _FakeMainWindow()
@@ -81,7 +89,7 @@ class TestClearChatResetsSeparatorBookkeeping:
         assert stub._first_unread_msg_id is None
         assert stub._first_unread_count == 0
         assert stub.selected_messages == set()
-        assert stub.messages_list.delete_all_calls == 1
+        assert stub.messages_list.emptied == 1
         assert stub.main_window.clear_chat_calls == [JID]
 
     def test_declining_the_confirmation_touches_nothing(self, monkeypatch):
@@ -148,7 +156,7 @@ def _assert_open_view_reset(stub):
     assert stub.selected_messages == set()
     assert stub._unread_sep_idx == -1
     assert stub._first_unread_msg_id is None
-    assert stub.messages_list.delete_all_calls == 1
+    assert stub.messages_list.emptied == 1
 
 
 class TestEveryClearEntryPointResetsTheOpenConversation:
@@ -175,7 +183,7 @@ class TestEveryClearEntryPointResetsTheOpenConversation:
         stub._on_mass_clear_chats(None)
 
         assert stub.selected_messages == {"m1", "m2"}
-        assert stub.messages_list.delete_all_calls == 0
+        assert stub.messages_list.emptied == 0
 
     def test_archived_list_clear_of_the_open_chat(self, monkeypatch):
         patch_conversations_global(monkeypatch, "confirm_clear_chat", lambda *a, **kw: (True, True))

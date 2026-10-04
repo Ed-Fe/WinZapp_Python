@@ -33,6 +33,8 @@ _FILE = "app.json"
 # connection block is namespaced with its original keys.
 _DEFAULTS: dict[str, Any] = {
     "language": "",
+    # Only preferences and consent; credentials have a separate encrypted store.
+    "ai_media": {},
     "updates_enabled": True,
     # Opt-in to the alpha channel (one build per commit landed on main, see
     # .github/workflows/alpha-release.yml). Global rather than per-account for
@@ -141,11 +143,14 @@ class AppSettings:
     def update(self, key: str, change) -> Any:
         """Replace `key` with `change(current value)`, as one locked step.
 
-        get() followed by set() is two acquisitions of the lock with a gap
-        between them, which is fine for a scalar the user sets from one
-        dialog and wrong for a list two account processes can each append to:
-        both read the same list, each writes back its own addition, and one of
-        the two is silently lost. Returns what was written.
+        The atomic update for the nested install-wide values several account
+        processes write to (the `ai_media` preferences, the list of external
+        transcription models). get() followed by set() is two acquisitions of
+        the lock with a gap between them, which is fine for a scalar the user
+        sets from one dialog and wrong for a list two account processes can
+        each append to: both read the same list, each writes back its own
+        addition, and one of the two is silently lost. Returns what was
+        written.
         """
         if key not in _DEFAULTS:
             raise KeyError(f"{key!r} is not a global setting")

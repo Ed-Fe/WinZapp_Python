@@ -20,6 +20,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
+from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
     call_log_candidate_ids,
     call_log_refresh_delays,
@@ -278,6 +279,10 @@ class CallsMixin:
             return response
         logging.warning("[call] %s failed: HTTP %s %s", action,
                         response.status_code, response.text[:500])
+        # The cause is in the body, and the user can act on it (restart,
+        # reinstall), unlike on a bare status code.
+        if is_voip_init_failure(response.text):
+            raise VoipUnavailableError(f"HTTP {response.status_code}")
         raise RuntimeError(f"HTTP {response.status_code}")
 
     @staticmethod
@@ -302,6 +307,13 @@ class CallsMixin:
     def _call_error_text(self, error) -> str:
         """Collapse any call failure into one short line fit for speech."""
         logging.info("[call] failure detail: %r", error)
+        if isinstance(error, VoipUnavailableError):
+            # Not shortened: the whole sentence is the instruction.
+            t = self.i18n.t
+            return t("voice_call_voip_unavailable").format(
+                menu=t("menu_help").replace("&", ""),
+                option=t("menu_force_reinstall_wpp").replace("&", ""),
+            )
         text = " ".join(str(error or "").split())
         if not text:
             return self.i18n.t("voice_call_error_unknown")
@@ -324,6 +336,7 @@ class CallsMixin:
         exclusive_input = bool(audio_settings.get("exclusive_input", False))
         exclusive_output = bool(audio_settings.get("exclusive_output", False))
         echo_cancellation = bool(audio_settings.get("echo_cancellation", False))
+        noise_suppression = bool(audio_settings.get("noise_suppression", False))
         session_name = str(getattr(ws, "instance_name", "") or self.token).split(":", 1)[0]
         audio = CallAudioSession(
             sio,
@@ -334,6 +347,7 @@ class CallsMixin:
                 exclusive_input=exclusive_input,
                 exclusive_output=exclusive_output,
                 echo_cancellation=echo_cancellation,
+                noise_suppression=noise_suppression,
             ),
         )
         return audio, session_name
@@ -1156,7 +1170,7 @@ class CallsMixin:
         title_key = "voice_call_video_settings_title" if (include_camera and not include_audio) else "voice_call_settings_title"
         dialog = wx.Dialog(
             parent, title=self.i18n.t(title_key),
-            size=(560, 520 if include_audio else 390),
+            size=(560, 570 if include_audio else 390),
         )
         root = wx.BoxSizer(wx.VERTICAL)
         default_name = self.i18n.t("audio_device_default")
@@ -1197,7 +1211,11 @@ class CallsMixin:
             echo_check = wx.CheckBox(
                 dialog, label=self.i18n.t("calls_echo_cancellation_label"))
             echo_check.SetValue(bool(audio_cfg.get("echo_cancellation", False)))
-            for check in (exclusive_input_check, exclusive_output_check, echo_check):
+            noise_check = wx.CheckBox(
+                dialog, label=self.i18n.t("calls_noise_suppression_label"))
+            noise_check.SetValue(bool(audio_cfg.get("noise_suppression", False)))
+            for check in (exclusive_input_check, exclusive_output_check, echo_check,
+                          noise_check):
                 root.Add(check, 0, wx.ALL, 8)
             exclusive_output_check.Bind(
                 wx.EVT_CHECKBOX,
@@ -1236,6 +1254,7 @@ class CallsMixin:
                 audio_cfg["exclusive_input"] = exclusive_input_check.GetValue()
                 audio_cfg["exclusive_output"] = exclusive_output_check.GetValue()
                 audio_cfg["echo_cancellation"] = echo_check.GetValue()
+                audio_cfg["noise_suppression"] = noise_check.GetValue()
                 # A device chosen here ends a quick switch's override of that
                 # call device (main_window/quick_audio_devices.py).
                 changed = tuple(kind for kind, combo in (("input", input_combo),

@@ -6,7 +6,6 @@ from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
 from core.i18n import LANGUAGE_NAMES
 from core.combo_search import bind_incremental_search
 from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
-from ui.dialogs.stereo_voice_warning import ask_stereo_voice
 from core.sound_system import (
     SOUND_EVENTS, discover_alert_tone_choices, resolve_alert_tone_path,
     DEFAULT_PACK_ID, import_soundpack, AlertPreviewController,
@@ -23,6 +22,7 @@ from core.reaction_shortcuts import (
     fixed_quick_reactions,
 )
 from ui.dialogs.emoji_picker import choose_reaction_emoji
+from ui.dialogs.ai_settings_page import AISettingsPage
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -148,6 +148,7 @@ from ui.dialogs.transcription_progress import (
 from core.profile_backup import (
     CLOSE_HOURS_MINIMUM, DEFAULT_CLOSE_HOURS, DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM,
     parse_hours_field, stored_hours,
+    size_text as snapshot_size_text,
 )
 
 
@@ -873,15 +874,6 @@ class SettingsDialog(wx.Dialog):
         ui_sizer.Add(
             self._confirm_resync_conversation_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
         )
-        # Mirrors user_interface.warn_stereo_voice_iphone, which the stereo
-        # warning's own "don't show again" box clears.
-        self._warn_stereo_voice_cb = wx.CheckBox(
-            self._ui_page, label=i18n.t("ui_warn_stereo_voice_iphone")
-        )
-        ui_sizer.Add(
-            self._warn_stereo_voice_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
-        )
-
         self._warn_system_audio_cb = wx.CheckBox(
             self._ui_page, label=i18n.t("ui_warn_system_audio_recording")
         )
@@ -1292,6 +1284,9 @@ class SettingsDialog(wx.Dialog):
             self._storage_page, label=i18n.t("auto_download_media_label")
         )
         storage_sizer.Add(self._auto_download_media_check, 0, wx.ALL, 8)
+        self._auto_download_media_check.Bind(
+            wx.EVT_CHECKBOX, self._on_auto_download_toggle
+        )
 
         self._auto_download_types_label = wx.StaticText(
             self._storage_page,
@@ -1534,6 +1529,14 @@ class SettingsDialog(wx.Dialog):
         self._profile_backup_page = wx.Panel(self._notebook)
         backup_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # Off by default: no restore point at all, for someone who would rather
+        # re-pair after a broken profile than give its copy 1-2 GB of disk.
+        # First on the tab because it decides whether the rest means anything.
+        self._no_profile_snapshots_check = wx.CheckBox(
+            self._profile_backup_page, label=i18n.t("profile_backup_disabled_label")
+        )
+        backup_sizer.Add(self._no_profile_snapshots_check, 0, wx.ALL, 8)
+
         self._close_snapshot_hours_label = wx.StaticText(
             self._profile_backup_page, label=i18n.t("profile_backup_close_hours_label")
         )
@@ -1567,6 +1570,7 @@ class SettingsDialog(wx.Dialog):
         self._profile_backup_page.SetSizer(backup_sizer)
         self._notebook.AddPage(self._profile_backup_page, i18n.t("tab_profile_backup"))
         self._live_snapshot_check.Bind(wx.EVT_CHECKBOX, self._on_live_snapshot_toggle)
+        self._no_profile_snapshots_check.Bind(wx.EVT_CHECKBOX, self._on_live_snapshot_toggle)
 
         # ── Reactions tab ────────────────────────────────────────────────────
         # The twelve quick choices of "React to message" (core/reaction_shortcuts.py).
@@ -1700,16 +1704,24 @@ class SettingsDialog(wx.Dialog):
         else:
             self._chat_lock_page.Hide()
 
+        # Appended after every indexed page: Connection's established index (4)
+        # and every other page stay stable whether the optional hidden-vault
+        # page is present or not. The page is found with FindPage(), never by
+        # index, for the same reason.
+        self._ai_page = AISettingsPage(self._notebook, self.main_window, on_change=self._mark_dirty)
+        self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
+
         # ── Transcription tab ────────────────────────────────────────────────
-        # Appended, never inserted. Every hardcoded _notebook.SetSelection(N)
-        # in this file and in main_window/settings.py names a tab at index 8 or
-        # lower, and the SetPageText() enumeration in _refresh_dialog_labels()
-        # is positional, so the end is the one position that shifts nothing —
-        # but the tab still owes that enumeration a line of its own, or its
-        # caption stops following a language change. That line finds the page
-        # with FindPage() instead of a number: the "Locked chats" tab just
-        # above is added only when chat_lock_tab_visible() says so, which
-        # leaves this one at index 14 or 15.
+        # Appended, never inserted, and the last tab of all. Every hardcoded
+        # _notebook.SetSelection(N) in this file and in main_window/settings.py
+        # names a tab at index 8 or lower, and the SetPageText() enumeration
+        # in _refresh_dialog_labels() is positional, so the end is the one
+        # position that shifts nothing — but the tab still owes that
+        # enumeration a line of its own, or its caption stops following a
+        # language change. That line finds the page with FindPage() instead of
+        # a number: the "Locked chats" tab above is added only when
+        # chat_lock_tab_visible() says so, which leaves the AI tab just above
+        # at index 14 or 15 and this one at 15 or 16.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
 
@@ -3407,6 +3419,10 @@ class SettingsDialog(wx.Dialog):
             profile_backup.get("live_snapshot_interval_hours", 24),
             DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM)))
         self._live_snapshot_confirm_check.SetValue(profile_backup.get("live_snapshot_confirm", True))
+        self._no_profile_snapshots_check.SetValue(profile_backup.get("snapshots_disabled", False))
+        # What the box was when the dialog opened: turning it on here is what
+        # offers to delete the copies already on disk (after OK/Apply).
+        self._snapshots_disabled_loaded = self._no_profile_snapshots_check.GetValue()
         self._update_live_snapshot_fields()
 
         reactions = self.main_window.settings.get("reactions", {})
@@ -3531,10 +3547,6 @@ class SettingsDialog(wx.Dialog):
         )
         self._confirm_resync_conversation_cb.SetValue(bool(confirm_resync_conversation))
 
-        warn_stereo_voice = self.main_window.settings.get("user_interface", {}).get(
-            "warn_stereo_voice_iphone", True
-        )
-        self._warn_stereo_voice_cb.SetValue(bool(warn_stereo_voice))
         self._warn_system_audio_cb.SetValue(bool(
             self.main_window.settings.get("user_interface", {}).get(
                 "warn_system_audio_recording", True)))
@@ -3679,6 +3691,7 @@ class SettingsDialog(wx.Dialog):
             storage.get("probe_video_duration_on_download", False)
         )
         self._load_auto_download_types(storage.get("auto_download_media_types"))
+        self._update_auto_download_types_state()
 
         audio_playback = self.main_window.settings.get("audio_playback", {})
         self._mark_audio_played_check.SetValue(
@@ -4175,22 +4188,6 @@ class SettingsDialog(wx.Dialog):
         self._update_alert_preview_visibility()
         self._alert_page.Layout()
 
-    def _confirm_stereo_voice_if_newly_enabled(self):
-        """Ask before stereo voice messages are turned on in this save."""
-        if not self._voice_stereo_check.GetValue():
-            return
-        if self.main_window.settings.get("general", {}).get("voice_message_stereo", False):
-            return  # already on: nothing new to warn about
-        if not self._warn_stereo_voice_cb.GetValue():
-            return
-        confirmed, dont_ask_again = ask_stereo_voice(self, self.main_window.i18n)
-        if not confirmed:
-            self._voice_stereo_check.SetValue(False)
-        elif dont_ask_again:
-            self._warn_stereo_voice_cb.SetValue(False)
-            self.main_window.settings.setdefault("user_interface", {})[
-                "warn_stereo_voice_iphone"] = False
-
     def _update_alert_preview_visibility(self):
         """Show each preview button only when there is a sound to play.
 
@@ -4361,14 +4358,49 @@ class SettingsDialog(wx.Dialog):
 
     def _update_live_snapshot_fields(self):
         """The interval and the confirmation only mean something while the
-        backup with WinZapp open is on. Hidden rather than disabled, so Tab
-        and the screen reader do not walk through options that do nothing."""
-        show = self._live_snapshot_check.GetValue()
+        backup with WinZapp open is on, and nothing on the tab but the "keep
+        no copies" box means anything while that one is ticked. Hidden rather
+        than disabled, so Tab and the screen reader do not walk through
+        options that do nothing."""
+        copies_on = not self._no_profile_snapshots_check.GetValue()
+        for control in (self._close_snapshot_hours_label,
+                        self._close_snapshot_hours_field,
+                        self._live_snapshot_check):
+            control.Show(copies_on)
+        show = copies_on and self._live_snapshot_check.GetValue()
         for control in (self._live_snapshot_hours_label,
                         self._live_snapshot_hours_field,
                         self._live_snapshot_confirm_check):
             control.Show(show)
         self._profile_backup_page.Layout()
+
+    def _offer_to_delete_profile_snapshots(self):
+        """After OK/Apply: if "keep no copies" was just turned on and copies
+        exist, ask whether to delete them — the space is the whole point.
+
+        Asked, with No as the default, because it cannot be undone: the copy
+        is what spares a re-pairing when the profile breaks. Nothing is asked
+        when there is nothing on disk, and Apply followed by OK asks once.
+        """
+        turned_on = (self._no_profile_snapshots_check.GetValue()
+                     and not getattr(self, "_snapshots_disabled_loaded", False))
+        self._snapshots_disabled_loaded = self._no_profile_snapshots_check.GetValue()
+        if not turned_on:
+            return
+        size_of = getattr(self.main_window, "profile_snapshots_size", None)
+        size = size_of() if callable(size_of) else 0
+        if not size:
+            return
+        i18n = self.main_window.i18n
+        answer = wx.MessageBox(
+            i18n.t("profile_backup_delete_question").format(
+                size=snapshot_size_text(size, i18n.t("decimal_separator"))),
+            i18n.t("tab_profile_backup"),
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+            self,
+        )
+        if answer == wx.YES:
+            self.main_window.delete_profile_snapshots()
 
     def _validate(self) -> bool:
         """Return True if all values are valid; show an error and return False otherwise."""
@@ -4507,6 +4539,11 @@ class SettingsDialog(wx.Dialog):
         if parse_hours_field(self._close_snapshot_hours_field.GetValue(),
                              CLOSE_HOURS_MINIMUM) is None:
             self._notebook.SetSelection(self._notebook.FindPage(self._profile_backup_page))
+            # Hidden while "keep no copies" is ticked; it has to be seen to
+            # be corrected.
+            for control in (self._close_snapshot_hours_label, self._close_snapshot_hours_field):
+                control.Show()
+            self._profile_backup_page.Layout()
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_profile_backup_close_hours"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
@@ -4653,6 +4690,18 @@ class SettingsDialog(wx.Dialog):
                 idx, not self._group_media_types_list.IsItemChecked(idx)
             )
 
+    def _on_auto_download_toggle(self, event):
+        self._update_auto_download_types_state()
+        event.Skip()
+
+    def _update_auto_download_types_state(self):
+        """The category list only means something while the auto-download is
+        on. Disabled rather than unchecked: the ticks are the user's choice,
+        and they have to still be there when the box is ticked again."""
+        enabled = self._auto_download_media_check.GetValue()
+        self._auto_download_types_label.Enable(enabled)
+        self._auto_download_types_list.Enable(enabled)
+
     def _on_auto_download_type_activated(self, event):
         """Enter on a row toggles its checkbox, matching Space."""
         idx = event.GetIndex()
@@ -4719,6 +4768,10 @@ class SettingsDialog(wx.Dialog):
     def _apply_values(self) -> bool:
         """Validate, save, and apply all settings. Returns True on success."""
         if not self._validate():
+            return False
+
+        if not self._ai_page.apply():
+            self._notebook.SetSelection(self._notebook.FindPage(self._ai_page))
             return False
 
         # Language, updates, account switch, tray icon and the API connection:
@@ -4797,9 +4850,6 @@ class SettingsDialog(wx.Dialog):
         self.main_window.settings.setdefault("user_interface", {})[
             "confirm_resync_conversation"
         ] = self._confirm_resync_conversation_cb.GetValue()
-        self.main_window.settings.setdefault("user_interface", {})[
-            "warn_stereo_voice_iphone"
-        ] = self._warn_stereo_voice_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
             "warn_system_audio_recording"
         ] = self._warn_system_audio_cb.GetValue()
@@ -4932,12 +4982,6 @@ class SettingsDialog(wx.Dialog):
             self._noise_reduction_check.GetValue()
         )
 
-        # Turning stereo voice messages on says first that they go out as audio
-        # messages (ui/dialogs/stereo_voice_warning.py). Read from this dialog's own
-        # box, not from settings: it may have been unticked in this same save.
-        # No leaves stereo off; "don't show again" unticks the box here too, so
-        # a later Apply cannot write it back on.
-        self._confirm_stereo_voice_if_newly_enabled()
         self.main_window.settings.setdefault("general", {})["voice_message_stereo"] = (
             self._voice_stereo_check.GetValue()
         )
@@ -4963,6 +5007,7 @@ class SettingsDialog(wx.Dialog):
         calls["popup_enabled"] = self._call_popup_check.GetValue()
 
         profile_backup = self.main_window.settings.setdefault("profile_backup", {})
+        profile_backup["snapshots_disabled"] = self._no_profile_snapshots_check.GetValue()
         profile_backup["close_snapshot_min_hours"] = parse_hours_field(
             self._close_snapshot_hours_field.GetValue(), CLOSE_HOURS_MINIMUM)
         profile_backup["live_snapshot_enabled"] = self._live_snapshot_check.GetValue()
@@ -5050,6 +5095,7 @@ class SettingsDialog(wx.Dialog):
             cache.clear()
 
         # Storage
+        old_storage = dict(self.main_window.settings.get("storage") or {})
         self.main_window.settings.setdefault("storage", {}).update({
             "auto_download_media": self._auto_download_media_check.GetValue(),
             "media_max_days": int(self._media_max_days_field.GetValue().strip()),
@@ -5073,9 +5119,15 @@ class SettingsDialog(wx.Dialog):
 
         # Persist and propagate
         self.main_window.save_settings()
+        self._offer_to_delete_profile_snapshots()
         # Reload sound objects so per-event enabled/path changes (and the new
         # alert-tone defaults) take effect immediately, without a restart.
         self.main_window.load_sounds()
+        # Turning the auto-download on, or ticking another category, fetches
+        # that media now rather than at the next sync. Turning it off needs
+        # nothing from here: the running sweep reads the setting itself.
+        self.main_window._on_auto_download_settings_changed(
+            old_storage, self.main_window.settings["storage"])
 
         # Reload translations and repaint the already-created UI only when the
         # language actually changed. This includes dynamic rows and modeless
@@ -5151,10 +5203,12 @@ class SettingsDialog(wx.Dialog):
         self._notebook.SetPageText(13, i18n.t("tab_reactions"))
         if self._chat_lock_tab_shown:
             self._notebook.SetPageText(14, i18n.t("locked_chats"))
-        # Transcription is appended after the conditional "Locked chats" tab,
-        # so its index is 14 or 15 depending on whether that tab is shown —
-        # looked up rather than hardcoded, the same way the page-changed
-        # handler finds it.
+        self._ai_page.refresh_labels()
+        self._notebook.SetPageText(self._notebook.FindPage(self._ai_page), i18n.t("tab_ai_accessibility"))
+        # Transcription is appended after the conditional "Locked chats" tab
+        # and the AI tab, so its index is 15 or 16 depending on whether the
+        # former is shown — looked up rather than hardcoded, the same way the
+        # page-changed handler finds it.
         self._notebook.SetPageText(
             self._notebook.FindPage(self._transcription_page),
             i18n.t("tab_transcription"),
@@ -5192,6 +5246,7 @@ class SettingsDialog(wx.Dialog):
         )
         self._fill_quick_reaction_slots()
         self._reset_quick_reactions_btn.SetLabel(i18n.t("reactions_reset_button"))
+        self._no_profile_snapshots_check.SetLabel(i18n.t("profile_backup_disabled_label"))
         self._close_snapshot_hours_label.SetLabel(i18n.t("profile_backup_close_hours_label"))
         self._live_snapshot_check.SetLabel(i18n.t("profile_backup_live_label"))
         self._live_snapshot_hours_label.SetLabel(i18n.t("profile_backup_live_hours_label"))
@@ -5306,7 +5361,6 @@ class SettingsDialog(wx.Dialog):
         self._confirm_mark_all_read_cb.SetLabel(i18n.t("ui_confirm_mark_all_read"))
         self._confirm_resync_all_cb.SetLabel(i18n.t("ui_confirm_resync_all"))
         self._confirm_resync_conversation_cb.SetLabel(i18n.t("ui_confirm_resync_conversation"))
-        self._warn_stereo_voice_cb.SetLabel(i18n.t("ui_warn_stereo_voice_iphone"))
         self._warn_system_audio_cb.SetLabel(i18n.t("ui_warn_system_audio_recording"))
         self._space_selects_cb.SetLabel(i18n.t("ui_space_selects_in_selection_mode"))
         self._escape_clears_selection_cb.SetLabel(i18n.t("ui_escape_clears_selection"))

@@ -12,6 +12,7 @@ import wx
 from core.api_client import api_get
 from traceback import format_exc
 from core.utils import (
+    auto_download_enabled,
     is_phone_like,
     looks_like_binary_blob,
 )
@@ -385,11 +386,13 @@ class ContactsMixin:
                             }
                             changed_jids.difference_update(message_failures)
                             if (changed_jids
-                                    and self.settings.get("storage", {}).get(
-                                        "auto_download_media", True)
+                                    and auto_download_enabled(self.settings)
                                     and not getattr(self, "_media_sync_running", False)
                                     and not getattr(self, "_history_still_landing", False)):
-                                self.sync_media_for_all_chats(changed_jids)
+                                self.sync_media_for_all_chats(
+                                    changed_jids,
+                                    should_stop=lambda: not auto_download_enabled(
+                                        self.settings))
 
                         if not message_failures:
                             # Persist unread/pin/archive/activity metadata only

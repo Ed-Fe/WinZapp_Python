@@ -27,6 +27,8 @@ from main import MainWindow
 class _Stub:
     on_chat_unread_update = MainWindow.on_chat_unread_update
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _note_server_unread = MainWindow._note_server_unread
+    _pop_server_unread = MainWindow._pop_server_unread
     _remote_read_confirmed = staticmethod(MainWindow._remote_read_confirmed)
     # Bridges the @lid / phone identities of the incoming event before the
     # handler looks the chat up — see tests/test_chats_update_lid_resolution.py.

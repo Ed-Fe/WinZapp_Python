@@ -197,12 +197,9 @@ class TestTheDeleteIsAddressedAtTheChat:
         stub = _Stub("group@g.us", is_self_chat=False)
         stub._sorted_messages[0]["key"]["remoteJid"] = "group@g.us"
 
-        stub._delete_message_for_me_only(
+        _run_and_join_threads(lambda: stub._delete_message_for_me_only(
             stub._sorted_messages[0], "m1", 0
-        )
-        for t in list(threading.enumerate()):
-            if t is not threading.current_thread():
-                t.join(timeout=2)
+        ))
 
         (jid, _key), = stub.main_window.delete_for_me_calls
         assert jid == "group@g.us"

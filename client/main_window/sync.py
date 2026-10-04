@@ -30,10 +30,12 @@ from ui.dialogs.checkbox_confirm import confirm_with_checkbox
 from app_paths import data_path
 from core.conversation_resync import (
     deletions_to_apply,
+    record_fingerprints,
+    resync_outcome,
     stale_ids_in_fetched_window,
 )
 from main_window.message_rules import is_countable_message
-from core.utils import prune_chats_messages
+from core.utils import auto_download_enabled, prune_chats_messages
 
 
 class SyncMixin:
@@ -62,7 +64,9 @@ class SyncMixin:
                 wx.CallAfter(self.output, self.i18n.t("sync_media_started"))
             self._media_sync_running = True
             try:
-                self.sync_media_for_all_chats()
+                # explicit: asked for by hand, so it runs with the
+                # auto-download switched off too.
+                self.sync_media_for_all_chats(explicit=True)
                 if not self.background_mode and self._announce_sync_events_enabled():
                     wx.CallAfter(self.output, self.i18n.t("sync_media_completed"))
             except Exception as exc:
@@ -177,31 +181,41 @@ class SyncMixin:
         """Background worker for _on_menu_resync_conversation()."""
         try:
             chat = self.chats.get(remote_jid)
+            before = record_fingerprints(_chat_message_records(chat or {}))
+            known_before = set(before)
             fetched_ids = set()
+            outcome = {}
             ok = bool(chat) and bool(self.sync_chat_messages(
-                chat, sync_mode="full", fetched_ids_out=fetched_ids))
+                chat, sync_mode="full", fetched_ids_out=fetched_ids,
+                outcome_out=outcome))
             if not ok or not fetched_ids:
-                logging.info("[resync-conversation] %s: nothing fetched (ok=%s)",
-                             remote_jid, ok)
-                wx.CallAfter(self.output, self.i18n.t("resync_conversation_failed"), True)
+                logging.info("[resync-conversation] %s: nothing fetched (ok=%s, "
+                             "chat_absent=%s)", remote_jid, ok,
+                             outcome.get("chat_absent", False))
+                # Nothing was touched. Only chat_not_found is WhatsApp saying it
+                # has no messages here; an empty page may just be WhatsApp Web
+                # not having loaded the chat yet (resync_outcome()).
+                wx.CallAfter(self.output, self.i18n.t(resync_outcome(
+                    ok, outcome.get("chat_absent", False), fetched_ids,
+                    known_before, removed=False, withheld=False,
+                    content_changed=False)), True)
                 return
             chat = self.chats.get(remote_jid) or chat
             records = _chat_message_records(chat)
+            # Same rules as the open-chat deletion mirror, including the
+            # periods a profile restore left a hole in (core/conversation_resync.py).
+            judged = _outside_rollback_gaps(records, self._rollback_gaps())
+            apparent = stale_ids_in_fetched_window(judged, fetched_ids, is_countable_message)
             if getattr(self, "_remote_deletions_untrusted", False):
                 # A profile restore rolled WhatsApp Web's store back behind our
                 # database: its silence about a message proves nothing.
                 stale = []
             else:
-                # Same rules as the open-chat deletion mirror, including the
-                # periods a profile restore left a hole in (core/conversation_resync.py).
-                judged = _outside_rollback_gaps(records, self._rollback_gaps())
-                stale = stale_ids_in_fetched_window(judged, fetched_ids, is_countable_message)
-                apparent = len(stale)
-                stale = deletions_to_apply(stale)
+                stale = deletions_to_apply(apparent)
                 if apparent and not stale:
                     logging.warning(
                         "[resync-conversation] %s: %d apparent deletions exceed the "
-                        "cap of %d; none removed", remote_jid, apparent,
+                        "cap of %d; none removed", remote_jid, len(apparent),
                         MAX_MIRRORED_DELETIONS)
             if stale:
                 stale_set = set(stale)
@@ -225,7 +239,13 @@ class SyncMixin:
                          remote_jid, len(fetched_ids), len(stale))
             self._refresh_open_conversation_after_sync(remote_jid, chat)
             self._schedule_set_chats()
-            wx.CallAfter(self.output, self.i18n.t("resync_conversation_done"), True)
+            after = record_fingerprints(records)
+            content_changed = any(after.get(mid, fingerprint) != fingerprint
+                                  for mid, fingerprint in before.items())
+            wx.CallAfter(self.output, self.i18n.t(resync_outcome(
+                ok, False, fetched_ids, known_before, removed=bool(stale),
+                withheld=bool(apparent) and not stale,
+                content_changed=content_changed)), True)
         except Exception:
             logging.exception("[resync-conversation] %s: failed", remote_jid)
             wx.CallAfter(self.output, self.i18n.t("resync_conversation_failed"), True)
@@ -1368,7 +1388,8 @@ class SyncMixin:
                     "cached locally — treating the server store as not loaded, so this sync stays "
                     "incomplete and the health checker will retry it. (If every conversation was "
                     "genuinely deleted from another device this retries until the cache is "
-                    "rebuilt — see _settle_deadline_decision.)",
+                    "rebuilt — see _settle_deadline_decision.) What the server saw is in "
+                    "wppconnect.log, the '[listChats] diag' lines.",
                     local_chat_count,
                 )
                 break
@@ -1987,13 +2008,13 @@ class SyncMixin:
                 self._backfill_thread.start()
 
         # ── Phase 2: download media ──────────────────────────────────────────
-        # Opt-out via Settings > Armazenamento > "Baixar mídias automaticamente
+        # Opt-in via Settings > Armazenamento > "Baixar mídias automaticamente
         # ao sincronizar" (on by default). Runs on this same background sync
         # thread — the window is already open and responsive by this point
         # (UI init finished long before _run_sync), so this only delays when
         # "sync complete" fires, not startup itself. sync_if_media() still
         # applies the day/size caps from the same settings tab per message.
-        if not self.settings.get("storage", {}).get("auto_download_media", True):
+        if not auto_download_enabled(self.settings):
             logging.info("[start_sync] Phase 2 media auto-download skipped (disabled in settings).")
         elif media_scope_jids is not None and not media_scope_jids:
             logging.info(
@@ -2056,10 +2077,13 @@ class SyncMixin:
                 # Only a round that committed as current gets here, but a wipe,
                 # F5 or logout can still land during a phase that runs for
                 # minutes, and every file fetched after that lands in media/
-                # with nothing on disk referring to it any more.
+                # with nothing on disk referring to it any more. The setting
+                # is asked too, so unticking it in Settings ends the phase
+                # instead of only preventing the next one.
                 count = self.sync_media_for_all_chats(
                     media_scope_jids,
-                    should_stop=lambda: _current_run_id() != my_run_id)
+                    should_stop=lambda: (_current_run_id() != my_run_id
+                                         or not auto_download_enabled(self.settings)))
                 logging.info("[start_sync] Phase 2 downloaded %d media file(s).", count)
                 if _superseded_at("during the media phase"):
                     # Neither "concluído" nor "falhou": the start was spoken
@@ -2068,6 +2092,14 @@ class SyncMixin:
                     # announce their own start). The finally below still
                     # clears the status text.
                     return
+                if not auto_download_enabled(self.settings):
+                    # Switched off mid-phase. Still an ending for the start
+                    # that was spoken, but not "concluído": it did not finish.
+                    logging.info(
+                        "[start_sync] Phase 2 stopped — auto-download was "
+                        "disabled in settings (%d file(s) fetched).", count)
+                    if announced:
+                        wx.CallAfter(self.output, self.i18n.t("sync_media_stopped"))
                 # Announce the outcome iff the start was announced, so the two
                 # always come in pairs — a screen-reader user left with a
                 # "iniciado" and no ending has no way to tell a finished phase
@@ -2075,7 +2107,7 @@ class SyncMixin:
                 # the connection survived: dropping mid-phase makes every
                 # remaining download a no-op, and calling that "concluído"
                 # is the same lie this whole block exists to stop telling.
-                if announced:
+                elif announced:
                     if getattr(self, "_wa_connected", False) and not getattr(self, "offline_mode", False):
                         wx.CallAfter(self.output, self.i18n.t("sync_media_completed"))
                     else:

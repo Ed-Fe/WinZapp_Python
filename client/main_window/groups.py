@@ -29,6 +29,13 @@ from main_window.identity_rules import (
 )
 
 
+# One lock per group, so a slow answer for one group never holds up the threads
+# of another; the guard only protects the two dicts.
+_GROUP_INFO_GUARD = threading.Lock()
+_GROUP_INFO_LOCKS: dict = {}
+_GROUP_INFO_LOCKS_MAX = 64
+
+
 class GroupsMixin:
     """Group metadata: names, send permissions, admin/settings/subject changes and
     group management actions.
@@ -477,6 +484,34 @@ class GroupsMixin:
         except Exception as e:
             logging.error(f"[get_group_info] error: {e}")
         return {}
+
+    def get_group_info_recent(self, jid: str, max_age: float = 5.0) -> dict:
+        """get_group_info(), unless a non-empty answer for `jid` is younger
+        than `max_age` seconds. Opening a group starts two background threads
+        (the data note and the @mention participants) that both need it; the
+        lock makes the second one wait for the first instead of sending a
+        second GET /group-info."""
+        with _GROUP_INFO_GUARD:
+            if len(_GROUP_INFO_LOCKS) > _GROUP_INFO_LOCKS_MAX:
+                for key in [k for k, v in _GROUP_INFO_LOCKS.items() if not v.locked()]:
+                    del _GROUP_INFO_LOCKS[key]
+            lock = _GROUP_INFO_LOCKS.setdefault(jid, threading.Lock())
+        with lock:
+            with _GROUP_INFO_GUARD:
+                cache = self.__dict__.setdefault("_group_info_recent", {})
+                hit = cache.get(jid)
+            if hit and time.monotonic() - hit[0] < max_age:
+                return hit[1]
+            data = self.get_group_info(jid)
+            # An answer without participants is a session still loading: the
+            # mention fetch retries a few seconds later and must really ask.
+            if isinstance(data, dict) and data.get("participants"):
+                now = time.monotonic()
+                with _GROUP_INFO_GUARD:
+                    for key in [k for k, (t, _) in cache.items() if now - t >= max_age]:
+                        del cache[key]
+                    cache[jid] = (now, data)
+            return data
 
     # ── Group ─────────────────────────────────────────────────────────────────
 

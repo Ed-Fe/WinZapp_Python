@@ -43,6 +43,7 @@ import uuid
 import wx
 from app_paths import _is_frozen
 from core.i18n import I18n
+from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE
 from core.message_queue import PendingMessage
 from core.utils import looks_like_binary_blob, link_preview_text, is_voice_message
 
@@ -275,6 +276,10 @@ def format_notification_body(msg: dict, main_window, i18n) -> str:
     # ── Sticker ───────────────────────────────────────────────────────────────
     if msg_type == "stickerMessage":
         return i18n.t("sticker")
+
+    # ── View once (only on the phone — core/view_once.py) ─────────────────────
+    if msg_type == VIEW_ONCE_UNAVAILABLE_TYPE:
+        return i18n.t("view_once_message")
 
     # ── Contact ───────────────────────────────────────────────────────────────
     if msg_type == "contactMessage":

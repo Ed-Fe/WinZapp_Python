@@ -31,7 +31,6 @@ from core.voice_stereo import (
     alternate_mode_is_stereo, alternate_record_label_key, encode_as_stereo,
     fell_back_to_mono,
 )
-from ui.dialogs.stereo_voice_warning import ask_stereo_voice, stereo_warning_enabled
 from core.quote_recovery import RECOVERED_FROM_QUOTE
 from core.audio_transcode import transcode_audio_to_wav
 from core.attachment_types import classify_attachment_media_type
@@ -144,6 +143,7 @@ from ui.conversation_panel.mentions import MentionsMixin
 from ui.conversation_panel.unread_separator import UnreadSeparatorMixin
 from ui.conversation_panel.history_loading import HistoryLoadingMixin
 from ui.conversation_panel.chat_selection import ChatSelectionMixin
+from ui.conversation_panel.message_rows import MessageRowsMixin
 from ui.conversation_panel.audio_playback import AudioPlaybackMixin
 from ui.conversation_panel.formatting import FormattingMixin
 from ui.conversation_panel.message_rendering import MessageRenderingMixin
@@ -157,11 +157,14 @@ from ui.conversation_panel.reactions import ReactionsMixin
 from ui.conversation_panel.attachments import AttachmentsMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
 from ui.conversation_panel.bulk_messages import BulkMessagesMixin
+from ui.conversation_panel.panel_visibility import ConversationPanelVisibilityMixin
+from ui.conversation_panel.ai_actions import AIActionsMixin
 
 
 class ConversationsPanel(
     AcceleratorsMixin,
     ConversationNavigationMixin,
+    ConversationPanelVisibilityMixin,
     ComposerMixin,
     VoiceRecordingMixin,
     SystemAudioRecordingMixin,
@@ -176,6 +179,7 @@ class ConversationsPanel(
     UnreadSeparatorMixin,
     HistoryLoadingMixin,
     ChatSelectionMixin,
+    MessageRowsMixin,
     AudioPlaybackMixin,
     FormattingMixin,
     MessageRenderingMixin,
@@ -189,6 +193,7 @@ class ConversationsPanel(
     AttachmentsMixin,
     ContactMessagesMixin,
     BulkMessagesMixin,
+    AIActionsMixin,
     wx.Panel,
 ):
     # Windows' native SysListView32 (the classic wx.ListCtrl) reads each item's
@@ -870,6 +875,7 @@ class ConversationsPanel(
         self.message_field.Bind(wx.EVT_TEXT,       self.on_change_message_field)
         self.message_field.Bind(wx.EVT_TEXT_ENTER, self.on_send_message)
         self.message_field.Bind(wx.EVT_KEY_DOWN,   self._on_message_field_key_down)
+        self.message_field.Bind(wx.EVT_LEFT_UP,    self._cue_spelling_at_caret_on_click)
         self.message_field.Bind(wx.EVT_CHAR,       self._on_message_field_char)
         self.message_field.Bind(wx.EVT_TEXT_PASTE, self._on_text_field_paste)
         conv_sizer.Add(self.message_field, 0, wx.EXPAND | wx.ALL, 5)

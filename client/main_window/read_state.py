@@ -88,6 +88,30 @@ class ReadStateMixin:
             return False
         return remote_jid in anchors or self._normalize_jid(remote_jid) in anchors
 
+    def _note_server_unread(self, remote_jid: str, count) -> None:
+        """Remember the unread count WhatsApp itself last reported for a chat
+        (a chats-update, a list-chats entry), whatever the badge shows.
+
+        In memory only: list-chats refills it within a minute of every launch.
+        Read by mark_conversation_as_read(), which must send the read to the
+        server whenever the server still counts the chat unread.
+        """
+        try:
+            count = max(0, int(count or 0))
+        except (TypeError, ValueError):
+            return
+        if not hasattr(self, "_server_unread"):
+            self._server_unread = {}
+        self._server_unread[self._normalize_jid(remote_jid)] = count
+
+    def _pop_server_unread(self, remote_jid: str) -> int:
+        """The server's last reported unread count for a chat, forgotten as the
+        chat is read (a new report after the read replaces it)."""
+        counts = getattr(self, "_server_unread", None)
+        if not counts:
+            return 0
+        return counts.pop(self._normalize_jid(remote_jid), 0) or 0
+
     def mark_conversation_as_read(
         self, remote_jid: str, force: bool = False, batched: bool = False
     ):
@@ -104,6 +128,12 @@ class ReadStateMixin:
             return
 
         unread = int(chat.get("unreadCount") or 0)
+        # The local badge is not the only thing a read has to clear: WhatsApp
+        # keeps its own count, and when the two disagree (a guard here held
+        # the badge down, or it was zeroed locally for a reason the server
+        # never heard of) a read gated on the local number alone never
+        # reaches the phone, which then counts the chat unread for good.
+        server_unread = self._pop_server_unread(remote_jid)
         chat["unreadCount"] = 0
         # Remember this chat's last-activity timestamp as of the moment we
         # cleared it locally — see the periodic list-chats merge in
@@ -135,7 +165,7 @@ class ReadStateMixin:
         wx.CallAfter(self._refresh_chat_row_in_list, self._normalize_jid(remote_jid))
         wx.CallAfter(self._schedule_set_chats)
 
-        if unread == 0 and not force:
+        if unread == 0 and not server_unread and not force:
             return None
 
         if batched:

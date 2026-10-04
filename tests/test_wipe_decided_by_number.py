@@ -27,7 +27,13 @@ tests/test_qrcode_repair_preserves_local_data.py, whose fakes this reuses.
 
 import threading
 
+import pytest
+
 import ui.dialogs.connect as connect_module
+
+# These paths arm a wx.Timer, which needs the wx.App to exist; without this the
+# file only passed when an earlier test had already created one.
+pytestmark = pytest.mark.usefixtures("wx_app")
 from ui.dialogs.connect import Connect
 
 from tests.test_qrcode_repair_preserves_local_data import (

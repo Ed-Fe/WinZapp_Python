@@ -431,6 +431,15 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
       // call is started by the user's own keystroke in WinZapp, which is
       // exactly what "user_gesture" means. The fallback only surfaces
       // wa-js' own error: WPP.call.offer needs the same function.
+      //
+      // wa-js 4.6.1 makes the same call natively (startWAWebVoipCall(peer,
+      // isVideo, 8, 5, null, { entryTrust: 'user_gesture' }), then polls
+      // CallStore for the call and returns it), so on 4.6.1 the fallback above
+      // works too. This direct path stays the primary one regardless: it is
+      // the one measured on a real account, it behaves the same on 4.6.0 and
+      // 4.6.1 (an install that declined the reinstall prompt keeps the old
+      // library under this code), and the offer loop below already does its
+      // own CallStore tracking.
       const startOutgoingCall = async (to: string, isVideo: boolean): Promise<any> => {
         const start = win.WPP?.whatsapp?.functions?.startWAWebVoipCall;
         if (typeof start !== 'function') {
@@ -610,11 +619,80 @@ export async function offerCall(req: Request, res: Response) {
       return;
     }
     await prepareAudioBridge(req);
-    ok(res, await evaluateWppCall(req, 'offer', body));
+    const stopWatching = watchOutgoingCallNotices(req);
+    try {
+      ok(res, await evaluateWppCall(req, 'offer', body));
+    } finally {
+      stopWatching();
+    }
   } catch (error) {
     await stopAudioBridge(req);
     fail(req, res, 'offerCall', error);
   }
+}
+
+/**
+ * While an outgoing call is being placed, WhatsApp Web can open a notice the
+ * hidden page has no one to answer -- seen live calling a WhatsApp Business
+ * account: "About this call. This business uses a secure service from Meta to
+ * manage this call..." [Learn more] [Continue]. The offer then waits on it
+ * until the request is aborted at 75 s and the call never rings.
+ *
+ * The user asked for this call, so this notice is answered with its primary
+ * (last) button, WhatsApp's affirmative position, which keeps this independent
+ * of the UI language. Only dialogs that appear during the offer are touched,
+ * and only informational ones: a dialog must carry a link ("Learn more") to be
+ * answered. A decision dialog -- "Unblock X to call?" with Cancel/Unblock, a
+ * permission prompt -- has no link and is left alone, since its last button
+ * can be a destructive one. What was answered is logged without the dialog
+ * text (it can hold a contact or business name; see docs/traps/log-pii.md).
+ */
+function watchOutgoingCallNotices(req: Request): () => void {
+  const page = getWhatsappPage(req);
+  const logger = (req as any).logger;
+  let stopped = false;
+  const tick = async () => {
+    if (stopped) return;
+    try {
+      const answered: number[] = await page.evaluate(() => {
+        const win = window as any;
+        const seen: WeakSet<Element> = (win.__winzappCallNoticesSeen ||= new WeakSet());
+        const out: number[] = [];
+        for (const dialog of Array.from(document.querySelectorAll('[role="dialog"]'))) {
+          if (seen.has(dialog)) continue;
+          const buttons = Array.from(dialog.querySelectorAll('button,[role="button"]')) as HTMLElement[];
+          if (!buttons.length || buttons.length > 3) continue;
+          // An informational notice carries a "Learn more" link; a decision
+          // dialog does not, and is not ours to answer.
+          if (!dialog.querySelector('a[href],[role="link"]')) continue;
+          seen.add(dialog);
+          buttons[buttons.length - 1].click();
+          out.push(buttons.length);
+        }
+        return out;
+      });
+      for (const count of answered) {
+        logger?.info?.(`[call-notice] answered a notice with ${count} buttons while placing a call`);
+      }
+    } catch (_) {
+      // page busy or navigating; try again on the next tick
+    }
+    if (!stopped) setTimeout(tick, 500);
+  };
+  // Dialogs already open before this call are not ours to answer.
+  page
+    .evaluate(() => {
+      const win = window as any;
+      const seen: WeakSet<Element> = (win.__winzappCallNoticesSeen ||= new WeakSet());
+      document.querySelectorAll('[role="dialog"]').forEach((d) => seen.add(d));
+    })
+    .catch(() => undefined)
+    .finally(() => setTimeout(tick, 250));
+  const limit = setTimeout(() => (stopped = true), 60_000);
+  return () => {
+    stopped = true;
+    clearTimeout(limit);
+  };
 }
 
 export async function callDiagnostics(req: Request, res: Response) {

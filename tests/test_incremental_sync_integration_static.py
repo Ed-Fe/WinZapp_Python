@@ -29,7 +29,9 @@ def test_periodic_poll_uses_message_delta_instead_of_global_resync():
     assert "self._plan_message_sync(" in block
     assert "self.sync_remote_chats(full_targets, incremental=False)" in block
     assert "self.sync_remote_chats(incremental_targets, incremental=True)" in block
-    assert "self.sync_media_for_all_chats(changed_jids)" in block
+    # Scoped to the changed chats, and stoppable by the setting.
+    assert "".join(block.split()).count(
+        "self.sync_media_for_all_chats(changed_jids,should_stop=") == 1
 
 
 def test_pending_history_repair_survives_restart():

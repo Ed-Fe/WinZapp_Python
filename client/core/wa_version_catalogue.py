@@ -1,11 +1,13 @@
 """What the installed @wppconnect/wa-version catalogue says about calls.
 
 Calls depend on the WhatsApp Web build, and the build is picked from the
-catalogue in client/api/node_modules/@wppconnect/wa-version/versions.json,
-which only refreshes when node_modules is rebuilt (an in-app WPPConnect
-reinstall). docs/traps/voice-calls.md measured the line: an install whose
-newest entry was 2.3000.1046948731-alpha never initialised VoIP; after a
-reinstall its catalogue reached 2.3000.1047835881-alpha and calls worked.
+catalogue in client/api/node_modules/@wppconnect/wa-version/versions.json.
+core/wa_version_refresh.py stages a newer package at startup and applies it
+the next time Node is spawned; a rebuilt node_modules (an in-app WPPConnect
+reinstall) also refreshes it. docs/traps/voice-calls.md measured the line: an
+install whose newest entry was 2.3000.1046948731-alpha never initialised VoIP;
+after a reinstall its catalogue reached 2.3000.1047835881-alpha and calls
+worked.
 
 The one-time "reinstall WPPConnect" notice for pre-2.0 accounts
 (MainWindow._show_wpp_reinstall_notice_if_pending) asks this before showing

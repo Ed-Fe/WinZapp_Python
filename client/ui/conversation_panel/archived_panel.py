@@ -3,6 +3,7 @@
 Moved verbatim out of ui/conversations.py, which re-exports it.
 """
 
+import os
 import pyperclip
 import threading
 import wx
@@ -11,14 +12,21 @@ from ui.accessible import (
     AccessibleSearchConversations,
 )
 from ui.dialogs.clear_chat_confirm import confirm_clear_chat
+from core.conversation_view import ARCHIVED, mnemonic_letter
 from core.utils import format_number
 from ui.conversation_panel.chat_menu import ChatMenuMixin
+from ui.conversation_panel.chat_list_selection import ChatListSelectionMixin
+from core.sound_system import load_sound
 
 
-class ArchivedConversationsPanel(wx.Panel):
+class ArchivedConversationsPanel(ChatListSelectionMixin, wx.Panel):
     """
     Shows archived chats in a list.  Activating a chat opens it in the
     main ConversationsPanel.  A context menu allows unarchiving.
+
+    Chats are multi-selectable exactly like the main conversations list — the
+    keys, sounds, announcements and settings are ChatListSelectionMixin's, the
+    same code the main list runs.
     """
 
     def __init__(self, main_window, parent):
@@ -26,6 +34,12 @@ class ArchivedConversationsPanel(wx.Panel):
         self.main_window = main_window
         self.chats_list: list = []
         self.chat_names: list = []
+        self.selected_chats = set()
+        # The same "selected" cue the conversations list plays.
+        self.selection_sound = load_sound(
+            main_window.sound_system,
+            os.path.join("default", "selected.ogg"),
+        )
         self._init_ui()
         self.create_accelerator_table()
 
@@ -106,6 +120,7 @@ class ArchivedConversationsPanel(wx.Panel):
         self.conversations_list.Bind(
             wx.EVT_CONTEXT_MENU, self.on_context_menu
         )
+        self.conversations_list.Bind(wx.EVT_LIST_ITEM_FOCUSED, self._on_arch_row_focused)
         self.conversations_list.Bind(wx.EVT_KEY_DOWN, self._on_arch_list_key_down)
         sizer.Add(self.conversations_list, 1, wx.EXPAND | wx.ALL, 5)
 
@@ -146,8 +161,25 @@ class ArchivedConversationsPanel(wx.Panel):
         self.ID_UNARCHIVE_LIST   = wx.NewIdRef()
         self.ID_LOCK_LIST        = wx.NewIdRef()
         self.ID_PIN_LIST         = wx.NewIdRef()
+        self.ID_ALT_MESSAGES     = wx.NewIdRef()
+        # Mass actions (only act while chats are selected) — the same
+        # letters as the conversations list's, with "archive" meaning
+        # "unarchive" here, like Ctrl+Shift+Q does.
+        self.ID_BULK_CLEAR_CHATS     = wx.NewIdRef()  # Ctrl+Alt+Shift+L
+        self.ID_BULK_DELETE_CHATS    = wx.NewIdRef()  # Ctrl+Shift+Delete
+        self.ID_BULK_UNARCHIVE_CHATS = wx.NewIdRef()  # Ctrl+Alt+Shift+A
+        self.ID_BULK_READ_CHATS      = wx.NewIdRef()  # Ctrl+Alt+Shift+R
+        self.ID_BULK_UNREAD_CHATS    = wx.NewIdRef()  # Ctrl+Alt+Shift+U
+        # Alt+<"&Mensagens" mnemonic>: the messages list of the open
+        # conversation, from anywhere in this panel. The label that carries
+        # that mnemonic lives in ConversationsPanel, so the native redirect
+        # never reaches it from here — an explicit accelerator, on the same
+        # letter the i18n label uses (cf. create_accel_conversation).
+        messages_letter = mnemonic_letter(
+            self.main_window.i18n.t("messages"), "M")
         CS = wx.ACCEL_CTRL | wx.ACCEL_SHIFT
         AS = wx.ACCEL_ALT | wx.ACCEL_SHIFT
+        CAS = wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT
         accel_tbl = wx.AcceleratorTable([
             (wx.ACCEL_CTRL,   ord("F"),        self.ID_CTRL_F),
             (wx.ACCEL_NORMAL, wx.WXK_DELETE, self.ID_DELETE_CONV),
@@ -160,8 +192,16 @@ class ArchivedConversationsPanel(wx.Panel):
             (CS,              ord("Q"),      self.ID_UNARCHIVE_LIST),
             (CS,              ord("T"),      self.ID_LOCK_LIST),
             (wx.ACCEL_CTRL,   ord("P"),      self.ID_PIN_LIST),
+            (wx.ACCEL_ALT,    ord(messages_letter), self.ID_ALT_MESSAGES),
+            (CAS,             ord("L"),      self.ID_BULK_CLEAR_CHATS),
+            (CS,              wx.WXK_DELETE, self.ID_BULK_DELETE_CHATS),
+            (CAS,             ord("A"),      self.ID_BULK_UNARCHIVE_CHATS),
+            (CAS,             ord("R"),      self.ID_BULK_READ_CHATS),
+            (CAS,             ord("U"),      self.ID_BULK_UNREAD_CHATS),
         ])
         self.SetAcceleratorTable(accel_tbl)
+        self.Bind(wx.EVT_MENU, self.main_window._on_global_focus_messages,
+                  id=self.ID_ALT_MESSAGES)
         self.Bind(wx.EVT_MENU, self.on_ctrl_f,                    id=self.ID_CTRL_F)
         self.Bind(wx.EVT_MENU, self._on_accel_delete,             id=self.ID_DELETE_CONV)
         self.Bind(wx.EVT_MENU, self._on_accel_copy_number,        id=self.ID_ALT_SHIFT_C_LIST)
@@ -173,6 +213,11 @@ class ArchivedConversationsPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self._on_accel_unarchive,          id=self.ID_UNARCHIVE_LIST)
         self.Bind(wx.EVT_MENU, self._on_accel_lock,               id=self.ID_LOCK_LIST)
         self.Bind(wx.EVT_MENU, self._on_accel_pin,                id=self.ID_PIN_LIST)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_clear_chats,   id=self.ID_BULK_CLEAR_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete_chats,  id=self.ID_BULK_DELETE_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_unarchive_chats, id=self.ID_BULK_UNARCHIVE_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_read_chats,    id=self.ID_BULK_READ_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_unread_chats,  id=self.ID_BULK_UNREAD_CHATS)
 
     def _selected_chat_from_list(self):
         """Mirrors ConversationsPanel._selected_chat_from_list()."""
@@ -191,6 +236,9 @@ class ArchivedConversationsPanel(wx.Panel):
             self.main_window.lock_chat(jid)
 
     def _on_accel_delete(self, event):
+        if self._bulk_shortcuts_enabled() and self.selected_chats:
+            self._on_mass_delete_chats(event)
+            return
         chat = self._selected_chat_from_list()
         if chat:
             jid = chat.get("remoteJid", "")
@@ -210,6 +258,9 @@ class ArchivedConversationsPanel(wx.Panel):
             self.main_window.conversations_panel._show_conversation_data(chat=chat)
 
     def _on_accel_toggle_read(self, event):
+        self._on_accel_toggle_read_selection(event, self._toggle_read_focused_chat)
+
+    def _toggle_read_focused_chat(self, event):
         chat = self._selected_chat_from_list()
         if not chat:
             return
@@ -249,6 +300,9 @@ class ArchivedConversationsPanel(wx.Panel):
         self._on_block(chat, jid, self.main_window.is_contact_blocked(jid))
 
     def _on_accel_clear(self, event):
+        if self._bulk_shortcuts_enabled() and self.selected_chats:
+            self._on_mass_clear_chats(event)
+            return
         chat = self._selected_chat_from_list()
         if chat:
             jid = chat.get("remoteJid", "")
@@ -256,6 +310,9 @@ class ArchivedConversationsPanel(wx.Panel):
                 self._on_clear(jid)
 
     def _on_accel_unarchive(self, event):
+        if self._bulk_shortcuts_enabled() and self.selected_chats:
+            self._on_mass_unarchive_chats(event)
+            return
         chat = self._selected_chat_from_list()
         if chat:
             jid = chat.get("remoteJid", "")
@@ -315,7 +372,18 @@ class ArchivedConversationsPanel(wx.Panel):
             lst.Select(0)
             lst.EnsureVisible(0)
 
+    def _on_arch_row_focused(self, event):
+        idx = event.GetIndex()
+        if 0 <= idx < len(self.chats_list):
+            self._on_chat_row_focused_sound(self.chats_list[idx].get("remoteJid", ""))
+        event.Skip()
+
     def _on_arch_list_key_down(self, event):
+        """The selection keys are ChatListSelectionMixin's (identical to the
+        conversations list). Plain Space with nothing selected keeps its old
+        job here: opening the focused archived chat."""
+        if self._handle_chat_selection_key(event):
+            return
         if event.GetKeyCode() == wx.WXK_SPACE:
             idx = self.conversations_list.GetFocusedItem()
             if idx >= 0:
@@ -344,7 +412,7 @@ class ArchivedConversationsPanel(wx.Panel):
         mw.conversations_panel.conversations_label.Hide()
         mw.conversations_panel.conversations_list.Hide()
         mw.content_panel.Layout()
-        mw.conversations_panel.navigate_to_conversation(chat)
+        mw.conversations_panel.navigate_to_conversation(chat, origin=ARCHIVED)
 
     def on_context_menu(self, event):
         """Same menu, in the same order, as ConversationsPanel.on_conversations_context_menu() —
@@ -366,6 +434,15 @@ class ArchivedConversationsPanel(wx.Panel):
         is_self = mw._is_self_jid(jid)
         i18n = mw.i18n
         menu = wx.Menu()
+
+        if self.selected_chats:
+            self._append_chat_mass_menu(menu, [
+                ("clear_selected_chats", "Ctrl+Alt+Shift+L", self._on_mass_clear_chats),
+                ("delete_selected_chats", "Ctrl+Shift+Delete", self._on_mass_delete_chats),
+                ("unarchive_selected_chats", "Ctrl+Alt+Shift+A", self._on_mass_unarchive_chats),
+                ("mark_selected_read", "Ctrl+Alt+Shift+R", self._on_mass_mark_read_chats),
+                ("mark_selected_unread", "Ctrl+Alt+Shift+U", self._on_mass_mark_unread_chats),
+            ])
 
         # ── Conversation / group data ─────────────────────────────────────
         data_label = i18n.t("group_data") if is_group else i18n.t("conversation_data")
@@ -561,6 +638,32 @@ class ArchivedConversationsPanel(wx.Panel):
             self,
         ) == wx.YES:
             self.main_window.delete_chat(jid)
+
+    # ── Selection hooks / mass actions ───────────────────────────────────────
+
+    def _repaint_chat_selection(self):
+        """Rows carry the "selecionado" suffix, so a changed set needs a
+        repaint — in place (SetItem) since the jids did not change."""
+        self.main_window._refresh_archived_chats_in_ui()
+
+    def _reset_after_chat_cleared(self, jid: str):
+        # An archived chat can be the one open in the conversation panel.
+        panel = getattr(self.main_window, "conversations_panel", None)
+        if panel is not None:
+            panel._reset_view_after_chat_cleared(jid)
+
+    def _on_mass_unarchive_chats(self, event):
+        i18n = self.main_window.i18n
+        if not self.selected_chats: return
+        for jid in list(self.selected_chats):
+            self.main_window.unarchive_chat(jid)
+        self.selected_chats.clear()
+        self._repaint_chat_selection()
+        self.main_window.output(i18n.t("success_unarchive"), interrupt=True)
+
+    def _on_accel_bulk_unarchive_chats(self, event):
+        """Ctrl+Alt+Shift+A: unarchive every selected conversation."""
+        self._run_bulk_chat_action(self._on_mass_unarchive_chats, event)
 
     def refresh_labels(self):
         i18n = self.main_window.i18n

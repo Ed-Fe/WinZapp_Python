@@ -97,7 +97,8 @@ class _Stub:
 def _make(chats=None):
     stub = _Stub(chats)
     for name in ("get_remote_chats", "_normalize_jid", "_lift_contact_identity",
-                 "_last_received_jid", "_group_name_from_chat_dict"):
+                 "_last_received_jid", "_group_name_from_chat_dict",
+                 "_note_server_unread"):
         raw = inspect.getattr_static(MainWindow, name)
         if isinstance(raw, staticmethod):
             setattr(stub, name, raw.__func__)

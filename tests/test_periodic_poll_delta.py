@@ -118,7 +118,7 @@ class _PollStub:
         ))
         return set(self.failing_jids)
 
-    def sync_media_for_all_chats(self, jids=None):
+    def sync_media_for_all_chats(self, jids=None, should_stop=None):
         self.media_scopes.append(None if jids is None else set(jids))
         return 0
 

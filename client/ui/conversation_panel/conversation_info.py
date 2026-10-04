@@ -83,7 +83,7 @@ class ConversationInfoMixin:
         )
         try:
             if jid.endswith("@g.us"):
-                data = mw.get_group_info(jid)
+                data = mw.get_group_info_recent(jid)
                 # "size" may be absent in some WPPConnect API builds; fall back to
                 # counting the participants list which is always present.
                 participants = data.get("participants", [])

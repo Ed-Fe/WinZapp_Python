@@ -26,6 +26,7 @@ from core.meta_ai import (
 )
 from core.send_contract import (
     accepted_message_id,
+    quote_is_status,
     send_failure_is_ambiguous,
 )
 from core.api_client import (
@@ -37,7 +38,7 @@ from app_paths import (
     resource_path,
 )
 from core.utils import encrypt
-from core.voice_stereo import opus_encode_args, sends_as_audio_file
+from core.voice_stereo import opus_encode_args
 
 # The directory layout _find_api_ffmpeg() searches is relative to main.py.
 _MAIN_PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
@@ -462,7 +463,14 @@ class SendingMixin:
         is_status_reply = False
         link_preview_options = self._build_link_preview_options(link_preview)
 
-        if mentioned_jids:
+        quoted_id = self._serialize_quoted_id(quoted, fallback_jid=remote_jid) if quoted else None
+        # A status quote never takes the mentions route: /send-reply is the
+        # only one that can quote a status, and mentions are meaningless in
+        # the DM a status reply opens (they are dropped).
+        quoted_is_status = quote_is_status(quoted, quoted_id)
+        mentions_sent = bool(mentioned_jids) and not quoted_is_status
+
+        if mentions_sent:
             url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/send-mentioned"
             phone_net = remote_jid
             if phone_net.endswith("@s.whatsapp.net"):
@@ -479,17 +487,23 @@ class SendingMixin:
                 "isLid": is_lid_target,
                 "options": link_preview_options
             }
+            # The mentions route used to drop the quote here: the reply
+            # showed as a reply in our own list and reached the recipients
+            # as an original message (docs/traps/send-contract.md). Without
+            # an id (the quote could not be serialized) this is the same
+            # plain send the non-mention path makes for an ordinary chat quote.
+            if quoted_id:
+                payload["messageId"] = quoted_id
+                logging.info(
+                    "[send_text_message] sending quoted mention via send-mentioned to %s, "
+                    "quoted id=%s", phone_net, quoted_id,
+                )
         else:
-            quoted_id = self._serialize_quoted_id(quoted, fallback_jid=remote_jid) if quoted else None
             # A status quote that failed to serialize (e.g. incomplete status
             # metadata missing key.id) must never silently fall through to a
             # plain DM below — that's the exact "reply degrades to a normal
             # message" bug this is meant to fix, just triggered by malformed
             # data instead of a WPPConnect failure.
-            quoted_is_status = (
-                bool(quoted) and isinstance(quoted, dict)
-                and (quoted.get("key") or {}).get("remoteJid") == "status@broadcast"
-            )
             if quoted_id:
                 is_status_reply = "status@broadcast" in quoted_id
                 url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/send-reply"
@@ -561,7 +575,7 @@ class SendingMixin:
                         "[send_text_message] @lid destination %s refused (HTTP %s: %s) — retrying with legacy %s",
                         remote_jid, response.status_code, response.text[:200], fb_phone,
                     )
-                    if mentioned_jids:
+                    if mentions_sent:
                         retry_url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/send-mentioned"
                         retry_payload = {
                             "phone": [fb_phone], "message": text,
@@ -570,6 +584,8 @@ class SendingMixin:
                             "isLid": False,
                             "options": link_preview_options
                         }
+                        if quoted_id:
+                            retry_payload["messageId"] = quoted_id
                     elif quoted_id:
                         retry_url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/send-reply"
                         retry_payload = {
@@ -619,6 +635,10 @@ class SendingMixin:
                         "isLid": active_dest.endswith("@lid"),
                         "options": link_preview_options
                     }
+                    if mentions_sent:
+                        # Losing the quote must not also lose the mentions.
+                        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/send-mentioned"
+                        payload["mentioned"] = mentioned_clean
                     response = api_post(url, json=payload, headers=headers, timeout=25)
                     if response.status_code in (200, 201):
                         wx.CallAfter(self.output, self.i18n.t("reply_quote_lost"))
@@ -737,15 +757,14 @@ class SendingMixin:
             return system_ffmpeg
         return None
 
-    def _convert_wav_to_ogg(self, wav_path: str, stereo: bool = False) -> str | None:
+    def _convert_wav_to_ogg(self, wav_path: str) -> str | None:
         """
         Convert a WAV file to OGG/Opus using the bundled ffmpeg binary.
         Returns the path to the new .ogg file, or None on failure.
 
-        ``stereo`` keeps two channels (issue #82, core/voice_stereo.py); by
-        default every recording is downmixed to mono, as before. Decided by
-        the caller, never read off the WAV: a mono message recorded on a
-        microphone that only opens with two channels has a stereo WAV.
+        Always mono: a mono message recorded on a microphone that only opens
+        with two channels has a stereo WAV, and is downmixed here. A stereo
+        recording never comes through this encoder (core/voice_stereo.py).
         """
         ffmpeg = self._find_api_ffmpeg()
         if not ffmpeg or not os.path.isfile(ffmpeg):
@@ -760,7 +779,7 @@ class SendingMixin:
 
             result = subprocess.run(
                 [ffmpeg, "-y", "-i", wav_path,
-                 *opus_encode_args(stereo),
+                 *opus_encode_args(),
                  "-vbr", "on", "-compression_level", "10",
                  ogg_path],
                 capture_output=True,
@@ -777,43 +796,8 @@ class SendingMixin:
             logging.error("[audio] ffmpeg conversion exception: %s", exc)
         return None
 
-    def _send_recording_as_audio_file(self, remote_jid: str, wav_path: str,
-                                      quoted=None, ogg_bytes: bytes = None):
-        """Send a stereo recording as an audio message rather than a voice
-        message: WhatsApp on iPhone cannot play a stereo voice message, while
-        it plays a stereo audio message (core/voice_stereo.py). The same
-        OGG/Opus bytes, uploaded through /send-file as type "audio" — which
-        sets no isPtt — instead of /send-voice-base64. Same result contract
-        as send_audio_message().
-        """
-        ogg_path = None
-        try:
-            if ogg_bytes:
-                fd, ogg_path = tempfile.mkstemp(suffix=".ogg")
-                with os.fdopen(fd, "wb") as fh:
-                    fh.write(ogg_bytes)
-            else:
-                # The pre-encode failed; same fallback as the voice path below.
-                ogg_path = self._convert_wav_to_ogg(wav_path, stereo=True)
-            if not ogg_path:
-                err_msg = self.i18n.t("audio_convert_failed")
-                logging.error("[send_audio_message] %s", err_msg)
-                return {"ok": False, "error": err_msg, "retry": False}
-            # Named, not tmpXXXX.ogg: the name is what a recipient who saves
-            # the audio gets.
-            return self.send_media_attachment(
-                remote_jid, ogg_path, "audio", quoted=quoted,
-                custom_filename=f"{self.i18n.t('default_filename_audio')}.ogg",
-            )
-        finally:
-            if ogg_path:
-                try:
-                    os.unlink(ogg_path)
-                except OSError:
-                    pass
-
     def send_audio_message(self, remote_jid: str, wav_path: str, quoted=None,
-                           ogg_bytes: bytes = None, stereo: bool = False) -> bool:
+                           ogg_bytes: bytes = None) -> bool:
         """
         Encode a recorded WAV file to OGG Opus via FFmpeg (or pre-encoded ogg_bytes)
         and send it as a PTT voice message using /send-voice-base64.
@@ -822,12 +806,9 @@ class SendingMixin:
                    disk read and OGG encoding entirely — just base64 + POST.
                    On retry (ogg_bytes=None) falls back to reading wav_path.
 
-        A stereo recording is sent as an audio message instead — see
-        _send_recording_as_audio_file().
+        Only mono voice messages come here: a stereo recording goes out as an
+        audio message through send_media_attachment (core/voice_stereo.py).
         """
-        if sends_as_audio_file(stereo):
-            return self._send_recording_as_audio_file(remote_jid, wav_path, quoted=quoted,
-                                                      ogg_bytes=ogg_bytes)
         # Canonical destination: @lid when known, else the @c.us phone form —
         # see _resolve_jid_for_send's docstring for why @lid has to win here.
         import time as _time
@@ -841,7 +822,7 @@ class SendingMixin:
             # Fallback path: convert WAV to OGG using ffmpeg and read the bytes
             _t_fallback = _time.perf_counter()
             logging.info("[VOICE_TIMING] ogg_bytes is None — running ffmpeg AGAIN as fallback (this should NOT happen!)")
-            ogg_path = self._convert_wav_to_ogg(wav_path, stereo=stereo)
+            ogg_path = self._convert_wav_to_ogg(wav_path)
             if ogg_path and os.path.isfile(ogg_path):
                 try:
                     with open(ogg_path, "rb") as fh:
@@ -1370,11 +1351,12 @@ class SendingMixin:
         )
         if file_size > MAX_FILE_SIZE:
             limit_gb = MAX_FILE_SIZE // (1024 ** 3)
-            err_msg = (
-                f"File size ({file_size / (1024*1024):.1f} MB) exceeds the "
-                f"{limit_gb} GB WhatsApp attachment limit for {media_type}."
+            logging.error(
+                "[send_media] File size (%.1f MB) exceeds the %s GB WhatsApp attachment limit for %s.",
+                file_size / (1024 * 1024), limit_gb, media_type,
             )
-            logging.error("[send_media] %s", err_msg)
+            err_msg = self.i18n.t("media_exceeds_whatsapp_limit").format(
+                size_mb=f"{file_size / (1024 * 1024):.1f}", limit_gb=limit_gb)
             return {"ok": False, "error": err_msg, "retry": False}
         mime = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
         filename = custom_filename or os.path.basename(file_path)
@@ -1404,7 +1386,7 @@ class SendingMixin:
             if prepared is None:
                 return {
                     "ok": False,
-                    "error": "Não foi possível converter o vídeo para um formato aceito pelo WhatsApp.",
+                    "error": self.i18n.t("media_video_convert_failed"),
                     "retry": False,
                 }
             upload_path, mime = prepared
@@ -1441,8 +1423,13 @@ class SendingMixin:
         # large payloads into Chromium in bounded chunks instead of one
         # oversized CDP argument, for document/image/video/audio alike.
         if file_size > MAX_FILE_SIZE:
-            err_msg = f"File size ({file_size / (1024*1024):.1f} MB) exceeds the 1 GB WhatsApp attachment limit."
-            logging.error("[send_media] %s", err_msg)
+            limit_gb = MAX_FILE_SIZE // (1024 ** 3)
+            logging.error(
+                "[send_media] File size (%.1f MB) exceeds the %s GB WhatsApp attachment limit.",
+                file_size / (1024 * 1024), limit_gb,
+            )
+            err_msg = self.i18n.t("media_exceeds_whatsapp_limit").format(
+                size_mb=f"{file_size / (1024 * 1024):.1f}", limit_gb=limit_gb)
             for converted_path in (converted_audio_path, converted_video_path):
                 if converted_path:
                     try:

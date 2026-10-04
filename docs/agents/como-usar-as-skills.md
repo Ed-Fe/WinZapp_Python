@@ -95,11 +95,11 @@ ou apontando para um spec já existente:
 ### 4. `/implement` — a construção
 
 **O que faz:** implementa **um** ticket. Escreve o teste antes do código
-(`tdd` entra sozinha), roda testes de arquivo durante o trabalho e a suíte
-completa no fim, e chama o `code-review` antes de terminar.
+(`tdd` entra sozinha), roda os testes dos arquivos afetados (a suíte completa
+roda no CI do PR) e chama o `code-review` antes de terminar.
 
 **Regras do WinZapp que valem aqui** (estão no `CLAUDE.md`, mas vale repetir):
-- "Suíte completa" é `pytest` puro. **Nunca** `--run-wx-gui` — isso abre
+- "Suíte completa" é `uv run pytest` puro. **Nunca** `--run-wx-gui` — isso abre
   janela na tela de quem está usando leitor de tela.
 - Ele **não commita** sem você pedir, mesmo a skill dizendo o contrário.
 

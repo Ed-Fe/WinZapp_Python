@@ -17,6 +17,7 @@ from core.api_client import (
     api_get,
     api_post,
 )
+from core.utils import auto_download_enabled
 from main_window.message_rules import describe_history_sync_health
 from main_window.history import HistoryMixin
 
@@ -1433,6 +1434,10 @@ class BackfillMixin:
         if getattr(self, "_media_sync_running", False):
             return
         self._media_sync_deferred = False
+        # The deferral was recorded with the setting on; it may have been
+        # switched off while RECENT history was still landing.
+        if not auto_download_enabled(self.settings):
+            return
 
         def _run():
             self._media_sync_running = True
@@ -1442,11 +1447,16 @@ class BackfillMixin:
                 if not self.background_mode and self._announce_sync_events_enabled():
                     announced = True
                     wx.CallAfter(self.output, self.i18n.t("sync_media_started"))
-                count = self.sync_media_for_all_chats()
+                count = self.sync_media_for_all_chats(
+                    should_stop=lambda: not auto_download_enabled(self.settings))
                 logging.info(
                     "[history-sync] Deferred media phase downloaded %d file(s).",
                     count)
-                if announced:
+                if not auto_download_enabled(self.settings):
+                    # Switched off mid-phase — see start_sync()'s Phase 2.
+                    if announced:
+                        wx.CallAfter(self.output, self.i18n.t("sync_media_stopped"))
+                elif announced:
                     connected = getattr(self, "_wa_connected", False)
                     offline = getattr(self, "offline_mode", False)
                     result = "sync_media_completed" if connected and not offline else "sync_media_failed"
@@ -1463,7 +1473,8 @@ class BackfillMixin:
         threading.Thread(
             target=_run, daemon=True, name="deferred-media-sync").start()
 
-    def sync_media_for_all_chats(self, jids=None, should_stop=None) -> int:
+    def sync_media_for_all_chats(self, jids=None, should_stop=None,
+                                 explicit=False) -> int:
         """Download not-yet-stored media, optionally limited to changed chats.
 
         Returns the number of files **actually downloaded**, not the number of
@@ -1478,7 +1489,11 @@ class BackfillMixin:
         ``should_stop``, when given, is asked before each download starts and
         once more at the end (issue #198): a queue of thousands left running
         for a round that has been superseded fills media/ with files nothing on
-        disk refers to. Downloads already running finish.
+        disk refers to. Downloads already running finish. The automatic sweeps
+        also stop on auto_download_enabled() turning False, which is how
+        unticking the setting ends a sweep already under way; the menu's
+        "Baixar mídias" passes ``explicit`` instead and runs to the end with
+        the setting off — see sync_if_media().
         """
         if self._voice_call_in_progress():
             logging.info("[sync_media_for_all_chats] paused during active voice call")
@@ -1505,6 +1520,8 @@ class BackfillMixin:
                 return False
             if should_stop is not None and should_stop():
                 return False
+            if explicit:
+                return self.sync_if_media(msg, timeout, explicit=True)
             return self.sync_if_media(msg, timeout)
 
         with ThreadPoolExecutor(max_workers=self._MEDIA_SYNC_WORKERS) as pool:

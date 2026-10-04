@@ -18,7 +18,11 @@ import types
 import pytest
 
 import main
-from core.conversation_resync import stale_ids_in_fetched_window
+from core.conversation_resync import (
+    record_fingerprints,
+    resync_outcome,
+    stale_ids_in_fetched_window,
+)
 from main import MainWindow
 from tests.god_modules import patch_main_global, main_window_source
 
@@ -83,6 +87,68 @@ class TestWhatTheServerContradicts:
 # ── The worker, on a stub ─────────────────────────────────────────────────────
 
 
+class TestWhatShiftF5Says:
+    """Each outcome is a claim to the user; resync_outcome() says it only
+    when the answer proves it."""
+
+    @staticmethod
+    def _say(ok=True, chat_absent=False, fetched=(), known=(), removed=False,
+             withheld=False, content_changed=False):
+        return resync_outcome(ok, chat_absent, set(fetched), set(known), removed,
+                              withheld, content_changed)
+
+    def test_a_failed_fetch(self):
+        assert self._say(ok=False, fetched={"A"}) == "resync_conversation_failed"
+
+    def test_chat_not_found_is_whatsapp_answering(self):
+        assert self._say(chat_absent=True, known={"A"}) == "resync_conversation_nothing_remote"
+
+    def test_an_empty_page_over_local_history_is_not_an_answer(self):
+        assert self._say(known={"A"}) == "resync_conversation_failed"
+
+    def test_an_empty_page_and_nothing_here_either(self):
+        assert self._say() == "resync_conversation_up_to_date"
+
+    def test_the_same_messages_and_nothing_else(self):
+        assert self._say(fetched={"A"}, known={"A"}) == "resync_conversation_up_to_date"
+
+    @pytest.mark.parametrize("change", [
+        {"fetched": {"A", "B"}}, {"removed": True}, {"withheld": True},
+        {"content_changed": True},
+    ])
+    def test_anything_else_is_resynced(self, change):
+        args = {"fetched": {"A"}, "known": {"A"}, **change}
+        assert self._say(**args) == "resync_conversation_done"
+
+
+class TestFingerprints:
+    def test_content_decides_not_acks_or_flags(self):
+        a = {"key": {"id": "A"}, "messageType": "conversation",
+             "message": {"conversation": "hi"}, "status": 2}
+        acked = dict(a, status=4, _played=True)
+        assert record_fingerprints([a]) == record_fingerprints([acked])
+
+    def test_an_edit_or_a_decrypted_placeholder_differs(self):
+        a = {"key": {"id": "A"}, "messageType": "ciphertext", "message": {}}
+        b = {"key": {"id": "A"}, "messageType": "conversation",
+             "message": {"conversation": "hi"}}
+        assert record_fingerprints([a])["A"] != record_fingerprints([b])["A"]
+
+    def test_an_edit_keeps_its_type_and_still_differs(self):
+        a = {"key": {"id": "A"}, "messageType": "conversation",
+             "message": {"conversation": "hi"}}
+        b = dict(a, message={"conversation": "hi, edited"})
+        assert record_fingerprints([a])["A"] != record_fingerprints([b])["A"]
+
+    def test_key_order_does_not_matter(self):
+        a = {"key": {"id": "A"}, "message": {"x": 1, "y": 2}}
+        b = {"key": {"id": "A"}, "message": {"y": 2, "x": 1}}
+        assert record_fingerprints([a]) == record_fingerprints([b])
+
+    def test_records_without_an_id_are_skipped(self):
+        assert record_fingerprints([{"key": {}}, "junk", None]) == {}
+
+
 class _Db:
     def __init__(self):
         self.deleted = []
@@ -99,11 +165,14 @@ class _I18n:
 class _Window:
     _resync_conversation_worker = MainWindow._resync_conversation_worker
 
-    def __init__(self, records, fetched, ok=True):
+    def __init__(self, records, fetched, ok=True, chat_absent=False, merged=None):
         self.chats = {JID: {"remoteJid": JID, "messages": {"messages": {
             "total": len(records), "records": records}}}}
         self._fetched = fetched
         self._ok = ok
+        self._chat_absent = chat_absent
+        # What the merge leaves in the chat, when it rewrites a known message.
+        self._merged = merged
         self._resyncing_conversations = {JID}
         self.db = _Db()
         self.i18n = _I18n()
@@ -112,10 +181,14 @@ class _Window:
         self.sync_calls = []
 
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full",
-                           fetched_ids_out=None):
+                           fetched_ids_out=None, outcome_out=None):
         self.sync_calls.append(sync_mode)
         if fetched_ids_out is not None:
             fetched_ids_out.update(self._fetched)
+        if outcome_out is not None:
+            outcome_out["chat_absent"] = self._chat_absent
+        if self._merged is not None:
+            self.chats[JID]["messages"]["messages"]["records"] = self._merged
         return self._ok
 
     def _refresh_open_conversation_after_sync(self, remote_jid, chat):
@@ -166,16 +239,59 @@ class TestTheWorker:
         assert window.db.deleted == []
         assert window.spoken == ["resync_conversation_failed"]
 
-    def test_an_answer_with_no_messages_is_not_a_success(self):
+    def test_chat_not_found_says_whatsapp_has_none(self):
         """chat_not_found returns True from sync_chat_messages() -- with
-        nothing fetched, which is no reason to call the conversation synced."""
+        nothing fetched. That is WhatsApp answering, not a failure: "try
+        again" would send the user retrying an answer that will not change."""
+        window = _Window([_msg("A", 100)], set(), ok=True, chat_absent=True)
+
+        window._resync_conversation_worker(JID)
+
+        assert window.db.deleted == []
+        assert window.spoken == ["resync_conversation_nothing_remote"]
+
+    def test_an_empty_page_over_local_history_is_a_failure_to_retry(self):
+        """An empty page also returns True, but it is indistinguishable from
+        WhatsApp Web not having loaded the chat yet -- routine right after a
+        reconnect. Saying WhatsApp has no messages would be false, and would
+        keep the user from the retry that works a minute later."""
         window = _Window([_msg("A", 100)], set(), ok=True)
 
         window._resync_conversation_worker(JID)
 
+        assert window.db.deleted == []
         assert window.spoken == ["resync_conversation_failed"]
 
+    def test_a_message_rewritten_under_its_own_id_is_a_change(self):
+        """A waiting placeholder decrypted, or an edit applied, keeps its id:
+        nothing is new by id, but the conversation did change."""
+        placeholder = _msg("A", 100, messageType="ciphertext", message={})
+        decrypted = _msg("A", 100, messageType="conversation",
+                         message={"conversation": "hi"})
+        window = _Window([placeholder], {"A"}, merged=[decrypted])
+
+        window._resync_conversation_worker(JID)
+
+        assert window.spoken == ["resync_conversation_done"]
+
+    def test_a_new_message_on_the_server_is_a_change(self):
+        window = _Window([_msg("A", 100)], {"A", "B"})
+
+        window._resync_conversation_worker(JID)
+
+        assert window.spoken == ["resync_conversation_done"]
+
+    def test_nothing_new_and_nothing_removed_says_it_was_up_to_date(self):
+        window = _Window([_msg("A", 100), _msg("B", 200)], {"A", "B"})
+
+        window._resync_conversation_worker(JID)
+
+        assert window.db.deleted == []
+        assert window.spoken == ["resync_conversation_up_to_date"]
+
     def test_after_a_profile_restore_nothing_is_removed(self):
+        """GHOST is kept, but it is not known to be on WhatsApp either: "up to
+        date, nothing removed" would be a claim, so the neutral "resynced"."""
         records = [_msg("A", 100), _msg("GHOST", 150), _msg("B", 200)]
         window = _Window(records, {"A", "B"})
         window._remote_deletions_untrusted = True
@@ -185,6 +301,14 @@ class TestTheWorker:
         assert len(records) == 3
         assert window.db.deleted == []
         assert window.spoken == ["resync_conversation_done"]
+
+    def test_after_a_profile_restore_with_nothing_in_question_it_is_up_to_date(self):
+        window = _Window([_msg("A", 100), _msg("B", 200)], {"A", "B"})
+        window._remote_deletions_untrusted = True
+
+        window._resync_conversation_worker(JID)
+
+        assert window.spoken == ["resync_conversation_up_to_date"]
 
     def test_the_conversation_can_be_resynced_again_afterwards(self):
         window = _Window([_msg("A", 100)], {"A"})
@@ -579,6 +703,14 @@ class TestOneAnswerCannotEraseHistory:
         assert deletions_to_apply([]) == []
 
     def test_the_worker_applies_the_cap(self):
-        src = inspect.getsource(MainWindow._resync_conversation_worker)
-        assert src.index("stale_ids_in_fetched_window(") < src.index("deletions_to_apply(stale)")
-        assert src.index("deletions_to_apply(stale)") < src.index("if stale:")
+        """Over the cap nothing is deleted, and the user is not told nothing
+        was removed on WhatsApp either: the neutral "resynced"."""
+        records = ([_msg("STRAY", 10)] + [_msg(f"L{i}", 100 + i) for i in range(50)]
+                   + [_msg("A", 500), _msg("B", 600)])
+        window = _Window(records, {"STRAY", "A", "B"})
+
+        window._resync_conversation_worker(JID)
+
+        assert len(records) == 53
+        assert window.db.deleted == []
+        assert window.spoken == ["resync_conversation_done"]

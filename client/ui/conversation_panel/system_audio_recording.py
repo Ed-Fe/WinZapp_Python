@@ -444,7 +444,8 @@ class SystemAudioRecordingMixin:
         self.main_window.voicemsg_pauserecording_sound.play()
 
     def _enqueue_system_audio_file(self, wav_path, local_id, remote_jid, quoted_msg, enc_key, virtual_msg):
-        """Worker-side mixed encoder; ordinary voice never enters this path."""
+        """Worker-side M4A encoder for microphone + computer audio and for a
+        stereo voice message; a mono voice message never enters this path."""
         from core.audio_transcode import encode_system_audio_to_m4a
         mw = self.main_window
         m4a_path = cache_path = None
@@ -460,7 +461,8 @@ class SystemAudioRecordingMixin:
             with open(cache_path, "wb") as cache:
                 cache.write(encrypted)
             pm = PendingMessage(local_id, remote_jid, media_path=m4a_path,
-                                media_type="audio", quoted=quoted_msg, owns_media_path=True)
+                                media_type="audio", quoted=quoted_msg, owns_media_path=True,
+                                custom_filename=f"{mw.i18n.t('default_filename_audio')}.m4a")
         except Exception:
             logging.exception("[mixed_audio] could not prepare recorded attachment")
             for path in (m4a_path, cache_path):

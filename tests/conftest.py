@@ -1,5 +1,6 @@
 """Shared fixtures for all WinZapp tests — async edition."""
 
+import importlib.util
 import json
 import os
 import tempfile
@@ -101,6 +102,20 @@ def pytest_addoption(parser):
              "nobody is using; on a developer's own desktop it can crash a "
              "running screen reader. CI passes this.",
     )
+    parser.addoption(
+        "--run-load",
+        action="store_true",
+        default=False,
+        help="Run the tests marked `load` (synthetic large-account scenarios, "
+             "~45 s). Skipped by default on a developer machine; always run "
+             "when the CI environment variable is set.",
+    )
+    # pytest.ini carries `--dist loadgroup` (only meaningful with -n). Without
+    # pytest-xdist installed — a stale venv, a bare `pip install pytest` — that
+    # option would not exist and even a plain `pytest` would refuse to start.
+    if importlib.util.find_spec("xdist") is None:
+        parser.addoption("--dist", default="no",
+                         help="Accepted and ignored: pytest-xdist is not installed.")
 
 
 def _wx_gui_requested(config) -> bool:
@@ -110,7 +125,23 @@ def _wx_gui_requested(config) -> bool:
     )
 
 
+def _load_requested(config) -> bool:
+    """The `load` tests cost ~45 s and guard scaling, not behaviour: CI runs
+    them (GitHub Actions sets CI), a developer opts in with --run-load."""
+    return bool(
+        config.getoption("--run-load")
+        or os.environ.get("CI", "").strip() not in ("", "0", "false", "False")
+    )
+
+
 def pytest_collection_modifyitems(config, items):
+    if not _load_requested(config):
+        skip_load = pytest.mark.skip(
+            reason="synthetic load test - pass --run-load to run it (CI does)"
+        )
+        for item in items:
+            if "load" in item.keywords:
+                item.add_marker(skip_load)
     if _wx_gui_requested(config):
         return
     skip = pytest.mark.skip(

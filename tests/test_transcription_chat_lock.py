@@ -73,7 +73,7 @@ class _VaultSpeech(_Speech):
 
 
 class _ShowableList(_List):
-    def Show(self):
+    def Show(self, show=True):
         self.calls.append(("Show",))
 
 
@@ -83,7 +83,14 @@ class _Layout:
 
 
 class _VaultPanel(_Panel):
-    """The flow suite's panel plus what lock_chat_vault() touches on it."""
+    """The flow suite's panel plus what lock_chat_vault() touches on it.
+
+    On screen from the start: the case is a user waiting on a note of the
+    locked chat they are looking at, and lock_chat_vault() only sends them
+    back to the main list when the vault closed under their eyes. That return
+    is the real show_chat_panel(), so the last focus move these tests read is
+    the one the app makes.
+    """
 
     def __init__(self, main_window, messages):
         super().__init__(main_window, messages)
@@ -92,9 +99,13 @@ class _VaultPanel(_Panel):
         self.chats_list = []
         self._last_list_focus_jid = None
         self._last_open_jid = _JID
-        self.shown = False
+        self.shown = True
 
     _restore_conversation_selection = ConversationsPanel._restore_conversation_selection
+    show_chat_panel = ConversationsPanel.show_chat_panel
+    _list_panel_for = ConversationsPanel._list_panel_for
+    _apply_panel_layout = ConversationsPanel._apply_panel_layout
+    _log_panel_switch = ConversationsPanel._log_panel_switch
 
     def close_conversation_for_panel_switch(self):
         # What _close_conversation_core() does to the state the flow reads:
@@ -103,8 +114,14 @@ class _VaultPanel(_Panel):
         # back "to the message" would still find it.
         self.conversation = None
 
-    def Show(self):
-        self.shown = True
+    def Show(self, show=True):
+        self.shown = show
+
+    def IsShown(self):
+        return self.shown
+
+    def Layout(self):
+        pass
 
 
 @pytest.fixture

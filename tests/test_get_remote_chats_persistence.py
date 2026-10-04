@@ -98,7 +98,7 @@ class _Stub:
 def _make(chats=None):
     stub = _Stub(chats)
     for name in ("get_remote_chats", "_normalize_jid", "_lift_contact_identity",
-                 "_last_received_jid"):
+                 "_last_received_jid", "_note_server_unread"):
         # Read from __dict__, not getattr: accessing a staticmethod through
         # the class hands back the plain function, so `isinstance(...,
         # staticmethod)` is always False there and every one of them would be

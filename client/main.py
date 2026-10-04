@@ -109,9 +109,7 @@ from core.meta_ai import (
     is_meta_ai_jid,
     terms_state,
 )
-from core.wpp_runtime import (
-    read_homologated_wpp_version, wppconnect_library_drift, WPPCONNECT_PACKAGE,
-)
+from core.wpp_runtime import read_homologated_wpp_version
 from core.utils import reaction_targets_status, encrypt, decrypt, encrypt_json, decrypt_json, generate_and_save_key, retrieve_key, format_number, is_phone_like, looks_like_binary_blob, prune_message_record, prune_chats_messages, effective_unread_count, mute_response_accepted, normalize_for_search, search_normalization_mode, parse_bool_flag as _parse_bool_flag, group_setting_notif_value, DEFAULT_SETTINGS, append_selected_marker, is_message_forwarded, plan_row_updates, display_page_fetch_limit, carry_over_video_durations, video_seconds, MEASURED_SECONDS_KEY, is_voice_message, backfill_missing_defaults, auto_download_allows, migrate_voice_messages_media_types, migrate_voice_message_mode_default, migrate_spell_check_mode, migrate_call_exclusive_mode_split
 from core.utils import clear_chat_applied, clear_chat_keep_starred_echo
 from ui.dialogs.checkbox_confirm import confirm_with_checkbox
@@ -149,7 +147,7 @@ from core.chat_lock_vault import (
 )
 from core import token_vault
 from core.transcription import cuda_runtime
-from app_paths import resource_path, data_path, accounts_root
+from app_paths import resource_path, data_path, accounts_root, global_dir as _global_dir
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
 import wx.adv
@@ -540,27 +538,35 @@ class MainWindow(
         # ── Auto-updater ──────────────────────────────────────────────────────
         # Schedule the update checker on the event loop early (but after i18n
         # is initialized) so it can run even if modal dialogs block __init__.
+        # Scheduled in --background (autostart) too: gating the checkers on a
+        # visible window meant they never ran for anyone who starts WinZapp
+        # with Windows (docs/traps/updater-channels.md). Their dialogs bring
+        # themselves to the front while the window is hidden.
+        wx.CallLater(15000, self._start_update_checker)
+        # Separate, independent check for the WPPConnect Server itself —
+        # it breaks between WinZapp releases too, and until now the only
+        # fix was a user manually wiping client/api/ and node_modules.
+        # Given a much longer delay: unlike the WinZapp checker (which
+        # only shows a dialog), accepting this one stops and restarts the
+        # live API session, so it must never fire while pairing/the
+        # initial sync is still settling in.
+        wx.CallLater(90000, self._start_wpp_update_checker)
         if not self.background_mode:
-            wx.CallLater(15000, self._start_update_checker)
             if getattr(self, "_previous_update_failed", False):
                 # Same delay as the checker: past the startup sound and the
                 # first sync announcements, before the checker offers the
                 # very same release again.
                 wx.CallLater(15000, self._announce_previous_update_failure)
-            # Separate, independent check for the WPPConnect Server itself —
-            # it breaks between WinZapp releases too, and until now the only
-            # fix was a user manually wiping client/api/ and node_modules.
-            # Given a much longer delay: unlike the WinZapp checker (which
-            # only shows a dialog), accepting this one stops and restarts the
-            # live API session, so it must never fire while pairing/the
-            # initial sync is still settling in.
-            wx.CallLater(90000, self._start_wpp_update_checker)
             # One-time WPPConnect reinstall recommendation for accounts that
             # predate 2.0 (migrate_wpp_reinstall_notice(), core/utils.py).
             # 20s: past the two 15s callbacks above and the startup sound /
             # initial sync announcements, so it doesn't talk over them, but
             # well before the 90s WPPConnect update check.
             wx.CallLater(20000, self._show_wpp_reinstall_notice_if_pending)
+
+        # A network folder (e.g. Parallels' Downloads, which is the Mac's)
+        # cannot run WinZapp; say so before anything is installed there.
+        self._refuse_network_install_location()
 
         # Terms of service – show once before anything else happens
         if not self.background_mode:
@@ -761,6 +767,13 @@ class MainWindow(
                 self.ensure_api_modules_installed()
                 logging.info("[STARTUP_TIMING] T+%.3fs — Checking WPPConnect Server version...", _time.perf_counter() - _t_start)
                 self.ensure_wpp_version()
+                # Stage a newer WhatsApp Web catalogue in the background; the
+                # code that spawns Node waits a few seconds for it, off the UI
+                # thread, and applies whatever is staged first. No download
+                # for a launch that adopts a Node that is already running.
+                from core.wa_version_refresh import start_at_launch
+                start_at_launch(self, resource_path("api", "node_modules"),
+                                _global_dir())
                 logging.info("[STARTUP_TIMING] T+%.3fs — Ensuring WPPConnect Server process is running...", _time.perf_counter() - _t_start)
                 self.ensure_wpp_running()
                 logging.info("[STARTUP_TIMING] T+%.3fs — WPPConnect Server process ready!", _time.perf_counter() - _t_start)
@@ -1353,8 +1366,10 @@ class MainWindow(
 
         # Content panel: all panels fill it; only one is shown at a time
         content_sizer = wx.BoxSizer(wx.VERTICAL)
-        content_sizer.Add(self.conversations_panel, 1, wx.EXPAND)
+        # Archived list first: when Alt+4 keeps the open conversation on
+        # screen, it sits below the list the user is on.
         content_sizer.Add(self.archived_conversations_panel, 1, wx.EXPAND)
+        content_sizer.Add(self.conversations_panel, 1, wx.EXPAND)
         content_sizer.Add(self.locked_conversations_panel, 1, wx.EXPAND)
         content_sizer.Add(self.status_panel, 1, wx.EXPAND)
         content_sizer.Add(self.calls_panel, 1, wx.EXPAND)
@@ -1649,27 +1664,38 @@ def _startup_critical_error_text(crash_path: str, tb: str) -> tuple[str, str]:
     top-level except-block catches an error during startup — translated
     into the user's selected language when possible.
 
-    Falls back to the original hardcoded Portuguese only when no usable
-    i18n is available at all (a crash before MainWindow even constructs
-    self.i18n, or i18n.t() itself raising) — this dialog is the one thing
+    A crash before MainWindow even constructs self.i18n (or i18n.t() itself
+    raising) falls back to the install-wide language (startup_i18n), and only
+    when that fails too to hardcoded English — this dialog is the one thing
     standing between the user and a silent exit, so it must never crash
     trying to be helpful.
     """
     frame = _last_partial_frame
+    candidates = []
     if frame is not None and getattr(frame, "i18n", None) is not None:
+        candidates.append(lambda: frame.i18n)
+    candidates.append(_startup_i18n)
+    for get_i18n in candidates:
         try:
-            title = frame.i18n.t("startup_critical_title")
-            message = frame.i18n.t("startup_critical_message").format(
+            i18n = get_i18n()
+            title = i18n.t("startup_critical_title")
+            message = i18n.t("startup_critical_message").format(
                 path=crash_path, details=tb[:800]
             )
             return title, message
         except Exception:
             pass
     return (
-        "WinZapp — Erro de inicialização",
-        f"O WinZapp encontrou um erro crítico ao iniciar e não pôde continuar.\n\n"
-        f"Detalhes foram salvos em:\n{crash_path}\n\n{tb[:800]}",
+        "WinZapp — Startup error",
+        f"WinZapp encountered a critical error during startup and could not continue.\n\n"
+        f"Details were saved to:\n{crash_path}\n\n{tb[:800]}",
     )
+
+
+def _startup_i18n():
+    """I18n in the global UI language, for messages shown before MainWindow."""
+    from startup_i18n import startup_i18n
+    return startup_i18n()
 
 
 def _write_crash_log(tb: str) -> str:
@@ -1835,14 +1861,15 @@ if __name__ == "__main__":
         _mode = _startup["mode"]
         if _mode == "error":
             ctypes.windll.user32.MessageBoxW(
-                0, f"WinZapp: {_startup.get('reason', 'nieprawidłowe konto')}",
+                0, _startup_i18n().t("startup_invalid_account").format(
+                    account=_startup.get("account_id", "")),
                 "WinZapp", 0x10)
             sys.exit(2)
         elif _mode == "manager":
             # Global manager mode: no account/data_path, no Node (plan sekcja F).
             # TODO(Zad 4.5/4.6): show the account manager. For now, inform+exit.
             ctypes.windll.user32.MessageBoxW(
-                0, "WinZapp: brak kont do uruchomienia (menedżer kont w budowie).",
+                0, _startup_i18n().t("startup_account_manager_unavailable"),
                 "WinZapp", 0x40)
             sys.exit(0)
         elif _mode == "first_run":
@@ -1896,6 +1923,14 @@ if __name__ == "__main__":
         logging.info("Instance lock acquired for account %s (%s).", _account_id, _account_name)
         logging.info("Creating wx.App...")
         app = wx.App()
+        # WinZapp only ever exits on purpose (real_exit(), the tray, Windows
+        # ending the session). wx's default is to end the main loop when the
+        # last VISIBLE top-level window goes away — and with the main window
+        # hidden in the tray, a dialog answered and destroyed was that window:
+        # the loop ended without any teardown and the process lingered with no
+        # window and the instance lock held. It bit the update prompt first
+        # (see updater.py); this makes it impossible for any dialog.
+        app.SetExitOnFrameDelete(False)
         frame = MainWindow(account_id=_account_id, account_name=_account_name,
                            startup_source=startup_source, resume_pending=_resume_pending,
                            registry=_registry, global_dir=gd)

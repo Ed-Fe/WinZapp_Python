@@ -995,6 +995,33 @@ class TestAPulledValue:
         assert a.i18n.language == "en-US"
         a.apply_language_changes.assert_called_once()
 
+    def test_a_string_drawn_while_it_waits_does_not_switch_it_first(self, tmp_path):
+        """I18n.t() refreshes the language on every lookup so that no instance
+        answers in the pt-BR it starts with. On the window's own instance that
+        read the settings the pull had just updated: the next row drawn came
+        out in the new language over a window still in the old one, and the
+        deferred switch then found "already showing it" and never repainted
+        the rest. The window's instance keeps what it shows until it is
+        asked."""
+        a = self._showing(tmp_path, "pt-BR", active=True)
+        a._set_bookmark_zero_hotkey = Mock()
+        b = _started(tmp_path, general={"language": "pt-BR"})
+        portuguese = a.i18n.t("no_pairing_code_received")
+
+        _change_elsewhere(b, "language", "en-US")
+        _unrelated_save(a)
+        assert a.settings["general"]["language"] == "en-US"  # pulled
+
+        assert a.i18n.t("no_pairing_code_received") == portuguese
+        assert a.i18n.language == "pt-BR"
+        a.apply_language_changes.assert_not_called()
+
+        a._on_window_activate(Mock(GetActive=Mock(return_value=False)))
+
+        assert a.i18n.language == "en-US"
+        assert a.i18n.t("no_pairing_code_received") != portuguese
+        a.apply_language_changes.assert_called_once()
+
     @pytest.mark.parametrize("call_window", ["voice_call_window", "_incoming_call_dialogs"])
     def test_nor_while_a_call_window_has_the_focus(self, tmp_path, call_window):
         """During a call the main window is inactive, but the call frame or

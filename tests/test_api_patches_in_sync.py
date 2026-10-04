@@ -66,6 +66,8 @@ MIRRORED_FILES = [
     "src/config.ts",
     "src/index.ts",
     "src/util/callMediaBridge.ts",
+    "src/util/forwardRuntime.ts",
+    "src/util/listChatsDiag.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",
     "src/util/functions.ts",

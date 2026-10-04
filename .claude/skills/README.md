@@ -52,17 +52,13 @@ O `CLAUDE.md` é carregado inteiro em toda sessão, então guarda só o que vale
 para qualquer tarefa. A história por trás de cada regra — o incidente medido,
 as hipóteses descartadas, os trechos de log — fica em `docs/traps/` (e o
 material de referência em `docs/reference/`). Dois mecanismos levam o agente
-até lá sem custar tokens em toda sessão:
+até lá sem custar tokens em toda sessão: cada `.claude/rules/<area>.md` tem
+`paths:` no frontmatter e só entra no contexto quando o agente toca num
+arquivo que bate no glob. O corpo é a regra em três linhas e o ponteiro para o
+trap completo.
 
-- **`.claude/rules/<area>.md`** — cada um tem `paths:` no frontmatter e só
-  entra no contexto quando o agente toca num arquivo que bate no glob. O corpo
-  é a regra em três linhas e o ponteiro para o trap completo.
-- **A tabela no fim do `CLAUDE.md`** — "antes de mexer em X, leia o trap
-  daquela área". O agente lê com `Read` quando a tarefa pede.
-
-Escrevendo um post-mortem novo: vai para `docs/traps/`, ganha uma regra em
-`.claude/rules/` com os `paths` que ele protege, e uma linha na tabela. Não
-volta para o `CLAUDE.md`. `tests/test_claude_md_matches_reality.py` confere
+Escrevendo um post-mortem novo: vai para `docs/traps/` e ganha uma regra em
+`.claude/rules/` com os `paths` que ele protege. Não volta para o `CLAUDE.md`. `tests/test_claude_md_matches_reality.py` confere
 que todo caminho citado nesses arquivos existe.
 
 ### O fluxo de uma feature nova
@@ -229,8 +225,9 @@ Vale saber antes de alguém pedir "roda o code-review" e receber outra coisa:
 
 ---
 
-## O que ainda não temos
+## Testes: local e CI
 
-Sem CI em `pull_request`: os testes só rodam **depois** do merge, no build alpha.
-Enquanto isso, a aprovação humana é o único portão antes do merge — e é por isso
-que rodar `pytest` local antes de abrir PR não é opcional.
+O `ci.yml` roda a suíte completa em todo PR para a `main`. Localmente rode só
+os arquivos de teste do que você mudou (`uv run pytest tests/test_x.py`); a
+suíte inteira (`uv run pytest -n auto`, ~1 min) fica para mudanças transversais. Os testes
+`load` só rodam no CI ou com `--run-load`. Nunca `--run-wx-gui`.

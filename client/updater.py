@@ -27,6 +27,7 @@ from app_paths import _outer_exe_dir, _is_frozen, resource_path, log_path
 from core import release_keys
 from core import tls_trust
 from core.release_signature import SIGNATURE_ASSET_NAME, check_release_manifest
+from core.dialog_foreground import bring_to_front_if_hidden, message_box, parent_is_hidden
 from core.wpp_runtime import homologated_wpp_tag
 from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
 from version import __version__
@@ -171,6 +172,52 @@ def _version_is_older(candidate: str, reference: str) -> bool:
         return Version(candidate.lstrip("vV")) < Version(reference.lstrip("vV"))
     except Exception:
         return False
+
+
+def _parse_wpp_version(tag: str):
+    """packaging Version of a wppconnect-server tag ("v2.10.16"), or None."""
+    try:
+        from packaging.version import Version
+        return Version((tag or "").lstrip("vV"))
+    except Exception:
+        return None
+
+
+def _floor_at_minimum(latest: str, minimum: str) -> str:
+    """The newest release to offer: *latest*, never older than *minimum*.
+
+    GitHub unreachable ("") or answering with something unparseable or older
+    than the bundled minimum yields the minimum, so a raised minimum is still offered offline
+    and a stale answer never moves anyone backwards. No minimum bundled (a dev
+    checkout) means *latest* as is.
+    """
+    if _parse_wpp_version(latest) is None:
+        return minimum   # unreachable or garbage: both mean "no usable answer"
+    if minimum and _version_is_older(latest, minimum):
+        return minimum
+    return latest
+
+
+def wpp_update_target(installed: str, minimum: str, latest: str):
+    """(tag, required) for the periodic WPPConnect check, or None.
+
+    *required* is True when the installed server is below the bundled minimum
+    (the mandatory kind, which ensure_wpp_version() offers at startup) and
+    False when it is merely behind a newer release (the optional kind). The
+    minimum is the floor, not the ceiling: an install at or above it is still
+    told about a newer release. Unparseable input never prompts.
+    """
+    have = _parse_wpp_version(installed)
+    if have is None:
+        return None
+    floor = _parse_wpp_version(minimum)
+    if floor is None:
+        minimum = ""
+    target = _floor_at_minimum(latest, minimum)
+    wanted = _parse_wpp_version(target)
+    if wanted is None or wanted <= have:
+        return None
+    return target, bool(minimum) and have < floor
 
 
 def parse_version(v: str):
@@ -1069,7 +1116,11 @@ class UpdateDialog(wx.Dialog):
         self._build(i18n)
         self.Fit()
         self.SetMinSize((360, -1))
-        self.Centre()
+        # A hidden parent has no meaningful rectangle to centre on.
+        if parent_is_hidden(parent):
+            self.CentreOnScreen()
+        else:
+            self.Centre()
 
     def _build(self, i18n):
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -1127,9 +1178,13 @@ class UpdateChecker:
     """
 
     _RETRY_INTERVAL = 3 * 60 * 60  # 3 hours in seconds
+    # After a failed fetch (network not up yet at login): bounded quick retries
+    # in seconds, then back to _RETRY_INTERVAL.
+    _FETCH_RETRY_DELAYS = (30, 60, 120, 300, 600)
 
     def __init__(self, main_window):
         self._mw           = main_window
+        self._fetch_failures = 0
         self._retry_timer  = None
         self._force        = False
         # Owner-token from update_coord.try_claim_update_prompt() while this
@@ -1313,8 +1368,17 @@ class UpdateChecker:
             releases = self._fetch_releases()
         except Exception:
             logging.exception("Auto-updater: Exception checking for updates")
-            self._schedule_retry()
+            # At a Windows login the network is often not up yet when the first
+            # check runs 15 s after launch; waiting the full retry interval
+            # would put the next attempt hours away. A few quick retries first.
+            attempt = self._fetch_failures
+            self._fetch_failures += 1
+            if attempt < len(self._FETCH_RETRY_DELAYS):
+                self._schedule_retry(self._FETCH_RETRY_DELAYS[attempt])
+            else:
+                self._schedule_retry()
             return
+        self._fetch_failures = 0
 
         data = select_release(releases, include_alpha)
         if data is None:
@@ -1472,9 +1536,36 @@ class UpdateChecker:
             self._mw,
         )
 
+    _UI_NOT_READY_RETRY_MS = 2000
+
     def _show_update_dialog(self, remote_version: str, changelog: str, zip_url: str, sha256sums_url: str = "",
                             signature_url: str = "", is_alpha: bool = False):
+        if getattr(self._mw, "_shutting_down", False):
+            # Quitting: no dialog on a dying app. The retry covers a shutdown
+            # Windows cancelled, after which the app is still here.
+            self._release_prompt()
+            self._schedule_retry()
+            return
+        if not self._main_window_ready():
+            # The check runs 15 s after launch, which a first start or a slow
+            # machine spends inside the "starting the API" dialog. A second
+            # modal loop on top of that one is where the app used to end up
+            # windowless: answering it left the startup loop and the exit
+            # path fighting over the same event loop, and the process lived
+            # on with no window and the instance lock held. The prompt keeps
+            # its claim and simply waits for the main window (other accounts'
+            # prompts stay suppressed meanwhile; the retry is cheap and ends
+            # with the launch either way).
+            wx.CallLater(self._UI_NOT_READY_RETRY_MS, self._show_update_dialog,
+                         remote_version, changelog, zip_url, sha256sums_url,
+                         signature_url=signature_url, is_alpha=is_alpha)
+            return
         dlg    = UpdateDialog(self._mw, remote_version, changelog)
+        bring_to_front_if_hidden(
+            self._mw, dlg,
+            announce=lambda: self._mw.output(
+                self._mw.i18n.t("update_available_msg").format(new_version=remote_version),
+                interrupt=True))
         result = dlg.ShowModal()
         dlg.Destroy()
 
@@ -1491,6 +1582,16 @@ class UpdateChecker:
             self._release_prompt()
             self._schedule_retry()
 
+    def _main_window_ready(self) -> bool:
+        """False while MainWindow.__init__ is still running (no window yet) or
+        another modal flow (pairing) owns the screen — the same rule the
+        WPPConnect update check follows."""
+        ready = getattr(self._mw, "_ui_ready_event", None)
+        if ready is not None and not ready.is_set():
+            return False
+        may_run = getattr(self._mw, "wpp_update_may_run_now", None)
+        return may_run is None or bool(may_run())
+
     def _do_install(self, new_version: str, zip_url: str, sha256sums_url: str = "",
                     signature_url: str = "", is_alpha: bool = False):
         while True:
@@ -1498,6 +1599,7 @@ class UpdateChecker:
                 self._mw, new_version, self._mw, zip_url, sha256sums_url,
                 signature_url=signature_url, is_alpha=is_alpha,
             )
+            bring_to_front_if_hidden(self._mw, prog)
             result = prog.run()
             # Read before Destroy(): this is the dialog's answer to "is a batch
             # installer now running and waiting for this process to exit?", and
@@ -1531,11 +1633,13 @@ class UpdateChecker:
             # wx.ID_ABORT: error occurred
             error_msg = prog._error_msg
             i18n = self._mw.i18n
-            retry = wx.MessageBox(
+            retry = message_box(
+                self._mw,
                 i18n.t("update_error_msg").format(error=error_msg),
                 i18n.t("update_error_title"),
                 wx.YES_NO | wx.ICON_ERROR,
-                self._mw,
+                announce=lambda: self._mw.output(
+                    i18n.t("update_error_msg").format(error=error_msg), interrupt=True),
             )
             if retry != wx.YES:
                 self._release_prompt()
@@ -1543,8 +1647,16 @@ class UpdateChecker:
                 return
             # else: loop and retry the download
 
-    def _schedule_retry(self):
-        self._retry_timer = threading.Timer(self._RETRY_INTERVAL, self._check_once)
+    def _schedule_retry(self, interval: float = None):
+        if interval is None:
+            interval = self._RETRY_INTERVAL
+        # A check that ends here ended without a prompt; a forced one must not
+        # leave _force armed for the automatic retry, which would then answer
+        # "no update available" to a check nobody asked for.
+        self._force = False
+        if self._retry_timer is not None:
+            self._retry_timer.cancel()
+        self._retry_timer = threading.Timer(interval, self._check_once)
         self._retry_timer.daemon = True
         self._retry_timer.start()
 
@@ -1585,6 +1697,46 @@ class WppUpdateChecker:
     def __init__(self, main_window):
         self._mw          = main_window
         self._retry_timer = None
+        # A recommended release the user already said No to this session.
+        self._declined_tag = None
+        # Owner-token of the per-machine WPPConnect prompt claim, or None.
+        self._prompt_token = None
+
+    def _global_dir(self):
+        return getattr(self._mw, "global_dir", None) or None
+
+    def _claim_prompt(self, version: str) -> bool:
+        """One WPPConnect prompt per machine. Several autostarted accounts would
+        each ask at 90 s, and accepting in one rewrites the shared api/ while
+        another account's Node still runs from it. Fails open, like the
+        WinZapp prompt's claim: a prompt that cannot be coordinated is worth
+        more than one suppressed by a bug in the coordination."""
+        gd = self._global_dir()
+        if not gd:
+            return True
+        try:
+            import update_coord
+            token = update_coord.try_claim_update_prompt(
+                gd, version, name=update_coord.WPP_PROMPT_FILE)
+        except Exception:
+            logging.exception("[WppUpdateChecker] prompt claim failed - asking anyway")
+            return True
+        if token is None:
+            return False
+        self._prompt_token = token
+        return True
+
+    def _release_prompt(self) -> None:
+        """Never raises: it runs on the way out of a dialog."""
+        token, self._prompt_token = self._prompt_token, None
+        gd = self._global_dir()
+        if not (gd and token):
+            return
+        try:
+            import update_coord
+            update_coord.release_update_prompt(gd, token, name=update_coord.WPP_PROMPT_FILE)
+        except Exception:
+            logging.exception("[WppUpdateChecker] releasing the prompt claim failed")
 
     def start(self):
         """Launch the first check in a background thread."""
@@ -1616,28 +1768,6 @@ class WppUpdateChecker:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _homologated_or_latest_tag() -> str:
-        """The tag the PERIODIC check compares against: the homologated server
-        release, falling back to GitHub's latest when none is bundled.
-
-        Deliberately not "whatever is newest". WinZapp ships a homologated pair
-        (see tests/test_wpp_homologated_runtime_pin.py), and prompting every
-        user onto every wppconnect-server release the day it appears is how a
-        patch set that no longer matches reaches people — which is the failure
-        wppconnect 2.3.2 produced. Raising client/wpp_minimum_version.txt is the
-        deliberate act that offers an update.
-
-        Renamed from _fetch_latest_tag(): it never fetched the latest anything
-        when a homologated tag was bundled, which is always in a release build,
-        and the force-reinstall path below trusted the name.
-        """
-        homologated = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
-        if homologated:
-            return homologated
-        from ui.dialogs.api_setup import fetch_latest_wpp_tag
-        return fetch_latest_wpp_tag()
-
-    @staticmethod
     def _newest_available_tag() -> str:
         """The tag FORCE-REINSTALL uses: genuinely the newest release.
 
@@ -1649,24 +1779,28 @@ class WppUpdateChecker:
         repeatedly, with the dialog cheerfully naming it. Reported live: three
         forced reinstalls, each "successful", package.json unchanged at 2.10.16.
 
-        Floored at the homologated tag rather than taken raw: this must be able
+        Floored at the bundled minimum rather than taken raw: this must be able
         to move a user forward, never backward, and a GitHub hiccup answering
         with something older must not silently downgrade an install below the
-        version WinZapp was built against.
+        version WinZapp was built against. The periodic check shares the rule
+        through wpp_update_target().
         """
         from ui.dialogs.api_setup import fetch_latest_wpp_tag
         latest = fetch_latest_wpp_tag()
-        homologated = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
-        if not latest:
-            return homologated
-        if homologated and _version_is_older(latest, homologated):
+        minimum = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
+        floored = _floor_at_minimum(latest, minimum)
+        if latest and floored != latest:
             logging.warning(
                 "[WppUpdateChecker] The latest published release (%s) is older "
-                "than the homologated one (%s) — reinstalling the homologated "
-                "tag instead of going backwards.", latest, homologated,
+                "than the minimum (%s) — reinstalling the minimum "
+                "tag instead of going backwards.", latest, minimum,
             )
-            return homologated
-        return latest
+        return floored
+
+    #: Retry after a check that could not reach GitHub and found nothing to
+    #: offer from the bundled minimum alone (the network is often not up yet at
+    #: a Windows login), instead of waiting the 12 h periodic interval.
+    _OFFLINE_RETRY_INTERVAL = 15 * 60
 
     def _check_once(self):
         logging.info("[WppUpdateChecker] Checking for wppconnect-server updates...")
@@ -1678,35 +1812,46 @@ class WppUpdateChecker:
             self._schedule_retry()
             return
 
-        tag = self._homologated_or_latest_tag()
-        if not tag:
-            self._schedule_retry()
+        from ui.dialogs.api_setup import fetch_latest_wpp_tag
+        minimum = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
+        latest = fetch_latest_wpp_tag()
+        if _parse_wpp_version(latest) is None:
+            latest = ""   # an unusable answer is an unreachable GitHub
+        target = wpp_update_target(installed, minimum, latest)
+        if target is None:
+            logging.info("[WppUpdateChecker] wppconnect-server needs no update (%s).", installed)
+            self._schedule_retry(None if latest else self._OFFLINE_RETRY_INTERVAL)
             return
+        tag, required = target
         remote_version = tag.lstrip("vV")
 
-        try:
-            from packaging.version import Version
-            newer_available = Version(remote_version) > Version(installed)
-        except Exception:
-            logging.warning(
-                "[WppUpdateChecker] Could not compare versions (installed=%r, remote=%r)",
-                installed, remote_version,
-            )
+        if not required and tag == self._declined_tag:
+            # Said No to this very release earlier in the session; the 12 h
+            # retry must not ask again. A required update is never silenced.
+            logging.info("[WppUpdateChecker] %s was declined this session — not asking again.", tag)
             self._schedule_retry()
             return
 
-        if not newer_available:
-            logging.info("[WppUpdateChecker] wppconnect-server is up to date (%s).", installed)
+        if self._other_account_busy():
+            logging.info("[WppUpdateChecker] another account's WPPConnect Server is "
+                         "running - not offering %s from this account.", tag)
             self._schedule_retry()
             return
 
         logging.info(
-            "[WppUpdateChecker] Newer wppconnect-server release available: %s -> %s",
+            "[WppUpdateChecker] wppconnect-server %s available: %s -> %s",
+            "update required" if required else "update recommended",
             installed, remote_version,
         )
-        wx.CallAfter(self._prompt_update, installed, remote_version, tag)
+        wx.CallAfter(self._prompt_update, installed, remote_version, tag, required)
 
-    def _prompt_update(self, installed: str, remote_version: str, tag: str):
+    def _prompt_update(self, installed: str, remote_version: str, tag: str, required: bool = False):
+        if getattr(self._mw, "_shutting_down", False):
+            return   # quitting: no dialog on a dying app (UpdateChecker does the same)
+        if getattr(self._mw, "_wpp_updating", False):
+            # An update (this one's retry, or a forced reinstall) is mid-flight.
+            self._schedule_retry(self._PAIRING_RETRY_INTERVAL)
+            return
         if not self._mw.wpp_update_may_run_now():
             logging.info(
                 "[WppUpdateChecker] Pairing in progress — not prompting for "
@@ -1714,21 +1859,79 @@ class WppUpdateChecker:
             )
             self._schedule_retry(self._PAIRING_RETRY_INTERVAL)
             return
-
-        i18n = self._mw.i18n
-        # wx.NO_DEFAULT: this can pop up while the user is typing a message,
-        # and Space is how NVDA/JAWS/Narrator users activate the focused
-        # button — defaulting to Yes risked reinstalling the API session
-        # from an accidental keystroke instead of a deliberate choice.
-        if wx.MessageBox(
-            i18n.t("wpp_update_available_msg").format(current=installed, new=remote_version),
-            i18n.t("wpp_update_available_title"),
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION,
-            self._mw,
-        ) == wx.YES:
-            self._mw._update_wpp_server(tag)
-        else:
+        if self._other_account_busy():
+            # Nothing to ask: the update would be refused after a Yes, and the
+            # same prompt would come back. Stay silent until the next check.
+            logging.info("[WppUpdateChecker] another account's WPPConnect Server is "
+                         "running - not prompting for %s.", remote_version)
             self._schedule_retry()
+            return
+        if not self._claim_prompt(remote_version):
+            logging.info("[WppUpdateChecker] another account is already asking about "
+                         "the %s update - checking again soon.", remote_version)
+            self._schedule_retry(self._PAIRING_RETRY_INTERVAL)
+            return
+
+        # Held from here: any exception below must hand the claim back, or no
+        # account would be asked again until this process exits. Only a started
+        # update keeps it, and releases it itself when it ends.
+        handed_over = False
+        try:
+            i18n = self._mw.i18n
+            # Below the minimum this build was validated against the mandatory
+            # gate's wording (ensure_wpp_version, which a background start skips);
+            # at or above it the update is only recommended.
+            if required:
+                title = i18n.t("api_update_outdated_title")
+                message = i18n.t("api_update_outdated_message").format(
+                    current=installed, required=remote_version)
+            else:
+                title = i18n.t("wpp_update_available_title")
+                message = i18n.t("wpp_update_available_msg").format(
+                    current=installed, new=remote_version)
+            # wx.NO_DEFAULT: this can pop up while the user is typing a message,
+            # and Space is how NVDA/JAWS/Narrator users activate the focused
+            # button — defaulting to Yes risked reinstalling the API session
+            # from an accidental keystroke instead of a deliberate choice.
+            if message_box(
+                self._mw, message, title,
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION,
+                announce=lambda: self._mw.output(f"{title}. {message}", interrupt=True),
+            ) == wx.YES:
+                started = self._mw._update_wpp_server(
+                    tag, on_finished=lambda ok: self._update_finished(tag, ok))
+                if started is False:
+                    # Refused after a Yes (another account's Node came up, or an
+                    # update is mid-flight): do not ask again for this release
+                    # this session, the refusal already explained itself.
+                    if not required:
+                        self._declined_tag = tag
+                    self._schedule_retry()
+                else:
+                    handed_over = True
+            else:
+                if not required:
+                    self._declined_tag = tag
+                self._schedule_retry()
+        finally:
+            if not handed_over:
+                self._release_prompt()
+
+    def _update_finished(self, tag: str, ok: bool) -> None:
+        """The accepted update ended. The claim is handed back either way; a
+        failed one is remembered for the session so a release that does not
+        install is not re-offered and re-attempted every 12 hours (a newer
+        release, or a required update, still prompts). Session-only: persisting
+        it per install would need a settings key and an expiry rule."""
+        if not ok:
+            self._declined_tag = tag
+        self._release_prompt()
+        self._schedule_retry()
+
+    def _other_account_busy(self) -> bool:
+        from core.wa_version_refresh import other_accounts_node_alive
+        return other_accounts_node_alive(
+            self._global_dir(), getattr(self._mw, "account_id", None), ignore_corrupt=True)
 
     def _force_reinstall_worker(self):
         logging.info("[WppUpdateChecker] Force-reinstall requested — fetching latest release tag...")
@@ -1766,7 +1969,9 @@ class WppUpdateChecker:
         self._retry_timer.start()
 
     def stop(self):
-        """Cancel any pending retry timer."""
+        """Cancel any pending retry timer and hand the prompt claim back, so a
+        quitting account does not hold the machine's WPPConnect prompt."""
+        self._release_prompt()
         if self._retry_timer is not None:
             self._retry_timer.cancel()
             self._retry_timer = None

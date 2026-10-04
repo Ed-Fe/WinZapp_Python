@@ -32,6 +32,7 @@ import wx
 import status_panel
 import ui.accessible as accessible_module
 import ui.conversations
+import ui.dialogs.ai_result_dialog
 import ui.dialogs.incoming_call
 import ui.media_viewer
 from tests.god_modules import conversations_modules, main_window_modules, status_panel_modules
@@ -47,6 +48,7 @@ FILES = (
     ("client/status_panel.py", status_panel),
     ("client/ui/media_viewer.py", ui.media_viewer),
     ("client/ui/dialogs/incoming_call.py", ui.dialogs.incoming_call),
+    ("client/ui/dialogs/ai_result_dialog.py", ui.dialogs.ai_result_dialog),
     # ConversationsPanel, ArchivedConversationsPanel and MainWindow are split
     # over these packages; every module in them is walked, each paired with
     # itself so a class local to it (transfer_gauge.py's

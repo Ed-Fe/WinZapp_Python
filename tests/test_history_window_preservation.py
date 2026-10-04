@@ -161,6 +161,11 @@ class _Stub:
         self._server_history_anchor = {}
         self.server_fetch_calls = 0
 
+    def _sync_message_rows(self, old_rows, new_rows):
+        # Stand-in for the per-row write (tests/test_message_rows_in_place.py
+        # covers the real one): the fake list just ends up holding new_rows.
+        self.messages_list.rows = [(self._render_message_line(m),) for m in new_rows]
+
     # Real implementations under test.
     _merge_history_into_records = ConversationsPanel._merge_history_into_records
     _remember_expanded_window = ConversationsPanel._remember_expanded_window
@@ -669,5 +674,5 @@ class TestTheWindowIsReadFromTheScreenBeforeEachRebuild:
     def test_populate_messages_rereads_before_it_clears_the_list(self):
         src = inspect.getsource(ConversationsPanel.populate_messages)
         assert src.index("self._refresh_expanded_window_before_rebuild()") < src.index(
-            "self.messages_list.DeleteAllItems()"
+            "self._sync_message_rows("
         )

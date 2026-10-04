@@ -646,16 +646,14 @@ class TestUiWiring(unittest.TestCase):
         path = ROOT / 'client/ui/dialogs/settings_dialog.py'
         tree = ast.parse(path.read_text(encoding='utf-8'))
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'SettingsDialog')
-        # Each corresponding stereo lifecycle operation must have the new checkbox next to it.
         sources = [ast.unparse(n) for n in cls.body if isinstance(n, ast.FunctionDef)]
-        for marker in ['self._warn_stereo_voice_cb = wx.CheckBox',
-                       'self._warn_stereo_voice_cb.SetValue',
-                       'self._warn_stereo_voice_cb.GetValue',
-                       'self._warn_stereo_voice_cb.SetLabel']:
-            matches = [s for s in sources if marker in s and '_confirm_stereo_voice_if_newly_enabled(self)' not in s]
+        for marker in ['self._warn_system_audio_cb = wx.CheckBox',
+                       'self._warn_system_audio_cb.SetValue',
+                       'self._warn_system_audio_cb.GetValue',
+                       'self._warn_system_audio_cb.SetLabel']:
+            matches = [s for s in sources if marker in s]
             self.assertTrue(matches, marker)
             for source in matches:
-                self.assertIn('_warn_system_audio_cb', source)
                 self.assertIn('system_audio', source)
 
     def test_late_mic_only_callback_cannot_write_into_new_mixed_buffer(self):

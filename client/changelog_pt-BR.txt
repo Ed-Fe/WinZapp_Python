@@ -12,7 +12,7 @@ NOVIDADES
 
 - As ligações aparecem na conversa e na lista de conversas, como no WhatsApp: "Ligação de voz perdida", "Ligação de vídeo atendida" e assim por diante, no ponto da conversa em que aconteceram. Numa ligação perdida, o botão "Retornar ligação" ou Ctrl+Shift+R liga de volta.
 
-- Configurações de áudio e vídeo das ligações. Na aba Chamadas das Configurações, "Configurações de áudio da chamada" escolhe o microfone e o alto-falante usados nas ligações, e "Configurações de vídeo da chamada" escolhe a câmera. Ali também ficam o cancelamento de eco, que reduz o retorno do seu próprio som quando você usa alto-falante em vez de fone, e o modo exclusivo para o microfone e para o alto-falante. Durante uma ligação, as mesmas opções abrem com Ctrl+C.
+- Configurações de áudio e vídeo das ligações. Na aba Chamadas das Configurações, "Configurações de áudio da chamada" escolhe o microfone e o alto-falante usados nas ligações, e "Configurações de vídeo da chamada" escolhe a câmera. Ali também ficam o cancelamento de eco, que reduz o retorno do seu próprio som quando você usa alto-falante em vez de fone, a redução de ruído do microfone, que diminui ruídos constantes como ventilador e chiado, e o modo exclusivo para o microfone e para o alto-falante. Durante uma ligação, as mesmas opções abrem com Ctrl+C.
 
 - Conversas trancadas (Alt+7). "Trancar conversa", no menu de contexto ou com Ctrl+Shift+T, leva a conversa para um cofre protegido por um PIN de 6 a 12 dígitos, fora da lista de conversas, das arquivadas, da pesquisa e da janela de encaminhar. As notificações dessas conversas dizem só quantas mensagens novas chegaram, sem o nome nem o conteúdo. Ao configurar o cofre, o WinZapp cria uma chave de recuperação, que pode ser lida em voz alta ou copiada, para definir um novo PIN se você esquecer o atual. O cofre fecha sozinho ao minimizar o WinZapp, ao ocultá-lo na bandeja e ao trocar de painel, e também, se você quiser, depois de um tempo sem uso; Ctrl+Shift+K fecha e oculta o cofre na hora. Conversas trancadas também pode sair do menu de navegação: nesse caso, o cofre é aberto digitando um código secreto na pesquisa de conversas.
 
@@ -28,7 +28,7 @@ NOVIDADES
 
 - Confirmação ao marcar todas as conversas como lidas. O comando agora pergunta antes, com Não como padrão, para que um Alt seguido de Enter por engano não marque tudo como lido, também no celular. A pergunta tem a opção "Não mostrar novamente": marcada e confirmada com Sim, as próximas vezes marcam direto. Para voltar a ser perguntado, use a opção "Pedir confirmação ao marcar todas as conversas como lidas", na aba Interface do usuário das Configurações.
 
-- Cópia de segurança do perfil nas Configurações. A nova aba Cópia de segurança define de quanto em quanto tempo o WinZapp renova, ao ser fechado, a cópia do perfil do navegador que usa para recuperar a conexão, com padrão de 24 horas. A cópia também pode ser feita com o WinZapp aberto, no intervalo escolhido: o WhatsApp fica desconectado enquanto ela é feita, o que pode levar alguns minutos, e o WinZapp pode perguntar antes de cada vez. A nova cópia só substitui a anterior depois que o WhatsApp volta a conectar com ela.
+- Cópia de segurança do perfil nas Configurações. A nova aba Cópia de segurança define de quanto em quanto tempo o WinZapp renova, ao ser fechado, a cópia do perfil do navegador que usa para recuperar a conexão, com padrão de 24 horas. A cópia também pode ser feita com o WinZapp aberto, no intervalo escolhido: o WhatsApp fica desconectado enquanto ela é feita, o que pode levar alguns minutos, e o WinZapp pode perguntar antes de cada vez. A nova cópia só substitui a anterior depois que o WhatsApp volta a conectar com ela. Quem prefere não gastar espaço com a cópia pode marcar "Não guardar cópias de segurança do perfil", sabendo que, se o perfil for danificado, será preciso parear de novo; ao marcar, o WinZapp diz quanto espaço as cópias ocupam e pergunta se quer apagá-las.
 
 - Exportar e importar as configurações. No menu Arquivo, “Exportar configurações” grava as suas preferências num arquivo, e “Importar configurações” aplica esse arquivo aqui, na hora, sem reiniciar. Serve para levar tudo para outro computador ou outra conta. A sua conexão com o WhatsApp e o que é próprio de cada conta, como as conversas limpas e os sons por conversa, não vão no arquivo. Se você usa uma API própria, o endereço, a porta e a chave dela vão junto.
 
@@ -38,9 +38,9 @@ NOVIDADES
 
 - O Esc desmarca antes de fechar. Com mensagens marcadas, o primeiro Esc apenas desmarca todas e só o segundo fecha a conversa. Também pode ser desativado em Configurações, Interface do usuário.
 
-- Mensagens de voz em estéreo. Com um microfone que grava em estéreo de verdade, a mensagem de voz pode manter o som dos dois lados. Marque "Gravar mensagens de voz em estéreo por padrão" na aba Dispositivos de áudio das Configurações, ou use o novo botão abaixo de "Gravar mensagem de voz" (Ctrl+Shift+G) para gravar só uma mensagem no outro modo: em estéreo quando o padrão for mono, e em mono quando for estéreo. Como o iPhone não reproduz mensagens de voz em estéreo, a gravação em estéreo é enviada como áudio, e o WinZapp avisa isso antes, com a opção "Não mostrar novamente"; para voltar a ser avisado, use a opção correspondente na aba Interface do usuário. Se o microfone não oferecer dois canais, a mensagem é gravada em mono e o WinZapp avisa.
+- Mensagens de voz em estéreo. Com um microfone que grava em estéreo de verdade, a mensagem de voz pode manter o som dos dois lados. Marque "Gravar mensagens de voz em estéreo por padrão" na aba Dispositivos de áudio das Configurações, ou use o novo botão abaixo de "Gravar mensagem de voz" (Ctrl+Shift+G) para gravar só uma mensagem no outro modo: em estéreo quando o padrão for mono, e em mono quando for estéreo. A gravação em estéreo é enviada como mensagem de áudio, e não como mensagem de voz, e por isso também toca no iPhone. Se o microfone não oferecer dois canais, a mensagem é gravada em mono e o WinZapp avisa.
 
-- Ressincronizar só a conversa aberta com Shift+F5, também no menu Sincronização. Diferente do F5, que apaga e baixa de novo todas as conversas, o Shift+F5 busca de novo no WhatsApp as mensagens da conversa aberta, coloca no lugar certo as que faltavam e remove as que não existem mais lá, sem mexer no histórico mais antigo. O F5 e o Shift+F5 agora pedem confirmação, com Não como padrão e a opção "Não mostrar novamente"; para voltar a ser perguntado, use as opções correspondentes na aba Interface do usuário das Configurações.
+- Ressincronizar só a conversa aberta com Shift+F5, também no menu Sincronização. Diferente do F5, que apaga e baixa de novo todas as conversas, o Shift+F5 busca de novo no WhatsApp as mensagens da conversa aberta, coloca no lugar certo as que faltavam e remove as que não existem mais lá, sem mexer no histórico mais antigo. O F5 e o Shift+F5 agora pedem confirmação, com Não como padrão e a opção "Não mostrar novamente"; para voltar a ser perguntado, use as opções correspondentes na aba Interface do usuário das Configurações. Quando a conversa já está em dia, ou quando o WhatsApp não tem mensagens dela, o Shift+F5 diz isso, em vez de dizer que não foi possível ressincronizar.
 
 - O atalho global que traz o WinZapp da bandeja agora também o leva de volta: com o WinZapp em primeiro plano, o mesmo atalho o oculta na bandeja. Em qualquer outra situação, ele continua trazendo a janela para a frente.
 
@@ -52,6 +52,8 @@ NOVIDADES
 
 - Escolher o que as notificações em segundo plano dizem. Na aba Geral das Configurações, "Conteúdo das notificações em segundo plano" oferece três níveis: som, nome da conversa ou grupo e texto da mensagem, como antes; som e nome da conversa ou grupo, sem o texto; ou somente o som, sem notificação na tela e sem nada lido. As notificações das conversas trancadas continuam sem nome nem conteúdo.
 
+- Transcreva e descreva mídia com IA. A nova aba "Transcrições e Descrições" nas Configurações liga os recursos de IA (eles começam desligados) e recebe a chave de API de um ou mais provedores — Gemini, OpenAI, Claude, Groq e OpenRouter —, que são tentados na ordem que você definir; assim, quando um falha ou fica sem cota, o próximo responde. No menu de contexto de uma mensagem, ou com Ctrl+Shift+I, "Transcrever" transforma uma mensagem de voz em texto, "Descrever" descreve uma foto ou um vídeo, "Descrever figurinha" descreve uma figurinha e "Converter em texto acessível" transforma um PDF em texto simples e legível. O resultado abre em uma janela com o texto e, para fotos e vídeos, dá para fazer perguntas de acompanhamento nela. O WinZapp pergunta antes de enviar mídia a um provedor e pergunta de novo a cada vez nas conversas bloqueadas; suas chaves ficam criptografadas no seu computador e só são enviadas ao provedor a que pertencem. Um som de espera toca enquanto o provedor trabalha, e as respostas podem ser lidas em voz alta automaticamente. O texto segue o idioma do aplicativo.
+
 MELHORIAS
 
 - Grande reorganização do código. Os dois maiores arquivos do WinZapp, que sozinhos somavam mais de 50 mil linhas e concentravam quase tudo o que o programa faz, foram divididos em dezenas de partes menores, cada uma cuidando de uma coisa: sincronização, conexão, envio de mensagens, ligações, lista de conversas e assim por diante. Para quem usa, nada muda. Para quem desenvolve, fica muito mais fácil encontrar, entender e corrigir cada parte, e muito mais difícil que uma correção quebre outra coisa sem ninguém perceber — é o que mantém o WinZapp saudável a longo prazo.
@@ -62,7 +64,25 @@ MELHORIAS
 
 - Arquivos de áudio colados no campo de mensagem com Ctrl+V agora podem ser enviados como áudio ou como documento, na nova opção "Arquivos de áudio colados no campo de mensagem (Ctrl+V)" da aba Arquivos e salvamento das Configurações; o padrão é áudio. A mensagem já aparece na conversa com o tipo com que será enviada.
 
+- Conversas arquivadas e trancadas agora podem ser selecionadas como as conversas principais: Ctrl+Espaço, Shift+setas, Shift+Home/End, Ctrl+Shift+Espaço e o Espaço do modo de seleção, com o mesmo som e os mesmos anúncios. O menu "Ações em massa" (e atalhos próprios) permite desarquivar, limpar, apagar e marcar como lidas ou não lidas as arquivadas, e destrancar ou marcar como lidas ou não lidas as trancadas.
+
+- O download automático de mídias agora obedece na hora à opção "Baixar mídias automaticamente" da aba Armazenamento das Configurações: desmarcá-la interrompe o download em andamento, e marcá-la (ou marcar mais um tipo de mídia) começa a baixar sem esperar a próxima sincronização. Desmarcada, ela agora vale também para as mídias das mensagens que chegam enquanto o WinZapp está aberto, e a lista de tipos fica desabilitada, guardando o que estava marcado.
+
+- O WinZapp agora mantém atualizada a sua lista de versões do WhatsApp Web. Ao iniciar, ele baixa uma mais recente em segundo plano, se houver, e a aplica na próxima vez que for iniciado, o que corrige ligações que falhavam em instalações cuja lista tinha ficado para trás.
+
+- Quando uma ligação não pode ser iniciada porque a versão do WhatsApp Web em uso não oferece suporte a ligações, o WinZapp agora diz isso e o que tentar (reiniciar o WinZapp ou escolher "Forçar reinstalação da WPPConnect" no menu Ajuda), em vez de ler um código de erro.
+
+- O instalador agora é muito menor para baixar: os arquivos do WinZapp que ele carrega estão compactados, como já estavam no ZIP portátil, e o instalador confere cada arquivo durante a instalação.
+
+- O instalador e o desinstalador agora aparecem em todos os idiomas em que o WinZapp está disponível: português do Brasil, português de Portugal, espanhol, polonês, romeno, turco e inglês. Eles seguem o idioma de exibição do Windows e mostram inglês em qualquer outro.
+
+- A biblioteca do WhatsApp que o WinZapp usa foi atualizada. As notas dos desenvolvedores dela listam correções para criar grupos, obter e redefinir links de convite de grupo, editar a descrição do grupo, mudar seu nome de perfil e enviar mídia em versões recentes do WhatsApp Web. Se o WinZapp oferecer a atualização do WPPConnect ao iniciar, aceite para instalar a nova biblioteca.
+
 CORREÇÕES
+
+- O desinstalador agora segue o idioma de exibição do Windows, como o instalador, em vez de aparecer sempre em português.
+
+- Encaminhar mensagens não falha mais nas versões recentes do WhatsApp Web, em que todo encaminhamento era recusado com o erro “forwardMessages function is not available”.
 
 - Ao iniciar uma mensagem de voz com os anúncios da gravação silenciados, o leitor de tela não começa mais a dizer “Enviar” antes de ser interrompido. O WinZapp agora evita a mudança automática de foco que causava esse fragmento, mantendo Ctrl+R, Ctrl+Shift+P e Ctrl+Shift+D disponíveis.
 
@@ -112,6 +132,34 @@ CORREÇÕES
 
 - Quando várias mensagens da mesma conversa chegavam juntas, logo depois de você ter lido essa conversa no WinZapp, o contador de não lidas podia mostrar menos mensagens do que chegaram: três arquivos mandados de uma vez apareciam como duas não lidas. Agora o contador mostra todas.
 
+- Deixar uma conversa aberta e ir para as conversas arquivadas (Alt+4) fazia o WinZapp continuar tratando aquela conversa como a que você está lendo: as mensagens novas dela eram marcadas como lidas, tocavam o som da conversa aberta e eram lidas em voz alta, mesmo com você em outro painel. Agora isso só acontece enquanto o painel da conversa está na tela; a conversa continua aberta, e você a encontra onde deixou ao voltar.
+
+- Nas conversas arquivadas, Alt+M não levava para a lista de mensagens da conversa aberta, como faz nas conversas principais. Agora funciona de qualquer lugar do painel.
+
+- Uma conversa aberta em uma lista agora fica oculta quando você troca para outra: as conversas principais (Alt+1), as conversas arquivadas (Alt+4) ou as conversas trancadas. Trocar só muda a lista e deixa você nela; não mostra nem recarrega a conversa aberta. A conversa continua aberta, e você a traz de volta com Alt+M, Alt+2 ou Alt+3, ou abrindo-a de novo; ela então aparece na lista de onde foi aberta. Isso também corrige uma conversa arquivada que continuava na tela nas conversas principais. Uma conversa aberta pelas conversas principais pertence a elas, mesmo uma arquivada encontrada no campo de pesquisa.
+
+- O mesmo vale para qualquer outro painel, como Status ou Ligações: com uma conversa aberta atrás dele, as mensagens novas dela passam a ser anunciadas como de outra conversa, sem serem marcadas como lidas. Mensagens de conversas arquivadas só são anunciadas quando a lista de arquivadas está na tela.
+
+- Os avisos de “está digitando” e “está gravando áudio” continuavam sendo anunciados para uma conversa deixada aberta atrás de outro painel (Alt+4, Status, Ligações...). Agora só são anunciados enquanto essa conversa está na tela, como já acontecia com marcar como lida e com os sons.
+
+- Numa conversa que já tinha sido limpa alguma vez, o contador de não lidas sumia sozinho cerca de um minuto depois de chegar uma mensagem, e abrir a conversa não a marcava como lida no celular. Acontecia principalmente em grupos movimentados e silenciados. Agora o contador fica até você ler a conversa, e ler no WinZapp marca como lida também no celular.
+
+- As mensagens de visualização única chegavam sem contador, som nem notificação, e depois de uma sincronização ficavam para sempre como uma mensagem ainda aguardando para ser carregada. Agora aparece "Mensagem de visualização única. Abra no celular para ver.", com o som e a notificação de uma mensagem nova. O conteúdo em si continua só no celular, como no WhatsApp Web.
+
+- Aberto de uma pasta de rede — por exemplo, a pasta Downloads de uma máquina virtual Parallels no Mac, que na verdade fica no outro computador —, o WinZapp não conseguia instalar o servidor local e mostrava um erro incompreensível. Agora ele avisa que não pode funcionar dali e explica como resolver: instalar pelo WinZappInstaller ou mover a pasta para um disco do próprio computador.
+
+- Responder ao aviso de atualização enquanto o WinZapp ainda estava iniciando podia deixá-lo sem janela, rodando em segundo plano, e ele só voltava a abrir depois de finalizar o processo ou reiniciar o computador. Agora o aviso espera a janela principal abrir e, se um encerramento travar, o WinZapp termina sozinho em vez de ficar preso.
+
+- O leitor de tela não relê mais, sem motivo, a mensagem em foco na conversa aberta. Quando uma mensagem nova chegava junto com uma reação (ou depois de uma mensagem enviada por você), a atualização automática reescrevia a lista de mensagens inteira e o NVDA repetia o item em que você estava; agora a lista é atualizada linha por linha, e só mudam as linhas que realmente mudaram.
+
+- O aviso de "digitando" e de "gravando áudio" voltou a ser falado nos grupos. O WhatsApp passou a informar quem está digitando de um jeito que o WinZapp não lia, então só as conversas individuais anunciavam.
+
+- Ao escolher na lista uma conversa que já estava aberta, o foco agora respeita a configuração "Ao abrir uma conversa, focar" (campo de mensagem, ou separador de não lidas / última mensagem); antes ia sempre para o campo de mensagem.
+
+- Ao responder a uma mensagem mencionando alguém na resposta, ela chegava aos destinatários como uma mensagem nova, sem a citação, embora o WinZapp a mostrasse como resposta. Agora a citação vai junto com a menção.
+
+- Os avisos de atualização agora também aparecem quando o WinZapp inicia com o Windows: nem a atualização do próprio WinZapp nem a da WPPConnect Server eram oferecidas nesse caso. O aviso da WPPConnect Server também passa a oferecer uma versão mais nova que a testada com o WinZapp, como atualização recomendada que você pode recusar, e não apenas quando o próprio WinZapp elevava a versão exigida.
+
 V1.1.1.0
 
 Esta versão é sobre manter a sua conta conectada. O WinZapp passou a guardar uma cópia de segurança do perfil do navegador — que é onde a sua conexão com o WhatsApp realmente fica guardada — e a restaurá-la sozinho quando ela deixa de ser aceita, avisando o que aconteceu. Junto vieram as correções das situações que quebravam a sessão e faziam o programa pedir para parear de novo: desligar o computador, suspender e retomar, e o próprio programa reiniciando a conexão. Também chegaram a verificação ortográfica no campo de mensagem e as ações sobre links.
@@ -120,7 +168,7 @@ NOVIDADES
 
 - Recuperação automática do perfil do navegador. A sua conexão com o WhatsApp fica guardada no perfil do navegador que o WinZapp usa por baixo, e quando esse perfil deixava de ser aceito só restava parear de novo. Agora o WinZapp guarda uma cópia de segurança dele, mantém também a cópia anterior, e restaura sozinho quando percebe que a conexão foi recusada — dizendo em voz alta que restaurou e que está reconectando. Ele nunca oferece de volta uma cópia que o WhatsApp já recusou, e quando não há nenhuma cópia aproveitável ele avisa claramente, em vez de deixar você offline sem explicação.
 
-- Verificação ortográfica no campo de mensagem. Em Configurações você escolhe entre seguir a configuração de ortografia do próprio Windows (padrão), sempre ativada ou sempre desativada. Há também um som próprio para erro de ortografia, que pode ser configurado junto com os demais sons.
+- Verificação ortográfica no campo de mensagem. Em Configurações você escolhe entre seguir a configuração de ortografia do próprio Windows (padrão), sempre ativada ou sempre desativada. Há também um som próprio para erro de ortografia, que pode ser configurado junto com os demais sons. O som de erro toca ao digitar um espaço ou sinal de pontuação depois de uma palavra errada, e quando o cursor chega a uma delas com as setas, Ctrl+setas ou o mouse.
 
 - Ações sobre links nas mensagens. Quando a mensagem tem links, o menu de contexto passa a oferecer Abrir link e Copiar link para o link que está em foco, e Ctrl+C copia esse link em vez da mensagem inteira.
 

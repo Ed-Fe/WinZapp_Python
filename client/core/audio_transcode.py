@@ -58,7 +58,10 @@ def transcode_audio_to_wav(ffmpeg: str, source_path: str) -> str | None:
 
 
 def encode_system_audio_to_m4a(ffmpeg: str, source_wav: str) -> str | None:
-    """Encode mixed capture as stereo 48 kHz AAC-LC, independently of voice PTT.
+    """Encode a stereo capture as 48 kHz AAC-LC, independently of voice PTT.
+
+    Used by microphone + computer audio and by a stereo voice message: iPhone
+    plays this, but not stereo OGG/Opus.
 
     The caller owns the returned temporary M4A until delivery/cancellation.
     Never fall back to the mono Opus attachment/voice conversion on failure.

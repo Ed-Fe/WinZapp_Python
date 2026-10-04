@@ -74,7 +74,8 @@ def test_archived_jid_found_opens_via_archived_panel_dance():
 
     stub.navigate_to_conversation_jid(jid)
 
-    stub.conversations_panel.navigate_to_conversation.assert_called_once_with(chat)
+    stub.conversations_panel.navigate_to_conversation.assert_called_once_with(
+        chat, origin="archived")
     stub.conversations_panel.conversations_label.Hide.assert_called_once()
     stub.conversations_panel.conversations_list.Hide.assert_called_once()
     stub.archived_conversations_panel.Hide.assert_called_once()
@@ -201,7 +202,8 @@ def test_an_archived_chat_reached_as_c_us_opens_in_the_archived_layout():
 
     stub.conversations_panel.conversations_label.Hide.assert_called_once()
     stub.conversations_panel.conversations_label.Show.assert_not_called()
-    stub.conversations_panel.navigate_to_conversation.assert_called_once_with(chat)
+    stub.conversations_panel.navigate_to_conversation.assert_called_once_with(
+        chat, origin="archived")
 
 
 def test_an_unbridged_lid_creates_nothing():

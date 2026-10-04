@@ -295,6 +295,9 @@ class TestTheDialogIsHandedTheReResolvedPort:
             def _start_wpp_background(self):
                 self.started = True
 
+            def _start_wpp_background_after_catalogue(self):
+                self._start_wpp_background()
+
             def _register_node_lease(self):
                 pass
 

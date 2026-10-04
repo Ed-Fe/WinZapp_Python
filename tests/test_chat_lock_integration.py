@@ -134,6 +134,21 @@ class _Shown:
         self.shown = False
 
 
+class _ConversationsPanelStub(_Shown):
+    """The part of ConversationsPanel show_locked_chats_panel() delegates to
+    (show_chat_panel hides every other panel and shows the locked list; its
+    real behaviour is pinned in test_panel_switch_wiring.py)."""
+
+    siblings = ()
+    locked_panel = None
+
+    def show_chat_panel(self, shown, *, focus=True):
+        self.Hide()
+        for other in self.siblings:
+            other.Hide()
+        self.locked_panel.Show()
+
+
 class _LockedPanel(_Shown):
     def __init__(self):
         super().__init__()
@@ -157,11 +172,14 @@ class _PanelStub(_MainWindowStub):
         super().__init__(key, vault)
         self._chat_lock_unlocked = True
         self._locked_chat_rows = ([], [])
-        self.conversations_panel = _Shown()
+        self.conversations_panel = _ConversationsPanelStub()
         self.archived_conversations_panel = _Shown()
         self.status_panel = _Shown()
         self.calls_panel = _Shown()
         self.locked_conversations_panel = _LockedPanel()
+        self.conversations_panel.locked_panel = self.locked_conversations_panel
+        self.conversations_panel.siblings = (
+            self.archived_conversations_panel, self.status_panel, self.calls_panel)
         self.content_panel = type("_L", (), {"Layout": lambda self: None})()
 
 
@@ -357,9 +375,13 @@ class _EmptyListMainWindow:
     def _last_msg_preview(self, chat):
         return ""
 
+    settings = {}
+
 
 class _LockedPanelListStub:
     refresh = LockedConversationsPanel.refresh
+    _row_text = LockedConversationsPanel._row_text
+    selected_chats = frozenset()
 
     def __init__(self, chats=()):
         self.main_window = _EmptyListMainWindow()

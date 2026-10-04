@@ -4,4 +4,5 @@
 pytest>=8.0
 pytest-cov>=5.0
 pytest-asyncio>=0.25
+pytest-xdist>=3.6
 aiosqlite>=0.21

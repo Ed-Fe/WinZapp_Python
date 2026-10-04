@@ -350,6 +350,36 @@ class SettingsMixin:
 
     # ── Terms of service ─────────────────────────────────────────────────────
 
+    def _refuse_network_install_location(self):
+        """Stop with a clear explanation when WinZapp runs from a UNC path.
+
+        Before anything is installed: from //server/share npm install fails
+        with a page of output that explains nothing (core/install_location.py,
+        which also says why a mapped drive letter is not refused). The common
+        way to land here is a virtual machine — Parallels on a Mac maps
+        Windows' Downloads to the Mac's own folder — so the message names the
+        path and says exactly what to do instead.
+        """
+        from app_paths import global_dir
+        from core.install_location import is_unc_path
+        location = global_dir()
+        if not is_unc_path(location):
+            return
+        # No path in the log: it carries the Windows user name and the share,
+        # and these logs are pasted into public groups.
+        logging.warning(
+            "[startup] WinZapp is running from a network folder (UNC path) — "
+            "refusing to start: npm install cannot run on a UNC path.",
+        )
+        if not self.background_mode:
+            wx.MessageBox(
+                self.i18n.t("network_install_location_message").format(
+                    path=os.path.dirname(os.path.dirname(location))),
+                self.i18n.t("network_install_location_title"),
+                wx.OK | wx.ICON_ERROR,
+            )
+        sys.exit(0)
+
     def _check_terms_acceptance(self):
         """
         Show the terms-of-service dialog exactly once.
@@ -428,11 +458,10 @@ class SettingsMixin:
                 msg   = self.i18n.t("settings_load_failed")
                 title = self.i18n.t("error").format(app_name=self.app_name)
             else:
-                from core.i18n import _load_translations
-                _pt   = _load_translations("pt-BR")
-                msg   = _pt.get("settings_load_failed",
-                                "Erro ao carregar o arquivo de configuração:")
-                title = _pt.get("error", "{app_name} Erro").format(app_name=self.app_name)
+                from startup_i18n import startup_i18n
+                _i18n = startup_i18n()
+                msg   = _i18n.t("settings_load_failed")
+                title = _i18n.t("error").format(app_name=self.app_name)
             if hasattr(self, "error_sound"):
                 self.error_sound.play()
             if not self.background_mode:

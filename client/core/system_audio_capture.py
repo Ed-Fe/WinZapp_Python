@@ -19,6 +19,9 @@ import time
 # This covers the observed 249/335ms stalls with margin, not a guarantee.
 PLAYOUT_DELAY_100NS = 5_000_000
 LATE_TOLERANCE_SECONDS = .5
+# Microphone packet QPC stamps jitter by up to ~0.5 ms around a steady 10 ms
+# cadence. A packet starting this close to its predecessor's end is contiguous.
+CONTIGUOUS_SNAP_SECONDS = .005
 
 
 @dataclass(frozen=True)
@@ -31,7 +34,7 @@ class TimelineMixer:
     """Bounded timestamp-to-PCM timeline; missing source packets are silence."""
 
     def __init__(self, rate, channels, epoch, capacity_seconds=2, *, late_tolerance_seconds=0.,
-                 source_count=2):
+                 source_count=2, snap_sources=()):
         if type(source_count) is not int or source_count < 1:
             raise ValueError('Source count must be a positive integer')
         self.source_count = source_count
@@ -40,6 +43,10 @@ class TimelineMixer:
         if not 0 <= late_tolerance_seconds <= capacity_seconds:
             raise ValueError("Late tolerance must fit inside the bounded buffer")
         self._late_tolerance = int(rate * late_tolerance_seconds)
+        # Sources whose QPC stamps jitter around a steady cadence (the
+        # microphone); they are laid out contiguously within the snap window.
+        self._snap_sources = frozenset(snap_sources)
+        self._snap = round(rate * CONTIGUOUS_SNAP_SECONDS)
         self.late_packets, self.late_frames = [0] * source_count, [0] * source_count
         self.position = 0
         self._ring = array('f', [0]) * (self.capacity * channels)
@@ -84,6 +91,16 @@ class TimelineMixer:
             samples.byteswap()
         count = len(samples) // self.channels
         start = self._frame(packet.timestamp)
+        last_end = self._last_end[source]
+        if (source in self._snap_sources and last_end is not None and start != last_end
+                and (start < last_end or start - last_end <= self._snap)):
+            # Timestamp jitter is not a gap: zero-filling it (or dropping the
+            # overlap) makes every jittery packet click, heard as ~1% loss.
+            # Real gaps beyond the snap window still stay silent. A fast
+            # device clock makes the snapped timeline outrun the raw stamps;
+            # that overlap is trimmed here instead of ending the recording.
+            # (The 1% retime below still compares raw stamps to this end.)
+            start = last_end
         end = start + count
         if following is not None:
             next_start = self._frame(following.timestamp)
@@ -99,7 +116,6 @@ class TimelineMixer:
             raise ValueError('Capture packet has an invalid clock interval')
         if end > self.position + self.capacity:
             raise ValueError('Clock correction exceeded the bounded buffer')
-        last_end = self._last_end[source]
         begin = max(start, self.position, last_end if last_end is not None else start)
         # QPC jitter can put the next packet slightly before the previous
         # end (observed: 5 frames at 48 kHz). Keep its original time and skip
@@ -461,7 +477,7 @@ class SystemAudioRecorder:
             epoch = self._clock()
             mixer = TimelineMixer(self.rate, self.channels, epoch,
                                   late_tolerance_seconds=LATE_TOLERANCE_SECONDS,
-                                  source_count=len(streams))
+                                  source_count=len(streams), snap_sources=(0,))
             last_safe = last_mic = epoch
             active = True
             with self._lock:
@@ -501,7 +517,7 @@ class SystemAudioRecorder:
                             epoch = self._clock()
                             mixer = TimelineMixer(self.rate, self.channels, epoch,
                                                   late_tolerance_seconds=LATE_TOLERANCE_SECONDS,
-                                                  source_count=len(streams))
+                                                  source_count=len(streams), snap_sources=(0,))
                             last_safe = last_mic = epoch
                             paused = False
                             self._diagnose('update', phase='resume', source='worker')

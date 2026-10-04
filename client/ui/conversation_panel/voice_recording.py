@@ -22,10 +22,6 @@ from core.voice_stereo import (
     fell_back_to_mono,
     sends_as_audio_file,
 )
-from ui.dialogs.stereo_voice_warning import (
-    ask_stereo_voice,
-    stereo_warning_enabled,
-)
 from core.focus_cloak import cloak_panel_focus_fallback
 from app_paths import data_path
 from core.utils import encrypt
@@ -63,8 +59,7 @@ class VoiceRecordingMixin:
 
     def _on_record_alternate_mode(self, event):
         """The second record button: one message in the mode Settings did not
-        pick. Recording in stereo says first that it goes out as an audio
-        message, not a voice message (core/voice_stereo.py)."""
+        pick."""
         if self._is_recording or self._recording_starting:
             return
         # Ctrl+Shift+G reaches here even when the button is disabled -- a
@@ -74,14 +69,6 @@ class VoiceRecordingMixin:
         if button is not None and not button.IsEnabled():
             return
         stereo = alternate_mode_is_stereo(self._default_recording_stereo())
-        if stereo and stereo_warning_enabled(self.main_window.settings):
-            confirmed, dont_ask_again = ask_stereo_voice(self, self.main_window.i18n)
-            if not confirmed:
-                return
-            if dont_ask_again:
-                self.main_window.settings.setdefault("user_interface", {})[
-                    "warn_stereo_voice_iphone"] = False
-                self.main_window.save_settings()
         self._start_voice_recording(stereo=stereo)
 
     def on_record_voice_message(self, event):
@@ -757,6 +744,10 @@ class VoiceRecordingMixin:
         bytes_per_frame = 2 * actual_ch
         quoted_msg      = self._quoted_message
         stereo_out      = encode_as_stereo(self._recording_stereo, actual_ch)
+        # Microphone + computer audio and a stereo voice message share one
+        # encoder and route (Ctrl+Shift+H's AAC-LC M4A through /send-file as
+        # audio): iPhone plays that, but not stereo OGG/Opus.
+        as_audio_file   = mixed_audio or sends_as_audio_file(stereo_out)
 
         # Duration from frame byte counts — no allocation, no join on UI thread.
         total_bytes  = sum(len(f) for f in frames)
@@ -784,9 +775,9 @@ class VoiceRecordingMixin:
                     # Microphone + computer audio, and a stereo recording, both
                     # go out as an audio message rather than a voice message
                     # (core/voice_stereo.py) — say so already.
-                    "ptt":     not (mixed_audio or sends_as_audio_file(stereo_out)),
+                    "ptt":     not as_audio_file,
                     **({"mimetype": "audio/mp4", "fileName": f"{local_id}.m4a"}
-                       if mixed_audio else {}),
+                       if as_audio_file else {}),
                 }
             },
             "messageTimestamp": int(time.time()),
@@ -859,7 +850,7 @@ class VoiceRecordingMixin:
                              _time.perf_counter() - _t0, wav_path)
             except Exception as exc:
                 logging.error("[_send_voice_message] failed to write WAV: %s", exc)
-                if mixed_audio:
+                if as_audio_file:
                     if tmp is not None:
                         try:
                             os.unlink(tmp.name)
@@ -869,17 +860,17 @@ class VoiceRecordingMixin:
                                  mw.i18n.t("media_audio_convert_failed"), True)
                 return
 
-            if mixed_audio:
+            if as_audio_file:
                 self._enqueue_system_audio_file(
                     wav_path, local_id, remote_jid, quoted_msg, enc_key, virtual_msg,
                 )
                 return
 
-            # 3. Encode OGG Opus via ffmpeg conversion.
+            # 3. Encode a mono voice message as OGG Opus via ffmpeg conversion.
             ogg_bytes = None
             _t_enc = _time.perf_counter()
             try:
-                ogg_path = mw._convert_wav_to_ogg(wav_path, stereo=stereo_out)
+                ogg_path = mw._convert_wav_to_ogg(wav_path)
                 if ogg_path and os.path.isfile(ogg_path):
                     with open(ogg_path, "rb") as f_in:
                         ogg_bytes = f_in.read()
@@ -913,8 +904,7 @@ class VoiceRecordingMixin:
                          _time.perf_counter() - _t0,
                          "yes" if ogg_bytes else "NO — will fallback to WAV")
             pm = PendingMessage(local_id, remote_jid, audio_path=wav_path,
-                                ogg_bytes=ogg_bytes, quoted=quoted_msg,
-                                stereo=stereo_out)
+                                ogg_bytes=ogg_bytes, quoted=quoted_msg)
             mw.message_queue.enqueue(pm)
             mw.mark_conversation_as_read(remote_jid)
 

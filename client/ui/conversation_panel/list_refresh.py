@@ -981,10 +981,10 @@ class ListRefreshMixin:
         """Repopulate the messages list only when its content actually changed.
 
         Every unattended refresh must come through here rather than calling
-        ``populate_messages(preserve_focus=True)`` directly. That rebuild does a
-        full ``DeleteAllItems()`` + re-``Append()`` of the native ListView, and
-        even with preserve_focus it can only put focus back on the *message* it
-        saved — the moment that message is no longer in the paginated window (or
+        ``populate_messages(preserve_focus=True)`` directly. That rebuild
+        re-derives every row and re-writes the native list (per row, through
+        _sync_message_rows() — never cleared), and even with preserve_focus it
+        can only put focus back on the *message* it saved — the moment that message is no longer in the paginated window (or
         the list was showing the unread separator, or the saved id came back
         empty) focus lands somewhere else entirely. With a 60s poll calling it
         unconditionally, the user was thrown to a random message in the middle
@@ -1056,9 +1056,9 @@ class ListRefreshMixin:
         # method's own Focus(0) calls below (a short conversation whose last
         # message or unread separator sits at index 0) fire EVT_LIST_ITEM_FOCUSED
         # synchronously, and re-entering _load_older_messages()/
-        # _load_more_messages() — which themselves call DeleteAllItems()/Append()
-        # on this same list — while this rebuild is still in progress would
-        # corrupt the list. Cleared via CallAfter so it stays set for every
+        # _load_more_messages() — which themselves insert rows into this same
+        # list — while this rebuild is still in progress would corrupt the
+        # list. Cleared via CallAfter so it stays set for every
         # nested/synchronous focus event this call produces, and only turns
         # off once control actually returns to the event loop.
         self._populating_messages = True
@@ -1116,10 +1116,11 @@ class ListRefreshMixin:
         # correct Focus()/Select() call (or lack thereof) is ever observed.
         #
         # Medido, não estimado, pelo mesmo motivo do repaint de nomes em
-        # main.py: este rebuild é DeleteAllItems() + um Append() por linha, ele
-        # roda a cada mensagem nova, e a janela deixou de ser limitada ao
-        # messages_page_size. Uma linha por rebuild diz quanto custa a janela
-        # no tamanho a que ela chegou.
+        # main.py: este rebuild percorre a janela inteira (renderiza cada linha
+        # e compara com a tela), roda a cada mensagem nova, e a janela deixou de
+        # ser limitada ao messages_page_size. Uma linha por rebuild diz quanto
+        # custa a janela no tamanho a que ela chegou. A lista em si não é
+        # esvaziada: ver _sync_message_rows().
         _rebuild_started = time.monotonic()
         # Antes de DeleteAllItems(): é _sorted_messages de agora, o que o leitor
         # de tela está lendo, que vira o piso deste rebuild.
@@ -1127,9 +1128,12 @@ class ListRefreshMixin:
             self._refresh_expanded_window_before_rebuild()
         except Exception:
             logging.exception("[populate_messages] failed to record the window before rebuilding")
+        # What the control shows now. The rows are written below by
+        # _sync_message_rows(), which only touches the ones that differ — the
+        # list is never cleared (see message_rows.py for why).
+        _old_rows = list(self._sorted_messages)
         self.messages_list.Freeze()
         try:
-            self.messages_list.DeleteAllItems()
             self._unread_sep_idx = -1
             self._reaction_map = {}
             messages_container = (
@@ -1175,8 +1179,7 @@ class ListRefreshMixin:
 
             self._sorted_messages = paginated
 
-            for msg in paginated:
-                self.messages_list.Append((self._render_message_line(msg),))
+            self._sync_message_rows(_old_rows, paginated)
 
             # Restore scroll position if preserve_focus is True and we tracked a top visible message
             scrolled = False
@@ -1195,22 +1198,34 @@ class ListRefreshMixin:
             if _preserved_msg_id:
                 for idx, msg in enumerate(self._sorted_messages):
                     if isinstance(msg, dict) and msg.get("key", {}).get("id") == _preserved_msg_id:
-                        if _had_focus:
-                            self.messages_list.SetFocus()
-                        self.messages_list.Focus(idx)
-                        self.messages_list.Select(idx)
-                        if not scrolled:
-                            self.messages_list.EnsureVisible(idx)
+                        # The row the user is on survived untouched, so the
+                        # control still has focus and selection on it. Putting
+                        # them back anyway fires a focus event for a row that
+                        # never moved, and the screen reader reads it again.
+                        _still_there = (
+                            self.messages_list.GetFocusedItem() == idx
+                            and self.messages_list.GetFirstSelected() == idx
+                        )
+                        if not _still_there:
+                            if _had_focus and wx.Window.FindFocus() is not self.messages_list:
+                                self.messages_list.SetFocus()
+                            self.messages_list.Focus(idx)
+                            self.messages_list.Select(idx)
+                            if not scrolled:
+                                self.messages_list.EnsureVisible(idx)
                         return
 
             if preserve_focus:
                 if _preserved_was_separator and self._unread_sep_idx >= 0:
-                    if _had_focus:
-                        self.messages_list.SetFocus()
-                    self.messages_list.Focus(self._unread_sep_idx)
-                    self.messages_list.Select(self._unread_sep_idx)
-                    if not scrolled:
-                        self.messages_list.EnsureVisible(self._unread_sep_idx)
+                    _sep = self._unread_sep_idx
+                    if not (self.messages_list.GetFocusedItem() == _sep
+                            and self.messages_list.GetFirstSelected() == _sep):
+                        if _had_focus and wx.Window.FindFocus() is not self.messages_list:
+                            self.messages_list.SetFocus()
+                        self.messages_list.Focus(_sep)
+                        self.messages_list.Select(_sep)
+                        if not scrolled:
+                            self.messages_list.EnsureVisible(_sep)
                 return
 
             # Make the unread separator visible, or select and focus the last (newest) message by default

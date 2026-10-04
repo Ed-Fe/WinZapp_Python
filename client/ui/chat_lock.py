@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import os
+
 import pyperclip
 import wx
 
-from core.utils import effective_unread_count, normalize_for_search
+from core.conversation_view import mnemonic_letter
+from core.sound_system import load_sound
+from core.utils import (
+    append_selected_marker,
+    effective_unread_count,
+    normalize_for_search,
+)
 from ui.accessible import AccessibleMessagesListControl
+from ui.conversation_panel.chat_list_selection import ChatListSelectionMixin
 
 
 ID_FORGOT_PIN = wx.NewIdRef()
@@ -221,8 +230,12 @@ class ChatLockRevealDialog(wx.Dialog):
         self.pin.SetFocus()
 
 
-class LockedConversationsPanel(wx.Panel):
-    """List of locked chats, only populated while the vault is unlocked."""
+class LockedConversationsPanel(ChatListSelectionMixin, wx.Panel):
+    """List of locked chats, only populated while the vault is unlocked.
+
+    Chats are multi-selectable exactly like the conversations list — the
+    keys, sounds, announcements and settings are ChatListSelectionMixin's.
+    """
 
     def __init__(self, main_window, parent):
         super().__init__(parent)
@@ -231,7 +244,13 @@ class LockedConversationsPanel(wx.Panel):
         self.chat_names: list[str] = []
         self._all_chats_list: list[dict] = []
         self._all_chat_names: list[str] = []
+        self.selected_chats: set[str] = set()
+        self.selection_sound = load_sound(
+            main_window.sound_system,
+            os.path.join("default", "selected.ogg"),
+        )
         self._init_ui()
+        self._create_accelerator_table()
 
     def _init_ui(self):
         i18n = self.main_window.i18n
@@ -255,6 +274,7 @@ class LockedConversationsPanel(wx.Panel):
         self.conversations_list.SetAccessible(self._list_accessible)
         self.conversations_list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_open)
         self.conversations_list.Bind(wx.EVT_CONTEXT_MENU, self._on_context_menu)
+        self.conversations_list.Bind(wx.EVT_LIST_ITEM_FOCUSED, self._on_row_focused)
         self.conversations_list.Bind(wx.EVT_KEY_DOWN, self._on_list_key)
         sizer.Add(self.conversations_list, 1, wx.EXPAND | wx.ALL, 5)
 
@@ -280,7 +300,40 @@ class LockedConversationsPanel(wx.Panel):
     def set_all_chats(self, chats: list[dict], names: list[str]):
         self._all_chats_list = list(chats)
         self._all_chat_names = list(names)
+        self._prune_stale_chat_selection(self._all_chats_list)
         self.refresh()
+
+    def _row_text(self, chat: dict, name: str) -> str:
+        """One row: name, unread badge, preview and the "selecionado" marker
+        (same configured position as the conversations list)."""
+        unread = effective_unread_count(chat)
+        unread_text = ""
+        if unread:
+            key = "unread_messages" if unread != 1 else "unread_message"
+            unread_text = f" {unread} {self.main_window.i18n.t(key)}"
+        preview = self.main_window._last_msg_preview(chat)
+        row = f"{name}{unread_text}"
+        if preview:
+            row += f" {preview}"
+        jid = chat.get("remoteJid", "")
+        position = self.main_window.settings.get("user_interface", {}).get(
+            "selected_announcement_position", "end"
+        )
+        return append_selected_marker(
+            row, self.main_window.i18n.t("selected_suffix"), position,
+            bool(jid) and jid in self.selected_chats,
+        )
+
+    def _repaint_chat_selection(self):
+        """The set changed but the chats did not: rewrite the row text in place
+        (no DeleteAllItems, so focus and scroll position stay put)."""
+        lst = self.conversations_list
+        if lst.GetItemCount() != len(self.chats_list):
+            return
+        for index, chat in enumerate(self.chats_list):
+            text = self._row_text(chat, self.chat_names[index])
+            if lst.GetItemText(index, 0) != text:
+                lst.SetItem(index, 0, text)
 
     def refresh(self):
         fold = self.main_window._search_normalization_mode()
@@ -290,15 +343,7 @@ class LockedConversationsPanel(wx.Panel):
             name = self._all_chat_names[index] if index < len(self._all_chat_names) else ""
             if query and query not in normalize_for_search(name, fold):
                 continue
-            unread = effective_unread_count(chat)
-            unread_text = ""
-            if unread:
-                key = "unread_messages" if unread != 1 else "unread_message"
-                unread_text = f" {unread} {self.main_window.i18n.t(key)}"
-            preview = self.main_window._last_msg_preview(chat)
-            row = f"{name}{unread_text}"
-            if preview:
-                row += f" {preview}"
+            row = self._row_text(chat, name)
             chats.append(chat)
             names.append(name)
             rows.append(row)
@@ -355,7 +400,18 @@ class LockedConversationsPanel(wx.Panel):
             return
         event.Skip()
 
+    def _on_row_focused(self, event):
+        idx = event.GetIndex()
+        if 0 <= idx < len(self.chats_list):
+            self._on_chat_row_focused_sound(self.chats_list[idx].get("remoteJid", ""))
+        event.Skip()
+
     def _on_list_key(self, event):
+        """The selection keys are ChatListSelectionMixin's (identical to the
+        conversations list). Plain Space with nothing selected keeps its old
+        job here: opening the focused locked chat."""
+        if self._handle_chat_selection_key(event):
+            return
         if event.GetKeyCode() == wx.WXK_SPACE:
             chat = self._selected_chat()
             if chat:
@@ -374,12 +430,57 @@ class LockedConversationsPanel(wx.Panel):
             return
         jid = chat.get("remoteJid", "")
         menu = wx.Menu()
+        if self.selected_chats:
+            self._append_chat_mass_menu(menu, [
+                ("unlock_selected_chats", "Ctrl+Alt+Shift+T", self._on_mass_unlock_chats),
+                ("mark_selected_read", "Ctrl+Alt+Shift+R", self._on_mass_mark_read_chats),
+                ("mark_selected_unread", "Ctrl+Alt+Shift+U", self._on_mass_mark_unread_chats),
+            ])
         open_item = menu.Append(wx.ID_ANY, self.main_window.i18n.t("chat_lock_open_chat"))
         unlock_item = menu.Append(wx.ID_ANY, self.main_window.i18n.t("unlock_chat"))
         self.Bind(wx.EVT_MENU, lambda evt, c=chat: self.main_window.open_locked_conversation(c), open_item)
         self.Bind(wx.EVT_MENU, lambda evt, j=jid: self.main_window.unlock_chat(j), unlock_item)
         self.PopupMenu(menu)
         menu.Destroy()
+
+    def _create_accelerator_table(self):
+        """Mass-action shortcuts, the same letters as the conversations
+        list's where the action exists there (R/U); T unlocks, mirroring the
+        Ctrl+Shift+T that locks. Inert without a selection."""
+        self.ID_BULK_UNLOCK_CHATS = wx.NewIdRef()
+        self.ID_BULK_READ_CHATS = wx.NewIdRef()
+        self.ID_BULK_UNREAD_CHATS = wx.NewIdRef()
+        # Alt+M: reveal the open conversation (a panel switch leaves it
+        # hidden), the same explicit ask the archived list answers.
+        self.ID_ALT_MESSAGES = wx.NewIdRef()
+        CAS = wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT
+        messages_letter = mnemonic_letter(
+            self.main_window.i18n.t("messages"), "M")
+        self.Bind(wx.EVT_MENU, self.main_window._on_global_focus_messages,
+                  id=self.ID_ALT_MESSAGES)
+        self.SetAcceleratorTable(wx.AcceleratorTable([
+            (wx.ACCEL_ALT, ord(messages_letter), self.ID_ALT_MESSAGES),
+            (CAS, ord("T"), self.ID_BULK_UNLOCK_CHATS),
+            (CAS, ord("R"), self.ID_BULK_READ_CHATS),
+            (CAS, ord("U"), self.ID_BULK_UNREAD_CHATS),
+        ]))
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_unlock_chats, id=self.ID_BULK_UNLOCK_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_read_chats, id=self.ID_BULK_READ_CHATS)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_unread_chats, id=self.ID_BULK_UNREAD_CHATS)
+
+    def _on_mass_unlock_chats(self, event):
+        if not self.selected_chats:
+            return
+        for jid in list(self.selected_chats):
+            self.main_window.unlock_chat(jid)
+        self.selected_chats.clear()
+        self._repaint_chat_selection()
+        self.main_window.output(
+            self.main_window.i18n.t("chat_lock_chats_unlocked"), interrupt=True)
+
+    def _on_accel_bulk_unlock_chats(self, event):
+        """Ctrl+Alt+Shift+T: unlock every selected conversation."""
+        self._run_bulk_chat_action(self._on_mass_unlock_chats, event)
 
     def _on_close(self, event):
         self.main_window.lock_chat_vault()

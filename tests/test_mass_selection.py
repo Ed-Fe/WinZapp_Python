@@ -114,8 +114,8 @@ class _FakeMainWindow:
     def delete_chat(self, jid):
         self.deleted.append(jid)
 
-    def archive_chat(self, jid, archived):
-        self.archived.append((jid, archived))
+    def archive_chat(self, jid):
+        self.archived.append(jid)
 
     def mark_conversations_as_read(self, jids, force=False):
         self.marked_read.extend((jid, force) for jid in jids)
@@ -184,6 +184,10 @@ class _Panel:
     _is_separator = ConversationsPanel._is_separator
     _on_messages_list_key_down = ConversationsPanel._on_messages_list_key_down
     _on_conv_list_key_down = ConversationsPanel._on_conv_list_key_down
+    _handle_chat_selection_key = ConversationsPanel._handle_chat_selection_key
+    _repaint_chat_selection = ConversationsPanel._repaint_chat_selection
+    _announce_chat_selected = ConversationsPanel._announce_chat_selected
+    _reset_after_chat_cleared = ConversationsPanel._reset_after_chat_cleared
     _on_mass_clear_chats = ConversationsPanel._on_mass_clear_chats
     _reset_view_after_chat_cleared = ConversationsPanel._reset_view_after_chat_cleared
     _on_mass_delete_chats = ConversationsPanel._on_mass_delete_chats
@@ -904,7 +908,7 @@ class TestMassChatActions:
         panel = _Panel()
         panel.selected_chats = {"a@s.whatsapp.net"}
         panel._on_mass_archive_chats(None)
-        assert panel.main_window.archived == [("a@s.whatsapp.net", True)]
+        assert panel.main_window.archived == ["a@s.whatsapp.net"]
         assert panel.main_window.announced == ["success_archive"]
 
     def test_marking_read_applies_to_every_selected_chat(self):
@@ -1590,3 +1594,28 @@ class TestMassStarAndPinAnnounceHonestly:
         panel.selected_messages = {"m1"}
         getattr(panel, handler)(None)
         assert getattr(panel, recorder) == []
+
+
+class TestMassArchiveMatchesTheRealMainWindowSignature:
+    """The stub's archive_chat() used to take (jid, archived) while the real
+    MainWindow.archive_chat(jid) takes only the jid, so "Arquivar conversas
+    selecionadas" raised TypeError on the first chat in the real app and every
+    test still passed. The stub now enforces the real signature."""
+
+    def test_the_handler_calls_archive_chat_the_way_mainwindow_accepts(self):
+        import inspect
+        from main import MainWindow
+
+        real = inspect.signature(MainWindow.archive_chat)
+        panel = _Panel()
+        calls = []
+
+        def archive_chat(*args, **kwargs):
+            real.bind(object(), *args, **kwargs)  # TypeError if the shape is wrong
+            calls.append(args)
+
+        panel.main_window.archive_chat = archive_chat
+        panel.selected_chats = {"a@s.whatsapp.net", "b@s.whatsapp.net"}
+        panel._on_mass_archive_chats(None)
+
+        assert sorted(a[0] for a in calls) == ["a@s.whatsapp.net", "b@s.whatsapp.net"]

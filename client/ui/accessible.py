@@ -163,6 +163,15 @@ class AccessibleStatusCopyText(wx.Accessible):
         return (wx.ACC_OK, "Ctrl+C")
 
 
+class AccessibleAskQuestion(wx.Accessible):
+    """Reports Ctrl+Enter as the shortcut that sends the question in the AI
+    result window. Enter itself stays a newline in the question field, so the
+    shortcut is announced here and not written into the field's label."""
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, "Ctrl+Enter")
+
+
 class AccessibleReadMoreButton(wx.Accessible):
     """Reports Alt+L as the keyboard shortcut for the Read-more button."""
 
