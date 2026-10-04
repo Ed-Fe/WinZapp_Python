@@ -59,6 +59,26 @@ MODEL_DOWNLOAD_FAILED = "model_download_failed"
 # models are still whole in the folder they were in — and "download it again"
 # would be 3 GB of advice for a problem whose answer is to pick another folder.
 MODEL_MOVE_FAILED = "model_move_failed"
+# A model the user pointed WinZapp at in a folder of their own (another
+# program's download, the Hugging Face cache — see external_models) is not
+# there any more: an external disk that is unplugged, a cache another program
+# pruned or moved to a newer revision. Neither MODEL_NOT_INSTALLED nor
+# MODEL_CORRUPTED says that. The first tells somebody who knows perfectly well
+# they have the model that they do not; the second says the files are damaged
+# and sends them to download 3 GB, when plugging the disk back in is the whole
+# fix — and nothing was damaged, nothing is even there to be.
+EXTERNAL_MODEL_MISSING = "external_model_missing"
+# Such a folder is there, and WinZapp can no longer vouch that it holds the
+# model that was checked: a file went missing or changed size, or model.bin was
+# rewritten since the digest or the trial load (a script re-converting into the
+# same folder does exactly that, at exactly the same size). MODEL_CORRUPTED
+# would say "download it again", which for a custom model is impossible and for
+# a catalogue one is 3 GB spent on the wrong answer; MODEL_NOT_INSTALLED would
+# say "download it before transcribing", the same advice. What resolves it is
+# checking the folder again in the Transcription tab, or choosing another model
+# — and the file in the folder is the user's, so it may be the new one they
+# meant to use.
+EXTERNAL_MODEL_CHANGED = "external_model_changed"
 # Another account's process is holding the shared models directory. Its own
 # code because the alternatives all say something false: the download did not
 # fail, the connection is fine, and nothing is corrupted — another window is
@@ -112,6 +132,8 @@ ERROR_CODES = (
     BACKEND_MISSING,
     MODEL_DOWNLOAD_FAILED,
     MODEL_MOVE_FAILED,
+    EXTERNAL_MODEL_MISSING,
+    EXTERNAL_MODEL_CHANGED,
     MODELS_BUSY,
     CUDA_RUNTIME_DOWNLOAD_FAILED,
     CUDA_RUNTIME_CORRUPTED,

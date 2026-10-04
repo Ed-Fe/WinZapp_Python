@@ -269,6 +269,47 @@ class FasterWhisperBackend(TranscriptionBackend):
                 )
         return model
 
+    def trial_load(self, directory, device, compute_type, should_cancel=None) -> None:
+        """Open the model in `directory` and drop it again, uncached.
+
+        What external_models calls before a model the catalogue does not know
+        may be chosen. The two guards of `_model_for()` are repeated here and
+        not skipped, because this is precisely the folder nobody vouched for:
+        tokenizer.json is checked by hand, since without it faster-whisper goes
+        to Hugging Face whatever `local_files_only` says, and the flag itself
+        keeps a folder that does not look like a model from being read as a
+        repository id and downloaded.
+
+        Never through `_model_for()`: that caches, and a trial must not evict
+        the model the user is actually transcribing with, nor stay in memory
+        once it has answered. The reference is dropped before returning, which
+        for CTranslate2 is the whole of freeing it (see `release()`). A model
+        that is already cached is not released first — if the card has no room
+        for both, INSUFFICIENT_VRAM is the true answer, and the caller decides
+        whether to release and ask again.
+        """
+        _check_cancel(should_cancel)
+        if not os.path.isfile(os.path.join(directory, _TOKENIZER_FILE)):
+            raise errors.TranscriptionError(
+                errors.MODEL_CORRUPTED, f"{directory}: {_TOKENIZER_FILE} is missing"
+            )
+        model_class = self._model_factory or _whisper_model_class()
+        started = time.monotonic()
+        try:
+            model = model_class(
+                directory,
+                device=device,
+                compute_type=compute_type,
+                local_files_only=True,
+            )
+        except Exception as exc:
+            raise classify_backend_error(exc, device) from exc
+        del model
+        logging.info(
+            "[transcription] trial load of %s on %s/%s succeeded in %.1fs",
+            directory, device, compute_type, time.monotonic() - started,
+        )
+
     # ── Transcription ────────────────────────────────────────────────────────
 
     def transcribe(self, request, progress=None, should_cancel=None):

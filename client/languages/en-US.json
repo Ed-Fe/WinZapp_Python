@@ -1361,6 +1361,8 @@
     "transcription_error_backend_missing": "The transcription component is not installed in this copy of WinZapp.",
     "transcription_error_model_download_failed": "The transcription model could not be downloaded. Check your connection and try again.",
     "transcription_error_model_move_failed": "The models folder could not be moved. The models are still in the previous folder.",
+    "transcription_error_external_model_missing": "The folder of the chosen model was not found. If it is on an external drive, connect the drive; if it was deleted, choose another model.",
+    "transcription_error_external_model_changed": "The files in the chosen model's folder have changed since it was verified. Verify the model again in the Transcription tab in the settings, or choose another model.",
     "transcription_error_models_busy": "Another WinZapp window is using the models folder. Wait for it to finish and try again.",
     "transcription_error_cuda_runtime_download_failed": "The CUDA libraries could not be downloaded. Check your connection and try again.",
     "transcription_error_cuda_runtime_corrupted": "The CUDA library files are incomplete or damaged. Install them again.",

@@ -19,6 +19,7 @@ Writes are atomic (tmp+fsync+os.replace); a corrupt file falls back to defaults.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import uuid
@@ -65,6 +66,14 @@ _DEFAULTS: dict[str, Any] = {
     # path is deliberately not written here. Key name mirrored by that module's
     # MODELS_DIR_SETTING, and a test pins the two spellings together.
     "transcription_models_dir": "",
+    # Whisper models the user already had in folders of their own (another
+    # program's download, the Hugging Face cache) and pointed WinZapp at
+    # instead of downloading them again. Install-wide for the same reason as
+    # the folder above: the files belong to the machine, not to an account.
+    # A list of plain dicts, read and written only by
+    # core.transcription.external_models, whose EXTERNAL_MODELS_SETTING
+    # mirrors this key name (pinned by a test).
+    "transcription_external_models": [],
 }
 
 # Which legacy general.* keys are global (the rest stay per-account).
@@ -73,6 +82,10 @@ _GENERAL_GLOBAL = ("language", "updates_enabled", "alpha_updates_enabled",
                    "first_run", "hotkey_first_run_asked", "api_type_first_run_asked",
                    "switch_behavior")
 _CONNECTION_GLOBAL = ("wpp_server", "wpp_ws_server", "wpp_api_key", "wpp_custom_api")
+
+
+def _default(key: str) -> Any:
+    return copy.deepcopy(_DEFAULTS[key])
 
 
 class AppSettings:
@@ -106,7 +119,10 @@ class AppSettings:
     def get(self, key: str) -> Any:
         if key not in _DEFAULTS:
             raise KeyError(f"{key!r} is not a global setting")
-        value = self._read().get(key, _DEFAULTS[key])
+        # A copy, here and in update()/all(): the default of a list setting is
+        # one object shared by the whole process, and a caller appending to
+        # what it was handed would change the default for everybody after it.
+        value = self._read().get(key, _default(key))
         # A blank api key was written by an early multi-account build and makes
         # /api/<token>//generate-token double-slash → HTTP 404 on pairing.
         # Treat empty as "unset" so the real default is used instead.
@@ -122,8 +138,26 @@ class AppSettings:
             data[key] = value
             self._write(data)
 
+    def update(self, key: str, change) -> Any:
+        """Replace `key` with `change(current value)`, as one locked step.
+
+        get() followed by set() is two acquisitions of the lock with a gap
+        between them, which is fine for a scalar the user sets from one
+        dialog and wrong for a list two account processes can each append to:
+        both read the same list, each writes back its own addition, and one of
+        the two is silently lost. Returns what was written.
+        """
+        if key not in _DEFAULTS:
+            raise KeyError(f"{key!r} is not a global setting")
+        with app_settings_lock(self.global_dir):
+            data = self._read_unlocked()
+            value = change(data.get(key, _default(key)))
+            data[key] = value
+            self._write(data)
+            return value
+
     def all(self) -> dict:
-        merged = dict(_DEFAULTS)
+        merged = copy.deepcopy(_DEFAULTS)
         merged.update({k: v for k, v in self._read().items() if k in _DEFAULTS})
         # Blank stored api key → fall back to the real default (see get()).
         if not merged.get("wpp_api_key"):

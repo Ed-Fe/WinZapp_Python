@@ -1361,6 +1361,8 @@
   "transcription_error_backend_missing": "Yazıya döküm bileşeni WinZapp'in bu kopyasında yüklü değil.",
   "transcription_error_model_download_failed": "Yazıya döküm modeli indirilemedi. Bağlantınızı kontrol edip tekrar deneyin.",
   "transcription_error_model_move_failed": "Modeller klasörü taşınamadı. Modeller hâlâ önceki klasörde.",
+  "transcription_error_external_model_missing": "Seçilen modelin klasörü bulunamadı. Harici bir sürücüdeyse sürücüyü bağlayın; silindiyse başka bir model seçin.",
+  "transcription_error_external_model_changed": "Seçilen modelin klasöründeki dosyalar, model doğrulandıktan sonra değişti. Modeli Ayarlardaki Yazıya döküm sekmesinde yeniden doğrulayın veya başka bir model seçin.",
   "transcription_error_models_busy": "Başka bir WinZapp penceresi modeller klasörünü kullanıyor. İşini bitirmesini bekleyip tekrar deneyin.",
   "transcription_error_cuda_runtime_download_failed": "CUDA kütüphaneleri indirilemedi. Bağlantınızı kontrol edip tekrar deneyin.",
   "transcription_error_cuda_runtime_corrupted": "CUDA kütüphanelerinin dosyaları eksik veya hasarlı. Kütüphaneleri yeniden yükleyin.",

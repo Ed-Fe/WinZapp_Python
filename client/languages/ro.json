@@ -1305,6 +1305,8 @@
     "transcription_error_backend_missing": "Componenta de transcriere nu este instalată în această copie a WinZapp.",
     "transcription_error_model_download_failed": "Modelul de transcriere nu a putut fi descărcat. Verificați conexiunea și încercați din nou.",
     "transcription_error_model_move_failed": "Folderul modelelor nu a putut fi mutat. Modelele au rămas în folderul anterior.",
+    "transcription_error_external_model_missing": "Folderul modelului ales nu a fost găsit. Dacă se află pe o unitate externă, conectați unitatea; dacă a fost șters, alegeți alt model.",
+    "transcription_error_external_model_changed": "Fișierele din folderul modelului ales s-au schimbat de când a fost verificat. Verificați din nou modelul în fila Transcriere din setări sau alegeți alt model.",
     "transcription_error_models_busy": "O altă fereastră WinZapp folosește folderul modelelor. Așteptați să termine și încercați din nou.",
     "transcription_error_cuda_runtime_download_failed": "Bibliotecile CUDA nu au putut fi descărcate. Verificați conexiunea și încercați din nou.",
     "transcription_error_cuda_runtime_corrupted": "Fișierele bibliotecilor CUDA sunt incomplete sau deteriorate. Instalați-le din nou.",

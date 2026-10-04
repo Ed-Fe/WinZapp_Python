@@ -1361,6 +1361,8 @@
     "transcription_error_backend_missing": "Składnik transkrypcji nie jest zainstalowany w tej kopii programu WinZapp.",
     "transcription_error_model_download_failed": "Nie udało się pobrać modelu transkrypcji. Sprawdź połączenie i spróbuj ponownie.",
     "transcription_error_model_move_failed": "Nie udało się przenieść folderu z modelami. Modele pozostały w poprzednim folderze.",
+    "transcription_error_external_model_missing": "Nie znaleziono folderu wybranego modelu. Jeśli jest na dysku zewnętrznym, podłącz ten dysk; jeśli został usunięty, wybierz inny model.",
+    "transcription_error_external_model_changed": "Pliki w folderze wybranego modelu zmieniły się od czasu jego sprawdzenia. Sprawdź model ponownie na karcie Transkrypcja w ustawieniach lub wybierz inny model.",
     "transcription_error_models_busy": "Inne okno programu WinZapp korzysta z folderu modeli. Poczekaj, aż skończy, i spróbuj ponownie.",
     "transcription_error_cuda_runtime_download_failed": "Nie udało się pobrać bibliotek CUDA. Sprawdź połączenie i spróbuj ponownie.",
     "transcription_error_cuda_runtime_corrupted": "Pliki bibliotek CUDA są niekompletne lub uszkodzone. Zainstaluj je ponownie.",

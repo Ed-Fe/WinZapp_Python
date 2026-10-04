@@ -154,6 +154,21 @@ class TranscriptionBackend:
         """A TranscriptionResult, or a TranscriptionError."""
         raise NotImplementedError
 
+    def trial_load(self, directory, device, compute_type, should_cancel=None) -> None:
+        """Load the model in `directory` once, transcribe nothing, let it go.
+
+        The one check a model the catalogue does not know can be put through
+        (see external_models): there is no size or digest to compare it with,
+        so "this backend can open it" is the whole of the evidence. Returns
+        nothing on success and raises a TranscriptionError otherwise; it never
+        touches whatever `load_model()` has cached.
+
+        On the interface rather than in external_models because what a model
+        folder has to hold is the backend's business — a CTranslate2 folder is
+        not a whisper.cpp file — and part 9 answers it for its own format.
+        """
+        raise NotImplementedError
+
     def release(self) -> None:
         """Drop whatever is cached, freeing its memory. Optional."""
 
