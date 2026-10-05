@@ -37,7 +37,7 @@ class AIActionsMixin:
 
     def _ai_settings(self):
         mw = self.main_window
-        app = getattr(mw, "app_settings", None) or AppSettings(global_dir())
+        app = getattr(mw, "_app_settings", None) or AppSettings(global_dir())
         return app, preferences(app)
 
     def _ai_menu_label(self, msg, i18n):

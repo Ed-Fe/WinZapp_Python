@@ -1162,7 +1162,7 @@ def test_disabled_feature_never_opens_a_window_or_downloads(tmp_path, monkeypatc
     import ui.conversation_panel.ai_actions as module
     spoken = []
     monkeypatch.setattr(module, "global_dir", lambda: str(tmp_path))
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=AppSettings(str(tmp_path)),
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=AppSettings(str(tmp_path)),
                             i18n=SimpleNamespace(t=lambda key: key), output=spoken.append))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     AIActionsMixin._on_ai_action(panel, message=message("imageMessage"))
@@ -1191,7 +1191,7 @@ def ready(tmp_path, monkeypatch):
 
 def test_the_menu_offers_only_what_a_provider_with_a_key_can_do(ready):
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     i18n = SimpleNamespace(t=lambda key: key)
     label = lambda msg: AIActionsMixin._ai_menu_label(panel, msg, i18n)
@@ -1207,7 +1207,7 @@ def test_the_menu_offers_only_what_a_provider_with_a_key_can_do(ready):
 
 def test_the_menu_hides_a_kind_whose_switch_is_off_and_everything_when_the_feature_is_off(ready):
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     i18n = SimpleNamespace(t=lambda key: key)
     app.set("ai_media", {"enabled": True, "kinds": {"audio": False}})
@@ -1222,7 +1222,7 @@ def test_the_menu_offers_nothing_when_no_provider_has_a_key(tmp_path, monkeypatc
     monkeypatch.setattr(module, "global_dir", lambda: str(tmp_path))
     app = AppSettings(str(tmp_path))
     app.set("ai_media", {"enabled": True})
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     assert AIActionsMixin._ai_menu_label(panel, message("imageMessage"), SimpleNamespace(t=lambda k: k)) == ""
 
@@ -1325,7 +1325,7 @@ def test_entry_point_opens_one_window_with_the_kind_chat_and_message_and_restore
             built.append("destroyed")
     monkeypatch.setattr(dialog_module, "AIResultDialog", WindowStub)
     msg = message("audioMessage", mimetype="audio/ogg; codecs=opus")
-    mw = SimpleNamespace(app_settings=app, key=b"k", IsShown=lambda: True, i18n=SimpleNamespace(t=lambda k: k),
+    mw = SimpleNamespace(_app_settings=app, key=b"k", IsShown=lambda: True, i18n=SimpleNamespace(t=lambda k: k),
                          is_chat_locked=lambda jid: False, output=lambda text: None)
     panel = SimpleNamespace(main_window=mw, conversation={"remoteJid": "c"}, _sorted_messages=[msg],
                             messages_list=SimpleNamespace(Focus=lambda i: focused.append(i), Select=lambda i: None,
@@ -1341,7 +1341,7 @@ def test_entry_point_opens_one_window_with_the_kind_chat_and_message_and_restore
 def test_a_locked_chat_is_not_processed_until_the_vault_is_unlocked(ready, monkeypatch):
     module, app = ready
     spoken = []
-    mw = SimpleNamespace(app_settings=app, i18n=SimpleNamespace(t=lambda k: k), output=spoken.append,
+    mw = SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda k: k), output=spoken.append,
                          is_chat_locked=lambda jid: True, _chat_lock_unlocked=False)
     panel = SimpleNamespace(main_window=mw, conversation={"remoteJid": "c"})
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
@@ -1392,7 +1392,7 @@ def test_the_describe_button_follows_the_menu_rule(ready):
     button = SimpleNamespace(SetLabel=lambda text: shown.append(("label", text)),
                              Show=lambda: shown.append("show"), Hide=lambda: shown.append("hide"))
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
                             _action_describe_btn=button)
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     panel._ai_menu_label = lambda msg, i18n: AIActionsMixin._ai_menu_label(panel, msg, i18n)

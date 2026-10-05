@@ -30,6 +30,8 @@ SETTINGS_DIALOG = (
     Path(__file__).resolve().parent.parent / "client" / "ui" / "dialogs" / "settings_dialog.py"
 )
 
+TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+
 LABELLED_CONTROLS = {"StaticText", "CheckBox", "RadioButton", "StaticBox", "Button", "RadioBox"}
 
 
@@ -59,8 +61,17 @@ def _i18n_keys(node):
 
 
 def _dialog_class():
+    """SettingsDialog with the methods of the mixins that hold a tab merged in:
+    the Local Transcription tab lives in transcription_tab.py but is built,
+    relabelled and applied as part of the dialog."""
     tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    return next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    tab = ast.parse(TRANSCRIPTION_TAB.read_text(encoding="utf-8"))
+    mixin = next(
+        n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
+    )
+    cls.body = cls.body + mixin.body
+    return cls
 
 
 def _built_and_refreshed():
@@ -128,7 +139,7 @@ def _built_and_refreshed():
         if name in ("play_label_key", "stop_label_key")
     }
     # _refresh_dialog_labels() may hand a whole tab to a `self._refresh_*()`
-    # helper of its own (the Transcrição tab's _refresh_transcription_labels()
+    # helper of its own (the Local Transcription tab's _refresh_transcription_labels()
     # rebuilds comboboxes as well as relabelling); what such a helper re-applies
     # is re-applied on Apply just the same, so it is read as part of it.
     methods = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}

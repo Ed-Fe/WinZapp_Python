@@ -43,6 +43,23 @@ SETTINGS_DIALOG = (
     Path(__file__).resolve().parent.parent / "client" / "ui" / "dialogs" / "settings_dialog.py"
 )
 
+TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+
+
+def _dialog_class():
+    """SettingsDialog with TranscriptionTabMixin's methods merged in: that tab
+    lives in transcription_tab.py but is loaded and applied as part of the
+    dialog."""
+    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    tab = ast.parse(TRANSCRIPTION_TAB.read_text(encoding="utf-8"))
+    mixin = next(
+        n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
+    )
+    cls.body = cls.body + mixin.body
+    return cls
+
+
 #: Checkboxes that deliberately do not mirror a settings.json key, and why.
 #: Each one must still exist, so a stale entry here fails rather than hiding.
 NOT_BACKED_BY_SETTINGS = {
@@ -69,7 +86,7 @@ WIRED_THROUGH_A_MODULE = {
     "_transcription_detect_language_check": (
         (transcription_preferences.SECTION,
          transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE),
-        "the Transcrição tab reads its section through "
+        "the Local Transcription tab reads its section through "
         "core.transcription.preferences.read_section(), which validates every "
         "value and owns the key names; the stub-level round trip is "
         "tests/test_transcription_settings_tab.py::"
@@ -145,8 +162,7 @@ def _chosen_section(target):
 def _parse():
     """{attr: {"page", "line", "loads": [(section, key, default)],
     "saves": [(section, key)]}} for every wx.CheckBox in SettingsDialog."""
-    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = _dialog_class()
 
     boxes = {}
     for node in ast.walk(cls):
@@ -250,8 +266,7 @@ def _parse():
 
 def _checkbox_constructions():
     """Every wx.CheckBox(...) call in SettingsDialog, however it is stored."""
-    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = _dialog_class()
     return [
         n.lineno for n in ast.walk(cls)
         if isinstance(n, ast.Call)

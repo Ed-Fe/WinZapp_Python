@@ -1,4 +1,4 @@
-"""The Transcrição tab: what it says out loud, and what it must not break.
+"""The Local Transcription tab (ui/dialogs/transcription_tab.py): what it says out loud, and what it must not break.
 
 Four failures this pins, each of which is silent in a different way.
 
@@ -81,7 +81,7 @@ from core.transcription import backend as backend_module
 from core.transcription import cuda_runtime, device, errors, management, model_catalog
 from core.transcription import model_store
 from core.transcription import preferences
-from ui.dialogs import settings_dialog
+from ui.dialogs import transcription_tab
 from ui.dialogs.settings_dialog import SettingsDialog
 
 from tests.conftest import hidden_frame
@@ -90,6 +90,11 @@ from tests.god_modules import main_window_source
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SETTINGS_DIALOG_SOURCE = (
     REPO / "client" / "ui" / "dialogs" / "settings_dialog.py"
+).read_text(encoding="utf-8")
+# The tab's own methods moved out of settings_dialog.py; the dialog still hosts
+# them (SettingsDialog inherits TranscriptionTabMixin).
+TRANSCRIPTION_TAB_SOURCE = (
+    REPO / "client" / "ui" / "dialogs" / "transcription_tab.py"
 ).read_text(encoding="utf-8")
 
 
@@ -294,10 +299,10 @@ def no_hardware_probe(monkeypatch):
     device.py's docstring says a decision must never depend on.
     """
     monkeypatch.setattr(
-        settings_dialog.transcription_device, "probe_hardware", lambda: _CPU_ONLY
+        transcription_tab.transcription_device, "probe_hardware", lambda: _CPU_ONLY
     )
     monkeypatch.setattr(
-        settings_dialog.cuda_runtime,
+        transcription_tab.cuda_runtime,
         "installation_state",
         lambda directory=None: cuda_runtime.RuntimeState(cuda_runtime.STATE_ABSENT, ()),
     )
@@ -305,7 +310,7 @@ def no_hardware_probe(monkeypatch):
 
 @pytest.fixture
 def tab(wx_app, tmp_path, no_hardware_probe):
-    """A built Transcrição tab, on an off-screen parent, with an empty folder."""
+    """A built local Transcription tab, on an off-screen parent, with an empty folder."""
     frame = hidden_frame()
     owner = _TabOwner(_MainWindow(app_settings=_AppSettings(str(tmp_path))))
     owner._transcription_page = owner._build_transcription_page(frame)
@@ -475,7 +480,7 @@ class TestTheModelChoicesReadAsOneSentence:
 
     def test_an_installed_model_says_so_and_quotes_its_disk_size(self):
         i18n = _I18n()
-        label = settings_dialog._transcription_model_choice_label(
+        label = transcription_tab._transcription_model_choice_label(
             i18n, self._model("medium"), model_store.InstallState(model_store.STATE_INSTALLED)
         )
         assert label.startswith("medium: ")
@@ -485,7 +490,7 @@ class TestTheModelChoicesReadAsOneSentence:
 
     def test_a_model_that_is_not_here_quotes_the_download_instead(self):
         i18n = _I18n()
-        label = settings_dialog._transcription_model_choice_label(
+        label = transcription_tab._transcription_model_choice_label(
             i18n, self._model("tiny"), model_store.InstallState(model_store.STATE_ABSENT)
         )
         assert "75 MB" in label
@@ -494,7 +499,7 @@ class TestTheModelChoicesReadAsOneSentence:
     def test_an_interrupted_download_is_neither_of_those(self):
         i18n = _I18n()
         states = {
-            state: settings_dialog._transcription_model_choice_label(
+            state: transcription_tab._transcription_model_choice_label(
                 i18n, self._model("small"), model_store.InstallState(state)
             )
             for state in (
@@ -509,9 +514,9 @@ class TestTheModelChoicesReadAsOneSentence:
         """None is what a caller with no answer passes, and telling the user a
         model is installed on that basis is the one wrong answer."""
         i18n = _I18n()
-        assert settings_dialog._transcription_model_choice_label(
+        assert transcription_tab._transcription_model_choice_label(
             i18n, self._model("base"), None
-        ) == settings_dialog._transcription_model_choice_label(
+        ) == transcription_tab._transcription_model_choice_label(
             i18n, self._model("base"), model_store.InstallState(model_store.STATE_ABSENT)
         )
 
@@ -521,16 +526,16 @@ class TestTheModelChoicesReadAsOneSentence:
         for model in model_catalog.list_models():
             for state in (model_store.STATE_INSTALLED, model_store.STATE_ABSENT,
                           model_store.STATE_INCOMPLETE):
-                label = settings_dialog._transcription_model_choice_label(
+                label = transcription_tab._transcription_model_choice_label(
                     i18n, model, model_store.InstallState(state)
                 )
                 assert "{" not in label and "}" not in label, (locale, model.id)
                 assert model.id in label
 
     def test_the_size_uses_the_locale_decimal_separator(self):
-        assert settings_dialog._format_transcription_size(_I18n("pt-BR"), 1_610_612_736) \
+        assert transcription_tab._format_transcription_size(_I18n("pt-BR"), 1_610_612_736) \
             == "1,5 GB"
-        assert settings_dialog._format_transcription_size(_I18n("en-US"), 1_610_612_736) \
+        assert transcription_tab._format_transcription_size(_I18n("en-US"), 1_610_612_736) \
             == "1.5 GB"
 
     def test_the_combobox_offers_automatic_first_and_then_the_catalogue(self, tab):
@@ -549,7 +554,7 @@ class TestTheModelChoicesReadAsOneSentence:
         self, tab, monkeypatch
     ):
         monkeypatch.setattr(
-            settings_dialog.model_store,
+            transcription_tab.model_store,
             "installation_state",
             lambda root, model: model_store.InstallState(
                 model_store.STATE_INSTALLED if model.id == "small"
@@ -883,23 +888,23 @@ class TestTheCudaStatusLine:
 
     def test_absent_says_what_the_download_costs(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_cuda_status_text(
+        text = transcription_tab._transcription_cuda_status_text(
             i18n, cuda_runtime.RuntimeState(cuda_runtime.STATE_ABSENT, ("cublas64_12.dll",))
         )
         assert text.startswith(i18n.t("transcription_cuda_runtime_absent").split(".")[0])
-        assert settings_dialog._format_transcription_size(
+        assert transcription_tab._format_transcription_size(
             i18n, cuda_runtime.WHEEL_BYTES
         ) in text
 
     def test_installed_says_so(self):
         i18n = _I18n()
-        assert settings_dialog._transcription_cuda_status_text(
+        assert transcription_tab._transcription_cuda_status_text(
             i18n, cuda_runtime.RuntimeState(cuda_runtime.STATE_INSTALLED, ())
         ) == i18n.t("transcription_cuda_runtime_installed")
 
     def test_an_earlier_pin_asks_for_an_update_not_for_a_repair(self):
         i18n = _I18n()
-        assert settings_dialog._transcription_cuda_status_text(
+        assert transcription_tab._transcription_cuda_status_text(
             i18n,
             cuda_runtime.RuntimeState(cuda_runtime.STATE_INCOMPLETE, (), "12.0.0.0"),
         ) == i18n.t(cuda_runtime.OUTDATED_I18N_KEY)
@@ -908,7 +913,7 @@ class TestTheCudaStatusLine:
         """Both signals are present at once when a download of the *old* pin
         was interrupted, and "finish the download" describes that directory."""
         i18n = _I18n()
-        assert settings_dialog._transcription_cuda_status_text(
+        assert transcription_tab._transcription_cuda_status_text(
             i18n,
             cuda_runtime.RuntimeState(
                 cuda_runtime.STATE_INCOMPLETE, ("cublas64_12.dll",), "12.0.0.0"
@@ -918,7 +923,7 @@ class TestTheCudaStatusLine:
     def test_the_line_is_on_the_tab_and_not_typed_into(self, tab):
         tab._load_transcription_values()
         assert tab._transcription_cuda_field.GetValue() == (
-            settings_dialog._transcription_cuda_status_text(
+            transcription_tab._transcription_cuda_status_text(
                 tab.main_window.i18n,
                 cuda_runtime.RuntimeState(cuda_runtime.STATE_ABSENT, ()),
             )
@@ -930,7 +935,7 @@ class TestTheCudaStatusLine:
         i18n = _I18n(locale)
         for state in (cuda_runtime.STATE_ABSENT, cuda_runtime.STATE_INCOMPLETE,
                       cuda_runtime.STATE_INSTALLED):
-            text = settings_dialog._transcription_cuda_status_text(
+            text = transcription_tab._transcription_cuda_status_text(
                 i18n, cuda_runtime.RuntimeState(state, ())
             )
             assert text and "{" not in text and "}" not in text, (locale, state)
@@ -946,12 +951,12 @@ class TestOpeningTheDialogProbesNoHardware:
     ):
         probes = []
         monkeypatch.setattr(
-            settings_dialog.transcription_device,
+            transcription_tab.transcription_device,
             "probe_hardware",
             lambda: probes.append(True) or _CPU_ONLY,
         )
         monkeypatch.setattr(
-            settings_dialog.cuda_runtime,
+            transcription_tab.cuda_runtime,
             "installation_state",
             lambda directory=None: cuda_runtime.RuntimeState(
                 cuda_runtime.STATE_ABSENT, ()
@@ -977,7 +982,7 @@ class TestOpeningTheDialogProbesNoHardware:
         populate helper against the same folder."""
         listings = []
         monkeypatch.setattr(
-            settings_dialog.transcription_preferences,
+            transcription_tab.transcription_preferences,
             "models_folder",
             lambda stored=None: listings.append(stored) or (str(stored or ""), ()),
         )
@@ -1009,7 +1014,7 @@ class TestWhatThisMachineHasToSay:
     @staticmethod
     def _pick_the_graphics_card(tab):
         tab._transcription_device_radio.SetSelection(
-            settings_dialog._TRANSCRIPTION_DEVICE_PREFERENCES.index(
+            transcription_tab._TRANSCRIPTION_DEVICE_PREFERENCES.index(
                 device.PREFERENCE_CUDA
             )
         )
@@ -1075,7 +1080,7 @@ class TestWhatThisMachineHasToSay:
         things — a smaller model against a download — and an empty combobox
         showing "Automático" says neither."""
         monkeypatch.setattr(
-            settings_dialog.transcription_device,
+            transcription_tab.transcription_device,
             "probe_hardware",
             device.HardwareProbe,
         )
@@ -1172,8 +1177,8 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         switch_behavior call sites spelled it without the underscore until
         part G of #112, and so never read or wrote the shared file
         (tests/test_switch_behavior_install_wide.py)."""
-        tree = ast.parse(SETTINGS_DIALOG_SOURCE)
-        for node in ast.walk(tree):
+        trees = [ast.parse(SETTINGS_DIALOG_SOURCE), ast.parse(TRANSCRIPTION_TAB_SOURCE)]
+        for node in (n for tree in trees for n in ast.walk(tree)):
             if not isinstance(node, ast.FunctionDef):
                 continue
             for inner in ast.walk(node):
@@ -1298,7 +1303,7 @@ class TestOpeningStraightOnTheTab:
     def queued(self, monkeypatch):
         posted = []
         monkeypatch.setattr(
-            settings_dialog.wx, "CallAfter",
+            transcription_tab.wx, "CallAfter",
             lambda func, *args: posted.append((func, args)),
         )
         return posted
@@ -1531,9 +1536,9 @@ def _install_fake_progress(monkeypatch, answers=None):
         return dialog
 
     monkeypatch.setattr(
-        settings_dialog.transcription_management, "ManagementJob", _record
+        transcription_tab.transcription_management, "ManagementJob", _record
     )
-    monkeypatch.setattr(settings_dialog, "TranscriptionProgressDialog", _make)
+    monkeypatch.setattr(transcription_tab, "TranscriptionProgressDialog", _make)
     return made
 
 
@@ -1542,7 +1547,7 @@ def confirm_yes(monkeypatch):
     """Answer every question with Yes. Removing now asks one."""
     asked = []
     monkeypatch.setattr(
-        settings_dialog.wx, "MessageBox",
+        transcription_tab.wx, "MessageBox",
         lambda *args, **kwargs: asked.append(args) or wx.YES,
     )
     return asked
@@ -1557,7 +1562,7 @@ def inline_call_after(monkeypatch):
     it rather than by trusting the name.
     """
     monkeypatch.setattr(
-        settings_dialog.wx, "CallAfter",
+        transcription_tab.wx, "CallAfter",
         lambda func, *args, **kwargs: func(*args, **kwargs),
     )
 
@@ -1574,7 +1579,7 @@ def no_background_probe(monkeypatch):
         return None
 
     monkeypatch.setattr(
-        settings_dialog.transcription_management,
+        transcription_tab.transcription_management,
         "probe_in_background",
         _probe_in_background,
     )
@@ -1606,7 +1611,7 @@ class TestWhichButtonsCanBePressed:
     """Four states, and the one that keeps being got wrong is INCOMPLETE."""
 
     def test_nothing_downloaded_offers_only_the_download(self):
-        assert settings_dialog._transcription_action_states(
+        assert transcription_tab._transcription_action_states(
             model_store.STATE_ABSENT, False
         ) == {"download": True, "verify": False, "repair": False, "remove": False}
 
@@ -1614,12 +1619,12 @@ class TestWhichButtonsCanBePressed:
         """Removing has to be there: a removal that could not delete
         everything leaves exactly this state, and 5c-1's sentence for it asks
         the user to remove them again — at a button that would not exist."""
-        assert settings_dialog._transcription_action_states(
+        assert transcription_tab._transcription_action_states(
             model_store.STATE_INCOMPLETE, False
         ) == {"download": True, "verify": False, "repair": True, "remove": True}
 
     def test_a_complete_install_is_not_offered_for_download_again(self):
-        assert settings_dialog._transcription_action_states(
+        assert transcription_tab._transcription_action_states(
             model_store.STATE_INSTALLED, False
         ) == {"download": False, "verify": True, "repair": False, "remove": True}
 
@@ -1627,27 +1632,27 @@ class TestWhichButtonsCanBePressed:
         """installation_state() measures sizes, so the wrong bytes at the
         right size read as installed there — and Reparar, which deletes
         first, is the only one of the four that fixes it."""
-        assert settings_dialog._transcription_action_states(
-            settings_dialog._TRANSCRIPTION_STATE_CORRUPTED, False
+        assert transcription_tab._transcription_action_states(
+            transcription_tab._TRANSCRIPTION_STATE_CORRUPTED, False
         ) == {"download": False, "verify": True, "repair": True, "remove": True}
 
     @pytest.mark.parametrize("state", [
         model_store.STATE_ABSENT,
         model_store.STATE_INCOMPLETE,
         model_store.STATE_INSTALLED,
-        settings_dialog._TRANSCRIPTION_STATE_CORRUPTED,
+        transcription_tab._TRANSCRIPTION_STATE_CORRUPTED,
     ])
     def test_a_running_job_turns_every_button_off(self, state):
         """Two jobs in this process do not fail — they serialize on the models
         lock, and the second waits silently for up to twelve hours behind a
         bar that never moves."""
         assert not any(
-            settings_dialog._transcription_action_states(state, True).values()
+            transcription_tab._transcription_action_states(state, True).values()
         )
 
     def test_nothing_selected_turns_every_button_off(self):
         assert not any(
-            settings_dialog._transcription_action_states(None, False).values()
+            transcription_tab._transcription_action_states(None, False).values()
         )
 
 
@@ -1675,7 +1680,7 @@ class TestTheButtonsOnTheTab:
         the group for the accessibility layer and not only for the layout."""
         boxes = [box for box, _key in tab._transcription_action_groups]
         for action, _label, _state in (
-            settings_dialog._TRANSCRIPTION_CUDA_ACTION_BUTTONS
+            transcription_tab._TRANSCRIPTION_CUDA_ACTION_BUTTONS
         ):
             assert tab._transcription_action_buttons[action].GetParent() is boxes[1]
 
@@ -1692,7 +1697,7 @@ class TestTheButtonsOnTheTab:
         tab._load_transcription_values()
         assert tab._selected_transcription_model() == preferences.AUTO
         for action, _label, _state in (
-            settings_dialog._TRANSCRIPTION_MODEL_ACTION_BUTTONS
+            transcription_tab._TRANSCRIPTION_MODEL_ACTION_BUTTONS
         ):
             assert not tab._transcription_action_buttons[action].IsEnabled()
 
@@ -1707,7 +1712,7 @@ class TestTheButtonsOnTheTab:
 
     def test_an_installed_model_offers_verifying_and_removing(self, tab, monkeypatch):
         monkeypatch.setattr(
-            settings_dialog.model_store, "installation_state",
+            transcription_tab.model_store, "installation_state",
             lambda root, model: model_store.InstallState(model_store.STATE_INSTALLED),
         )
         tab._populate_transcription_model_choices()
@@ -1720,7 +1725,7 @@ class TestTheButtonsOnTheTab:
 
     def test_a_failed_check_turns_repair_on_for_that_model_alone(self, tab, monkeypatch):
         monkeypatch.setattr(
-            settings_dialog.model_store, "installation_state",
+            transcription_tab.model_store, "installation_state",
             lambda root, model: model_store.InstallState(model_store.STATE_INSTALLED),
         )
         tab._populate_transcription_model_choices()
@@ -1755,7 +1760,7 @@ class TestTheButtonsOnTheTab:
 
     def test_the_cuda_buttons_follow_what_is_installed(self, tab, monkeypatch):
         monkeypatch.setattr(
-            settings_dialog.cuda_runtime, "installation_state",
+            transcription_tab.cuda_runtime, "installation_state",
             lambda directory=None: cuda_runtime.RuntimeState(
                 cuda_runtime.STATE_INCOMPLETE, ("cublas64_12.dll",)
             ),
@@ -1806,16 +1811,16 @@ class TestTheQuestionBeforeADownload:
 
     def test_it_names_the_model_the_size_the_space_the_folder_and_the_device(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(i18n, _summary())
+        text = transcription_tab._transcription_download_confirmation(i18n, _summary())
         assert "small" in text
-        assert settings_dialog._format_transcription_size(i18n, 500 * 1024 ** 2) in text
-        assert settings_dialog._format_transcription_size(i18n, 756 * 1024 ** 2) in text
+        assert transcription_tab._format_transcription_size(i18n, 500 * 1024 ** 2) in text
+        assert transcription_tab._format_transcription_size(i18n, 756 * 1024 ** 2) in text
         assert r"X:\models\small" in text
         assert i18n.t("transcription_confirm_device_cpu") in text
 
     def test_it_says_the_card_when_that_is_where_it_would_run(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(
+        text = transcription_tab._transcription_download_confirmation(
             i18n, _summary(device=device.DEVICE_CUDA)
         )
         assert i18n.t("transcription_confirm_device_cuda") in text
@@ -1825,25 +1830,25 @@ class TestTheQuestionBeforeADownload:
         """553 MB with no resume: cancelling means starting over, and that is
         the user's decision to make before it starts, not after."""
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(
+        text = transcription_tab._transcription_download_confirmation(
             i18n, _summary(
                 subject=management.SUBJECT_CUDA_RUNTIME, model_id=None,
                 resumable=False, download_bytes=cuda_runtime.WHEEL_BYTES,
             )
         )
-        assert settings_dialog._format_transcription_size(
+        assert transcription_tab._format_transcription_size(
             i18n, cuda_runtime.WHEEL_BYTES
         ) in text
         assert i18n.t("transcription_confirm_no_resume").split("{")[0] in text
 
     def test_a_resumable_model_download_does_not_mention_starting_over(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(i18n, _summary())
+        text = transcription_tab._transcription_download_confirmation(i18n, _summary())
         assert i18n.t("transcription_confirm_no_resume").split("{")[0] not in text
 
     def test_a_repair_says_what_it_deletes_first(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(
+        text = transcription_tab._transcription_download_confirmation(
             i18n, _summary(), repair=True
         )
         assert text.startswith(
@@ -1853,19 +1858,19 @@ class TestTheQuestionBeforeADownload:
     def test_a_model_too_big_for_the_device_says_so(self):
         i18n = _I18n()
         assert i18n.t("transcription_confirm_does_not_fit") in (
-            settings_dialog._transcription_download_confirmation(
+            transcription_tab._transcription_download_confirmation(
                 i18n, _summary(fits_memory=False)
             )
         )
         assert i18n.t("transcription_confirm_does_not_fit") not in (
-            settings_dialog._transcription_download_confirmation(
+            transcription_tab._transcription_download_confirmation(
                 i18n, _summary(fits_memory=None)
             )
         )
 
     def test_space_that_could_not_be_measured_reads_as_unknown(self):
         i18n = _I18n()
-        text = settings_dialog._transcription_download_confirmation(
+        text = transcription_tab._transcription_download_confirmation(
             i18n, _summary(free_bytes=None, enough_space=None)
         )
         assert i18n.t("transcription_confirm_space_unknown") in text
@@ -1882,7 +1887,7 @@ class TestTheQuestionBeforeADownload:
                      resumable=False),
         ):
             for repair in (False, True):
-                text = settings_dialog._transcription_download_confirmation(
+                text = transcription_tab._transcription_download_confirmation(
                     i18n, summary, repair
                 )
                 assert "{" not in text and "}" not in text, (locale, summary)
@@ -1895,7 +1900,7 @@ class TestWhatHappensWhenThereIsNoRoom:
     def _boxes(monkeypatch, answer):
         raised = []
         monkeypatch.setattr(
-            settings_dialog.wx, "MessageBox",
+            transcription_tab.wx, "MessageBox",
             lambda *args, **kwargs: raised.append(args) or answer,
         )
         return raised
@@ -1935,11 +1940,11 @@ class TestTheMeasurementsAreTakenOffTheWxThread:
     ):
         measured = []
         monkeypatch.setattr(
-            settings_dialog.model_store, "free_bytes",
+            transcription_tab.model_store, "free_bytes",
             lambda path: measured.append(path) or 40 * 1024 ** 3,
         )
         monkeypatch.setattr(
-            settings_dialog.wx, "MessageBox", lambda *args, **kwargs: wx.NO
+            transcription_tab.wx, "MessageBox", lambda *args, **kwargs: wx.NO
         )
         tab._load_transcription_values()
         tab._select_transcription_model("small")
@@ -1976,10 +1981,10 @@ class TestTheMeasurementsAreTakenOffTheWxThread:
         """Installing the libraries is exactly what changes the answer, so a
         cached probe would go on saying the card cannot be used."""
         monkeypatch.setattr(
-            settings_dialog.model_store, "free_bytes", lambda path: 40 * 1024 ** 3
+            transcription_tab.model_store, "free_bytes", lambda path: 40 * 1024 ** 3
         )
         monkeypatch.setattr(
-            settings_dialog.wx, "MessageBox", lambda *args, **kwargs: wx.NO
+            transcription_tab.wx, "MessageBox", lambda *args, **kwargs: wx.NO
         )
         with_card = device.HardwareProbe(
             total_ram_mb=16_384, available_ram_mb=12_288,
@@ -2417,7 +2422,7 @@ class TestNothingIsWrittenIntoAFolderCancelThrowsAway:
     def _refuse(monkeypatch):
         told = []
         monkeypatch.setattr(
-            settings_dialog.wx, "MessageBox",
+            transcription_tab.wx, "MessageBox",
             lambda *args, **kwargs: told.append(args) or wx.OK,
         )
         return told
@@ -2483,7 +2488,7 @@ class TestRemovingIsAskedAboutFirst:
     def _answer(monkeypatch, reply):
         asked = []
         monkeypatch.setattr(
-            settings_dialog.wx, "MessageBox",
+            transcription_tab.wx, "MessageBox",
             lambda *args, **kwargs: asked.append(args) or reply,
         )
         return asked
