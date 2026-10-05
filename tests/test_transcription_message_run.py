@@ -45,6 +45,7 @@ from core.transcription import (
     management,
     message_run,
     model_store,
+    precision,
 )
 from core.transcription.backend import TranscriptionResult
 from tests.test_transcription_external_models import (  # noqa: F401  (fixtures)
@@ -140,11 +141,12 @@ class _FakeJob:
     def __call__(self, audio_path, ffmpeg, models_root, model_id, language=None,
                  device_preference=device.PREFERENCE_AUTO, backend_id=None,
                  prepared=None, on_phase=None, on_progress=None, on_finished=None,
-                 external_references=()):
+                 external_references=(), compute_type_preference=device.PREFERENCE_AUTO):
         job = _Job(self._script, audio_path, ffmpeg, models_root, model_id, language,
                    device_preference, backend_id, prepared, on_phase, on_progress,
                    on_finished)
         job.external_references = external_references
+        job.compute_type_preference = compute_type_preference
         self._record.append(job)
         return job
 
@@ -295,6 +297,27 @@ class TestDecidingBeforeStarting:
         assert (job.model_id, job.device_preference, job.language, job.backend_id) == (
             "small", device.PREFERENCE_CPU, "pl", "faster_whisper")
         assert job.ffmpeg == "ffmpeg.exe"
+        # Nothing chosen: the precision is the automatic one, as before part 11.
+        assert job.compute_type_preference == device.PREFERENCE_AUTO
+
+    def test_the_chosen_precision_reaches_the_job_and_back(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        """The stored choice goes to the job unresolved — the job resolves it
+        against the device it lands on — and the job's answer is what the
+        loading line reads, from the run."""
+        settings = {"transcription": {"model": "small", "compute_type": "int8_float16"}}
+
+        def _script(job):
+            job.precision = precision.PrecisionChoice("int8_float32", "int8_float16")
+            _succeed(job)
+
+        run, _watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                               script=_script)
+        assert run.precision is None
+        _go(run)
+        assert run.jobs[0].compute_type_preference == "int8_float16"
+        assert run.precision == precision.PrecisionChoice("int8_float32", "int8_float16")
 
     @pytest.mark.parametrize(
         "kwargs, code",
@@ -718,6 +741,8 @@ class TestTheProcessorReRun:
         [job] = jobs
         assert job.prepared is handover
         assert job.device_preference == device.PREFERENCE_CPU
+        # The same stored precision: the job resolves it for the processor.
+        assert job.compute_type_preference == first.resolution.compute_type_preference
         assert job.audio_path is None
         assert job.model_id == first.model_id
         assert first.probes == probes_before

@@ -61,6 +61,7 @@ from core.transcription import (
     errors,
     management_whisper_cpp,
     model_store,
+    precision,
     whisper_cpp_catalog,
 )
 
@@ -322,7 +323,8 @@ class DownloadSummary:
 
 def model_download_summary(model_id, models_root, probe, free_bytes,
                            device_preference=device.PREFERENCE_AUTO,
-                           repair=False, whisper_cpp_cuda_installed=False):
+                           repair=False, whisper_cpp_cuda_installed=False,
+                           compute_type_preference=precision.AUTO):
     """The summary for downloading (or repairing) `model_id`, or None.
 
     `probe` is a `device.HardwareProbe` and `free_bytes` is
@@ -347,6 +349,10 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
     too: its figures include the voice-activity model when that is not on disk
     yet, and its device is whisper.cpp's (`whisper_cpp_cuda_installed` is
     whether that program's graphics-card build is installed).
+
+    `compute_type_preference` is the precision chosen for faster-whisper
+    (part 11): "does it fit" is measured in the precision the model will load
+    with, which is not the catalogue's when the user chose one.
     """
     model = _model_entry(model_id)
     if model is None:
@@ -357,6 +363,7 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
     else:
         download = model_store.remaining_download_bytes(models_root, model)
         freed = 0
+    compute_type = None
     if management_whisper_cpp.is_ggml(model):
         extra, device_id, reason = management_whisper_cpp.ggml_download_figures(
             models_root, probe, device_preference, repair, whisper_cpp_cuda_installed
@@ -364,6 +371,9 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
         download += extra
     else:
         device_id, reason = device.resolve_device(device_preference, probe)
+        compute_type = precision.memory_compute_type(
+            compute_type_preference, device_id, probe
+        )
     budget = device.available_memory_mb(probe, device_id)
     required = model_store.required_free_bytes(download)
     return DownloadSummary(
@@ -378,7 +388,8 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
         device=device_id,
         device_reason=reason,
         resumable=True,
-        fits_memory=None if budget is None else device.model_fits(model, budget, device_id),
+        fits_memory=(None if budget is None
+                     else device.model_fits(model, budget, device_id, compute_type)),
         freed_bytes=freed,
     )
 

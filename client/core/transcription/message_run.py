@@ -282,6 +282,12 @@ class MessageTranscription:
     def device_reason(self):
         return self.job.device_reason if self.job is not None else None
 
+    @property
+    def precision(self):
+        """The job's precision.PrecisionChoice — valid from its loading phase
+        on, like `device`; None before."""
+        return getattr(self.job, "precision", None) if self.job is not None else None
+
     # ── Worker ───────────────────────────────────────────────────────────────
 
     def _run(self):
@@ -499,6 +505,9 @@ class MessageTranscription:
             # run on the processor would have nothing to redo it from.
             on_finished=_finished,
             external_references=self._external_references,
+            # The stored choice; the job resolves it against the device it
+            # lands on, so the processor re-run gets one the processor runs.
+            compute_type_preference=resolution.compute_type_preference,
         )
         with self._lock:
             self.job = created

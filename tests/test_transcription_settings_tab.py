@@ -84,10 +84,11 @@ from core.transcription import cuda_runtime, device, errors, management, model_c
 from core.transcription import external_job, external_models, external_view
 from core.transcription import model_names, model_store, whisper_cpp_builds, whisper_cpp_catalog
 from core.transcription import whisper_cpp_runtime
-from core.transcription import preferences
+from core.transcription import precision, preferences
 from ui.dialogs import transcription_external, transcription_tab, transcription_whisper_cpp
 from ui.dialogs.settings_dialog import SettingsDialog
 from ui.dialogs.transcription_external import ExternalModelsMixin
+from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 from tests.conftest import hidden_frame
@@ -220,13 +221,13 @@ class _MainWindow:
         self.saves += 1
 
 
-class _TabOwner(ExternalModelsMixin, WhisperCppMixin):
+class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
-    The section for models in other folders and the whisper.cpp section are
-    inherited whole, as the dialog inherits them: their methods call one
-    another and the tab's, and binding them one by one here is how a stub
-    drifts from what ships.
+    The section for models in other folders, the whisper.cpp section and the
+    precision picker are inherited whole, as the dialog inherits them: their
+    methods call one another and the tab's, and binding them one by one here
+    is how a stub drifts from what ships.
     """
 
     def __init__(self, main_window):
@@ -340,6 +341,23 @@ def no_hardware_probe(monkeypatch):
     """
     monkeypatch.setattr(
         transcription_tab.transcription_device, "probe_hardware", lambda: _CPU_ONLY
+    )
+    # The tab takes its probe on a worker and adopts it through wx.CallAfter;
+    # here the probe answers at once and its CallAfter runs inline, so a test
+    # sees the tab as it stands once the answer is in. Only that delivery is
+    # inline — every other CallAfter stays queued as it was.
+    def _probe_at_once(on_done, probe=None):
+        answer = (probe or transcription_tab.transcription_device.probe_hardware)()
+        # Whatever CallAfter is now — a test may have replaced it too.
+        call_after = transcription_tab.wx.CallAfter
+        transcription_tab.wx.CallAfter = lambda func, *args, **kwargs: func(*args, **kwargs)
+        try:
+            on_done(answer)
+        finally:
+            transcription_tab.wx.CallAfter = call_after
+
+    monkeypatch.setattr(
+        transcription_tab.transcription_management, "probe_in_background", _probe_at_once
     )
     monkeypatch.setattr(
         transcription_tab.cuda_runtime,
@@ -714,6 +732,7 @@ class TestEverySettingIsReadBackAndWritten:
             "backend": preferences.AUTO,
             "model": "base",
             "device": device.PREFERENCE_CUDA,
+            "compute_type": device.COMPUTE_INT8_FLOAT16,
             "language": "fr",
             "auto_detect_language": False,
         }
@@ -732,6 +751,115 @@ class TestEverySettingIsReadBackAndWritten:
         assert tab._selected_transcription_backend() == stored
         tab._apply_transcription_values()
         assert tab.main_window.settings["transcription"]["backend"] == stored
+
+
+class TestThePrecisionPicker:
+    """Part 11: faster-whisper's compute type, chosen on the tab.
+
+    It lists what the device the run would land on can run, keeps a stored
+    choice the device cannot run (with a sentence saying what replaces it,
+    rather than OK quietly writing "automatic" over it), and steps aside —
+    disabled, in place — while whisper.cpp, whose precision is the file, is
+    the backend.
+    """
+
+    _INTEL = ("float32", "int16", "int8", "int8_float32")
+
+    class _Event:
+        def __init__(self):
+            self.skipped = False
+
+        def Skip(self):
+            self.skipped = True
+
+    def _probe(self):
+        return device.HardwareProbe(total_ram_mb=16_384, available_ram_mb=12_288,
+                                    cpu_compute_types=self._INTEL)
+
+    def test_it_sits_right_under_the_device_it_depends_on(self, tab):
+        """Tab order is creation order: after the device radio, before the
+        language checkbox."""
+        children = list(tab._transcription_page.GetChildren())
+        label = children.index(tab._transcription_precision_label)
+        assert children.index(tab._transcription_device_radio) < label
+        assert children.index(tab._transcription_precision_combo) == label + 1
+        assert children.index(tab._transcription_detect_language_check) > label + 1
+
+    def test_automatic_by_default_and_everything_listed_before_the_probe(self, tab):
+        tab._load_transcription_values()
+        assert tab._selected_transcription_precision() == preferences.AUTO
+        assert tuple(tab._transcription_precision_values) == (
+            (preferences.AUTO,) + precision.COMPUTE_TYPES)
+        assert tab._transcription_precision_combo.GetString(0) == (
+            tab.main_window.i18n.t(preferences.OPTION_AUTO_I18N_KEY))
+        assert tab._transcription_precision_combo.IsEnabled()
+
+    def test_after_the_probe_only_what_the_device_runs_is_listed(self, tab):
+        tab._load_transcription_values()
+        tab._adopt_transcription_probe(self._probe())
+        assert tuple(tab._transcription_precision_values) == (
+            preferences.AUTO, "int8", "int8_float32", "int16", "float32")
+        i18n = tab.main_window.i18n
+        assert tab._transcription_precision_combo.GetString(1) == (
+            i18n.t("transcription_precision_int8"))
+
+    def test_a_stored_choice_is_selected_and_written_back(self, tab):
+        tab.main_window.settings["transcription"] = {"compute_type": "int8_float16"}
+        tab._load_transcription_values()
+        assert tab._selected_transcription_precision() == "int8_float16"
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["compute_type"] == "int8_float16"
+
+    def test_a_choice_the_device_cannot_run_stays_and_the_tab_says_why(self, tab):
+        tab.main_window.settings["transcription"] = {"compute_type": "float16"}
+        tab._load_transcription_values()
+        tab._adopt_transcription_probe(self._probe())
+        assert tab._selected_transcription_precision() == "float16"
+        i18n = tab.main_window.i18n
+        assert i18n.t("transcription_notice_precision_replaced").format(
+            chosen=i18n.t("transcription_precision_float16"),
+            used=i18n.t("transcription_precision_float32"),
+        ) in tab._transcription_substituted_field.GetValue()
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["compute_type"] == "float16"
+
+    def test_whisper_cpp_disables_it_in_place(self, tab):
+        """Its quantization is the model file; the control stays where it is
+        so the tab order does not move under the user."""
+        tab._load_transcription_values()
+        tab._select_transcription_backend(backend_module.BACKEND_WHISPER_CPP)
+        event = self._Event()
+        tab._on_transcription_backend_change(event)
+        assert not tab._transcription_precision_combo.IsEnabled()
+        assert not tab._transcription_precision_label.IsEnabled()
+        assert event.skipped
+        tab._select_transcription_backend(backend_module.BACKEND_FASTER_WHISPER)
+        tab._on_transcription_backend_change(self._Event())
+        assert tab._transcription_precision_combo.IsEnabled()
+
+    def test_an_unknown_stored_value_is_reported_and_not_written_over(self, tab):
+        tab.main_window.settings["transcription"] = {"compute_type": "int4"}
+        tab._load_transcription_values()
+        assert tab._transcription_substituted_field.GetValue() == (
+            tab.main_window.i18n.t("transcription_substituted_compute_type"))
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["compute_type"] == "int4"
+
+    def test_a_language_change_retranslates_the_list(self, tab):
+        tab._load_transcription_values()
+        tab.main_window.i18n = _I18n("pl")
+        tab._refresh_transcription_labels()
+        assert tab._transcription_precision_label.GetLabel() == (
+            _I18n("pl").t("transcription_precision_label"))
+        assert tab._transcription_precision_combo.GetString(1) == (
+            _I18n("pl").t("transcription_precision_int8"))
+
+    def test_choosing_one_lets_the_event_through(self, tab):
+        """The dialog-level handler is what shows Apply."""
+        tab._load_transcription_values()
+        event = self._Event()
+        tab._on_transcription_precision_change(event)
+        assert event.skipped
 
 
 class TestTheModelsFolder:
@@ -997,10 +1125,16 @@ class TestOpeningTheDialogProbesNoHardware:
         self, wx_app, tmp_path, monkeypatch
     ):
         probes = []
+        started = []
         monkeypatch.setattr(
             transcription_tab.transcription_device,
             "probe_hardware",
             lambda: probes.append(True) or _CPU_ONLY,
+        )
+        monkeypatch.setattr(
+            transcription_tab.transcription_management,
+            "probe_in_background",
+            lambda on_done, probe=None: started.append(on_done),
         )
         monkeypatch.setattr(
             transcription_tab.cuda_runtime,
@@ -1014,12 +1148,47 @@ class TestOpeningTheDialogProbesNoHardware:
             owner = _TabOwner(_MainWindow(app_settings=_AppSettings(str(tmp_path))))
             owner._transcription_page = owner._build_transcription_page(frame)
             owner._load_transcription_values()
-            assert probes == []
+            assert probes == [] and started == []
 
+            # Even on the visit it is taken on a worker, never on the wx thread.
             owner._enter_transcription_page()
-            assert probes == [True]
+            assert probes == []
+            assert len(started) == 1
         finally:
             frame.Destroy()
+
+    def test_the_first_visit_shows_the_tab_before_the_probe_answers(
+        self, tab, monkeypatch
+    ):
+        """Until the worker answers, every precision is listed and nothing
+        measured is said; the answer redraws in place and speaks nothing."""
+        started = []
+        monkeypatch.setattr(
+            transcription_tab.transcription_management,
+            "probe_in_background",
+            lambda on_done, probe=None: started.append(on_done),
+        )
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab._transcription_probe is None
+        assert tuple(tab._transcription_precision_values) == (
+            (preferences.AUTO,) + precision.COMPUTE_TYPES)
+        assert tab._transcription_hardware_keys == []
+        spoken_before = list(tab.main_window.speak_output.spoken)
+
+        adopted = []
+        monkeypatch.setattr(
+            transcription_tab.wx, "CallAfter",
+            lambda func, *args: adopted.append(func.__name__) or func(*args),
+        )
+        cpu = device.HardwareProbe(total_ram_mb=16_384, available_ram_mb=12_288,
+                                   cpu_compute_types=("float32", "int8"))
+        started[0](cpu)
+        assert adopted == ["_adopt_transcription_probe"]
+        assert tab._transcription_probe is cpu
+        assert tuple(tab._transcription_precision_values) == (
+            preferences.AUTO, "int8", "float32")
+        assert tab.main_window.speak_output.spoken == spoken_before
 
     def test_the_models_folder_is_not_listed_while_the_tab_is_only_being_built(
         self, tab, monkeypatch
@@ -1429,6 +1598,7 @@ class TestTheMnemonicsOnThisTab:
         "transcription_substituted_label",
         "transcription_model_label",
         "transcription_device_label",
+        "transcription_precision_label",
         "transcription_language_label",
         "transcription_language_detect",
         "transcription_backend_label",
@@ -2081,6 +2251,16 @@ class TestTheMeasurementsAreTakenOffTheWxThread:
             )
         finally:
             del tab.__class__.__bool__
+
+    def test_a_probe_answering_after_the_dialog_closed_touches_nothing(self, tab):
+        """The first visit's probe runs on a worker, and the dialog can be
+        closed before it answers."""
+        tab.__class__.__bool__ = lambda self: False
+        try:
+            tab._adopt_transcription_probe(_CPU_ONLY)
+        finally:
+            del tab.__class__.__bool__
+        assert tab._transcription_probe is None
 
 
 class TestTheTabIsRedrawnAfterEveryAction:
@@ -3835,7 +4015,17 @@ class TestTheModelPickerIsNotRewrittenForNothing:
         tab._populate_transcription_model_choices()
         assert tab._transcription_model_labels is not drawn
 
-    def test_entering_the_page_draws_the_hardware_notices_once(self, tab):
+    def test_entering_the_page_draws_the_hardware_notices_once(self, tab, monkeypatch):
+        """Once on entering, and once more when the probe, taken on a worker,
+        brings something new to draw them from."""
+        started = []
+        monkeypatch.setattr(
+            transcription_tab.transcription_management, "probe_in_background",
+            lambda on_done, probe=None: started.append(on_done),
+        )
+        monkeypatch.setattr(
+            transcription_tab.wx, "CallAfter", lambda func, *args: func(*args)
+        )
         drawn = []
         real = tab._show_transcription_hardware_notices
         tab._show_transcription_hardware_notices = lambda: drawn.append(1) or real()
@@ -3843,6 +4033,8 @@ class TestTheModelPickerIsNotRewrittenForNothing:
         drawn.clear()
         tab._enter_transcription_page()
         assert drawn == [1]
+        started[0](_CPU_ONLY)
+        assert drawn == [1, 1]
 
 
 # ── Part 9b: the whisper.cpp backend ─────────────────────────────────────────

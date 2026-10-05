@@ -49,6 +49,13 @@ PREFERENCE_CPU = "cpu"
 COMPUTE_INT8 = "int8"
 COMPUTE_FLOAT16 = "float16"
 COMPUTE_FLOAT32 = "float32"
+# The rest of CTranslate2's compute types, which only a user's choice reaches
+# (precision.py): select_compute_type() never answers with them.
+COMPUTE_INT8_FLOAT32 = "int8_float32"
+COMPUTE_INT8_FLOAT16 = "int8_float16"
+COMPUTE_INT8_BFLOAT16 = "int8_bfloat16"
+COMPUTE_INT16 = "int16"
+COMPUTE_BFLOAT16 = "bfloat16"
 
 # Why the device below was chosen. Symbolic, never a sentence: the UI maps them
 # through DEVICE_REASON_I18N_KEYS so the announcement is in the user's language.
@@ -108,10 +115,13 @@ DEVICE_REASON_I18N_KEYS = {
 # would be cured by the CPU: the one such fault seen on real hardware (int8 on
 # sm_120) is already prevented by select_compute_type(), so what would be left
 # under it is the genuinely unknown, and an offer that usually fails again is
-# worse than no offer at all.
+# worse than no offer at all. PRECISION_UNSUPPORTED is the opposite case: the
+# card refused the precision the user chose, and on the processor the same
+# choice is resolved again (precision.resolve_compute_type()) to one that runs.
 CPU_RETRY_I18N_KEYS = {
     errors.INSUFFICIENT_VRAM: "transcription_retry_on_cpu_vram",
     errors.CUDA_UNAVAILABLE: "transcription_retry_on_cpu_cuda",
+    errors.PRECISION_UNSUPPORTED: "transcription_retry_on_cpu_precision",
 }
 
 # The CUDA libraries CTranslate2 opens by name at run time, and which therefore
@@ -188,6 +198,28 @@ _INT8_UNSUPPORTED_FROM_CAPABILITY = (12, 0)
 # allocation error, after the user already waited for the model to load.
 _MEMORY_HEADROOM = 1.25
 
+# Bytes per weight for each compute type, which is what moves a model's
+# memory when its precision changes. The catalogue's minimums were set for one
+# precision per device (model_catalog: float16 on the card, int8 on the
+# processor) and are roughly the weights plus as much again for activations,
+# the beam's cache and the CUDA context. Only the weights are rescaled: the
+# published faster-whisper figures (large-v2 on a card, 4.5 GB in float16 and
+# 2.9 GB in int8_float16; small on the processor, int8 against float32) move
+# by about what the weights do and no more. So 8 bits on the card frees half
+# the float16 weights — about three quarters of the figure for large-v3 — and
+# float32 adds them again, half as much again as the figure; on the processor
+# float32 quadruples the int8 weights.
+_COMPUTE_TYPE_WEIGHT_BYTES = {
+    COMPUTE_INT8: 1,
+    COMPUTE_INT8_FLOAT32: 1,
+    COMPUTE_INT8_FLOAT16: 1,
+    COMPUTE_INT8_BFLOAT16: 1,
+    COMPUTE_INT16: 2,
+    COMPUTE_FLOAT16: 2,
+    COMPUTE_BFLOAT16: 2,
+    COMPUTE_FLOAT32: 4,
+}
+
 # Where nvml.dll lives. The bare name first, then the two absolute paths pynvml
 # itself falls back to: the DLL is installed by the display driver, and on a
 # machine whose search order does not reach System32 (or that still has the
@@ -240,6 +272,12 @@ class HardwareProbe:
     cuda_libraries_ok: bool | None = None
     #: Which of them did not load, for the log and for part 4b's offer.
     missing_cuda_libraries: tuple[str, ...] = ()
+    #: What `ctranslate2.get_supported_compute_types()` answered for the
+    #: processor and for the card, sorted; None when it could not be asked
+    #: (ctranslate2 missing, or no card counted for the second). The precision
+    #: picker offers these and nothing else (precision.py).
+    cpu_compute_types: tuple[str, ...] | None = None
+    cuda_compute_types: tuple[str, ...] | None = None
 
 
 def resolve_device(preference, probe) -> tuple[str, str]:
@@ -409,7 +447,8 @@ def select_compute_type(device, probe) -> str:
     return _int8_safe(COMPUTE_FLOAT16, capability)
 
 
-def auto_select_model(probe, device, installed_ids, catalog=None, language=None):
+def auto_select_model(probe, device, installed_ids, catalog=None, language=None,
+                      compute_type=None):
     """The model id to use when the user has not chosen one, or None.
 
     Two rules, in this order:
@@ -437,6 +476,11 @@ def auto_select_model(probe, device, installed_ids, catalog=None, language=None)
     large-v3 itself), so the size alone would pick one by accident. One the
     user already has on disk is theirs, and rule 1 may still pick it. Ties are
     broken the same way everywhere: the official entry, then the id.
+
+    `compute_type` is the precision the user chose, when they chose one: a
+    model that fits in float16 may not in float32, and int8 makes room for a
+    larger one (`model_fits()`). None measures every model as the catalogue
+    does, which is "automatic".
     """
     models = tuple(catalog) if catalog is not None else model_catalog.list_models()
     models = tuple(
@@ -450,7 +494,11 @@ def auto_select_model(probe, device, installed_ids, catalog=None, language=None)
         # order, so "the largest that fits" still means the most demanding one
         # when a caller passes its own list (the tests do); then an official
         # entry over a third-party one of the same weight, then the id, so the
-        # answer never depends on which of two equals came first.
+        # answer never depends on which of two equals came first. Always the
+        # catalogue's own figure, whatever the precision: models share figures
+        # there and differ in weights, so a rescaled figure would reorder them
+        # (int8 ranking medium over large-v3-turbo). The precision decides
+        # only what fits (model_fits()).
         return (_requirement_mb(model, device), model.download_bytes,
                 not getattr(model, "third_party", False), model.id)
 
@@ -463,7 +511,7 @@ def auto_select_model(probe, device, installed_ids, catalog=None, language=None)
         smallest = min(_rank(m)[:2] for m in installed_models)
         return max((m for m in installed_models if _rank(m)[:2] == smallest), key=_rank).id
 
-    fitting = [m for m in models if model_fits(m, budget_mb, device)]
+    fitting = [m for m in models if model_fits(m, budget_mb, device, compute_type)]
     already_here = [m for m in fitting if m.id in installed]
     if already_here:
         return max(already_here, key=_rank).id
@@ -488,16 +536,40 @@ def available_memory_mb(probe, device):
     return free if free is not None else total
 
 
-def model_fits(model, budget_mb, device) -> bool:
-    """Whether `model` fits in `budget_mb` on `device`, headroom included."""
+def model_fits(model, budget_mb, device, compute_type=None) -> bool:
+    """Whether `model` fits in `budget_mb` on `device`, headroom included.
+
+    `compute_type` is the precision the model will load with when the user
+    chose one (precision.memory_compute_type()); None keeps the catalogue's
+    figure, which is what "automatic" has always been measured against.
+    """
     if budget_mb is None:
         return False
-    return budget_mb >= _requirement_mb(model, device) * _MEMORY_HEADROOM
+    return budget_mb >= _requirement_mb(model, device, compute_type) * _MEMORY_HEADROOM
 
 
-def _requirement_mb(model, device) -> int:
-    """The model's recommended minimum for the device it will run on."""
-    return model.min_vram_mb if device == DEVICE_CUDA else model.min_ram_mb
+def _requirement_mb(model, device, compute_type=None) -> int:
+    """The model's recommended minimum for the device it will run on.
+
+    In `compute_type` when one is given: the figure with the weights moved
+    from the precision it is for to this one (see _COMPUTE_TYPE_WEIGHT_BYTES).
+    A model whose weights are not a float16 model.bin — a whisper.cpp file,
+    whose figures are its quantization's own — keeps its figure: its precision
+    is the file.
+    """
+    figure = model.min_vram_mb if device == DEVICE_CUDA else model.min_ram_mb
+    # A card below 7.0 loads float32 under "automatic" (select_compute_type())
+    # but is still measured against the float16 figure, as it was before
+    # part 11: automatic passes no compute_type, so nothing moves here.
+    reference = COMPUTE_FLOAT16 if device == DEVICE_CUDA else COMPUTE_INT8
+    stored_bytes = getattr(model, "model_bin_bytes", None)
+    if compute_type not in _COMPUTE_TYPE_WEIGHT_BYTES or not stored_bytes:
+        return figure
+    # model.bin is float16: two bytes per weight.
+    weights = stored_bytes / (1024 * 1024) / 2
+    moved = weights * (_COMPUTE_TYPE_WEIGHT_BYTES[compute_type]
+                       - _COMPUTE_TYPE_WEIGHT_BYTES[reference])
+    return max(1, int(round(figure + moved)))
 
 
 def device_reason_i18n_key(reason) -> str:
@@ -540,6 +612,7 @@ def probe_hardware() -> HardwareProbe:
     # it is log-facing only, so it is more useful complete than tidy.
     problems = []
 
+    ctranslate2 = None
     try:
         # Imported here, never at module level: ctranslate2 may not be
         # installed at all, and the menu that offers to install it has to work
@@ -576,6 +649,24 @@ def probe_hardware() -> HardwareProbe:
         if library_error:
             problems.append(library_error)
 
+    # The precisions each device can run, asked of the same import. The card
+    # only once one was counted: the question reads its properties, and on a
+    # machine with none there is nothing to describe.
+    cpu_types = cuda_types = None
+    asked = () if ctranslate2 is None else (
+        (DEVICE_CPU, DEVICE_CUDA) if cuda_count > 0 else (DEVICE_CPU,)
+    )
+    for device_id in asked:
+        try:
+            types = tuple(sorted(ctranslate2.get_supported_compute_types(device_id)))
+        except Exception as exc:
+            problems.append(f"compute types ({device_id}): {exc}")
+            continue
+        if device_id == DEVICE_CPU:
+            cpu_types = types
+        else:
+            cuda_types = types
+
     try:
         total_ram, available_ram, ram_error = _probe_ram_mb()
     except Exception as exc:
@@ -596,6 +687,8 @@ def probe_hardware() -> HardwareProbe:
         driver_error="; ".join(problems) or None,
         cuda_libraries_ok=libraries_ok,
         missing_cuda_libraries=tuple(missing_libraries),
+        cpu_compute_types=cpu_types,
+        cuda_compute_types=cuda_types,
     )
     logging.info("[transcription] hardware probe: %s", probe)
     return probe

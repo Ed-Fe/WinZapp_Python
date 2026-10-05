@@ -72,6 +72,12 @@ DEVICE_WITH_BACKEND_I18N_KEYS = {
 LANGUAGE_FORCED_I18N_KEY = "transcription_note_language_forced"
 LANGUAGE_OVERRIDDEN_I18N_KEY = "transcription_note_language_overridden"
 
+#: Said with them when the user chose a precision (part 11): the one it runs
+#: in, or — when the device cannot run that one — which one replaced it.
+#: Nothing is said under "automatic", which is what the run said before.
+PRECISION_USED_I18N_KEY = "transcription_note_precision_used"
+PRECISION_REPLACED_I18N_KEY = "transcription_note_precision_replaced"
+
 # The device reasons worth a second sentence. The two that are missing are
 # missing on purpose: CUDA_SELECTED and CPU_REQUESTED say what the sentence
 # above them has just said, and device.py's own note explains why
@@ -107,6 +113,8 @@ NARRATION_I18N_KEYS = (
     + (
         LANGUAGE_FORCED_I18N_KEY,
         LANGUAGE_OVERRIDDEN_I18N_KEY,
+        PRECISION_USED_I18N_KEY,
+        PRECISION_REPLACED_I18N_KEY,
         NO_SPEECH_I18N_KEY,
         VAD_UNAVAILABLE_I18N_KEY,
         LANGUAGE_DIFFERS_I18N_KEY,
@@ -156,7 +164,8 @@ def phase_i18n_key(phase):
 
 
 def device_announcement(device_id, device_reason, model_id, backend_name=None,
-                        forced_language=None, overridden_language=None) -> tuple:
+                        forced_language=None, overridden_language=None,
+                        precision_chosen=None, precision_used=None) -> tuple:
     """What to say as the model starts loading: which model, and where.
 
     A tuple, not one Note, because this is two sentences and the second is
@@ -173,6 +182,13 @@ def device_announcement(device_id, device_reason, model_id, backend_name=None,
     single-language model was run in instead of the settings' — and
     `overridden_language` the language chosen there, when one was: both are
     codes, said by their endonym as the other language notes are.
+
+    `precision_chosen` and `precision_used` are the precision the user chose
+    and the one the run loads with, as they are to be said
+    (precision.spoken_names()); `precision_chosen` is None under "automatic",
+    and then nothing is said about it. When the two differ the device could
+    not run the choice, and the sentence says which one replaced it — after
+    the device's own reason, which is usually why.
     """
     if backend_name:
         key = DEVICE_WITH_BACKEND_I18N_KEYS.get(device_id)
@@ -185,6 +201,12 @@ def device_announcement(device_id, device_reason, model_id, backend_name=None,
     notes = [Note(key, values)]
     if device_reason in DEVICE_REASON_WORTH_SAYING:
         notes.append(Note(device.device_reason_i18n_key(device_reason)))
+    if precision_chosen:
+        if precision_used and precision_used != precision_chosen:
+            notes.append(Note(PRECISION_REPLACED_I18N_KEY,
+                              {"chosen": precision_chosen, "used": precision_used}))
+        else:
+            notes.append(Note(PRECISION_USED_I18N_KEY, {"precision": precision_chosen}))
     if forced_language:
         language = preferences.language_name(forced_language) or forced_language
         chosen = preferences.language_name(overridden_language) if overridden_language else None

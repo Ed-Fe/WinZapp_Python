@@ -63,6 +63,7 @@ from core.transcription import (
     faster_whisper_backend,
     job as job_module,
     model_store,
+    precision,
 )
 
 
@@ -1160,6 +1161,44 @@ class TestJob:
         assert job.device == device.DEVICE_CPU
         assert job.device_reason == device.REASON_NO_CUDA_FOUND
         assert job.compute_type == device.COMPUTE_INT8
+
+    def test_a_chosen_precision_reaches_the_backend_and_is_readable(
+        self, tmp_path, own_temp_dir
+    ):
+        """Part 11: the stored choice is resolved against the device the job
+        landed on, and the choice travels with the run for the loading line."""
+        backend = _FakeBackend(result=_result())
+        job, _watcher = _run_job(
+            tmp_path, backend, compute_type_preference=device.COMPUTE_INT16,
+            probe=lambda: device.HardwareProbe(
+                total_ram_mb=16384, available_ram_mb=8192,
+                cpu_compute_types=("float32", "int16", "int8", "int8_float32")),
+        )
+        assert backend.requests[0].compute_type == device.COMPUTE_INT16
+        assert job.compute_type == device.COMPUTE_INT16
+        assert job.precision == precision.PrecisionChoice(
+            device.COMPUTE_INT16, device.COMPUTE_INT16)
+
+    def test_a_precision_the_device_cannot_run_is_replaced_before_the_load(
+        self, tmp_path, own_temp_dir
+    ):
+        """float16 on the processor is a refused load in CTranslate2, not a
+        slower one: what reaches the backend is the replacement."""
+        backend = _FakeBackend(result=_result())
+        job, _watcher = _run_job(
+            tmp_path, backend, compute_type_preference=device.COMPUTE_FLOAT16,
+            probe=lambda: device.HardwareProbe(
+                total_ram_mb=16384, available_ram_mb=8192,
+                cpu_compute_types=("float32", "int16", "int8", "int8_float32")),
+        )
+        assert backend.requests[0].compute_type == device.COMPUTE_FLOAT32
+        assert job.precision.replaced
+        assert job.precision.requested == device.COMPUTE_FLOAT16
+
+    def test_automatic_is_what_it_always_was(self, tmp_path, own_temp_dir):
+        backend = _FakeBackend(result=_result())
+        job, _watcher = _run_job(tmp_path, backend)
+        assert job.precision == precision.PrecisionChoice(device.COMPUTE_INT8)
 
     def test_the_device_is_readable_when_the_loading_phase_is_announced(
         self, tmp_path, own_temp_dir

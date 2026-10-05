@@ -113,6 +113,7 @@
         "backend": "auto",
         "model": "auto",
         "device": "auto",
+        "compute_type": "auto",
         "language": "interface",
         "auto_detect_language": true
     },

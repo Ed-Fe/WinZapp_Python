@@ -558,6 +558,9 @@ class TranscriptionTabMixin:
         self._transcription_device_radio.Bind(
             wx.EVT_RADIOBOX, self._on_transcription_device_change
         )
+        # faster-whisper's precision, under the device it depends on
+        # (TranscriptionPrecisionMixin).
+        self._build_transcription_precision(page, sizer)
 
         # A checkbox that enables the list, rather than a "detect
         # automatically" entry at the top of the list itself: they are two
@@ -918,6 +921,8 @@ class TranscriptionTabMixin:
         nothing measured to report, and taking one here would put the cost
         back on the path this whole split exists to keep clear.
         """
+        # The precision list follows the same device, probe and backend.
+        self._sync_transcription_precision()
         self._transcription_hardware_keys = (
             [] if self._transcription_probe is None
             else self._transcription_hardware_notice_keys(self._transcription_probe)
@@ -945,6 +950,10 @@ class TranscriptionTabMixin:
                 self._selected_transcription_model()
                 or transcription_preferences.AUTO,
             transcription_preferences.SETTING_DEVICE: preference,
+            # What fits depends on the precision chosen too.
+            transcription_preferences.SETTING_COMPUTE_TYPE:
+                self._selected_transcription_precision()
+                or transcription_preferences.AUTO,
             transcription_preferences.SETTING_BACKEND:
                 self._selected_transcription_backend()
                 or transcription_preferences.AUTO,
@@ -1018,6 +1027,9 @@ class TranscriptionTabMixin:
             )
         lines.extend(i18n.t(key) for key in self._transcription_substitution_keys)
         lines.extend(i18n.t(key) for key in self._transcription_hardware_keys)
+        precision_notice = self._transcription_precision_notice()
+        if precision_notice:
+            lines.append(precision_notice)
         notice = _transcription_unknown_dirs_notice(
             i18n, self._transcription_unknown_dirs
         )
@@ -1199,6 +1211,8 @@ class TranscriptionTabMixin:
                 ),
                 probe, free_bytes, preference, repair=repair,
                 whisper_cpp_cuda_installed=self._whisper_cpp_cuda_installed(),
+                compute_type_preference=self._selected_transcription_precision()
+                or transcription_preferences.AUTO,
             )
         else:
             summary = transcription_management.cuda_runtime_download_summary(
@@ -1496,11 +1510,13 @@ class TranscriptionTabMixin:
         `_resolve_language()` is even handed the probe, and `_resolve_model()`
         appends its own before `auto_select_model()` is reached), so an empty
         probe and an empty installed list produce the identical warning list.
-        The measurement happens on the first visit to the tab instead —
-        `_enter_transcription_page()`, which is what `model_none_reason` and
-        the "you asked for a card this machine has not got" notice are read
-        off. Part 5c needs the same answer for its download offers: take it
-        from there, or off the UI thread altogether, never from here.
+        The measurement happens on the first visit to the tab instead, on a
+        worker that `_enter_transcription_page()` starts, and its answer is
+        adopted back on the wx thread (`_adopt_transcription_probe()`) — which
+        is what `model_none_reason` and the "you asked for a card this machine
+        has not got" notice are read off. Part 5c needs the same answer for its
+        download offers: take it from there, or off the UI thread altogether,
+        never from here.
 
         **It does not sanitize.** `resolve()` reports a value it had to replace
         and `sanitize_section()` is what stops that report repeating — but it
@@ -1552,6 +1568,7 @@ class TranscriptionTabMixin:
             _TRANSCRIPTION_DEVICE_PREFERENCES.index(stored_device)
             if stored_device in _TRANSCRIPTION_DEVICE_PREFERENCES else 0
         )
+        self._load_transcription_precision(section)
 
         detect = section[transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE]
         self._transcription_detect_language_check.SetValue(bool(detect))
@@ -1602,13 +1619,21 @@ class TranscriptionTabMixin:
         # _transcription_unknown_dirs_notice() for what makes them worth a
         # sentence at all.
         self._transcription_unknown_dirs = model_store.list_unknown_dirs(models_dir)
-        self._transcription_probe = transcription_device.probe_hardware()
+        # The probe off the wx thread, as every other one in this tab: it
+        # imports ctranslate2, asks NVML and the precisions both devices run —
+        # seconds on a machine with a card, during which NVDA could not read
+        # the tab just selected. Until it answers, nothing measured is shown:
+        # no hardware notice, and every precision listed (as before any
+        # probe). The answer redraws those in place and says nothing.
+        transcription_management.probe_in_background(
+            lambda probe: wx.CallAfter(self._adopt_transcription_probe, probe)
+        )
         self._show_transcription_cuda_status()
         self._show_whisper_cpp_status()
         # Measure the folders of the models the user pointed WinZapp at, on a
         # worker, now that someone is looking: with none, nothing is started.
-        # It also redraws the model list and the hardware notices — now with
-        # the probe just taken — so they are not drawn here a second time.
+        # It also redraws the model list and the hardware notices, so they are
+        # not drawn here a second time.
         self._refresh_external_models()
 
         i18n = self.main_window.i18n
@@ -1686,6 +1711,7 @@ class TranscriptionTabMixin:
             section[transcription_preferences.SETTING_DEVICE] = (
                 self._selected_transcription_device_preference()
             )
+        self._apply_transcription_precision(section)
         # Not gated: the checkbox is never substituted (a value that is not a
         # bool carries no intent to have been overridden, which is why
         # _resolve_language() does not report it either), so the control always
@@ -1761,6 +1787,7 @@ class TranscriptionTabMixin:
                 index,
                 i18n.t(transcription_preferences.DEVICE_PREFERENCE_I18N_KEYS[preference]),
             )
+        self._refresh_transcription_precision_labels()
         self._transcription_detect_language_check.SetLabel(
             i18n.t(transcription_preferences.LANGUAGE_DETECT_I18N_KEY)
         )

@@ -279,12 +279,13 @@ class TestEveryStaleValueFallsBackAndSaysSo:
         assert resolved.device_preference == device.PREFERENCE_AUTO
         assert _substituted(resolved) == [preferences.SETTING_DEVICE]
 
-    def test_all_four_at_once(self):
+    def test_every_one_at_once(self):
         resolved = preferences.resolve(
             _settings(
                 backend="whisper_cpp",
                 model="gone",
                 device="npu",
+                compute_type="int4",
                 language="zz",
                 auto_detect_language=False,
             ),
@@ -510,7 +511,8 @@ class TestSanitizingWhatIsOnDisk:
 
     def test_a_value_that_is_not_even_a_string_is_rewritten_too(self):
         settings = _settings(model=["tiny"], device={"a": 1}, language=3,
-                             backend=None, auto_detect_language="yes please")
+                             backend=None, auto_detect_language="yes please",
+                             compute_type=["int8"])
         assert preferences.sanitize_section(settings) is True
         assert settings[preferences.SECTION] == preferences.DEFAULTS
 

@@ -38,6 +38,7 @@ from core.transcription import (
     external_models,
     external_view,
     management,
+    precision,
 )
 
 #: Hash the folder as one of the catalogue's models, and remember it as that.
@@ -114,6 +115,9 @@ class ExternalModelJob:
     the device the model will run on (see external_models.trial_load()) —
     decided here, on the worker, the way TranscriptionJob decides them;
     whisper.cpp's trial load always runs on its processor build.
+    `compute_type_preference` is the precision chosen for faster-whisper
+    (part 11), for the same reason: the trial loads the folder the way the
+    run will, so a precision the folder cannot be loaded in is found here.
     `other_roots` is a models folder that is chosen in the settings dialog and
     not applied yet, refused like the one in force (see
     external_models.accept_catalogue_folder()).
@@ -122,7 +126,7 @@ class ExternalModelJob:
     def __init__(self, kind, app_settings, path, models_root,
                  device_preference=device.PREFERENCE_AUTO, backend_id=None,
                  on_progress=None, on_finished=None, throttle=None, clock=None,
-                 other_roots=()):
+                 other_roots=(), compute_type_preference=precision.AUTO):
         if kind not in KINDS:
             raise ValueError(f"unknown external model check: {kind!r}")
         self.kind = kind
@@ -131,6 +135,7 @@ class ExternalModelJob:
         self._models_root = models_root
         self._other_roots = tuple(other_roots)
         self._device_preference = device_preference
+        self._compute_type_preference = compute_type_preference
         self._backend_id = backend_id
         self._on_progress = on_progress
         self._on_finished = on_finished
@@ -237,7 +242,9 @@ class ExternalModelJob:
             )
         probe = device.probe_hardware()
         device_id, _reason = device.resolve_device(self._device_preference, probe)
-        compute_type = device.select_compute_type(device_id, probe)
+        compute_type = backend.resolve_compute_type(
+            self._compute_type_preference, device_id, probe
+        ).compute_type
         return external_models.accept_custom_folder(
             self._app_settings, self.path, self._models_root, backend, device_id,
             compute_type, should_cancel=self._should_cancel,

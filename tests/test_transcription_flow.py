@@ -56,6 +56,7 @@ from core.transcription import (
     model_names,
     model_store,
     narration,
+    precision,
     preferences,
 )
 from core.transcription import stored as stored_transcription
@@ -920,6 +921,29 @@ class TestPhaseStatusText:
                   chosen=preferences.language_name("pt")) in text
         assert "ggml-" not in text
 
+    def test_a_chosen_precision_is_named_on_the_loading_line(self):
+        """Part 11: the loading line says the precision when the user chose
+        one, and nothing about it under "automatic"."""
+        run = _Run(device.DEVICE_CPU, device.REASON_CPU_REQUESTED)
+        run.precision = precision.PrecisionChoice("int8", "int8")
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, run)
+        assert _t("transcription_note_precision_used",
+                  precision=_t("transcription_precision_int8")) in text
+        run.precision = precision.PrecisionChoice("int8")
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, run)
+        assert _t("transcription_precision_int8") not in text
+
+    def test_a_replaced_precision_is_never_switched_silently(self):
+        run = _Run(device.DEVICE_CPU, device.REASON_CPU_REQUESTED)
+        run.precision = precision.PrecisionChoice("float32", "float16")
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, run)
+        assert _t("transcription_note_precision_replaced",
+                  chosen=_t("transcription_precision_float16"),
+                  used=_t("transcription_precision_float32")) in text
+
     def test_other_phases_never_carry_the_device(self):
         known = _Run(device.DEVICE_CUDA, device.REASON_CUDA_SELECTED)
         for phase in (job_module.PHASE_PREPARING_AUDIO, job_module.PHASE_TRANSCRIBING,
@@ -998,6 +1022,21 @@ class TestTheWhisperCppProgramIsMissingOrDamaged:
         for settings in ({}, {"transcription": {"model": "ggml-small"}}):
             assert transcription_flow.model_problem_i18n_key(
                 code, None, settings
+            ) == errors.error_i18n_key(code)
+
+
+class TestAPrecisionTheDeviceRefused:
+    """Part 11: chosen on the Transcription tab, so the tab is offered, with
+    the error's own sentence — never "the model you chose"."""
+
+    def test_it_is_offered_with_the_tab_that_fixes_it(self):
+        code = errors.PRECISION_UNSUPPORTED
+        assert code in transcription_flow._SETTINGS_OFFER_CODES
+        resolution = preferences.Resolution(
+            "faster_whisper", "small", device.PREFERENCE_AUTO, None)
+        for settings in ({}, {"transcription": {"model": "small"}}):
+            assert transcription_flow.model_problem_i18n_key(
+                code, resolution, settings
             ) == errors.error_i18n_key(code)
 
 

@@ -1625,7 +1625,10 @@ class TestCpuRetry:
     """
 
     @pytest.mark.parametrize(
-        "code", [errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE]
+        "code", [errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE,
+                 # The card refused the chosen precision; the processor run
+                 # resolves the same choice again, to one it can run.
+                 errors.PRECISION_UNSUPPORTED]
     )
     def test_a_gpu_fault_the_cpu_would_not_have_is_worth_redoing(self, code):
         error = errors.TranscriptionError(code, "detail for the log")
@@ -1644,11 +1647,14 @@ class TestCpuRetry:
         assert device.cpu_retry_i18n_key(error, device.DEVICE_CUDA) is None
 
     @pytest.mark.parametrize("code", sorted(errors.ERROR_CODES))
-    def test_every_code_has_an_answer_and_only_these_two_are_yes(self, code):
+    def test_every_code_has_an_answer_and_only_these_are_yes(self, code):
         # The set is written out rather than read back off the implementation:
-        # a third code added to the allowlist has to come here and re-argue
-        # itself against the comment above it, which is where the reasoning is.
-        worth_redoing = {errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE}
+        # a code added to the allowlist has to come here and re-argue itself
+        # against the comment above it, which is where the reasoning is.
+        # PRECISION_UNSUPPORTED did (part 11): the processor run picks a
+        # precision the processor can run.
+        worth_redoing = {errors.INSUFFICIENT_VRAM, errors.CUDA_UNAVAILABLE,
+                         errors.PRECISION_UNSUPPORTED}
         error = errors.TranscriptionError(code)
         offered = device.should_retry_on_cpu(error, device.DEVICE_CUDA)
         assert offered is (code in worth_redoing)

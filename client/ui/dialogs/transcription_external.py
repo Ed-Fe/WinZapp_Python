@@ -569,6 +569,9 @@ class ExternalModelsMixin:
         )
         other_roots = (pending,) if pending != models_root else ()
         preference = self._selected_transcription_device_preference()
+        # The trial loads a folder the way the run will (part 11).
+        compute_preference = (self._selected_transcription_precision()
+                              or transcription_preferences.AUTO)
         is_file = backend_id == transcription_backend.BACKEND_WHISPER_CPP
 
         def _make_job(on_progress, on_finished):
@@ -577,6 +580,7 @@ class ExternalModelsMixin:
                 device_preference=preference, backend_id=backend_id,
                 on_progress=on_progress, on_finished=on_finished,
                 other_roots=other_roots,
+                compute_type_preference=compute_preference,
             )
 
         dialog = TranscriptionProgressDialog(

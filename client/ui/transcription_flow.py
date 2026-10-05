@@ -102,6 +102,7 @@ from core.transcription import (
     message_run,
     model_names,
     narration,
+    precision,
     preferences,
     stored as stored_transcription,
 )
@@ -142,6 +143,8 @@ _SETTINGS_OFFER_CODES = (
     # The whisper.cpp program is installed, repaired or removed there too.
     errors.WHISPER_CPP_NOT_INSTALLED,
     errors.WHISPER_CPP_CORRUPTED,
+    # The device refused the precision chosen there (part 11).
+    errors.PRECISION_UNSUPPORTED,
 )
 
 AUTO_MODEL_UNAVAILABLE_I18N_KEY = "transcription_model_unavailable_auto"
@@ -232,11 +235,14 @@ def phase_status_text(i18n, phase, run):
         return None
     parts = [i18n.t(key)]
     if phase == job_module.PHASE_LOADING_MODEL and run is not None:
+        chosen, used = precision.spoken_names(i18n, getattr(run, "precision", None))
         notes = narration.device_announcement(
             run.device, run.device_reason, spoken_model_name(i18n, run),
             backend_name=model_names.backend_name(i18n, getattr(run, "backend_id", None)),
             forced_language=getattr(run, "forced_language", None),
             overridden_language=getattr(run, "overridden_language", None),
+            precision_chosen=chosen,
+            precision_used=used,
         )
         for note in notes:
             parts.append(i18n.t(note.i18n_key).format(**note.values))
@@ -291,8 +297,12 @@ def model_problem_i18n_key(error_code, resolution, settings):
     preferences' own keys; the user chose a model that is not downloaded —
     errors' own key, which says "the model you chose"; and the automatic
     choice landed on a model that is not downloaded, where "the model you
-    chose" names a choice nobody made.
+    chose" names a choice nobody made. And one that is not about the model:
+    the device refused the precision chosen on the same tab, whose own
+    sentence says so.
     """
+    if error_code == errors.PRECISION_UNSUPPORTED:
+        return errors.error_i18n_key(error_code)
     if error_code in (errors.MODEL_CORRUPTED, errors.EXTERNAL_MODEL_MISSING,
                       errors.EXTERNAL_MODEL_CHANGED,
                       errors.WHISPER_CPP_NOT_INSTALLED, errors.WHISPER_CPP_CORRUPTED):

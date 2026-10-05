@@ -1760,5 +1760,20 @@
     "transcription_external_state_changed_file": "ficheiro alterado, verifique novamente",
     "transcription_error_external_model_missing_file": "O ficheiro do modelo escolhido não foi encontrado. Se estiver num disco externo, ligue o disco; se foi eliminado, escolha outro modelo.",
     "transcription_error_external_model_changed_file": "O ficheiro do modelo escolhido mudou desde que foi verificado. Verifique o modelo novamente no separador Transcrição local das definições ou escolha outro modelo.",
-    "transcription_saved_opened_no_model_backend": "Transcrição guardada, feita em {when} com o {backend}."
+    "transcription_saved_opened_no_model_backend": "Transcrição guardada, feita em {when} com o {backend}.",
+    "transcription_precision_label": "Precisão de cálculo (e&xclusiva do faster-whisper)",
+    "transcription_precision_int8": "8 bits (int8), mais pequeno e mais rápido",
+    "transcription_precision_int8_float32": "8 bits, cálculos em 32 bits (int8_float32)",
+    "transcription_precision_int8_float16": "8 bits, cálculos em 16 bits (int8_float16)",
+    "transcription_precision_int8_bfloat16": "8 bits, cálculos em bfloat16 (int8_bfloat16)",
+    "transcription_precision_int16": "inteiros de 16 bits (int16)",
+    "transcription_precision_float16": "16 bits (float16)",
+    "transcription_precision_bfloat16": "16 bits, formato bfloat16 (bfloat16)",
+    "transcription_precision_float32": "32 bits (float32), precisão total, maior e mais lento",
+    "transcription_note_precision_used": "Precisão de cálculo: {precision}.",
+    "transcription_note_precision_replaced": "A precisão de cálculo escolhida, {chosen}, não pode ser utilizada aqui; em vez dela é utilizada {used}.",
+    "transcription_notice_precision_replaced": "A precisão de cálculo escolhida, {chosen}, não pode ser utilizada onde a transcrição vai ser executada; em vez dela será utilizada {used}.",
+    "transcription_error_precision_unsupported": "Não foi possível utilizar a precisão de cálculo escolhida neste dispositivo. Escolha outra, ou Automático, nas definições.",
+    "transcription_retry_on_cpu_precision": "A placa gráfica não conseguiu utilizar a precisão de cálculo escolhida. Quer refazer a transcrição utilizando o processador?",
+    "transcription_substituted_compute_type": "A precisão de cálculo escolhida já não é reconhecida. O WinZapp irá escolher uma automaticamente."
 }

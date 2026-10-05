@@ -160,6 +160,34 @@ class TestTrialLoadingACustomFolder:
         [reference] = external_models.load_references(settings)
         assert reference.is_custom
 
+    def test_it_loads_in_the_precision_the_run_will_use(
+        self, catalogue, tmp_path, settings, models_root, monkeypatch
+    ):
+        """Part 11: a precision chosen in the tab is honoured by the trial too,
+        replaced as the run would replace it — float16 on the processor is a
+        load CTranslate2 refuses."""
+        monkeypatch.setattr(
+            external_job.device, "probe_hardware",
+            lambda: device.HardwareProbe(
+                total_ram_mb=16_384, available_ram_mb=12_288,
+                cpu_compute_types=("float32", "int16", "int8", "int8_float32")),
+        )
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
+        factory = _Factory()
+        monkeypatch.setattr(
+            external_job.backend_module, "get_backend",
+            lambda backend_id: _backend(factory),
+        )
+
+        _run(_job(external_job.KIND_CUSTOM, settings, folder, models_root, _Watcher(),
+                  device_preference=device.PREFERENCE_CPU,
+                  compute_type_preference=device.COMPUTE_FLOAT16))
+
+        [load] = factory.loads
+        assert (load["device"], load["compute_type"]) == (
+            device.DEVICE_CPU, device.COMPUTE_FLOAT32)
+
     def test_a_model_the_backend_cannot_load_is_not_stored(
         self, catalogue, tmp_path, settings, models_root, cpu_machine, monkeypatch
     ):

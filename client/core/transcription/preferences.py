@@ -1,8 +1,8 @@
 """What the user chose for transcription, and what that means for one run.
 
-Four settings live in each account's own settings.json — backend, model, device
-and language (plus the checkbox that says whether the language is detected at
-all) — and one, the folder the models are downloaded into, deliberately does
+Five settings live in each account's own settings.json — backend, model,
+device, precision (faster-whisper's compute type, part 11) and language (plus
+the checkbox that says whether the language is detected at all) — and one, the folder the models are downloaded into, deliberately does
 not: it is install-wide, in app.json, because the model files themselves are
 shared by every account (that is why `model_store.default_models_dir()` sits
 under `global_dir()`) and one account pointing somewhere else while its
@@ -12,7 +12,8 @@ Three rules shape everything below.
 
 * **"Automatic" is a stored value, not an absent one.** Every setting here has
   a "let WinZapp decide" position and it reaches disk as a literal sentinel —
-  `"auto"` for the backend, the model and the device, `"interface"` for the
+  `"auto"` for the backend, the model, the device and the precision,
+  `"interface"` for the
   language. A blank would be ambiguous the day one of these defaults changes:
   nothing on disk would separate "the user picked what happened to be the
   default" from "the user never opened the dialog", which is precisely the
@@ -64,6 +65,7 @@ from core.transcription import (
     device,
     model_catalog,
     model_store,
+    precision,
     whisper_cpp_catalog,
     whisper_cpp_store,
 )
@@ -88,6 +90,8 @@ LANGUAGE_INTERFACE = "interface"
 SETTING_BACKEND = "backend"
 SETTING_MODEL = "model"
 SETTING_DEVICE = "device"
+#: faster-whisper's compute type: AUTO or one of precision.COMPUTE_TYPES.
+SETTING_COMPUTE_TYPE = "compute_type"
 SETTING_LANGUAGE = "language"
 SETTING_AUTO_DETECT_LANGUAGE = "auto_detect_language"
 
@@ -99,6 +103,7 @@ DEFAULTS = {
     SETTING_BACKEND: AUTO,
     SETTING_MODEL: AUTO,
     SETTING_DEVICE: AUTO,
+    SETTING_COMPUTE_TYPE: AUTO,
     # Meaningful only while auto-detection is off; see resolve() for why the
     # two are separate settings rather than one list with a "detect" entry.
     SETTING_LANGUAGE: LANGUAGE_INTERFACE,
@@ -149,6 +154,7 @@ SUBSTITUTION_I18N_KEYS = {
     SETTING_BACKEND: "transcription_substituted_backend",
     SETTING_MODEL: "transcription_substituted_model",
     SETTING_DEVICE: "transcription_substituted_device",
+    SETTING_COMPUTE_TYPE: "transcription_substituted_compute_type",
     SETTING_LANGUAGE: "transcription_substituted_language",
 }
 
@@ -344,6 +350,11 @@ class Resolution:
     #: The language the user chose that `model_language` replaced, or None
     #: (detection was on, or nothing was replaced).
     language_overridden: str | None = None
+    #: The precision the user chose (one of precision.COMPUTE_TYPES), or AUTO.
+    #: The stored choice, not what a run will load with: that depends on the
+    #: device the job resolves, so the job resolves it too
+    #: (precision.resolve_compute_type()), like the device.
+    compute_type_preference: str = AUTO
 
     @property
     def substituted(self) -> bool:
@@ -421,6 +432,7 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
 
     backend_id = _resolve_backend(section, available_backends, substitutions)
     preference = _resolve_device_preference(section, substitutions)
+    compute_preference = _resolve_compute_type(section, substitutions)
     # The model is chosen against the device this preference resolves to right
     # now, because the memory budget is the whole question and VRAM and RAM are
     # different numbers. The job re-probes and re-resolves before it loads
@@ -435,9 +447,16 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     # Before the model: whether a single-language model may be chosen
     # automatically depends on it.
     language = _resolve_language(section, ui_language, substitutions)
+    # The precision the model would load with moves what fits: float32 weights
+    # take twice float16's, 8-bit ones half. Only faster-whisper's — a
+    # whisper.cpp file's precision is the file, already in its figures.
+    memory_compute = (
+        None if backend_id == backend_module.BACKEND_WHISPER_CPP
+        else precision.memory_compute_type(compute_preference, device_id, probe)
+    )
     model_id = _resolve_model(
         section, probe, device_id, installed_ids, substitutions, custom_model_ids,
-        backend_id, language,
+        backend_id, language, memory_compute,
     )
     only = model_language(model_id)
     forced = only is not None and language != only
@@ -455,6 +474,7 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
         model_language=only,
         language_forced=forced,
         language_overridden=overridden,
+        compute_type_preference=compute_preference,
     )
 
 
@@ -503,7 +523,8 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
     set than what `resolve()` substitutes: a model the catalogue no longer
     knows, a device string nothing recognises, a language code that is not a
     language, a backend id this version has never heard of, a detection flag
-    that is not a bool — and a custom model (`external:<id>`) whose reference
+    that is not a bool, a precision this version does not know — and a
+    custom model (`external:<id>`) whose reference
     the user forgot, when the caller passes the ids that still exist as
     `custom_model_ids` (None: nobody measured, and the value is left alone, as
     resolve() does). A backend that is merely *unavailable on this machine
@@ -545,6 +566,7 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
         (SETTING_MODEL,
          lambda v: _model_choice_exists(v, custom_model_ids, model_backend)),
         (SETTING_DEVICE, lambda v: v in DEVICE_PREFERENCE_I18N_KEYS),
+        (SETTING_COMPUTE_TYPE, precision.is_choice),
         (SETTING_LANGUAGE, lambda v: v in LANGUAGE_NAMES),
     ):
         # An absent key is left absent: `read_section()` defaults it and
@@ -746,8 +768,24 @@ def _resolve_device_preference(section, substitutions):
     return device.PREFERENCE_AUTO
 
 
+def _resolve_compute_type(section, substitutions):
+    """The precision preference: AUTO or one of precision.COMPUTE_TYPES.
+
+    A value this version does not know (a CTranslate2 type a later WinZapp
+    offers, a hand edit) is "automatic", and reported, for the reason
+    `_resolve_device_preference()` gives. Whether the device can run a known
+    one is not decided here: the job decides it against its own probe.
+    """
+    stored = section[SETTING_COMPUTE_TYPE]
+    if stored == AUTO or precision.is_choice(stored):
+        return stored
+    substitutions.append(Substitution(SETTING_COMPUTE_TYPE, str(stored)))
+    return AUTO
+
+
 def _resolve_model(section, probe, device_id, installed_ids, substitutions,
-                   custom_model_ids=None, backend_id=None, language=None):
+                   custom_model_ids=None, backend_id=None, language=None,
+                   compute_type=None):
     """The model id, or None when nothing is installed and nothing fits.
 
     A model that is known but not downloaded is *kept*: that is not a
@@ -765,7 +803,7 @@ def _resolve_model(section, probe, device_id, installed_ids, substitutions,
         substitutions.append(Substitution(SETTING_MODEL, str(stored)))
     return device.auto_select_model(
         probe, device_id, installed_ids, catalog=catalogue_models(backend_id),
-        language=language,
+        language=language, compute_type=compute_type,
     )
 
 

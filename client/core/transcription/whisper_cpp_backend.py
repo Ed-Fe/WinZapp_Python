@@ -62,6 +62,7 @@ from core.transcription import (
     device as device_module,
     errors,
     external_ggml,
+    precision,
     whisper_cpp_builds,
     whisper_cpp_catalog,
     whisper_cpp_cli,
@@ -123,6 +124,13 @@ class WhisperCppBackend(TranscriptionBackend):
         return device_module.resolve_whisper_cpp_device(
             preference, probe, self._installed(whisper_cpp_builds.BUILD_CUDA)
         )
+
+    def resolve_compute_type(self, preference, device, probe):
+        """Always "automatic": a GGML file's quantization is the file itself
+        (one catalogue entry per variant), and the program has no load-time
+        precision to choose. The faster-whisper choice is not said here,
+        since nothing would honour it."""
+        return precision.resolve_compute_type(precision.AUTO, device, probe)
 
     def load_model(self, request, should_cancel=None) -> None:
         """Check the model file and the program are there; load nothing."""

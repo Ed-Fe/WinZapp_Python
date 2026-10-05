@@ -1145,6 +1145,8 @@ DEFAULT_SETTINGS = {
         "backend": "auto",
         "model": "auto",
         "device": "auto",
+        # faster-whisper's precision (CTranslate2 compute type), part 11.
+        "compute_type": "auto",
         # Which language to force when auto-detection is off. "interface" means
         # "whatever language WinZapp itself is in", kept as a sentinel so it
         # follows a later change of the interface language.

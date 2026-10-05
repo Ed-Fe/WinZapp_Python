@@ -57,7 +57,7 @@ import logging
 import threading
 import time
 
-from core.transcription import audio_prep, backend as backend_module, device, errors
+from core.transcription import audio_prep, backend as backend_module, device, errors, precision
 
 # Announced before the wait each one names, so the UI is never silent during
 # one. No i18n keys here on purpose: part 6 owns the wording, and these are the
@@ -93,7 +93,8 @@ class TranscriptionJob:
                  language=None, device_preference=device.PREFERENCE_AUTO,
                  backend=None, backend_id=None, prepared=None,
                  on_phase=None, on_progress=None, on_finished=None,
-                 probe=None, external_references=()):
+                 probe=None, external_references=(),
+                 compute_type_preference=precision.AUTO):
         self._audio_path = audio_path
         self._ffmpeg = ffmpeg
         self._models_root = models_root
@@ -105,6 +106,10 @@ class TranscriptionJob:
         self._external_references = tuple(external_references)
         self._language = language or None
         self._device_preference = device_preference
+        # The precision the user chose (part 11), or "auto". Resolved against
+        # the device in _decode(), like the device itself: a CPU re-run of a
+        # card's choice resolves it again, to one the processor can run.
+        self._compute_type_preference = compute_type_preference
         # `backend` is what the tests (and part 6, which keeps one warm) hand
         # in; `backend_id` is the settings value resolved when the run starts,
         # so a backend that stopped being usable is noticed then and not at
@@ -144,6 +149,10 @@ class TranscriptionJob:
         self.device = None
         self.device_reason = None
         self.compute_type = None
+        #: The precision.PrecisionChoice behind `compute_type`: what the user
+        #: chose and whether the device could run it, which part 11 announces
+        #: with the device.
+        self.precision = None
 
         #: The converted audio, handed to the caller instead of being deleted,
         #: when the run failed on the GPU in a way a CPU re-run could cure.
@@ -264,7 +273,17 @@ class TranscriptionJob:
         self.device, self.device_reason = backend.resolve_device(
             self._device_preference, probe
         )
-        self.compute_type = device.select_compute_type(self.device, probe)
+        # Through the backend too: faster-whisper honours the user's
+        # precision, whisper.cpp's is the model file.
+        self.precision = backend.resolve_compute_type(
+            self._compute_type_preference, self.device, probe
+        )
+        self.compute_type = self.precision.compute_type
+        if self.precision.replaced:
+            logging.info(
+                "[transcription] precision %s cannot run on %s here — using %s",
+                self.precision.requested, self.device, self.compute_type,
+            )
 
         request = backend_module.TranscriptionRequest(
             audio_path=prepared.path,

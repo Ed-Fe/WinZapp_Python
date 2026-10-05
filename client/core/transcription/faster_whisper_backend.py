@@ -119,6 +119,19 @@ _CUDA_MISSING_MARKERS = (
     "invalid device function",
 )
 
+# The device refused the compute type (part 11): asked explicitly for one it
+# cannot run, CTranslate2 raises "Requested <type> compute type, but the
+# target device or backend do not support efficient <type> computation"
+# rather than falling back. Its own code so the user is sent to the setting
+# that fixes it — and, on the card, offered the processor. Not "do not support
+# efficient" alone: CTranslate2's warning about a conversion it did make ("The
+# compute type inferred from the saved model is float16, but the target device
+# or backend do not support efficient float16 computation. The model weights
+# have been automatically converted ...") says that too.
+_PRECISION_MARKERS = (
+    "compute type, but the target device",
+)
+
 # The voice-activity filter is the one part of the run that needs onnxruntime,
 # which is a separate binary in the frozen build. If it will not load, the
 # transcription is still worth having.
@@ -444,6 +457,8 @@ def classify_backend_error(exc, device_name):
             else errors.INSUFFICIENT_RAM
         )
         return errors.TranscriptionError(code, detail)
+    if _matches(message, _PRECISION_MARKERS):
+        return errors.TranscriptionError(errors.PRECISION_UNSUPPORTED, detail)
     if _matches(message, _CUDA_MISSING_MARKERS):
         return errors.TranscriptionError(errors.CUDA_UNAVAILABLE, detail)
     return errors.TranscriptionError(errors.BACKEND_ERROR, detail)

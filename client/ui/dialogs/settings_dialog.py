@@ -25,6 +25,7 @@ from ui.dialogs.ai_settings_page import AISettingsPage
 from ui.dialogs.transcription_tab import TranscriptionTabMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
+from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -196,7 +197,7 @@ def chat_lock_tab_visible(main_window) -> bool:
 
 
 class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
-                     wx.Dialog):
+                     TranscriptionPrecisionMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]

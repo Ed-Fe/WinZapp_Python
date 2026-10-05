@@ -1760,5 +1760,20 @@
     "transcription_external_state_changed_file": "file changed, verify again",
     "transcription_error_external_model_missing_file": "The file of the chosen model was not found. If it is on an external drive, connect the drive; if it was deleted, choose another model.",
     "transcription_error_external_model_changed_file": "The chosen model's file has changed since it was verified. Verify the model again in the Local Transcription tab in the settings, or choose another model.",
-    "transcription_saved_opened_no_model_backend": "Saved transcription, made on {when} with {backend}."
+    "transcription_saved_opened_no_model_backend": "Saved transcription, made on {when} with {backend}.",
+    "transcription_precision_label": "Calcula&tion precision (faster-whisper only)",
+    "transcription_precision_int8": "8 bits (int8), smaller and faster",
+    "transcription_precision_int8_float32": "8 bits, calculations in 32 bits (int8_float32)",
+    "transcription_precision_int8_float16": "8 bits, calculations in 16 bits (int8_float16)",
+    "transcription_precision_int8_bfloat16": "8 bits, calculations in bfloat16 (int8_bfloat16)",
+    "transcription_precision_int16": "16-bit integers (int16)",
+    "transcription_precision_float16": "16 bits (float16)",
+    "transcription_precision_bfloat16": "16 bits, bfloat16 format (bfloat16)",
+    "transcription_precision_float32": "32 bits (float32), full precision, larger and slower",
+    "transcription_note_precision_used": "Calculation precision: {precision}.",
+    "transcription_note_precision_replaced": "The chosen calculation precision, {chosen}, cannot be used here, so {used} is used instead.",
+    "transcription_notice_precision_replaced": "The chosen calculation precision, {chosen}, cannot be used where the transcription will run, so {used} will be used instead.",
+    "transcription_error_precision_unsupported": "The chosen calculation precision could not be used on this device. Choose another one, or Automatic, in the settings.",
+    "transcription_retry_on_cpu_precision": "The graphics card could not use the chosen calculation precision. Do you want to transcribe again using the processor?",
+    "transcription_substituted_compute_type": "The selected calculation precision is no longer recognized. WinZapp will choose one automatically."
 }

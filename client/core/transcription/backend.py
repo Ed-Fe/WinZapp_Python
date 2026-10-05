@@ -32,7 +32,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 
-from core.transcription import device as device_module, errors
+from core.transcription import device as device_module, errors, precision
 
 BACKEND_FASTER_WHISPER = "faster_whisper"
 # whisper-cli.exe, downloaded on demand with its GGML models (part 9). Second:
@@ -162,6 +162,17 @@ class TranscriptionBackend:
         CTranslate2 answer, `device.resolve_device()`. Never raises.
         """
         return device_module.resolve_device(preference, probe)
+
+    def resolve_compute_type(self, preference, device, probe):
+        """The precision a run on `device` loads with: a
+        precision.PrecisionChoice, for the stored `preference`.
+
+        The default is CTranslate2's question, `precision.resolve_compute_type()`
+        — the user's choice when the device can run it, its replacement when it
+        cannot. A backend whose precision is the model file overrides this to
+        ignore the preference. Never raises.
+        """
+        return precision.resolve_compute_type(preference, device, probe)
 
     def load_model(self, request, should_cancel=None) -> None:
         """Make `request`'s model ready, so the caller can announce the wait.

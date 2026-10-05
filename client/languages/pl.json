@@ -1760,5 +1760,20 @@
     "transcription_external_state_changed_file": "plik zmieniony, sprawdź ponownie",
     "transcription_error_external_model_missing_file": "Nie znaleziono pliku wybranego modelu. Jeśli jest na dysku zewnętrznym, podłącz ten dysk; jeśli został usunięty, wybierz inny model.",
     "transcription_error_external_model_changed_file": "Plik wybranego modelu zmienił się od czasu jego sprawdzenia. Sprawdź model ponownie na karcie Transkrypcja lokalna w ustawieniach lub wybierz inny model.",
-    "transcription_saved_opened_no_model_backend": "Zapisana transkrypcja, wykonana {when} przy użyciu składnika {backend}."
+    "transcription_saved_opened_no_model_backend": "Zapisana transkrypcja, wykonana {when} przy użyciu składnika {backend}.",
+    "transcription_precision_label": "Pre&cyzja obliczeń (tylko faster-whisper)",
+    "transcription_precision_int8": "8 bitów (int8), mniej pamięci i szybciej",
+    "transcription_precision_int8_float32": "8 bitów, obliczenia w 32 bitach (int8_float32)",
+    "transcription_precision_int8_float16": "8 bitów, obliczenia w 16 bitach (int8_float16)",
+    "transcription_precision_int8_bfloat16": "8 bitów, obliczenia w formacie bfloat16 (int8_bfloat16)",
+    "transcription_precision_int16": "16-bitowe liczby całkowite (int16)",
+    "transcription_precision_float16": "16 bitów (float16)",
+    "transcription_precision_bfloat16": "16 bitów, format bfloat16 (bfloat16)",
+    "transcription_precision_float32": "32 bity (float32), pełna precyzja, więcej pamięci i wolniej",
+    "transcription_note_precision_used": "Precyzja obliczeń: {precision}.",
+    "transcription_note_precision_replaced": "Wybranej precyzji obliczeń ({chosen}) nie można tu użyć, więc zamiast niej używana jest: {used}.",
+    "transcription_notice_precision_replaced": "Wybranej precyzji obliczeń ({chosen}) nie można użyć tam, gdzie będzie wykonywana transkrypcja, więc zamiast niej zostanie użyta: {used}.",
+    "transcription_error_precision_unsupported": "Nie udało się użyć wybranej precyzji obliczeń na tym urządzeniu. Wybierz inną albo opcję Automatycznie w ustawieniach.",
+    "transcription_retry_on_cpu_precision": "Karta graficzna nie mogła użyć wybranej precyzji obliczeń. Czy chcesz wykonać transkrypcję ponownie, używając procesora?",
+    "transcription_substituted_compute_type": "Wybrana precyzja obliczeń nie jest już rozpoznawana. WinZapp wybierze ją automatycznie."
 }

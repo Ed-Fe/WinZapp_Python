@@ -128,6 +128,13 @@ WHISPER_CPP_CORRUPTED = "whisper_cpp_corrupted"
 # and neither is a download to repeat. Its own code so the sentence names that
 # folder and not the models or CUDA one.
 WHISPER_CPP_BUSY = "whisper_cpp_busy"
+# The device refused the precision the model was asked to load with
+# (CTranslate2: "Requested float16 compute type, but the target device or
+# backend do not support efficient float16 computation"). precision.py
+# replaces a choice the probe says cannot run before the load, so this is
+# what is left when the probe and the device disagree. Its own code because
+# "internal error" sends nobody to the setting that fixes it.
+PRECISION_UNSUPPORTED = "precision_unsupported"
 # The catch-all: the backend raised something we have no specific answer for.
 BACKEND_ERROR = "backend_error"
 
@@ -162,6 +169,7 @@ ERROR_CODES = (
     WHISPER_CPP_DOWNLOAD_FAILED,
     WHISPER_CPP_CORRUPTED,
     WHISPER_CPP_BUSY,
+    PRECISION_UNSUPPORTED,
     BACKEND_ERROR,
 )
 
