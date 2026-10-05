@@ -272,6 +272,7 @@ class TranscriptionJob:
             language=self._language,
             duration_seconds=prepared.duration_seconds,
             external_references=self._external_references,
+            compute_capability=probe.compute_capability,
         )
 
         # Announced only now, and deliberately not before the probe: part 6

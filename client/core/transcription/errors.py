@@ -109,6 +109,25 @@ CUDA_RUNTIME_BUSY = "cuda_runtime_busy"
 # costs 553 MB per attempt, since the download runs to completion and only
 # fails when it tries to publish over a file that cannot be replaced.
 CUDA_RUNTIME_IN_USE = "cuda_runtime_in_use"
+# The whisper.cpp program (whisper-cli.exe and its DLLs, downloaded on demand
+# like the CUDA libraries — see whisper_cpp_runtime) is not on this machine.
+# Not BACKEND_MISSING: that sentence says the component is missing from "this
+# copy of WinZapp", whose fix is reinstalling WinZapp; this one is a download
+# away, from the settings.
+WHISPER_CPP_NOT_INSTALLED = "whisper_cpp_not_installed"
+# The release zip could not be fetched. Its own code for the reason
+# CUDA_RUNTIME_DOWNLOAD_FAILED has one: MODEL_DOWNLOAD_FAILED names the model,
+# and the CUDA sentence names libraries the CPU build does not even use.
+WHISPER_CPP_DOWNLOAD_FAILED = "whisper_cpp_download_failed"
+# The zip's digest was wrong, it held no whisper-cli.exe, or the installed
+# files are missing, the wrong size, or will not start. "Install it again".
+WHISPER_CPP_CORRUPTED = "whisper_cpp_corrupted"
+# The whisper.cpp program folder is held: another account's process has its
+# lock, or a file in it is open (an antivirus scanning the fresh DLLs, a
+# whisper-cli still running) past the retries. Both are "wait and try again",
+# and neither is a download to repeat. Its own code so the sentence names that
+# folder and not the models or CUDA one.
+WHISPER_CPP_BUSY = "whisper_cpp_busy"
 # The catch-all: the backend raised something we have no specific answer for.
 BACKEND_ERROR = "backend_error"
 
@@ -139,6 +158,10 @@ ERROR_CODES = (
     CUDA_RUNTIME_CORRUPTED,
     CUDA_RUNTIME_BUSY,
     CUDA_RUNTIME_IN_USE,
+    WHISPER_CPP_NOT_INSTALLED,
+    WHISPER_CPP_DOWNLOAD_FAILED,
+    WHISPER_CPP_CORRUPTED,
+    WHISPER_CPP_BUSY,
     BACKEND_ERROR,
 )
 

@@ -1,7 +1,9 @@
 """Where the Whisper models live on disk, and how they get there.
 
 The catalogue (see model_catalog) says what a model is; this module is the only
-thing that puts those bytes on a disk, checks them, and takes them away again.
+thing that puts those bytes on a disk, checks them, and takes them away again —
+for the whisper.cpp GGML files too (whisper_cpp_catalog entries answer the same
+names; see whisper_cpp_store).
 These decisions are worth more than the code implementing them:
 
 * **The root is global, not per account.** WinZapp runs one account per
@@ -44,7 +46,8 @@ These decisions are worth more than the code implementing them:
 **A note for the UI layer on the progress callbacks.** ``progress(done, total)``
 is reported per chunk, which is every 1 MB — around 3000 calls for large-v3, and
 `total` means something different per call site: the whole model for
-``download_model()``, model.bin alone for ``verify_model()``, and every file
+``download_model()``, the digested files for ``verify_model()`` (model.bin for
+a faster-whisper model, the one .bin for a whisper.cpp file), and every file
 being moved for ``move_models()``. Part 5 has to throttle before any
 ``wx.CallAfter`` or spoken percentage; forwarding these straight through would
 flood the UI thread and have the screen reader read thousands of numbers.
@@ -70,6 +73,12 @@ from app_paths import global_dir
 from coord_locks import LockTimeout, canonical_dir, models_lock
 from core import tls_trust
 from core.transcription import errors, model_catalog
+from core.transcription._fileops import (
+    check_cancel as _check_cancel,
+    remove_empty_dir as _remove_empty_dir,
+    report as _report,
+    unlink as _unlink,
+)
 
 # Subdirectory of the global data dir holding every model.
 MODELS_DIRNAME = "whisper_models"
@@ -244,7 +253,16 @@ def ensure_ready(root, model_id) -> str:
         # A settings file naming a model this version dropped. "Not installed"
         # is both true and the one thing the UI can act on.
         raise errors.TranscriptionError(errors.MODEL_NOT_INSTALLED, str(model_id))
+    return ensure_model_ready(root, model)
 
+
+def ensure_model_ready(root, model) -> str:
+    """ensure_ready() for an entry already in hand, from either catalogue.
+
+    The same cheap check and the same two codes; the whisper.cpp store looks
+    its own ids up and then asks this, so "installed" means one thing for both
+    backends.
+    """
     state = installation_state(root, model)
     if state.state == STATE_ABSENT:
         raise errors.TranscriptionError(errors.MODEL_NOT_INSTALLED, model.id)
@@ -370,7 +388,10 @@ def repair_model(model, root, progress=None, should_cancel=None, session=None):
     """
     try:
         with _hold_models_lock(root, should_cancel):
-            remove_model(root, model.id)
+            # By the entry, not by id: an id is looked up in the faster-whisper
+            # catalogue, which would find nothing to delete for a whisper.cpp
+            # file and leave the bad bytes in place for the download to trust.
+            remove_model_files(root, model)
             return download_model(
                 model,
                 root,
@@ -383,25 +404,35 @@ def repair_model(model, root, progress=None, should_cancel=None, session=None):
 
 
 def verify_model(root, model, progress=None, should_cancel=None) -> None:
-    """The expensive check: every size, then model.bin's sha256.
+    """The expensive check: every size, then the sha256 of every digested file.
+
+    For a faster-whisper model that is model.bin alone, and for a whisper.cpp
+    one its single .bin (see `sha256_of()`); `progress` counts those files
+    together.
 
     Separate from installation_state() because it reads up to 3 GB, which is
     also why it takes a progress callback and a cancel check of its own: a user
     who asked to verify a model has to be able to change their mind, and to be
     told how far it got while they wait.
     """
-    directory = ensure_ready(root, model.id)
-    digest = _hash_file(
-        os.path.join(directory, "model.bin"),
-        model.model_bin_bytes,
-        progress,
-        should_cancel,
-    )
-    if digest != model.model_bin_sha256:
-        raise errors.TranscriptionError(
-            errors.MODEL_CORRUPTED,
-            f"{model.id}: model.bin sha256 {digest}, expected {model.model_bin_sha256}",
+    directory = ensure_model_ready(root, model)
+    digested = [
+        (name, size, model.sha256_of(name))
+        for name, size in model.files
+        if model.sha256_of(name)
+    ]
+    total = sum(size for _name, size, _expected in digested)
+    done = 0
+    for name, size, expected in digested:
+        digest = _hash_file(
+            os.path.join(directory, name), total, progress, should_cancel, done
         )
+        done += size
+        if digest != expected:
+            raise errors.TranscriptionError(
+                errors.MODEL_CORRUPTED,
+                f"{model.id}: {name} sha256 {digest}, expected {expected}",
+            )
 
 
 def remove_model(root, model_id, should_cancel=None) -> bool:
@@ -425,7 +456,16 @@ def remove_model(root, model_id, should_cancel=None) -> bool:
         # The folder is left alone; list_unknown_dirs() is how the user sees it.
         logging.info("[transcription] not removing unknown model id %s", model_id)
         return False
+    return remove_model_files(root, model, should_cancel)
 
+
+def remove_model_files(root, model, should_cancel=None) -> bool:
+    """remove_model() for an entry already in hand, from either catalogue.
+
+    Deletes exactly the names `model.files` lists, under the same lock and
+    with the same rmdir — what makes remove_model() safe is that it never
+    deletes a name it did not look up, and an entry is that lookup.
+    """
     try:
         with _hold_models_lock(root, should_cancel):
             directory = model_dir(root, model.id)
@@ -485,6 +525,46 @@ def move_models(old_root, new_root, progress=None, should_cancel=None):
             )
     except LockTimeout as exc:
         raise errors.TranscriptionError(errors.MODELS_BUSY, str(exc)) from exc
+
+
+def hold_directory_lock(directory, should_cancel=None):
+    """The cross-process lock this module takes, keyed on `directory`.
+
+    For the other stores of the package that write into a shared folder of
+    their own (the whisper.cpp runtime): the same sliced, cancellable wait,
+    rather than a third copy of it. LockTimeout is the caller's to translate,
+    since only the caller knows which folder its "busy" sentence names.
+    """
+    return _hold_models_lock(directory, should_cancel)
+
+
+def download_verified_file(session, url, directory, name, expected_bytes,
+                           expected_sha256, progress=None, should_cancel=None):
+    """Fetch `url` into `directory/name`, published only once size and digest match.
+
+    The single-file, from-byte-0 form of download_model(), for an artifact that
+    is not hosted on Hugging Face (the whisper.cpp release zips). Through
+    `_write_part()`, so the "a final name has been verified" rule is the same
+    code here as for the models. A failure raises MODEL_CORRUPTED for a size or
+    digest mismatch and leaves the `.part` behind; the caller sweeps it and
+    picks the code its user hears.
+    """
+    response = session.get(url, stream=True, timeout=_HTTP_TIMEOUT)
+    try:
+        response.raise_for_status()
+        return _write_part(
+            directory,
+            name,
+            response.iter_content(chunk_size=_CHUNK_BYTES),
+            expected_bytes,
+            expected_sha256,
+            0,
+            expected_bytes,
+            progress,
+            should_cancel,
+        )
+    finally:
+        response.close()
 
 
 # ── Internals ────────────────────────────────────────────────────────────────
@@ -782,27 +862,17 @@ def _download_plan(directory, model):
 def _resumable_bytes(directory, model, pending) -> int:
     """Bytes of `pending` already on disk as a `.part` a resume will keep.
 
-    Only the files _download_file() actually resumes — model.bin, the one with
-    a digest (_expected_sha256()). An auxiliary file's `.part` is fetched again
-    from byte 0 however long it is, so counting it here would quote the
-    free-space gate less than the transfer is about to write.
+    Only the files _download_file() actually resumes — the ones with a digest
+    (`sha256_of()`: model.bin, or a whisper.cpp file). An auxiliary file's
+    `.part` is fetched again from byte 0 however long it is, so counting it
+    here would quote the free-space gate less than the transfer is about to
+    write.
     """
     return sum(
         _resume_offset(os.path.join(directory, name + _PART_SUFFIX), size)
         for name, size in pending
-        if _expected_sha256(model, name)
+        if model.sha256_of(name)
     )
-
-
-def _expected_sha256(model, name):
-    """The digest `name` is checked against, or None when it has none.
-
-    Only model.bin has one: it is the sole LFS file in these repositories, and
-    the one where a silent corruption costs a multi-gigabyte re-download to
-    discover. It is also what decides whether a `.part` may be resumed — see
-    _download_file() — and so what _resumable_bytes() counts.
-    """
-    return model.model_bin_sha256 if name == "model.bin" else None
 
 
 def _resume_offset(part_path, expected_bytes) -> int:
@@ -825,7 +895,9 @@ def _download_file(session, model, directory, name, expected_bytes,
                    done_bytes, total, progress, should_cancel) -> int:
     """One file of `model`, streamed into place. Returns the new byte count."""
     part_path = os.path.join(directory, name + _PART_SUFFIX)
-    expected_sha256 = _expected_sha256(model, name)
+    # The catalogue entry answers: for a faster-whisper model only model.bin
+    # has a digest, for a whisper.cpp file its single .bin does.
+    expected_sha256 = model.sha256_of(name)
 
     # Only a file with a digest may be resumed, and that is the whole rule.
     # For the auxiliary files the only check is `written == expected_bytes`,
@@ -966,6 +1038,15 @@ def _write_part(directory, name, chunks, expected_bytes, expected_sha256,
             _check_cancel(should_cancel)
             if not chunk:
                 continue
+            if written + len(chunk) > expected_bytes:
+                # Stopped here rather than measured at the end: a server (or a
+                # mirror) that keeps sending would otherwise fill the disk
+                # before the size check ever ran. Nothing past the expected
+                # size is written; the `.part` is swept as for any mismatch.
+                raise errors.TranscriptionError(
+                    errors.MODEL_CORRUPTED,
+                    f"{name}: more than the expected {expected_bytes} bytes",
+                )
             fh.write(chunk)
             if digest is not None:
                 digest.update(chunk)
@@ -1005,8 +1086,8 @@ def _read_chunks(path):
             yield chunk
 
 
-def _hash_file(path, total_bytes, progress, should_cancel) -> str:
-    """sha256 of `path`, reported and cancellable as it goes."""
+def _hash_file(path, total_bytes, progress, should_cancel, done_bytes=0) -> str:
+    """sha256 of `path`, reported (after `done_bytes`) and cancellable."""
     digest = hashlib.sha256()
     read = 0
     try:
@@ -1015,22 +1096,12 @@ def _hash_file(path, total_bytes, progress, should_cancel) -> str:
                 _check_cancel(should_cancel)
                 digest.update(chunk)
                 read += len(chunk)
-                _report(progress, read, total_bytes)
+                _report(progress, done_bytes + read, total_bytes)
     except OSError as exc:
         # A file that cannot be read is not a file that can be transcribed
         # with, and the way out of it is the same as for a bad digest.
         raise errors.TranscriptionError(errors.MODEL_CORRUPTED, f"{path}: {exc}") from exc
     return digest.hexdigest()
-
-
-def _check_cancel(should_cancel) -> None:
-    if should_cancel is not None and should_cancel():
-        raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")
-
-
-def _report(progress, done, total) -> None:
-    if progress is not None:
-        progress(done, total)
 
 
 def _as_transcription_error(exc, model_id, fallback):
@@ -1053,19 +1124,3 @@ def _remove_parts(directory, model) -> None:
     """Drop every `.part` this model could have left behind in `directory`."""
     for name, _size in model.files:
         _unlink(os.path.join(directory, name + _PART_SUFFIX))
-
-
-def _unlink(path) -> bool:
-    try:
-        os.remove(path)
-        return True
-    except OSError:
-        return False
-
-
-def _remove_empty_dir(directory) -> None:
-    """rmdir, which is a no-op on any directory that still holds a file."""
-    try:
-        os.rmdir(directory)
-    except OSError:
-        pass

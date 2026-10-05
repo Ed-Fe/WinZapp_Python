@@ -1121,6 +1121,19 @@ class TestJob:
         assert request.language == "pt"
         assert (request.device, request.compute_type) == (job.device, job.compute_type)
 
+    def test_the_measured_compute_capability_travels_with_the_request(
+        self, tmp_path, own_temp_dir
+    ):
+        # whisper.cpp's CUDA build cannot run on sm_120, and the backend must
+        # not re-probe to find out: the job's own measurement is handed over.
+        backend = _FakeBackend(result=_result())
+        probe = device.HardwareProbe(cuda_available=True, cuda_device_count=1,
+                                     compute_capability=(12, 0), total_vram_mb=16384,
+                                     free_vram_mb=12000, total_ram_mb=16384,
+                                     available_ram_mb=8192)
+        _run_job(tmp_path, backend, probe=lambda: probe)
+        assert backend.requests[0].compute_capability == (12, 0)
+
     def test_the_prepared_file_is_deleted_when_the_run_ends(
         self, tmp_path, own_temp_dir
     ):
@@ -1577,6 +1590,9 @@ _FORBIDDEN_IN_LOG = (
 _PART3_MODULES = (
     "audio_prep.py", "backend.py", "faster_whisper_backend.py", "job.py",
     "management.py", "message_run.py",
+    # Part 9a's backend runs a program that prints the transcription, and its
+    # helpers read that program's output: held to the same rule.
+    "whisper_cpp_backend.py", "whisper_cpp_cli.py",
 )
 
 

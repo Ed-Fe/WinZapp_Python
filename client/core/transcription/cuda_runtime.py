@@ -86,6 +86,12 @@ from app_paths import global_dir
 from coord_locks import LockTimeout, models_lock
 from core import tls_trust
 from core.transcription import device, errors, model_store
+from core.transcription._fileops import (
+    check_cancel as _check_cancel,
+    remove_empty_dir as _remove_empty_dir,
+    report as _report,
+    unlink as _unlink,
+)
 
 # Subdirectory of the global data dir holding the installed libraries.
 CUDA_RUNTIME_DIRNAME = "cuda_runtime"
@@ -957,29 +963,3 @@ def _as_transcription_error(exc, fallback):
         # 553 MB, and the retry cannot succeed either.
         return errors.TranscriptionError(errors.CUDA_RUNTIME_IN_USE, str(exc))
     return errors.TranscriptionError(fallback, str(exc))
-
-
-def _check_cancel(should_cancel) -> None:
-    if should_cancel is not None and should_cancel():
-        raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")
-
-
-def _report(progress, done, total) -> None:
-    if progress is not None:
-        progress(done, total)
-
-
-def _unlink(path) -> bool:
-    try:
-        os.remove(path)
-        return True
-    except OSError:
-        return False
-
-
-def _remove_empty_dir(directory) -> None:
-    """rmdir, which is a no-op on any directory that still holds a file."""
-    try:
-        os.rmdir(directory)
-    except OSError:
-        pass

@@ -88,6 +88,17 @@ class WhisperModel:
     min_vram_mb: int  # float16 on the GPU
     min_ram_mb: int  # int8 on the CPU
 
+    def sha256_of(self, name):
+        """The digest file `name` is checked against, or None when it has none.
+
+        Only model.bin has one: it is the sole LFS file in these repositories,
+        and the one where a silent corruption costs a multi-gigabyte re-download
+        to discover. Asked through the entry rather than decided by model_store
+        so that the whisper.cpp catalogue, whose one file is not called
+        model.bin, can go through the same download and the same checks.
+        """
+        return self.model_bin_sha256 if name == "model.bin" else None
+
 
 def _model(model_id, repo, revision, model_bin_sha256, files, size_class,
            min_vram_mb, min_ram_mb) -> WhisperModel:

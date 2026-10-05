@@ -983,6 +983,31 @@ class TestDownload:
         assert session.closed is False
 
 
+class TestAnOverlongAnswerIsCutShort:
+    """A server that keeps sending is stopped at the expected size.
+
+    Measured only at the end, the excess would be written first — for a 3 GB
+    file, a misbehaving mirror could fill the disk before the size check ran.
+    """
+
+    def test_the_transfer_stops_once_it_passes_the_catalogued_size(self, entry, tmp_path):
+        model, contents = entry
+        root = str(tmp_path)
+        too_long = contents["model.bin"] * 4
+        session = _FakeSession(_bodies(model, contents, {"model.bin": too_long}), slices=8)
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            model_store.download_model(model, root, session=session)
+
+        assert caught.value.code == errors.MODEL_CORRUPTED
+        # Everything before model.bin, plus at most one chunk past its size.
+        before = sum(len(contents[name]) for name, _s in model.files[:1])
+        assert session.served - before <= len(contents["model.bin"]) + len(too_long) // 8
+        directory = model_store.model_dir(root, model.id)
+        assert not os.path.exists(os.path.join(directory, "model.bin"))
+        assert not os.path.exists(os.path.join(directory, "model.bin.part"))
+
+
 class TestVerifyModel:
     def test_a_good_model_verifies(self, entry, tmp_path):
         model, contents = entry

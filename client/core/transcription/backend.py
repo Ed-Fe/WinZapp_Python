@@ -35,6 +35,11 @@ from dataclasses import dataclass
 from core.transcription import errors
 
 BACKEND_FASTER_WHISPER = "faster_whisper"
+# Not in BACKEND_IDS and not built by _construct() yet: the whisper.cpp core
+# (part 9a) exists without a way to install or choose it, and listing it here
+# before the settings tab can manage its program and models (part 9b) would
+# offer users a backend they could only see fail.
+BACKEND_WHISPER_CPP = "whisper_cpp"
 
 # Every backend there is, in preference order. This order is the answer to
 # "which one when the user has not chosen": the first that can actually run.
@@ -87,6 +92,12 @@ class TranscriptionRequest:
     # catalogue id is loaded from one of them when WinZapp's own folder has no
     # complete copy. Empty for a user who never did.
     external_references: tuple = ()
+    # The GPU's compute capability as the job's probe measured it, or None when
+    # unknown. faster-whisper's precision rule already arrives decided in
+    # `compute_type`; whisper.cpp needs the figure itself, because whether its
+    # CUDA build can run at all depends on it (no sm_120 kernels — see
+    # whisper_cpp_builds.cuda_build_supported()).
+    compute_capability: tuple | None = None
 
 
 @dataclass(frozen=True)
