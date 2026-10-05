@@ -307,9 +307,10 @@ older tabs do not move.
 
 ## In the conversation
 
-**The shortcut is `Alt+Shift+T`.** `Alt+T` is already the conversation's
-presence announcement. It is registered in MainWindow's own table
-(`client/main_window/shortcuts.py`), not the panel's, so grepping
+**The shortcut is `Alt+Shift+T`**, in the panel's table
+(`client/ui/conversation_panel/accelerators.py`). `Alt+T` is already the
+conversation's presence announcement, and that one is registered in
+MainWindow's own table (`client/main_window/shortcuts.py`), so grepping
 `client/ui/conversation_panel/` alone misses the clash.
 
 **Local media is Fernet-encrypted** (`voice_messages/<id>.msv`,
