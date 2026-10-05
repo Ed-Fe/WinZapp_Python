@@ -56,6 +56,8 @@ YENİLİKLER
 
 İYİLEŞTİRMELER
 
+- Yazım denetimi: hata sesi artık yalnızca boşluk değil, yanlış yazılmış bir sözcüğün hemen ardından noktalama işareti (virgül, nokta, soru işareti vb.) yazıldığında ve imleç ok tuşları, Ctrl+ok tuşları, Home, End veya fareyle yanlış yazılmış bir sözcüğe geldiğinde de çalıyor.
+
 - Kodun büyük ölçüde yeniden düzenlenmesi (Refactoring). WinZapp'in yalnızca ikisi toplamda 50 binden fazla satıra ulaşan ve programın yaptığı neredeyse her şeyi barındıran en büyük iki dosyası, her biri tek bir işten sorumlu onlarca küçük parçaya bölündü: Eşitleme, bağlantı, mesaj gönderme, aramalar, sohbet listesi ve benzeri modüller ayrıştırıldı. Bu mimari dönüşüm kullanıcı deneyiminde hiçbir şeyi değiştirmez. Geliştiriciler için her parçayı bulmak, anlamak ve geliştirmek çok daha kolay hale gelirken, bir düzeltmenin fark edilmeden başka bir yeri bozma riski en aza iner. WinZapp'i uzun vadede sağlıklı ve kararlı tutan da bu modüler yapıdır.
 
 - WinZapp'in ve yerel sunucunun günlükleri (log.log ve wppconnect.log) artık telefon numaralarını, WhatsApp tanımlayıcılarını ve kişi adlarını içermez. Bu hassas veriler günlüklere maskelenmiş olarak kaydedilir. Böylece bir sorunu geliştiricilere bildirirken kişisel gizliliğinizi koruyarak günlük dosyalarını güvenle gönderebilirsiniz.
@@ -78,7 +80,15 @@ YENİLİKLER
 
 - WinZapp'ın kullandığı WhatsApp kitaplığı güncellendi. Geliştiricilerinin notları, WhatsApp Web'in son sürümlerinde grup oluşturma, grup davet bağlantısını alma ve sıfırlama, grup açıklamasını düzenleme, profil adını değiştirme ve medya gönderme için düzeltmeler listeliyor. WinZapp başlangıçta WPPConnect'i güncellemeyi önerirse kabul edin; yeni kitaplık böylece kurulur.
 
+- F3 ve Shift+F3 ile sohbet içinde arama. Artık açık sohbetin herhangi bir yerinden, mesaj listesi dahil, arama alanına dönmeden F3 ile sonraki sonuca, Shift+F3 ile önceki sonuca geçebilirsiniz; odak sonucu izler ve ekran okuyucu konumu duyurur. Enter ve Shift+Enter alternatif olarak çalışmaya devam eder, ancak mesaj listesinde zaten başka işlevleri olduğu için yalnızca arama alanında çalışır. "Önceki sonuç" ve "Sonraki sonuç" düğmeleri artık Shift+F3 ve F3 olarak duyurulur ve kısayol yardımı güncellendi.
+
 DÜZELTMELER
+
+- Geçmiş: WhatsApp Web'in kendisinin daha eski mesajların yalnızca telefonda görülebildiğini söylediği sohbetlerde WinZapp artık telefondan daha fazla geçmiş istemiyor. İstek kabul ediliyordu ama hiçbir şey gelmiyordu ve yalnızca telefonda eşitleme bildirimlerine yol açıyordu. Önceden indirilmiş geçmiş korunur.
+
+- Yapay zekâ işlemleri: tüm anahtarlar sıfırlandığında, kaydetmeden önce yeni bir anahtar girilse de hatırlanmış gönderim onayları temizlenir. Uzun ses dökümleri ve PDF metinleri artık sonları sessizce kesilmek yerine metin sınırı hatası verir; bu sınır için başka bir sağlayıcı otomatik olarak denenmez.
+
+- Kişilerinde kayıtlı olmayan ve WhatsApp profilinde adı bulunmayan birine mesaj yazdığında, sohbet kişinin telefon numarası yerine senin kendi adını göstermeye başlıyordu. Artık gerçek adı bulunana kadar telefon numarasını göstermeye devam ediyor.
 
 - Kaldırma programı artık her zaman Portekizce görünmek yerine, kurulum programı gibi Windows görüntüleme dilini izliyor.
 
@@ -159,6 +169,10 @@ DÜZELTMELER
 - Bir iletiye yanıt verirken yanıtta birinden bahsedildiğinde, WinZapp onu yanıt olarak gösterse de alıcılara alıntısız yeni bir ileti olarak ulaşıyordu. Alıntı artık bahsetmeyle birlikte gönderilir.
 
 - Güncelleme bildirimleri artık WinZapp Windows ile başladığında da görünüyor: bu durumda ne WinZapp'in kendi güncellemesi ne de WPPConnect Server güncellemesi sunuluyordu. WPPConnect Server bildirimi ayrıca artık WinZapp ile test edilenden daha yeni bir sürümü, reddedebileceğiniz önerilen bir güncelleme olarak sunuyor; önceden yalnızca WinZapp gereken sürümü yükselttiğinde sunuluyordu.
+
+- Medya mesajlarında "Betimle" düğmesi. Bir fotoğrafta, çıkartmada veya videoda (yapay zekâ özellikleri açıkken ses ve PDF'lerde de) "Farklı kaydet"in hemen ardından Tab ile ulaşılabilen ve Ctrl+Shift+I kısayoluyla aynı işi yapan bir düğme görünür; bağlam menüsünde öğe artık diğer medya eylemleriyle birlikte durur ve Ctrl+Shift+I kısayolunu gösterir. Düğme ve öğe yalnızca betimlenebilen mesajlarda görünür.
+
+- Her yapay zekâ sağlayıcısının penceresinde (Yazıya Dökme ve Betimleme) "Otomatik (önerilen)" model. Henüz model seçmediğiniz sağlayıcılarda varsayılan olarak işaretli olan kutu, WinZapp'ın her zaman önerdiği ve güncellemeleri izleyen modeli kullanmasını sağlar; sabit bir model seçmek veya yazmak için işareti kaldırın.
 
 V1.1.1.0
 

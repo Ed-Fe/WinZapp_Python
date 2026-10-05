@@ -56,6 +56,8 @@ NOVEDADES
 
 MEJORAS
 
+- Corrección ortográfica: el sonido de error ahora también se reproduce al escribir un signo de puntuación (coma, punto, interrogación, etc.) justo después de una palabra mal escrita, no solo un espacio, y cuando el cursor llega a una palabra mal escrita con las flechas, Ctrl+flechas, Inicio, Fin o el ratón.
+
 - Gran reorganización del código. Los dos archivos más grandes de WinZapp, que por sí solos sumaban más de 50.000 líneas y concentraban casi todo lo que hace el programa, se han dividido en decenas de partes más pequeñas, cada una encargada de una cosa: sincronización, conexión, envío de mensajes, llamadas, lista de chats, etc. Para quien lo usa, no cambia nada. Para quien lo desarrolla, resulta mucho más fácil encontrar, entender y corregir cada parte, y mucho más difícil que una corrección rompa otra cosa sin que nadie se dé cuenta — que es lo que mantiene WinZapp sano a largo plazo.
 
 - Los registros de WinZapp y del servidor local (log.log y wppconnect.log) ya no contienen números de teléfono, identificadores de WhatsApp ni nombres de contactos: aparecen enmascarados. Así se pueden enviar los registros al informar de un problema sin exponer a sus contactos.
@@ -78,7 +80,15 @@ MEJORAS
 
 - Se actualizó la biblioteca de WhatsApp que usa WinZapp. Las notas de sus desarrolladores enumeran correcciones para crear grupos, obtener y restablecer enlaces de invitación de grupo, editar la descripción del grupo, cambiar tu nombre de perfil y enviar multimedia en versiones recientes de WhatsApp Web. Si WinZapp te ofrece actualizar WPPConnect al iniciar, acepta para instalar la nueva biblioteca.
 
+- Búsqueda en la conversación con F3 y Shift+F3. Ahora puede ir al siguiente resultado con F3 y al anterior con Shift+F3 desde cualquier lugar de la conversación abierta, incluida la lista de mensajes, sin volver al campo de búsqueda; el foco sigue al resultado y el lector de pantalla anuncia su posición. Enter y Shift+Enter siguen funcionando como alternativa, pero solo dentro del campo de búsqueda, porque en la lista de mensajes ya tienen otras funciones. Los botones "Resultado anterior" y "Resultado siguiente" ahora anuncian Shift+F3 y F3, y la ayuda de atajos se ha actualizado.
+
 CORRECCIONES
+
+- Historial: en los chats donde WhatsApp Web indica que los mensajes más antiguos solo se pueden ver en el teléfono, WinZapp ya no le pide más historial al teléfono. La petición se aceptaba pero nunca llegaba nada, y solo provocaba notificaciones de sincronización en el teléfono. El historial ya descargado se conserva.
+
+- Contenido con IA: restablecer todas las claves también borra los consentimientos de envío recordados, incluso al introducir una nueva clave antes de aplicar. Las transcripciones y los textos de PDF largos ahora indican un error de límite de texto en vez de perder el final sin avisar; no se prueba otro proveedor automáticamente por este límite.
+
+- Al escribir a alguien que no está en tus contactos y no tiene nombre en su perfil de WhatsApp, la conversación pasaba a mostrar tu propio nombre en lugar del teléfono de la persona. Ahora sigue mostrando el teléfono hasta que se encuentre su nombre real.
 
 - El desinstalador ahora sigue el idioma de visualización de Windows, igual que el instalador, en lugar de aparecer siempre en portugués.
 
@@ -160,6 +170,10 @@ CORRECCIONES
 
 - Los avisos de actualización ahora también aparecen cuando WinZapp se inicia con Windows: en ese caso no se ofrecía ni la actualización del propio WinZapp ni la de WPPConnect Server. El aviso de WPPConnect Server también ofrece ahora una versión más reciente que la probada con WinZapp, como actualización recomendada que puedes rechazar, y no solo cuando el propio WinZapp subía la versión exigida.
 
+- Botón "Describir" en los mensajes con contenido multimedia. En una foto, un sticker o un vídeo (y también en audios y PDF, cuando las funciones de IA están activadas), aparece un botón justo después de "Guardar como", accesible con Tab, que hace lo mismo que el atajo Ctrl+Shift+I; en el menú contextual, el elemento queda junto a las demás acciones multimedia y también muestra Ctrl+Shift+I. El botón y el elemento solo aparecen en los mensajes que se pueden describir.
+
+- Modelo "Automático (recomendado)" en la ventana de cada proveedor de IA (Transcripciones y Descripciones). Marcada por defecto en los proveedores donde aún no habías elegido un modelo, la casilla hace que WinZapp use siempre el modelo que recomienda, que sigue las actualizaciones; desmárcala para elegir o escribir un modelo fijo.
+
 V1.1.1.0
 
 Esta versión trata de mantener tu cuenta conectada. WinZapp ahora guarda una copia de seguridad del perfil del navegador — que es donde vive realmente tu conexión con WhatsApp — y la restaura por su cuenta cuando deja de ser aceptada, avisando de lo ocurrido. Junto a ella llegan las correcciones de las situaciones que rompían la sesión y hacían que el programa pidiera vincular de nuevo: apagar el ordenador, suspender y reanudar, y el propio programa reiniciando la conexión. También llegan la corrección ortográfica en el campo de mensaje y las acciones sobre enlaces.
@@ -168,7 +182,7 @@ NOVEDADES
 
 - Recuperación automática del perfil del navegador. Tu conexión con WhatsApp se guarda en el perfil del navegador que WinZapp usa por debajo, y cuando ese perfil dejaba de ser aceptado solo quedaba vincular de nuevo. Ahora WinZapp guarda una copia de seguridad, conserva también la copia anterior, y la restaura por su cuenta cuando detecta que la conexión fue rechazada — diciendo en voz alta que la restauró y que está reconectando. Nunca vuelve a ofrecer una copia que WhatsApp ya rechazó, y cuando no hay ninguna copia aprovechable lo dice claramente, en lugar de dejarte sin conexión y sin explicación.
 
-- Corrección ortográfica en el campo de mensaje. En Configuración eliges entre seguir la configuración de ortografía del propio Windows (predeterminado), siempre activada o siempre desactivada. También hay un sonido propio para el error de ortografía, configurable junto con los demás sonidos. El sonido de error se reproduce al escribir un espacio o un signo de puntuación tras una palabra mal escrita, y cuando el cursor llega a una con las flechas, Ctrl+flechas o el ratón.
+- Corrección ortográfica en el campo de mensaje. En Configuración eliges entre seguir la configuración de ortografía del propio Windows (predeterminado), siempre activada o siempre desactivada. También hay un sonido propio para el error de ortografía, configurable junto con los demás sonidos.
 
 - Acciones sobre enlaces en los mensajes. Cuando el mensaje contiene enlaces, el menú contextual ofrece Abrir enlace y Copiar enlace para el enlace en el que estás, y Ctrl+C copia ese enlace en lugar del mensaje entero.
 

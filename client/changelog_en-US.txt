@@ -56,6 +56,8 @@ WHAT'S NEW
 
 IMPROVEMENTS
 
+- Spell checking: the error sound now also plays when you type punctuation (comma, full stop, question mark and so on) right after a misspelled word, not only a space, and when the cursor arrives at a misspelled word with the arrow keys, Ctrl+arrows, Home, End or the mouse.
+
 - A major reorganization of the code. WinZapp's two largest files, which on their own added up to more than 50,000 lines and held almost everything the program does, were split into dozens of smaller parts, each taking care of one thing: sync, connection, sending messages, calls, the chat list and so on. Nothing changes for you as a user. For developers it becomes much easier to find, understand and fix each part, and much harder for a fix to break something else unnoticed — which is what keeps WinZapp healthy in the long run.
 
 - WinZapp's logs and the local server's (log.log and wppconnect.log) no longer contain phone numbers, WhatsApp identifiers or contact names: they appear masked. You can now send your logs when reporting a problem without exposing your contacts.
@@ -78,7 +80,15 @@ IMPROVEMENTS
 
 - The WhatsApp library WinZapp uses was updated. Its developers' notes list fixes for creating groups, getting and resetting group invite links, editing group descriptions, changing your profile name and uploading media on recent WhatsApp Web versions. If WinZapp offers to update WPPConnect when it starts, accept it so the new library is installed.
 
+- Conversation search with F3 and Shift+F3. You can now jump to the next result with F3 and the previous one with Shift+F3 from anywhere in the open conversation, including the messages list, without going back to the search field; focus follows the result and the screen reader announces its position. Enter and Shift+Enter still work as an alternative, but only inside the search field, because in the messages list they already do other things. The "Previous result" and "Next result" buttons now announce Shift+F3 and F3, and the shortcuts help was updated.
+
 FIXES
+
+- History: for chats where WhatsApp Web itself says older messages can only be viewed on the phone, WinZapp no longer asks the phone for more history. The request was accepted but nothing ever arrived, and it only caused sync notifications on the phone. The history already downloaded is kept.
+
+- AI media: resetting all keys also clears remembered sending consent, even when a new key is entered before applying. Long transcripts and PDF text now report a text-limit error instead of silently losing their endings; another provider is not tried automatically for this limit.
+
+- When you messaged someone who isn't in your contacts and has no name on their WhatsApp profile, the conversation started showing your own name instead of their phone number. It now keeps showing the phone number until their real name is found.
 
 - The uninstaller now follows the Windows display language like the installer does, instead of always appearing in Portuguese.
 
@@ -160,6 +170,10 @@ FIXES
 
 - Update notices now also appear when WinZapp starts with Windows: neither WinZapp's own update nor the WPPConnect Server one was ever offered in that case. The WPPConnect Server notice also now offers a newer release than the one WinZapp was tested with, as a recommended update you can decline, instead of only when WinZapp itself raised the required version.
 
+- "Describe" button on media messages. On a photo, sticker or video (and on audio and PDFs too, when the AI features are on), a button appears right after "Save as", reachable with Tab, that does the same as the Ctrl+Shift+I shortcut; in the context menu the item now sits with the other media actions, also showing Ctrl+Shift+I. The button and the item only appear on messages that can be described.
+
+- "Automatic (recommended)" model in each AI provider window (Transcriptions and Descriptions). Checked by default for providers where you had not picked a model, the box makes WinZapp always use the model it recommends, which follows updates; uncheck it to pick or type a fixed model.
+
 V1.1.1.0
 
 This release is about keeping your account connected. WinZapp now keeps a backup copy of the browser profile — which is where your WhatsApp connection actually lives — and restores it on its own when it stops being accepted, telling you what happened. Alongside it come fixes for the situations that broke the session and left the app asking you to pair again: shutting the computer down, suspending and resuming, and the app restarting the connection by itself. Spell checking in the message field and link actions arrived too.
@@ -168,7 +182,7 @@ WHAT'S NEW
 
 - Automatic browser profile recovery. Your WhatsApp connection is stored in the browser profile WinZapp uses underneath, and when that profile stopped being accepted the only way out was to pair again. WinZapp now keeps a backup copy of it, keeps the previous copy as well, and restores it on its own when it sees the connection was refused — saying out loud that it restored and is reconnecting. It never offers back a copy WhatsApp has already refused, and when no usable copy exists it says so plainly instead of leaving you offline with no explanation.
 
-- Spell checking in the message field. In Settings you choose between following Windows' own spelling setting (the default), always on, or always off. There is also a dedicated spelling-error sound, configurable alongside the other sounds. The error sound plays when you type a space or punctuation after a misspelled word, and when the cursor arrives at one with the arrow keys, Ctrl+arrows or the mouse.
+- Spell checking in the message field. In Settings you choose between following Windows' own spelling setting (the default), always on, or always off. There is also a dedicated spelling-error sound, configurable alongside the other sounds.
 
 - Link actions on messages. When a message contains links, the context menu now offers Open link and Copy link for the link you are on, and Ctrl+C copies that link instead of the whole message.
 

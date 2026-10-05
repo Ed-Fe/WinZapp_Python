@@ -50,6 +50,7 @@ from ui.accessible import (
     AccessibleAudioSlider,
     AccessibleSaveAs,
     AccessibleShowInFolder,
+    AccessibleDescribeButton,
     AccessibleConversationDataButton,
     AccessibleVoiceCallButton,
     AccessibleVideoCallButton,
@@ -766,6 +767,16 @@ class ConversationsPanel(
         self._action_save_as_btn.Bind(wx.EVT_BUTTON, self._on_action_save_as)
         self._media_action_sizer.Add(self._action_save_as_btn, 0, wx.TOP, 2)
         self._action_save_as_btn.Hide()
+
+        # Describe / transcribe (Ctrl+Shift+I) sits right after Save as in the
+        # Tab order; ai_actions.py decides when it is shown and what it says.
+        self._action_describe_btn = wx.Button(
+            self._media_action_slot, label=i18n.t("ai_describe_image_menu")
+        )
+        self._action_describe_btn.SetAccessible(AccessibleDescribeButton())
+        self._action_describe_btn.Bind(wx.EVT_BUTTON, self._on_ai_describe_button)
+        self._media_action_sizer.Add(self._action_describe_btn, 0, wx.TOP, 2)
+        self._action_describe_btn.Hide()
 
         self._action_show_in_folder_btn = wx.Button(
             self._media_action_slot, label=i18n.t("show_in_folder")

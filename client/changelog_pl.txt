@@ -56,6 +56,8 @@ NOWOŚCI
 
 ULEPSZENIA
 
+- Sprawdzanie pisowni: dźwięk błędu odtwarzany jest teraz także po wpisaniu znaku interpunkcyjnego (przecinka, kropki, znaku zapytania itd.) tuż po błędnie napisanym słowie, a nie tylko spacji, oraz gdy kursor trafia na błędnie napisane słowo za pomocą strzałek, Ctrl+strzałek, Home, End lub myszy.
+
 - Duża reorganizacja kodu. Dwa największe pliki WinZapp, które same liczyły ponad 50 tysięcy wierszy i zawierały prawie wszystko, co robi program, zostały podzielone na dziesiątki mniejszych części, z których każda odpowiada za jedną rzecz: synchronizację, połączenie, wysyłanie wiadomości, połączenia głosowe, listę czatów i tak dalej. Dla użytkownika nic się nie zmienia. Dla programistów znacznie łatwiej jest znaleźć, zrozumieć i naprawić każdą część, a dużo trudniej, żeby poprawka niepostrzeżenie zepsuła coś innego — to właśnie utrzymuje WinZapp w dobrej kondycji na dłuższą metę.
 
 - Dzienniki WinZapp i lokalnego serwera (log.log i wppconnect.log) nie zawierają już numerów telefonów, identyfikatorów WhatsAppa ani nazw kontaktów: są one maskowane. Dzięki temu można wysłać dzienniki przy zgłaszaniu problemu bez ujawniania swoich kontaktów.
@@ -78,7 +80,15 @@ ULEPSZENIA
 
 - Zaktualizowano bibliotekę WhatsApp, z której korzysta WinZapp. W informacjach od jej twórców znajdują się poprawki dotyczące tworzenia grup, pobierania i resetowania linków zaproszenia do grupy, edycji opisu grupy, zmiany nazwy profilu oraz wysyłania mediów w nowszych wersjach WhatsApp Web. Jeśli WinZapp po uruchomieniu zaproponuje aktualizację WPPConnect, zaakceptuj ją, aby zainstalować nową bibliotekę.
 
+- Wyszukiwanie w czacie za pomocą F3 i Shift+F3. Do następnego wyniku można teraz przejść klawiszem F3, a do poprzedniego klawiszami Shift+F3, z dowolnego miejsca otwartego czatu, także z listy wiadomości, bez wracania do pola wyszukiwania; fokus podąża za wynikiem, a czytnik ekranu ogłasza jego pozycję. Enter i Shift+Enter nadal działają jako alternatywa, ale tylko w polu wyszukiwania, ponieważ na liście wiadomości mają już inne funkcje. Przyciski „Poprzedni wynik” i „Następny wynik” ogłaszają teraz Shift+F3 i F3, a pomoc skrótów została zaktualizowana.
+
 POPRAWKI
+
+- Historia: w czatach, w których sam WhatsApp Web informuje, że starsze wiadomości można zobaczyć tylko na telefonie, WinZapp nie prosi już telefonu o kolejną historię. Prośba była przyjmowana, ale nic nie przychodziło, a powodowała tylko powiadomienia o synchronizacji na telefonie. Pobrana już historia zostaje.
+
+- Treści AI: resetowanie wszystkich kluczy usuwa też zapamiętane zgody na wysyłanie, nawet po wpisaniu nowego klucza przed zastosowaniem zmian. Długie transkrypcje i teksty PDF zgłaszają teraz błąd limitu tekstu zamiast tracić końcówkę bez ostrzeżenia; ten limit nie powoduje automatycznej próby u innego dostawcy.
+
+- Po wysłaniu wiadomości do osoby, której nie ma w Twoich kontaktach i która nie ma nazwy w profilu WhatsApp, rozmowa zaczynała pokazywać Twoje własne imię zamiast numeru telefonu tej osoby. Teraz nadal pokazuje numer telefonu, dopóki nie uda się znaleźć jej prawdziwego imienia.
 
 - Program odinstalowujący używa teraz języka wyświetlania systemu Windows, tak jak instalator, zamiast zawsze pojawiać się po portugalsku.
 
@@ -159,6 +169,10 @@ POPRAWKI
 - Odpowiedź na wiadomość ze wzmianką o kimś docierała do odbiorców jako nowa wiadomość, bez cytatu, chociaż WinZapp pokazywał ją jako odpowiedź. Teraz cytat jest wysyłany razem ze wzmianką.
 
 - Powiadomienia o aktualizacjach pojawiają się teraz także wtedy, gdy WinZapp uruchamia się razem z Windows: w takim przypadku nie była oferowana ani aktualizacja samego WinZapp, ani WPPConnect Server. Powiadomienie o WPPConnect Server oferuje też teraz nowszą wersję niż ta testowana z WinZapp, jako zalecaną aktualizację, którą można odrzucić, a nie tylko wtedy, gdy sam WinZapp podnosił wymaganą wersję.
+
+- Przycisk „Opisz” przy wiadomościach z multimediami. Przy zdjęciu, naklejce lub wideo (a także przy nagraniach audio i plikach PDF, gdy funkcje AI są włączone) zaraz po „Zapisz jako” pojawia się przycisk dostępny klawiszem Tab, który robi to samo co skrót Ctrl+Shift+I; w menu kontekstowym pozycja znajduje się teraz wśród pozostałych akcji multimediów i także pokazuje Ctrl+Shift+I. Przycisk i pozycja pojawiają się tylko przy wiadomościach, które można opisać.
+
+- Model „Automatycznie (zalecane)” w oknie każdego dostawcy AI (Transkrypcje i opisy). Domyślnie zaznaczone u dostawców, u których nie wybrano jeszcze modelu, pole sprawia, że WinZapp zawsze używa zalecanego modelu, który podąża za aktualizacjami; odznacz je, aby wybrać lub wpisać stały model.
 
 V1.1.1.0
 

@@ -56,6 +56,8 @@ NOUTĂȚI
 
 ÎMBUNĂTĂȚIRI
 
+- Verificare ortografică: sunetul de eroare se aude acum și când tastați un semn de punctuație (virgulă, punct, semn de întrebare etc.) imediat după un cuvânt greșit, nu doar spațiul, și când cursorul ajunge la un cuvânt greșit cu săgețile, Ctrl+săgețile, Home, End sau mouse-ul.
+
 - Reorganizare amplă a codului. Cele mai mari două fișiere ale WinZapp, care singure însumau peste 50.000 de linii și cuprindeau aproape tot ce face programul, au fost împărțite în zeci de părți mai mici, fiecare ocupându-se de un singur lucru: sincronizare, conexiune, trimiterea mesajelor, apeluri, lista de conversații și așa mai departe. Pentru utilizator nu se schimbă nimic. Pentru dezvoltatori devine mult mai ușor să găsească, să înțeleagă și să corecteze fiecare parte și mult mai greu ca o corecție să strice altceva fără să observe nimeni — asta menține WinZapp sănătos pe termen lung.
 
 - Jurnalele WinZapp și ale serverului local (log.log și wppconnect.log) nu mai conțin numere de telefon, identificatori WhatsApp sau nume de contacte: acestea apar mascate. Astfel, puteți trimite jurnalele când raportați o problemă fără a vă expune contactele.
@@ -78,7 +80,15 @@ NOUTĂȚI
 
 - Biblioteca WhatsApp folosită de WinZapp a fost actualizată. Notele dezvoltatorilor ei enumeră corecții pentru crearea grupurilor, obținerea și resetarea linkurilor de invitație la grup, editarea descrierii grupului, schimbarea numelui de profil și trimiterea fișierelor media în versiunile recente ale WhatsApp Web. Dacă WinZapp vă propune actualizarea WPPConnect la pornire, acceptați-o pentru a instala noua bibliotecă.
 
+- Căutarea în conversație cu F3 și Shift+F3. Acum puteți trece la următorul rezultat cu F3 și la cel anterior cu Shift+F3 de oriunde din conversația deschisă, inclusiv din lista de mesaje, fără să vă întoarceți la câmpul de căutare; focusul urmează rezultatul, iar cititorul de ecran anunță poziția. Enter și Shift+Enter funcționează în continuare ca alternativă, dar numai în câmpul de căutare, pentru că în lista de mesaje au deja alte funcții. Butoanele „Rezultat anterior” și „Următorul rezultat” anunță acum Shift+F3 și F3, iar ajutorul pentru comenzi rapide a fost actualizat.
+
 CORECTĂRI
+
+- Istoric: în conversațiile în care WhatsApp Web însuși spune că mesajele mai vechi pot fi văzute doar pe telefon, WinZapp nu mai cere telefonului mai mult istoric. Cererea era acceptată, dar nu sosea nimic, iar ea doar provoca notificări de sincronizare pe telefon. Istoricul deja descărcat este păstrat.
+
+- Conținut AI: resetarea tuturor cheilor șterge și acordurile de trimitere memorate, chiar dacă introduci o cheie nouă înainte de aplicare. Transcrierile și textele PDF lungi afișează acum o eroare de limită de text în loc să piardă finalul fără avertizare; nu se încearcă automat alt furnizor pentru această limită.
+
+- Când trimiteai un mesaj unei persoane care nu e în contactele tale și nu are nume în profilul WhatsApp, conversația începea să afișeze propriul tău nume în loc de numărul de telefon al persoanei. Acum continuă să afișeze numărul de telefon până când se găsește numele real.
 
 - Programul de dezinstalare urmează acum limba de afișare a Windows, la fel ca programul de instalare, în loc să apară mereu în portugheză.
 
@@ -160,6 +170,10 @@ CORECTĂRI
 
 - Notificările de actualizare apar acum și când WinZapp pornește odată cu Windows: în acest caz nu se oferea nici actualizarea WinZapp, nici cea a WPPConnect Server. Notificarea WPPConnect Server oferă acum și o versiune mai nouă decât cea testată cu WinZapp, ca actualizare recomandată pe care o puteți refuza, nu doar atunci când WinZapp ridica versiunea necesară.
 
+- Buton „Descrieți” la mesajele cu conținut media. La o fotografie, un autocolant sau un videoclip (și la audio și PDF, când funcțiile AI sunt pornite) apare un buton chiar după „Salvați ca”, accesibil cu Tab, care face același lucru ca scurtătura Ctrl+Shift+I; în meniul contextual, elementul stă acum lângă celelalte acțiuni media și arată tot Ctrl+Shift+I. Butonul și elementul apar doar la mesajele care pot fi descrise.
+
+- Modelul „Automat (recomandat)” în fereastra fiecărui furnizor AI (Transcrieri și descrieri). Bifată implicit la furnizorii la care nu ați ales încă un model, caseta face ca WinZapp să folosească mereu modelul pe care îl recomandă, care urmează actualizările; debifați-o pentru a alege sau a scrie un model fix.
+
 V1.1.1.0
 
 Această versiune se concentrează pe menținerea contului conectat. WinZapp păstrează acum o copie de siguranță a profilului browserului — locul în care se află de fapt conexiunea cu WhatsApp — și o restaurează singur atunci când nu mai este acceptată, spunându-vă ce s-a întâmplat. Împreună cu aceasta vin corecții pentru situațiile care stricau sesiunea și lăsau aplicația să ceară o nouă asociere: închiderea computerului, suspendarea și reluarea și repornirea conexiunii de către aplicație. Au sosit și verificarea ortografică în câmpul de mesaj și acțiunile pentru linkuri.
@@ -168,7 +182,7 @@ NOUTĂȚI
 
 - Recuperarea automată a profilului browserului. Conexiunea cu WhatsApp este stocată în profilul browserului pe care WinZapp îl folosește în fundal, iar când acest profil nu mai era acceptat, singura soluție era o nouă asociere. WinZapp păstrează acum o copie de siguranță a acestuia, păstrează și copia anterioară și o restaurează singur când observă că conexiunea a fost refuzată, anunțând cu voce tare că a restaurat-o și că se reconectează. Nu oferă niciodată înapoi o copie pe care WhatsApp a refuzat-o deja, iar când nu există nicio copie utilizabilă, spune acest lucru clar, în loc să vă lase deconectat fără nicio explicație.
 
-- Verificare ortografică în câmpul de mesaj. În Setări puteți alege între a urma setarea de ortografie din Windows (implicit), activată mereu sau dezactivată mereu. Există și un sunet dedicat pentru erorile de ortografie, configurabil împreună cu celelalte sunete. Sunetul de eroare se aude când tastați un spațiu sau un semn de punctuație după un cuvânt greșit și când cursorul ajunge la unul cu săgețile, Ctrl+săgețile sau mouse-ul.
+- Verificare ortografică în câmpul de mesaj. În Setări puteți alege între a urma setarea de ortografie din Windows (implicit), activată mereu sau dezactivată mereu. Există și un sunet dedicat pentru erorile de ortografie, configurabil împreună cu celelalte sunete.
 
 - Acțiuni pentru linkuri în mesaje. Când un mesaj conține linkuri, meniul contextual oferă acum „Deschideți linkul” și „Copiați linkul” pentru linkul pe care vă aflați, iar Ctrl+C copiază acel link în locul întregului mesaj.
 
