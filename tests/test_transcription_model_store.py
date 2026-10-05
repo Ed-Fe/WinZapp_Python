@@ -52,7 +52,7 @@ import requests
 import app_paths
 from coord_locks import LockTimeout
 from core import tls_trust
-from core.transcription import errors, model_catalog, model_store
+from core.transcription import errors, model_catalog, model_store, whisper_cpp_catalog
 
 _NETWORK_OPT_IN_ENV = "WINZAPP_RUN_NETWORK_TESTS"
 
@@ -1637,7 +1637,7 @@ class TestMoveModels:
 
         model_store.move_models(old_root, new_root)
 
-        # A set, not a list: the inner remove_model() re-enters the same lock
+        # A set, not a list: the inner remove_model_files() re-enters the same lock
         # on the real one, and how many times is not what this pins.
         held = {root for action, root in events if action == "acquire"}
         assert held == {old_root, new_root}
@@ -1654,6 +1654,122 @@ class TestMoveModels:
         model_store.move_models(old_root, new_root)
 
         assert os.path.isdir(old_root)
+
+
+# ── Both catalogues share the root ───────────────────────────────────────────
+
+
+def _synthetic_ggml(model_id, data):
+    """A GGML entry of a few bytes — one file, as every whisper.cpp model is."""
+    return whisper_cpp_catalog.GgmlFile(
+        id=model_id,
+        repo="example-org/whisper.cpp",
+        revision=model_id.encode().hex().ljust(40, "0")[:40],
+        filename=f"{model_id}.bin",
+        size_bytes=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+        base_model="tiny",
+        quantization=whisper_cpp_catalog.QUANT_Q5_1,
+        size_class=model_catalog.SIZE_SMALL,
+    ), {f"{model_id}.bin": data}
+
+
+@pytest.fixture
+def shared_root(entry, monkeypatch):
+    """The faster-whisper `entry`, one GGML file and the voice-activity model,
+    standing in for both catalogues."""
+    ggml = _synthetic_ggml("ggml-gamma-q5_1", b"G" * 2048)
+    vad = _synthetic_ggml("ggml-silero-test", b"V" * 512)
+    monkeypatch.setattr(whisper_cpp_catalog, "MODELS", (ggml[0],))
+    monkeypatch.setattr(whisper_cpp_catalog, "VAD_MODEL", vad[0])
+    return entry, ggml, vad
+
+
+class TestBothCataloguesShareTheRoot:
+    """The GGML files and the filter's model live in the faster-whisper models
+    root. Whatever walks or deletes in there and only knew one catalogue would
+    call the other's folders strangers — or leave them behind on a move, where
+    nothing lists them again."""
+
+    def test_an_id_is_found_in_either_catalogue(self, shared_root):
+        (model, _contents), (ggml, _g), (vad, _v) = shared_root
+        assert model_store.find_entry(model.id) is model
+        assert model_store.find_entry(ggml.id) is ggml
+        assert model_store.find_entry(vad.id) is vad
+        assert model_store.find_entry("retired-model") is None
+
+    def test_every_entry_is_listed_with_the_filter_last(self, shared_root):
+        (model, _contents), (ggml, _g), (vad, _v) = shared_root
+        assert model_store.all_entries() == (model, ggml, vad)
+
+    def test_ggml_and_filter_folders_are_not_strangers(self, shared_root, tmp_path):
+        (model, contents), (ggml, ggml_contents), (vad, vad_contents) = shared_root
+        root = str(tmp_path)
+        _write_model(root, model, contents)
+        _write_model(root, ggml, ggml_contents)
+        _write_model(root, vad, vad_contents)
+        os.makedirs(os.path.join(root, "ggml-retired"))
+
+        # A ggml- name the catalogue dropped is still a stranger: the prefix
+        # alone says nothing about which files are safe to delete.
+        assert model_store.list_unknown_dirs(root) == ("ggml-retired",)
+
+    def test_a_move_carries_the_ggml_files_and_the_filter(self, shared_root, tmp_path):
+        (model, contents), (ggml, ggml_contents), (vad, vad_contents) = shared_root
+        old_root = str(tmp_path / "old")
+        new_root = str(tmp_path / "new")
+        _write_model(old_root, model, contents)
+        _write_model(old_root, ggml, ggml_contents)
+        _write_model(old_root, vad, vad_contents)
+
+        moved = model_store.move_models(old_root, new_root)
+
+        assert moved == (model.id, ggml.id, vad.id)
+        for entry_moved in (model, ggml, vad):
+            assert model_store.is_installed(new_root, entry_moved)
+            assert not os.path.exists(model_store.model_dir(old_root, entry_moved.id))
+
+    def test_a_copied_ggml_file_leaves_nothing_at_the_source(
+        self, shared_root, tmp_path, monkeypatch
+    ):
+        """The copy path deletes the source by the entry it already holds;
+        a removal by id that only knew faster-whisper's catalogue would have
+        refused, leaving a duplicate GGML file in the old folder."""
+        _entry, (ggml, ggml_contents), _vad = shared_root
+        old_root = str(tmp_path / "old")
+        new_root = str(tmp_path / "new")
+        _write_model(old_root, ggml, ggml_contents)
+        monkeypatch.setattr(model_store, "_try_rename", lambda *_args: False)
+
+        assert model_store.move_models(old_root, new_root) == (ggml.id,)
+
+        assert model_store.is_installed(new_root, ggml)
+        assert not os.path.exists(model_store.model_dir(old_root, ggml.id))
+
+    def test_a_ggml_duplicate_already_at_the_destination_is_removed_at_the_source(
+        self, shared_root, tmp_path
+    ):
+        _entry, (ggml, ggml_contents), _vad = shared_root
+        old_root = str(tmp_path / "old")
+        new_root = str(tmp_path / "new")
+        source = _write_model(old_root, ggml, ggml_contents)
+        stranger = os.path.join(source, "notes-of-my-own.txt")
+        with open(stranger, "wb") as fh:
+            fh.write(b"something the user put here")
+        _write_model(new_root, ggml, ggml_contents)
+
+        assert model_store.move_models(old_root, new_root) == (ggml.id,)
+
+        # Only the catalogued file went; the user's own stays.
+        assert _names_in(source) == ["notes-of-my-own.txt"]
+
+    def test_a_ggml_model_is_removed_by_its_id(self, shared_root, tmp_path):
+        _entry, (ggml, ggml_contents), _vad = shared_root
+        directory = _write_model(str(tmp_path), ggml, ggml_contents)
+
+        assert model_store.remove_model(str(tmp_path), ggml.id) is True
+
+        assert not os.path.exists(directory)
 
 
 # ── The one test that reaches Hugging Face ───────────────────────────────────

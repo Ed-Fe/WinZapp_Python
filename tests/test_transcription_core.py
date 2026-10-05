@@ -121,6 +121,164 @@ _EXPECTED_REPOS = {
          "preprocessor_config.json": 340, "tokenizer.json": 2_710_337,
          "vocabulary.json": 1_068_114},
     ),
+    # Read from the Hugging Face API on 2026-10-05, at the pinned revision and
+    # on main, twice, identical: the English-only and the other official
+    # conversions, then the third-party fine-tunes (blob by blob, the `tree`
+    # listing having swapped KBLab's rows).
+    "tiny.en": (
+        "Systran/faster-whisper-tiny.en",
+        "0d3d19a32d3338f10357c0889762bd8d64bbdeba",
+        "1a5afae06a4db91c975c9a9d78be5cc110ee4ea022ad57d55492e4550e936b2a",
+        {"config.json": 2_317, "model.bin": 75_537_502,
+         "tokenizer.json": 2_128_466, "vocabulary.txt": 422_309},
+    ),
+    "base.en": (
+        "Systran/faster-whisper-base.en",
+        "3d3d5dee26484f91867d81cb899cfcf72b96be6c",
+        "2a166925539a16005f14ff328359f9b9adb9dc4fb631bb3b227526862e93e2ef",
+        {"config.json": 2_227, "model.bin": 145_216_508,
+         "tokenizer.json": 2_128_466, "vocabulary.txt": 422_309},
+    ),
+    "small.en": (
+        "Systran/faster-whisper-small.en",
+        "d1d751a5f8271d482d14ca55d9e2deeebbae577f",
+        "62b2a45b05ee59acb4a5341b33ee35e041395d378d418a18acfe4c9e768ee37a",
+        {"config.json": 2_657, "model.bin": 483_545_366,
+         "tokenizer.json": 2_128_466, "vocabulary.txt": 422_309},
+    ),
+    "medium.en": (
+        "Systran/faster-whisper-medium.en",
+        "a29b04bd15381511a9af671baec01072039215e3",
+        "11b220779aea4c6f3ce9d2549c8a95ea869ed84066864b999531ef53e594fe5b",
+        {"config.json": 2_643, "model.bin": 1_527_904_330,
+         "tokenizer.json": 2_128_466, "vocabulary.txt": 422_309},
+    ),
+    "large-v1": (
+        "Systran/faster-whisper-large-v1",
+        "b07c8d4be0be90092aa01a29c975077acb8d15c9",
+        "a3cce8081a5414206ab09a80aa410ebf9965feef52adafeead13f4a83398b1d1",
+        {"config.json": 2_352, "model.bin": 3_086_912_962,
+         "tokenizer.json": 2_203_239, "vocabulary.txt": 459_861},
+    ),
+    "large-v2": (
+        "Systran/faster-whisper-large-v2",
+        "f0fe81560cb8b68660e564f55dd99207059c092e",
+        "bf2a9746382e1aa7ffff6b3a0d137ed9edbd9670c3b87e5d35f5e85e70d0333a",
+        {"config.json": 2_796, "model.bin": 3_086_912_962,
+         "tokenizer.json": 2_203_239, "vocabulary.txt": 459_861},
+    ),
+    "distil-small.en": (
+        "Systran/faster-distil-whisper-small.en",
+        "ef77d90526ccd62cde3808ee70626a01e5cf83e4",
+        "1187de3982cdcf962a2fb8f797e429fb4651b875b18fe9ce50b58b52fc9072b7",
+        {"config.json": 2_812, "model.bin": 332_308_257,
+         "preprocessor_config.json": 339, "tokenizer.json": 2_405_466,
+         "vocabulary.json": 825_480},
+    ),
+    "distil-medium.en": (
+        "Systran/faster-distil-whisper-medium.en",
+        "80ddfce281f77766d8943d63109199fc8145dfa5",
+        "d4cb75d823dcd2647191064da76f026774c06c036908f38456165368d0e2d66a",
+        {"config.json": 2_574, "model.bin": 788_826_555,
+         "preprocessor_config.json": 339, "tokenizer.json": 2_405_678,
+         "vocabulary.json": 825_480},
+    ),
+    "distil-large-v3": (
+        "Systran/faster-distil-whisper-large-v3",
+        "c3058b475261292e64a0412df1d2681c06260fab",
+        "b79368e19b6623813609431a6e5ee309a71506701ebc49fd7820e692dec7c5f5",
+        {"config.json": 2_690, "model.bin": 1_512_927_867,
+         "preprocessor_config.json": 340, "tokenizer.json": 2_480_617,
+         "vocabulary.json": 1_068_114},
+    ),
+    "distil-large-v3.5": (
+        "distil-whisper/distil-large-v3.5-ct2",
+        "9793ccc07920e0f830e1dba0343efcdf0ef8c903",
+        "c58b88b8585ffcd2135fddaaf421ce72cb223b32edea70d156aed1dea319a119",
+        {"config.json": 2_690, "model.bin": 1_512_927_867,
+         "preprocessor_config.json": 340, "tokenizer.json": 2_480_645,
+         "vocabulary.json": 1_068_114},
+    ),
+    "kb-whisper-tiny": (
+        "KBLab/kb-whisper-tiny",
+        "76d796af43a50fa34321efa562c9b9887a187463",
+        "6edbc6036ceb79f12c30c5c5c2290383eac7a0bfec0be3163c480e79b26b16b9",
+        {"config.json": 3_562, "model.bin": 75_538_384,
+         "preprocessor_config.json": 339, "tokenizer.json": 3_931_232,
+         "vocabulary.json": 1_068_103},
+    ),
+    "kb-whisper-base": (
+        "KBLab/kb-whisper-base",
+        "1499d2d2f0c7ed545bd6f2eec85287cf8d8c8b38",
+        "fa942ec92ad7747aec2e9ea8c57ad8971a3695f3c9ff440018a3667bb818a5c4",
+        {"config.json": 3_622, "model.bin": 145_217_646,
+         "preprocessor_config.json": 339, "tokenizer.json": 3_931_232,
+         "vocabulary.json": 1_068_103},
+    ),
+    "kb-whisper-small": (
+        "KBLab/kb-whisper-small",
+        "3564d61a42fc210ceaa55a22a96dd64478959c78",
+        "58bf16e6878108f898c4db7983d0f4ec01c4891500f7a2b3a2c9ce98b3c0029d",
+        {"config.json": 3_690, "model.bin": 483_547_016,
+         "preprocessor_config.json": 339, "tokenizer.json": 3_931_232,
+         "vocabulary.json": 1_068_103},
+    ),
+    "kb-whisper-medium": (
+        "KBLab/kb-whisper-medium",
+        "0abe10b9d7f75d0902656e5c06c5c4d549604dc5",
+        "4a4a32952026bcfa0bcfaa76b0b006f232ffba6a8f5bccbcb12e4a1153a40494",
+        {"config.json": 3_592, "model.bin": 1_527_906_492,
+         "preprocessor_config.json": 339, "tokenizer.json": 3_931_232,
+         "vocabulary.json": 1_068_103},
+    ),
+    "kb-whisper-large": (
+        "KBLab/kb-whisper-large",
+        "d5d5984b4d8f7c4847a8ea203f1976285fb28300",
+        "69ed56887f68417f651d50fd5f225c60dfc0f9515bef85bb0f1404825c6f01de",
+        {"config.json": 3_717, "model.bin": 3_087_284_276,
+         "preprocessor_config.json": 340, "tokenizer.json": 3_931_383,
+         "vocabulary.json": 1_068_114},
+    ),
+    "ivrit-large-v3": (
+        "ivrit-ai/whisper-large-v3-ct2",
+        "e9ed4a4a98d761b0f617d668303de2c514236c66",
+        "765965efd777190f76e8b337520056f00d68e48bb99b2f95d28670b2364a02ce",
+        {"config.json": 1_536, "model.bin": 3_087_284_276,
+         "preprocessor_config.json": 340, "tokenizer.json": 2_480_617,
+         "vocabulary.json": 1_068_114},
+    ),
+    "ivrit-large-v3-turbo": (
+        "ivrit-ai/whisper-large-v3-turbo-ct2",
+        "72ad623a37947395efcc3933132353790e5a12f5",
+        "db2a2265aa012c16c7db9edda3d699c99f984efdd3f2e22a72a8ce7e9720f3a2",
+        {"config.json": 1_405, "model.bin": 1_617_884_968,
+         "preprocessor_config.json": 357, "tokenizer.json": 2_710_337,
+         "vocabulary.json": 1_068_114},
+    ),
+    "ivrit-yi-large-v3": (
+        "ivrit-ai/yi-whisper-large-v3-ct2",
+        "58ad8942662665e762008c268ade5022e8dcd198",
+        "1d3afba86e7977617945f39be197b6eb15f24960d621be5a1743ad639f7f476d",
+        {"config.json": 1_536, "model.bin": 3_087_284_237,
+         "preprocessor_config.json": 340, "tokenizer.json": 2_480_617,
+         "vocabulary.json": 1_068_114},
+    ),
+    "ivrit-yi-large-v3-turbo": (
+        "ivrit-ai/yi-whisper-large-v3-turbo-ct2",
+        "cddb73c5ea83e4354a3926682a59c3b063f5a98e",
+        "cf157e277a11895a44bdf6479c324408441613ae9b87871d69cb0a9bc01df835",
+        {"config.json": 1_405, "model.bin": 1_617_884_929,
+         "preprocessor_config.json": 357, "tokenizer.json": 2_710_337,
+         "vocabulary.json": 1_068_114},
+    ),
+    "kotoba-whisper-v2.0": (
+        "kotoba-tech/kotoba-whisper-v2.0-faster",
+        "f44edd35eaeb2274e85ac7b31fb2c6f59ff1c4bc",
+        "60d2bc2e33de9d43f2745be09caefe1161acab670f6796d4a750d8d848382b36",
+        {"config.json": 2_394, "model.bin": 1_512_927_867,
+         "preprocessor_config.json": 340, "tokenizer.json": 2_481_381,
+         "vocabulary.json": 1_068_114},
+    ),
 }
 
 
@@ -253,24 +411,68 @@ class TestModelCatalog:
         for entry in model_catalog.MODELS[0].files:
             assert isinstance(entry, tuple) and len(entry) == 2
 
-    def test_list_models_is_ordered_by_size_class_then_bytes(self):
+    def test_list_models_is_ordered_by_size_class_then_language_then_bytes(self):
+        # Within a size class: multilingual first, then the official
+        # single-language models, then the third-party ones — a tiny.en is a
+        # few hundred kilobytes smaller than tiny and must not be the first
+        # line a user arrowing through the list hears.
         listed = model_catalog.list_models()
         assert len(listed) == len(model_catalog.MODELS)
         keys = [
-            (model_catalog.SIZE_CLASSES.index(m.size_class), m.download_bytes)
+            (model_catalog.SIZE_CLASSES.index(m.size_class),
+             2 if m.third_party else 1 if m.language else 0, m.download_bytes)
             for m in listed
         ]
         assert keys == sorted(keys)
 
-    def test_the_cheapest_model_comes_first_and_the_costliest_last(self):
+    def test_the_cheapest_model_comes_first_and_the_costliest_multilingual_last(self):
         listed = model_catalog.list_models()
         assert listed[0].id == "tiny"
-        assert listed[-1].id == "large-v3"
+        assert [m.id for m in listed if m.language is None][-1] == "large-v3"
 
-    def test_memory_requirements_never_decrease_with_size(self):
-        listed = model_catalog.list_models()
-        assert [m.min_vram_mb for m in listed] == sorted(m.min_vram_mb for m in listed)
-        assert [m.min_ram_mb for m in listed] == sorted(m.min_ram_mb for m in listed)
+    def test_memory_requirements_never_decrease_with_size_class(self):
+        # Within a class the single-language models follow the multilingual
+        # ones whatever their size, so the rule is between classes.
+        for field in ("min_vram_mb", "min_ram_mb"):
+            by_class = [
+                [getattr(m, field) for m in model_catalog.MODELS if m.size_class == size]
+                for size in model_catalog.SIZE_CLASSES
+            ]
+            for smaller, larger in zip(by_class, by_class[1:]):
+                assert max(smaller) <= min(larger), field
+
+    def test_every_single_language_model_says_which_language(self):
+        english = {"tiny.en", "base.en", "small.en", "medium.en", "distil-small.en",
+                   "distil-medium.en", "distil-large-v3", "distil-large-v3.5"}
+        third_party = {
+            "kb-whisper-tiny": ("sv", "KBLab"), "kb-whisper-base": ("sv", "KBLab"),
+            "kb-whisper-small": ("sv", "KBLab"), "kb-whisper-medium": ("sv", "KBLab"),
+            "kb-whisper-large": ("sv", "KBLab"),
+            "ivrit-large-v3": ("he", "ivrit.ai"), "ivrit-large-v3-turbo": ("he", "ivrit.ai"),
+            "ivrit-yi-large-v3": ("yi", "ivrit.ai"),
+            "ivrit-yi-large-v3-turbo": ("yi", "ivrit.ai"),
+            "kotoba-whisper-v2.0": ("ja", "Kotoba Technologies"),
+        }
+        for model in model_catalog.MODELS:
+            if model.id in third_party:
+                assert (model.language, model.publisher) == third_party[model.id]
+                assert model.origin == model_catalog.ORIGIN_THIRD_PARTY and model.third_party
+            elif model.id in english:
+                assert model.language == "en" and model.english_only, model.id
+                assert (model.origin, model.publisher) == (model_catalog.ORIGIN_OFFICIAL, "")
+            else:
+                assert model.language is None and not model.third_party, model.id
+
+    def test_the_bilingual_kotoba_conversion_is_not_offered(self):
+        # Its repository has no tokenizer.json, and faster-whisper would fall
+        # back to openai/whisper-tiny's pre-v3 vocabulary for a v3 model.
+        assert not [m for m in model_catalog.MODELS if "bilingual" in m.repo]
+
+    def test_no_two_models_share_a_file_table(self):
+        # Identifying a folder by its sizes (external_models.identify_quick())
+        # picks the first match: two identical tables would hash the wrong one.
+        tables = [tuple(sorted(m.files)) for m in model_catalog.MODELS]
+        assert len(tables) == len(set(tables))
 
     def test_every_size_class_is_one_of_the_declared_ones(self):
         for model in model_catalog.MODELS:
@@ -631,6 +833,78 @@ class TestAutoSelectModel:
     def test_total_ram_is_the_fallback_when_available_is_unknown(self):
         probe = device.HardwareProbe(total_ram_mb=16384)
         assert device.available_memory_mb(probe, device.DEVICE_CPU) == 16384
+
+
+class TestASingleLanguageModelIsOnlyPickedForItsLanguage:
+    """The automatic choice never lands on a model that cannot hear the
+    user's language: an English or Swedish one installed and picked for a
+    Portuguese note answers with confident text in the wrong language."""
+
+    def test_installed_single_language_models_are_passed_over(self):
+        chosen = device.auto_select_model(
+            _cuda_probe(free_vram_mb=24576), device.DEVICE_CUDA,
+            installed_ids=["kb-whisper-large", "medium.en", "distil-large-v3.5"],
+        )
+        assert model_catalog.get_model(chosen).language is None
+
+    def test_detection_never_downloads_one_either(self):
+        for language in (None, "pt"):
+            chosen = device.auto_select_model(
+                _cuda_probe(free_vram_mb=24576), device.DEVICE_CUDA, installed_ids=(),
+                language=language,
+            )
+            assert chosen == "large-v3"
+
+    @pytest.mark.parametrize("language, installed", [
+        ("en", "medium.en"), ("sv", "kb-whisper-large"), ("ja", "kotoba-whisper-v2.0"),
+    ])
+    def test_the_users_own_language_may_be_picked(self, language, installed):
+        chosen = device.auto_select_model(
+            _cuda_probe(free_vram_mb=24576), device.DEVICE_CUDA,
+            installed_ids=[installed], language=language,
+        )
+        assert chosen == installed
+
+
+class TestResolveWhisperCppDevice:
+    """whisper.cpp's own device rule: its graphics build, not CTranslate2's."""
+
+    def test_the_processor_asked_for_is_the_processor(self):
+        assert device.resolve_whisper_cpp_device(
+            device.PREFERENCE_CPU, _cuda_probe(), True
+        ) == (device.DEVICE_CPU, device.REASON_CPU_REQUESTED)
+
+    def test_no_card_reads_as_resolve_device_says(self):
+        for preference in (device.PREFERENCE_AUTO, device.PREFERENCE_CUDA):
+            assert device.resolve_whisper_cpp_device(preference, _probe(), True) == (
+                device.resolve_device(preference, _probe())
+            )
+
+    @pytest.mark.parametrize("capability", [(12, 0), (12, 1), None, (3, 7)])
+    def test_a_card_the_build_cannot_run_on_is_the_processor_up_front(self, capability):
+        # sm_120 (Blackwell) and an undescribed card: the pinned CUDA build
+        # has no kernels for them, so the run must not even try.
+        assert device.resolve_whisper_cpp_device(
+            device.PREFERENCE_AUTO, _cuda_probe(capability=capability), True
+        ) == (device.DEVICE_CPU, device.REASON_CUDA_BUILD_UNSUPPORTED)
+
+    def test_a_supported_card_without_the_build_is_the_processor_and_says_why(self):
+        assert device.resolve_whisper_cpp_device(
+            device.PREFERENCE_CUDA, _cuda_probe(capability=(8, 6)), False
+        ) == (device.DEVICE_CPU, device.REASON_CUDA_BUILD_MISSING)
+
+    def test_a_supported_card_with_the_build_is_the_card(self):
+        # Whatever CTranslate2's cuBLAS answer: the build carries its own.
+        probe = _cuda_probe(capability=(8, 6), cuda_libraries_ok=False)
+        assert device.resolve_whisper_cpp_device(device.PREFERENCE_AUTO, probe, True) == (
+            device.DEVICE_CUDA, device.REASON_CUDA_SELECTED
+        )
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_both_reasons_are_said_in_every_language(self, locale):
+        table = _load(locale)
+        for reason in (device.REASON_CUDA_BUILD_UNSUPPORTED, device.REASON_CUDA_BUILD_MISSING):
+            assert table[device.device_reason_i18n_key(reason)], (locale, reason)
 
 
 class TestProbeHardware:

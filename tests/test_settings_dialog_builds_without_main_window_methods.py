@@ -29,7 +29,7 @@ _DIALOGS = pathlib.Path(__file__).resolve().parents[1] / "client" / "ui" / "dial
 SOURCE = "\n".join(
     (_DIALOGS / name).read_text(encoding="utf-8")
     for name in ("settings_dialog.py", "transcription_tab.py",
-                 "transcription_external.py")
+                 "transcription_external.py", "transcription_whisper_cpp.py")
 )
 
 

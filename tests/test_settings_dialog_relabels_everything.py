@@ -32,6 +32,7 @@ SETTINGS_DIALOG = (
 
 TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
 TRANSCRIPTION_EXTERNAL = SETTINGS_DIALOG.with_name("transcription_external.py")
+TRANSCRIPTION_WHISPER_CPP = SETTINGS_DIALOG.with_name("transcription_whisper_cpp.py")
 
 LABELLED_CONTROLS = {"StaticText", "CheckBox", "RadioButton", "StaticBox", "Button", "RadioBox"}
 
@@ -64,8 +65,9 @@ def _i18n_keys(node):
 def _dialog_class():
     """SettingsDialog with the methods of the mixins that hold a tab merged in:
     the Local Transcription tab lives in transcription_tab.py (and its models-in-other-folders
-    section in transcription_external.py) but is built,
-    relabelled and applied as part of the dialog."""
+    section in transcription_external.py, its whisper.cpp section in
+    transcription_whisper_cpp.py) but is built, relabelled and applied as part
+    of the dialog."""
     tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
     tab = ast.parse(TRANSCRIPTION_TAB.read_text(encoding="utf-8"))
@@ -77,7 +79,12 @@ def _dialog_class():
         n for n in external.body
         if isinstance(n, ast.ClassDef) and n.name == "ExternalModelsMixin"
     )
-    cls.body = cls.body + mixin.body + external_mixin.body
+    whisper_cpp = ast.parse(TRANSCRIPTION_WHISPER_CPP.read_text(encoding="utf-8"))
+    whisper_cpp_mixin = next(
+        n for n in whisper_cpp.body
+        if isinstance(n, ast.ClassDef) and n.name == "WhisperCppMixin"
+    )
+    cls.body = cls.body + mixin.body + external_mixin.body + whisper_cpp_mixin.body
     return cls
 
 

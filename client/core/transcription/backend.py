@@ -1,8 +1,8 @@
 """What a transcription backend is, and which one a transcription uses.
 
-There is one backend today (faster-whisper) and the issue asks for a second
-later (whisper.cpp), so the shape is drawn now, while there is nothing to
-migrate. It is deliberately the smallest thing that answers the three questions
+There are two backends — faster-whisper, and whisper.cpp since part 9b — and
+the shape was drawn while there was only the first, so nothing had to be
+migrated to add the second. It is deliberately the smallest thing that answers the three questions
 the rest of the app has: what this backend is called, whether it can run on
 *this* machine, and transcribe this file.
 
@@ -32,18 +32,18 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 
-from core.transcription import errors
+from core.transcription import device as device_module, errors
 
 BACKEND_FASTER_WHISPER = "faster_whisper"
-# Not in BACKEND_IDS and not built by _construct() yet: the whisper.cpp core
-# (part 9a) exists without a way to install or choose it, and listing it here
-# before the settings tab can manage its program and models (part 9b) would
-# offer users a backend they could only see fail.
+# whisper-cli.exe, downloaded on demand with its GGML models (part 9). Second:
+# faster-whisper ships with WinZapp and stays what "automatic" means wherever
+# it can run; whisper.cpp is what a user chooses — for the quantized files, or
+# for a machine where faster-whisper cannot run.
 BACKEND_WHISPER_CPP = "whisper_cpp"
 
 # Every backend there is, in preference order. This order is the answer to
 # "which one when the user has not chosen": the first that can actually run.
-BACKEND_IDS = (BACKEND_FASTER_WHISPER,)
+BACKEND_IDS = (BACKEND_FASTER_WHISPER, BACKEND_WHISPER_CPP)
 
 
 @dataclass(frozen=True)
@@ -153,6 +153,16 @@ class TranscriptionBackend:
         """Whether this backend could run here. Never raises."""
         return False
 
+    def resolve_device(self, preference, probe):
+        """(device, reason) for a run of this backend: device.py's decision.
+
+        The rule stays in device.py — this only picks which of its rules
+        applies and hands it what the backend alone can measure (whisper.cpp:
+        whether its graphics-card build is installed). The default is the
+        CTranslate2 answer, `device.resolve_device()`. Never raises.
+        """
+        return device_module.resolve_device(preference, probe)
+
     def load_model(self, request, should_cancel=None) -> None:
         """Make `request`'s model ready, so the caller can announce the wait.
 
@@ -222,13 +232,17 @@ def _construct(backend_id):
 
     The import is inside the function because the concrete backend imports this
     module for its base class and its dataclasses; at module level the two would
-    be a cycle. With one entry an `if` is smaller, and far easier to follow,
-    than the registration hook that would avoid it.
+    be a cycle. With two entries an `if` each is smaller, and far easier to
+    follow, than the registration hook that would avoid it.
     """
     if backend_id == BACKEND_FASTER_WHISPER:
         from core.transcription.faster_whisper_backend import FasterWhisperBackend
 
         return FasterWhisperBackend()
+    if backend_id == BACKEND_WHISPER_CPP:
+        from core.transcription.whisper_cpp_backend import WhisperCppBackend
+
+        return WhisperCppBackend()
     return None
 
 

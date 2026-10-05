@@ -72,7 +72,7 @@ import requests
 from app_paths import global_dir
 from coord_locks import LockTimeout, canonical_dir, models_lock
 from core import tls_trust
-from core.transcription import errors, model_catalog
+from core.transcription import errors, model_catalog, whisper_cpp_catalog
 from core.transcription._fileops import (
     check_cancel as _check_cancel,
     remove_empty_dir as _remove_empty_dir,
@@ -216,6 +216,27 @@ def list_installed(root) -> tuple[str, ...]:
     )
 
 
+def find_entry(model_id):
+    """The entry of either catalogue with this id, or None.
+
+    One models root holds both backends' files — a faster-whisper folder per
+    model and a `ggml-<name>` folder per GGML file, the voice-activity model
+    included — so whatever walks or deletes inside the root has to know both.
+    The ids cannot collide (the `ggml-` prefix; whisper_cpp_catalog pins it).
+    """
+    return model_catalog.get_model(model_id) or whisper_cpp_catalog.get_model(model_id)
+
+
+def all_entries() -> tuple:
+    """Every entry that can have a folder under a models root, in list order:
+    the faster-whisper models, the GGML files, then the voice-activity model."""
+    return (
+        model_catalog.list_models()
+        + whisper_cpp_catalog.list_models()
+        + (whisper_cpp_catalog.VAD_MODEL,)
+    )
+
+
 def list_unknown_dirs(root) -> tuple[str, ...]:
     """Directory names under `root` that no catalogue entry claims.
 
@@ -223,9 +244,10 @@ def list_unknown_dirs(root) -> tuple[str, ...]:
     stops being listed anywhere — and, since remove_model() refuses to delete
     names it cannot look up in the catalogue, it also becomes undeletable from
     inside the app. Up to 3 GB, invisible. This is what lets part 5 show those
-    folders and hand them to the user.
+    folders and hand them to the user. Both catalogues count as known: the
+    GGML files live in the same root (see find_entry()).
     """
-    known = {model.id for model in model_catalog.list_models()}
+    known = {model.id for model in all_entries()}
     try:
         entries = os.listdir(root)
     except OSError:
@@ -449,7 +471,7 @@ def remove_model(root, model_id, should_cancel=None) -> bool:
     to know whether their 3 GB is still there. `should_cancel` is honoured while
     waiting for that lock, so the button's own Cancel works.
     """
-    model = model_catalog.get_model(model_id)
+    model = find_entry(model_id)
     if model is None:
         # An id the catalogue no longer knows is exactly the case where the
         # names to delete are unknown, so nothing here can be removed safely.
@@ -670,7 +692,9 @@ def _move_locked(old_root, new_root, root_created, progress, should_cancel):
     """move_models()'s body, with both roots' locks already held."""
     # Every model with anything of it under the old root, complete or not.
     plans = []
-    for model in model_catalog.list_models():
+    # Both catalogues: the GGML files share the root, and one left behind
+    # would sit where nothing lists it (see find_entry()).
+    for model in all_entries():
         present = _present_files(old_root, model)
         if present:
             plans.append((model, present))
@@ -734,7 +758,7 @@ def _move_each(plans, old_root, new_root, done, total, progress, should_cancel, 
             # A complete copy is already at the destination, so the source one
             # is pure duplication of up to 3 GB — which is what the user asked
             # to be rid of by moving the folder in the first place.
-            remove_model(old_root, model.id)
+            remove_model_files(old_root, model)
             done += model_bytes
             _report(progress, done, total)
             moved.append(model.id)
@@ -752,7 +776,7 @@ def _move_each(plans, old_root, new_root, done, total, progress, should_cancel, 
         done = _copy_model(
             model, present, old_root, new_root, done, total, progress, should_cancel
         )
-        remove_model(old_root, model.id)
+        remove_model_files(old_root, model)
         moved.append(model.id)
         logging.info("[transcription] copied model %s to %s", model.id, new_root)
 

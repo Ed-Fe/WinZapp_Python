@@ -23,15 +23,24 @@ What differs from the faster-whisper catalogue, and why:
   file, and each of these is one, so unlike model_catalog — where only
   model.bin has one — nothing here is checked by size alone.
 
-* **The English-only models (`*.en`) are left out, on purpose.** The
-  faster-whisper catalogue offers none, and nothing around it could use one
-  sensibly: a request's language defaults to "detect it" because WhatsApp
-  carries no language for a voice note (see backend.TranscriptionRequest), and
-  an `.en` model handed a note in Portuguese does not fail — it answers with
-  confident English, which a listener cannot tell from a transcription. Offering
-  them would need a "this model only hears English" rule in the picker and in
-  the run; until a user asks for that trade, the multilingual models cover the
-  same sizes.
+* **The single-language models are offered, and say so.** The English-only
+  ones (`*.en`, distil-large-v3.5) can be the better model of their size for
+  a note in English, and the third-party fine-tunes (KBLab's Swedish,
+  ivrit.ai's Hebrew and Yiddish, Kotoba's Japanese) for theirs; the
+  maintainers asked for all of them (2026-10-05). None can detect a language
+  or hear another one — handed Portuguese, an `.en` model answers with
+  confident English a listener cannot tell from a transcription — so
+  `language` is what the rest of the app keys on: the picker names it, a run
+  forces it and says so, and the automatic choice never picks one unless it
+  is the user's language (preferences.resolve()). Each `base_model` is the
+  faster-whisper id of the same model ("small.en", "kb-whisper-small").
+
+* **The third-party repositories name their files their own way**
+  (`ggml-model.bin`, `ggml-kotoba-whisper-v2.0-q5_0.bin`), and each has its
+  own repository and revision: those entries carry all of it explicitly
+  (`_published()`), read from the Hugging Face API at the pinned revision on
+  2026-10-05 with `?blobs=true` and then file by file. Only the files listed
+  are fetched — the same repositories hold the PyTorch weights too.
 
 * **The CoreML `*-encoder.mlmodelc.zip` files are macOS-only** and not listed.
 
@@ -49,11 +58,16 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from core.transcription import model_catalog
 from core.transcription.model_catalog import (
+    ENGLISH,
+    ORIGIN_OFFICIAL,
+    ORIGIN_THIRD_PARTY,
     SIZE_CLASSES,
     SIZE_LARGE,
     SIZE_MEDIUM,
     SIZE_SMALL,
+    language_rank,
 )
 
 MODELS_REPO = "ggerganov/whisper.cpp"
@@ -72,10 +86,14 @@ QUANT_Q5_0 = "q5_0"
 
 QUANTIZATIONS = (QUANT_F16, QUANT_Q8_0, QUANT_Q5_1, QUANT_Q5_0)
 
+# Bits per weight, which is what the picker names a quantization by.
+QUANTIZATION_BITS = {QUANT_F16: 16, QUANT_Q8_0: 8, QUANT_Q5_1: 5, QUANT_Q5_0: 5}
+
 # The Whisper models in the order the picker presents them, each with the
 # size class model_catalog gives the same model — the shared ids are the same
 # model, and "fast / balanced / accurate" must not change with the backend.
-# large-v1 and large-v2 exist only here; they are large models in every sense.
+# large-v1 and large-v2 are large models in every sense, and kotoba-whisper-v1.0
+# exists only here.
 _BASE_MODELS = (
     ("tiny", SIZE_SMALL),
     ("base", SIZE_SMALL),
@@ -85,10 +103,31 @@ _BASE_MODELS = (
     ("large-v1", SIZE_LARGE),
     ("large-v2", SIZE_LARGE),
     ("large-v3", SIZE_LARGE),
+    # After every multilingual model, so that within a size class they are
+    # listed after them, as in model_catalog.list_models().
+    ("tiny.en", SIZE_SMALL),
+    ("base.en", SIZE_SMALL),
+    ("small.en", SIZE_MEDIUM),
+    ("medium.en", SIZE_MEDIUM),
+    ("distil-large-v3.5", SIZE_LARGE),
+    # The third-party ones, with the size class of the official model each
+    # was trained from.
+    ("kb-whisper-tiny", SIZE_SMALL),
+    ("kb-whisper-base", SIZE_SMALL),
+    ("kb-whisper-small", SIZE_MEDIUM),
+    ("kb-whisper-medium", SIZE_MEDIUM),
+    ("kb-whisper-large", SIZE_LARGE),
+    ("ivrit-large-v3-turbo", SIZE_LARGE),
+    ("ivrit-large-v3", SIZE_LARGE),
+    ("ivrit-yi-large-v3-turbo", SIZE_LARGE),
+    ("ivrit-yi-large-v3", SIZE_LARGE),
+    ("kotoba-whisper-v2.0", SIZE_LARGE),
+    ("kotoba-whisper-v1.0", SIZE_LARGE),
 )
 
 BASE_MODELS = tuple(name for name, _size_class in _BASE_MODELS)
 
+_ENGLISH_ONLY_SUFFIX = ".en"
 _FILE_PREFIX = "ggml-"
 _FILE_SUFFIX = ".bin"
 _QUANT_SUFFIX = re.compile(r"^(?P<base>.+)-(?P<quant>q\d_\d)$")
@@ -117,6 +156,41 @@ class GgmlFile:
     # One of QUANTIZATIONS, or "" for the voice-activity model.
     quantization: str = ""
     size_class: str = ""
+    # The one language the model was trained on, or None for a multilingual
+    # one — as model_catalog.WhisperModel.language, and for the same reasons.
+    language: str | None = None
+    origin: str = ORIGIN_OFFICIAL
+    publisher: str = ""
+
+    @property
+    def english_only(self) -> bool:
+        """Whether this file holds an English-only model (see the docstring)."""
+        return self.language == ENGLISH
+
+    @property
+    def third_party(self) -> bool:
+        return self.origin == ORIGIN_THIRD_PARTY
+
+    @property
+    def bits(self) -> int | None:
+        """How many bits each weight takes in this file, or None for the VAD.
+
+        What the picker says instead of the quantization's own name: "5 bits"
+        is something a listener can weigh, "q5_1" is three characters a screen
+        reader spells out. The two 5-bit layouts are never both published for
+        one model, so the figure alone tells every variant of a model apart.
+        """
+        return QUANTIZATION_BITS.get(self.quantization)
+
+    @property
+    def min_ram_mb(self) -> int:
+        """Memory to plan for on the processor — see `_memory_twin()`."""
+        return _memory_twin(self).min_ram_mb
+
+    @property
+    def min_vram_mb(self) -> int:
+        """Memory to plan for on the graphics card — see `_memory_twin()`."""
+        return _memory_twin(self).min_vram_mb
 
     @property
     def files(self) -> tuple[tuple[str, int], ...]:
@@ -161,6 +235,34 @@ def _ggml(filename, size_bytes, sha256) -> GgmlFile:
         base_model=base,
         quantization=quant,
         size_class=size_class,
+        language=ENGLISH if base.endswith(_ENGLISH_ONLY_SUFFIX) else None,
+    )
+
+
+def _published(model_id, repo, revision, filename, size_bytes, sha256, base_model,
+               quantization, language, publisher="") -> GgmlFile:
+    """An entry of a repository other than ggerganov's, carried explicitly.
+
+    Nothing can be read off these names (`ggml-model.bin` is the file of every
+    KBLab size), so the id — which is also the folder the file goes into — is
+    given, and must keep the `ggml-` prefix and be unique like every other.
+    """
+    assert model_id.startswith(_FILE_PREFIX) and not set(model_id) & {"/", "\\"}, model_id
+    assert filename.endswith(_FILE_SUFFIX) and not set(filename) & {"/", "\\"}, filename
+    assert quantization in QUANTIZATIONS, model_id
+    return GgmlFile(
+        id=model_id,
+        repo=repo,
+        revision=revision,
+        filename=filename,
+        size_bytes=size_bytes,
+        sha256=sha256,
+        base_model=base_model,
+        quantization=quantization,
+        size_class=dict(_BASE_MODELS)[base_model],
+        language=language,
+        origin=ORIGIN_THIRD_PARTY if publisher else ORIGIN_OFFICIAL,
+        publisher=publisher,
     )
 
 
@@ -208,6 +310,127 @@ MODELS = (
           "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"),
     _ggml("ggml-large-v3-turbo-q8_0.bin", 874_188_075,
           "317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1"),
+    _ggml("ggml-tiny.en.bin", 77_704_715,
+          "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f"),
+    _ggml("ggml-tiny.en-q5_1.bin", 32_166_155,
+          "c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b"),
+    _ggml("ggml-tiny.en-q8_0.bin", 43_550_795,
+          "5bc2b3860aa151a4c6e7bb095e1fcce7cf12c7b020ca08dcec0c6d018bb7dd94"),
+    _ggml("ggml-base.en.bin", 147_964_211,
+          "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"),
+    _ggml("ggml-base.en-q5_1.bin", 59_721_011,
+          "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f"),
+    _ggml("ggml-base.en-q8_0.bin", 81_781_811,
+          "a4d4a0768075e13cfd7e19df3ae2dbc4a68d37d36a7dad45e8410c9a34f8c87e"),
+    _ggml("ggml-small.en.bin", 487_614_201,
+          "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d"),
+    _ggml("ggml-small.en-q5_1.bin", 190_098_681,
+          "bfdff4894dcb76bbf647d56263ea2a96645423f1669176f4844a1bf8e478ad30"),
+    _ggml("ggml-small.en-q8_0.bin", 264_477_561,
+          "67a179f608ea6114bd3fdb9060e762b588a3fb3bd00c4387971be4d177958067"),
+    _ggml("ggml-medium.en.bin", 1_533_774_781,
+          "cc37e93478338ec7700281a7ac30a10128929eb8f427dda2e865faa8f6da4356"),
+    _ggml("ggml-medium.en-q5_0.bin", 539_225_533,
+          "76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0"),
+    _ggml("ggml-medium.en-q8_0.bin", 823_382_461,
+          "43fa2cd084de5a04399a896a9a7a786064e221365c01700cea4666005218f11c"),
+    # distil-large-v3.5, official (Hugging Face's distil-whisper team) and
+    # English-only, and then the third-party fine-tunes: see the docstring.
+    _published("ggml-distil-large-v3.5", "distil-whisper/distil-large-v3.5-ggml",
+               "960ecb5c2ecfba3ebb9ebe485c1032ec266cf436",
+               "ggml-model.bin", 1_519_521_155,
+               "ec2498919b498c5f6b00041adb45650124b3cd9f26f545fffa8f5d11c28dcf26",
+               "distil-large-v3.5", QUANT_F16, ENGLISH),
+    _published("ggml-kb-whisper-tiny", "KBLab/kb-whisper-tiny",
+               "76d796af43a50fa34321efa562c9b9887a187463",
+               "ggml-model.bin", 77_691_730,
+               "054187c95948ee0455d428db0c0d6c84d6c6157dab72e86857ced13233118b03",
+               "kb-whisper-tiny", QUANT_F16, "sv", "KBLab"),
+    _published("ggml-kb-whisper-tiny-q5_0", "KBLab/kb-whisper-tiny",
+               "76d796af43a50fa34321efa562c9b9887a187463",
+               "ggml-model-q5_0.bin", 29_875_738,
+               "98d46b7d23e5528d006e8a42e29eb0cb39b44bed94e1329f10f57d1fd15c658b",
+               "kb-whisper-tiny", QUANT_Q5_0, "sv", "KBLab"),
+    _published("ggml-kb-whisper-base", "KBLab/kb-whisper-base",
+               "1499d2d2f0c7ed545bd6f2eec85287cf8d8c8b38",
+               "ggml-model.bin", 147_951_482,
+               "f5e3cdb33e537eedfa2a749b5cae28c4c511873a1b13362f87dffbe07891d3fe",
+               "kb-whisper-base", QUANT_F16, "sv", "KBLab"),
+    _published("ggml-kb-whisper-base-q5_0", "KBLab/kb-whisper-base",
+               "1499d2d2f0c7ed545bd6f2eec85287cf8d8c8b38",
+               "ggml-model-q5_0.bin", 55_295_450,
+               "aead29b356bca8840e72a8dc2286e2d69e6702639751a1e60cb3c8eacefec546",
+               "kb-whisper-base", QUANT_Q5_0, "sv", "KBLab"),
+    _published("ggml-kb-whisper-small", "KBLab/kb-whisper-small",
+               "3564d61a42fc210ceaa55a22a96dd64478959c78",
+               "ggml-model.bin", 487_601_984,
+               "de6911330cbdc131362f7a955682b65c8a5a2394caba73e7ea821a9822efb8c6",
+               "kb-whisper-small", QUANT_F16, "sv", "KBLab"),
+    _published("ggml-kb-whisper-small-q5_0", "KBLab/kb-whisper-small",
+               "3564d61a42fc210ceaa55a22a96dd64478959c78",
+               "ggml-model-q5_0.bin", 175_209_680,
+               "6768836a51abc902e420c613153e6d418c90ea2774e913274d02ab23170225b7",
+               "kb-whisper-small", QUANT_Q5_0, "sv", "KBLab"),
+    _published("ggml-kb-whisper-medium", "KBLab/kb-whisper-medium",
+               "0abe10b9d7f75d0902656e5c06c5c4d549604dc5",
+               "ggml-model.bin", 1_533_763_076,
+               "1b7842bc1c3f79fb3bf043a0a3590961d625a49ef3ccbdceb00e738c5dd8b015",
+               "kb-whisper-medium", QUANT_F16, "sv", "KBLab"),
+    _published("ggml-kb-whisper-medium-q5_0", "KBLab/kb-whisper-medium",
+               "0abe10b9d7f75d0902656e5c06c5c4d549604dc5",
+               "ggml-model-q5_0.bin", 539_212_484,
+               "7f8762e0ade9e0073674c0d5acae942a0b1ea98add9baa008ee89c94eaba43d0",
+               "kb-whisper-medium", QUANT_Q5_0, "sv", "KBLab"),
+    _published("ggml-kb-whisper-large", "KBLab/kb-whisper-large",
+               "d5d5984b4d8f7c4847a8ea203f1976285fb28300",
+               "ggml-model.bin", 3_095_033_483,
+               "b66f2dda369a88f6c03fe37326d7cc37aa216f6f34e6fc1be686e497ba9c2f39",
+               "kb-whisper-large", QUANT_F16, "sv", "KBLab"),
+    _published("ggml-kb-whisper-large-q5_0", "KBLab/kb-whisper-large",
+               "d5d5984b4d8f7c4847a8ea203f1976285fb28300",
+               "ggml-model-q5_0.bin", 1_081_140_203,
+               "6d2863812d7410322bb7d8647a5c7260761300fa946714c9ed66d22bb30bcb19",
+               "kb-whisper-large", QUANT_Q5_0, "sv", "KBLab"),
+    _published("ggml-ivrit-large-v3", "ivrit-ai/whisper-large-v3-ggml",
+               "9ead614052ce13dfe5f8d0f6cd3e36787a9cf60c",
+               "ggml-model.bin", 3_095_033_483,
+               "09e66ec67b2e00c6933afab6684cbf78fe023e8ad153c1848f62000e4335a07f",
+               "ivrit-large-v3", QUANT_F16, "he", "ivrit.ai"),
+    _published("ggml-ivrit-large-v3-turbo", "ivrit-ai/whisper-large-v3-turbo-ggml",
+               "2130c78e4a9cb4914cc4df91a1c3031407789705",
+               "ggml-model.bin", 1_624_555_275,
+               "c8090411113357097bfafc2b8e228ec1639fa7f5fe4ecb5d054ac0ccef8641b1",
+               "ivrit-large-v3-turbo", QUANT_F16, "he", "ivrit.ai"),
+    _published("ggml-ivrit-yi-large-v3", "ivrit-ai/yi-whisper-large-v3-ggml",
+               "296eb0be71d79ec35da5b0f69051ae5cd071dc0e",
+               "ggml-model.bin", 3_095_033_483,
+               "4081c7105d96dfe989f65c0c176dbafa26fc557eef80acf2d1bf7cc26d1f7350",
+               "ivrit-yi-large-v3", QUANT_F16, "yi", "ivrit.ai"),
+    _published("ggml-ivrit-yi-large-v3-turbo", "ivrit-ai/yi-whisper-large-v3-turbo-ggml",
+               "fc7dfcd52abe9f2b1fe86a2ab89269b0e5c8a908",
+               "ggml-model.bin", 1_624_555_275,
+               "a2094962a33f48ce1fc59ab6f34ca9bb4408443bf8a86361b6b1775aaa4bc1f3",
+               "ivrit-yi-large-v3-turbo", QUANT_F16, "yi", "ivrit.ai"),
+    _published("ggml-kotoba-whisper-v2.0", "kotoba-tech/kotoba-whisper-v2.0-ggml",
+               "e3a0cf6a62b95911703cfb97d819292e058f12c3",
+               "ggml-kotoba-whisper-v2.0.bin", 1_519_521_155,
+               "eff70a8a236e731abba774ba71e1f6d0fce53302137208c32207e694e0bf4546",
+               "kotoba-whisper-v2.0", QUANT_F16, "ja", "Kotoba Technologies"),
+    _published("ggml-kotoba-whisper-v2.0-q5_0", "kotoba-tech/kotoba-whisper-v2.0-ggml",
+               "e3a0cf6a62b95911703cfb97d819292e058f12c3",
+               "ggml-kotoba-whisper-v2.0-q5_0.bin", 537_819_875,
+               "4a3b92192b5d3578ff854a5876213e2e27af0c2d357492c2d14271e82c303658",
+               "kotoba-whisper-v2.0", QUANT_Q5_0, "ja", "Kotoba Technologies"),
+    _published("ggml-kotoba-whisper-v1.0", "kotoba-tech/kotoba-whisper-v1.0-ggml",
+               "bc0fb8704ab1108e06e3eaedeca1bf458ddbcd11",
+               "ggml-kotoba-whisper-v1.0.bin", 1_519_521_155,
+               "78225aa1c745e03d033937a52d488b72b754cb1acc8531193a9f2a3a43f5fb7f",
+               "kotoba-whisper-v1.0", QUANT_F16, "ja", "Kotoba Technologies"),
+    _published("ggml-kotoba-whisper-v1.0-q5_0", "kotoba-tech/kotoba-whisper-v1.0-ggml",
+               "bc0fb8704ab1108e06e3eaedeca1bf458ddbcd11",
+               "ggml-kotoba-whisper-v1.0-q5_0.bin", 537_819_875,
+               "8561df79ce6e2492cd532650463ac4045ad01e5134f9b88014a8ffee85ab9f24",
+               "kotoba-whisper-v1.0", QUANT_Q5_0, "ja", "Kotoba Technologies"),
 )
 
 # The voice-activity model whisper-cli's `--vad` loads. Two are published at
@@ -227,16 +450,40 @@ VAD_MODEL = GgmlFile(
 )
 
 
-def _order(model: GgmlFile) -> tuple[int, int, int]:
+def _memory_twin(model):
+    """The faster-whisper entry whose memory minimums this file plans with.
+
+    The same model's: `base_model` is its model_catalog id, and every base
+    model here has one. Not a measurement of whisper.cpp — none was made — but
+    an upper bound in the safe direction: those minimums cover the model at
+    the precision it is loaded in plus its working memory, and every GGML file
+    of a model is at most as large as its f16 one, so a quantized file is
+    planned with room to spare, never too little. large-v3's figures stand in
+    should a base model ever lack its twin.
+    """
+    return (model_catalog.get_model(model.base_model)
+            or model_catalog.get_model(_MEMORY_STAND_INS.get(model.base_model))
+            or model_catalog.get_model("large-v3"))
+
+
+#: Base models with no faster-whisper twin, and the one whose memory they
+#: share: kotoba-whisper-v1.0 is v2.0's architecture (distil-large-v3's).
+_MEMORY_STAND_INS = {"kotoba-whisper-v1.0": "kotoba-whisper-v2.0"}
+
+
+def _order(model: GgmlFile) -> tuple[int, int, int, int]:
     return (
         SIZE_CLASSES.index(model.size_class),
+        language_rank(model),
         BASE_MODELS.index(model.base_model),
         QUANTIZATIONS.index(model.quantization),
     )
 
 
 def list_models() -> tuple[GgmlFile, ...]:
-    """Every model file, by size class, then base model, then fidelity."""
+    """Every model file, by size class, then language (multilingual first,
+    third-party last, as model_catalog.list_models()), then base model, then
+    fidelity."""
     return tuple(sorted(MODELS, key=_order))
 
 

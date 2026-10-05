@@ -29,12 +29,22 @@ from core.transcription import (
     errors,
     model_catalog,
     model_store,
+    preferences,
     whisper_cpp_catalog,
     whisper_cpp_store,
 )
 
 _NETWORK_OPT_IN_ENV = "WINZAPP_RUN_NETWORK_TESTS"
 _ALL_FILES = whisper_cpp_catalog.MODELS + (whisper_cpp_catalog.VAD_MODEL,)
+#: The entries of ggerganov's repository, named `ggml-<model>[-<quant>].bin`.
+_GGERGANOV = tuple(
+    entry for entry in whisper_cpp_catalog.MODELS
+    if entry.repo == whisper_cpp_catalog.MODELS_REPO
+)
+#: The rest: other publishers' repositories, each file name carried as is.
+_PUBLISHED_ELSEWHERE = tuple(
+    entry for entry in whisper_cpp_catalog.MODELS if entry not in _GGERGANOV
+)
 
 
 # ── The catalogue ────────────────────────────────────────────────────────────
@@ -50,9 +60,14 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
             assert re.fullmatch(r"[0-9a-f]{40}", entry.revision), entry.id
 
     def test_file_names_ids_and_digests_are_unique(self):
-        for field in ("filename", "id", "sha256"):
+        for field in ("id", "sha256"):
             values = [getattr(entry, field) for entry in _ALL_FILES]
             assert len(values) == len(set(values)), field
+        # A file name is unique within its repository only: every KBLab size
+        # publishes a `ggml-model.bin`. The id, which names the folder, is
+        # what keeps them apart on disk.
+        locations = [(entry.repo, entry.filename) for entry in _ALL_FILES]
+        assert len(locations) == len(set(locations))
 
     def test_ids_never_collide_with_a_faster_whisper_id(self):
         # Both catalogues name folders under a models root; a shared name
@@ -67,7 +82,7 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
             assert entry.download_bytes == entry.disk_bytes == entry.size_bytes
 
     def test_the_label_agrees_with_the_file_name(self):
-        for entry in whisper_cpp_catalog.MODELS:
+        for entry in _GGERGANOV:
             if entry.quantization == whisper_cpp_catalog.QUANT_F16:
                 expected = f"ggml-{entry.base_model}.bin"
             else:
@@ -89,15 +104,82 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
             "large-v1": ("f16",),
             "large-v2": ("f16", "q8_0", "q5_0"),
             "large-v3": ("f16", "q5_0"),
+            "tiny.en": ("f16", "q8_0", "q5_1"),
+            "base.en": ("f16", "q8_0", "q5_1"),
+            "small.en": ("f16", "q8_0", "q5_1"),
+            "medium.en": ("f16", "q8_0", "q5_0"),
+            "distil-large-v3.5": ("f16",),
+            "kb-whisper-tiny": ("f16", "q5_0"),
+            "kb-whisper-base": ("f16", "q5_0"),
+            "kb-whisper-small": ("f16", "q5_0"),
+            "kb-whisper-medium": ("f16", "q5_0"),
+            "kb-whisper-large": ("f16", "q5_0"),
+            "ivrit-large-v3-turbo": ("f16",),
+            "ivrit-large-v3": ("f16",),
+            "ivrit-yi-large-v3-turbo": ("f16",),
+            "ivrit-yi-large-v3": ("f16",),
+            "kotoba-whisper-v2.0": ("f16", "q5_0"),
+            "kotoba-whisper-v1.0": ("f16", "q5_0"),
         }
 
-    def test_no_english_only_model_is_offered(self):
-        # A request detects the language by default; an .en model answers a
-        # Portuguese note with confident English instead of failing.
-        assert not [entry.id for entry in _ALL_FILES if ".en" in entry.filename]
+    def test_the_english_only_models_are_offered_and_say_so(self):
+        # Offered since 2026-10-05, and marked: a run forces "en" for them
+        # instead of letting a Portuguese note come back as confident English.
+        english = [entry for entry in _GGERGANOV if ".en" in entry.filename]
+        assert len(english) == 12
+        for entry in english:
+            assert entry.english_only and entry.language == "en", entry.id
+            assert not entry.third_party
+        multilingual = [entry for entry in _GGERGANOV if ".en" not in entry.filename]
+        assert all(entry.language is None for entry in multilingual)
+
+    def test_every_third_party_entry_says_its_language_and_its_publisher(self):
+        third_party = [entry for entry in whisper_cpp_catalog.MODELS if entry.third_party]
+        assert {entry.publisher for entry in third_party} == {
+            "KBLab", "ivrit.ai", "Kotoba Technologies",
+        }
+        for entry in third_party:
+            assert entry.origin == model_catalog.ORIGIN_THIRD_PARTY
+            assert entry.language in preferences.LANGUAGE_NAMES, entry.id
+        assert {entry.language for entry in third_party} == {"sv", "he", "yi", "ja"}
+        # Every official single-language model is an English one.
+        for entry in whisper_cpp_catalog.MODELS:
+            if not entry.third_party:
+                assert entry.publisher == ""
+                assert entry.language in (None, "en"), entry.id
+
+    def test_the_other_repositories_are_pinned_file_by_file(self):
+        pinned = {
+            (entry.repo, entry.revision) for entry in _PUBLISHED_ELSEWHERE
+        }
+        assert pinned == {
+            ("distil-whisper/distil-large-v3.5-ggml",
+             "960ecb5c2ecfba3ebb9ebe485c1032ec266cf436"),
+            ("KBLab/kb-whisper-tiny", "76d796af43a50fa34321efa562c9b9887a187463"),
+            ("KBLab/kb-whisper-base", "1499d2d2f0c7ed545bd6f2eec85287cf8d8c8b38"),
+            ("KBLab/kb-whisper-small", "3564d61a42fc210ceaa55a22a96dd64478959c78"),
+            ("KBLab/kb-whisper-medium", "0abe10b9d7f75d0902656e5c06c5c4d549604dc5"),
+            ("KBLab/kb-whisper-large", "d5d5984b4d8f7c4847a8ea203f1976285fb28300"),
+            ("ivrit-ai/whisper-large-v3-ggml", "9ead614052ce13dfe5f8d0f6cd3e36787a9cf60c"),
+            ("ivrit-ai/whisper-large-v3-turbo-ggml",
+             "2130c78e4a9cb4914cc4df91a1c3031407789705"),
+            ("ivrit-ai/yi-whisper-large-v3-ggml", "296eb0be71d79ec35da5b0f69051ae5cd071dc0e"),
+            ("ivrit-ai/yi-whisper-large-v3-turbo-ggml",
+             "fc7dfcd52abe9f2b1fe86a2ab89269b0e5c8a908"),
+            ("kotoba-tech/kotoba-whisper-v2.0-ggml", "e3a0cf6a62b95911703cfb97d819292e058f12c3"),
+            ("kotoba-tech/kotoba-whisper-v1.0-ggml", "bc0fb8704ab1108e06e3eaedeca1bf458ddbcd11"),
+        }
+        # Their own names, carried explicitly — and only the GGML files: the
+        # same repositories hold the PyTorch weights too.
+        for entry in _PUBLISHED_ELSEWHERE:
+            assert entry.filename.startswith("ggml-") and entry.filename.endswith(".bin")
+            assert entry.id.startswith("ggml-"), entry.id
+        kb = whisper_cpp_catalog.variant("kb-whisper-small", "q5_0")
+        assert (kb.filename, kb.size_bytes) == ("ggml-model-q5_0.bin", 175_209_680)
+        assert kb.sha256 == "6768836a51abc902e420c613153e6d418c90ea2774e913274d02ab23170225b7"
 
     def test_pinned_to_the_revisions_that_were_measured(self):
-        for entry in whisper_cpp_catalog.MODELS:
+        for entry in _GGERGANOV:
             assert entry.repo == "ggerganov/whisper.cpp"
             assert entry.revision == "5359861c739e955e79d9a303bcbc70fb988958b1"
         vad = whisper_cpp_catalog.VAD_MODEL
@@ -113,8 +195,22 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
                 assert entry.size_class == model.size_class, entry.id
 
     def test_every_faster_whisper_model_has_a_ggml_counterpart(self):
+        # Systran's distilled conversions have none published: their GGML
+        # files are not in ggerganov's repository.
+        without = {"distil-small.en", "distil-medium.en", "distil-large-v3"}
         for model in model_catalog.MODELS:
+            if model.id in without:
+                continue
             assert whisper_cpp_catalog.variant(model.id, "f16") is not None, model.id
+
+    def test_a_ggml_file_has_the_language_and_origin_of_its_faster_whisper_twin(self):
+        for entry in whisper_cpp_catalog.MODELS:
+            twin = model_catalog.get_model(entry.base_model)
+            if twin is None:
+                continue
+            assert (entry.language, entry.origin, entry.publisher) == (
+                twin.language, twin.origin, twin.publisher
+            ), entry.id
 
     def test_each_file_digests_itself_and_nothing_else(self):
         entry = whisper_cpp_catalog.get_model("ggml-small-q5_1")
@@ -335,10 +431,15 @@ class TestGgmlFilesGoThroughTheModelStore:
         # Not a transcription model: never offered in the installed list.
         assert whisper_cpp_store.list_installed(root) == ()
 
-    def test_the_default_root_is_global_and_beside_the_faster_whisper_one(self):
-        default = whisper_cpp_store.default_models_dir()
-        assert os.path.dirname(default) == os.path.dirname(model_store.default_models_dir())
-        assert default != model_store.default_models_dir()
+    def test_a_ggml_file_lives_in_the_models_folder_beside_the_faster_whisper_ones(
+            self, tmp_path):
+        # One folder for both backends (whisper_cpp_store's docstring): no
+        # second root of its own, so moving the models folder moves these too.
+        assert not hasattr(whisper_cpp_store, "default_models_dir")
+        entry = whisper_cpp_catalog.get_model("ggml-kb-whisper-small-q5_0")
+        assert whisper_cpp_store.model_path(str(tmp_path), entry) == os.path.join(
+            model_store.model_dir(str(tmp_path), entry.id), "ggml-model-q5_0.bin"
+        )
 
 
 # ── The tests that reach Hugging Face ────────────────────────────────────────
@@ -379,12 +480,14 @@ class TestTheGgmlUrlsAreLive:
 
     @pytest.mark.parametrize(
         "entry",
-        [whisper_cpp_catalog.VAD_MODEL, whisper_cpp_catalog.get_model("ggml-tiny-q5_1")],
-        ids=["vad", "tiny-q5_1"],
+        [whisper_cpp_catalog.VAD_MODEL, whisper_cpp_catalog.get_model("ggml-tiny-q5_1"),
+         whisper_cpp_catalog.get_model("ggml-kb-whisper-tiny-q5_0")],
+        ids=["vad", "tiny-q5_1", "kb-whisper-tiny-q5_0"],
     )
     def test_the_bytes_hash_to_the_catalogued_digest(self, entry):
-        # The two smallest files (0.9 MB and 32 MB), downloaded whole: the
-        # digests were read off the API, and this is where they are proved.
+        # The smallest files (0.9 MB, 32 MB, and 30 MB for the third-party
+        # repositories), downloaded whole: the digests were read off the API,
+        # and this is where they are proved.
         digest = hashlib.sha256()
         with tls_trust.create_session() as session:
             response = session.get(

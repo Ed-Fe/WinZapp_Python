@@ -180,6 +180,47 @@ class TestDeviceAnnouncement:
         notes = narration.device_announcement(device.DEVICE_CPU, reason, "small")
         assert len(notes) == 1
 
+    def test_the_backend_is_named_when_it_is_given(self):
+        notes = narration.device_announcement(
+            device.DEVICE_CUDA, device.REASON_CUDA_SELECTED, "small, 5 bits",
+            backend_name="whisper.cpp",
+        )
+        assert _keys(notes) == ["transcription_running_with_backend_on_cuda"]
+        assert notes[0].values == {"model": "small, 5 bits", "backend": "whisper.cpp"}
+
+    @pytest.mark.parametrize("reason", [device.REASON_CUDA_BUILD_UNSUPPORTED,
+                                        device.REASON_CUDA_BUILD_MISSING])
+    def test_a_card_whisper_cpp_does_not_use_is_explained(self, reason):
+        # Under "automatic" too: the user has a card and it is idle.
+        notes = narration.device_announcement(
+            device.DEVICE_CPU, reason, "small", backend_name="whisper.cpp"
+        )
+        assert _keys(notes) == ["transcription_running_with_backend_on_cpu",
+                                device.device_reason_i18n_key(reason)]
+
+    def test_a_single_language_model_says_it_runs_in_its_language(self):
+        notes = narration.device_announcement(
+            device.DEVICE_CPU, None, "small", forced_language="sv"
+        )
+        assert _keys(notes)[-1] == narration.LANGUAGE_FORCED_I18N_KEY
+        # The endonym, as every other sentence naming a language says it.
+        assert notes[-1].values == {"language": preferences.language_name("sv")}
+
+    def test_a_language_it_replaced_is_named_too(self):
+        notes = narration.device_announcement(
+            device.DEVICE_CPU, None, "small.en", forced_language="en",
+            overridden_language="pt",
+        )
+        assert _keys(notes)[-1] == narration.LANGUAGE_OVERRIDDEN_I18N_KEY
+        assert notes[-1].values == {"language": preferences.language_name("en"),
+                                    "chosen": preferences.language_name("pt")}
+
+    def test_nothing_forced_is_nothing_said(self):
+        notes = narration.device_announcement(
+            device.DEVICE_CPU, None, "small", overridden_language="pt"
+        )
+        assert _keys(notes) == ["transcription_running_on_cpu"]
+
     def test_a_missing_model_id_does_not_break_the_sentence(self):
         """`{model}` is formatted whatever happens; an empty one reads badly,
         a KeyError reads not at all."""
@@ -498,6 +539,19 @@ class TestEveryKeyIsTranslated:
         table = _translations(locale)
         for key in narration.DEVICE_I18N_KEYS.values():
             assert re.findall(r"\{(\w+)\}", table[key]) == ["model"], f"{locale}: {key}"
+
+    @pytest.mark.parametrize("locale", _locales())
+    def test_the_sentences_naming_the_backend_take_what_the_code_passes(self, locale):
+        table = _translations(locale)
+        for key in narration.DEVICE_WITH_BACKEND_I18N_KEYS.values():
+            assert sorted(re.findall(r"\{(\w+)\}", table[key])) == ["backend", "model"], (
+                f"{locale}: {key}")
+        # The language may be said twice ("only understands X, so ... in X").
+        assert set(re.findall(r"\{(\w+)\}", table[narration.LANGUAGE_FORCED_I18N_KEY])) == {
+            "language"}, locale
+        assert set(re.findall(
+            r"\{(\w+)\}", table[narration.LANGUAGE_OVERRIDDEN_I18N_KEY])) == {
+            "chosen", "language"}, locale
 
     @pytest.mark.parametrize("locale", _locales())
     def test_the_language_note_takes_the_language_the_code_passes(self, locale):

@@ -34,7 +34,9 @@ from core.transcription import (
     backend as backend_module,
     device,
     errors,
+    external_ggml,
     external_models,
+    external_view,
     management,
 )
 
@@ -54,6 +56,7 @@ REFUSED_UNREACHABLE_I18N_KEY = "transcription_external_refused_unreachable"
 REFUSED_NOT_A_MODEL_I18N_KEY = "transcription_external_refused_not_a_model"
 REFUSED_BAD_CONFIG_I18N_KEY = "transcription_external_refused_bad_config"
 REFUSED_INSIDE_ROOT_I18N_KEY = "transcription_external_refused_inside_root"
+REFUSED_NOT_GGML_I18N_KEY = "transcription_external_refused_not_ggml"
 READ_FAILED_I18N_KEY = "transcription_external_read_failed"
 LOAD_FAILED_I18N_KEY = "transcription_external_load_failed"
 NOT_ADDED_I18N_KEY = "transcription_external_not_added"
@@ -69,6 +72,7 @@ ANNOUNCEMENT_I18N_KEYS = (
     REFUSED_NOT_A_MODEL_I18N_KEY,
     REFUSED_BAD_CONFIG_I18N_KEY,
     REFUSED_INSIDE_ROOT_I18N_KEY,
+    REFUSED_NOT_GGML_I18N_KEY,
     READ_FAILED_I18N_KEY,
     LOAD_FAILED_I18N_KEY,
     NOT_ADDED_I18N_KEY,
@@ -94,6 +98,8 @@ _REFUSAL_I18N_KEYS = {
     external_models.REFUSED_FILES_MISSING: REFUSED_NOT_A_MODEL_I18N_KEY,
     external_models.REFUSED_BAD_CONFIG: REFUSED_BAD_CONFIG_I18N_KEY,
     external_models.REFUSED_INSIDE_MODELS_ROOT: REFUSED_INSIDE_ROOT_I18N_KEY,
+    # A file (whisper.cpp): one that is there and is empty cannot be a model.
+    external_ggml.REFUSED_NOT_GGML: REFUSED_NOT_GGML_I18N_KEY,
 }
 
 
@@ -101,12 +107,16 @@ class ExternalModelJob:
     """One check of one folder, on its own thread. Started once, never reused.
 
     `result` is the `external_models.AcceptOutcome`; `error` a
-    `TranscriptionError`. `device_preference` and `backend_id` only matter to
-    KIND_CUSTOM, whose trial load has to run on the device the model will run
-    on (see external_models.trial_load()) — decided here, on the worker, the
-    way TranscriptionJob decides them. `other_roots` is a models folder that
-    is chosen in the settings dialog and not applied yet, refused like the
-    one in force (see external_models.accept_catalogue_folder()).
+    `TranscriptionError`. `backend_id` is which kind of model `path` is for:
+    whisper.cpp means a GGML *file*, checked by external_ggml; anything else a
+    faster-whisper *folder*, as before part 9b. `device_preference` only
+    matters to a faster-whisper KIND_CUSTOM, whose trial load has to run on
+    the device the model will run on (see external_models.trial_load()) —
+    decided here, on the worker, the way TranscriptionJob decides them;
+    whisper.cpp's trial load always runs on its processor build.
+    `other_roots` is a models folder that is chosen in the settings dialog and
+    not applied yet, refused like the one in force (see
+    external_models.accept_catalogue_folder()).
     """
 
     def __init__(self, kind, app_settings, path, models_root,
@@ -150,7 +160,10 @@ class ExternalModelJob:
 
     def announcement(self, result, error):
         """`announcement()` for this job's own kind and folder."""
-        return announcement(self.kind, self.path, result, error)
+        return announcement(
+            self.kind, self.path, result, error,
+            is_file=self._backend_id == backend_module.BACKEND_WHISPER_CPP,
+        )
 
     # ── Worker ───────────────────────────────────────────────────────────────
 
@@ -190,15 +203,38 @@ class ExternalModelJob:
     def _perform(self):
         # A cancel that arrived before the thread ran touches nothing.
         self._check_cancel()
+        if self._backend_id == backend_module.BACKEND_WHISPER_CPP:
+            if self.kind == KIND_VERIFY:
+                return external_ggml.accept_ggml_file(
+                    self._app_settings, self.path, self._models_root,
+                    progress=self._report_progress, should_cancel=self._should_cancel,
+                    other_roots=self._other_roots,
+                )
+            return external_ggml.accept_custom_ggml_file(
+                self._app_settings, self.path, self._models_root,
+                # get_backend(), not resolve_backend(): falling through to
+                # faster-whisper would hand it a file it cannot read. Without
+                # the program the trial says WHISPER_CPP_NOT_INSTALLED, which
+                # is the sentence the user needs.
+                backend_module.get_backend(self._backend_id),
+                should_cancel=self._should_cancel, other_roots=self._other_roots,
+            )
         if self.kind == KIND_VERIFY:
             return external_models.accept_catalogue_folder(
                 self._app_settings, self.path, self._models_root,
                 progress=self._report_progress, should_cancel=self._should_cancel,
                 other_roots=self._other_roots,
             )
-        # The decisions TranscriptionJob._decode() makes before it loads: the
-        # backend, then the device and compute type against a fresh probe.
-        backend = backend_module.resolve_backend(self._backend_id)
+        # A folder is faster-whisper's whatever backend is selected: falling
+        # through to another (resolve_backend()) would hand whisper-cli a
+        # folder it cannot read and blame the folder. Then the decisions
+        # TranscriptionJob._decode() makes before it loads: the device and
+        # compute type against a fresh probe.
+        backend = backend_module.get_backend(backend_module.BACKEND_FASTER_WHISPER)
+        if backend is None or not backend.is_available():
+            raise errors.TranscriptionError(
+                errors.BACKEND_MISSING, "faster-whisper is not available for the trial load"
+            )
         probe = device.probe_hardware()
         device_id, _reason = device.resolve_device(self._device_preference, probe)
         compute_type = device.select_compute_type(device_id, probe)
@@ -249,7 +285,8 @@ class ExternalModelJob:
 # ── Outcome to sentence ──────────────────────────────────────────────────────
 
 
-def announcement(kind, path, result=None, error=None) -> management.Announcement:
+def announcement(kind, path, result=None, error=None,
+                 is_file=False) -> management.Announcement:
     """What to tell the user once a check of `path` has finished.
 
     `result` is the AcceptOutcome and `error` the TranscriptionError of the
@@ -257,8 +294,17 @@ def announcement(kind, path, result=None, error=None) -> management.Announcement
     a folder no catalogue entry claims, and one with a catalogue model's sizes
     and other weights — come back as NOT_ADDED: the tab asks the question that
     follows them (use it as a custom model?) before saying anything, and this
-    is what it says when the answer is no.
+    is what it says when the answer is no. `is_file` picks the sentences that
+    say "file" (a whisper.cpp model) over the ones that say "folder".
     """
+    said = _announcement(kind, path, result, error)
+    return management.Announcement(
+        external_view.for_reference(said.i18n_key, is_file), said.outcome,
+        said.values,
+    )
+
+
+def _announcement(kind, path, result, error) -> management.Announcement:
     name = external_models.folder_name(path)
     if error is not None:
         return _error_announcement(kind, name, error)

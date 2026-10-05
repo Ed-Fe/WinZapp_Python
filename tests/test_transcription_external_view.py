@@ -22,10 +22,12 @@ reader would otherwise find out the hard way:
 
 import json
 import pathlib
+import re
 
 import pytest
 
 from coord_locks import canonical_dir
+from core.transcription import backend as backend_module
 from core.transcription import external_models, external_view, model_catalog, model_store
 from tests.test_transcription_external_models import (  # noqa: F401  (fixtures)
     _hf_snapshot,
@@ -182,6 +184,61 @@ class TestWhatCountsAsAvailable:
         ]
 
 
+class TestAWhisperCppFile:
+    """A whisper.cpp model is one file: its sentences say "file", and the
+    picker of one backend never offers the other's custom models."""
+
+    @staticmethod
+    def _file_reference(reference_id, model_id=None):
+        return external_models.ExternalReference(
+            reference_id, "/disk/models/fine-tune.bin", model_id, True,
+            weights_mark=(1, 2), backend=backend_module.BACKEND_WHISPER_CPP,
+        )
+
+    def test_a_folders_sentence_has_a_files_sentence_beside_it(self):
+        for key in external_view.FILE_I18N_KEYS:
+            assert external_view.for_reference(key, True) == key + "_file"
+            assert external_view.for_reference(key, False) == key
+
+    def test_a_sentence_that_names_neither_is_the_same_for_both(self):
+        key = external_view.USE_DONE_I18N_KEY
+        assert external_view.for_reference(key, True) == key
+
+    def test_custom_models_are_listed_under_their_own_backend_only(self):
+        references = (_reference("folder"), self._file_reference("file"))
+        choices = {
+            backend: [value for value, _line in
+                      external_view.custom_choices(_I18n(), references, backend)]
+            for backend in (backend_module.BACKEND_FASTER_WHISPER,
+                            backend_module.BACKEND_WHISPER_CPP, None)
+        }
+        assert choices[backend_module.BACKEND_FASTER_WHISPER] == ["external:folder"]
+        assert choices[backend_module.BACKEND_WHISPER_CPP] == ["external:file"]
+        assert choices[None] == ["external:folder", "external:file"]
+
+    def test_a_ready_ggml_file_is_usable_in_the_catalogues_order(self):
+        references = (self._file_reference("r1", model_id="ggml-small-q5_1"),)
+        usable = external_view.usable_ids(
+            ("small",), references, {"r1": external_models.REF_READY})
+        assert usable == ("small", "ggml-small-q5_1")
+
+    @pytest.mark.parametrize("state", [external_models.REF_FOLDER_MISSING,
+                                       external_models.REF_CHANGED])
+    def test_a_file_row_says_file_not_found_or_changed(self, state):
+        row = external_view.row_label(_I18n(), self._file_reference("r1"), state)
+        assert f"state={external_view.STATE_I18N_KEYS[state]}_file" in row
+        folder_row = external_view.row_label(_I18n(), _reference("r1"), state)
+        assert f"state={external_view.STATE_I18N_KEYS[state]}" in folder_row
+        assert "_file" not in folder_row
+
+    def test_the_question_about_an_unknown_file_says_file(self):
+        text = external_view.custom_question(
+            _I18n(), "/disk/fine-tune.bin", external_models.ACCEPT_NOT_IDENTIFIED,
+            None, is_file=True)
+        assert text.startswith(external_view.NOT_IDENTIFIED_QUESTION_I18N_KEY + "_file")
+        assert "name=fine-tune.bin" in text
+
+
 class TestTheQuestionAboutAFolderTheCatalogueDoesNotVouchFor:
     def test_unknown_says_so(self):
         text = external_view.custom_question(
@@ -282,6 +339,11 @@ def test_every_string_exists_in_every_locale_and_formats(locale):
         assert "{name}" in table[key], f"{locale}: {key} lost {{name}}"
     assert "{model}" in table[external_view.DIGEST_MISMATCH_QUESTION_I18N_KEY]
     assert "{folders}" in table["transcription_external_root_contains"]
+    # A file's sentence is its folder sentence with the noun changed: the same
+    # placeholders, or the file's name is lost from the one about a file.
+    for key, file_key in external_view.FILE_I18N_KEYS.items():
+        assert (set(re.findall(r"\{(\w+)\}", table[file_key]))
+                == set(re.findall(r"\{(\w+)\}", table[key]))), f"{locale}: {file_key}"
 
 
 @pytest.mark.parametrize("locale", LOCALES)

@@ -129,7 +129,7 @@ the work is `external_job.py`, what it says is `external_view.py`):
 * A model setting of `external:<id>` whose reference was *forgotten* is a
   retired model: `preferences.resolve()` / `sanitize_section()` replace it with
   the automatic choice and the tab says so, like any other substitution (they
-  are given `custom_model_ids`, `custom_reference_ids()`).
+  are given `custom_model_ids`, `custom_reference_backends()`).
 * "Check again" is `accept_catalogue_folder()` / `accept_custom_folder()`
   called again on the reference's folder, from the tab's button of that name.
 """
@@ -147,7 +147,14 @@ import uuid
 from dataclasses import dataclass
 
 from coord_locks import LockTimeout, canonical_dir
-from core.transcription import errors, model_catalog, model_store, preferences
+from core.transcription import (
+    backend as backend_module,
+    errors,
+    model_catalog,
+    model_store,
+    preferences,
+    whisper_cpp_catalog,
+)
 
 #: The install-wide key holding the references, in app_settings.py's own
 #: `_DEFAULTS`. Spelled out rather than imported, for the reason
@@ -299,8 +306,16 @@ class ExternalReference:
     apart inside the app.json lock is a string comparison and never a realpath
     on a disk that may not answer.
 
+    `backend` is which backend the model is for, and with it what `path`
+    names: a faster-whisper model is a *folder* (everything above), a
+    whisper.cpp model is one GGML *file* (part 9b, external_ggml.py) — then
+    `path` and `key` are the file's, `model_id` is a whisper_cpp_catalog id,
+    and `weights_mark` is the file's own identity mark. Absent in a record
+    written before part 9b, which therefore reads as faster-whisper, the only
+    kind there was.
+
     Stored as ``{"id", "path", "key", "model_id", "verified", "weights_mark":
-    {"size", "mtime_ns"} | null}``; `_parse()` is what reads it back.
+    {"size", "mtime_ns"} | null, "backend"}``; `_parse()` is what reads it back.
     """
 
     id: str
@@ -309,10 +324,16 @@ class ExternalReference:
     verified: bool
     weights_mark: tuple[int, int] | None = None
     key: str = ""
+    backend: str = backend_module.BACKEND_FASTER_WHISPER
 
     @property
     def is_custom(self) -> bool:
         return self.model_id is None
+
+    @property
+    def is_file(self) -> bool:
+        """Whether `path` names one GGML file rather than a model folder."""
+        return self.backend == backend_module.BACKEND_WHISPER_CPP
 
     def as_dict(self) -> dict:
         mark = None
@@ -326,6 +347,7 @@ class ExternalReference:
             "model_id": self.model_id,
             "verified": self.verified,
             "weights_mark": mark,
+            "backend": self.backend,
         }
 
 
@@ -780,7 +802,12 @@ def reference_state(reference) -> str:
     here: the files still have the catalogue's sizes *and* model.bin is still
     the very file that was checked (see the module docstring). A reference
     with no mark to compare is never ready.
+
+    A whisper.cpp reference names a file, and is measured as one
+    (`_file_reference_state()`): the same states, the same promise.
     """
+    if reference.is_file:
+        return _file_reference_state(reference)
     shape = inspect_folder(reference.path)
     if shape.refusal == REFUSED_FOLDER_MISSING:
         return REF_FOLDER_MISSING
@@ -812,10 +839,15 @@ def custom_reference_id(choice):
     return preferences.custom_model_reference_id(choice)
 
 
-def custom_reference_ids(references) -> frozenset:
-    """The ids of the custom references: what preferences.resolve() and
-    sanitize_section() take as `custom_model_ids`."""
-    return frozenset(reference.id for reference in references if reference.is_custom)
+def custom_reference_backends(references) -> dict:
+    """{reference id: backend id} of the custom references: what
+    preferences.resolve() and sanitize_section() take as `custom_model_ids`
+    since part 9b, so that a custom model of one backend chosen under the other
+    reads as a choice that cannot be honoured rather than one that can."""
+    return {
+        reference.id: reference.backend
+        for reference in references if reference.is_custom
+    }
 
 
 def folder_name(path) -> str:
@@ -865,7 +897,8 @@ def usable_catalogue_ids(models_root, references=()) -> tuple[str, ...]:
     ready = {
         reference.model_id
         for reference in references
-        if not reference.is_custom and reference_state(reference) == REF_READY
+        if not reference.is_custom and not reference.is_file
+        and reference_state(reference) == REF_READY
     }
     # One listing rather than is_installed() per model: it is the answer this
     # replaces (model_store.list_installed()), asked in the way every caller
@@ -947,7 +980,10 @@ def model_directory(models_root, choice, references=()) -> str:
 
 
 def _custom_directory(reference, choice) -> str:
-    if reference is None or not reference.is_custom:
+    if reference is None or not reference.is_custom or reference.is_file:
+        # (A whisper.cpp file is never a faster-whisper model: the settings
+        # replace a choice of one under the other backend, and this is the
+        # window before they do.)
         # A reference forgotten from another window, or a hand-edited setting,
         # reaching a run that resolved before the forgetting: the settings
         # replace such a choice with "automatic" (preferences.resolve()), so
@@ -976,8 +1012,44 @@ def _custom_directory(reference, choice) -> str:
     )
 
 
+def _file_reference_state(reference) -> str:
+    """reference_state() for a whisper.cpp file: the same four answers.
+
+    Gone (an unplugged disk) is REF_FOLDER_MISSING — the state's name is a
+    folder's, its meaning ("not there, nothing is damaged") is the same; not a
+    regular file any more, or a catalogue file at another size, is REF_CHANGED;
+    and the identity mark is the file's own, compared exactly as model.bin's.
+    """
+    if not os.path.exists(reference.path):
+        return REF_FOLDER_MISSING
+    mark = file_mark(reference.path)
+    if mark is None:
+        return REF_CHANGED
+    if not reference.is_custom:
+        entry = whisper_cpp_catalog.get_model(reference.model_id)
+        if entry is None or entry not in whisper_cpp_catalog.MODELS:
+            return REF_UNVERIFIED
+        if mark[0] != entry.size_bytes:
+            return REF_CHANGED
+    if reference.weights_mark is None:
+        return REF_UNVERIFIED
+    if mark != reference.weights_mark:
+        return REF_CHANGED
+    return REF_READY if reference.verified else REF_UNVERIFIED
+
+
+def file_mark(path):
+    """(size, st_mtime_ns) of the regular file `path` resolves to, or None.
+
+    `_weights_mark()` for a model that *is* one file (a GGML file of
+    whisper.cpp's), resolved the same way through a Hugging Face cache link.
+    """
+    info = _resolved_stat(str(path))
+    return None if info is None else (info.st_size, info.st_mtime_ns)
+
+
 def _store(app_settings, path, model_id, verified, weights_mark,
-           only_if_present=False):
+           only_if_present=False, backend=backend_module.BACKEND_FASTER_WHISPER):
     """Add or refresh the reference to `path`, in one locked step.
 
     The comparison with what is already stored happens inside the lock, on
@@ -1006,7 +1078,7 @@ def _store(app_settings, path, model_id, verified, weights_mark,
                     outcome[:] = [(None, None)]
                     break
                 refreshed = ExternalReference(
-                    existing.id, path, model_id, verified, weights_mark, key
+                    existing.id, path, model_id, verified, weights_mark, key, backend
                 )
                 references[index] = refreshed
                 outcome[:] = [(ACCEPT_UPDATED, refreshed)]
@@ -1016,7 +1088,7 @@ def _store(app_settings, path, model_id, verified, weights_mark,
                 outcome[:] = [(None, None)]
                 return [reference.as_dict() for reference in references]
             created = ExternalReference(
-                _new_reference_id(), path, model_id, verified, weights_mark, key
+                _new_reference_id(), path, model_id, verified, weights_mark, key, backend
             )
             references.append(created)
             outcome[:] = [(ACCEPT_ADDED, created)]
@@ -1065,6 +1137,12 @@ def _parse(value) -> tuple[ExternalReference, ...]:
             continue
         model_id = entry.get("model_id")
         key = entry.get("key")
+        backend = entry.get("backend")
+        if backend not in backend_module.BACKEND_IDS:
+            # Absent (a record from before part 9b) or not a backend this
+            # version knows: a folder of faster-whisper's, the one kind a
+            # record without the field can be.
+            backend = backend_module.BACKEND_FASTER_WHISPER
         references.append(ExternalReference(
             id=reference_id,
             path=path,
@@ -1075,6 +1153,7 @@ def _parse(value) -> tuple[ExternalReference, ...]:
             weights_mark=_parse_mark(entry.get("weights_mark")),
             key=key if isinstance(key, str) and key
             else os.path.normcase(os.path.abspath(path)),
+            backend=backend,
         ))
         seen.add(reference_id)
     return tuple(references)

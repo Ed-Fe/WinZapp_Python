@@ -16,14 +16,18 @@ What lives here is only what differs: ids are looked up in the whisper.cpp
 catalogue rather than faster-whisper's, and a model is a *file*, so the ready
 answer is the path of that file, which is what `whisper-cli -m` takes.
 
-**The root is a folder of its own for now.** `default_models_dir()` is a
-sibling of the faster-whisper models, not inside them, because two things
-there only know the faster-whisper catalogue: `model_store.list_unknown_dirs()`
-would list every GGML folder as a leftover of a retired model, and
-`move_models()` would leave them behind when the user moves the folder. Every
-function takes the root as an argument, so putting both under the user's
-chosen folder is a decision part 9b can make — together with teaching those
-two about this catalogue.
+**The root is the user's models folder, the same one as faster-whisper's**
+(part 9b; `preferences.resolve_models_dir()`), each file in its own
+`ggml-<name>` folder beside the faster-whisper ones. Decided that way rather
+than keeping 9a's separate global folder because a GGML large-v3 is 3 GB, and
+the user who moved the models to another drive for that reason expects the
+whisper.cpp ones to follow: one "Models folder" setting, one move, one disk.
+What had to change for it, in model_store: `list_unknown_dirs()` and
+`move_models()` know both catalogues (`model_store.all_entries()`) — otherwise
+every GGML folder would be listed as a leftover of a retired model and be left
+behind by a move — and `remove_model()` looks an id up in both
+(`model_store.find_entry()`). The voice-activity model lives there too, in its
+own folder; it is downloaded with the first GGML model (management.py).
 """
 
 from __future__ import annotations
@@ -31,20 +35,7 @@ from __future__ import annotations
 import logging
 import os
 
-from app_paths import global_dir
 from core.transcription import errors, model_store, whisper_cpp_catalog
-
-# Subdirectory of the global data dir holding every GGML file, one folder each.
-MODELS_DIRNAME = "whisper_cpp_models"
-
-
-def default_models_dir() -> str:
-    """Where the GGML files live unless told otherwise. Global, like the models.
-
-    Global rather than per account for model_store's reason: large-v3 is 3 GB,
-    and one account per process would otherwise download it once per account.
-    """
-    return global_dir(MODELS_DIRNAME)
 
 
 def model_path(root, model) -> str:

@@ -293,6 +293,11 @@ class TestWhatTheDialogShows:
             assert "medium" in transcription_progress.progress_status_text(
                 i18n, action, "medium"
             ), (locale, action)
+        for action in management.WHISPER_CPP_ACTIONS:
+            # The same for the program: two builds, and the line says which.
+            assert "BUILD" in transcription_progress.progress_status_text(
+                i18n, action, build="BUILD"
+            ), (locale, action)
 
 
 class TestTheEnd:

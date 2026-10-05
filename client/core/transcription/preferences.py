@@ -56,10 +56,17 @@ would only be the older one.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from core.transcription import backend as backend_module
-from core.transcription import device, model_catalog, model_store
+from core.transcription import (
+    device,
+    model_catalog,
+    model_store,
+    whisper_cpp_catalog,
+    whisper_cpp_store,
+)
 
 #: The section of settings.json this module owns.
 SECTION = "transcription"
@@ -126,11 +133,12 @@ DEVICE_PREFERENCE_I18N_KEYS = {
 }
 
 # A backend id is not a name a screen reader should read out of a combobox, so
-# even the one backend there is gets a label. AUTO is in here as well, which is
-# what lets the picker be built by mapping over its own option list.
+# every backend gets a label. AUTO is in here as well, which is what lets the
+# picker be built by mapping over its own option list.
 BACKEND_I18N_KEYS = {
     AUTO: OPTION_AUTO_I18N_KEY,
     backend_module.BACKEND_FASTER_WHISPER: "transcription_backend_faster_whisper",
+    backend_module.BACKEND_WHISPER_CPP: "transcription_backend_whisper_cpp",
 }
 
 # What to say when a stored value could not be honoured. One sentence per
@@ -325,6 +333,17 @@ class Resolution:
     #: and a caller that only saw None would have to guess which, or measure
     #: again and risk disagreeing with the answer it was handed.
     model_none_reason: str | None = None
+    #: The one language `model_id` knows (an `.en` or distilled model, a
+    #: third-party fine-tune), or None for a multilingual one. A custom model
+    #: is not known to be single-language, and counts as multilingual.
+    model_language: str | None = None
+    #: `language` is `model_language` because the model cannot do anything
+    #: else: detection was on, or another language was chosen — the run uses
+    #: the model's language and says so (narration), never silently.
+    language_forced: bool = False
+    #: The language the user chose that `model_language` replaced, or None
+    #: (detection was on, or nothing was replaced).
+    language_overridden: str | None = None
 
     @property
     def substituted(self) -> bool:
@@ -349,7 +368,8 @@ def read_section(settings) -> dict:
 
 
 def resolve(settings, probe, installed_ids=(), ui_language="",
-            available_backends=None, custom_model_ids=None) -> Resolution:
+            available_backends=None, custom_model_ids=None,
+            whisper_cpp_cuda_installed=False) -> Resolution:
     """Everything one transcription needs, from settings plus measurements.
 
     `probe` is a `device.HardwareProbe` the caller took; `installed_ids` are the
@@ -365,8 +385,28 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     them and replaced — with the substitution warning, like a retired model —
     once its reference was forgotten. None means "nobody measured", and then
     the choice is kept as it is, for the reason `available_backends` gives.
-    `installed_ids` stays the catalogue models only: a custom one is never a
-    candidate for the automatic choice (external_models.usable_catalogue_ids()).
+    Passed as a mapping {id: backend id}
+    (`external_models.custom_reference_backends()`), a custom model of the
+    other backend is replaced too: a whisper.cpp file is not a model
+    faster-whisper can load, nor the other way round. `installed_ids` stays the
+    catalogue models only — of both backends, each filtered by the backend
+    resolved here: a custom one is never a candidate for the automatic choice
+    (external_models.usable_catalogue_ids()).
+
+    **The model has to be one of the resolved backend's.** A faster-whisper id
+    stored while whisper.cpp is the backend (or a GGML id under faster-whisper)
+    is replaced by the automatic choice of that backend, with the model
+    substitution warning — the same treatment as a retired id, because to the
+    run it is exactly as unloadable. `whisper_cpp_cuda_installed` is whether
+    whisper.cpp's graphics-card build is on this machine: with whisper.cpp,
+    the device the memory budget is read off follows its own rule
+    (`device.resolve_whisper_cpp_device()`).
+
+    **A single-language model** (English-only, or a third-party fine-tune) is
+    run in its own language whatever the setting says — the only language it
+    can produce — and the replacement is reported (`language_forced`,
+    `language_overridden`) for the flow and the tab to say. The automatic
+    choice picks one only when it is the user's language.
 
     `ui_language` is WinZapp's *effective* interface language ("pt-BR", "pl") —
     the settings tab passes `main_window.i18n.language`. That is the value that
@@ -386,11 +426,24 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     # different numbers. The job re-probes and re-resolves before it loads
     # anything, so this can in principle disagree with where the run lands — the
     # alternative is picking a model against no device at all.
-    device_id, _reason = device.resolve_device(preference, probe)
-    model_id = _resolve_model(
-        section, probe, device_id, installed_ids, substitutions, custom_model_ids
-    )
+    if backend_id == backend_module.BACKEND_WHISPER_CPP:
+        device_id, _reason = device.resolve_whisper_cpp_device(
+            preference, probe, whisper_cpp_cuda_installed
+        )
+    else:
+        device_id, _reason = device.resolve_device(preference, probe)
+    # Before the model: whether a single-language model may be chosen
+    # automatically depends on it.
     language = _resolve_language(section, ui_language, substitutions)
+    model_id = _resolve_model(
+        section, probe, device_id, installed_ids, substitutions, custom_model_ids,
+        backend_id, language,
+    )
+    only = model_language(model_id)
+    forced = only is not None and language != only
+    overridden = language if forced else None
+    if forced:
+        language = only
 
     return Resolution(
         backend_id=backend_id,
@@ -399,6 +452,9 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
         language=language,
         substitutions=tuple(substitutions),
         model_none_reason=_model_none_reason(model_id, probe, device_id),
+        model_language=only,
+        language_forced=forced,
+        language_overridden=overridden,
     )
 
 
@@ -467,6 +523,14 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
     if not isinstance(settings, dict):
         return False
     section = settings.get(SECTION)
+    # The model is checked against the stored backend when one is chosen
+    # explicitly: under it, the other backend's model ids (and custom models)
+    # can never be loaded. Under "automatic" the backend is a decision of the
+    # machine, which can change, so any backend's model is left alone and
+    # resolve() substitutes per run instead.
+    stored_backend = section.get(SETTING_BACKEND) if isinstance(section, dict) else None
+    model_backend = (stored_backend if isinstance(stored_backend, str)
+                     and stored_backend in backend_module.BACKEND_IDS else None)
     if not isinstance(section, dict):
         # A settings.json from before this feature, or one with something that
         # is not a dict where the section belongs. `read_section()` already
@@ -478,7 +542,8 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
     changed = False
     for key, valid in (
         (SETTING_BACKEND, lambda v: v in backend_module.BACKEND_IDS),
-        (SETTING_MODEL, lambda v: _model_choice_exists(v, custom_model_ids)),
+        (SETTING_MODEL,
+         lambda v: _model_choice_exists(v, custom_model_ids, model_backend)),
         (SETTING_DEVICE, lambda v: v in DEVICE_PREFERENCE_I18N_KEYS),
         (SETTING_LANGUAGE, lambda v: v in LANGUAGE_NAMES),
     ):
@@ -520,7 +585,40 @@ def models_folder(stored=None) -> tuple[str, tuple[str, ...]]:
     `resolve()` then takes as `installed_ids`.
     """
     directory = resolve_models_dir(stored)
-    return directory, model_store.list_installed(directory)
+    # Both backends' models: they share the folder (whisper_cpp_store), and
+    # resolve() keeps only the resolved backend's.
+    return directory, (
+        model_store.list_installed(directory)
+        + whisper_cpp_store.list_installed(directory)
+    )
+
+
+def catalogue_models(backend_id) -> tuple:
+    """The catalogue entries `backend_id` can load, in the picker's order.
+
+    faster-whisper's catalogue for anything that is not whisper.cpp — None
+    (nothing resolved) included, which is what "automatic" means wherever
+    faster-whisper runs. The whisper.cpp voice-activity model is not a
+    transcription model and is not in its list.
+    """
+    if backend_id == backend_module.BACKEND_WHISPER_CPP:
+        return whisper_cpp_catalog.list_models()
+    return model_catalog.list_models()
+
+
+def catalogue_entry(model_id):
+    """The entry of either catalogue with this id (not the VAD), or None."""
+    entry = model_catalog.get_model(model_id)
+    if entry is not None:
+        return entry
+    entry = whisper_cpp_catalog.get_model(model_id)
+    return entry if entry in whisper_cpp_catalog.MODELS else None
+
+
+def model_language(model_id):
+    """The one language a catalogue model knows, or None (multilingual, custom,
+    unknown)."""
+    return getattr(catalogue_entry(model_id), "language", None)
 
 
 def custom_model_reference_id(choice):
@@ -649,7 +747,7 @@ def _resolve_device_preference(section, substitutions):
 
 
 def _resolve_model(section, probe, device_id, installed_ids, substitutions,
-                   custom_model_ids=None):
+                   custom_model_ids=None, backend_id=None, language=None):
     """The model id, or None when nothing is installed and nothing fits.
 
     A model that is known but not downloaded is *kept*: that is not a
@@ -662,20 +760,32 @@ def _resolve_model(section, probe, device_id, installed_ids, substitutions,
     """
     stored = section[SETTING_MODEL]
     if stored != AUTO:
-        if _model_choice_exists(stored, custom_model_ids):
+        if _model_choice_exists(stored, custom_model_ids, backend_id):
             return stored
         substitutions.append(Substitution(SETTING_MODEL, str(stored)))
-    return device.auto_select_model(probe, device_id, installed_ids)
+    return device.auto_select_model(
+        probe, device_id, installed_ids, catalog=catalogue_models(backend_id),
+        language=language,
+    )
 
 
-def _model_choice_exists(stored, custom_model_ids) -> bool:
-    """Whether a stored model value names something that can still exist."""
+def _model_choice_exists(stored, custom_model_ids, backend_id=None) -> bool:
+    """Whether a stored model value names something that can still exist —
+    for `backend_id` when one is given, for either backend otherwise."""
     if not isinstance(stored, str):
         return False
     reference_id = custom_model_reference_id(stored)
     if reference_id is not None:
-        return custom_model_ids is None or reference_id in custom_model_ids
-    return model_catalog.get_model(stored) is not None
+        if custom_model_ids is None:
+            return True
+        if reference_id not in custom_model_ids:
+            return False
+        if backend_id is not None and isinstance(custom_model_ids, Mapping):
+            return custom_model_ids[reference_id] == backend_id
+        return True
+    if backend_id is None:
+        return catalogue_entry(stored) is not None
+    return any(model.id == stored for model in catalogue_models(backend_id))
 
 
 def _resolve_language(section, ui_language, substitutions):

@@ -37,6 +37,11 @@ wraps it in `wx.CallAfter`, the split core/message_queue.py and job.py make —
 and nothing here retries on its own. The CUDA download cannot resume, so a
 second attempt on a bad line is another 553 MB; whether that is worth it is
 the user's call, not this module's.
+
+What is whisper.cpp's own — its program's four actions, the voice-activity
+model a GGML model brings, the figures of a program install and the sentences
+about it — is in management_whisper_cpp.py, which `ManagementJob._perform()`
+dispatches to.
 """
 
 from __future__ import annotations
@@ -48,7 +53,16 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from core.transcription import cuda_runtime, device, errors, model_catalog, model_store
+# management_whisper_cpp imports this module too; neither reads the other's
+# names before a function runs, which is what keeps the cycle harmless.
+from core.transcription import (
+    cuda_runtime,
+    device,
+    errors,
+    management_whisper_cpp,
+    model_store,
+    whisper_cpp_catalog,
+)
 
 # ── Actions ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +75,11 @@ ACTION_INSTALL_CUDA_RUNTIME = "install_cuda_runtime"
 ACTION_REPAIR_CUDA_RUNTIME = "repair_cuda_runtime"
 ACTION_VERIFY_CUDA_RUNTIME = "verify_cuda_runtime"
 ACTION_REMOVE_CUDA_RUNTIME = "remove_cuda_runtime"
+# The whisper.cpp program, one build at a time (`ManagementJob.build_id`).
+ACTION_INSTALL_WHISPER_CPP = "install_whisper_cpp"
+ACTION_REPAIR_WHISPER_CPP = "repair_whisper_cpp"
+ACTION_VERIFY_WHISPER_CPP = "verify_whisper_cpp"
+ACTION_REMOVE_WHISPER_CPP = "remove_whisper_cpp"
 
 ACTIONS = (
     ACTION_DOWNLOAD_MODEL,
@@ -72,6 +91,17 @@ ACTIONS = (
     ACTION_REPAIR_CUDA_RUNTIME,
     ACTION_VERIFY_CUDA_RUNTIME,
     ACTION_REMOVE_CUDA_RUNTIME,
+    ACTION_INSTALL_WHISPER_CPP,
+    ACTION_REPAIR_WHISPER_CPP,
+    ACTION_VERIFY_WHISPER_CPP,
+    ACTION_REMOVE_WHISPER_CPP,
+)
+
+WHISPER_CPP_ACTIONS = (
+    ACTION_INSTALL_WHISPER_CPP,
+    ACTION_REPAIR_WHISPER_CPP,
+    ACTION_VERIFY_WHISPER_CPP,
+    ACTION_REMOVE_WHISPER_CPP,
 )
 
 MODEL_ACTIONS = (
@@ -105,6 +135,10 @@ _FALLBACK_CODES = {
     ACTION_REPAIR_CUDA_RUNTIME: errors.CUDA_RUNTIME_DOWNLOAD_FAILED,
     ACTION_VERIFY_CUDA_RUNTIME: errors.BACKEND_ERROR,
     ACTION_REMOVE_CUDA_RUNTIME: errors.BACKEND_ERROR,
+    ACTION_INSTALL_WHISPER_CPP: errors.WHISPER_CPP_DOWNLOAD_FAILED,
+    ACTION_REPAIR_WHISPER_CPP: errors.WHISPER_CPP_DOWNLOAD_FAILED,
+    ACTION_VERIFY_WHISPER_CPP: errors.BACKEND_ERROR,
+    ACTION_REMOVE_WHISPER_CPP: errors.BACKEND_ERROR,
 }
 
 # ── Progress ─────────────────────────────────────────────────────────────────
@@ -239,6 +273,7 @@ class ProgressThrottle:
 
 SUBJECT_MODEL = "model"
 SUBJECT_CUDA_RUNTIME = "cuda_runtime"
+SUBJECT_WHISPER_CPP = "whisper_cpp"
 
 
 @dataclass(frozen=True)
@@ -276,11 +311,18 @@ class DownloadSummary:
     #: For a repair: what the removal frees before the gate is asked, and
     #: therefore already counted in `enough_space`. 0 otherwise.
     freed_bytes: int = 0
+    #: SUBJECT_WHISPER_CPP: the build being installed (`RuntimeBuild.id`).
+    build_id: str | None = None
+    #: SUBJECT_WHISPER_CPP: the processor build comes first, in the same
+    #: action, because the graphics build is never installed without it (see
+    #: `management_whisper_cpp.perform_program()`); its download is counted
+    #: in the figures.
+    includes_cpu_build: bool = False
 
 
 def model_download_summary(model_id, models_root, probe, free_bytes,
                            device_preference=device.PREFERENCE_AUTO,
-                           repair=False):
+                           repair=False, whisper_cpp_cuda_installed=False):
     """The summary for downloading (or repairing) `model_id`, or None.
 
     `probe` is a `device.HardwareProbe` and `free_bytes` is
@@ -301,9 +343,12 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
     by at most the leftovers of an interrupted download.
 
     None for an id the catalogue does not know, the same answer
-    `model_catalog.get_model()` gives.
+    `model_catalog.get_model()` gives. A GGML id of whisper.cpp's is known
+    too: its figures include the voice-activity model when that is not on disk
+    yet, and its device is whisper.cpp's (`whisper_cpp_cuda_installed` is
+    whether that program's graphics-card build is installed).
     """
-    model = model_catalog.get_model(model_id)
+    model = _model_entry(model_id)
     if model is None:
         return None
     if repair:
@@ -312,7 +357,13 @@ def model_download_summary(model_id, models_root, probe, free_bytes,
     else:
         download = model_store.remaining_download_bytes(models_root, model)
         freed = 0
-    device_id, reason = device.resolve_device(device_preference, probe)
+    if management_whisper_cpp.is_ggml(model):
+        extra, device_id, reason = management_whisper_cpp.ggml_download_figures(
+            models_root, probe, device_preference, repair, whisper_cpp_cuda_installed
+        )
+        download += extra
+    else:
+        device_id, reason = device.resolve_device(device_preference, probe)
     budget = device.available_memory_mb(probe, device_id)
     required = model_store.required_free_bytes(download)
     return DownloadSummary(
@@ -371,6 +422,14 @@ def cuda_runtime_download_summary(probe, free_bytes, directory=None,
     )
 
 
+def _model_entry(model_id):
+    """A transcription model of either catalogue (never the VAD), or None."""
+    entry = model_store.find_entry(model_id)
+    if entry is whisper_cpp_catalog.VAD_MODEL:
+        return None
+    return entry
+
+
 def _enough_space(free_bytes, freed_bytes, required_bytes):
     if free_bytes is None:
         return None
@@ -401,7 +460,8 @@ class ManagementJob:
 
     def __init__(self, action, models_root=None, model_id=None,
                  new_models_root=None, cuda_directory=None, session=None,
-                 on_progress=None, on_finished=None, throttle=None, clock=None):
+                 on_progress=None, on_finished=None, throttle=None, clock=None,
+                 build_id=None, runtime_root=None, compute_capability=None):
         if action not in ACTIONS:
             # A caller bug, raised on the caller's thread where it is seen at
             # once — not a report the user would have to sit through.
@@ -411,6 +471,12 @@ class ManagementJob:
         self._models_root = models_root
         self._new_models_root = new_models_root
         self._cuda_directory = cuda_directory
+        #: For the whisper.cpp actions: which build, where the builds live
+        #: (None: whisper_cpp_runtime's own folder) and the card's compute
+        #: capability, which the install refuses the graphics build without.
+        self.build_id = build_id
+        self._runtime_root = runtime_root
+        self._compute_capability = compute_capability
         # A test's fake HTTP session; production leaves it None and the store
         # opens its own through tls_trust.
         self._session = session
@@ -466,6 +532,7 @@ class ManagementJob:
             self.action, result, error,
             model_id=self.model_id,
             models_before_move=self.models_before_move,
+            build_id=self.build_id,
         )
 
     # ── Worker ───────────────────────────────────────────────────────────────
@@ -511,8 +578,13 @@ class ManagementJob:
             return model_store.remove_model(
                 self._models_root, self.model_id, should_cancel=cancel
             )
+        if action in WHISPER_CPP_ACTIONS:
+            return management_whisper_cpp.perform_program(
+                action, self.build_id, self._runtime_root, self._models_root,
+                self._compute_capability, self._session, progress, cancel,
+            )
         if action in MODEL_ACTIONS:
-            model = model_catalog.get_model(self.model_id)
+            model = _model_entry(self.model_id)
             if model is None:
                 # Not the action's fallback: for a download that is "check
                 # your connection", and nothing was ever sent over it. A
@@ -521,6 +593,10 @@ class ManagementJob:
                 # model_store.ensure_ready() already gives that case.
                 raise errors.TranscriptionError(
                     errors.MODEL_NOT_INSTALLED, f"unknown model id {self.model_id}"
+                )
+            if management_whisper_cpp.is_ggml(model):
+                return management_whisper_cpp.perform_ggml(
+                    action, model, self._models_root, self._session, progress, cancel
                 )
             if action == ACTION_DOWNLOAD_MODEL:
                 return model_store.download_model(
@@ -572,7 +648,7 @@ class ManagementJob:
             "[transcription] management %s %s model=%s took=%.1fs%s",
             self.action,
             outcome,
-            self.model_id,
+            self.model_id or self.build_id,
             time.monotonic() - started,
             f" — {error.log_line}" if error is not None else "",
         )
@@ -608,7 +684,7 @@ def _models_present(root):
     """Ids with anything of theirs under `root`, in catalogue order."""
     return tuple(
         model.id
-        for model in model_catalog.list_models()
+        for model in model_store.all_entries()
         if model_store.installation_state(root, model).state != model_store.STATE_ABSENT
     )
 
@@ -681,8 +757,8 @@ CUDA_INSTALLED_NOT_USABLE_I18N_KEY = "transcription_manage_cuda_installed_not_us
 CUDA_VERIFIED_I18N_KEY = "transcription_manage_cuda_verified"
 CUDA_REMOVED_I18N_KEY = "transcription_manage_cuda_removed"
 CUDA_REMOVE_NEEDS_RESTART_I18N_KEY = "transcription_manage_cuda_remove_needs_restart"
-
-#: Every key announcement() can answer with, besides the error codes' own.
+#: Every key announcement() can answer with, besides the error codes' own and
+#: management_whisper_cpp.ANNOUNCEMENT_I18N_KEYS.
 ANNOUNCEMENT_I18N_KEYS = (
     CANCELLED_I18N_KEY,
     FAILED_I18N_KEY,
@@ -705,10 +781,11 @@ ANNOUNCEMENT_I18N_KEYS = (
     CUDA_REMOVE_NEEDS_RESTART_I18N_KEY,
 )
 
-# Model ids in a spoken list. Not localised: the ids are the names the model
-# picker already reads out ("large-v3"), and a comma is a list separator in all
-# five languages.
-_LIST_SEPARATOR = ", "
+#: What joins the model ids of a move's sentence. Ids, not names: this module
+#: does not format text, and a GGML id is no name ("ggml-small-q5_1"). The tab
+#: splits on it and says each id as the picker names it
+#: (model_names.display_list()); an id never contains it.
+LIST_SEPARATOR = ", "
 
 
 @dataclass(frozen=True)
@@ -721,12 +798,15 @@ class Announcement:
 
 
 def announcement(action, result=None, error=None, model_id=None,
-                 models_before_move=()) -> Announcement:
+                 models_before_move=(), build_id=None) -> Announcement:
     """What to tell the user once `action` has finished.
 
     `result` and `error` are exactly what `ManagementJob`'s `on_finished`
     received; `models_before_move` is that job's attribute of the same name,
-    and `ManagementJob.announcement()` passes both for you.
+    and `ManagementJob.announcement()` passes both for you. For the
+    whisper.cpp actions the values carry `build`: the build's *i18n key*
+    (management_whisper_cpp.WHISPER_CPP_BUILD_I18N_KEYS), which the UI
+    translates before formatting — this module does not format text.
     """
     if error is not None:
         return _error_announcement(action, error, models_before_move)
@@ -746,12 +826,12 @@ def announcement(action, result=None, error=None, model_id=None,
         return Announcement(key, OUTCOME_DONE, model_values)
 
     if action == ACTION_MOVE_MODELS:
-        moved = tuple(result or ())
+        moved = _listed(result)
         if not moved:
             return Announcement(MODELS_NOTHING_TO_MOVE_I18N_KEY, OUTCOME_DONE)
         return Announcement(
             MODELS_MOVED_I18N_KEY, OUTCOME_DONE,
-            {"models": _LIST_SEPARATOR.join(moved)},
+            {"models": LIST_SEPARATOR.join(moved)},
         )
 
     if action in (ACTION_INSTALL_CUDA_RUNTIME, ACTION_REPAIR_CUDA_RUNTIME):
@@ -775,6 +855,9 @@ def announcement(action, result=None, error=None, model_id=None,
     if action == ACTION_VERIFY_CUDA_RUNTIME:
         return Announcement(CUDA_VERIFIED_I18N_KEY, OUTCOME_DONE)
 
+    if action in WHISPER_CPP_ACTIONS:
+        return management_whisper_cpp.announcement(action, result, build_id)
+
     if action == ACTION_REMOVE_CUDA_RUNTIME:
         if result:
             # The expected result after any transcription ran on the card:
@@ -791,12 +874,22 @@ def announcement(action, result=None, error=None, model_id=None,
     return Announcement(FAILED_I18N_KEY, OUTCOME_FAILED)
 
 
+def _listed(model_ids):
+    """The ids a move's sentence names: every one but the voice-activity
+    model's, which moves with the models and is nobody's choice — a folder
+    holding nothing else had no models to move, as far as the user knows."""
+    return tuple(
+        model_id for model_id in (model_ids or ())
+        if model_id != whisper_cpp_catalog.VAD_MODEL.id
+    )
+
+
 def _error_announcement(action, error, models_before_move):
     code = getattr(error, "code", None)
 
     if action == ACTION_MOVE_MODELS:
-        moved = tuple(getattr(error, "moved", ()) or ())
-        remaining = tuple(m for m in models_before_move if m not in moved)
+        moved = _listed(getattr(error, "moved", ()))
+        remaining = tuple(m for m in _listed(models_before_move) if m not in moved)
         if moved and remaining:
             # Cancelled or failed, the models are now split across two folders
             # and only one of them is the folder the setting names. Which ones
@@ -804,8 +897,8 @@ def _error_announcement(action, error, models_before_move):
             # "cancelled" as much as it outranks the error code — though a
             # full disk, the one reason the user can act on, is repeated.
             values = {
-                "moved": _LIST_SEPARATOR.join(moved),
-                "remaining": _LIST_SEPARATOR.join(remaining),
+                "moved": LIST_SEPARATOR.join(moved),
+                "remaining": LIST_SEPARATOR.join(remaining),
             }
             if code == errors.CANCELLED:
                 return Announcement(

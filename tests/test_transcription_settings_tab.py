@@ -82,11 +82,13 @@ from coord_locks import canonical_dir
 from core.transcription import backend as backend_module
 from core.transcription import cuda_runtime, device, errors, management, model_catalog
 from core.transcription import external_job, external_models, external_view
-from core.transcription import model_store
+from core.transcription import model_names, model_store, whisper_cpp_builds, whisper_cpp_catalog
+from core.transcription import whisper_cpp_runtime
 from core.transcription import preferences
-from ui.dialogs import transcription_external, transcription_tab
+from ui.dialogs import transcription_external, transcription_tab, transcription_whisper_cpp
 from ui.dialogs.settings_dialog import SettingsDialog
 from ui.dialogs.transcription_external import ExternalModelsMixin
+from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 from tests.conftest import hidden_frame
 from tests.god_modules import main_window_source
@@ -218,12 +220,13 @@ class _MainWindow:
         self.saves += 1
 
 
-class _TabOwner(ExternalModelsMixin):
+class _TabOwner(ExternalModelsMixin, WhisperCppMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
-    The section for models in other folders is inherited whole, as the dialog
-    inherits it: its methods call one another and the tab's, and binding them
-    one by one here is how a stub drifts from what ships.
+    The section for models in other folders and the whisper.cpp section are
+    inherited whole, as the dialog inherits them: their methods call one
+    another and the tab's, and binding them one by one here is how a stub
+    drifts from what ships.
     """
 
     def __init__(self, main_window):
@@ -291,6 +294,9 @@ class _TabOwner(ExternalModelsMixin):
         SettingsDialog._on_transcription_detect_language_toggle
     )
     _on_transcription_device_change = SettingsDialog._on_transcription_device_change
+    _on_transcription_language_change = SettingsDialog._on_transcription_language_change
+    _transcription_custom_model_ids = SettingsDialog._transcription_custom_model_ids
+    _refuse_transcription_models_dir = SettingsDialog._refuse_transcription_models_dir
     _on_browse_transcription_models_dir = (
         SettingsDialog._on_browse_transcription_models_dir
     )
@@ -339,6 +345,14 @@ def no_hardware_probe(monkeypatch):
         transcription_tab.cuda_runtime,
         "installation_state",
         lambda directory=None: cuda_runtime.RuntimeState(cuda_runtime.STATE_ABSENT, ()),
+    )
+    # The whisper.cpp builds live in an install-wide folder too.
+    monkeypatch.setattr(
+        transcription_whisper_cpp.whisper_cpp_runtime,
+        "installation_state",
+        lambda build, root=None: whisper_cpp_runtime.RuntimeState(
+            whisper_cpp_runtime.STATE_ABSENT
+        ),
     )
 
 
@@ -708,15 +722,14 @@ class TestEverySettingIsReadBackAndWritten:
         tab._apply_transcription_values()
         assert tab.main_window.settings["transcription"] == stored
 
-    def test_the_backend_key_is_left_alone_while_there_is_nothing_to_pick(self, tab):
-        """One backend means there is nothing to choose, and a combobox with a
-        single entry is a tab stop that answers nothing — so the tab neither
-        offers the setting nor writes it, and a value stored by a build that
-        did offer it survives untouched."""
-        assert tab._transcription_backend_combo is None
-        stored = backend_module.BACKEND_FASTER_WHISPER
+    def test_the_backend_is_offered_and_written_back(self, tab):
+        """Two backends since part 9b: the picker is there, a stored choice is
+        selected when the tab opens and reaches settings.json unchanged."""
+        assert tab._transcription_backend_combo is not None
+        stored = backend_module.BACKEND_WHISPER_CPP
         tab.main_window.settings["transcription"] = {"backend": stored}
         tab._load_transcription_values()
+        assert tab._selected_transcription_backend() == stored
         tab._apply_transcription_values()
         assert tab.main_window.settings["transcription"]["backend"] == stored
 
@@ -1423,6 +1436,7 @@ class TestTheMnemonicsOnThisTab:
         "transcription_models_dir_browse_btn",
         "transcription_cuda_runtime_label",
         "transcription_external_label",
+        "transcription_whisper_cpp_label",
         "ok",
         "cancel",
         "apply",
@@ -1453,6 +1467,11 @@ class TestTheMnemonicsOnThisTab:
         "transcription_external_use_btn",
         "transcription_external_check_btn",
         "transcription_external_forget_btn",
+        # The four of the whisper.cpp program, the same again.
+        "transcription_whisper_cpp_install_btn",
+        "transcription_whisper_cpp_verify_btn",
+        "transcription_whisper_cpp_repair_btn",
+        "transcription_whisper_cpp_remove_btn",
     )
 
     #: The two group names. Not tab stops, so not owed a letter — and they
@@ -1461,6 +1480,7 @@ class TestTheMnemonicsOnThisTab:
         "transcription_model_actions_group",
         "transcription_cuda_actions_group",
         "transcription_external_actions_group",
+        "transcription_whisper_cpp_actions_group",
     )
 
     @staticmethod
@@ -1507,6 +1527,10 @@ class TestTheMnemonicsOnThisTab:
         # what says so.
         assert table["transcription_external_actions_group"] == (
             table["transcription_external_label"].replace("&", "")
+        )
+        # So is the program's: "Install" and "Remove" are about whisper.cpp.
+        assert table["transcription_whisper_cpp_actions_group"] == (
+            table["transcription_whisper_cpp_label"].replace("&", "")
         )
 
     @pytest.mark.parametrize("locale", LOCALES)
@@ -1723,6 +1747,7 @@ class TestTheButtonsOnTheTab:
         assert [box.GetLabel() for box, _key in tab._transcription_action_groups] == [
             i18n.t("transcription_model_actions_group"),
             i18n.t("transcription_cuda_actions_group"),
+            i18n.t("transcription_whisper_cpp_actions_group"),
         ]
 
     def test_the_buttons_live_inside_their_own_group(self, tab):
@@ -1741,6 +1766,7 @@ class TestTheButtonsOnTheTab:
         assert [box.GetLabel() for box, _key in tab._transcription_action_groups] == [
             _I18n("pl").t("transcription_model_actions_group"),
             _I18n("pl").t("transcription_cuda_actions_group"),
+            _I18n("pl").t("transcription_whisper_cpp_actions_group"),
         ]
 
     def test_the_automatic_entry_leaves_every_model_button_off(self, tab):
@@ -2216,6 +2242,27 @@ class TestWhatTheUserIsTold:
         assert _I18n("pl").t(management.MODEL_REMOVED_I18N_KEY).format(
             model="small"
         ) in tab._transcription_substituted_field.GetValue()
+
+    def test_a_move_names_the_models_as_the_picker_does(self):
+        """The announcement carries ids; a GGML id is a file name a screen
+        reader spells out, and the filter's model is nobody's choice."""
+        i18n = _I18n("en-US")
+        vad = whisper_cpp_catalog.VAD_MODEL.id
+        moved = transcription_tab._transcription_announcement_text(i18n, management.announcement(
+            management.ACTION_MOVE_MODELS, ("small", "ggml-small-q5_1", vad)))
+        partial = transcription_tab._transcription_announcement_text(i18n, management.announcement(
+            management.ACTION_MOVE_MODELS,
+            error=SimpleNamespace(code=errors.MODEL_MOVE_FAILED, moved=("ggml-small-q5_1", vad)),
+            models_before_move=("small", "ggml-small-q5_1", vad)))
+
+        for sentence in (moved, partial):
+            assert model_names.display_name(i18n, "ggml-small-q5_1") in sentence
+            assert model_names.display_name(i18n, "small") in sentence
+            assert "ggml-" not in sentence
+        assert moved == i18n.t(management.MODELS_MOVED_I18N_KEY).format(
+            models=model_names.LIST_SEPARATOR.join((
+                model_names.display_name(i18n, "small"),
+                model_names.display_name(i18n, "ggml-small-q5_1"))))
 
     def test_showing_the_result_does_not_make_apply_appear(
         self, tab, monkeypatch, confirm_yes
@@ -3216,13 +3263,16 @@ class TestAddingAFolder:
             lambda path: looked_at.append(path) or (external_view.Candidate(path),),
         )
         checked = []
-        tab._check_external_folder = lambda folder, reference=None: checked.append(folder)
+        tab._check_external_folder = (
+            lambda folder, reference=None, backend_id=None: checked.append((folder, backend_id)))
         tab._on_external_add(_Event())
         assert looked_at == [] and checked == []
         assert tab._transcription_job_running
         assert not tab._transcription_external_buttons["add"].IsEnabled()
         workers.run_all()
-        assert looked_at == [chosen] and checked == [chosen]
+        # Checked as a faster-whisper folder, said rather than defaulted.
+        assert looked_at == [chosen] and checked == [
+            (chosen, backend_module.BACKEND_FASTER_WHISPER)]
         assert tab._transcription_job_running is False
         assert tab._transcription_external_buttons["add"].IsEnabled()
 
@@ -3238,10 +3288,11 @@ class TestAddingAFolder:
 
         monkeypatch.setattr(external_view, "folder_candidates", _boom)
         checked = []
-        tab._check_external_folder = lambda folder, reference=None: checked.append(folder)
+        tab._check_external_folder = (
+            lambda folder, reference=None, backend_id=None: checked.append((folder, backend_id)))
         tab._on_external_add(_Event())
         workers.run_all()
-        assert checked == [chosen]
+        assert checked == [(chosen, backend_module.BACKEND_FASTER_WHISPER)]
 
     def test_several_models_in_one_folder_are_a_list_to_pick_from(
         self, tab, workers, monkeypatch, tmp_path
@@ -3792,3 +3843,196 @@ class TestTheModelPickerIsNotRewrittenForNothing:
         drawn.clear()
         tab._enter_transcription_page()
         assert drawn == [1]
+
+
+# ── Part 9b: the whisper.cpp backend ─────────────────────────────────────────
+#
+# The section is `WhisperCppMixin`, inherited whole by the stub; the install-wide
+# folder its builds live in is answered by `no_hardware_probe`.
+
+_CPU_BUILD = whisper_cpp_builds.BUILD_CPU
+_CUDA_BUILD = whisper_cpp_builds.BUILD_CUDA
+
+
+def _with_card(capability):
+    return device.HardwareProbe(
+        cuda_available=True, cuda_device_count=1, compute_capability=capability,
+        total_vram_mb=12_000, free_vram_mb=10_000, total_ram_mb=16_384,
+        available_ram_mb=12_288, cuda_libraries_ok=True,
+    )
+
+
+def _builds_on_disk(monkeypatch, installed):
+    monkeypatch.setattr(
+        transcription_whisper_cpp.whisper_cpp_runtime, "installation_state",
+        lambda build, root=None: whisper_cpp_runtime.RuntimeState(
+            whisper_cpp_runtime.STATE_INSTALLED if build in installed
+            else whisper_cpp_runtime.STATE_ABSENT
+        ),
+    )
+
+
+class _Skippable:
+    def __init__(self):
+        self.skipped = False
+
+    def Skip(self):
+        self.skipped = True
+
+
+class TestTheModelPickerFollowsTheBackend:
+    def test_each_backend_lists_its_own_catalogue(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_model_ids[1:] == [
+            model.id for model in model_catalog.list_models()
+        ]
+        tab._select_transcription_backend(backend_module.BACKEND_WHISPER_CPP)
+        tab._on_transcription_backend_change(_Skippable())
+        assert tab._transcription_model_ids[1:] == [
+            model.id for model in preferences.catalogue_models(
+                backend_module.BACKEND_WHISPER_CPP)
+        ]
+
+    def test_a_ggml_line_says_the_model_and_its_bits_not_the_file(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_backend(backend_module.BACKEND_WHISPER_CPP)
+        tab._populate_transcription_model_choices()
+        line = tab._transcription_model_labels[
+            tab._transcription_model_ids.index("ggml-small-q5_1")]
+        assert "ggml-" not in line and "q5_1" not in line
+
+    def test_a_model_of_the_other_backend_falls_back_to_automatic(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._select_transcription_backend(backend_module.BACKEND_WHISPER_CPP)
+        event = _Skippable()
+        tab._on_transcription_backend_change(event)
+        assert tab._selected_transcription_model() == preferences.AUTO
+        # Skip(): the dialog-level handler is what shows Apply.
+        assert event.skipped
+
+    def test_a_stored_ggml_model_is_selected_when_the_tab_opens(self, tab):
+        tab.main_window.settings["transcription"] = {
+            "backend": backend_module.BACKEND_WHISPER_CPP, "model": "ggml-small-q5_1",
+        }
+        tab._load_transcription_values()
+        assert tab._selected_transcription_model() == "ggml-small-q5_1"
+
+    def test_an_english_only_model_with_detection_on_says_it_forces_english(self, tab):
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        tab._select_transcription_model("small.en")
+        tab._show_transcription_hardware_notices()
+        assert tab._transcription_hardware_keys == [
+            transcription_tab._TRANSCRIPTION_LANGUAGE_FORCED]
+
+    def test_another_language_chosen_says_it_is_replaced(self, tab):
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        tab._select_transcription_model("kb-whisper-small")
+        tab._transcription_detect_language_check.SetValue(False)
+        tab._select_transcription_language("pt")
+        tab._show_transcription_hardware_notices()
+        assert tab._transcription_hardware_keys == [
+            transcription_tab._TRANSCRIPTION_LANGUAGE_OVERRIDDEN]
+
+
+class TestTheWhisperCppProgram:
+    def test_the_processor_build_is_always_listed_and_first(self, tab):
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab._whisper_cpp_build_ids == [_CPU_BUILD.id]
+
+    @pytest.mark.parametrize("capability, listed", [
+        ((8, 6), [_CPU_BUILD.id, _CUDA_BUILD.id]),
+        ((12, 0), [_CPU_BUILD.id]),
+        (None, [_CPU_BUILD.id]),
+    ])
+    def test_the_graphics_build_only_where_the_card_can_run_it(
+        self, tab, capability, listed
+    ):
+        tab._load_transcription_values()
+        tab._adopt_transcription_probe(_with_card(capability))
+        assert tab._whisper_cpp_build_ids == listed
+
+    def test_a_graphics_build_already_installed_stays_removable(self, tab, monkeypatch):
+        _builds_on_disk(monkeypatch, {_CPU_BUILD, _CUDA_BUILD})
+        tab._load_transcription_values()
+        tab._adopt_transcription_probe(_with_card((12, 0)))
+        assert tab._whisper_cpp_build_ids == [_CPU_BUILD.id, _CUDA_BUILD.id]
+
+    def test_each_line_says_the_build_its_state_and_its_size(self):
+        i18n = _I18n()
+        line = transcription_whisper_cpp.whisper_cpp_build_label(
+            i18n, _CUDA_BUILD, whisper_cpp_runtime.STATE_INSTALLED)
+        assert transcription_tab._whisper_cpp_build_name(i18n, _CUDA_BUILD.id) in line
+        assert transcription_tab._format_transcription_size(
+            i18n, _CUDA_BUILD.archive_bytes) in line
+        assert line != transcription_whisper_cpp.whisper_cpp_build_label(
+            i18n, _CUDA_BUILD, whisper_cpp_runtime.STATE_ABSENT)
+
+    def test_nothing_installed_offers_the_install_and_nothing_else(self, tab):
+        tab._load_transcription_values()
+        buttons = tab._transcription_action_buttons
+        assert buttons[management.ACTION_INSTALL_WHISPER_CPP].IsEnabled()
+        for action in (management.ACTION_VERIFY_WHISPER_CPP,
+                       management.ACTION_REPAIR_WHISPER_CPP,
+                       management.ACTION_REMOVE_WHISPER_CPP):
+            assert not buttons[action].IsEnabled()
+
+    def test_an_installed_build_offers_checking_and_removing(self, tab, monkeypatch):
+        _builds_on_disk(monkeypatch, {_CPU_BUILD})
+        tab._load_transcription_values()
+        buttons = tab._transcription_action_buttons
+        assert not buttons[management.ACTION_INSTALL_WHISPER_CPP].IsEnabled()
+        assert buttons[management.ACTION_VERIFY_WHISPER_CPP].IsEnabled()
+        assert buttons[management.ACTION_REMOVE_WHISPER_CPP].IsEnabled()
+
+    def test_choosing_a_build_is_not_an_edit(self, tab):
+        tab._load_transcription_values()
+        event = _Skippable()
+        tab._on_whisper_cpp_build_change(event)
+        assert not event.skipped
+        assert tab.dirtied == 0
+
+    def test_removing_the_processor_build_says_the_other_goes_too(self, tab, monkeypatch):
+        asked = []
+        monkeypatch.setattr(transcription_whisper_cpp.wx, "MessageBox",
+                            lambda *args, **kwargs: asked.append(args) or wx.NO)
+        tab._load_transcription_values()
+        assert tab._ask_whisper_cpp_removal(_CPU_BUILD.id) is False
+        assert asked[0][0] == tab.main_window.i18n.t(
+            "transcription_confirm_remove_whisper_cpp_cpu")
+
+    def test_the_action_reaches_the_job_with_its_build_and_the_card(self, tab):
+        ran = []
+        tab._run_transcription_job = lambda action, **kwargs: ran.append(
+            (action, kwargs)) or (None, None, None)
+        tab._announce_transcription_result = lambda job, result, error: None
+        tab._load_transcription_values()
+        tab._run_whisper_cpp_job(management.ACTION_VERIFY_WHISPER_CPP, _CPU_BUILD.id,
+                                 _with_card((8, 6)))
+        assert ran == [(management.ACTION_VERIFY_WHISPER_CPP,
+                        {"build_id": _CPU_BUILD.id, "compute_capability": (8, 6)})]
+
+    def test_installing_the_graphics_build_says_the_processor_one_comes_first(self):
+        i18n = _I18n()
+        text = transcription_tab._transcription_download_confirmation(i18n, _summary(
+            subject=management.SUBJECT_WHISPER_CPP, model_id=None,
+            build_id=_CUDA_BUILD.id, includes_cpu_build=True, resumable=False,
+        ))
+        assert i18n.t("transcription_confirm_whisper_cpp_with_cpu") in text
+        assert transcription_tab._whisper_cpp_build_name(i18n, _CUDA_BUILD.id) in text
+
+    def test_the_labels_follow_a_language_change(self, tab):
+        tab._load_transcription_values()
+        tab.main_window.i18n = _I18n("pl")
+        tab._refresh_transcription_labels()
+        pl = tab.main_window.i18n
+        assert tab._whisper_cpp_label.GetLabel() == pl.t("transcription_whisper_cpp_label")
+        assert tab._transcription_action_buttons[
+            management.ACTION_INSTALL_WHISPER_CPP].GetLabel() == pl.t(
+            "transcription_whisper_cpp_install_btn")
+        assert tab._whisper_cpp_combo.GetString(0) == (
+            transcription_whisper_cpp.whisper_cpp_build_label(
+                pl, _CPU_BUILD, whisper_cpp_runtime.STATE_ABSENT))

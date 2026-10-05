@@ -37,8 +37,10 @@ No wx, no network, no GPU: model_store and cuda_runtime are replaced by fakes
 wherever an action would reach past the disk.
 """
 
+import dataclasses
 import errno
 import json
+import logging
 import os
 import re
 import threading
@@ -52,8 +54,12 @@ from core.transcription import (
     device,
     errors,
     management,
+    management_whisper_cpp,
     model_catalog,
     model_store,
+    whisper_cpp_builds,
+    whisper_cpp_catalog,
+    whisper_cpp_runtime,
 )
 from tests.conftest import words_found_in
 
@@ -486,6 +492,124 @@ class TestCudaRuntimeDownloadSummary:
         assert plain.enough_space is False
 
 
+def _card_of(capability):
+    return dataclasses.replace(_card(), compute_capability=capability)
+
+
+_GGML_ID = "ggml-tiny-q5_1"
+_CPU = whisper_cpp_builds.BUILD_CPU
+_CUDA = whisper_cpp_builds.BUILD_CUDA
+# What the recorders replace, for the tests that need the real one back.
+_REAL_ENSURE_VAD = management_whisper_cpp.ensure_vad
+
+
+class TestGgmlModelSummary:
+    def test_the_voice_activity_model_is_quoted_with_the_first_ggml_model(self, tmp_path):
+        # Nothing else ever fetches it, so the bytes the user agrees to have to
+        # include it — 885 KB, but "32 MB" followed by a second download is a
+        # figure the user was not told.
+        model = whisper_cpp_catalog.get_model(_GGML_ID)
+        summary = management.model_download_summary(
+            _GGML_ID, str(tmp_path), _no_card(), free_bytes=10 ** 12
+        )
+        vad = whisper_cpp_catalog.VAD_MODEL
+        assert summary.model_id == _GGML_ID
+        assert summary.download_bytes == model.download_bytes + vad.download_bytes
+        assert summary.required_free_bytes == model_store.required_free_bytes(
+            summary.download_bytes
+        )
+
+    def test_a_voice_activity_model_already_there_is_not_quoted_again(
+        self, tmp_path, monkeypatch
+    ):
+        vad = whisper_cpp_catalog.VAD_MODEL
+        real = model_store.remaining_download_bytes
+        monkeypatch.setattr(
+            model_store, "remaining_download_bytes",
+            lambda root, model: 0 if model is vad else real(root, model),
+        )
+        summary = management.model_download_summary(
+            _GGML_ID, str(tmp_path), _no_card(), free_bytes=10 ** 12
+        )
+        assert summary.download_bytes == whisper_cpp_catalog.get_model(_GGML_ID).download_bytes
+
+    def test_a_repair_quotes_the_voice_activity_model_whole(self, tmp_path):
+        summary = management.model_download_summary(
+            _GGML_ID, str(tmp_path), _no_card(), free_bytes=10 ** 12, repair=True
+        )
+        assert summary.download_bytes == (
+            whisper_cpp_catalog.get_model(_GGML_ID).download_bytes
+            + whisper_cpp_catalog.VAD_MODEL.download_bytes
+        )
+
+    @pytest.mark.parametrize("capability, installed, expected", [
+        ((8, 6), True, (device.DEVICE_CUDA, device.REASON_CUDA_SELECTED)),
+        ((8, 6), False, (device.DEVICE_CPU, device.REASON_CUDA_BUILD_MISSING)),
+        ((12, 0), True, (device.DEVICE_CPU, device.REASON_CUDA_BUILD_UNSUPPORTED)),
+        (None, True, (device.DEVICE_CPU, device.REASON_CUDA_BUILD_UNSUPPORTED)),
+    ])
+    def test_the_device_is_whisper_cpps_own(self, tmp_path, capability, installed, expected):
+        summary = management.model_download_summary(
+            _GGML_ID, str(tmp_path), _card_of(capability), free_bytes=10 ** 12,
+            whisper_cpp_cuda_installed=installed,
+        )
+        assert (summary.device, summary.device_reason) == expected
+
+    def test_the_voice_activity_model_is_never_a_model_of_its_own(self, tmp_path):
+        assert management.model_download_summary(
+            whisper_cpp_catalog.VAD_MODEL.id, str(tmp_path), _no_card(), free_bytes=None
+        ) is None
+
+
+class TestWhisperCppDownloadSummary:
+    def test_the_processor_build_alone(self, tmp_path):
+        summary = management_whisper_cpp.whisper_cpp_download_summary(
+            _CPU.id, _no_card(), free_bytes=10 ** 12, directory=str(tmp_path)
+        )
+        assert summary.subject == management.SUBJECT_WHISPER_CPP
+        assert summary.build_id == _CPU.id
+        assert summary.download_bytes == _CPU.archive_bytes
+        assert summary.includes_cpu_build is False
+        assert summary.resumable is False
+        assert summary.destination == whisper_cpp_runtime.build_dir(str(tmp_path), _CPU)
+        assert summary.device == device.DEVICE_CPU
+
+    def test_the_graphics_build_without_the_processor_one_quotes_both(self, tmp_path):
+        summary = management_whisper_cpp.whisper_cpp_download_summary(
+            _CUDA.id, _card(), free_bytes=10 ** 12, directory=str(tmp_path)
+        )
+        assert summary.includes_cpu_build is True
+        assert summary.download_bytes == _CUDA.archive_bytes + _CPU.archive_bytes
+        # The device after the install, which is what the user is deciding.
+        assert (summary.device, summary.device_reason) == (
+            device.DEVICE_CUDA, device.REASON_CUDA_SELECTED
+        )
+
+    def test_the_graphics_build_beside_the_processor_one_quotes_itself(self, tmp_path):
+        summary = management_whisper_cpp.whisper_cpp_download_summary(
+            _CUDA.id, _card(), free_bytes=10 ** 12, installed_build_ids=(_CPU.id,),
+            directory=str(tmp_path),
+        )
+        assert summary.includes_cpu_build is False
+        assert summary.download_bytes == _CUDA.archive_bytes
+
+    @pytest.mark.parametrize("delta, fits", [(0, True), (-1, False)])
+    def test_the_space_is_the_installs_own_gate(self, tmp_path, delta, fits):
+        required = model_store.required_free_bytes(
+            _CPU.archive_bytes * whisper_cpp_runtime.INSTALL_SPACE_FACTOR
+        )
+        summary = management_whisper_cpp.whisper_cpp_download_summary(
+            _CPU.id, _no_card(), free_bytes=required + delta, directory=str(tmp_path)
+        )
+        assert summary.required_free_bytes == required
+        assert summary.enough_space is fits
+
+    def test_an_unknown_build_has_no_summary(self):
+        assert management_whisper_cpp.whisper_cpp_download_summary(
+            "nonsense", _no_card(), free_bytes=None
+        ) is None
+
+
 # ── The executor ─────────────────────────────────────────────────────────────
 
 
@@ -499,6 +623,21 @@ _TARGETS = {
     management.ACTION_REPAIR_CUDA_RUNTIME: (cuda_runtime, "repair_cuda_runtime"),
     management.ACTION_VERIFY_CUDA_RUNTIME: (cuda_runtime, "verify_installation"),
     management.ACTION_REMOVE_CUDA_RUNTIME: (cuda_runtime, "remove_cuda_runtime"),
+    management.ACTION_INSTALL_WHISPER_CPP: (whisper_cpp_runtime, "install_build"),
+    management.ACTION_REPAIR_WHISPER_CPP: (whisper_cpp_runtime, "repair_build"),
+    management.ACTION_VERIFY_WHISPER_CPP: (whisper_cpp_runtime, "verify_build"),
+    management.ACTION_REMOVE_WHISPER_CPP: (whisper_cpp_runtime, "remove_build"),
+}
+
+#: The build each whisper.cpp action acts on in the executor tests: one that
+#: makes it a single call. Removing the processor build takes the graphics
+#: one with it, so the removal acts on the graphics build; the others on the
+#: processor build, which installing never has to put anything under.
+_BUILDS = {
+    management.ACTION_INSTALL_WHISPER_CPP: whisper_cpp_builds.BUILD_CPU.id,
+    management.ACTION_REPAIR_WHISPER_CPP: whisper_cpp_builds.BUILD_CPU.id,
+    management.ACTION_VERIFY_WHISPER_CPP: whisper_cpp_builds.BUILD_CPU.id,
+    management.ACTION_REMOVE_WHISPER_CPP: whisper_cpp_builds.BUILD_CUDA.id,
 }
 
 
@@ -553,6 +692,8 @@ class _Harness:
             model_id="tiny",
             new_models_root=str(tmp_path / "new-models"),
             cuda_directory=str(tmp_path / "cuda"),
+            build_id=_BUILDS.get(action),
+            runtime_root=str(tmp_path / "runtime"),
             on_progress=self.ticks.append,
             on_finished=lambda result, error: self.reports.append((result, error)),
             clock=lambda: 0.0,
@@ -577,10 +718,20 @@ _RESULTS = {
     management.ACTION_REPAIR_CUDA_RUNTIME: (True, (), None),
     management.ACTION_VERIFY_CUDA_RUNTIME: None,
     management.ACTION_REMOVE_CUDA_RUNTIME: (),
+    management.ACTION_INSTALL_WHISPER_CPP: None,
+    management.ACTION_REPAIR_WHISPER_CPP: None,
+    management.ACTION_VERIFY_WHISPER_CPP: None,
+    management.ACTION_REMOVE_WHISPER_CPP: (),
 }
 
 
 class TestManagementJob:
+    @pytest.fixture(autouse=True)
+    def no_vad_download(self, monkeypatch):
+        # The program's install also fetches the voice-activity model, over
+        # the network; what it does is pinned in TestTheVoiceActivityModel.
+        monkeypatch.setattr(management_whisper_cpp, "ensure_vad", lambda *a, **k: None)
+
     @pytest.mark.parametrize("action", management.ACTIONS)
     def test_success_is_reported_once_with_the_result(self, tmp_path, monkeypatch, action):
         fake = _install(monkeypatch, action, _Fake(returns=_RESULTS[action]))
@@ -789,6 +940,338 @@ class TestManagementJob:
 # ── Probing off the UI thread ────────────────────────────────────────────────
 
 
+class _Recorder:
+    """Every call to the patched functions, in the order they were made."""
+
+    def __init__(self):
+        self.calls = []
+
+    def fake(self, name, returns=None):
+        def record(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            return returns(*args) if callable(returns) else returns
+        return record
+
+    def names(self):
+        return [(name, args[0]) for name, args, _kwargs in self.calls]
+
+
+def _runtime_state(installed):
+    def state(build, root=None):
+        if build in installed:
+            return whisper_cpp_runtime.RuntimeState(whisper_cpp_runtime.STATE_INSTALLED)
+        return whisper_cpp_runtime.RuntimeState(whisper_cpp_runtime.STATE_ABSENT)
+    return state
+
+
+class TestWhisperCppSteps:
+    """The program's builds: the processor one is the floor under the other."""
+
+    @pytest.fixture
+    def recorder(self, monkeypatch):
+        recorder = _Recorder()
+        for name in ("install_build", "repair_build", "verify_build"):
+            monkeypatch.setattr(whisper_cpp_runtime, name, recorder.fake(name))
+        monkeypatch.setattr(whisper_cpp_runtime, "remove_build",
+                            recorder.fake("remove_build", lambda build, *_: (build.id,)))
+        # Kept apart from the program's calls, which the order tests compare.
+        recorder.vad = []
+        monkeypatch.setattr(
+            management_whisper_cpp, "ensure_vad",
+            lambda root, session, cancel, check=False, strict=True: recorder.vad.append(
+                (root, check, strict, [name for name, *_ in recorder.calls])),
+        )
+        return recorder
+
+    def _run(self, tmp_path, action, build, **kwargs):
+        harness = _Harness(tmp_path, action, build_id=build.id, **kwargs).run()
+        (report,) = harness.reports
+        return report
+
+    def test_the_graphics_build_installs_the_processor_one_first(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state", _runtime_state(()))
+        result, error = self._run(tmp_path, management.ACTION_INSTALL_WHISPER_CPP, _CUDA,
+                                  compute_capability=(8, 6))
+        assert error is None and result is None
+        assert recorder.names() == [("install_build", _CPU), ("install_build", _CUDA)]
+        # The card reaches both installs: the runtime refuses the graphics
+        # build on a card it cannot run on.
+        assert {kwargs["compute_capability"] for *_, kwargs in recorder.calls} == {(8, 6)}
+
+    def test_the_graphics_build_beside_the_processor_one_installs_alone(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state",
+                            _runtime_state((_CPU,)))
+        self._run(tmp_path, management.ACTION_INSTALL_WHISPER_CPP, _CUDA)
+        assert recorder.names() == [("install_build", _CUDA)]
+
+    def test_a_repair_of_the_graphics_build_installs_a_missing_processor_one(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state", _runtime_state(()))
+        self._run(tmp_path, management.ACTION_REPAIR_WHISPER_CPP, _CUDA)
+        assert recorder.names() == [("install_build", _CPU), ("repair_build", _CUDA)]
+
+    def test_the_progress_of_two_installs_is_one_bar(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state", _runtime_state(()))
+        monkeypatch.setattr(management_whisper_cpp, "ensure_vad", lambda *a, **k: None)
+
+        def install(build, root=None, progress=None, **_kwargs):
+            progress(build.archive_bytes * 2, build.archive_bytes * 2)
+
+        monkeypatch.setattr(whisper_cpp_runtime, "install_build", install)
+        harness = _Harness(tmp_path, management.ACTION_INSTALL_WHISPER_CPP,
+                           build_id=_CUDA.id)
+        seen = []
+        harness.job._report_progress = lambda done, total: seen.append((done, total))
+        harness.run()
+        total = (_CPU.archive_bytes + _CUDA.archive_bytes) * 2
+        # Never back to zero between the two: a bar that empties halfway is
+        # heard as a download that started over.
+        assert seen == [(_CPU.archive_bytes * 2, total), (total, total)]
+
+    def test_removing_the_processor_build_removes_the_graphics_one_first(
+        self, tmp_path, recorder
+    ):
+        result, error = self._run(tmp_path, management.ACTION_REMOVE_WHISPER_CPP, _CPU)
+        assert error is None
+        assert recorder.names() == [("remove_build", _CUDA), ("remove_build", _CPU)]
+        # What stayed open in either is reported, so the restart advice covers both.
+        assert result == (_CUDA.id, _CPU.id)
+
+    def test_removing_the_graphics_build_leaves_the_processor_one(self, tmp_path, recorder):
+        self._run(tmp_path, management.ACTION_REMOVE_WHISPER_CPP, _CUDA)
+        assert recorder.names() == [("remove_build", _CUDA)]
+
+    def test_a_check_touches_only_the_build_checked(self, tmp_path, recorder):
+        self._run(tmp_path, management.ACTION_VERIFY_WHISPER_CPP, _CUDA)
+        assert recorder.names() == [("verify_build", _CUDA)]
+
+    def test_an_unknown_build_is_not_installed(self, tmp_path, recorder):
+        harness = _Harness(tmp_path, management.ACTION_INSTALL_WHISPER_CPP,
+                           build_id="nonsense").run()
+        ((_result, error),) = harness.reports
+        assert error.code == errors.WHISPER_CPP_NOT_INSTALLED
+        assert recorder.calls == [] and recorder.vad == []
+
+    @pytest.mark.parametrize("action, check", [
+        (management.ACTION_INSTALL_WHISPER_CPP, False),
+        (management.ACTION_REPAIR_WHISPER_CPP, True),
+    ])
+    def test_installing_the_program_brings_the_voice_activity_model_after_it(
+        self, tmp_path, monkeypatch, recorder, action, check
+    ):
+        # A user who only adds a GGML file of their own never downloads a
+        # GGML model, and the filter would otherwise never arrive. After the
+        # program and not strict: see the next test.
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state",
+                            _runtime_state((_CPU,)))
+        self._run(tmp_path, action, _CPU)
+        step = "install_build" if action == management.ACTION_INSTALL_WHISPER_CPP \
+            else "repair_build"
+        assert recorder.vad == [(str(tmp_path / "models"), check, False, [step])]
+
+    def test_hugging_face_out_of_reach_does_not_stop_the_install(
+        self, tmp_path, monkeypatch, recorder, caplog
+    ):
+        """The program comes from GitHub, the filter from Hugging Face. A
+        network that blocks the second must not cost a user who brings their
+        own GGML file the first."""
+        monkeypatch.setattr(management_whisper_cpp, "ensure_vad", _REAL_ENSURE_VAD)
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state",
+                            _runtime_state((_CPU,)))
+        monkeypatch.setattr(model_store, "installation_state",
+                            lambda root, model: model_store.InstallState(
+                                model_store.STATE_ABSENT))
+
+        def unreachable(model, root, **_kwargs):
+            raise errors.TranscriptionError(errors.MODEL_DOWNLOAD_FAILED, "blocked")
+
+        monkeypatch.setattr(model_store, "download_model", unreachable)
+        with caplog.at_level(logging.WARNING):
+            result, error = self._run(tmp_path, management.ACTION_INSTALL_WHISPER_CPP, _CPU)
+        assert error is None and result is None
+        assert recorder.names() == [("install_build", _CPU)]
+        assert "voice-activity model was left as it is" in caplog.text
+
+    def test_a_cancel_while_fetching_the_filter_is_still_a_cancel(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        monkeypatch.setattr(management_whisper_cpp, "ensure_vad", _REAL_ENSURE_VAD)
+        monkeypatch.setattr(whisper_cpp_runtime, "installation_state",
+                            _runtime_state((_CPU,)))
+        monkeypatch.setattr(model_store, "installation_state",
+                            lambda root, model: model_store.InstallState(
+                                model_store.STATE_ABSENT))
+
+        def cancelled(model, root, **_kwargs):
+            raise errors.TranscriptionError(errors.CANCELLED, "by the user")
+
+        monkeypatch.setattr(model_store, "download_model", cancelled)
+        _result, error = self._run(tmp_path, management.ACTION_INSTALL_WHISPER_CPP, _CPU)
+        assert error.code == errors.CANCELLED
+
+    def test_a_check_of_an_older_install_fetches_it_on_the_side(self, tmp_path, recorder):
+        self._run(tmp_path, management.ACTION_VERIFY_WHISPER_CPP, _CPU)
+        assert recorder.vad == [(str(tmp_path / "models"), True, False, ["verify_build"])]
+
+    def test_removing_the_program_leaves_it(self, tmp_path, recorder):
+        self._run(tmp_path, management.ACTION_REMOVE_WHISPER_CPP, _CPU)
+        assert recorder.vad == []
+
+
+class TestGgmlSteps:
+    """A GGML model brings the voice-activity model with it, first."""
+
+    @pytest.fixture
+    def recorder(self, monkeypatch):
+        recorder = _Recorder()
+        monkeypatch.setattr(model_store, "download_model", recorder.fake("download_model"))
+        monkeypatch.setattr(model_store, "repair_model", recorder.fake("repair_model"))
+        monkeypatch.setattr(model_store, "verify_model", recorder.fake("verify_model"))
+        return recorder
+
+    def _run(self, tmp_path, action):
+        harness = _Harness(tmp_path, action, model_id=_GGML_ID).run()
+        ((_result, error),) = harness.reports
+        assert error is None
+
+    @staticmethod
+    def _vad_present(monkeypatch, present):
+        vad = whisper_cpp_catalog.VAD_MODEL
+        monkeypatch.setattr(model_store, "is_installed",
+                            lambda root, model: present and model is vad)
+        state = model_store.STATE_INSTALLED if present else model_store.STATE_ABSENT
+        monkeypatch.setattr(model_store, "installation_state",
+                            lambda root, model: model_store.InstallState(state))
+
+    def test_a_download_fetches_the_voice_activity_model_first(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        self._vad_present(monkeypatch, False)
+        self._run(tmp_path, management.ACTION_DOWNLOAD_MODEL)
+        vad, model = whisper_cpp_catalog.VAD_MODEL, whisper_cpp_catalog.get_model(_GGML_ID)
+        assert [(name, args[0]) for name, args, _ in recorder.calls] == [
+            ("download_model", vad), ("download_model", model)
+        ]
+
+    def test_a_download_does_not_fetch_it_twice(self, tmp_path, monkeypatch, recorder):
+        self._vad_present(monkeypatch, True)
+        self._run(tmp_path, management.ACTION_DOWNLOAD_MODEL)
+        assert [(name, args[0]) for name, args, _ in recorder.calls] == [
+            ("download_model", whisper_cpp_catalog.get_model(_GGML_ID))
+        ]
+
+    def test_a_repair_repairs_both(self, tmp_path, monkeypatch, recorder):
+        self._vad_present(monkeypatch, True)
+        self._run(tmp_path, management.ACTION_REPAIR_MODEL)
+        vad, model = whisper_cpp_catalog.VAD_MODEL, whisper_cpp_catalog.get_model(_GGML_ID)
+        assert [(name, args[0]) for name, args, _ in recorder.calls] == [
+            ("repair_model", vad), ("repair_model", model)
+        ]
+
+    @pytest.mark.parametrize("present", [True, False])
+    def test_a_check_checks_the_voice_activity_model_or_fetches_it(
+        self, tmp_path, monkeypatch, recorder, present
+    ):
+        self._vad_present(monkeypatch, present)
+        self._run(tmp_path, management.ACTION_VERIFY_MODEL)
+        vad, model = whisper_cpp_catalog.VAD_MODEL, whisper_cpp_catalog.get_model(_GGML_ID)
+        calls = [(name, args[1] if name == "verify_model" else args[0])
+                 for name, args, _ in recorder.calls]
+        assert calls == ([("verify_model", model), ("verify_model", vad)] if present
+                         else [("verify_model", model), ("download_model", vad)])
+
+    def test_a_damaged_filter_is_not_the_checked_model_being_damaged(
+        self, tmp_path, monkeypatch, recorder
+    ):
+        self._vad_present(monkeypatch, True)
+        vad = whisper_cpp_catalog.VAD_MODEL
+        record = recorder.fake("verify_model")
+
+        def verify(root, model, **kwargs):
+            record(root, model, **kwargs)
+            if model is vad:
+                raise errors.TranscriptionError(errors.MODEL_CORRUPTED, "vad digest")
+
+        monkeypatch.setattr(model_store, "verify_model", verify)
+        self._run(tmp_path, management.ACTION_VERIFY_MODEL)
+        # Mended on the side; the check of the model itself reports success.
+        assert ("repair_model", vad) in [(name, args[0]) for name, args, _ in recorder.calls]
+
+
+class TestTheVoiceActivityModel:
+    """ensure_vad(): fetch it when absent, mend it when a check finds it
+    damaged — and, for a check, never turn a missing filter into a failure."""
+
+    @pytest.fixture
+    def store(self, monkeypatch):
+        recorder = _Recorder()
+        recorder.state = model_store.STATE_ABSENT
+        recorder.download_error = None
+        recorder.verify_error = None
+        monkeypatch.setattr(model_store, "installation_state",
+                            lambda root, model: model_store.InstallState(recorder.state))
+
+        def download(model, root, **kwargs):
+            recorder.calls.append(("download_model", (model, root), kwargs))
+            if recorder.download_error is not None:
+                raise recorder.download_error
+
+        def verify(root, model, **kwargs):
+            recorder.calls.append(("verify_model", (model, root), kwargs))
+            if recorder.verify_error is not None:
+                raise recorder.verify_error
+
+        monkeypatch.setattr(model_store, "download_model", download)
+        monkeypatch.setattr(model_store, "verify_model", verify)
+        monkeypatch.setattr(model_store, "repair_model", recorder.fake("repair_model"))
+        return recorder
+
+    @staticmethod
+    def _names(store):
+        return [name for name, *_ in store.calls]
+
+    def test_absent_it_is_downloaded_into_the_models_folder(self, tmp_path, store):
+        management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False)
+        ((name, (model, root), _kwargs),) = store.calls
+        assert (name, model, root) == (
+            "download_model", whisper_cpp_catalog.VAD_MODEL, str(tmp_path))
+
+    def test_present_and_not_asked_to_check_nothing_happens(self, tmp_path, store):
+        store.state = model_store.STATE_INSTALLED
+        management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False)
+        assert store.calls == []
+
+    def test_a_check_mends_a_damaged_one(self, tmp_path, store):
+        store.state = model_store.STATE_INSTALLED
+        store.verify_error = errors.TranscriptionError(errors.MODEL_CORRUPTED, "digest")
+        management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False, check=True)
+        assert self._names(store) == ["verify_model", "repair_model"]
+
+    def test_offline_a_check_carries_on_and_a_model_download_says_so(self, tmp_path, store):
+        store.download_error = errors.TranscriptionError(errors.MODEL_DOWNLOAD_FAILED, "offline")
+        management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False,
+                                          check=True, strict=False)
+        with pytest.raises(errors.TranscriptionError) as caught:
+            management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False)
+        assert caught.value.code == errors.MODEL_DOWNLOAD_FAILED
+
+    def test_a_cancel_is_a_cancel_even_for_a_check(self, tmp_path, store):
+        store.download_error = errors.TranscriptionError(errors.CANCELLED, "by the user")
+        with pytest.raises(errors.TranscriptionError) as caught:
+            management_whisper_cpp.ensure_vad(str(tmp_path), None, lambda: False,
+                                              check=True, strict=False)
+        assert caught.value.code == errors.CANCELLED
+
+    def test_without_a_models_folder_nothing_is_touched(self, store):
+        management_whisper_cpp.ensure_vad(None, None, lambda: False)
+        assert store.calls == []
+
+
 class TestProbeInBackground:
     def test_the_answer_arrives_by_callback_from_another_thread(self):
         answer = _card()
@@ -964,6 +1447,20 @@ class TestAnnouncement:
         assert said.outcome == management.OUTCOME_FAILED
         assert said.values == {"moved": "tiny, base", "remaining": "small, large-v3"}
 
+    def test_the_voice_activity_model_moves_unnamed(self):
+        vad = whisper_cpp_catalog.VAD_MODEL.id
+        said = management.announcement(management.ACTION_MOVE_MODELS, (vad, "ggml-small"))
+        assert said.values == {"models": "ggml-small"}
+        # A folder that held only the filter had no models to move.
+        alone = management.announcement(management.ACTION_MOVE_MODELS, (vad,))
+        assert alone.i18n_key == management.MODELS_NOTHING_TO_MOVE_I18N_KEY
+        partial = management.announcement(
+            management.ACTION_MOVE_MODELS,
+            error=_move_error(errors.MODEL_MOVE_FAILED, [vad, "tiny"]),
+            models_before_move=(vad, "tiny", "ggml-base"),
+        )
+        assert partial.values == {"moved": "tiny", "remaining": "ggml-base"}
+
     def test_a_partial_move_out_of_space_repeats_the_reason(self):
         said = management.announcement(
             management.ACTION_MOVE_MODELS,
@@ -1056,7 +1553,8 @@ class TestAnnouncementTranslations:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_key_exists_in_every_locale(self, locale):
         table = _load_language(locale)
-        missing = [k for k in management.ANNOUNCEMENT_I18N_KEYS if not table.get(k, "").strip()]
+        keys = management.ANNOUNCEMENT_I18N_KEYS + management_whisper_cpp.ANNOUNCEMENT_I18N_KEYS
+        missing = [k for k in keys if not table.get(k, "").strip()]
         assert missing == [], f"{locale}.json would read these key names aloud: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
@@ -1104,9 +1602,24 @@ class TestAnnouncementTranslations:
             management.announcement(
                 management.ACTION_VERIFY_MODEL, error=errors.TranscriptionError(errors.BACKEND_ERROR)
             ),
+        ] + [
+            management.announcement(action, result, build_id=build.id)
+            for build in whisper_cpp_builds.BUILDS
+            for action, result in (
+                (management.ACTION_INSTALL_WHISPER_CPP, None),
+                (management.ACTION_REPAIR_WHISPER_CPP, None),
+                (management.ACTION_VERIFY_WHISPER_CPP, None),
+                (management.ACTION_REMOVE_WHISPER_CPP, ()),
+                (management.ACTION_REMOVE_WHISPER_CPP, ("whisper-cli.exe",)),
+            )
         ]
         covered = {s.i18n_key for s in samples}
-        assert set(management.ANNOUNCEMENT_I18N_KEYS) <= covered
+        assert set(management.ANNOUNCEMENT_I18N_KEYS
+                   + management_whisper_cpp.ANNOUNCEMENT_I18N_KEYS) <= covered
         for said in samples:
-            text = table[said.i18n_key].format(**said.values)
+            values = dict(said.values)
+            if "build" in values:
+                # An i18n key, which the tab translates before formatting.
+                values["build"] = table[values["build"]]
+            text = table[said.i18n_key].format(**values)
             assert not re.search(r"[{}]", text), f"{locale}: {said.i18n_key}"

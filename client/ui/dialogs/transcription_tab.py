@@ -29,7 +29,9 @@ from core.transcription import (
     external_models,
     external_view,
     management as transcription_management,
+    management_whisper_cpp,
     model_catalog,
+    model_names,
     model_store,
     preferences as transcription_preferences,
 )
@@ -84,6 +86,13 @@ _TRANSCRIPTION_CUDA_ACTION_BUTTONS = (
     (transcription_management.ACTION_REMOVE_CUDA_RUNTIME,
      "transcription_cuda_remove_btn", "remove"),
 )
+
+#: What the tab says about a single-language model (the `.en`, distilled and
+#: third-party ones): its language replaces the one chosen below, or the
+#: detection. No language named — the model's is in its picker line, just
+#: above — so the notice stays a key like the others in its field.
+_TRANSCRIPTION_LANGUAGE_FORCED = "transcription_notice_language_forced"
+_TRANSCRIPTION_LANGUAGE_OVERRIDDEN = "transcription_notice_language_overridden"
 
 #: The name of each group box. Deliberately without a mnemonic: a static box
 #: is not a tab stop, and the two letters it would cost are letters the
@@ -173,7 +182,15 @@ def _transcription_download_confirmation(i18n, summary, repair=False) -> str:
         head = i18n.t(
             "transcription_confirm_model_repair" if repair
             else "transcription_confirm_model"
-        ).format(model=summary.model_id or "")
+        ).format(model=model_names.display_name(i18n, summary.model_id) or "")
+    elif summary.subject == transcription_management.SUBJECT_WHISPER_CPP:
+        head = i18n.t(
+            "transcription_confirm_whisper_cpp_repair" if repair
+            else "transcription_confirm_whisper_cpp"
+        ).format(build=_whisper_cpp_build_name(i18n, summary.build_id))
+        if summary.includes_cpu_build:
+            # Two downloads under one Yes: the user is told the second exists.
+            head = " ".join((head, i18n.t("transcription_confirm_whisper_cpp_with_cpu")))
     else:
         head = i18n.t(
             "transcription_confirm_cuda_repair" if repair
@@ -234,6 +251,34 @@ def _transcription_unknown_dirs_notice(i18n, names) -> str:
     return i18n.t("transcription_unknown_dirs").format(folders=", ".join(names))
 
 
+def _whisper_cpp_build_name(i18n, build_id) -> str:
+    """A whisper.cpp build as it is said ("the processor version"), or ""."""
+    key = management_whisper_cpp.WHISPER_CPP_BUILD_I18N_KEYS.get(build_id)
+    return i18n.t(key) if key else ""
+
+
+def _transcription_announcement_text(i18n, announcement) -> str:
+    """The sentence of a finished action, with its values said as names.
+
+    A management Announcement carries ids — a model id, a whisper.cpp build's
+    i18n key — because it is built where no translation is at hand; this is
+    where they become what the picker calls them ("small, 5 bits"), so the
+    sentence and the list the user just read agree.
+    """
+    values = dict(announcement.values)
+    if values.get("model"):
+        values["model"] = model_names.display_name(i18n, values["model"]) or values["model"]
+    # A move's lists of ids, said one name at a time.
+    for key in ("models", "moved", "remaining"):
+        if values.get(key):
+            values[key] = model_names.display_list(
+                i18n, values[key].split(transcription_management.LIST_SEPARATOR)
+            )
+    if "build" in values:
+        values["build"] = i18n.t(values["build"]) if values["build"] else ""
+    return i18n.t(announcement.i18n_key).format(**values)
+
+
 def _format_transcription_size(i18n, size_bytes) -> str:
     """A model or download size as a short, speakable figure ("1,5 GB").
 
@@ -281,7 +326,9 @@ def _transcription_model_choice_label(i18n, model, state, external=False) -> str
     else:
         key, size = "transcription_model_choice_available", model.download_bytes
     return i18n.t(key).format(
-        name=model.id,
+        # "small, 5 bits" / "small.en, English only": the quantization and the
+        # language are what tell two lines of the same model apart.
+        name=model_names.display_name(i18n, model.id) or model.id,
         size_class=size_class,
         size=_format_transcription_size(i18n, size),
     )
@@ -435,6 +482,33 @@ class TranscriptionTabMixin:
         #: _show_transcription_hardware_notices()).
         self._transcription_hardware_keys = []
 
+        # The backend picker exists only where there is something to pick.
+        # Keyed on BACKEND_IDS — what WinZapp knows — and not on
+        # available_backend_ids(), which is what runs on this machine today:
+        # measuring that means importing the optional backend just to draw a
+        # tab, and a user must be able to choose the component they are about
+        # to install. With one id there is nothing to choose, and a combobox
+        # with a single entry is a stop in the tab order that answers nothing.
+        # Above the model picker, because it decides what that lists: each
+        # backend loads its own files (see WhisperCppMixin).
+        self._transcription_backend_label = None
+        self._transcription_backend_combo = None
+        self._transcription_backend_ids = []
+        if len(transcription_backend.BACKEND_IDS) > 1:
+            self._transcription_backend_label = wx.StaticText(
+                page, label=i18n.t("transcription_backend_label")
+            )
+            sizer.Add(
+                self._transcription_backend_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8
+            )
+            self._transcription_backend_combo = wx.ComboBox(page, style=wx.CB_READONLY)
+            bind_incremental_search(self._transcription_backend_combo)
+            sizer.Add(self._transcription_backend_combo, 0, wx.EXPAND | wx.ALL, 8)
+            self._populate_transcription_backend_choices()
+            self._transcription_backend_combo.Bind(
+                wx.EVT_COMBOBOX, self._on_transcription_backend_change
+            )
+
         self._transcription_model_label = wx.StaticText(
             page, label=i18n.t("transcription_model_label")
         )
@@ -507,28 +581,11 @@ class TranscriptionTabMixin:
         self._transcription_detect_language_check.Bind(
             wx.EVT_CHECKBOX, self._on_transcription_detect_language_toggle
         )
+        # An English-only model has something to say about the language.
+        self._transcription_language_combo.Bind(
+            wx.EVT_COMBOBOX, self._on_transcription_language_change
+        )
 
-        # The backend picker exists only where there is something to pick.
-        # Keyed on BACKEND_IDS — what WinZapp knows — and not on
-        # available_backend_ids(), which is what runs on this machine today:
-        # measuring that means importing the optional backend just to draw a
-        # tab, and a user must be able to choose the component they are about
-        # to install. With one id there is nothing to choose, and a combobox
-        # with a single entry is a stop in the tab order that answers nothing.
-        self._transcription_backend_label = None
-        self._transcription_backend_combo = None
-        self._transcription_backend_ids = []
-        if len(transcription_backend.BACKEND_IDS) > 1:
-            self._transcription_backend_label = wx.StaticText(
-                page, label=i18n.t("transcription_backend_label")
-            )
-            sizer.Add(
-                self._transcription_backend_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8
-            )
-            self._transcription_backend_combo = wx.ComboBox(page, style=wx.CB_READONLY)
-            bind_incremental_search(self._transcription_backend_combo)
-            sizer.Add(self._transcription_backend_combo, 0, wx.EXPAND | wx.ALL, 8)
-            self._populate_transcription_backend_choices()
 
         self._transcription_models_dir_label = wx.StaticText(
             page, label=i18n.t("transcription_models_dir_label")
@@ -567,6 +624,9 @@ class TranscriptionTabMixin:
             page, sizer, _TRANSCRIPTION_CUDA_ACTION_BUTTONS,
             _TRANSCRIPTION_CUDA_ACTIONS_GROUP,
         )
+        # The whisper.cpp program: its builds and their four buttons, last, as
+        # the other download that is not a model.
+        self._build_whisper_cpp_section(page, sizer)
         self._sync_transcription_action_buttons()
 
         page.SetSizer(sizer)
@@ -673,7 +733,8 @@ class TranscriptionTabMixin:
             self._transcription_external_references,
             self._transcription_external_states,
         )
-        for model in model_catalog.list_models():
+        backend_id = self._transcription_picker_backend()
+        for model in transcription_preferences.catalogue_models(backend_id):
             state = model_store.installation_state(models_dir, model)
             self._transcription_model_states[model.id] = state.state
             labels.append(_transcription_model_choice_label(
@@ -686,7 +747,7 @@ class TranscriptionTabMixin:
         # A custom model is only ever there because the user chose it: after
         # the catalogue, never among what "automatic" picks from.
         for choice, label in external_view.custom_choices(
-                i18n, self._transcription_external_references):
+                i18n, self._transcription_external_references, backend_id):
             labels.append(label)
             model_ids.append(choice)
 
@@ -878,12 +939,21 @@ class TranscriptionTabMixin:
         that can disagree with the one the run will use.
         """
         preference = self._selected_transcription_device_preference()
+        language = self._selected_transcription_language()
         live = {transcription_preferences.SECTION: {
             transcription_preferences.SETTING_MODEL:
                 self._selected_transcription_model()
                 or transcription_preferences.AUTO,
             transcription_preferences.SETTING_DEVICE: preference,
+            transcription_preferences.SETTING_BACKEND:
+                self._selected_transcription_backend()
+                or transcription_preferences.AUTO,
+            transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE:
+                self._transcription_detect_language_check.GetValue(),
+            transcription_preferences.SETTING_LANGUAGE:
+                language or transcription_preferences.LANGUAGE_INTERFACE,
         }}
+        cuda_build = self._whisper_cpp_cuda_installed()
         resolution = transcription_preferences.resolve(
             live, probe,
             external_view.usable_ids(
@@ -891,15 +961,30 @@ class TranscriptionTabMixin:
                 self._transcription_external_references,
                 self._transcription_external_states,
             ),
+            self.main_window.i18n.language,
+            whisper_cpp_cuda_installed=cuda_build,
         )
 
         keys = []
-        device_id, reason = transcription_device.resolve_device(preference, probe)
-        if (preference == transcription_device.PREFERENCE_CUDA
-                and device_id != transcription_device.DEVICE_CUDA):
-            # Only for the user who asked for the card. Under "automatic" the
-            # processor is not a disappointed expectation, which is the same
-            # distinction resolve_device() itself draws.
+        if resolution.backend_id == transcription_backend.BACKEND_WHISPER_CPP:
+            device_id, reason = transcription_device.resolve_whisper_cpp_device(
+                preference, probe, cuda_build
+            )
+            # whisper.cpp's two reasons are said under "automatic" too: the
+            # card is there and works, and the processor is chosen only
+            # because of the program — which the user can do something about.
+            worth_saying = reason in (
+                transcription_device.REASON_CUDA_BUILD_UNSUPPORTED,
+                transcription_device.REASON_CUDA_BUILD_MISSING,
+            )
+        else:
+            device_id, reason = transcription_device.resolve_device(preference, probe)
+            worth_saying = False
+        if worth_saying or (preference == transcription_device.PREFERENCE_CUDA
+                            and device_id != transcription_device.DEVICE_CUDA):
+            # Otherwise only for the user who asked for the card. Under
+            # "automatic" the processor is not a disappointed expectation,
+            # which is the same distinction resolve_device() itself draws.
             keys.append(transcription_device.device_reason_i18n_key(reason))
         if resolution.model_none_reason is not None:
             keys.append(
@@ -907,6 +992,12 @@ class TranscriptionTabMixin:
                     resolution.model_none_reason
                 ]
             )
+        if resolution.language_overridden is not None:
+            # Said as the choice is made, not only by the first run: the
+            # language below is not the one this model will transcribe in.
+            keys.append(_TRANSCRIPTION_LANGUAGE_OVERRIDDEN)
+        elif resolution.language_forced:
+            keys.append(_TRANSCRIPTION_LANGUAGE_FORCED)
         return keys
 
     def _render_transcription_substitutions(self):
@@ -919,8 +1010,8 @@ class TranscriptionTabMixin:
         # about the folder rather than about anything they just did.
         lines = []
         if self._transcription_last_outcome is not None:
-            lines.append(i18n.t(self._transcription_last_outcome.i18n_key).format(
-                **self._transcription_last_outcome.values
+            lines.append(_transcription_announcement_text(
+                i18n, self._transcription_last_outcome
             ))
             lines.extend(
                 i18n.t(key) for key in self._transcription_last_outcome_extra
@@ -984,6 +1075,7 @@ class TranscriptionTabMixin:
                 # helpers run before the row they belong to exists.
                 if button is not None:
                     button.Enable(allowed[state_key])
+        self._sync_whisper_cpp_buttons()
 
     def _set_transcription_job_running(self, running):
         """One action at a time, and every other button says so."""
@@ -994,14 +1086,17 @@ class TranscriptionTabMixin:
         self._sync_external_buttons()
 
     def _on_transcription_model_change(self, event):
-        """Another model, another set of buttons that can act on it."""
+        """Another model, another set of buttons that can act on it — and
+        perhaps an English-only one, which has something to say about the
+        language."""
         self._sync_transcription_action_buttons()
+        self._show_transcription_hardware_notices()
         # Skip() or the dialog-level EVT_COMBOBOX never runs and the Apply
         # button stays hidden — see _mark_dirty()'s docstring.
         event.Skip()
 
     def _on_transcription_action(self, event):
-        """All eight buttons come here; the button is the action."""
+        """Every action button comes here; the button is the action."""
         pressed = event.GetEventObject()
         for action, button in self._transcription_action_buttons.items():
             if button is pressed:
@@ -1011,6 +1106,9 @@ class TranscriptionTabMixin:
     def _start_transcription_action(self, action):
         """Work out what the action needs, ask if it costs a download, run it."""
         if self._transcription_job_running:
+            return
+        if action in transcription_management.WHISPER_CPP_ACTIONS:
+            self._start_whisper_cpp_action(action)
             return
         model_id = None
         if action in transcription_management.MODEL_ACTIONS:
@@ -1100,6 +1198,7 @@ class TranscriptionTabMixin:
                     self._transcription_models_dir
                 ),
                 probe, free_bytes, preference, repair=repair,
+                whisper_cpp_cuda_installed=self._whisper_cpp_cuda_installed(),
             )
         else:
             summary = transcription_management.cuda_runtime_download_summary(
@@ -1136,7 +1235,7 @@ class TranscriptionTabMixin:
         i18n = self.main_window.i18n
         if action == transcription_management.ACTION_REMOVE_MODEL:
             text = i18n.t("transcription_confirm_remove_model").format(
-                model=model_id or ""
+                model=model_names.display_name(i18n, model_id) or ""
             )
         else:
             text = i18n.t("transcription_confirm_remove_cuda")
@@ -1146,7 +1245,8 @@ class TranscriptionTabMixin:
         ) == wx.YES
 
     def _run_transcription_job(self, action, model_id=None, models_root=None,
-                               new_models_root=None):
+                               new_models_root=None, build_id=None,
+                               compute_capability=None):
         """Run one action behind the progress dialog. Returns what it answered.
 
         Deliberately does not report: the models-folder move has to decide
@@ -1166,6 +1266,11 @@ class TranscriptionTabMixin:
         elif action == transcription_management.ACTION_MOVE_MODELS:
             job_kwargs["models_root"] = models_root
             job_kwargs["new_models_root"] = new_models_root
+        elif action in transcription_management.WHISPER_CPP_ACTIONS:
+            job_kwargs["build_id"] = build_id
+            job_kwargs["compute_capability"] = compute_capability
+            # Where the program's install puts the voice-activity model.
+            job_kwargs["models_root"] = models_root
 
         def _make_job(on_progress, on_finished):
             return transcription_management.ManagementJob(
@@ -1179,7 +1284,11 @@ class TranscriptionTabMixin:
             self.main_window.i18n,
             self.main_window.speak_output,
             _make_job,
-            progress_status_text(self.main_window.i18n, action, model_id),
+            progress_status_text(
+                self.main_window.i18n, action,
+                model_names.display_name(self.main_window.i18n, model_id),
+                build=_whisper_cpp_build_name(self.main_window.i18n, build_id),
+            ),
         )
         self._set_transcription_job_running(True)
         try:
@@ -1267,7 +1376,7 @@ class TranscriptionTabMixin:
         self._render_transcription_substitutions()
 
         i18n = self.main_window.i18n
-        sentences = [i18n.t(announcement.i18n_key).format(**announcement.values)]
+        sentences = [_transcription_announcement_text(i18n, announcement)]
         sentences.extend(i18n.t(key) for key in self._transcription_last_outcome_extra)
         if announcement.outcome == transcription_management.OUTCOME_FAILED:
             # Guarded (docs/traps/audio-devices.md): a sound that raises would
@@ -1303,6 +1412,8 @@ class TranscriptionTabMixin:
         if not self:
             return
         self._transcription_probe = probe
+        # The card's capability decides which whisper.cpp builds are offered.
+        self._populate_whisper_cpp_builds()
         self._show_transcription_hardware_notices()
 
     def _move_transcription_models(self) -> str:
@@ -1426,6 +1537,13 @@ class TranscriptionTabMixin:
         self._show_transcription_substitutions(resolution)
 
         section = transcription_preferences.read_section(settings)
+        # The backend first: it decides which catalogue the model list holds,
+        # and a whisper.cpp model has no entry in faster-whisper's.
+        if self._transcription_backend_combo is not None:
+            self._populate_transcription_backend_choices()
+            self._select_transcription_backend(
+                section[transcription_preferences.SETTING_BACKEND]
+            )
         self._populate_transcription_model_choices()
         self._select_transcription_model(section[transcription_preferences.SETTING_MODEL])
 
@@ -1443,13 +1561,8 @@ class TranscriptionTabMixin:
         )
         self._sync_transcription_language_controls()
 
-        if self._transcription_backend_combo is not None:
-            self._populate_transcription_backend_choices()
-            self._select_transcription_backend(
-                section[transcription_preferences.SETTING_BACKEND]
-            )
-
         self._show_transcription_cuda_status()
+        self._show_whisper_cpp_status()
 
     def _enter_transcription_page(self):
         """The tab has been put on screen: measure it, say it, and only then
@@ -1491,6 +1604,7 @@ class TranscriptionTabMixin:
         self._transcription_unknown_dirs = model_store.list_unknown_dirs(models_dir)
         self._transcription_probe = transcription_device.probe_hardware()
         self._show_transcription_cuda_status()
+        self._show_whisper_cpp_status()
         # Measure the folders of the models the user pointed WinZapp at, on a
         # worker, now that someone is looking: with none, nothing is started.
         # It also redraws the model list and the hardware notices — now with
@@ -1519,12 +1633,13 @@ class TranscriptionTabMixin:
             self.main_window.save_settings()
 
     def _transcription_custom_model_ids(self):
-        """The custom references' ids, for resolve() and sanitize_section() —
-        or None ("not measured") while app.json could not be read, so that a
-        moment of an unreadable file never retires the user's custom model."""
+        """The custom references' ids, each with the backend that loads it, for
+        resolve() and sanitize_section() — or None ("not measured") while
+        app.json could not be read, so that a moment of an unreadable file
+        never retires the user's custom model."""
         if not self._transcription_external_known:
             return None
-        return external_models.custom_reference_ids(
+        return external_models.custom_reference_backends(
             self._transcription_external_references
         )
 
@@ -1667,6 +1782,7 @@ class TranscriptionTabMixin:
             i18n.t("transcription_models_dir_browse_btn")
         )
         self._refresh_external_labels()
+        self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()
         for action, label_key, _state_key in (
@@ -1708,6 +1824,14 @@ class TranscriptionTabMixin:
 
     def _on_transcription_detect_language_toggle(self, event):
         self._sync_transcription_language_controls()
+        self._show_transcription_hardware_notices()
+        event.Skip()
+
+    def _on_transcription_language_change(self, event):
+        """An English-only model with another language is said as it is chosen."""
+        self._show_transcription_hardware_notices()
+        # Skip(), as for the device radio: the dialog-level handler is what
+        # shows Apply.
         event.Skip()
 
     def _on_transcription_device_change(self, event):

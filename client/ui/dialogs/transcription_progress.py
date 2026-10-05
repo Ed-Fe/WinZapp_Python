@@ -70,16 +70,24 @@ _STATUS_I18N_KEYS = {
     management.ACTION_REPAIR_CUDA_RUNTIME: "transcription_progress_repair_cuda",
     management.ACTION_VERIFY_CUDA_RUNTIME: "transcription_progress_verify_cuda",
     management.ACTION_REMOVE_CUDA_RUNTIME: "transcription_progress_remove_cuda",
+    management.ACTION_INSTALL_WHISPER_CPP: "transcription_progress_install_whisper_cpp",
+    management.ACTION_REPAIR_WHISPER_CPP: "transcription_progress_repair_whisper_cpp",
+    management.ACTION_VERIFY_WHISPER_CPP: "transcription_progress_verify_whisper_cpp",
+    management.ACTION_REMOVE_WHISPER_CPP: "transcription_progress_remove_whisper_cpp",
 }
 
 
-def progress_status_text(i18n, action, model_id=None) -> str:
+def progress_status_text(i18n, action, model_id=None, build=None) -> str:
     """The line saying what is happening, for one management action.
 
     Module level and taking `i18n` rather than reading it off a dialog, so the
-    wording of all nine can be checked in every locale without a window.
+    wording of every action can be checked in every locale without a window.
+    `model_id` is the model as it is to be said; `build` the whisper.cpp
+    program's build ("for the processor"), already in the user's language.
     """
-    return i18n.t(_STATUS_I18N_KEYS[action]).format(model=model_id or "")
+    return i18n.t(_STATUS_I18N_KEYS[action]).format(
+        model=model_id or "", build=build or ""
+    )
 
 
 class TranscriptionProgressDialog(wx.Dialog):

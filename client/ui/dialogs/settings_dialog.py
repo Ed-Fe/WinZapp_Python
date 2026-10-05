@@ -24,6 +24,7 @@ from ui.dialogs.emoji_picker import choose_reaction_emoji
 from ui.dialogs.ai_settings_page import AISettingsPage
 from ui.dialogs.transcription_tab import TranscriptionTabMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
+from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -194,7 +195,8 @@ def chat_lock_tab_visible(main_window) -> bool:
     return bool(getattr(main_window, "_chat_lock_unlocked", False))
 
 
-class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, wx.Dialog):
+class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
+                     wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]

@@ -258,7 +258,10 @@ class TranscriptionJob:
         # Probed here and used immediately: a probe is a statement about free
         # memory at one instant, and this is the instant the decision is about.
         probe = self._probe()
-        self.device, self.device_reason = device.resolve_device(
+        # Through the backend, which picks device.py's rule for itself: the
+        # whisper.cpp one resolves a card its graphics-card build cannot run on
+        # to the processor here, up front, rather than failing on every run.
+        self.device, self.device_reason = backend.resolve_device(
             self._device_preference, probe
         )
         self.compute_type = device.select_compute_type(self.device, probe)

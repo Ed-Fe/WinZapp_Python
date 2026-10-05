@@ -82,7 +82,7 @@ STATE_INSTALLED = "installed"
 # compressed size is known: the zip plus up to three times that unpacked. An
 # estimate, deliberately on the high side — the safe direction for a gate — and
 # followed by the exact check once the zip's own table of sizes can be read.
-_INSTALL_SPACE_FACTOR = 4
+INSTALL_SPACE_FACTOR = 4
 
 _CHUNK_BYTES = 1024 * 1024
 _PART_SUFFIX = ".part"
@@ -313,7 +313,7 @@ def _leftovers(root, build) -> bool:
 
 def _install_locked(build, root, root_created, progress, should_cancel, session):
     total = build.archive_bytes * 2
-    model_store.ensure_free_space(root, build.archive_bytes * _INSTALL_SPACE_FACTOR)
+    model_store.ensure_free_space(root, build.archive_bytes * INSTALL_SPACE_FACTOR)
     archive_path = os.path.join(root, build.archive)
     staging = _staging_dir(root, build)
     owned_session = session is None

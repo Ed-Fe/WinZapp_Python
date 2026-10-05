@@ -1087,7 +1087,10 @@ class TestWhatIsStored:
         external_models.accept_catalogue_folder(settings, folder, models_root)
         with open(os.path.join(settings.global_dir, "app.json"), encoding="utf-8") as fh:
             (entry,) = json.load(fh)[external_models.EXTERNAL_MODELS_SETTING]
-        assert set(entry) == {"id", "path", "key", "model_id", "verified", "weights_mark"}
+        assert set(entry) == {
+            "id", "path", "key", "model_id", "verified", "weights_mark", "backend"
+        }
+        assert entry["backend"] == backend_module.BACKEND_FASTER_WHISPER
         assert set(entry["weights_mark"]) == {"size", "mtime_ns"}
         assert entry["path"] == folder
 
@@ -1767,7 +1770,8 @@ class TestTheNamesOfTheModels:
     def test_only_custom_references_are_custom_ids(self):
         custom = external_models.ExternalReference("a", "/x", None, True)
         known = external_models.ExternalReference("b", "/y", "large-v3", True)
-        assert external_models.custom_reference_ids((custom, known)) == {"a"}
+        assert external_models.custom_reference_backends((custom, known)) == {
+            "a": custom.backend}
 
 
 class TestAModelsFolderCannotSwallowAReference:

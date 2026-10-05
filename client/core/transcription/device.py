@@ -35,7 +35,7 @@ import sys
 import threading
 from dataclasses import dataclass
 
-from core.transcription import errors, model_catalog
+from core.transcription import errors, model_catalog, whisper_cpp_builds
 
 DEVICE_CPU = "cpu"
 DEVICE_CUDA = "cuda"
@@ -74,6 +74,16 @@ REASON_CUDA_DRIVER_ERROR = "cuda_driver_error"
 # fine, and telling the user either of those sends them looking in the wrong
 # place for something part 4b can simply download.
 REASON_CUDA_LIBRARIES_MISSING = "cuda_libraries_missing"
+# whisper.cpp only (resolve_whisper_cpp_device()). The card is there, and the
+# graphics-card build of whisper.cpp WinZapp offers cannot run on it: a
+# Blackwell card (sm_120), for which the pinned release has no kernels, or a
+# card NVML could not describe, where offering a build that may not run costs
+# more than the processor does. Said even under "automatic": the user has a
+# card and deserves to know why it is not used.
+REASON_CUDA_BUILD_UNSUPPORTED = "cuda_build_unsupported"
+# whisper.cpp only. The card could run the graphics-card build and it is not
+# installed: one download away, which the settings tab offers.
+REASON_CUDA_BUILD_MISSING = "cuda_build_missing"
 
 DEVICE_REASON_I18N_KEYS = {
     REASON_CUDA_SELECTED: "transcription_device_cuda_selected",
@@ -82,6 +92,8 @@ DEVICE_REASON_I18N_KEYS = {
     REASON_NO_CUDA_FOUND: "transcription_device_no_cuda_found",
     REASON_CUDA_DRIVER_ERROR: "transcription_device_cuda_driver_error",
     REASON_CUDA_LIBRARIES_MISSING: "transcription_device_cuda_libraries_missing",
+    REASON_CUDA_BUILD_UNSUPPORTED: "transcription_device_cuda_build_unsupported",
+    REASON_CUDA_BUILD_MISSING: "transcription_device_cuda_build_missing",
 }
 
 # The failures a second run on the CPU could actually cure, and the sentence
@@ -268,6 +280,42 @@ def resolve_device(preference, probe) -> tuple[str, str]:
     return DEVICE_CPU, REASON_NO_CUDA_FOUND
 
 
+def resolve_whisper_cpp_device(preference, probe, cuda_build_installed) -> tuple[str, str]:
+    """(device, reason) for whisper.cpp, which answers a different question.
+
+    `resolve_device()` asks whether CTranslate2 can run on the card; whisper.cpp
+    runs a program of its own, built per card generation, so what decides is
+    whether *that* build can run here and is installed. Two consequences, and
+    both are the reason this is a function of its own rather than a flag:
+
+    * **The card's compute capability decides up front.** The CUDA build of the
+      pinned release has no Blackwell (sm_120) kernels, and an unknown
+      capability is not vouched for either (whisper_cpp_builds.
+      cuda_build_supported()). Resolving those to "cuda" would fail with
+      CUDA_UNAVAILABLE on every single run after the model load; resolving them
+      to the processor here, with a reason that says why, costs nothing.
+    * **CTranslate2's cuBLAS check does not apply.** `cuda_libraries_ok` is
+      about the libraries CTranslate2 opens by name; the whisper.cpp CUDA build
+      is a separate download carrying its own. A machine that measured False
+      there is not thereby a machine whisper.cpp cannot use the card on.
+
+    `cuda_build_installed` is measured by the caller (the backend reads the
+    install's manifest) — this module still touches nothing. The rest — no
+    card, the processor asked for, a card that could not be questioned — reads
+    exactly as `resolve_device()` says it.
+    """
+    if preference == PREFERENCE_CPU:
+        return DEVICE_CPU, REASON_CPU_REQUESTED
+    counted = bool(probe.cuda_available) and probe.cuda_device_count > 0
+    if not counted:
+        return resolve_device(preference, probe)
+    if not whisper_cpp_builds.cuda_build_supported(probe.compute_capability):
+        return DEVICE_CPU, REASON_CUDA_BUILD_UNSUPPORTED
+    if not cuda_build_installed:
+        return DEVICE_CPU, REASON_CUDA_BUILD_MISSING
+    return DEVICE_CUDA, REASON_CUDA_SELECTED
+
+
 def cuda_usable(probe) -> bool:
     """Whether CUDA can actually be used, not merely whether a DLL loaded.
 
@@ -361,7 +409,7 @@ def select_compute_type(device, probe) -> str:
     return _int8_safe(COMPUTE_FLOAT16, capability)
 
 
-def auto_select_model(probe, device, installed_ids, catalog=None):
+def auto_select_model(probe, device, installed_ids, catalog=None, language=None):
     """The model id to use when the user has not chosen one, or None.
 
     Two rules, in this order:
@@ -376,24 +424,51 @@ def auto_select_model(probe, device, installed_ids, catalog=None):
     with `_MEMORY_HEADROOM` to spare. When the memory could not be measured at
     all, only rule 1 applies and only for the smallest installed model: guessing
     upwards on an unknown machine is how a run dies half way through.
+
+    A single-language model is never a candidate unless it is `language`'s —
+    the language the user transcribes in, None while it is to be detected: an
+    English one installed and picked for a user whose notes are in Portuguese
+    would turn every one of them into confident English (see
+    model_catalog.WhisperModel.language).
+
+    A third-party model is never one rule 2 downloads: nobody asked for a
+    fine-tune whose quality and licence are its publisher's, and several of
+    them weigh exactly what an official model does (ivrit's large-v3 and
+    large-v3 itself), so the size alone would pick one by accident. One the
+    user already has on disk is theirs, and rule 1 may still pick it. Ties are
+    broken the same way everywhere: the official entry, then the id.
     """
     models = tuple(catalog) if catalog is not None else model_catalog.list_models()
-    # Sorted by what each model costs *on this device* rather than trusting the
-    # catalogue's own order, so "the largest that fits" still means the most
-    # demanding one when a caller passes its own list (the tests do).
-    models = sorted(models, key=lambda m: (_requirement_mb(m, device), m.download_bytes))
+    models = tuple(
+        m for m in models if getattr(m, "language", None) in (None, language)
+    )
     installed = set(installed_ids or ())
     budget_mb = available_memory_mb(probe, device)
 
+    def _rank(model):
+        # What it costs *on this device* rather than the catalogue's own
+        # order, so "the largest that fits" still means the most demanding one
+        # when a caller passes its own list (the tests do); then an official
+        # entry over a third-party one of the same weight, then the id, so the
+        # answer never depends on which of two equals came first.
+        return (_requirement_mb(model, device), model.download_bytes,
+                not getattr(model, "third_party", False), model.id)
+
     if budget_mb is None:
+        # Only the smallest installed one, for the reason above — the official
+        # one of two equals, as everywhere else.
         installed_models = [m for m in models if m.id in installed]
-        return installed_models[0].id if installed_models else None
+        if not installed_models:
+            return None
+        smallest = min(_rank(m)[:2] for m in installed_models)
+        return max((m for m in installed_models if _rank(m)[:2] == smallest), key=_rank).id
 
     fitting = [m for m in models if model_fits(m, budget_mb, device)]
     already_here = [m for m in fitting if m.id in installed]
     if already_here:
-        return already_here[-1].id
-    return fitting[-1].id if fitting else None
+        return max(already_here, key=_rank).id
+    downloadable = [m for m in fitting if not getattr(m, "third_party", False)]
+    return max(downloadable, key=_rank).id if downloadable else None
 
 
 def available_memory_mb(probe, device):

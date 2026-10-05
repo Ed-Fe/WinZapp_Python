@@ -72,12 +72,15 @@ from core.transcription import (
     backend as backend_module,
     device,
     errors,
+    external_ggml,
     external_models,
     job as job_module,
     management,
     message_audio,
     preferences,
     stored,
+    whisper_cpp_builds,
+    whisper_cpp_runtime,
 )
 
 # The one wait this layer adds in front of job.py's three. Announced before
@@ -248,6 +251,29 @@ class MessageTranscription:
         )
 
     @property
+    def backend_id(self):
+        """The backend this run resolved to, or None before it has."""
+        return self.resolution.backend_id if self.resolution is not None else None
+
+    @property
+    def external_references(self) -> tuple:
+        """The references the run names a custom model's folder from."""
+        return self._external_references
+
+    @property
+    def forced_language(self):
+        """The language a single-language model runs this note in instead of
+        the settings' (preferences.Resolution.language_forced), or None."""
+        if self.resolution is None or not self.resolution.language_forced:
+            return None
+        return self.resolution.language
+
+    @property
+    def overridden_language(self):
+        """The chosen language `forced_language` replaced, or None."""
+        return self.resolution.language_overridden if self.resolution is not None else None
+
+    @property
     def device(self):
         """The device the job chose — valid from its loading phase on, as in job.py."""
         return self.job.device if self.job is not None else None
@@ -324,12 +350,13 @@ class MessageTranscription:
             message_audio.discard_temp(temp_path)
 
     def _usable_catalogue_ids(self, models_root):
-        """The catalogue models a run could load now: the folder's complete
-        ones, and the ones a verified external folder holds (touching disks
-        that may be unplugged, which is why this is on the worker)."""
+        """The catalogue models a run could load now, of both backends: the
+        folder's complete ones, and the ones a verified external folder or
+        file holds (touching disks that may be unplugged, which is why this is
+        on the worker). resolve() keeps the resolved backend's."""
         return external_models.usable_catalogue_ids(
             models_root, self._external_references
-        )
+        ) + external_ggml.usable_ggml_ids(models_root, self._external_references)
 
     def _decide(self):
         """Resolve the settings against this machine as it is right now."""
@@ -343,9 +370,10 @@ class MessageTranscription:
             # Not known is "not measured" to resolve(): a custom choice stays
             # what it is rather than being reported as retired.
             custom_model_ids=(
-                external_models.custom_reference_ids(self._external_references)
+                external_models.custom_reference_backends(self._external_references)
                 if self._external_references_known else None
             ),
+            whisper_cpp_cuda_installed=_whisper_cpp_cuda_installed(),
         )
         self.resolution = resolution
         if resolution.substitutions:
@@ -375,9 +403,14 @@ class MessageTranscription:
             # Repair on the tab is what fixes it, and the tab is offered for
             # both) — or, for a custom model, which is never in `installed`,
             # that it is there and fine, and the run goes on.
-            external_models.model_directory(
-                self.models_root, resolution.model_id, self._external_references
-            )
+            if resolution.backend_id == backend_module.BACKEND_WHISPER_CPP:
+                external_ggml.model_file(
+                    self.models_root, resolution.model_id, self._external_references
+                )
+            else:
+                external_models.model_directory(
+                    self.models_root, resolution.model_id, self._external_references
+                )
         self.ffmpeg = self._find_ffmpeg()
 
     def _check_references_were_read(self):
@@ -544,3 +577,15 @@ class MessageTranscription:
     def _check_cancel(self):
         if self._cancelled.is_set():
             raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")
+
+
+def _whisper_cpp_cuda_installed() -> bool:
+    """Whether whisper.cpp's graphics-card build is installed — a manifest read
+    and a stat per file, on this run's worker. Never raises."""
+    try:
+        return (
+            whisper_cpp_runtime.installation_state(whisper_cpp_builds.BUILD_CUDA).state
+            == whisper_cpp_runtime.STATE_INSTALLED
+        )
+    except Exception:
+        return False

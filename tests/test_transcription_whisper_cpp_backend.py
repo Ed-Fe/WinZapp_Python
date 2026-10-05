@@ -595,10 +595,13 @@ class TestWhichProgram:
         monkeypatch.setattr(whisper_cpp_runtime, "installation_state", _boom)
         assert backend.is_available() is False
 
-    def test_it_is_not_offered_yet(self):
-        # Part 9b lists it, with the tab that installs its program and models.
-        assert backend_module.BACKEND_WHISPER_CPP not in backend_module.BACKEND_IDS
-        assert backend_module.get_backend(backend_module.BACKEND_WHISPER_CPP) is None
+    def test_it_is_offered_after_faster_whisper(self):
+        # Registered by part 9b, with the tab that installs its program and
+        # models; faster-whisper stays the default and the first choice.
+        assert backend_module.BACKEND_IDS[0] == backend_module.BACKEND_FASTER_WHISPER
+        assert backend_module.BACKEND_WHISPER_CPP in backend_module.BACKEND_IDS
+        built = backend_module.get_backend(backend_module.BACKEND_WHISPER_CPP)
+        assert built is not None and built.id == backend_module.BACKEND_WHISPER_CPP
 
 
 class TestTrialLoad:

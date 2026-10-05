@@ -18,7 +18,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.transcription import external_models, model_catalog, model_store
+from core.transcription import (
+    backend as backend_module,
+    errors,
+    external_models,
+    model_catalog,
+    model_names,
+    model_store,
+    whisper_cpp_catalog,
+)
 
 # What a reference is right now, as a word to put in its row. `None` is "the
 # worker has not answered yet", which is a state of the screen and not of the
@@ -50,6 +58,42 @@ USE_DONE_I18N_KEY = "transcription_external_use_done"
 SEARCHING_I18N_KEY = "transcription_external_find_searching"
 FIND_NONE_I18N_KEY = "transcription_external_find_none"
 
+#: The sentences that say "folder", and the ones that say "file" instead for a
+#: whisper.cpp model, which is one GGML file (external_ggml): the same news,
+#: and a blind user told "the folder ggml-small.bin" goes looking for a folder.
+FILE_I18N_KEYS = {
+    key: f"{key}_file"
+    for key in (
+        "transcription_external_added",
+        "transcription_external_checked",
+        "transcription_external_custom_added",
+        "transcription_external_custom_checked",
+        "transcription_external_changed_while_checked",
+        "transcription_external_refused_unreachable",
+        "transcription_external_refused_inside_root",
+        "transcription_external_read_failed",
+        "transcription_external_load_failed",
+        "transcription_external_not_added",
+        "transcription_external_progress_verify",
+        "transcription_external_progress_custom",
+        NOT_IDENTIFIED_QUESTION_I18N_KEY,
+        DIGEST_MISMATCH_QUESTION_I18N_KEY,
+        FORGET_QUESTION_I18N_KEY,
+        FORGOTTEN_I18N_KEY,
+        STATE_I18N_KEYS[external_models.REF_FOLDER_MISSING],
+        STATE_I18N_KEYS[external_models.REF_CHANGED],
+        # The run's own two sentences about a model somewhere else, said by
+        # the flow and by a check that found the model gone.
+        errors.error_i18n_key(errors.EXTERNAL_MODEL_MISSING),
+        errors.error_i18n_key(errors.EXTERNAL_MODEL_CHANGED),
+    )
+}
+
+#: The file chooser of "Add..." when whisper.cpp is the backend.
+BROWSE_FILE_TITLE_I18N_KEY = "transcription_external_browse_file_dialog_title"
+BROWSE_FILE_WILDCARD_I18N_KEY = "transcription_external_file_wildcard"
+
+
 #: Every key this module and the tab's external section ask for besides the
 #: ones external_job and the error codes own. The i18n test reads this rather
 #: than a list of its own.
@@ -80,8 +124,16 @@ VIEW_I18N_KEYS = (
         "transcription_external_pick_title",
         "transcription_external_pick_prompt",
         "transcription_external_question_title",
+        BROWSE_FILE_TITLE_I18N_KEY,
+        BROWSE_FILE_WILDCARD_I18N_KEY,
     )
+    + tuple(FILE_I18N_KEYS.values())
 )
+
+
+def for_reference(key, is_file) -> str:
+    """`key`, or its "file" sentence when the model is a whisper.cpp file."""
+    return FILE_I18N_KEYS.get(key, key) if is_file else key
 
 
 @dataclass(frozen=True)
@@ -107,8 +159,12 @@ def row_label(i18n, reference, state) -> str:
     key = ROW_CUSTOM_I18N_KEY if reference.is_custom else ROW_CATALOGUE_I18N_KEY
     return i18n.t(key).format(
         name=external_models.display_name(reference),
-        model=reference.model_id or "",
-        state=i18n.t(STATE_I18N_KEYS.get(state, STATE_I18N_KEYS[None])),
+        # "small, 5 bits" for a whisper.cpp file, "small.en, English only"
+        # for an English-only model: the name the picker uses for it.
+        model=model_names.display_name(i18n, reference.model_id) or "",
+        state=i18n.t(for_reference(
+            STATE_I18N_KEYS.get(state, STATE_I18N_KEYS[None]), reference.is_file
+        )),
     )
 
 
@@ -149,12 +205,14 @@ def ready_model_ids(references, states) -> frozenset:
     )
 
 
-def custom_choices(i18n, references) -> list:
+def custom_choices(i18n, references, backend_id=None) -> list:
     """[(model setting value, picker line)] for the custom models.
 
     Listed whatever their folder's state: the stored choice has to have an
     entry to be selected, and a model whose disk is unplugged is still the one
-    the user picked (a run says so with EXTERNAL_MODEL_MISSING).
+    the user picked (a run says so with EXTERNAL_MODEL_MISSING). Only the ones
+    `backend_id` can load when it is given — a whisper.cpp file in
+    faster-whisper's list would be a choice the run can only refuse.
     """
     return [
         (
@@ -164,8 +222,16 @@ def custom_choices(i18n, references) -> list:
             ),
         )
         for reference in references
-        if reference.is_custom
+        if reference.is_custom and _for_backend(reference, backend_id)
     ]
+
+
+def _for_backend(reference, backend_id) -> bool:
+    if backend_id is None:
+        return True
+    if backend_id == backend_module.BACKEND_WHISPER_CPP:
+        return reference.is_file
+    return not reference.is_file
 
 
 def usable_ids(root_ids, references, states) -> tuple:
@@ -175,7 +241,9 @@ def usable_ids(root_ids, references, states) -> tuple:
     `external_models.usable_catalogue_ids()`, which measures)."""
     wanted = set(root_ids) | ready_model_ids(references, states)
     return tuple(
-        model.id for model in model_catalog.list_models() if model.id in wanted
+        model.id
+        for model in model_catalog.list_models() + whisper_cpp_catalog.list_models()
+        if model.id in wanted
     )
 
 
@@ -198,12 +266,13 @@ def snapshot_label(i18n, snapshot) -> str:
     revision = (snapshot.revision or "")[:8]
     if snapshot.model_id:
         return i18n.t(SNAPSHOT_RECOGNISED_I18N_KEY).format(
-            name=name, revision=revision, model=snapshot.model_id
+            name=name, revision=revision,
+            model=model_names.display_name(i18n, snapshot.model_id),
         )
     return f"{name} ({revision})" if revision else name
 
 
-def custom_question(i18n, folder, code, model_id) -> str:
+def custom_question(i18n, folder, code, model_id, is_file=False) -> str:
     """The question asked about a folder that is a valid model and not one the
     catalogue vouches for: use it as a custom model, after a trial load?
 
@@ -214,10 +283,10 @@ def custom_question(i18n, folder, code, model_id) -> str:
     """
     name = external_models.folder_name(folder)
     if code == external_models.ACCEPT_DIGEST_MISMATCH:
-        return i18n.t(DIGEST_MISMATCH_QUESTION_I18N_KEY).format(
-            name=name, model=model_id or ""
+        return i18n.t(for_reference(DIGEST_MISMATCH_QUESTION_I18N_KEY, is_file)).format(
+            name=name, model=model_names.display_name(i18n, model_id) or ""
         )
-    return i18n.t(NOT_IDENTIFIED_QUESTION_I18N_KEY).format(name=name)
+    return i18n.t(for_reference(NOT_IDENTIFIED_QUESTION_I18N_KEY, is_file)).format(name=name)
 
 
 def folder_candidates(path) -> tuple:

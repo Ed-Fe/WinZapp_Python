@@ -59,7 +59,9 @@ import time
 import wave
 
 from core.transcription import (
+    device as device_module,
     errors,
+    external_ggml,
     whisper_cpp_builds,
     whisper_cpp_catalog,
     whisper_cpp_cli,
@@ -104,24 +106,30 @@ class WhisperCppBackend(TranscriptionBackend):
         self._cpu_count = cpu_count
 
     def is_available(self) -> bool:
-        """Whether any build of the program is installed. Never raises.
+        """Whether the processor build of the program is installed. Never raises.
 
-        A manifest read and a stat per file — cheap enough for a settings
-        dialog to ask while it draws, and nothing is imported or run.
+        The processor build, not "any build": it is the one every answer falls
+        back to — a card its graphics build cannot run on, the processor asked
+        for, a trial load — so a machine with only the graphics build would
+        offer a backend that fails on exactly those. The tab installs it first
+        for the same reason. A manifest read and a stat per file — cheap enough
+        for a settings dialog to ask while it draws.
         """
-        try:
-            return any(
-                whisper_cpp_runtime.installation_state(build, self._runtime_root).state
-                == whisper_cpp_runtime.STATE_INSTALLED
-                for build in whisper_cpp_builds.BUILDS
-            )
-        except Exception:
-            return False
+        return self._installed(whisper_cpp_builds.BUILD_CPU)
+
+    def resolve_device(self, preference, probe):
+        """device.py's whisper.cpp rule, with the one fact only this backend
+        can measure: whether the graphics-card build is installed."""
+        return device_module.resolve_whisper_cpp_device(
+            preference, probe, self._installed(whisper_cpp_builds.BUILD_CUDA)
+        )
 
     def load_model(self, request, should_cancel=None) -> None:
         """Check the model file and the program are there; load nothing."""
         _check_cancel(should_cancel)
-        whisper_cpp_store.ensure_ready(request.models_root, request.model_id)
+        external_ggml.model_file(
+            request.models_root, request.model_id, request.external_references
+        )
         self._executable_for(request.device, request.compute_capability)
 
     def release(self) -> None:
@@ -134,7 +142,12 @@ class WhisperCppBackend(TranscriptionBackend):
         faster-whisper: a note holding only noise yields no segments.
         """
         _check_cancel(should_cancel)
-        model_file = whisper_cpp_store.ensure_ready(request.models_root, request.model_id)
+        # WinZapp's own copy, a verified file of the user's elsewhere, or a
+        # custom file they chose (external_ggml) — decided again here, at load
+        # time, since a disk can be unplugged between the decision and the run.
+        model_file = external_ggml.model_file(
+            request.models_root, request.model_id, request.external_references
+        )
         executable = self._executable_for(request.device, request.compute_capability)
 
         vad_model = None
@@ -231,6 +244,15 @@ class WhisperCppBackend(TranscriptionBackend):
         )
 
     # ── Internals ────────────────────────────────────────────────────────────
+
+    def _installed(self, build) -> bool:
+        try:
+            return (
+                whisper_cpp_runtime.installation_state(build, self._runtime_root).state
+                == whisper_cpp_runtime.STATE_INSTALLED
+            )
+        except Exception:
+            return False
 
     def _executable_for(self, device, compute_capability):
         """The installed build for `device`, or the code that says why not."""

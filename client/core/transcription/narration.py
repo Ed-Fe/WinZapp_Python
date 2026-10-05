@@ -56,6 +56,22 @@ DEVICE_I18N_KEYS = {
     device.DEVICE_CPU: "transcription_running_on_cpu",
 }
 
+# The same two sentences naming the backend too, now that there are two: which
+# program is running is the first thing to know when the two disagree about a
+# note. `{backend}` is the backend's own name (preferences.BACKEND_I18N_KEYS).
+DEVICE_WITH_BACKEND_I18N_KEYS = {
+    device.DEVICE_CUDA: "transcription_running_with_backend_on_cuda",
+    device.DEVICE_CPU: "transcription_running_with_backend_on_cpu",
+}
+
+#: Said with them when a single-language model runs a note in its own
+#: language instead of the one the settings would have used
+#: (preferences.Resolution.language_forced): detected, or chosen and replaced.
+#: Said before the wait, because afterwards the user is reading text in a
+#: language they may not have expected.
+LANGUAGE_FORCED_I18N_KEY = "transcription_note_language_forced"
+LANGUAGE_OVERRIDDEN_I18N_KEY = "transcription_note_language_overridden"
+
 # The device reasons worth a second sentence. The two that are missing are
 # missing on purpose: CUDA_SELECTED and CPU_REQUESTED say what the sentence
 # above them has just said, and device.py's own note explains why
@@ -68,6 +84,11 @@ DEVICE_REASON_WORTH_SAYING = (
     device.REASON_CUDA_UNAVAILABLE,
     device.REASON_CUDA_DRIVER_ERROR,
     device.REASON_CUDA_LIBRARIES_MISSING,
+    # whisper.cpp's two: a card its graphics build cannot run on, and a build
+    # not installed yet. Both are "you have a card and it is not being used",
+    # which is worth a sentence under "automatic" too.
+    device.REASON_CUDA_BUILD_UNSUPPORTED,
+    device.REASON_CUDA_BUILD_MISSING,
 )
 
 NO_SPEECH_I18N_KEY = "transcription_note_no_speech"
@@ -82,7 +103,10 @@ FINISHED_I18N_KEY = "transcription_finished"
 NARRATION_I18N_KEYS = (
     tuple(PHASE_I18N_KEYS.values())
     + tuple(DEVICE_I18N_KEYS.values())
+    + tuple(DEVICE_WITH_BACKEND_I18N_KEYS.values())
     + (
+        LANGUAGE_FORCED_I18N_KEY,
+        LANGUAGE_OVERRIDDEN_I18N_KEY,
         NO_SPEECH_I18N_KEY,
         VAD_UNAVAILABLE_I18N_KEY,
         LANGUAGE_DIFFERS_I18N_KEY,
@@ -131,7 +155,8 @@ def phase_i18n_key(phase):
     return PHASE_I18N_KEYS.get(phase)
 
 
-def device_announcement(device_id, device_reason, model_id) -> tuple:
+def device_announcement(device_id, device_reason, model_id, backend_name=None,
+                        forced_language=None, overridden_language=None) -> tuple:
     """What to say as the model starts loading: which model, and where.
 
     A tuple, not one Note, because this is two sentences and the second is
@@ -141,13 +166,33 @@ def device_announcement(device_id, device_reason, model_id) -> tuple:
     about: read before the hardware probe, `device` and `device_reason` are
     both None, and `device_reason_i18n_key(None)` would answer "you asked for
     the processor" on a machine whose owner asked for nothing of the sort.
+
+    `backend_name` is the backend as it is to be said (its label, already in
+    the user's language), and picks the sentence that names it too; None keeps
+    the sentence without it. `forced_language` is the one language a
+    single-language model was run in instead of the settings' — and
+    `overridden_language` the language chosen there, when one was: both are
+    codes, said by their endonym as the other language notes are.
     """
-    key = DEVICE_I18N_KEYS.get(device_id)
+    if backend_name:
+        key = DEVICE_WITH_BACKEND_I18N_KEYS.get(device_id)
+        values = {"model": str(model_id or ""), "backend": str(backend_name)}
+    else:
+        key = DEVICE_I18N_KEYS.get(device_id)
+        values = {"model": str(model_id or "")}
     if key is None:
         return ()
-    notes = [Note(key, {"model": str(model_id or "")})]
+    notes = [Note(key, values)]
     if device_reason in DEVICE_REASON_WORTH_SAYING:
         notes.append(Note(device.device_reason_i18n_key(device_reason)))
+    if forced_language:
+        language = preferences.language_name(forced_language) or forced_language
+        chosen = preferences.language_name(overridden_language) if overridden_language else None
+        if chosen:
+            notes.append(Note(LANGUAGE_OVERRIDDEN_I18N_KEY,
+                              {"language": language, "chosen": chosen}))
+        else:
+            notes.append(Note(LANGUAGE_FORCED_I18N_KEY, {"language": language}))
     return tuple(notes)
 
 

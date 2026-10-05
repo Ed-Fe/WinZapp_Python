@@ -23,6 +23,10 @@ What matters to the person using it:
   install-wide and describe the machine (the model files themselves do not
   wait for OK either); only *which model to use* is a setting of the dialog,
   and choosing one marks the dialog dirty like any other control does.
+* **A whisper.cpp model is a file, not a folder** (external_ggml). "Add..."
+  and "Find..." look for the kind the backend picker is on — a GGML file for
+  whisper.cpp, a folder otherwise — and every sentence about a file says
+  "file" (external_view.for_reference()). Both kinds share the one list.
 """
 
 import logging
@@ -31,6 +35,8 @@ import threading
 import wx
 
 from core.transcription import (
+    backend as transcription_backend,
+    external_ggml,
     external_job,
     external_models,
     external_view,
@@ -100,8 +106,8 @@ class ExternalModelsMixin:
         self._transcription_external_row_ids = []
         self._transcription_external_row_labels = []
 
-        # Kept on its own: `_transcription_action_groups` is the model row and
-        # the CUDA row, which are the buttons of management actions.
+        # Kept on its own: `_transcription_action_groups` is the model row, the
+        # CUDA row and the whisper.cpp row, the buttons of management actions.
         box = self._transcription_external_box = wx.StaticBox(
             page, label=i18n.t(_EXTERNAL_ACTIONS_GROUP)
         )
@@ -304,11 +310,34 @@ class ExternalModelsMixin:
 
     # ── The buttons ──────────────────────────────────────────────────────────
 
+    def _external_looks_for_files(self) -> bool:
+        """Whether "Add..." and "Find..." look for whisper.cpp's GGML files —
+        when the backend picker is on whisper.cpp — rather than folders."""
+        return (self._transcription_picker_backend()
+                == transcription_backend.BACKEND_WHISPER_CPP)
+
     def _on_external_add(self, _event):
-        """Choose a folder, then check it."""
+        """Choose a folder (or a whisper.cpp file), then check it."""
         if self._transcription_job_running:
             return
         i18n = self.main_window.i18n
+        if self._external_looks_for_files():
+            with wx.FileDialog(
+                self,
+                message=i18n.t(external_view.BROWSE_FILE_TITLE_I18N_KEY),
+                wildcard=i18n.t(external_view.BROWSE_FILE_WILDCARD_I18N_KEY),
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+            ) as dlg:
+                if dlg.ShowModal() != wx.ID_OK:
+                    return
+                chosen = dlg.GetPath()
+            # One file is one model: nothing to pick between, and the check
+            # that follows says what it is.
+            self._check_external_folder(
+                chosen, backend_id=transcription_backend.BACKEND_WHISPER_CPP
+            )
+            self._restore_external_focus("add")
+            return
         with wx.DirDialog(
             self,
             message=i18n.t("transcription_external_browse_dialog_title"),
@@ -328,7 +357,10 @@ class ExternalModelsMixin:
         self._set_transcription_job_running(False)
         folder = self._external_pick(candidates)
         if folder is not None:
-            self._check_external_folder(folder)
+            # Said, not left to the default: a folder is faster-whisper's.
+            self._check_external_folder(
+                folder, backend_id=transcription_backend.BACKEND_FASTER_WHISPER
+            )
         self._restore_external_focus("add")
 
     def _on_external_find(self, _event):
@@ -340,15 +372,16 @@ class ExternalModelsMixin:
             self.main_window.i18n.t(external_view.SEARCHING_I18N_KEY)
         )
         references = self._transcription_external_references
+        files = self._external_looks_for_files()
+        discover = (external_ggml.discover_hf_cache if files
+                    else external_models.discover_hf_cache)
         self._external_in_background(
-            lambda: external_view.new_snapshots(
-                external_models.discover_hf_cache(), references
-            ),
-            self._external_snapshots_found,
+            lambda: external_view.new_snapshots(discover(), references),
+            lambda snapshots: self._external_snapshots_found(snapshots, files),
             fallback=(),
         )
 
-    def _external_snapshots_found(self, snapshots):
+    def _external_snapshots_found(self, snapshots, files=False):
         self._set_transcription_job_running(False)
         if not snapshots:
             self._say_external(external_view.FIND_NONE_I18N_KEY)
@@ -356,7 +389,10 @@ class ExternalModelsMixin:
             return
         folder = self._external_pick(snapshots, always_ask=True)
         if folder is not None:
-            self._check_external_folder(folder)
+            self._check_external_folder(
+                folder, backend_id=(transcription_backend.BACKEND_WHISPER_CPP if files
+                                    else transcription_backend.BACKEND_FASTER_WHISPER),
+            )
         self._restore_external_focus("find")
 
     def _external_pick(self, candidates, always_ask=False):
@@ -389,11 +425,17 @@ class ExternalModelsMixin:
             return
         choice = (external_models.custom_choice(reference) if reference.is_custom
                   else reference.model_id)
+        if reference.backend != self._transcription_picker_backend():
+            # The model is another backend's: its entry is only in that
+            # backend's list, and choosing the model chooses the backend.
+            self._select_transcription_backend(reference.backend)
+            self._populate_transcription_model_choices()
         self._select_transcription_model(choice)
         # SetSelection() fires no event, and an unchanged-looking dialog would
         # not offer Apply for a choice the user has just made.
         self._mark_dirty()
         self._sync_transcription_action_buttons()
+        self._show_transcription_hardware_notices()
         self._say_external(
             external_view.USE_DONE_I18N_KEY,
             {"name": external_models.display_name(reference)},
@@ -415,7 +457,9 @@ class ExternalModelsMixin:
         i18n = self.main_window.i18n
         name = external_models.display_name(reference)
         if wx.MessageBox(
-            i18n.t(external_view.FORGET_QUESTION_I18N_KEY).format(name=name),
+            i18n.t(external_view.for_reference(
+                external_view.FORGET_QUESTION_I18N_KEY, reference.is_file
+            )).format(name=name),
             i18n.t("transcription_remove_confirm_title"),
             wx.YES_NO | wx.ICON_QUESTION, self,
         ) != wx.YES:
@@ -428,10 +472,12 @@ class ExternalModelsMixin:
         self._set_transcription_job_running(True)
         self._external_in_background(
             lambda: external_models.forget_reference(app_settings, reference.id),
-            lambda done: self._external_forgotten(name, was_selected, done),
+            lambda done: self._external_forgotten(
+                name, was_selected, done, reference.is_file
+            ),
         )
 
-    def _external_forgotten(self, name, was_selected, done):
+    def _external_forgotten(self, name, was_selected, done, is_file=False):
         self._set_transcription_job_running(False)
         if done is None:
             # The write failed (another window held app.json) and was logged.
@@ -451,12 +497,13 @@ class ExternalModelsMixin:
         self._refresh_external_models()
         self._restore_external_focus("forget")
         self._say_external(
-            external_view.FORGOTTEN_I18N_KEY, {"name": name}, extra
+            external_view.for_reference(external_view.FORGOTTEN_I18N_KEY, is_file),
+            {"name": name}, extra,
         )
 
     # ── Checking a folder ────────────────────────────────────────────────────
 
-    def _check_external_folder(self, folder, reference=None):
+    def _check_external_folder(self, folder, reference=None, backend_id=None):
         """Verify (or trial-load) `folder`, ask about a custom model if need be,
         say what came of it, and redraw.
 
@@ -464,18 +511,23 @@ class ExternalModelsMixin:
         or one with a catalogue model's sizes and other weights — is only ever
         used because the user said so: the question comes after the check that
         says what it is, and the trial load after the "yes".
+
+        `backend_id` is the kind of model looked for: a reference's own, or
+        the one "Add..." and "Find..." looked for.
         """
+        if reference is not None:
+            backend_id = reference.backend
         kind = (external_job.KIND_CUSTOM
                 if reference is not None and reference.is_custom
                 else external_job.KIND_VERIFY)
-        job, result, error = self._run_external_job(kind, folder)
+        job, result, error = self._run_external_job(kind, folder, backend_id)
         code = getattr(result, "code", None)
         if (kind == external_job.KIND_VERIFY and error is None and code in (
                 external_models.ACCEPT_NOT_IDENTIFIED,
                 external_models.ACCEPT_DIGEST_MISMATCH)):
-            if self._ask_external_custom(folder, result):
+            if self._ask_external_custom(folder, result, backend_id):
                 job, result, error = self._run_external_job(
-                    external_job.KIND_CUSTOM, folder
+                    external_job.KIND_CUSTOM, folder, backend_id
                 )
         self._announce_transcription_result(job, result, error)
         stored = getattr(result, "reference", None)
@@ -483,11 +535,12 @@ class ExternalModelsMixin:
             select_id=stored.id if stored is not None else None
         )
 
-    def _ask_external_custom(self, folder, outcome) -> bool:
+    def _ask_external_custom(self, folder, outcome, backend_id=None) -> bool:
         identification = getattr(outcome, "identification", None)
         text = external_view.custom_question(
             self.main_window.i18n, folder, outcome.code,
             getattr(identification, "model_id", None),
+            is_file=backend_id == transcription_backend.BACKEND_WHISPER_CPP,
         )
         return wx.MessageBox(
             text,
@@ -495,8 +548,12 @@ class ExternalModelsMixin:
             wx.YES_NO | wx.ICON_QUESTION, self,
         ) == wx.YES
 
-    def _run_external_job(self, kind, folder):
-        """Run one check behind the progress dialog; (job, result, error)."""
+    def _run_external_job(self, kind, folder, backend_id=None):
+        """Run one check behind the progress dialog; (job, result, error).
+
+        `backend_id` is the kind of model `folder` is checked as: whisper.cpp
+        for a GGML file, anything else for a faster-whisper folder.
+        """
         i18n = self.main_window.i18n
         app_settings = self._install_wide_settings()
         # The folder in force, never one that is only chosen: the same rule as
@@ -512,7 +569,7 @@ class ExternalModelsMixin:
         )
         other_roots = (pending,) if pending != models_root else ()
         preference = self._selected_transcription_device_preference()
-        backend_id = self._selected_transcription_backend()
+        is_file = backend_id == transcription_backend.BACKEND_WHISPER_CPP
 
         def _make_job(on_progress, on_finished):
             return external_job.ExternalModelJob(
@@ -527,7 +584,9 @@ class ExternalModelsMixin:
             i18n,
             self.main_window.speak_output,
             _make_job,
-            i18n.t(external_job.STATUS_I18N_KEYS[kind]).format(
+            i18n.t(external_view.for_reference(
+                external_job.STATUS_I18N_KEYS[kind], is_file
+            )).format(
                 name=external_models.folder_name(folder)
             ),
         )

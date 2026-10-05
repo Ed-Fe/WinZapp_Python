@@ -726,6 +726,87 @@ class TestTheProcessorReRun:
         assert os.path.exists(handover.path)
 
 
+class TestASingleLanguageModel:
+    """A model that understands one language runs every note in it, and the
+    run says so — it is never refused, and never silent about it."""
+
+    def test_with_detection_on_it_runs_in_its_language(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        settings = {"transcription": {"model": "small.en"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              installed=("small.en",))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.jobs[0].language == "en"
+        assert (run.forced_language, run.overridden_language) == ("en", None)
+
+    def test_a_language_chosen_in_the_settings_is_replaced_and_kept_for_the_sentence(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        settings = {"transcription": {"model": "kb-whisper-small",
+                                      "auto_detect_language": False, "language": "pt"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              installed=("kb-whisper-small",))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.jobs[0].language == "sv"
+        assert (run.forced_language, run.overridden_language) == ("sv", "pt")
+
+    def test_a_multilingual_model_forces_nothing(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        run, _watcher = _build(tmp_path, fernet_key, fernet)
+        _go(run)
+        assert (run.forced_language, run.overridden_language) == (None, None)
+
+
+class TestWhisperCpp:
+    _BACKENDS = ("faster_whisper", "whisper_cpp")
+
+    def test_the_backend_and_the_file_reach_the_job(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        settings = {"transcription": {"backend": "whisper_cpp", "model": "ggml-small-q5_1"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              installed=("ggml-small-q5_1",), backends=self._BACKENDS)
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        job = run.jobs[0]
+        assert (job.backend_id, job.model_id) == ("whisper_cpp", "ggml-small-q5_1")
+        assert run.backend_id == "whisper_cpp"
+
+    def test_a_file_not_downloaded_is_said_before_anything_is_fetched(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        fetched = []
+        settings = {"transcription": {"backend": "whisper_cpp", "model": "ggml-small"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings, cached=False,
+                              fetch=lambda msg, path: fetched.append(path),
+                              installed=(), backends=self._BACKENDS)
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.MODEL_NOT_INSTALLED
+        assert fetched == [] and run.jobs == []
+
+    def test_a_faster_whisper_model_under_whisper_cpp_is_not_handed_to_it(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        settings = {"transcription": {"backend": "whisper_cpp", "model": "small"}}
+        run, _watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                               installed=("small", "ggml-base"), backends=self._BACKENDS)
+        _go(run)
+        assert run.jobs[0].model_id == "ggml-base"
+        assert [s.setting for s in run.resolution.substitutions] == ["model"]
+
+    def test_an_unreadable_runtime_folder_is_no_graphics_build(self, monkeypatch):
+        def unreadable(build, root=None):
+            raise OSError("the disk did not answer")
+
+        monkeypatch.setattr(message_run.whisper_cpp_runtime, "installation_state", unreadable)
+        assert message_run._whisper_cpp_cuda_installed() is False
+
+
 class TestModelsInOtherFolders:
     """A model the user pointed WinZapp at is chosen, found, refused or
     replaced *before* any slow work, with the code that is true: a folder that

@@ -53,6 +53,7 @@ from core.transcription import (
     external_models,
     job as job_module,
     message_run,
+    model_names,
     model_store,
     narration,
     preferences,
@@ -635,7 +636,9 @@ class TestThePhases:
     def test_the_device_is_said_with_the_loading_line_and_nowhere_else(self, world):
         _start(world)
         [progress] = _FakeProgressDialog.made
-        device_sentence = _t("transcription_running_on_cpu", model="small")
+        # The program too, since there are two (part 9b).
+        device_sentence = _t("transcription_running_with_backend_on_cpu", model="small",
+                             backend=_t("transcription_backend_faster_whisper"))
         assert progress.statuses == [
             _t("transcription_starting"),
             _t("transcription_phase_preparing_audio"),
@@ -857,7 +860,8 @@ class TestTheProcessorReRun:
         assert second_dialog.statuses == [
             _t("transcription_starting"),
             _t("transcription_phase_loading_model") + " "
-            + _t("transcription_running_on_cpu", model="small"),
+            + _t("transcription_running_with_backend_on_cpu", model="small",
+                 backend=_t("transcription_backend_faster_whisper")),
             _t("transcription_phase_transcribing"),
         ]
         assert second_dialog.reports == 1
@@ -898,6 +902,23 @@ class TestPhaseStatusText:
             I18N, job_module.PHASE_LOADING_MODEL, _Run())
         assert text == _t("transcription_phase_loading_model")
         assert _t("transcription_device_cpu_requested") not in text
+
+    def test_the_loading_line_names_the_program_the_file_and_the_language(self):
+        run = _Run(device.DEVICE_CPU, device.REASON_CUDA_BUILD_MISSING,
+                   model_id="ggml-small.en-q5_1")
+        run.backend_id = backend_module.BACKEND_WHISPER_CPP
+        run.forced_language = "en"
+        run.overridden_language = "pt"
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, run)
+        assert _t("transcription_running_with_backend_on_cpu",
+                  model=model_names.display_name(I18N, "ggml-small.en-q5_1"),
+                  backend=_t("transcription_backend_whisper_cpp")) in text
+        assert _t("transcription_device_cuda_build_missing") in text
+        assert _t("transcription_note_language_overridden",
+                  language=preferences.language_name("en"),
+                  chosen=preferences.language_name("pt")) in text
+        assert "ggml-" not in text
 
     def test_other_phases_never_carry_the_device(self):
         known = _Run(device.DEVICE_CUDA, device.REASON_CUDA_SELECTED)
@@ -966,6 +987,20 @@ class TestModelProblemSentence:
         assert key == preferences.MODEL_NONE_I18N_KEYS[reason]
 
 
+class TestTheWhisperCppProgramIsMissingOrDamaged:
+    """Installed, repaired or removed on the Transcription tab — so the flow
+    offers the tab, with the error's own sentence whatever was chosen."""
+
+    @pytest.mark.parametrize("code", [errors.WHISPER_CPP_NOT_INSTALLED,
+                                      errors.WHISPER_CPP_CORRUPTED])
+    def test_it_is_offered_with_the_tab_that_fixes_it(self, code):
+        assert code in transcription_flow._SETTINGS_OFFER_CODES
+        for settings in ({}, {"transcription": {"model": "ggml-small"}}):
+            assert transcription_flow.model_problem_i18n_key(
+                code, None, settings
+            ) == errors.error_i18n_key(code)
+
+
 class TestAModelInAnotherFolder:
     """What the flow says when the model is one the user pointed WinZapp at."""
 
@@ -1017,6 +1052,39 @@ class TestAModelInAnotherFolder:
         announcement = transcription_flow.saved_announcement(
             I18N, {"model_id": "small"})
         assert announcement.values["model"] == "small"
+
+    def test_a_whisper_cpp_one_names_the_program_and_the_file_as_the_picker_does(self):
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": "ggml-small-q5_1", "backend": "whisper_cpp"})
+        assert announcement.i18n_key == transcription_flow.SAVED_OPENED_BACKEND_I18N_KEY
+        assert announcement.values["backend"] == _t("transcription_backend_whisper_cpp")
+        assert announcement.values["model"] == model_names.display_name(
+            I18N, "ggml-small-q5_1")
+        assert "ggml-" not in announcement.values["model"]
+
+    def test_a_forgotten_custom_model_still_names_the_program(self):
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": "external:gone", "backend": "whisper_cpp"}, ())
+        assert announcement.i18n_key == (
+            transcription_flow.SAVED_OPENED_NO_MODEL_BACKEND_I18N_KEY)
+        assert announcement.values["backend"] == _t("transcription_backend_whisper_cpp")
+
+    @pytest.mark.parametrize("code", [errors.EXTERNAL_MODEL_MISSING,
+                                      errors.EXTERNAL_MODEL_CHANGED])
+    def test_a_whisper_cpp_model_elsewhere_is_called_a_file(self, code):
+        resolution = preferences.Resolution(
+            backend_module.BACKEND_WHISPER_CPP, "external:r1", device.PREFERENCE_AUTO, None)
+        key = transcription_flow.model_problem_i18n_key(code, resolution, {})
+        assert key == errors.error_i18n_key(code) + "_file"
+        folder = preferences.Resolution(
+            backend_module.BACKEND_FASTER_WHISPER, "external:r1", device.PREFERENCE_AUTO, None)
+        assert transcription_flow.model_problem_i18n_key(code, folder, {}) == (
+            errors.error_i18n_key(code))
+
+    def test_a_backend_this_version_does_not_know_is_left_unsaid(self):
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": "small", "backend": "something_later"})
+        assert announcement.i18n_key == transcription_flow.SAVED_OPENED_I18N_KEY
 
 
 class TestInsertionText:
@@ -1643,8 +1711,10 @@ class TestOpeningAStoredTranscription:
         [dialog] = _FakeResultDialog.made
         assert dialog.text == "o texto guardado"
         assert _CONTACT in dialog.title
-        headline = _t("transcription_saved_opened",
-                      when=transcription_flow.saved_when(I18N, 1_700_000_000.0), model="medium")
+        # The value records its backend, so the headline names it.
+        headline = _t("transcription_saved_opened_backend",
+                      when=transcription_flow.saved_when(I18N, 1_700_000_000.0), model="medium",
+                      backend=_t("transcription_backend_faster_whisper"))
         assert dialog.spoken.startswith(headline)
         assert _row_focus(world.panel) == [("Focus", 1)]
 
@@ -1666,13 +1736,14 @@ class TestOpeningAStoredTranscription:
         assert dialog.notes == []
         assert _t("transcription_result_has_notes") not in dialog.spoken
 
-    def test_a_stored_value_without_a_model_says_only_when(self, world):
+    def test_a_stored_value_without_a_model_says_when_and_with_what(self, world):
         _saved(world, model_id="")
         transcription_flow.open_or_transcribe(world.panel, world.target)
         [dialog] = _FakeResultDialog.made
         assert dialog.spoken.startswith(_t(
-            "transcription_saved_opened_no_model",
-            when=transcription_flow.saved_when(I18N, 1_700_000_000.0)))
+            "transcription_saved_opened_no_model_backend",
+            when=transcription_flow.saved_when(I18N, 1_700_000_000.0),
+            backend=_t("transcription_backend_faster_whisper")))
 
     def test_a_message_with_nothing_stored_runs_as_before(self, world):
         world.target[stored_transcription.TRANSCRIPTION_KEY] = stored_transcription.tombstone(5.0)

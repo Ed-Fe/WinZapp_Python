@@ -26,6 +26,7 @@ import pytest
 
 from coord_locks import LockTimeout
 from core.transcription import (
+    backend as backend_module,
     device,
     errors,
     external_job,
@@ -143,8 +144,8 @@ class TestTrialLoadingACustomFolder:
         folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
         factory = _Factory()
         monkeypatch.setattr(
-            external_job.backend_module, "resolve_backend",
-            lambda preferred=None: _backend(factory),
+            external_job.backend_module, "get_backend",
+            lambda backend_id: _backend(factory),
         )
         watcher = _Watcher()
 
@@ -166,8 +167,8 @@ class TestTrialLoadingACustomFolder:
         folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
         factory = _Factory(error=RuntimeError("not a model"))
         monkeypatch.setattr(
-            external_job.backend_module, "resolve_backend",
-            lambda preferred=None: _backend(factory),
+            external_job.backend_module, "get_backend",
+            lambda backend_id: _backend(factory),
         )
         watcher = _Watcher()
 
@@ -188,15 +189,51 @@ class TestTrialLoadingACustomFolder:
         _model, contents = catalogue["alpha"]
         folder = _write(tmp_path / "mine", contents)
 
-        def _none(preferred=None):
-            raise errors.TranscriptionError(errors.BACKEND_MISSING, "no backend")
-
-        monkeypatch.setattr(external_job.backend_module, "resolve_backend", _none)
+        monkeypatch.setattr(external_job.backend_module, "get_backend",
+                            lambda backend_id: None)
         watcher = _Watcher()
         job = _run(_job(external_job.KIND_CUSTOM, settings, folder, models_root, watcher))
         [(result, error)] = watcher.finished
         assert job.announcement(result, error).i18n_key == errors.error_i18n_key(
             errors.BACKEND_MISSING)
+
+
+    @pytest.mark.parametrize("selected", [None, backend_module.BACKEND_FASTER_WHISPER])
+    def test_a_folder_is_always_tried_by_faster_whisper(
+        self, catalogue, tmp_path, settings, models_root, cpu_machine, monkeypatch, selected
+    ):
+        """Never whisper.cpp, whatever the tab had selected: a folder is not
+        a file whisper-cli can open, and its refusal would blame the folder."""
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
+        factory = _Factory()
+        asked = []
+        monkeypatch.setattr(external_job.backend_module, "get_backend",
+                            lambda backend_id: asked.append(backend_id) or _backend(factory))
+        monkeypatch.setattr(
+            external_job.backend_module, "resolve_backend",
+            lambda preferred=None: pytest.fail("the automatic backend was asked"))
+        _run(_job(external_job.KIND_CUSTOM, settings, folder, models_root, _Watcher(),
+                  backend_id=selected))
+        assert asked == [backend_module.BACKEND_FASTER_WHISPER]
+        assert len(factory.loads) == 1
+
+    def test_faster_whisper_missing_is_its_stock_sentence(
+        self, catalogue, tmp_path, settings, models_root, cpu_machine, monkeypatch
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", contents)
+
+        class _Unavailable:
+            def is_available(self):
+                return False
+
+        monkeypatch.setattr(external_job.backend_module, "get_backend",
+                            lambda backend_id: _Unavailable())
+        watcher = _Watcher()
+        _run(_job(external_job.KIND_CUSTOM, settings, folder, models_root, watcher))
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.BACKEND_MISSING
 
 
 class TestARootChosenButNotApplied:
@@ -210,8 +247,8 @@ class TestARootChosenButNotApplied:
         folder = _write(os.path.join(pending, "small"), contents)
         factory = _Factory()
         monkeypatch.setattr(
-            external_job.backend_module, "resolve_backend",
-            lambda preferred=None: _backend(factory),
+            external_job.backend_module, "get_backend",
+            lambda backend_id: _backend(factory),
         )
         for kind in external_job.KINDS:
             watcher = _Watcher()
@@ -268,6 +305,75 @@ class TestEveryWayOutIsOneReport:
     def test_an_unknown_kind_is_the_callers_bug_and_raises_at_once(self, settings):
         with pytest.raises(ValueError):
             external_job.ExternalModelJob("bless", settings, "x", "y")
+
+
+class TestAWhisperCppFile:
+    """whisper.cpp means a GGML file: the same job, external_ggml's checks and
+    the sentences that say "file"."""
+
+    @pytest.fixture
+    def recorded(self, monkeypatch):
+        calls = []
+        outcome = external_models.AcceptOutcome(external_models.ACCEPT_ADDED)
+
+        def verify(*args, **kwargs):
+            calls.append(("verify", args, kwargs))
+            return outcome
+
+        def custom(*args, **kwargs):
+            calls.append(("custom", args, kwargs))
+            return outcome
+
+        monkeypatch.setattr(external_job.external_ggml, "accept_ggml_file", verify)
+        monkeypatch.setattr(external_job.external_ggml, "accept_custom_ggml_file", custom)
+        return calls
+
+    @pytest.mark.parametrize("kind, called", [
+        (external_job.KIND_VERIFY, "verify"), (external_job.KIND_CUSTOM, "custom"),
+    ])
+    def test_the_check_is_external_ggmls(
+        self, settings, models_root, tmp_path, recorded, kind, called
+    ):
+        watcher = _Watcher()
+        path = str(tmp_path / "ggml-model.bin")
+        _run(_job(kind, settings, path, models_root, watcher,
+                  backend_id=backend_module.BACKEND_WHISPER_CPP))
+        ((name, args, kwargs),) = recorded
+        assert name == called and args[1] == path
+        if kind == external_job.KIND_CUSTOM:
+            # whisper.cpp's own backend, never the automatic one, which would
+            # hand a GGML file to faster-whisper.
+            assert args[3].id == backend_module.BACKEND_WHISPER_CPP
+        ((_result, error),) = watcher.finished
+        assert error is None
+
+    def test_the_announcement_says_file(self, settings, models_root, tmp_path):
+        job = _job(external_job.KIND_VERIFY, settings, str(tmp_path / "m.bin"),
+                   models_root, _Watcher(), backend_id=backend_module.BACKEND_WHISPER_CPP)
+        outcome = external_models.AcceptOutcome(
+            external_models.ACCEPT_ADDED,
+            external_models.ExternalReference("id", "/x", "ggml-small", True),
+        )
+        said = job.announcement(outcome, None)
+        assert said.i18n_key == external_job.ADDED_I18N_KEY + "_file"
+        folder = _job(external_job.KIND_VERIFY, settings, str(tmp_path / "m"),
+                      models_root, _Watcher())
+        assert folder.announcement(outcome, None).i18n_key == external_job.ADDED_I18N_KEY
+
+    def test_a_file_that_vanished_is_called_a_file(self):
+        error = errors.TranscriptionError(errors.EXTERNAL_MODEL_MISSING, "gone")
+        said = external_job.announcement(external_job.KIND_VERIFY, "/p/m.bin", None, error,
+                                         is_file=True)
+        assert said.i18n_key == errors.error_i18n_key(errors.EXTERNAL_MODEL_MISSING) + "_file"
+
+    def test_an_empty_file_has_its_own_sentence(self):
+        said = external_job.announcement(
+            external_job.KIND_VERIFY, "/p/m.bin",
+            external_models.AcceptOutcome(external_job.external_ggml.REFUSED_NOT_GGML),
+            None, is_file=True,
+        )
+        assert said.i18n_key == external_job.REFUSED_NOT_GGML_I18N_KEY
+        assert said.outcome == management.OUTCOME_WARNING
 
 
 class TestWhatTheUserHears:

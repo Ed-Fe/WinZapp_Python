@@ -41,7 +41,7 @@ import pytest
 import app_settings
 from app_paths import resource_path
 from core.transcription import backend as backend_module
-from core.transcription import device, model_catalog, preferences
+from core.transcription import device, model_catalog, preferences, whisper_cpp_catalog
 from core.utils import DEFAULT_SETTINGS
 
 
@@ -639,6 +639,215 @@ class TestACustomModelIsAChoiceUntilItsReferenceIsForgotten:
         assert preferences.custom_model_reference_id("external:xyz") == "xyz"
         assert preferences.custom_model_reference_id("large-v3") is None
         assert preferences.custom_model_reference_id(["external:x"]) is None
+
+
+_FASTER = backend_module.BACKEND_FASTER_WHISPER
+_CPP = backend_module.BACKEND_WHISPER_CPP
+
+
+class TestTheModelBelongsToTheBackend:
+    """A GGML file is not a model faster-whisper can load, nor the other way
+    round: a model of the other backend is as unloadable as a retired one, and
+    is treated the same — replaced and reported."""
+
+    def test_a_ggml_model_under_faster_whisper_is_replaced_and_reported(self):
+        resolved = preferences.resolve(
+            _settings(backend=_FASTER, model="ggml-small"), _CPU_ONLY
+        )
+        assert resolved.model_id in {model.id for model in model_catalog.list_models()}
+        assert _substituted(resolved) == [preferences.SETTING_MODEL]
+
+    def test_a_faster_whisper_model_under_whisper_cpp_is_replaced_and_reported(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP, model="small"), _CPU_ONLY
+        )
+        assert resolved.model_id in {model.id for model in whisper_cpp_catalog.MODELS}
+        assert _substituted(resolved) == [preferences.SETTING_MODEL]
+
+    def test_a_ggml_model_under_whisper_cpp_is_kept(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP, model="ggml-small-q5_1"), _CPU_ONLY
+        )
+        assert resolved.model_id == "ggml-small-q5_1"
+        assert resolved.substitutions == ()
+
+    def test_the_automatic_choice_comes_from_the_backends_own_catalogue(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP), _CPU_ONLY, installed_ids=("small", "ggml-base")
+        )
+        assert resolved.model_id == "ggml-base"
+
+    def test_the_memory_budget_is_read_off_whisper_cpps_device(self):
+        # A Blackwell card whisper.cpp's CUDA build cannot run on: the choice
+        # is made against the RAM the run will really use, not the 24 GB card.
+        probe = device.HardwareProbe(
+            cuda_available=True, cuda_device_count=1, compute_capability=(12, 0),
+            total_vram_mb=24_000, free_vram_mb=24_000, cuda_libraries_ok=True,
+            total_ram_mb=4_096, available_ram_mb=2_048,
+        )
+        resolved = preferences.resolve(
+            _settings(backend=_CPP), probe, whisper_cpp_cuda_installed=True
+        )
+        assert resolved.model_id == device.auto_select_model(
+            probe, device.DEVICE_CPU, (), catalog=whisper_cpp_catalog.list_models()
+        )
+
+    def test_a_custom_model_of_the_other_backend_is_replaced(self):
+        choice = "external:abc123"
+        kept = preferences.resolve(
+            _settings(backend=_CPP, model=choice), _CPU_ONLY,
+            custom_model_ids={"abc123": _CPP},
+        )
+        assert kept.model_id == choice
+        replaced = preferences.resolve(
+            _settings(backend=_FASTER, model=choice), _CPU_ONLY,
+            custom_model_ids={"abc123": _CPP},
+        )
+        assert replaced.model_id != choice
+        assert _substituted(replaced) == [preferences.SETTING_MODEL]
+
+    def test_a_ggml_model_is_not_rewritten_on_disk(self):
+        # Valid for one backend is valid: switching back must find it there.
+        settings = _settings(model="ggml-small")
+        assert preferences.sanitize_section(settings) is False
+        assert settings[preferences.SECTION][preferences.SETTING_MODEL] == "ggml-small"
+
+    def test_each_backend_lists_its_own_catalogue_and_never_the_filter(self):
+        assert preferences.catalogue_models(_FASTER) == model_catalog.list_models()
+        assert preferences.catalogue_models(None) == model_catalog.list_models()
+        assert preferences.catalogue_models(_CPP) == whisper_cpp_catalog.list_models()
+        vad = whisper_cpp_catalog.VAD_MODEL
+        assert vad not in preferences.catalogue_models(_CPP)
+        assert preferences.catalogue_entry(vad.id) is None
+
+
+class TestASingleLanguageModelRunsInItsOwnLanguage:
+    """An English-only model, or a fine-tune for one language, can only write
+    that language: it is run in it whatever the setting says, and the
+    replacement is reported for the flow and the tab to say — never silently."""
+
+    @pytest.mark.parametrize("model_id, language", [
+        ("small.en", "en"), ("distil-large-v3.5", "en"), ("kb-whisper-small", "sv"),
+        ("ivrit-large-v3", "he"), ("ivrit-yi-large-v3", "yi"),
+        ("kotoba-whisper-v2.0", "ja"),
+    ])
+    def test_detection_on_runs_in_the_models_language(self, model_id, language):
+        resolved = preferences.resolve(_settings(model=model_id), _CPU_ONLY)
+        assert resolved.model_language == language
+        assert resolved.language == language
+        assert resolved.language_forced is True
+        # Nothing the user chose was replaced: detection was on.
+        assert resolved.language_overridden is None
+
+    def test_another_language_chosen_falls_back_and_says_which(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP, model="ggml-ivrit-large-v3",
+                      auto_detect_language=False, language="pt"),
+            _CPU_ONLY,
+        )
+        assert resolved.language == "he"
+        assert resolved.language_forced is True
+        assert resolved.language_overridden == "pt"
+        # Not a substitution: the stored value stays the user's choice and is
+        # used again the moment a multilingual model is picked.
+        assert resolved.substitutions == ()
+
+    def test_the_models_own_language_chosen_is_not_forced(self):
+        resolved = preferences.resolve(
+            _settings(model="small.en", auto_detect_language=False, language="en"),
+            _CPU_ONLY,
+        )
+        assert resolved.language == "en"
+        assert resolved.language_forced is False
+        assert resolved.language_overridden is None
+
+    @pytest.mark.parametrize("model_id", ["small", "ggml-small-q5_1", "external:abc"])
+    def test_a_multilingual_or_custom_model_leaves_the_language_alone(self, model_id):
+        resolved = preferences.resolve(_settings(model=model_id), _CPU_ONLY)
+        assert resolved.model_language is None
+        assert resolved.language is None
+        assert resolved.language_forced is False
+
+    def test_the_automatic_choice_skips_them_while_detection_is_on(self):
+        # Installed is normally the winning argument; a model that would turn
+        # every Portuguese voice note into English is not one to win with.
+        resolved = preferences.resolve(
+            {}, _CPU_ONLY, installed_ids=("small.en", "kb-whisper-small")
+        )
+        assert resolved.model_id not in ("small.en", "kb-whisper-small")
+        assert resolved.language_forced is False
+
+    def test_the_automatic_choice_takes_one_for_its_own_language(self):
+        resolved = preferences.resolve(
+            _settings(auto_detect_language=False, language="sv"), _CPU_ONLY,
+            installed_ids=("kb-whisper-small",),
+        )
+        assert resolved.model_id == "kb-whisper-small"
+        assert resolved.language_forced is False
+
+    def test_the_automatic_choice_never_takes_one_for_another_language(self):
+        resolved = preferences.resolve(
+            _settings(auto_detect_language=False, language="pt"), _CPU_ONLY,
+            installed_ids=("small.en",),
+        )
+        assert resolved.model_id != "small.en"
+        assert resolved.language == "pt"
+
+
+class TestAThirdPartyModelIsNeverDownloadedByChance:
+    """Fine-tunes weigh what official models weigh — ivrit's large-v3 is
+    large-v3's size to the byte — so "the largest that fits" must not land on
+    one by a tie. The automatic choice never downloads one; one on disk is the
+    user's own and may still be picked; and of two equals the official wins."""
+
+    @pytest.mark.parametrize("backend", [_FASTER, _CPP])
+    @pytest.mark.parametrize("language", ["he", "sv", "yi"])
+    def test_nothing_installed_downloads_an_official_model(self, backend, language):
+        resolved = preferences.resolve(
+            _settings(backend=backend, auto_detect_language=False, language=language),
+            _CPU_ONLY,
+        )
+        entry = preferences.catalogue_entry(resolved.model_id)
+        assert entry is not None and not entry.third_party
+        assert entry.language is None
+
+    @pytest.mark.parametrize("backend, model_id, language", [
+        (_FASTER, "ivrit-large-v3", "he"), (_FASTER, "kb-whisper-small", "sv"),
+        (_FASTER, "ivrit-yi-large-v3-turbo", "yi"),
+        (_CPP, "ggml-ivrit-large-v3", "he"), (_CPP, "ggml-kb-whisper-small", "sv"),
+        (_CPP, "ggml-ivrit-yi-large-v3", "yi"),
+    ])
+    def test_one_already_installed_for_that_language_is_still_used(
+        self, backend, model_id, language
+    ):
+        resolved = preferences.resolve(
+            _settings(backend=backend, auto_detect_language=False, language=language),
+            _CPU_ONLY, installed_ids=(model_id,),
+        )
+        assert resolved.model_id == model_id
+
+    @pytest.mark.parametrize("third_party, language", [
+        ("ggml-ivrit-large-v3", "he"), ("ggml-kb-whisper-large", "sv"),
+        ("ggml-ivrit-yi-large-v3", "yi"),
+    ])
+    def test_of_two_equals_installed_the_official_one_wins(self, third_party, language):
+        official = whisper_cpp_catalog.get_model("ggml-large-v3")
+        twin = whisper_cpp_catalog.get_model(third_party)
+        # The tie this guards against is real, not hypothetical.
+        assert (official.size_bytes, official.min_ram_mb) == (twin.size_bytes, twin.min_ram_mb)
+        for installed in ((official.id, twin.id), (twin.id, official.id)):
+            resolved = preferences.resolve(
+                _settings(backend=_CPP, auto_detect_language=False, language=language),
+                _CPU_ONLY, installed_ids=installed,
+            )
+            assert resolved.model_id == official.id
+
+    def test_an_unmeasured_machine_prefers_the_official_one_too(self):
+        installed = ("ggml-ivrit-large-v3", "ggml-large-v3")
+        assert device.auto_select_model(
+            _UNKNOWN, device.DEVICE_CPU, installed,
+            catalog=whisper_cpp_catalog.list_models(), language="he",
+        ) == "ggml-large-v3"
 
 
 class TestTheLanguageList:

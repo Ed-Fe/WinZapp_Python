@@ -92,12 +92,15 @@ from coord_locks import LockTimeout
 from core.locale_format import get_datetime_format
 from core.transcription import (
     audio_prep,
+    backend as backend_module,
     errors,
     external_models,
+    external_view,
     job as job_module,
     management,
     message_audio,
     message_run,
+    model_names,
     narration,
     preferences,
     stored as stored_transcription,
@@ -136,6 +139,9 @@ _SETTINGS_OFFER_CODES = (
     # the tab is where it is checked again, forgotten, or replaced by another.
     errors.EXTERNAL_MODEL_MISSING,
     errors.EXTERNAL_MODEL_CHANGED,
+    # The whisper.cpp program is installed, repaired or removed there too.
+    errors.WHISPER_CPP_NOT_INSTALLED,
+    errors.WHISPER_CPP_CORRUPTED,
 )
 
 AUTO_MODEL_UNAVAILABLE_I18N_KEY = "transcription_model_unavailable_auto"
@@ -146,6 +152,12 @@ HAS_NOTES_I18N_KEY = "transcription_result_has_notes"
 #: model ." is what a damaged one would otherwise say.
 SAVED_OPENED_I18N_KEY = "transcription_saved_opened"
 SAVED_OPENED_NO_MODEL_I18N_KEY = "transcription_saved_opened_no_model"
+#: The same two naming the backend too, once there are two that make
+#: different text from the same note. Every record carries one (since
+#: ffa5e5a5, which first stored them); a value that names none, or one this
+#: version does not know, keeps the sentence without it.
+SAVED_OPENED_BACKEND_I18N_KEY = "transcription_saved_opened_backend"
+SAVED_OPENED_NO_MODEL_BACKEND_I18N_KEY = "transcription_saved_opened_no_model_backend"
 
 #: The note for a fresh result that was not kept, by what storing answered.
 NOT_SAVED_I18N_KEYS = {
@@ -185,6 +197,8 @@ FLOW_I18N_KEYS = (
         "transcription_result_title",
         SAVED_OPENED_I18N_KEY,
         SAVED_OPENED_NO_MODEL_I18N_KEY,
+        SAVED_OPENED_BACKEND_I18N_KEY,
+        SAVED_OPENED_NO_MODEL_BACKEND_I18N_KEY,
         WITHDRAWN_I18N_KEY,
         STORE_FAILED_I18N_KEY,
         HIDDEN_BY_VAULT_I18N_KEY,
@@ -218,9 +232,27 @@ def phase_status_text(i18n, phase, run):
         return None
     parts = [i18n.t(key)]
     if phase == job_module.PHASE_LOADING_MODEL and run is not None:
-        for note in narration.device_announcement(run.device, run.device_reason, run.model_name):
+        notes = narration.device_announcement(
+            run.device, run.device_reason, spoken_model_name(i18n, run),
+            backend_name=model_names.backend_name(i18n, getattr(run, "backend_id", None)),
+            forced_language=getattr(run, "forced_language", None),
+            overridden_language=getattr(run, "overridden_language", None),
+        )
+        for note in notes:
             parts.append(i18n.t(note.i18n_key).format(**note.values))
     return " ".join(parts)
+
+
+def spoken_model_name(i18n, run):
+    """The run's model as the picker names it ("small, 5 bits", "small.en,
+    English only"), or its folder's name for a custom model.
+
+    `run.model_name` is the fallback — what a run whose reference list is not
+    known names, and never the raw `external:<id>`.
+    """
+    return model_names.display_name(
+        i18n, getattr(run, "model_id", None), getattr(run, "external_references", ())
+    ) or run.model_name
 
 
 def split_result_notes(announcement, notes):
@@ -262,11 +294,15 @@ def model_problem_i18n_key(error_code, resolution, settings):
     chose" names a choice nobody made.
     """
     if error_code in (errors.MODEL_CORRUPTED, errors.EXTERNAL_MODEL_MISSING,
-                      errors.EXTERNAL_MODEL_CHANGED):
+                      errors.EXTERNAL_MODEL_CHANGED,
+                      errors.WHISPER_CPP_NOT_INSTALLED, errors.WHISPER_CPP_CORRUPTED):
         # The code already says which; the stored choice cannot make them any
         # truer (an external model's folder is gone whether it was picked or
-        # chosen automatically).
-        return errors.error_i18n_key(error_code)
+        # chosen automatically). A whisper.cpp model elsewhere is one file,
+        # and is called one.
+        is_file = (getattr(resolution, "backend_id", None)
+                   == backend_module.BACKEND_WHISPER_CPP)
+        return external_view.for_reference(errors.error_i18n_key(error_code), is_file)
     if resolution is None:
         return errors.error_i18n_key(errors.MODEL_NOT_INSTALLED)
     if resolution.model_id is None:
@@ -350,12 +386,23 @@ def saved_announcement(i18n, value, external_references=()) -> management.Announ
     when = saved_when(i18n, stored_transcription.decision_time(value))
     # A custom model is named by its folder, and by nothing once its
     # reference was forgotten: the raw `external:<id>` is not a name.
-    model = external_models.model_name(
-        str(value.get("model_id") or ""), external_references
+    model = model_names.display_name(
+        i18n, str(value.get("model_id") or ""), external_references
     ) or ""
+    backend = model_names.backend_name(i18n, value.get("backend"))
+    if model and backend:
+        return management.Announcement(
+            SAVED_OPENED_BACKEND_I18N_KEY, management.OUTCOME_DONE,
+            {"when": when, "model": model, "backend": backend},
+        )
     if model:
         return management.Announcement(
             SAVED_OPENED_I18N_KEY, management.OUTCOME_DONE, {"when": when, "model": model}
+        )
+    if backend:
+        return management.Announcement(
+            SAVED_OPENED_NO_MODEL_BACKEND_I18N_KEY, management.OUTCOME_DONE,
+            {"when": when, "backend": backend},
         )
     return management.Announcement(
         SAVED_OPENED_NO_MODEL_I18N_KEY, management.OUTCOME_DONE, {"when": when}
