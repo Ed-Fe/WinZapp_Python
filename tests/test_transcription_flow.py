@@ -50,6 +50,7 @@ from core.transcription import (
     backend as backend_module,
     device,
     errors,
+    external_models,
     job as job_module,
     message_run,
     model_store,
@@ -160,6 +161,27 @@ class _FakeDb:
         self.calls.append(("insert", jid, (msg.get("key") or {}).get("id")))
         if self.fail:
             raise TimeoutError("db busy")
+
+
+class _AppSettings:
+    """app.json, minus the file and its lock: a models folder and the list of
+    external models, nothing else. The real get() and get_strict() differ
+    only for an unreadable file, which a test says by setting `unreadable`."""
+
+    def __init__(self, models_dir="", references=()):
+        self._values = {
+            preferences.MODELS_DIR_SETTING: models_dir,
+            external_models.EXTERNAL_MODELS_SETTING: [r.as_dict() for r in references],
+        }
+        self.unreadable = None
+
+    def get(self, key):
+        return self._values[key]
+
+    def get_strict(self, key):
+        if self.unreadable is not None:
+            raise self.unreadable
+        return self._values[key]
 
 
 class _MainWindow:
@@ -443,6 +465,11 @@ def world(tmp_path, own_temp_dir, fernet_key, fernet, monkeypatch):
     monkeypatch.setattr(transcription_flow.wx, "CallAfter", _call_after)
 
     w.main_window = _MainWindow(fernet_key)
+    # A models folder of the test's own. With none, the run resolves the
+    # default one — the developer's real data/global/transcription_models,
+    # where a model they downloaded would turn "not installed" into a run.
+    w.models_dir = str(tmp_path / "models")
+    w.main_window._app_settings = _AppSettings(w.models_dir)
     w.target = _msg()
     w.panel = _Panel(w.main_window, [_msg("A1"), w.target, _msg("A3")])
     # The chat holds the very dicts the panel lists, as it does in the app.
@@ -503,14 +530,38 @@ class TestAFinishedTranscription:
         window really has. Part 5b shipped the other one against a stub that
         invented it, and the user's folder was never read back."""
         chosen = str(tmp_path / "my models")
-
-        class _AppSettings:
-            def get(self, key, default=None):
-                return chosen if key == preferences.MODELS_DIR_SETTING else default
-
-        world.main_window._app_settings = _AppSettings()
+        world.main_window._app_settings = _AppSettings(chosen)
         _start(world)
         assert world.jobs[0].models_root == chosen
+
+    def test_an_app_json_held_past_the_wait_does_not_escape_the_key_handler(
+        self, world, monkeypatch
+    ):
+        """Read on the wx thread, inside the progress dialog's constructor."""
+        from coord_locks import LockTimeout
+
+        def _held(app_settings):
+            raise LockTimeout("app.json")
+
+        monkeypatch.setattr(preferences, "stored_models_dir", _held)
+        _start(world)
+        # "small" is listed in every folder in this world, so the run goes on
+        # from the default folder; the references are unknown, not empty.
+        assert world.jobs[0].models_root == preferences.resolve_models_dir("")
+        assert len(_FakeResultDialog.made) == 1
+
+    def test_unreadable_references_are_unknown_not_none(self, world, monkeypatch):
+        world.main_window._app_settings.unreadable = ValueError("half written")
+        made = []
+        real = message_run.MessageTranscription
+
+        def _spy(*args, **kwargs):
+            made.append(kwargs.get("external_references", ()))
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(message_run, "MessageTranscription", _spy)
+        _start(world)
+        assert made == [None]
 
     def test_nothing_decrypted_is_left_behind(self, world):
         _start(world)
@@ -829,6 +880,8 @@ class _Run:
         self.device = device_id
         self.device_reason = reason
         self.model_id = model_id
+        # What MessageTranscription.model_name answers for a catalogue id.
+        self.model_name = model_id
 
 
 class TestPhaseStatusText:
@@ -911,6 +964,59 @@ class TestModelProblemSentence:
         key = transcription_flow.model_problem_i18n_key(
             errors.MODEL_NOT_INSTALLED, self._resolution(None, reason), {})
         assert key == preferences.MODEL_NONE_I18N_KEYS[reason]
+
+
+class TestAModelInAnotherFolder:
+    """What the flow says when the model is one the user pointed WinZapp at."""
+
+    @staticmethod
+    def _custom():
+        return external_models.ExternalReference(
+            "r1", "folder_a", None, True, (1, 2), key="folder_a"
+        )
+
+    @pytest.mark.parametrize("code", [errors.EXTERNAL_MODEL_MISSING,
+                                      errors.EXTERNAL_MODEL_CHANGED])
+    def test_the_failures_are_offered_with_the_tab_that_fixes_them(self, code):
+        assert code in transcription_flow._SETTINGS_OFFER_CODES
+
+    @pytest.mark.parametrize("code", [errors.EXTERNAL_MODEL_MISSING,
+                                      errors.EXTERNAL_MODEL_CHANGED])
+    def test_their_sentence_is_their_own_whatever_was_chosen(self, code):
+        """The folder is gone whether the model was picked or came from
+        "automatic": the sentence never says "the model you chose"."""
+        for settings in ({}, {"transcription": {"model": "external:r1"}}):
+            assert transcription_flow.model_problem_i18n_key(
+                code, None, settings
+            ) == errors.error_i18n_key(code)
+
+    def test_the_loading_line_names_the_folder_never_the_stored_choice(self):
+        run = _Run(device.DEVICE_CUDA, device.REASON_CUDA_SELECTED,
+                   model_id="external:r1")
+        run.model_name = "folder_a"
+        text = transcription_flow.phase_status_text(
+            I18N, job_module.PHASE_LOADING_MODEL, run)
+        assert "folder_a" in text
+        assert "external:" not in text
+
+    def test_a_stored_transcription_names_the_folder_it_was_made_with(self):
+        reference = self._custom()
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": external_models.custom_choice(reference)},
+            (reference,))
+        assert announcement.i18n_key == transcription_flow.SAVED_OPENED_I18N_KEY
+        assert announcement.values["model"] == "folder_a"
+
+    def test_one_whose_reference_was_forgotten_is_opened_without_a_model(self):
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": "external:gone"}, ())
+        assert announcement.i18n_key == transcription_flow.SAVED_OPENED_NO_MODEL_I18N_KEY
+        assert "external:" not in str(announcement.values)
+
+    def test_a_catalogue_model_is_still_its_own_name(self):
+        announcement = transcription_flow.saved_announcement(
+            I18N, {"model_id": "small"})
+        assert announcement.values["model"] == "small"
 
 
 class TestInsertionText:

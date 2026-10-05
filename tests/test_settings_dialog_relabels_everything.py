@@ -31,6 +31,7 @@ SETTINGS_DIALOG = (
 )
 
 TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+TRANSCRIPTION_EXTERNAL = SETTINGS_DIALOG.with_name("transcription_external.py")
 
 LABELLED_CONTROLS = {"StaticText", "CheckBox", "RadioButton", "StaticBox", "Button", "RadioBox"}
 
@@ -62,7 +63,8 @@ def _i18n_keys(node):
 
 def _dialog_class():
     """SettingsDialog with the methods of the mixins that hold a tab merged in:
-    the Local Transcription tab lives in transcription_tab.py but is built,
+    the Local Transcription tab lives in transcription_tab.py (and its models-in-other-folders
+    section in transcription_external.py) but is built,
     relabelled and applied as part of the dialog."""
     tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
@@ -70,7 +72,12 @@ def _dialog_class():
     mixin = next(
         n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
     )
-    cls.body = cls.body + mixin.body
+    external = ast.parse(TRANSCRIPTION_EXTERNAL.read_text(encoding="utf-8"))
+    external_mixin = next(
+        n for n in external.body
+        if isinstance(n, ast.ClassDef) and n.name == "ExternalModelsMixin"
+    )
+    cls.body = cls.body + mixin.body + external_mixin.body
     return cls
 
 
@@ -143,16 +150,19 @@ def _built_and_refreshed():
     # rebuilds comboboxes as well as relabelling); what such a helper re-applies
     # is re-applied on Apply just the same, so it is read as part of it.
     methods = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
+    # Followed to any depth: _refresh_transcription_labels() hands the section
+    # for models in other folders on to _refresh_external_labels().
     scopes = [refresh]
-    for node in ast.walk(refresh):
-        if (
-            isinstance(node, ast.Call)
-            and _self_attr(node.func)
-            and node.func.attr.startswith("_refresh_")
-            and node.func.attr in methods
-            and methods[node.func.attr] not in scopes
-        ):
-            scopes.append(methods[node.func.attr])
+    for scope in scopes:
+        for node in ast.walk(scope):
+            if (
+                isinstance(node, ast.Call)
+                and _self_attr(node.func)
+                and node.func.attr.startswith("_refresh_")
+                and node.func.attr in methods
+                and methods[node.func.attr] not in scopes
+            ):
+                scopes.append(methods[node.func.attr])
     for node in (n for scope in scopes for n in ast.walk(scope)):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
             continue

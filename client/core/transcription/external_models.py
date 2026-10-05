@@ -107,41 +107,31 @@ management.ProgressThrottle before any wx.CallAfter or spoken percentage. Both
 hash for up to a minute and `trial_load()` loads for tens of seconds: they run
 on a worker thread, never on the UI thread.
 
-**Left for part 10b**, found in review of this part and not yet answered:
+**What part 10b did with it** (the tab is `ui/dialogs/transcription_external.py`,
+the work is `external_job.py`, what it says is `external_view.py`):
 
-* `discover_hf_cache()`, `reference_state()` (and so `usable_catalogue_ids()`
-  and `model_directory()`) and `reference_for_path()` touch folders that may be
-  on a network share that is down, where one `realpath` or `stat` can wait out
-  the SMB timeout. Call them off the wx thread like the hash.
-* Changing the models root to a folder that *contains* an external reference
-  would put the user's folder under the root, where part 5's "Remove" deletes.
-  The root change has to refuse, or warn, when that would happen; `_inside()`
-  only guards the other direction, at accept time.
-* `accept_*()` can raise the raw `LockTimeout` of `AppSettings.update()` after
-  a minute of hashing (another account holding app.json for 10 s); nothing
-  turns it into a sentence yet.
-* EXTERNAL_MODEL_MISSING and EXTERNAL_MODEL_CHANGED are not in
-  `transcription_flow._SETTINGS_OFFER_CODES`, so a failed run does not offer
-  the Transcription tab where both are resolved.
-* `message_run._decide()` rejects a `model_id` that is not in `installed`,
-  which a `custom_choice()` never is; `_model_for()` still calls
-  `model_store.ensure_ready()` instead of `model_directory()`; and
-  `TranscriptionRequest` has no field for the folder a run loads from.
-* A model setting of ``"external:<id>"`` whose reference was *forgotten* is
-  10b's to decide, in `preferences.sanitize_section()`/`_resolve_model()`: the
-  natural path is to treat it as a retired model — replace it with the
-  automatic choice, with the substitution warning the tab already gives.
-  Until then the MODEL_NOT_INSTALLED that `_custom_directory()` answers for
-  it, and
-  `test_a_custom_choice_whose_reference_was_forgotten_is_not_installed`,
-  are **provisional**: that code's sentence tells the user to download the
-  model, which is impossible for a custom one.
-* The Transcription tab needs a **check again** action for an external
-  reference, catalogue and custom alike — it is `accept_catalogue_folder()` /
-  `accept_custom_folder()` called again on the reference's folder.
-  EXTERNAL_MODEL_CHANGED's sentence sends the user to verify the model in
-  that tab, and today the tab's "Verify" only covers catalogue models inside
-  WinZapp's own root (`model_store.verify_model()`).
+* Everything that touches a folder of the user's — `discover_hf_cache()`,
+  `reference_state()` (so `usable_catalogue_ids()` and `model_directory()` in
+  the tab), `reference_for_path()`, the accept calls — runs on a worker thread
+  there, and the run itself asks `usable_catalogue_ids()` / `model_directory()`
+  from `message_run` and the backend, never from the wx thread.
+* Choosing a models folder that *contains* a reference is refused by the tab
+  (`references_inside_root()`); `_inside()` guards the other direction.
+* `accept_*()` raising the `LockTimeout` of `AppSettings.update()` is turned
+  into MODELS_BUSY ("another window is busy, try again") by `ExternalModelJob`.
+* EXTERNAL_MODEL_MISSING and EXTERNAL_MODEL_CHANGED are in
+  `transcription_flow._SETTINGS_OFFER_CODES`: a failed run offers the tab.
+* `message_run._decide()` asks `model_directory()` for whatever is not among
+  the usable catalogue ids, which is how a custom model is let through and how
+  a missing folder is told apart from a model that was never downloaded;
+  `TranscriptionRequest.external_references` carries the references to the
+  backend, whose `_model_for()` calls `model_directory()`.
+* A model setting of `external:<id>` whose reference was *forgotten* is a
+  retired model: `preferences.resolve()` / `sanitize_section()` replace it with
+  the automatic choice and the tab says so, like any other substitution (they
+  are given `custom_model_ids`, `custom_reference_ids()`).
+* "Check again" is `accept_catalogue_folder()` / `accept_custom_folder()`
+  called again on the reference's folder, from the tab's button of that name.
 """
 
 from __future__ import annotations
@@ -156,7 +146,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from coord_locks import canonical_dir
+from coord_locks import LockTimeout, canonical_dir
 from core.transcription import errors, model_catalog, model_store, preferences
 
 #: The install-wide key holding the references, in app_settings.py's own
@@ -259,9 +249,10 @@ REF_UNVERIFIED = "unverified"
 
 #: The per-account model setting's spelling of "the custom model with this
 #: reference id" — the one kind of model that cannot be named by a catalogue
-#: id. Defined here, with the resolution that reads it, so part 10b's picker
-#: and preferences cannot come to disagree on it.
-CUSTOM_CHOICE_PREFIX = "external:"
+#: id. Defined in preferences, which has to recognise it in resolve() and
+#: sanitize_section() and cannot import this module (this one imports it), so
+#: the picker, preferences and the run cannot come to disagree on it.
+CUSTOM_CHOICE_PREFIX = preferences.CUSTOM_MODEL_PREFIX
 
 
 @dataclass(frozen=True)
@@ -592,17 +583,44 @@ def discover_hf_cache(cache_dir=None) -> tuple[CacheSnapshot, ...]:
 # ── The references ───────────────────────────────────────────────────────────
 
 
-def load_references(app_settings) -> tuple[ExternalReference, ...]:
-    """The stored references, in the order they were added.
+def read_references(app_settings) -> tuple[tuple[ExternalReference, ...], bool]:
+    """(the stored references, True), or ((), False) if app.json could not be read.
 
-    Tolerant of anything, like preferences.read_section(): the value is a list
-    in a file a user can edit, and an entry that makes no sense is dropped
-    rather than allowed to keep the transcription tab from opening. `None` —
-    an account-less window with no app settings — reads as "none stored".
+    For the callers that act on a reference being *absent*: a custom model
+    whose reference is gone is a retired choice, rewritten to "automatic" for
+    good by sanitize_section(). A file that is there and unreadable for a
+    moment (another process mid-write on a share, a lock held past its wait)
+    is not "no references", and must not be what decides that. `None` — an
+    account-less window with no app settings — reads as "none stored", which
+    is the truth there.
+
+    Tolerant of the value itself, like preferences.read_section(): it is a
+    list in a file a user can edit, and an entry that makes no sense is
+    dropped rather than allowed to keep the transcription tab from opening.
     """
     if app_settings is None:
-        return ()
-    return _parse(app_settings.get(EXTERNAL_MODELS_SETTING))
+        return (), True
+    try:
+        value = app_settings.get_strict(EXTERNAL_MODELS_SETTING)
+    except (OSError, ValueError, LockTimeout) as exc:
+        logging.warning(
+            "[transcription] the list of external models could not be read: %s",
+            type(exc).__name__,
+        )
+        return (), False
+    return _parse(value), True
+
+
+def load_references(app_settings) -> tuple[ExternalReference, ...]:
+    """The stored references, in the order they were added; () if app.json
+    could not be read.
+
+    For the callers that only show or use what is there — a list, a run, the
+    name of a stored transcription's model — which degrade to "nothing
+    referenced" rather than fail. A caller that would act on a reference's
+    absence uses read_references(), which says when that is not known.
+    """
+    return read_references(app_settings)[0]
 
 
 def find_reference(references, reference_id):
@@ -619,7 +637,7 @@ def reference_for_path(references, path):
     For marking what discovery lists that is already in use, by the same rule
     `_store()` applies when refusing a duplicate: the canonical folder,
     compared with the `key` stored at accept time. Resolving `path` touches
-    the disk (see "Left for part 10b" above).
+    the disk, so the tab calls it on a worker.
     """
     key = canonical_dir(str(path))
     for reference in references:
@@ -628,8 +646,26 @@ def reference_for_path(references, path):
     return None
 
 
+def references_inside_root(references, models_root) -> tuple[ExternalReference, ...]:
+    """The references whose folder is `models_root` or lies under it.
+
+    For refusing a change of the models folder to one that contains a folder of
+    the user's: remove_model() deletes inside the root, and a reference there
+    would turn "Remove" into deleting somebody else's files (the other
+    direction is `_inside()`, at accept time). Compared with each reference's
+    stored `key`, so that no stored folder is resolved — only `models_root`,
+    which the user has just browsed to.
+    """
+    root = canonical_dir(preferences.resolve_models_dir(models_root))
+    prefix = root.rstrip(os.sep) + os.sep
+    return tuple(
+        reference for reference in references
+        if reference.key == root or reference.key.startswith(prefix)
+    )
+
+
 def accept_catalogue_folder(app_settings, path, models_root, progress=None,
-                            should_cancel=None) -> AcceptOutcome:
+                            should_cancel=None, other_roots=()) -> AcceptOutcome:
     """Verify `path` as a catalogue model and, only if it is one, remember it.
 
     The hash runs here, in the same call as the write, so no caller can store
@@ -641,12 +677,16 @@ def accept_catalogue_folder(app_settings, path, models_root, progress=None,
     was rewritten while it was being hashed (ACCEPT_CHANGED_WHILE_CHECKED).
     Accepting a folder again is also how it is checked again: the record is
     refreshed, identity mark included.
+
+    `other_roots` are refused like `models_root`: the folder the settings
+    dialog is about to make the models root, before OK has moved anything
+    there (see `_inside_any()`).
     """
     path = str(path)
     shape = inspect_folder(path)
     if not shape.ok:
         return AcceptOutcome(shape.refusal, shape=shape)
-    if _inside(path, models_root):
+    if _inside_any(path, models_root, other_roots):
         return AcceptOutcome(REFUSED_INSIDE_MODELS_ROOT, shape=shape)
 
     before = _weights_mark(path)
@@ -670,7 +710,8 @@ def accept_catalogue_folder(app_settings, path, models_root, progress=None,
 
 
 def accept_custom_folder(app_settings, path, models_root, backend, device,
-                         compute_type, should_cancel=None) -> AcceptOutcome:
+                         compute_type, should_cancel=None,
+                         other_roots=()) -> AcceptOutcome:
     """Trial-load `path` and, if the backend opened it, remember it as custom.
 
     For a folder the catalogue does not claim — part 10b calls this only after
@@ -682,13 +723,14 @@ def accept_custom_folder(app_settings, path, models_root, backend, device,
     arrives during the load is honoured once the load returns: nothing stored.
     Nor is anything stored when model.bin was a different file after the load
     than before it (ACCEPT_CHANGED_WHILE_CHECKED): the trial vouched for
-    weights that are no longer there.
+    weights that are no longer there. `other_roots` as for
+    accept_catalogue_folder().
     """
     path = str(path)
     shape = inspect_folder(path)
     if not shape.ok:
         return AcceptOutcome(shape.refusal, shape=shape)
-    if _inside(path, models_root):
+    if _inside_any(path, models_root, other_roots):
         return AcceptOutcome(REFUSED_INSIDE_MODELS_ROOT, shape=shape)
 
     before = _weights_mark(path)
@@ -767,9 +809,47 @@ def custom_choice(reference) -> str:
 
 def custom_reference_id(choice):
     """The reference id a model-setting value selects, or None for a catalogue id."""
-    if isinstance(choice, str) and choice.startswith(CUSTOM_CHOICE_PREFIX):
-        return choice[len(CUSTOM_CHOICE_PREFIX):] or None
-    return None
+    return preferences.custom_model_reference_id(choice)
+
+
+def custom_reference_ids(references) -> frozenset:
+    """The ids of the custom references: what preferences.resolve() and
+    sanitize_section() take as `custom_model_ids`."""
+    return frozenset(reference.id for reference in references if reference.is_custom)
+
+
+def folder_name(path) -> str:
+    """What a model folder is called, for a list or a sentence.
+
+    Never the whole path: a screen reader reads it a character at a time, and
+    the part that tells two folders apart is the last one. A Hugging Face
+    snapshot's last component is a 40-digit commit, so there it is the
+    repository's name that identifies it.
+    """
+    coordinates = hf_cache_coordinates(path)
+    if coordinates is not None:
+        return coordinates[0].rsplit("/", 1)[-1]
+    name = os.path.basename(os.path.normpath(str(path)))
+    return name or str(path)
+
+
+def display_name(reference) -> str:
+    """`folder_name()` of a reference's folder."""
+    return folder_name(reference.path)
+
+
+def model_name(model_id, references):
+    """The name to say for the model setting `model_id`, or None.
+
+    A catalogue id is its own name. A custom choice is its folder's name — and
+    None once its reference was forgotten, which is the caller's to put a
+    sentence on: the raw `external:<id>` is never worth reading out.
+    """
+    reference_id = custom_reference_id(model_id)
+    if reference_id is None:
+        return model_id
+    reference = find_reference(references, reference_id)
+    return display_name(reference) if reference is not None else None
 
 
 def usable_catalogue_ids(models_root, references=()) -> tuple[str, ...]:
@@ -787,10 +867,14 @@ def usable_catalogue_ids(models_root, references=()) -> tuple[str, ...]:
         for reference in references
         if not reference.is_custom and reference_state(reference) == REF_READY
     }
+    # One listing rather than is_installed() per model: it is the answer this
+    # replaces (model_store.list_installed()), asked in the way every caller
+    # and every test of that answer already asks it.
+    in_root = set(model_store.list_installed(models_root))
     return tuple(
         model.id
         for model in model_catalog.list_models()
-        if model.id in ready or model_store.is_installed(models_root, model)
+        if model.id in ready or model.id in in_root
     )
 
 
@@ -864,11 +948,10 @@ def model_directory(models_root, choice, references=()) -> str:
 
 def _custom_directory(reference, choice) -> str:
     if reference is None or not reference.is_custom:
-        # A reference forgotten from another window, or a hand-edited setting.
-        # Provisional: this code's sentence says "download the model", which
-        # is impossible for a custom one. What a forgotten custom choice
-        # becomes is part 10b's decision — see the item on it under "Left for
-        # part 10b" in the module docstring.
+        # A reference forgotten from another window, or a hand-edited setting,
+        # reaching a run that resolved before the forgetting: the settings
+        # replace such a choice with "automatic" (preferences.resolve()), so
+        # this is only the window between the two.
         raise errors.TranscriptionError(errors.MODEL_NOT_INSTALLED, str(choice))
     state = reference_state(reference)
     if state == REF_READY:
@@ -1013,6 +1096,17 @@ def _inside(path, models_root) -> bool:
     child = canonical_dir(path)
     parent = canonical_dir(root)
     return child == parent or child.startswith(parent.rstrip(os.sep) + os.sep)
+
+
+def _inside_any(path, models_root, other_roots) -> bool:
+    """`_inside()` for `models_root` and for each of `other_roots`.
+
+    The other roots are a change of the models folder that is chosen and not
+    applied yet: OK moves WinZapp's models into it, and a folder of the user's
+    accepted under it in the meantime would end up where "Remove" deletes —
+    the same reason `references_inside_root()` refuses the change itself.
+    """
+    return any(_inside(path, root) for root in (models_root, *other_roots))
 
 
 def _names_that_matter() -> tuple[str, ...]:

@@ -851,6 +851,32 @@ class TestOneFolderOneReference:
             settings, folder, models_root, _backend(_Factory()), "cpu", "int8")
         assert outcome.code == external_models.REFUSED_INSIDE_MODELS_ROOT
 
+    def test_a_folder_under_a_root_chosen_but_not_applied_is_refused(
+        self, catalogue, tmp_path, settings, models_root
+    ):
+        """Browse to X, add X/small, press OK: OK moves WinZapp's models into
+        X, and the user's X/small is then where "Remove" deletes."""
+        _model, contents = catalogue["alpha"]
+        pending = str(tmp_path / "chosen")
+        folder = _write(os.path.join(pending, "small"), contents)
+        outcome = external_models.accept_catalogue_folder(
+            settings, folder, models_root, other_roots=(pending,))
+        assert outcome.code == external_models.REFUSED_INSIDE_MODELS_ROOT
+        outcome = external_models.accept_custom_folder(
+            settings, folder, models_root, _backend(_Factory()), "cpu", "int8",
+            other_roots=(pending,))
+        assert outcome.code == external_models.REFUSED_INSIDE_MODELS_ROOT
+        assert external_models.load_references(settings) == ()
+
+    def test_a_pending_root_elsewhere_refuses_nothing(
+        self, catalogue, tmp_path, settings, models_root
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", contents)
+        outcome = external_models.accept_catalogue_folder(
+            settings, folder, models_root, other_roots=(str(tmp_path / "chosen"),))
+        assert outcome.code == external_models.ACCEPT_ADDED
+
     @pytest.mark.skipif(
         os.path.normcase("A") != os.path.normcase("a"),
         reason="two spellings are one folder only on a case-folding filesystem",
@@ -1107,6 +1133,44 @@ class TestWhatIsStored:
         folder = _write(tmp_path / "mine", contents)
         external_models.accept_catalogue_folder(settings, folder, models_root)
         assert app_settings._DEFAULTS[external_models.EXTERNAL_MODELS_SETTING] == []
+
+
+class TestAFileThatCouldNotBeReadIsNotAnEmptyList:
+    """An empty list decides things: a custom choice whose reference is gone
+    is rewritten to "automatic" for good. app.json unreadable for a moment
+    must not be what decides that."""
+
+    def test_a_readable_file_is_known(self, catalogue, tmp_path, settings, models_root):
+        _model, contents = catalogue["alpha"]
+        external_models.accept_catalogue_folder(
+            settings, _write(tmp_path / "mine", contents), models_root)
+        references, known = external_models.read_references(settings)
+        assert known is True and len(references) == 1
+
+    def test_nothing_stored_yet_is_known_to_be_nothing(self, settings):
+        assert external_models.read_references(settings) == ((), True)
+
+    def test_no_app_settings_at_all_is_known_to_be_nothing(self):
+        assert external_models.read_references(None) == ((), True)
+
+    def test_an_unreadable_file_is_not_known(self, settings):
+        with open(os.path.join(settings.global_dir, "app.json"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("{ half written")
+        assert external_models.read_references(settings) == ((), False)
+        # The callers that only show or use the list degrade to "none".
+        assert external_models.load_references(settings) == ()
+
+    def test_a_lock_held_past_its_wait_is_not_known_either(self, settings, monkeypatch):
+        """LockTimeout escaping here would escape a wx handler."""
+        from coord_locks import LockTimeout
+
+        def _held(key):
+            raise LockTimeout("app.json")
+
+        monkeypatch.setattr(settings, "get_strict", _held)
+        assert external_models.read_references(settings) == ((), False)
+        assert external_models.load_references(settings) == ()
 
 
 class TestTheStateOfAReference:
@@ -1581,3 +1645,171 @@ def test_paths_are_what_the_log_keeps(catalogue, tmp_path, caplog):
     with caplog.at_level(logging.INFO):
         external_models.identify(folder)
     assert folder in caplog.text
+
+
+# ── Part 10b: the run, the names and the models folder ───────────────────────
+
+
+class _CapturingBackend(backend_module.TranscriptionBackend):
+    """Records the request a job hands over, and transcribes nothing."""
+
+    id = "capturing"
+
+    def __init__(self):
+        self.requests = []
+
+    def is_available(self):
+        return True
+
+    def load_model(self, request, should_cancel=None):
+        self.requests.append(request)
+
+    def transcribe(self, request, progress=None, should_cancel=None):
+        return backend_module.TranscriptionResult(
+            text="", language=None, language_probability=None, duration_seconds=1.0)
+
+
+class TestTheRunLoadsWhereTheReferenceSays:
+    """The backend asks model_directory() on every load, with the references
+    the run was started with: the model's own folder for a custom choice, and
+    for a catalogue id whatever copy is there."""
+
+    def _request(self, models_root, model_id, references, tmp_path):
+        return backend_module.TranscriptionRequest(
+            audio_path=str(tmp_path / "prepared.wav"), models_root=models_root,
+            model_id=model_id, device="cpu", compute_type="int8",
+            external_references=tuple(references))
+
+    def test_a_custom_model_is_loaded_from_its_own_folder(
+        self, catalogue, tmp_path, settings, models_root
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
+        factory = _Factory()
+        reference = external_models.accept_custom_folder(
+            settings, folder, models_root, _backend(factory), "cpu", "int8").reference
+        factory.loads.clear()
+
+        _backend(factory).load_model(self._request(
+            models_root, external_models.custom_choice(reference), [reference], tmp_path))
+
+        assert [load["path"] for load in factory.loads] == [folder]
+        assert factory.loads[0]["local_files_only"] is True
+
+    def test_a_catalogue_model_with_only_an_external_copy_is_loaded_from_it(
+        self, catalogue, tmp_path, settings, models_root
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "theirs", contents)
+        reference = external_models.accept_catalogue_folder(
+            settings, folder, models_root).reference
+        factory = _Factory()
+
+        _backend(factory).load_model(
+            self._request(models_root, "alpha", [reference], tmp_path))
+
+        assert [load["path"] for load in factory.loads] == [folder]
+
+    def test_a_disk_unplugged_since_the_decision_is_said_so_at_load_time(
+        self, catalogue, tmp_path, settings, models_root
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "theirs", contents)
+        reference = external_models.accept_catalogue_folder(
+            settings, folder, models_root).reference
+        shutil.rmtree(folder)
+        factory = _Factory()
+
+        with pytest.raises(errors.TranscriptionError) as caught:
+            _backend(factory).load_model(
+                self._request(models_root, "alpha", [reference], tmp_path))
+
+        assert caught.value.code == errors.EXTERNAL_MODEL_MISSING
+        assert factory.loads == []
+
+    def test_a_job_hands_the_references_to_the_backend(self, tmp_path):
+        from core.transcription import audio_prep, device, job as job_module
+
+        reference = external_models.ExternalReference("r", "/x", None, True, (1, 2), "/x")
+        capture = _CapturingBackend()
+        job = job_module.TranscriptionJob(
+            None, None, str(tmp_path / "models"), "external:r",
+            backend=capture, prepared=audio_prep.PreparedAudio(str(tmp_path / "a.wav"), 1.0),
+            external_references=[reference],
+            probe=lambda: device.HardwareProbe(total_ram_mb=16384, available_ram_mb=8192),
+        )
+        job.start()
+        job.join(10)
+        assert capture.requests[0].external_references == (reference,)
+        assert capture.requests[0].model_id == "external:r"
+
+
+class TestTheNamesOfTheModels:
+    def test_a_folder_is_named_by_its_last_component(self):
+        assert external_models.folder_name("/disk/stuff/my-model") == "my-model"
+        assert external_models.folder_name("/disk/stuff/my-model/") == "my-model"
+
+    def test_a_root_has_no_last_component_and_is_named_whole(self):
+        assert external_models.folder_name("/") == "/"
+
+    def test_a_cache_snapshot_is_named_by_its_repository_not_its_commit(self):
+        path = "/c/hub/models--Systran--faster-whisper-small/snapshots/" + "e" * 40
+        assert external_models.folder_name(path) == "faster-whisper-small"
+
+    def test_a_catalogue_id_is_its_own_name(self):
+        assert external_models.model_name("large-v3", ()) == "large-v3"
+
+    def test_a_custom_choice_is_its_folders_name_and_nothing_once_forgotten(self):
+        reference = external_models.ExternalReference("abc", "/d/mine", None, True)
+        assert external_models.model_name("external:abc", (reference,)) == "mine"
+        assert external_models.model_name("external:abc", ()) is None
+
+    def test_only_custom_references_are_custom_ids(self):
+        custom = external_models.ExternalReference("a", "/x", None, True)
+        known = external_models.ExternalReference("b", "/y", "large-v3", True)
+        assert external_models.custom_reference_ids((custom, known)) == {"a"}
+
+
+class TestAModelsFolderCannotSwallowAReference:
+    """remove_model() deletes inside the models folder: a reference there would
+    make "Remove" delete the user's own files."""
+
+    def _reference(self, path):
+        return external_models.ExternalReference(
+            "r", str(path), None, True, (1, 2), canonical_dir(str(path)))
+
+    def test_a_folder_that_contains_a_reference_is_refused(self, tmp_path):
+        inner = tmp_path / "all" / "models" / "mine"
+        inner.mkdir(parents=True)
+        reference = self._reference(inner)
+        assert external_models.references_inside_root(
+            (reference,), str(tmp_path / "all")) == (reference,)
+
+    def test_the_same_folder_counts_and_a_sibling_does_not(self, tmp_path):
+        mine = tmp_path / "mine"
+        mine.mkdir()
+        (tmp_path / "mine-too").mkdir()
+        reference = self._reference(mine)
+        assert external_models.references_inside_root((reference,), str(mine)) == (reference,)
+        assert external_models.references_inside_root(
+            (reference,), str(tmp_path / "mine-too")) == ()
+
+    def test_a_folder_beside_it_is_fine(self, tmp_path):
+        mine = tmp_path / "mine"
+        mine.mkdir()
+        (tmp_path / "elsewhere").mkdir()
+        assert external_models.references_inside_root(
+            (self._reference(mine),), str(tmp_path / "elsewhere")) == ()
+
+    def test_no_references_are_nothing_to_refuse(self, tmp_path):
+        assert external_models.references_inside_root((), str(tmp_path)) == ()
+
+
+class TestTheAutomaticChoiceAsksTheListingEveryoneAsks:
+    def test_the_models_folder_is_listed_through_list_installed(
+        self, catalogue, models_root, monkeypatch
+    ):
+        """One listing, the same function every caller and every test of "what
+        is installed" already goes through."""
+        monkeypatch.setattr(model_store, "list_installed", lambda root: ("gamma",))
+        assert external_models.usable_catalogue_ids(models_root) == ("gamma",)

@@ -88,10 +88,12 @@ from datetime import datetime
 import wx
 
 from app_paths import data_path
+from coord_locks import LockTimeout
 from core.locale_format import get_datetime_format
 from core.transcription import (
     audio_prep,
     errors,
+    external_models,
     job as job_module,
     management,
     message_audio,
@@ -127,7 +129,14 @@ _MEDIA_STATUS_I18N_KEYS = {
 #: The failures whose answer lives on the Transcription tab — download a model,
 #: pick another, repair the one that is there — and which are therefore
 #: offered with a shortcut to it rather than only said.
-_SETTINGS_OFFER_CODES = (errors.MODEL_NOT_INSTALLED, errors.MODEL_CORRUPTED)
+_SETTINGS_OFFER_CODES = (
+    errors.MODEL_NOT_INSTALLED,
+    errors.MODEL_CORRUPTED,
+    # The folder of a model the user pointed WinZapp at is gone or changed:
+    # the tab is where it is checked again, forgotten, or replaced by another.
+    errors.EXTERNAL_MODEL_MISSING,
+    errors.EXTERNAL_MODEL_CHANGED,
+)
 
 AUTO_MODEL_UNAVAILABLE_I18N_KEY = "transcription_model_unavailable_auto"
 HAS_NOTES_I18N_KEY = "transcription_result_has_notes"
@@ -209,7 +218,7 @@ def phase_status_text(i18n, phase, run):
         return None
     parts = [i18n.t(key)]
     if phase == job_module.PHASE_LOADING_MODEL and run is not None:
-        for note in narration.device_announcement(run.device, run.device_reason, run.model_id):
+        for note in narration.device_announcement(run.device, run.device_reason, run.model_name):
             parts.append(i18n.t(note.i18n_key).format(**note.values))
     return " ".join(parts)
 
@@ -252,8 +261,12 @@ def model_problem_i18n_key(error_code, resolution, settings):
     choice landed on a model that is not downloaded, where "the model you
     chose" names a choice nobody made.
     """
-    if error_code == errors.MODEL_CORRUPTED:
-        return errors.error_i18n_key(errors.MODEL_CORRUPTED)
+    if error_code in (errors.MODEL_CORRUPTED, errors.EXTERNAL_MODEL_MISSING,
+                      errors.EXTERNAL_MODEL_CHANGED):
+        # The code already says which; the stored choice cannot make them any
+        # truer (an external model's folder is gone whether it was picked or
+        # chosen automatically).
+        return errors.error_i18n_key(error_code)
     if resolution is None:
         return errors.error_i18n_key(errors.MODEL_NOT_INSTALLED)
     if resolution.model_id is None:
@@ -326,7 +339,7 @@ def saved_when(i18n, at) -> str:
         return ""
 
 
-def saved_announcement(i18n, value) -> management.Announcement:
+def saved_announcement(i18n, value, external_references=()) -> management.Announcement:
     """The spoken headline for opening `value`, a stored transcription.
 
     When and with which model go in the headline, not among the notes: the
@@ -335,7 +348,11 @@ def saved_announcement(i18n, value) -> management.Announcement:
     every reopening and teach the user to ignore it.
     """
     when = saved_when(i18n, stored_transcription.decision_time(value))
-    model = str(value.get("model_id") or "")
+    # A custom model is named by its folder, and by nothing once its
+    # reference was forgotten: the raw `external:<id>` is not a name.
+    model = external_models.model_name(
+        str(value.get("model_id") or ""), external_references
+    ) or ""
     if model:
         return management.Announcement(
             SAVED_OPENED_I18N_KEY, management.OUTCOME_DONE, {"when": when, "model": model}
@@ -455,17 +472,16 @@ class MessageTranscriptionFlow:
 
     def _make_first_run(self, on_progress, on_finished):
         mw = self._main_window
+        stored_models_dir, references = self._install_wide_models()
         run = message_run.MessageTranscription(
             self._msg,
             mw.settings,
             mw.key,
             data_path("voice_messages"),
             data_path("media"),
-            # `_app_settings`, with the underscore — the attribute the window
-            # really has. SettingsDialog._install_wide_settings() records
-            # what the other spelling cost: a folder that was never read back.
-            stored_models_dir=preferences.stored_models_dir(getattr(mw, "_app_settings", None)),
+            stored_models_dir=stored_models_dir,
             ui_language=getattr(self._i18n, "language", ""),
+            external_references=references,
             find_ffmpeg=mw._find_api_ffmpeg,
             is_online=lambda: bool(getattr(mw, "_wa_connected", False)),
             fetch_media=self._panel._download_media_to_disk,
@@ -475,6 +491,30 @@ class MessageTranscriptionFlow:
         )
         self._run = run
         return run
+
+    def _install_wide_models(self):
+        """(stored models folder, external references or None) from app.json.
+
+        `_app_settings`, with the underscore — the attribute the window really
+        has. SettingsDialog._install_wide_settings() records what the other
+        spelling cost: a folder that was never read back.
+
+        Read here, on the wx thread, inside the progress dialog's constructor,
+        where a LockTimeout (another WinZapp window holding app.json past the
+        lock's wait) would escape the key handler. Instead the run is made
+        with the default folder and the references unknown (None): a model
+        complete in the default folder still runs, and anything else stops on
+        the worker with "another window is busy, try again"
+        (MessageTranscription._check_references_were_read()).
+        """
+        app_settings = getattr(self._main_window, "_app_settings", None)
+        try:
+            stored_models_dir = preferences.stored_models_dir(app_settings)
+        except LockTimeout:
+            logging.warning("[transcription] app.json was held; the run reads no install-wide settings")
+            return "", None
+        references, known = external_models.read_references(app_settings)
+        return stored_models_dir, references if known else None
 
     def _make_retry_run(self, previous, on_progress, on_finished):
         run = message_run.MessageTranscription.retry_on_cpu(
@@ -707,7 +747,15 @@ class MessageTranscriptionFlow:
                 self._main_window.settings, getattr(self._i18n, "language", "")
             ),
         )
-        self._open_result_window(result, saved_announcement(self._i18n, value), notes)
+        # Only for the model's name in the headline: load_references() reads an
+        # app.json that is held or unreadable as "none", and the headline then
+        # leaves a custom model unnamed rather than the handler raising.
+        references = external_models.load_references(
+            getattr(self._main_window, "_app_settings", None)
+        )
+        self._open_result_window(
+            result, saved_announcement(self._i18n, value, references), notes
+        )
 
     def delete_saved(self):
         """Ask, delete the stored transcription, and say how it went."""

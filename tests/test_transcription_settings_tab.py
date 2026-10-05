@@ -72,17 +72,21 @@ import ast
 import json
 import pathlib
 import re
+from types import SimpleNamespace
 
 import pytest
 import wx
 
 from app_paths import resource_path
+from coord_locks import canonical_dir
 from core.transcription import backend as backend_module
 from core.transcription import cuda_runtime, device, errors, management, model_catalog
+from core.transcription import external_job, external_models, external_view
 from core.transcription import model_store
 from core.transcription import preferences
-from ui.dialogs import transcription_tab
+from ui.dialogs import transcription_external, transcription_tab
 from ui.dialogs.settings_dialog import SettingsDialog
+from ui.dialogs.transcription_external import ExternalModelsMixin
 
 from tests.conftest import hidden_frame
 from tests.god_modules import main_window_source
@@ -95,6 +99,10 @@ SETTINGS_DIALOG_SOURCE = (
 # them (SettingsDialog inherits TranscriptionTabMixin).
 TRANSCRIPTION_TAB_SOURCE = (
     REPO / "client" / "ui" / "dialogs" / "transcription_tab.py"
+).read_text(encoding="utf-8")
+# ...and the section for models in other folders, which the dialog inherits too.
+TRANSCRIPTION_EXTERNAL_SOURCE = (
+    REPO / "client" / "ui" / "dialogs" / "transcription_external.py"
 ).read_text(encoding="utf-8")
 
 
@@ -124,18 +132,39 @@ class _I18n:
 class _AppSettings:
     """app_settings, minus the file. Raises for a non-global key like it does."""
 
-    def __init__(self, models_dir=""):
-        self._values = {preferences.MODELS_DIR_SETTING: models_dir}
+    def __init__(self, models_dir="", references=()):
+        self._values = {
+            preferences.MODELS_DIR_SETTING: models_dir,
+            external_models.EXTERNAL_MODELS_SETTING: [r.as_dict() for r in references],
+        }
+        #: An exception get_strict() raises, as the real one does for an
+        #: app.json that is there and cannot be read; get() reads that file as
+        #: the defaults, and so does this one.
+        self.unreadable = None
 
     def get(self, key):
         if key not in self._values:
             raise KeyError(key)
+        if self.unreadable is not None and key == external_models.EXTERNAL_MODELS_SETTING:
+            return []
         return self._values[key]
+
+    def get_strict(self, key):
+        if self.unreadable is not None:
+            raise self.unreadable
+        return self.get(key)
 
     def set(self, key, value):
         if key != preferences.MODELS_DIR_SETTING:
             raise KeyError(key)
         self._values[key] = value
+
+    def update(self, key, change):
+        """One locked read-modify-write, like AppSettings.update()."""
+        if key != external_models.EXTERNAL_MODELS_SETTING:
+            raise KeyError(key)
+        self._values[key] = change(list(self._values[key]))
+        return self._values[key]
 
 
 class _SpeakOutput:
@@ -189,8 +218,13 @@ class _MainWindow:
         self.saves += 1
 
 
-class _TabOwner:
-    """Stand-in for SettingsDialog carrying only what the tab touches."""
+class _TabOwner(ExternalModelsMixin):
+    """Stand-in for SettingsDialog carrying only what the tab touches.
+
+    The section for models in other folders is inherited whole, as the dialog
+    inherits it: its methods call one another and the tab's, and binding them
+    one by one here is how a stub drifts from what ships.
+    """
 
     def __init__(self, main_window):
         self.main_window = main_window
@@ -1177,7 +1211,8 @@ class TestTheInstallWideFolderReachesTheAttributeMainWindowActuallyHas:
         switch_behavior call sites spelled it without the underscore until
         part G of #112, and so never read or wrote the shared file
         (tests/test_switch_behavior_install_wide.py)."""
-        trees = [ast.parse(SETTINGS_DIALOG_SOURCE), ast.parse(TRANSCRIPTION_TAB_SOURCE)]
+        trees = [ast.parse(SETTINGS_DIALOG_SOURCE), ast.parse(TRANSCRIPTION_TAB_SOURCE),
+                 ast.parse(TRANSCRIPTION_EXTERNAL_SOURCE)]
         for node in (n for tree in trees for n in ast.walk(tree)):
             if not isinstance(node, ast.FunctionDef):
                 continue
@@ -1387,6 +1422,7 @@ class TestTheMnemonicsOnThisTab:
         "transcription_models_dir_label",
         "transcription_models_dir_browse_btn",
         "transcription_cuda_runtime_label",
+        "transcription_external_label",
         "ok",
         "cancel",
         "apply",
@@ -1410,6 +1446,13 @@ class TestTheMnemonicsOnThisTab:
         "transcription_cuda_repair_btn",
         "transcription_cuda_verify_btn",
         "transcription_cuda_remove_btn",
+        # The five of the section for models in other folders, under the same
+        # rule: one word each, inside a group named after what they act on.
+        "transcription_external_add_btn",
+        "transcription_external_find_btn",
+        "transcription_external_use_btn",
+        "transcription_external_check_btn",
+        "transcription_external_forget_btn",
     )
 
     #: The two group names. Not tab stops, so not owed a letter — and they
@@ -1417,6 +1460,7 @@ class TestTheMnemonicsOnThisTab:
     GROUPS = (
         "transcription_model_actions_group",
         "transcription_cuda_actions_group",
+        "transcription_external_actions_group",
     )
 
     @staticmethod
@@ -1458,6 +1502,12 @@ class TestTheMnemonicsOnThisTab:
             label = table[key].replace("&", "")
             assert " " not in label.strip(), f"{locale}: {key} is {label!r}"
         assert "CUDA" in table["transcription_cuda_actions_group"]
+        # The group around the five is the list's own name: "Add", "Use" and
+        # "Forget" are about the models in other folders, and the group is
+        # what says so.
+        assert table["transcription_external_actions_group"] == (
+            table["transcription_external_label"].replace("&", "")
+        )
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_control_on_the_tab_has_one(self, locale):
@@ -2579,3 +2629,1166 @@ class TestTheFocusNeverStaysOnADisabledButton:
         taken = self._watch(tab)
         tab._restore_transcription_focus(management.ACTION_MOVE_MODELS)
         assert taken == []
+
+
+# ── Part 10b: models the user already has in other folders ───────────────────
+#
+# The section is `ExternalModelsMixin`, inherited whole by the stub. Nothing
+# here touches a real folder of anybody's: reference_state() is replaced by what
+# the test says the disk holds, the progress dialog by a fake that answers what
+# it is told, and every worker thread is held until the test lets it run — which
+# is also how "off the wx thread" is checked rather than assumed.
+
+
+def _reference(tmp_path, reference_id, model_id=None, name="folder_a"):
+    folder = str(tmp_path / name)
+    return external_models.ExternalReference(
+        reference_id, folder, model_id, True, (1, 2), key=folder
+    )
+
+
+@pytest.fixture
+def tab_with(wx_app, tmp_path, no_hardware_probe):
+    """Builds a Transcription tab that already has references stored."""
+    frames = []
+
+    def _make(*references):
+        frame = hidden_frame()
+        frames.append(frame)
+        owner = _TabOwner(_MainWindow(
+            app_settings=_AppSettings(str(tmp_path), references)
+        ))
+        owner._transcription_page = owner._build_transcription_page(frame)
+        frame.Bind(wx.EVT_TEXT, owner._mark_dirty)
+        return owner
+
+    try:
+        yield _make
+    finally:
+        for frame in frames:
+            frame.Destroy()
+
+
+class _Workers:
+    """The worker threads the section started, held until `run_all()`."""
+
+    def __init__(self):
+        self.pending = []
+
+    def run_all(self):
+        while self.pending:
+            self.pending.pop(0)()
+
+
+@pytest.fixture
+def workers(monkeypatch):
+    """Hold every worker thread, and run wx.CallAfter inline.
+
+    `threading` is replaced in the section's own namespace only: the stub
+    thread never starts anything, so a test that forgot to run a worker sees
+    its answer missing instead of a real thread touching a real disk.
+    """
+    held = _Workers()
+
+    class _Thread:
+        def __init__(self, target=None, daemon=None, name=None):
+            self._target = target
+            self.name = name
+
+        def start(self):
+            held.pending.append(self._target)
+
+    monkeypatch.setattr(
+        transcription_external, "threading", SimpleNamespace(Thread=_Thread)
+    )
+    monkeypatch.setattr(
+        transcription_external.wx, "CallAfter",
+        lambda func, *args, **kwargs: func(*args, **kwargs),
+    )
+    return held
+
+
+def _measure_as(monkeypatch, states):
+    """What the disk holds, by reference id; recorded per call."""
+    measured = []
+
+    def _state(reference):
+        measured.append(reference.id)
+        return states[reference.id]
+
+    monkeypatch.setattr(external_models, "reference_state", _state)
+    return measured
+
+
+def _questions(monkeypatch, answer):
+    asked = []
+    monkeypatch.setattr(
+        transcription_external.wx, "MessageBox",
+        lambda text, caption="", *args, **kwargs: asked.append((text, caption)) or answer,
+    )
+    return asked
+
+
+def _dir_dialog(monkeypatch, module, code, path=""):
+    """Replace wx.DirDialog in `module` with one that answers without a window."""
+    class _Dir:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def ShowModal(self):
+            return code
+
+        def GetPath(self):
+            return path
+
+    monkeypatch.setattr(module.wx, "DirDialog", _Dir)
+
+
+class _FakeExternalProgress:
+    """Stands in for TranscriptionProgressDialog, as _FakeProgress does for the
+    management jobs: the job is real and never started, the answer is told."""
+
+    def __init__(self, answers, made, parent, i18n, speak_output, make_job,
+                 status_text):
+        self.status_text = status_text
+        self.job = make_job(lambda tick: None, lambda result, error: None)
+        self.result, self.error = answers.pop(0) if answers else (None, None)
+        self.destroyed = False
+        made.append(self)
+
+    def run(self):
+        return wx.ID_CANCEL if self.error is not None else wx.ID_OK
+
+    def Destroy(self):
+        self.destroyed = True
+
+
+def _fake_external_progress(monkeypatch, answers=()):
+    made = []
+    queue = list(answers)
+    monkeypatch.setattr(
+        transcription_external, "TranscriptionProgressDialog",
+        lambda *args: _FakeExternalProgress(queue, made, *args),
+    )
+    return made
+
+
+class _Event:
+    def Skip(self):
+        pass
+
+
+class TestTheSectionIsOnTheTab:
+    def test_a_list_and_five_buttons_in_the_order_they_are_offered(self, tab):
+        assert isinstance(tab._transcription_external_list, wx.ListBox)
+        assert list(tab._transcription_external_buttons) == [
+            "add", "find", "use", "check", "forget"
+        ]
+        i18n = tab.main_window.i18n
+        for name, key in transcription_external._EXTERNAL_BUTTONS:
+            assert tab._transcription_external_buttons[name].GetLabel() == i18n.t(key)
+
+    def test_nothing_referenced_leaves_only_adding_and_searching(self, tab):
+        buttons = tab._transcription_external_buttons
+        assert tab._transcription_external_list.GetCount() == 0
+        assert {n: b.IsEnabled() for n, b in buttons.items()} == {
+            "add": True, "find": True, "use": False, "check": False, "forget": False,
+        }
+
+    def test_it_is_not_one_of_the_model_action_groups(self, tab):
+        assert tab._transcription_external_box not in [
+            box for box, _key in tab._transcription_action_groups
+        ]
+
+    def test_the_labels_and_the_rows_follow_a_language_change(
+        self, tab_with, tmp_path
+    ):
+        reference = _reference(tmp_path, "r1", "small")
+        tab = tab_with(reference)
+        tab.main_window.i18n = _I18n("pl")
+        tab._refresh_transcription_labels()
+        pl = tab.main_window.i18n
+        assert tab._transcription_external_buttons["forget"].GetLabel() == pl.t(
+            "transcription_external_forget_btn"
+        )
+        assert tab._transcription_external_box.GetLabel() == pl.t(
+            "transcription_external_actions_group"
+        )
+        assert tab._transcription_external_list.GetString(0) == (
+            external_view.row_label(pl, reference, None)
+        )
+
+
+class TestTheListIsMeasuredOffTheWxThread:
+    def test_a_reference_reads_as_checking_until_the_worker_answers(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        reference = _reference(tmp_path, "r1", "small")
+        measured = _measure_as(monkeypatch, {"r1": external_models.REF_READY})
+        tab = tab_with(reference)
+        i18n = tab.main_window.i18n
+        tab._refresh_external_models()
+        assert measured == []
+        assert tab._transcription_external_list.GetString(0) == (
+            external_view.row_label(i18n, reference, None)
+        )
+        workers.run_all()
+        assert measured == ["r1"]
+        assert tab._transcription_external_list.GetString(0) == (
+            external_view.row_label(i18n, reference, external_models.REF_READY)
+        )
+
+    def test_with_nothing_referenced_no_worker_is_started(self, tab, workers):
+        tab._refresh_external_models()
+        assert workers.pending == []
+
+    def test_an_answer_overtaken_by_a_newer_refresh_is_dropped(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        reference = _reference(tmp_path, "r1", "small")
+        _measure_as(monkeypatch, {"r1": external_models.REF_READY})
+        tab = tab_with(reference)
+        tab._refresh_external_models()
+        tab._refresh_external_models()
+        first, second = workers.pending
+        workers.pending.clear()
+        first()
+        assert tab._transcription_external_states == {}
+        second()
+        assert tab._transcription_external_states == {
+            "r1": external_models.REF_READY
+        }
+
+    def test_a_measuring_that_failed_keeps_saying_checking(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        def _boom(reference):
+            raise OSError("share is down")
+
+        monkeypatch.setattr(external_models, "reference_state", _boom)
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._refresh_external_models()
+        workers.run_all()
+        assert tab._transcription_external_states == {}
+
+    def test_a_dialog_closed_mid_measurement_touches_nothing(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _measure_as(monkeypatch, {"r1": external_models.REF_READY})
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._refresh_external_models()
+        tab.__class__.__bool__ = lambda self: False
+        try:
+            workers.run_all()
+        finally:
+            del tab.__class__.__bool__
+        assert tab._transcription_external_states == {}
+
+    def test_no_call_that_reaches_a_folder_runs_outside_a_worker(self):
+        """A drive that is unplugged makes one stat wait out a network
+        timeout; on the wx thread that freezes the window and the screen
+        reader. Each of these may only appear inside a lambda handed to
+        `_external_in_background()` (or inside a function that is itself the
+        worker's)."""
+        tree = ast.parse(TRANSCRIPTION_EXTERNAL_SOURCE)
+        reaching = {
+            "reference_state", "discover_hf_cache", "folder_candidates",
+            "new_snapshots", "forget_reference", "canonical_dir",
+            "accept_catalogue_folder", "accept_custom_folder",
+        }
+        parents = {}
+        for parent in ast.walk(tree):
+            for child in ast.iter_child_nodes(parent):
+                parents[child] = parent
+        found = 0
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in reaching):
+                continue
+            found += 1
+            ancestor, inside_lambda = node, False
+            while ancestor in parents:
+                ancestor = parents[ancestor]
+                inside_lambda = inside_lambda or isinstance(ancestor, ast.Lambda)
+            assert inside_lambda, f"{node.func.attr}() runs on the calling thread"
+        assert found >= 4
+
+
+class TestWhichExternalButtonsCanBePressed:
+    def test_use_needs_a_folder_that_is_ready_now(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        buttons = tab._transcription_external_buttons
+        # Still "checking": nothing selected can be used yet, but it can be
+        # re-checked or forgotten.
+        assert not buttons["use"].IsEnabled()
+        assert buttons["check"].IsEnabled() and buttons["forget"].IsEnabled()
+        tab._transcription_external_states = {"r1": external_models.REF_READY}
+        tab._redraw_external_list()
+        assert buttons["use"].IsEnabled()
+        tab._transcription_external_states = {"r1": external_models.REF_FOLDER_MISSING}
+        tab._redraw_external_list()
+        assert not buttons["use"].IsEnabled()
+        assert buttons["forget"].IsEnabled()
+
+    def test_a_running_job_turns_all_five_off(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._transcription_external_states = {"r1": external_models.REF_READY}
+        tab._set_transcription_job_running(True)
+        tab._sync_external_buttons()
+        assert not any(
+            b.IsEnabled() for b in tab._transcription_external_buttons.values()
+        )
+
+    def test_the_selection_decides_what_the_buttons_act_on(self, tab_with, tmp_path):
+        tab = tab_with(
+            _reference(tmp_path, "r1", "small", "folder_a"),
+            _reference(tmp_path, "r2", None, "folder_b"),
+        )
+        tab._transcription_external_states = {
+            "r1": external_models.REF_FOLDER_MISSING,
+            "r2": external_models.REF_READY,
+        }
+        tab._redraw_external_list()
+        assert tab._selected_external_reference().id == "r1"
+        assert not tab._transcription_external_buttons["use"].IsEnabled()
+        tab._transcription_external_list.SetSelection(1)
+        tab._on_external_selection(_Event())
+        assert tab._selected_external_reference().id == "r2"
+        assert tab._transcription_external_buttons["use"].IsEnabled()
+
+    def test_redrawing_the_same_rows_does_not_rewrite_the_list(
+        self, tab_with, tmp_path
+    ):
+        """A screen reader re-reads a list control that was rewritten: the
+        redraw keeps the very list it drew when nothing it says changed."""
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        drawn = tab._transcription_external_row_labels
+        tab._redraw_external_list()
+        assert tab._transcription_external_row_labels is drawn
+        tab._transcription_external_states = {"r1": external_models.REF_READY}
+        tab._redraw_external_list()
+        assert tab._transcription_external_row_labels is not drawn
+
+
+class TestTheModelPickerCountsWhatLivesElsewhere:
+    def test_a_custom_model_is_listed_after_the_catalogue(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r2", None))
+        tab._populate_transcription_model_choices()
+        ids = tab._transcription_model_ids
+        assert ids[0] == preferences.AUTO
+        assert ids[-1] == "external:r2"
+        assert ids.index("small") < ids.index("external:r2")
+
+    def test_a_catalogue_model_in_another_folder_reads_as_such_once_measured(
+        self, tab_with, tmp_path
+    ):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        i18n = tab.main_window.i18n
+        model = model_catalog.get_model("small")
+        index = tab._transcription_model_ids.index("small")
+        before = tab._transcription_model_combo.GetString(index)
+        tab._transcription_external_states = {"r1": external_models.REF_READY}
+        tab._populate_transcription_model_choices()
+        after = tab._transcription_model_combo.GetString(index)
+        assert after == transcription_tab._transcription_model_choice_label(
+            i18n, model, None, external=True
+        )
+        assert after != before
+
+    def test_a_folder_that_is_gone_does_not_make_its_model_available(
+        self, tab_with, tmp_path
+    ):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        index = tab._transcription_model_ids.index("small")
+        before = tab._transcription_model_combo.GetString(index)
+        tab._transcription_external_states = {
+            "r1": external_models.REF_FOLDER_MISSING
+        }
+        tab._populate_transcription_model_choices()
+        assert tab._transcription_model_combo.GetString(index) == before
+
+    def test_the_stored_custom_choice_is_selected_when_the_tab_opens(
+        self, tab_with, tmp_path
+    ):
+        tab = tab_with(_reference(tmp_path, "r2", None))
+        tab.main_window.settings["transcription"] = {
+            preferences.SETTING_MODEL: "external:r2"
+        }
+        tab._load_transcription_values()
+        assert tab._selected_transcription_model() == "external:r2"
+        assert tab._transcription_substituted_settings == set()
+
+    def test_a_forgotten_custom_choice_is_a_substitution(self, tab_with):
+        tab = tab_with()
+        tab.main_window.settings["transcription"] = {
+            preferences.SETTING_MODEL: "external:gone"
+        }
+        tab._load_transcription_values()
+        assert tab._selected_transcription_model() == preferences.AUTO
+        assert preferences.SETTING_MODEL in tab._transcription_substituted_settings
+
+    def test_opening_the_page_keeps_a_custom_choice_that_still_exists(
+        self, tab_with, tmp_path, workers
+    ):
+        tab = tab_with(_reference(tmp_path, "r2", None))
+        tab.main_window.settings["transcription"] = dict(
+            preferences.DEFAULTS, **{preferences.SETTING_MODEL: "external:r2"}
+        )
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab.main_window.settings["transcription"][
+            preferences.SETTING_MODEL] == "external:r2"
+        assert tab.main_window.saves == 0
+        assert tab.main_window.speak_output.spoken == []
+
+    def test_opening_the_page_rewrites_a_forgotten_choice_to_automatic(
+        self, tab_with
+    ):
+        tab = tab_with()
+        tab.main_window.settings["transcription"] = {
+            preferences.SETTING_MODEL: "external:gone"
+        }
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab.main_window.settings["transcription"][
+            preferences.SETTING_MODEL] == preferences.AUTO
+        assert tab.main_window.saves == 1
+
+
+class TestUsingAModelFromAnotherFolder:
+    def test_a_catalogue_model_is_chosen_by_its_id(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _measure_as(monkeypatch, {"r1": external_models.REF_READY})
+        tab = tab_with(_reference(tmp_path, "r1", "small", "folder_a"))
+        tab._refresh_external_models()
+        workers.run_all()
+        tab.dirtied = 0
+        tab._on_external_use(_Event())
+        assert tab._selected_transcription_model() == "small"
+        assert tab.dirtied == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_view.USE_DONE_I18N_KEY).format(
+                name="folder_a"
+            )
+        ]
+
+    def test_a_custom_model_is_chosen_by_the_external_prefix_and_its_id(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _measure_as(monkeypatch, {"r2": external_models.REF_READY})
+        tab = tab_with(_reference(tmp_path, "r2", None))
+        tab._refresh_external_models()
+        workers.run_all()
+        tab._on_external_use(_Event())
+        assert tab._selected_transcription_model() == "external:r2"
+
+    def test_what_is_not_ready_cannot_be_chosen(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._on_external_use(_Event())
+        assert tab._selected_transcription_model() == preferences.AUTO
+        assert tab.main_window.speak_output.spoken == []
+
+
+class TestForgettingAModel:
+    def test_a_no_changes_nothing(self, tab_with, tmp_path, workers, monkeypatch):
+        asked = _questions(monkeypatch, wx.NO)
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._on_external_forget(_Event())
+        assert len(asked) == 1
+        assert workers.pending == []
+        assert len(tab.main_window._app_settings.get(
+            external_models.EXTERNAL_MODELS_SETTING)) == 1
+
+    def test_the_question_says_the_files_are_not_touched(
+        self, tab_with, tmp_path, monkeypatch
+    ):
+        asked = _questions(monkeypatch, wx.NO)
+        tab = tab_with(_reference(tmp_path, "r1", "small", "folder_a"))
+        tab._on_external_forget(_Event())
+        assert asked[0][0] == tab.main_window.i18n.t(
+            external_view.FORGET_QUESTION_I18N_KEY
+        ).format(name="folder_a")
+
+    def test_a_yes_drops_the_reference_and_leaves_the_folder_alone(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _questions(monkeypatch, wx.YES)
+        folder = tmp_path / "folder_a"
+        folder.mkdir()
+        (folder / "model.bin").write_bytes(b"weights")
+        tab = tab_with(_reference(tmp_path, "r1", "small", "folder_a"))
+        tab._on_external_forget(_Event())
+        # Working: every button is off until the worker answers.
+        assert tab._transcription_job_running
+        assert not any(
+            b.IsEnabled() for b in tab._transcription_external_buttons.values()
+        )
+        workers.run_all()
+        assert tab.main_window._app_settings.get(
+            external_models.EXTERNAL_MODELS_SETTING) == []
+        assert tab._transcription_external_list.GetCount() == 0
+        assert (folder / "model.bin").read_bytes() == b"weights"
+        assert tab._transcription_job_running is False
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_view.FORGOTTEN_I18N_KEY).format(
+                name="folder_a"
+            )
+        ]
+
+    def test_forgetting_the_chosen_custom_model_puts_the_picker_back_on_automatic(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _questions(monkeypatch, wx.YES)
+        tab = tab_with(_reference(tmp_path, "r2", None, "folder_b"))
+        tab._select_transcription_model("external:r2")
+        tab.dirtied = 0
+        tab._on_external_forget(_Event())
+        workers.run_all()
+        i18n = tab.main_window.i18n
+        assert tab._selected_transcription_model() == preferences.AUTO
+        assert tab.dirtied == 1
+        assert tab.main_window.speak_output.spoken == [
+            " ".join([
+                i18n.t(external_view.FORGOTTEN_I18N_KEY).format(name="folder_b"),
+                i18n.t(external_view.FORGOTTEN_RESET_I18N_KEY),
+            ])
+        ]
+
+    def test_forgetting_a_model_that_is_not_the_choice_does_not_dirty_the_dialog(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _questions(monkeypatch, wx.YES)
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab._on_external_forget(_Event())
+        workers.run_all()
+        assert tab.dirtied == 0
+
+    def test_a_write_that_failed_says_so_and_keeps_the_row(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _questions(monkeypatch, wx.YES)
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+
+        def _refuse(key, change):
+            raise OSError("locked")
+
+        tab.main_window._app_settings.update = _refuse
+        tab._on_external_forget(_Event())
+        workers.run_all()
+        assert tab._transcription_external_list.GetCount() == 1
+        assert tab._transcription_job_running is False
+        assert tab.main_window.error_sound.plays == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(management.FAILED_I18N_KEY)
+        ]
+
+    def test_with_nothing_selected_it_asks_nothing(self, tab, monkeypatch):
+        asked = _questions(monkeypatch, wx.YES)
+        tab._on_external_forget(_Event())
+        assert asked == []
+
+
+class TestAddingAFolder:
+    def test_cancelling_the_folder_dialog_starts_nothing(
+        self, tab, workers, monkeypatch
+    ):
+        _dir_dialog(monkeypatch, transcription_external, wx.ID_CANCEL)
+        tab._on_external_add(_Event())
+        assert workers.pending == []
+        assert tab._transcription_job_running is False
+
+    def test_the_folder_is_looked_at_on_a_worker_and_the_buttons_wait(
+        self, tab, workers, monkeypatch, tmp_path
+    ):
+        chosen = str(tmp_path / "picked")
+        _dir_dialog(monkeypatch, transcription_external, wx.ID_OK, chosen)
+        looked_at = []
+        monkeypatch.setattr(
+            external_view, "folder_candidates",
+            lambda path: looked_at.append(path) or (external_view.Candidate(path),),
+        )
+        checked = []
+        tab._check_external_folder = lambda folder, reference=None: checked.append(folder)
+        tab._on_external_add(_Event())
+        assert looked_at == [] and checked == []
+        assert tab._transcription_job_running
+        assert not tab._transcription_external_buttons["add"].IsEnabled()
+        workers.run_all()
+        assert looked_at == [chosen] and checked == [chosen]
+        assert tab._transcription_job_running is False
+        assert tab._transcription_external_buttons["add"].IsEnabled()
+
+    def test_a_folder_that_could_not_be_looked_at_is_still_checked_by_itself(
+        self, tab, workers, monkeypatch, tmp_path
+    ):
+        """The check that follows is the one that says why it is not usable."""
+        chosen = str(tmp_path / "picked")
+        _dir_dialog(monkeypatch, transcription_external, wx.ID_OK, chosen)
+
+        def _boom(path):
+            raise OSError("share is down")
+
+        monkeypatch.setattr(external_view, "folder_candidates", _boom)
+        checked = []
+        tab._check_external_folder = lambda folder, reference=None: checked.append(folder)
+        tab._on_external_add(_Event())
+        workers.run_all()
+        assert checked == [chosen]
+
+    def test_several_models_in_one_folder_are_a_list_to_pick_from(
+        self, tab, workers, monkeypatch, tmp_path
+    ):
+        first = external_view.Candidate(str(tmp_path / "a"), "0123456789abcdef", "small")
+        second = external_view.Candidate(str(tmp_path / "b"), "fedcba9876543210")
+        offered = []
+
+        class _Choice:
+            def __init__(self, parent, prompt, title, labels):
+                offered.append(labels)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def ShowModal(self):
+                return wx.ID_OK
+
+            def GetSelection(self):
+                return 1
+
+        monkeypatch.setattr(transcription_external.wx, "SingleChoiceDialog", _Choice)
+        i18n = tab.main_window.i18n
+        assert tab._external_pick((first, second)) == second.path
+        assert offered == [[
+            external_view.snapshot_label(i18n, first),
+            external_view.snapshot_label(i18n, second),
+        ]]
+
+    def test_a_single_model_is_not_a_question(self, tab, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            transcription_external.wx, "SingleChoiceDialog",
+            lambda *args: pytest.fail("a list of one was asked about"),
+        )
+        only = external_view.Candidate(str(tmp_path / "a"))
+        assert tab._external_pick((only,)) == only.path
+
+    def test_a_second_press_while_something_runs_starts_nothing(
+        self, tab, workers, monkeypatch
+    ):
+        _dir_dialog(
+            monkeypatch, transcription_external, wx.ID_OK, "unused"
+        )
+        tab._set_transcription_job_running(True)
+        tab._on_external_add(_Event())
+        assert workers.pending == []
+
+
+class TestSearchingTheHuggingFaceCache:
+    def test_it_says_it_is_searching_and_does_the_searching_on_a_worker(
+        self, tab, workers, monkeypatch
+    ):
+        searched = []
+        monkeypatch.setattr(
+            external_models, "discover_hf_cache",
+            lambda: searched.append(1) or (),
+        )
+        tab._on_external_find(_Event())
+        assert searched == []
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_view.SEARCHING_I18N_KEY)
+        ]
+        workers.run_all()
+        assert searched == [1]
+
+    def test_nothing_new_is_said_not_left_silent(self, tab, workers, monkeypatch):
+        monkeypatch.setattr(external_models, "discover_hf_cache", lambda: ())
+        tab._on_external_find(_Event())
+        workers.run_all()
+        assert tab.main_window.speak_output.spoken[-1] == (
+            tab.main_window.i18n.t(external_view.FIND_NONE_I18N_KEY)
+        )
+        assert tab._transcription_job_running is False
+
+    def test_a_search_that_failed_is_told_as_nothing_found(
+        self, tab, workers, monkeypatch
+    ):
+        def _boom():
+            raise OSError("cache unreadable")
+
+        monkeypatch.setattr(external_models, "discover_hf_cache", _boom)
+        tab._on_external_find(_Event())
+        workers.run_all()
+        assert tab.main_window.speak_output.spoken[-1] == (
+            tab.main_window.i18n.t(external_view.FIND_NONE_I18N_KEY)
+        )
+
+    def test_even_one_find_is_listed_before_hashing_gigabytes(
+        self, tab, workers, monkeypatch, tmp_path
+    ):
+        found = external_view.Candidate(str(tmp_path / "a"), "0123456789abcdef", "small")
+        monkeypatch.setattr(external_models, "discover_hf_cache", lambda: (found,))
+        monkeypatch.setattr(
+            external_view, "new_snapshots", lambda snapshots, references: tuple(snapshots)
+        )
+        asked = []
+        tab._external_pick = lambda candidates, always_ask=False: (
+            asked.append(always_ask) or None
+        )
+        tab._on_external_find(_Event())
+        workers.run_all()
+        assert asked == [True]
+
+
+class TestCheckingAFolder:
+    @staticmethod
+    def _outcome(code, reference=None, model_id=None):
+        identification = (
+            external_models.Identification(
+                "x", external_models.MATCH_NONE, model_id
+            )
+        )
+        return external_models.AcceptOutcome(code, reference, identification)
+
+    def test_a_verified_catalogue_model_is_announced_and_selected_in_the_list(
+        self, tab, monkeypatch, tmp_path
+    ):
+        reference = _reference(tmp_path, "r1", "small", "folder_a")
+        made = _fake_external_progress(monkeypatch, [(
+            self._outcome(external_models.ACCEPT_ADDED, reference), None
+        )])
+        refreshed = []
+        tab._refresh_external_models = lambda select_id=None: refreshed.append(select_id)
+        tab._check_external_folder(reference.path)
+        assert [d.job.kind for d in made] == [external_job.KIND_VERIFY]
+        assert made[0].destroyed
+        assert refreshed == ["r1"]
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_job.ADDED_I18N_KEY).format(
+                name="folder_a", model="small"
+            )
+        ]
+        assert tab._transcription_job_running is False
+
+    def test_the_progress_dialog_names_the_folder(self, tab, monkeypatch, tmp_path):
+        made = _fake_external_progress(monkeypatch)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_a"))
+        assert made[0].status_text == tab.main_window.i18n.t(
+            external_job.STATUS_I18N_KEYS[external_job.KIND_VERIFY]
+        ).format(name="folder_a")
+
+    def test_the_job_is_checked_against_the_models_folder_in_force(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _fake_external_progress(monkeypatch)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_a"))
+        assert made[0].job._models_root == str(tmp_path)
+
+    def test_a_folder_no_catalogue_entry_claims_is_asked_about_then_loaded(
+        self, tab, monkeypatch, tmp_path
+    ):
+        reference = _reference(tmp_path, "r2", None, "folder_b")
+        made = _fake_external_progress(monkeypatch, [
+            (self._outcome(external_models.ACCEPT_NOT_IDENTIFIED), None),
+            (self._outcome(external_models.ACCEPT_ADDED, reference), None),
+        ])
+        asked = _questions(monkeypatch, wx.YES)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(reference.path)
+        i18n = tab.main_window.i18n
+        assert [d.job.kind for d in made] == [
+            external_job.KIND_VERIFY, external_job.KIND_CUSTOM
+        ]
+        assert asked == [(
+            external_view.custom_question(
+                i18n, reference.path, external_models.ACCEPT_NOT_IDENTIFIED, None
+            ),
+            i18n.t("transcription_external_question_title"),
+        )]
+        # One sentence for the whole thing, not one per job.
+        assert tab.main_window.speak_output.spoken == [
+            i18n.t(external_job.CUSTOM_ADDED_I18N_KEY).format(
+                name="folder_b", model=""
+            )
+        ]
+
+    def test_a_no_to_the_question_loads_nothing_and_says_nothing_was_added(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _fake_external_progress(monkeypatch, [
+            (self._outcome(external_models.ACCEPT_NOT_IDENTIFIED), None),
+        ])
+        _questions(monkeypatch, wx.NO)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_b"))
+        assert len(made) == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_job.NOT_ADDED_I18N_KEY).format(
+                name="folder_b"
+            )
+        ]
+        assert tab.main_window.error_sound.plays == 0
+
+    def test_a_folder_with_a_models_sizes_and_other_weights_says_which_model(
+        self, tab, monkeypatch, tmp_path
+    ):
+        _fake_external_progress(monkeypatch, [(
+            self._outcome(
+                external_models.ACCEPT_DIGEST_MISMATCH, model_id="large-v3"
+            ), None
+        )])
+        asked = _questions(monkeypatch, wx.NO)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_b"))
+        assert "large-v3" in asked[0][0]
+
+    def test_a_catalogue_model_that_failed_to_be_read_is_not_asked_about(
+        self, tab, monkeypatch, tmp_path
+    ):
+        _fake_external_progress(monkeypatch, [(
+            None, errors.TranscriptionError(errors.MODEL_CORRUPTED, "cannot read")
+        )])
+        asked = _questions(monkeypatch, wx.YES)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_a"))
+        assert asked == []
+        assert tab.main_window.error_sound.plays == 1
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_job.READ_FAILED_I18N_KEY).format(
+                name="folder_a"
+            )
+        ]
+
+    def test_checking_a_custom_reference_again_goes_straight_to_the_load(
+        self, tab, monkeypatch, tmp_path
+    ):
+        reference = _reference(tmp_path, "r2", None, "folder_b")
+        made = _fake_external_progress(monkeypatch, [(
+            self._outcome(external_models.ACCEPT_UPDATED, reference), None
+        )])
+        asked = _questions(monkeypatch, wx.YES)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(reference.path, reference)
+        assert [d.job.kind for d in made] == [external_job.KIND_CUSTOM]
+        assert asked == []
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_job.CUSTOM_CHECKED_I18N_KEY).format(
+                name="folder_b", model=""
+            )
+        ]
+
+    def test_a_cancel_plays_no_error_sound(self, tab, monkeypatch, tmp_path):
+        _fake_external_progress(monkeypatch, [(
+            None, errors.TranscriptionError(errors.CANCELLED, "by the user")
+        )])
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._check_external_folder(str(tmp_path / "folder_a"))
+        assert tab.main_window.error_sound.plays == 0
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(management.CANCELLED_I18N_KEY)
+        ]
+
+    def test_the_sentence_is_left_on_screen_and_apply_does_not_appear(
+        self, tab, monkeypatch, tmp_path
+    ):
+        reference = _reference(tmp_path, "r1", "small", "folder_a")
+        _fake_external_progress(monkeypatch, [(
+            self._outcome(external_models.ACCEPT_ADDED, reference), None
+        )])
+        tab._refresh_external_models = lambda select_id=None: None
+        tab.dirtied = 0
+        tab._check_external_folder(reference.path)
+        assert tab.main_window.i18n.t(external_job.ADDED_I18N_KEY).format(
+            name="folder_a", model="small"
+        ) in tab._transcription_substituted_field.GetValue()
+        assert tab.dirtied == 0
+
+    def test_checking_again_is_the_check_button(self, tab_with, tmp_path, monkeypatch):
+        reference = _reference(tmp_path, "r1", "small")
+        tab = tab_with(reference)
+        checked = []
+        tab._check_external_folder = lambda folder, ref=None: checked.append((folder, ref))
+        tab._on_external_check(_Event())
+        assert checked == [(reference.path, reference)]
+
+
+class TestTheBrowseButtonOfTheModelsFolder:
+    def test_a_folder_that_contains_a_reference_is_refused_and_named(
+        self, tab_with, tmp_path, monkeypatch
+    ):
+        inner = tmp_path / "parent" / "folder_a"
+        inner.mkdir(parents=True)
+        reference = external_models.ExternalReference(
+            "r1", str(inner), "small", True, (1, 2), key=canonical_dir(str(inner))
+        )
+        tab = tab_with(reference)
+        tab._load_transcription_values()
+        before = tab._transcription_models_dir
+        _dir_dialog(
+            monkeypatch, transcription_tab, wx.ID_OK, str(tmp_path / "parent")
+        )
+        shown = []
+        monkeypatch.setattr(
+            transcription_tab.wx, "MessageBox",
+            lambda text, *args, **kwargs: shown.append(text) or wx.OK,
+        )
+        tab.dirtied = 0
+        tab._on_browse_transcription_models_dir(_Event())
+        assert tab._transcription_models_dir == before
+        assert tab.dirtied == 0
+        assert len(shown) == 1 and "folder_a" in shown[0]
+
+    def test_an_unrelated_folder_is_accepted_as_before(
+        self, tab_with, tmp_path, monkeypatch
+    ):
+        reference = _reference(tmp_path, "r1", "small", "folder_a")
+        tab = tab_with(reference)
+        tab._load_transcription_values()
+        chosen = str(tmp_path / "elsewhere")
+        _dir_dialog(monkeypatch, transcription_tab, wx.ID_OK, chosen)
+        tab.dirtied = 0
+        tab._on_browse_transcription_models_dir(_Event())
+        assert tab._transcription_models_dir == chosen
+        assert tab.dirtied == 1
+
+
+class TestTheFocusInTheSectionForModelsElsewhere:
+    @staticmethod
+    def _watch(tab):
+        taken = []
+        for name, button in tab._transcription_external_buttons.items():
+            button.SetFocus = lambda name=name: taken.append(name)
+        tab._transcription_external_list.SetFocus = lambda: taken.append("list")
+        return taken
+
+    def test_nothing_moves_it_while_something_runs(self, tab, workers, monkeypatch):
+        """Moving it onto the list mid-search announced the list over
+        "Searching…"."""
+        monkeypatch.setattr(external_models, "discover_hf_cache", lambda: ())
+        taken = self._watch(tab)
+        tab._on_external_find(_Event())
+        assert taken == []
+        assert tab.main_window.speak_output.spoken == [
+            tab.main_window.i18n.t(external_view.SEARCHING_I18N_KEY)
+        ]
+
+    def test_find_still_pressable_afterwards_keeps_it(self, tab, workers, monkeypatch):
+        monkeypatch.setattr(external_models, "discover_hf_cache", lambda: ())
+        taken = self._watch(tab)
+        tab._on_external_find(_Event())
+        workers.run_all()
+        assert taken == []
+
+    def test_forgetting_one_of_several_leaves_it_on_forget(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        """The list selects the next reference, so Forget is on again and
+        acts on that one: nothing to move."""
+        _questions(monkeypatch, wx.YES)
+        _measure_as(monkeypatch, {"r2": external_models.REF_FOLDER_MISSING})
+        tab = tab_with(
+            _reference(tmp_path, "r1", "small", "folder_a"),
+            _reference(tmp_path, "r2", "small", "folder_b"),
+        )
+        taken = self._watch(tab)
+        tab._on_external_forget(_Event())
+        assert taken == []
+        workers.run_all()
+        assert tab._selected_external_reference().id == "r2"
+        assert tab._transcription_external_buttons["forget"].IsEnabled()
+        assert taken == []
+
+    def test_a_disabled_button_with_rows_left_falls_back_to_the_list(
+        self, tab_with, tmp_path
+    ):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        # Still "checking": Use is off for it.
+        assert not tab._transcription_external_buttons["use"].IsEnabled()
+        taken = self._watch(tab)
+        tab._restore_external_focus("use")
+        assert taken == ["list"]
+
+    def test_forgetting_the_last_one_lands_on_the_first_button_still_on(
+        self, tab_with, tmp_path, workers, monkeypatch
+    ):
+        _questions(monkeypatch, wx.YES)
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        taken = self._watch(tab)
+        tab._on_external_forget(_Event())
+        workers.run_all()
+        assert taken == ["add"]
+
+    def test_a_button_still_on_keeps_it(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        taken = self._watch(tab)
+        tab._restore_external_focus("check")
+        assert taken == []
+
+
+class TestReferencesThatCouldNotBeRead:
+    """app.json unreadable for a moment is not "nothing referenced": nothing
+    may be rewritten, reported or written back for a reference's absence."""
+
+    @staticmethod
+    def _unreadable_tab(tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r2", None))
+        tab.main_window._app_settings.unreadable = OSError("held by a share")
+        tab._transcription_external_references, tab._transcription_external_known = (
+            external_models.read_references(tab.main_window._app_settings)
+        )
+        tab.main_window.settings["transcription"] = dict(
+            preferences.DEFAULTS, **{preferences.SETTING_MODEL: "external:r2"}
+        )
+        return tab
+
+    def test_the_custom_choice_is_not_reported_as_replaced(self, tab_with, tmp_path):
+        tab = self._unreadable_tab(tab_with, tmp_path)
+        tab._load_transcription_values()
+        assert tab._transcription_substituted_settings == set()
+
+    def test_opening_the_page_does_not_retire_it(self, tab_with, tmp_path, workers):
+        tab = self._unreadable_tab(tab_with, tmp_path)
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab.main_window.settings["transcription"][
+            preferences.SETTING_MODEL] == "external:r2"
+        assert tab.main_window.saves == 0
+
+    def test_ok_does_not_write_the_stand_in_back(self, tab_with, tmp_path, workers):
+        tab = self._unreadable_tab(tab_with, tmp_path)
+        tab._load_transcription_values()
+        tab._enter_transcription_page()
+        assert tab._selected_transcription_model() == preferences.AUTO
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"][
+            preferences.SETTING_MODEL] == "external:r2"
+
+    def test_a_model_the_user_picks_is_still_written(self, tab_with, tmp_path):
+        tab = self._unreadable_tab(tab_with, tmp_path)
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"][
+            preferences.SETTING_MODEL] == "small"
+
+    def test_a_refresh_keeps_the_list_it_had(self, tab_with, tmp_path, workers):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        tab.main_window._app_settings.unreadable = OSError("held by a share")
+        tab._refresh_external_models()
+        assert tab._transcription_external_known is False
+        assert tab._transcription_external_list.GetCount() == 1
+
+
+class TestTheModelsFolderCannotSwallowAFolderAddedAfterwards:
+    """Procurar X, then add X/small, then OK: the move would put WinZapp's
+    models — and its Remover — on top of the user's folder."""
+
+    @staticmethod
+    def _inside(tmp_path):
+        inner = tmp_path / "chosen" / "small"
+        inner.mkdir(parents=True)
+        return external_models.ExternalReference(
+            "r1", str(inner), "small", True, (1, 2), key=canonical_dir(str(inner))
+        )
+
+    def test_ok_refuses_the_move_says_so_and_keeps_the_folder(
+        self, tab_with, tmp_path, monkeypatch
+    ):
+        tab = tab_with()
+        tab._load_transcription_values()
+        stored = tab._stored_transcription_models_dir()
+        tab._transcription_models_dir = str(tmp_path / "chosen")
+        # Added after Procurar, so only app.json has it.
+        tab.main_window._app_settings._values[
+            external_models.EXTERNAL_MODELS_SETTING] = [self._inside(tmp_path).as_dict()]
+        moved = []
+        tab._move_transcription_models = lambda: moved.append(1) or "moved"
+        shown = []
+        monkeypatch.setattr(
+            transcription_tab.wx, "MessageBox",
+            lambda text, *args, **kwargs: shown.append(text) or wx.OK,
+        )
+        tab._apply_transcription_values()
+        i18n = tab.main_window.i18n
+        assert moved == []
+        assert tab._stored_transcription_models_dir() == stored
+        assert tab._transcription_models_dir == stored
+        assert len(shown) == 1
+        assert "small" in shown[0]
+        assert shown[0].endswith(i18n.t("transcription_external_root_not_applied"))
+
+    def test_a_reference_only_this_dialog_holds_counts_too(
+        self, tab_with, tmp_path, monkeypatch
+    ):
+        tab = tab_with()
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "chosen")
+        tab._transcription_external_references = (self._inside(tmp_path),)
+        moved = []
+        tab._move_transcription_models = lambda: moved.append(1) or "moved"
+        monkeypatch.setattr(transcription_tab.wx, "MessageBox", lambda *a, **k: wx.OK)
+        tab._apply_transcription_values()
+        assert moved == []
+
+    def test_a_folder_elsewhere_is_moved_as_before(self, tab_with, tmp_path):
+        tab = tab_with()
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "chosen")
+        moved = []
+        tab._move_transcription_models = lambda: moved.append(1) or "moved"
+        tab._apply_transcription_values()
+        assert moved == [1]
+
+    def test_adding_a_folder_under_the_chosen_root_is_checked_against_it(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _fake_external_progress(monkeypatch)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._load_transcription_values()
+        tab._transcription_models_dir = str(tmp_path / "chosen")
+        tab._check_external_folder(str(tmp_path / "chosen" / "small"))
+        assert made[0].job._other_roots == (str(tmp_path / "chosen"),)
+
+    def test_with_nothing_chosen_there_is_no_second_root(
+        self, tab, monkeypatch, tmp_path
+    ):
+        made = _fake_external_progress(monkeypatch)
+        tab._refresh_external_models = lambda select_id=None: None
+        tab._load_transcription_values()
+        tab._check_external_folder(str(tmp_path / "folder_a"))
+        assert made[0].job._other_roots == ()
+
+
+class TestTheModelPickerIsNotRewrittenForNothing:
+    def test_the_same_lines_leave_the_list_alone(self, tab, monkeypatch):
+        tab._load_transcription_values()
+        drawn = tab._transcription_model_labels
+        tab._populate_transcription_model_choices()
+        assert tab._transcription_model_labels is drawn
+
+    def test_a_measurement_that_changes_a_line_does_redraw(self, tab_with, tmp_path):
+        tab = tab_with(_reference(tmp_path, "r1", "small"))
+        drawn = tab._transcription_model_labels
+        tab._transcription_external_states = {"r1": external_models.REF_READY}
+        tab._populate_transcription_model_choices()
+        assert tab._transcription_model_labels is not drawn
+
+    def test_entering_the_page_draws_the_hardware_notices_once(self, tab):
+        drawn = []
+        real = tab._show_transcription_hardware_notices
+        tab._show_transcription_hardware_notices = lambda: drawn.append(1) or real()
+        tab._load_transcription_values()
+        drawn.clear()
+        tab._enter_transcription_page()
+        assert drawn == [1]

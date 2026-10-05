@@ -81,6 +81,12 @@ class TranscriptionRequest:
     # this defaults to on — see faster_whisper_backend for what happens when
     # the filter itself cannot load.
     vad_filter: bool = True
+    # The external_models.ExternalReference records of the models the user
+    # pointed WinZapp at in folders of their own. `model_id` may be a custom
+    # choice ("external:<id>"), which only these can resolve to a folder, and a
+    # catalogue id is loaded from one of them when WinZapp's own folder has no
+    # complete copy. Empty for a user who never did.
+    external_references: tuple = ()
 
 
 @dataclass(frozen=True)

@@ -162,3 +162,32 @@ def test_the_external_models_list_is_never_mirrored_per_account():
     only through AppSettings.update()."""
     assert "transcription_external_models" not in aset._GENERAL_GLOBAL
     assert "transcription_external_models" not in aset._CONNECTION_GLOBAL
+
+
+def test_get_strict_reads_an_absent_file_as_the_defaults(tmp_path):
+    s = aset.AppSettings(_gd(tmp_path))
+    assert s.get_strict("transcription_external_models") == []
+
+
+def test_get_strict_reads_what_is_stored(tmp_path):
+    s = aset.AppSettings(_gd(tmp_path))
+    s.set("transcription_external_models", [{"id": "r1"}])
+    assert s.get_strict("transcription_external_models") == [{"id": "r1"}]
+
+
+@pytest.mark.parametrize("content", ["{ broken", "[1, 2]"])
+def test_get_strict_says_so_when_the_file_is_there_and_unreadable(tmp_path, content):
+    """get() reads it as the defaults; a caller acting on what is absent
+    from a list must be able to tell that from "nothing stored"."""
+    gd = _gd(tmp_path)
+    with open(os.path.join(gd, "app.json"), "w", encoding="utf-8") as f:
+        f.write(content)
+    s = aset.AppSettings(gd)
+    assert s.get("transcription_external_models") == []
+    with pytest.raises(ValueError):
+        s.get_strict("transcription_external_models")
+
+
+def test_get_strict_refuses_a_per_account_key(tmp_path):
+    with pytest.raises(KeyError):
+        aset.AppSettings(_gd(tmp_path)).get_strict("audio_default_speed")

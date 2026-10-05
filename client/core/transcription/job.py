@@ -93,11 +93,16 @@ class TranscriptionJob:
                  language=None, device_preference=device.PREFERENCE_AUTO,
                  backend=None, backend_id=None, prepared=None,
                  on_phase=None, on_progress=None, on_finished=None,
-                 probe=None):
+                 probe=None, external_references=()):
         self._audio_path = audio_path
         self._ffmpeg = ffmpeg
         self._models_root = models_root
         self._model_id = model_id
+        # Handed to the backend as they are: where a model id is loaded from
+        # (WinZapp's own folder, or one the user pointed it at) is decided by
+        # external_models.model_directory() at load time, since a disk can be
+        # unplugged between the decision and the load.
+        self._external_references = tuple(external_references)
         self._language = language or None
         self._device_preference = device_preference
         # `backend` is what the tests (and part 6, which keeps one warm) hand
@@ -266,6 +271,7 @@ class TranscriptionJob:
             compute_type=self.compute_type,
             language=self._language,
             duration_seconds=prepared.duration_seconds,
+            external_references=self._external_references,
         )
 
         # Announced only now, and deliberately not before the probe: part 6

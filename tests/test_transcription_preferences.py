@@ -575,6 +575,72 @@ class TestSanitizingWhatIsOnDisk:
         assert list(settings[preferences.SECTION]) == [preferences.SETTING_MODEL]
 
 
+class TestACustomModelIsAChoiceUntilItsReferenceIsForgotten:
+    """`external:<id>` names a model the user pointed WinZapp at in a folder of
+    their own. It is a retired model the moment its reference is forgotten —
+    replaced by the automatic choice, reported, and rewritten once the report
+    has been delivered — and never a candidate of the automatic choice."""
+
+    CHOICE = "external:abc123"
+
+    def test_a_choice_whose_reference_exists_is_kept(self):
+        resolved = preferences.resolve(
+            _settings(model=self.CHOICE), _CPU_ONLY, ("small",),
+            custom_model_ids={"abc123"})
+        assert resolved.model_id == self.CHOICE
+        assert resolved.substitutions == ()
+
+    def test_a_forgotten_reference_is_replaced_and_reported(self):
+        resolved = preferences.resolve(
+            _settings(model=self.CHOICE), _CPU_ONLY, ("small",),
+            custom_model_ids={"other"})
+        assert resolved.model_id != self.CHOICE
+        assert [s.setting for s in resolved.substitutions] == [preferences.SETTING_MODEL]
+        assert resolved.substitutions[0].stored == self.CHOICE
+        assert resolved.substitutions[0].i18n_key == "transcription_substituted_model"
+
+    def test_nobody_measured_keeps_the_choice_like_an_unmeasured_backend(self):
+        resolved = preferences.resolve(
+            _settings(model=self.CHOICE), device.HardwareProbe(), ())
+        assert resolved.model_id == self.CHOICE
+        assert resolved.substitutions == ()
+
+    def test_an_empty_id_names_nothing(self):
+        resolved = preferences.resolve(
+            _settings(model="external:"), _CPU_ONLY, ("small",), custom_model_ids={""})
+        assert resolved.substituted
+
+    def test_the_automatic_choice_is_made_from_the_catalogue_ids_alone(self):
+        resolved = preferences.resolve(
+            _settings(model=self.CHOICE), _CPU_ONLY, ("small",),
+            custom_model_ids={"other"})
+        assert resolved.model_id in (None, "small")
+
+    def test_a_forgotten_choice_is_rewritten_so_the_report_is_not_repeated(self):
+        settings = _settings(model=self.CHOICE)
+        assert preferences.sanitize_section(settings, custom_model_ids={"other"}) is True
+        assert settings[preferences.SECTION][preferences.SETTING_MODEL] == preferences.AUTO
+
+    def test_a_choice_whose_reference_exists_is_not_rewritten(self):
+        settings = _settings(model=self.CHOICE)
+        assert preferences.sanitize_section(settings, custom_model_ids={"abc123"}) is False
+        assert settings[preferences.SECTION][preferences.SETTING_MODEL] == self.CHOICE
+
+    def test_without_the_references_it_is_left_alone(self):
+        """A caller that could not read them must not cost the user a choice."""
+        settings = _settings(model=self.CHOICE)
+        assert preferences.sanitize_section(settings) is False
+        assert settings[preferences.SECTION][preferences.SETTING_MODEL] == self.CHOICE
+
+    def test_the_spelling_is_one_thing_for_the_picker_and_the_resolver(self):
+        from core.transcription import external_models
+
+        assert external_models.CUSTOM_CHOICE_PREFIX == preferences.CUSTOM_MODEL_PREFIX
+        assert preferences.custom_model_reference_id("external:xyz") == "xyz"
+        assert preferences.custom_model_reference_id("large-v3") is None
+        assert preferences.custom_model_reference_id(["external:x"]) is None
+
+
 class TestTheLanguageList:
     """Data, not translation: 100 endonyms rather than 500 translated names."""
 

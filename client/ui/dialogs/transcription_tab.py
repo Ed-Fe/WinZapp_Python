@@ -26,6 +26,8 @@ from core.transcription import (
     cuda_runtime,
     device as transcription_device,
     errors as transcription_errors,
+    external_models,
+    external_view,
     management as transcription_management,
     model_catalog,
     model_store,
@@ -251,7 +253,7 @@ def _format_transcription_size(i18n, size_bytes) -> str:
     return f"{size / 1024 ** 2:.0f} MB"
 
 
-def _transcription_model_choice_label(i18n, model, state) -> str:
+def _transcription_model_choice_label(i18n, model, state, external=False) -> str:
     """One line of the model picker, written as a sentence.
 
     A combobox item is a single accessibility object: the screen reader reads
@@ -263,11 +265,16 @@ def _transcription_model_choice_label(i18n, model, state) -> str:
 
     `state` is a model_store.InstallState; an unknown state reads as "not
     installed", which is the honest answer for a folder we could not measure.
+    `external` is whether WinZapp's own folder lacks it and a verified copy in
+    a folder of the user's stands in (external_view.choice_is_external()): the
+    size is then what is on disk there, and the line says where.
     """
     size_class = i18n.t(
         model_catalog.size_class_i18n_key(model.size_class) or model.size_class
     )
-    if state is not None and state.state == model_store.STATE_INSTALLED:
+    if external:
+        key, size = external_view.CHOICE_EXTERNAL_I18N_KEY, model.disk_bytes
+    elif state is not None and state.state == model_store.STATE_INSTALLED:
         key, size = "transcription_model_choice_installed", model.disk_bytes
     elif state is not None and state.state == model_store.STATE_INCOMPLETE:
         key, size = "transcription_model_choice_incomplete", model.download_bytes
@@ -363,6 +370,20 @@ class TranscriptionTabMixin:
         #: included, since that is a thread too and a second press during it
         #: would start a second job.
         self._transcription_job_running = False
+        #: The models the user pointed WinZapp at in folders of their own, as
+        #: stored (no disk access to read them), and what each one's folder was
+        #: last measured as — on a worker thread, see ExternalModelsMixin.
+        #: Empty until measured, which every reader treats as "not known".
+        #: `_known` is False while app.json could not be read: the list is then
+        #: not "none", and nothing may be rewritten for a reference's absence.
+        (self._transcription_external_references,
+         self._transcription_external_known) = external_models.read_references(
+            self._install_wide_settings()
+        )
+        self._transcription_external_states = {}
+        #: Which measurement is the latest, so a slow answer that was
+        #: overtaken is dropped instead of drawn over the newer one.
+        self._transcription_external_generation = 0
         #: What the model list last measured, by model id. Read by the buttons
         #: instead of measuring again on every arrow key through the picker.
         self._transcription_model_states = {}
@@ -427,6 +448,10 @@ class TranscriptionTabMixin:
         #: settings.json. The item text is a whole sentence, so it cannot be
         #: mapped back to an id by reading it.
         self._transcription_model_ids = []
+        #: The item texts as last set, so a redraw that would say the same
+        #: thing leaves the list alone (a screen reader re-reads a list that
+        #: was rewritten, and a measurement finishing is not news).
+        self._transcription_model_labels = []
         self._populate_transcription_model_choices()
         # Which buttons below make sense depends on the model selected, and
         # SetSelection() fires nothing — only the user's own choice does.
@@ -437,6 +462,9 @@ class TranscriptionTabMixin:
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
             _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
         )
+        # Models the user already has in other folders: right after the ways
+        # to get one into the picker, and before the device it will run on.
+        self._build_external_models_group(page, sizer)
 
         self._transcription_device_radio = wx.RadioBox(
             page,
@@ -641,20 +669,38 @@ class TranscriptionTabMixin:
         # The same measurement the label is written from is what the action
         # buttons read, rather than a second one of their own per keystroke.
         self._transcription_model_states = {}
+        external_ready = external_view.ready_model_ids(
+            self._transcription_external_references,
+            self._transcription_external_states,
+        )
         for model in model_catalog.list_models():
             state = model_store.installation_state(models_dir, model)
             self._transcription_model_states[model.id] = state.state
-            labels.append(_transcription_model_choice_label(i18n, model, state))
+            labels.append(_transcription_model_choice_label(
+                i18n, model, state,
+                external=external_view.choice_is_external(
+                    model, state.state, external_ready
+                ),
+            ))
             model_ids.append(model.id)
+        # A custom model is only ever there because the user chose it: after
+        # the catalogue, never among what "automatic" picks from.
+        for choice, label in external_view.custom_choices(
+                i18n, self._transcription_external_references):
+            labels.append(label)
+            model_ids.append(choice)
 
-        selected = self._selected_transcription_model()
-        # Set() replaces the whole list in one call, so there is nothing for
-        # Freeze()/Thaw() to batch here — that pair is for the row-by-row
-        # mutation of a list control, where it saves the screen reader a flood
-        # of one event per row.
-        self._transcription_model_combo.Set(labels)
-        self._transcription_model_ids = model_ids
-        self._select_transcription_model(selected)
+        if labels != self._transcription_model_labels or (
+                model_ids != self._transcription_model_ids):
+            selected = self._selected_transcription_model()
+            # Set() replaces the whole list in one call, so there is nothing for
+            # Freeze()/Thaw() to batch here — that pair is for the row-by-row
+            # mutation of a list control, where it saves the screen reader a
+            # flood of one event per row.
+            self._transcription_model_combo.Set(labels)
+            self._transcription_model_ids = model_ids
+            self._transcription_model_labels = labels
+            self._select_transcription_model(selected)
         self._sync_transcription_action_buttons()
 
     def _populate_transcription_language_choices(self):
@@ -839,7 +885,12 @@ class TranscriptionTabMixin:
             transcription_preferences.SETTING_DEVICE: preference,
         }}
         resolution = transcription_preferences.resolve(
-            live, probe, self._transcription_installed_ids
+            live, probe,
+            external_view.usable_ids(
+                self._transcription_installed_ids,
+                self._transcription_external_references,
+                self._transcription_external_states,
+            ),
         )
 
         keys = []
@@ -938,6 +989,9 @@ class TranscriptionTabMixin:
         """One action at a time, and every other button says so."""
         self._transcription_job_running = bool(running)
         self._sync_transcription_action_buttons()
+        # The buttons of the section for models in other folders wait for the
+        # same job: two at once would serialize behind a bar that does not move.
+        self._sync_external_buttons()
 
     def _on_transcription_model_change(self, event):
         """Another model, another set of buttons that can act on it."""
@@ -1364,6 +1418,10 @@ class TranscriptionTabMixin:
             transcription_device.HardwareProbe(),
             (),
             i18n.language,
+            # Read from app.json (no disk): a custom model whose reference was
+            # forgotten is a substitution, and this is the one place the
+            # tab says so — the installed list stays empty for the reason above.
+            custom_model_ids=self._transcription_custom_model_ids(),
         )
         self._show_transcription_substitutions(resolution)
 
@@ -1432,8 +1490,12 @@ class TranscriptionTabMixin:
         # sentence at all.
         self._transcription_unknown_dirs = model_store.list_unknown_dirs(models_dir)
         self._transcription_probe = transcription_device.probe_hardware()
-        self._show_transcription_hardware_notices()
         self._show_transcription_cuda_status()
+        # Measure the folders of the models the user pointed WinZapp at, on a
+        # worker, now that someone is looking: with none, nothing is started.
+        # It also redraws the model list and the hardware notices — now with
+        # the probe just taken — so they are not drawn here a second time.
+        self._refresh_external_models()
 
         i18n = self.main_window.i18n
         # The same argument as the substitutions: a read-only field is not a
@@ -1447,12 +1509,24 @@ class TranscriptionTabMixin:
             spoken.append(unknown)
         if spoken:
             self.main_window.speak_output.output(" ".join(spoken))
-        if transcription_preferences.sanitize_section(self.main_window.settings):
+        if transcription_preferences.sanitize_section(
+                self.main_window.settings,
+                custom_model_ids=self._transcription_custom_model_ids()):
             # Saved here rather than left to OK/Apply: the point of rewriting a
             # value that can never be valid again is that the warning above is
             # not repeated, and a user who closes this dialog with Cancel would
             # otherwise be told the same thing again on every open.
             self.main_window.save_settings()
+
+    def _transcription_custom_model_ids(self):
+        """The custom references' ids, for resolve() and sanitize_section() —
+        or None ("not measured") while app.json could not be read, so that a
+        moment of an unreadable file never retires the user's custom model."""
+        if not self._transcription_external_known:
+            return None
+        return external_models.custom_reference_ids(
+            self._transcription_external_references
+        )
 
     def _transcription_setting_may_be_written(self, setting) -> bool:
         """Whether OK may write this control back over what is stored.
@@ -1463,7 +1537,19 @@ class TranscriptionTabMixin:
         "Automático" selected and nothing to say their choice was dropped.
         Every other setting is unaffected — its control is a faithful copy of
         what is stored, so writing it back changes nothing.
+
+        One more case of the same thing: a custom model while app.json could
+        not be read has no entry in the picker, which fell back to
+        "Automático" — a stand-in, not the user's answer.
         """
+        if (setting == transcription_preferences.SETTING_MODEL
+                and not self._transcription_external_known
+                and self._selected_transcription_model() == transcription_preferences.AUTO):
+            stored = transcription_preferences.read_section(
+                self.main_window.settings
+            )[transcription_preferences.SETTING_MODEL]
+            if stored not in self._transcription_model_ids:
+                return False
         return (self._transcription_page_seen
                 or setting not in self._transcription_substituted_settings)
 
@@ -1514,6 +1600,22 @@ class TranscriptionTabMixin:
         app_settings = self._install_wide_settings()
         if (app_settings is not None
                 and self._transcription_models_dir != self._stored_transcription_models_dir()):
+            # Checked again here and not only in Procurar: a folder of the
+            # user's can be added *after* the new root was chosen, and the
+            # move below would put WinZapp's models — and its Remover — on top
+            # of it. Read afresh from app.json, plus what this dialog holds,
+            # so that a file unreadable right now cannot let one through.
+            stored = external_models.load_references(app_settings)
+            known = {reference.id for reference in stored}
+            references = stored + tuple(
+                reference for reference in self._transcription_external_references
+                if reference.id not in known
+            )
+            if self._refuse_transcription_models_dir(
+                    references, self._transcription_models_dir, applying=True):
+                self._transcription_models_dir = self._stored_transcription_models_dir()
+                self._refresh_transcription_models()
+                return
             # The files move here and nowhere else — see
             # _move_transcription_models(), which also decides which of the two
             # folders the setting ends up naming when only half of them cross.
@@ -1564,6 +1666,7 @@ class TranscriptionTabMixin:
         self._transcription_models_dir_browse_btn.SetLabel(
             i18n.t("transcription_models_dir_browse_btn")
         )
+        self._refresh_external_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()
         for action, label_key, _state_key in (
@@ -1614,6 +1717,29 @@ class TranscriptionTabMixin:
         # button stays hidden — see _mark_dirty()'s docstring.
         event.Skip()
 
+    def _refuse_transcription_models_dir(self, references, root, applying=False) -> bool:
+        """Say so and answer True when `root` contains a folder of the user's.
+
+        WinZapp deletes inside its models folder when a model is removed, so
+        a root with a referenced folder under it would turn "Remover" into
+        deleting somebody else's files. A message box, which a screen reader
+        reads whole; on OK/Apply it also says the folder was left as it was,
+        since the dialog goes on to apply everything else.
+        """
+        inside = external_models.references_inside_root(references, root)
+        if not inside:
+            return False
+        i18n = self.main_window.i18n
+        text = i18n.t("transcription_external_root_contains").format(
+            folders=", ".join(
+                external_models.display_name(reference) for reference in inside
+            )
+        )
+        if applying:
+            text = " ".join((text, i18n.t("transcription_external_root_not_applied")))
+        wx.MessageBox(text, i18n.t("settings_title"), wx.OK | wx.ICON_WARNING, self)
+        return True
+
     def _on_browse_transcription_models_dir(self, event):
         """Choose the folder the models are downloaded into.
 
@@ -1641,6 +1767,12 @@ class TranscriptionTabMixin:
             if dlg.ShowModal() != wx.ID_OK:
                 return
             chosen = dlg.GetPath()
+
+        # A models folder that *contains* a folder of the user's would put it
+        # where "Remove" deletes: refused, naming the folders in the way.
+        if self._refuse_transcription_models_dir(
+                self._transcription_external_references, chosen):
+            return
 
         # Choosing the default folder stores the empty sentinel rather than the
         # path it resolved to: an absolute path written here would freeze a data

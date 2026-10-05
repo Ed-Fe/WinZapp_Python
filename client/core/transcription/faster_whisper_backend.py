@@ -49,7 +49,7 @@ import os
 import threading
 import time
 
-from core.transcription import errors, model_store
+from core.transcription import errors, external_models
 from core.transcription.backend import (
     BACKEND_FASTER_WHISPER,
     TranscriptionBackend,
@@ -206,12 +206,15 @@ class FasterWhisperBackend(TranscriptionBackend):
     def _model_for(self, request):
         """The cached model for this request, loading it if need be.
 
-        ensure_ready() runs on every call, not only on a miss: it is the cheap
-        names-and-sizes check by design, and a model deleted from another window
-        between two transcriptions has to be noticed here rather than inside
-        CTranslate2.
+        model_directory() runs on every call, not only on a miss: it is the
+        cheap names-and-sizes check by design (ensure_ready()'s, plus the same
+        for a folder the user pointed WinZapp at), and a model deleted from
+        another window — or an external disk unplugged — between two
+        transcriptions has to be noticed here rather than inside CTranslate2.
         """
-        directory = model_store.ensure_ready(request.models_root, request.model_id)
+        directory = external_models.model_directory(
+            request.models_root, request.model_id, request.external_references
+        )
         if not os.path.isfile(os.path.join(directory, _TOKENIZER_FILE)):
             # Refused here rather than handed to faster-whisper, which answers
             # this one missing file by downloading a tokenizer from Hugging

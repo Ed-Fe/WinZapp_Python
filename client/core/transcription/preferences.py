@@ -105,6 +105,13 @@ DEFAULTS = {
 #: test_transcription_preferences.py` pins the two spellings to each other.
 MODELS_DIR_SETTING = "transcription_models_dir"
 
+#: What the model setting starts with when it names a model the user pointed
+#: WinZapp at in a folder of their own that no catalogue entry claims
+#: (`external:<reference id>`, see external_models). It lives here, below
+#: external_models in the import order, because resolve() and sanitize_section()
+#: have to recognise it and external_models already imports this module.
+CUSTOM_MODEL_PREFIX = "external:"
+
 # i18n keys for the option labels this module defines as data. The concrete
 # model ids are labelled by model_catalog's size classes and the concrete
 # languages by their own endonyms, so those are not here.
@@ -342,7 +349,7 @@ def read_section(settings) -> dict:
 
 
 def resolve(settings, probe, installed_ids=(), ui_language="",
-            available_backends=None) -> Resolution:
+            available_backends=None, custom_model_ids=None) -> Resolution:
     """Everything one transcription needs, from settings plus measurements.
 
     `probe` is a `device.HardwareProbe` the caller took; `installed_ids` are the
@@ -351,6 +358,15 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     None when nobody has measured — in which case a stored backend is only
     checked against the ids this version knows about, since refusing one we
     never asked about would be inventing an obstacle.
+
+    `custom_model_ids` are the reference ids of the custom models the user has
+    registered (`external_models.ExternalReference.id` of the ones with no
+    catalogue model). A stored `external:<id>` is kept while its id is among
+    them and replaced — with the substitution warning, like a retired model —
+    once its reference was forgotten. None means "nobody measured", and then
+    the choice is kept as it is, for the reason `available_backends` gives.
+    `installed_ids` stays the catalogue models only: a custom one is never a
+    candidate for the automatic choice (external_models.usable_catalogue_ids()).
 
     `ui_language` is WinZapp's *effective* interface language ("pt-BR", "pl") —
     the settings tab passes `main_window.i18n.language`. That is the value that
@@ -371,7 +387,9 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     # anything, so this can in principle disagree with where the run lands — the
     # alternative is picking a model against no device at all.
     device_id, _reason = device.resolve_device(preference, probe)
-    model_id = _resolve_model(section, probe, device_id, installed_ids, substitutions)
+    model_id = _resolve_model(
+        section, probe, device_id, installed_ids, substitutions, custom_model_ids
+    )
     language = _resolve_language(section, ui_language, substitutions)
 
     return Resolution(
@@ -415,7 +433,7 @@ def preferred_language(settings, ui_language=""):
     return stored if isinstance(stored, str) and stored in LANGUAGE_NAMES else None
 
 
-def sanitize_section(settings) -> bool:
+def sanitize_section(settings, custom_model_ids=None) -> bool:
     """Replace every permanently meaningless stored value. True if anything was.
 
     Same shape and same contract as `core.utils.backfill_missing_defaults()`:
@@ -429,7 +447,10 @@ def sanitize_section(settings) -> bool:
     set than what `resolve()` substitutes: a model the catalogue no longer
     knows, a device string nothing recognises, a language code that is not a
     language, a backend id this version has never heard of, a detection flag
-    that is not a bool. A backend that is merely *unavailable on this machine
+    that is not a bool — and a custom model (`external:<id>`) whose reference
+    the user forgot, when the caller passes the ids that still exist as
+    `custom_model_ids` (None: nobody measured, and the value is left alone, as
+    resolve() does). A backend that is merely *unavailable on this machine
     today* is deliberately left alone — the same reasoning as
     `_resolve_backend()`'s, one step more expensive to get wrong: resolving
     around it costs one run, writing over it costs the user their choice
@@ -457,7 +478,7 @@ def sanitize_section(settings) -> bool:
     changed = False
     for key, valid in (
         (SETTING_BACKEND, lambda v: v in backend_module.BACKEND_IDS),
-        (SETTING_MODEL, lambda v: model_catalog.get_model(v) is not None),
+        (SETTING_MODEL, lambda v: _model_choice_exists(v, custom_model_ids)),
         (SETTING_DEVICE, lambda v: v in DEVICE_PREFERENCE_I18N_KEYS),
         (SETTING_LANGUAGE, lambda v: v in LANGUAGE_NAMES),
     ):
@@ -500,6 +521,17 @@ def models_folder(stored=None) -> tuple[str, tuple[str, ...]]:
     """
     directory = resolve_models_dir(stored)
     return directory, model_store.list_installed(directory)
+
+
+def custom_model_reference_id(choice):
+    """The reference id a model setting names, or None for a catalogue id.
+
+    The one reading of the `external:<id>` spelling, for the code that has to
+    tell the two kinds of choice apart (external_models, the model picker).
+    """
+    if isinstance(choice, str) and choice.startswith(CUSTOM_MODEL_PREFIX):
+        return choice[len(CUSTOM_MODEL_PREFIX):] or None
+    return None
 
 
 def interface_language_code(ui_language):
@@ -616,20 +648,34 @@ def _resolve_device_preference(section, substitutions):
     return device.PREFERENCE_AUTO
 
 
-def _resolve_model(section, probe, device_id, installed_ids, substitutions):
+def _resolve_model(section, probe, device_id, installed_ids, substitutions,
+                   custom_model_ids=None):
     """The model id, or None when nothing is installed and nothing fits.
 
     A model that is known but not downloaded is *kept*: that is not a
     substitution, it is MODEL_NOT_INSTALLED at run time and an offer to
     download in the settings tab. Only an id the catalogue no longer knows —
     a model retired by a later version — falls back to the automatic choice.
+    A custom choice (`external:<id>`) follows the same rule with the references
+    in place of the catalogue: its folder being gone is EXTERNAL_MODEL_MISSING
+    at run time, and only a reference the user forgot is "no longer exists".
     """
     stored = section[SETTING_MODEL]
     if stored != AUTO:
-        if model_catalog.get_model(stored) is not None:
+        if _model_choice_exists(stored, custom_model_ids):
             return stored
         substitutions.append(Substitution(SETTING_MODEL, str(stored)))
     return device.auto_select_model(probe, device_id, installed_ids)
+
+
+def _model_choice_exists(stored, custom_model_ids) -> bool:
+    """Whether a stored model value names something that can still exist."""
+    if not isinstance(stored, str):
+        return False
+    reference_id = custom_model_reference_id(stored)
+    if reference_id is not None:
+        return custom_model_ids is None or reference_id in custom_model_ids
+    return model_catalog.get_model(stored) is not None
 
 
 def _resolve_language(section, ui_language, substitutions):

@@ -72,10 +72,10 @@ from core.transcription import (
     backend as backend_module,
     device,
     errors,
+    external_models,
     job as job_module,
     management,
     message_audio,
-    model_store,
     preferences,
     stored,
 )
@@ -135,7 +135,8 @@ class MessageTranscription:
                  find_ffmpeg=None, is_online=None, fetch_media=None,
                  on_phase=None, on_progress=None, on_finished=None,
                  probe=None, list_installed=None, available_backends=None,
-                 make_job=None, decrypt=None, clock=None, retry_of=None):
+                 make_job=None, decrypt=None, clock=None, retry_of=None,
+                 external_references=()):
         self._msg = msg
         self._settings = settings
         self._key = key
@@ -150,7 +151,15 @@ class MessageTranscription:
         self._on_progress = on_progress
         self._on_finished = on_finished
         self._probe = probe or device.probe_hardware
-        self._list_installed = list_installed or model_store.list_installed
+        # The models the user pointed WinZapp at in folders of their own, as
+        # read when the run was made. Their *state* is not: a disk can be
+        # unplugged between the keypress and the load, so it is looked at on
+        # this run's worker (_decide) and again by the backend at load time.
+        # None is "app.json could not be read" (external_models.
+        # read_references()), which is not "none referenced": see _decide().
+        self._external_references_known = external_references is not None
+        self._external_references = tuple(external_references or ())
+        self._list_installed = list_installed or self._usable_catalogue_ids
         self._available_backends = available_backends or backend_module.available_backend_ids
         self._make_job = make_job or job_module.TranscriptionJob
         self._decrypt = decrypt
@@ -198,6 +207,8 @@ class MessageTranscription:
             on_phase=on_phase, on_progress=on_progress, on_finished=on_finished,
             make_job=make_job or previous._make_job, clock=clock,
             retry_of=previous,
+            external_references=(previous._external_references
+                                 if previous._external_references_known else None),
         )
 
     # ── Control ──────────────────────────────────────────────────────────────
@@ -224,6 +235,17 @@ class MessageTranscription:
     @property
     def model_id(self):
         return self.resolution.model_id if self.resolution is not None else None
+
+    @property
+    def model_name(self):
+        """The model to name out loud: a catalogue id, or a custom model's
+        folder name. Never the raw `external:<id>`; None when there is no
+        model, or when it is a custom one whose reference was forgotten."""
+        if self.resolution is None or self.resolution.model_id is None:
+            return None
+        return external_models.model_name(
+            self.resolution.model_id, self._external_references
+        )
 
     @property
     def device(self):
@@ -301,6 +323,14 @@ class MessageTranscription:
         finally:
             message_audio.discard_temp(temp_path)
 
+    def _usable_catalogue_ids(self, models_root):
+        """The catalogue models a run could load now: the folder's complete
+        ones, and the ones a verified external folder holds (touching disks
+        that may be unplugged, which is why this is on the worker)."""
+        return external_models.usable_catalogue_ids(
+            models_root, self._external_references
+        )
+
     def _decide(self):
         """Resolve the settings against this machine as it is right now."""
         probe = self._probe()
@@ -310,6 +340,12 @@ class MessageTranscription:
             self._settings, probe, installed,
             ui_language=self._ui_language,
             available_backends=self._available_backends(),
+            # Not known is "not measured" to resolve(): a custom choice stays
+            # what it is rather than being reported as retired.
+            custom_model_ids=(
+                external_models.custom_reference_ids(self._external_references)
+                if self._external_references_known else None
+            ),
         )
         self.resolution = resolution
         if resolution.substitutions:
@@ -321,6 +357,8 @@ class MessageTranscription:
             )
         if resolution.backend_id is None:
             raise errors.TranscriptionError(errors.BACKEND_MISSING, "no usable backend")
+        if resolution.model_id is None or resolution.model_id not in installed:
+            self._check_references_were_read()
         if resolution.model_id is None:
             raise errors.TranscriptionError(
                 errors.MODEL_NOT_INSTALLED, f"no model resolved: {resolution.model_none_reason}"
@@ -328,10 +366,33 @@ class MessageTranscription:
         if resolution.model_id not in installed:
             # Checked here, not left to the job: the job would first convert
             # the whole recording and only then find no model to load it into.
-            raise errors.TranscriptionError(
-                errors.MODEL_NOT_INSTALLED, f"{resolution.model_id} is not installed"
+            # model_directory() is what the backend will ask at load time, so
+            # it answers with the code that is true: the folder of a model the
+            # user pointed WinZapp at is gone (EXTERNAL_MODEL_MISSING) or was
+            # changed (EXTERNAL_MODEL_CHANGED), the model is not downloaded
+            # (MODEL_NOT_INSTALLED), WinZapp's own copy is incomplete
+            # (MODEL_CORRUPTED — before part 10b this said "not installed";
+            # Repair on the tab is what fixes it, and the tab is offered for
+            # both) — or, for a custom model, which is never in `installed`,
+            # that it is there and fine, and the run goes on.
+            external_models.model_directory(
+                self.models_root, resolution.model_id, self._external_references
             )
         self.ffmpeg = self._find_ffmpeg()
+
+    def _check_references_were_read(self):
+        """Stop a run that would otherwise blame the wrong thing.
+
+        With app.json unreadable the list of external models is unknown, and
+        a model that is not in WinZapp's own folder may well be in one of
+        them: "not installed" or "the folder is gone" would both be guesses.
+        The file being held by another WinZapp window is what makes it
+        unreadable, and that has a sentence of its own.
+        """
+        if not self._external_references_known:
+            raise errors.TranscriptionError(
+                errors.MODELS_BUSY, "app.json: the external models could not be read"
+            )
 
     def _ensure_media(self, media_path):
         """Download the media when it is not on disk yet. Reports nothing.
@@ -404,6 +465,7 @@ class MessageTranscription:
             # never hands the converted audio over, so the offer to redo the
             # run on the processor would have nothing to redo it from.
             on_finished=_finished,
+            external_references=self._external_references,
         )
         with self._lock:
             self.job = created

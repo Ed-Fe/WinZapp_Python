@@ -35,8 +35,24 @@ import textwrap
 
 import pytest
 
-from core.transcription import audio_prep, device, errors, job as job_module, management, message_run
+import app_settings
+from core.transcription import (
+    audio_prep,
+    device,
+    errors,
+    external_models,
+    job as job_module,
+    management,
+    message_run,
+    model_store,
+)
 from core.transcription.backend import TranscriptionResult
+from tests.test_transcription_external_models import (  # noqa: F401  (fixtures)
+    _backend,
+    _Factory,
+    _write,
+    catalogue,
+)
 
 _LEAKY_ID = "3EB0C0FFEE5EC2E7AB12"
 
@@ -123,10 +139,12 @@ class _FakeJob:
 
     def __call__(self, audio_path, ffmpeg, models_root, model_id, language=None,
                  device_preference=device.PREFERENCE_AUTO, backend_id=None,
-                 prepared=None, on_phase=None, on_progress=None, on_finished=None):
+                 prepared=None, on_phase=None, on_progress=None, on_finished=None,
+                 external_references=()):
         job = _Job(self._script, audio_path, ffmpeg, models_root, model_id, language,
                    device_preference, backend_id, prepared, on_phase, on_progress,
                    on_finished)
+        job.external_references = external_references
         self._record.append(job)
         return job
 
@@ -175,7 +193,7 @@ class _Job:
 
 def _build(tmp_path, fernet_key, fernet, script=_succeed, cached=True, online=True,
            fetch=None, settings=None, installed=("small",), backends=("faster_whisper",),
-           decrypt=None, msg=None, on_make=None):
+           decrypt=None, msg=None, on_make=None, external_references=()):
     voice = tmp_path / "voice_messages"
     media = tmp_path / "media"
     voice.mkdir(exist_ok=True)
@@ -213,7 +231,10 @@ def _build(tmp_path, fernet_key, fernet, script=_succeed, cached=True, online=Tr
         on_progress=watcher.progress,
         on_finished=watcher.done,
         probe=_probe,
-        list_installed=lambda root: installed,
+        # None is "list them the way a real run does" (the models folder and
+        # the folders of the user's own), for the tests about those.
+        list_installed=(lambda root: installed) if installed is not None else None,
+        external_references=external_references,
         available_backends=lambda: backends,
         make_job=_make,
         decrypt=decrypt,
@@ -703,6 +724,193 @@ class TestTheProcessorReRun:
         assert watcher.finished == [(RESULT, None)]
         # Not the re-run's to delete: whoever made the offer owns the file.
         assert os.path.exists(handover.path)
+
+
+class TestModelsInOtherFolders:
+    """A model the user pointed WinZapp at is chosen, found, refused or
+    replaced *before* any slow work, with the code that is true: a folder that
+    is gone is not "not installed", and a reference that was forgotten is a
+    retired model, not an error."""
+
+    @staticmethod
+    def _custom_reference(tmp_path, catalogue):
+        """A custom reference to a real folder, stored the way the tab stores
+        it: through accept_custom_folder() with a backend that loads."""
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "mine", dict(contents, **{"model.bin": b"C" * 5000}))
+        shared = app_settings.AppSettings(str(tmp_path / "global"))
+        outcome = external_models.accept_custom_folder(
+            shared, folder, str(tmp_path / "models"), _backend(_Factory()), "cpu", "int8")
+        assert outcome.code == external_models.ACCEPT_ADDED
+        return outcome.reference, folder
+
+    def test_a_custom_model_runs_and_the_job_is_told_where_to_find_it(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        reference, _folder = self._custom_reference(tmp_path, catalogue)
+        settings = {"transcription": {"model": external_models.custom_choice(reference)}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              external_references=(reference,))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        job = run.jobs[0]
+        assert job.model_id == external_models.custom_choice(reference)
+        assert job.external_references == (reference,)
+        # Said out loud by its folder's name, never as `external:<id>`.
+        assert run.model_name == "mine"
+
+    def test_a_catalogue_model_is_named_by_its_id(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        run, _watcher = _build(tmp_path, fernet_key, fernet)
+        _go(run)
+        assert run.model_name == "small"
+
+    def test_a_folder_that_is_gone_is_said_so_before_anything_is_fetched(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        import shutil
+
+        reference, folder = self._custom_reference(tmp_path, catalogue)
+        shutil.rmtree(folder)
+        fetched = []
+        settings = {"transcription": {"model": external_models.custom_choice(reference)}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings, cached=False,
+                              fetch=lambda msg, path: fetched.append(path),
+                              external_references=(reference,))
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.EXTERNAL_MODEL_MISSING
+        assert fetched == [] and run.jobs == []
+
+    def test_a_folder_that_changed_says_so_too(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        reference, folder = self._custom_reference(tmp_path, catalogue)
+        with open(os.path.join(folder, "model.bin"), "wb") as handle:
+            handle.write(b"D" * 5001)
+        settings = {"transcription": {"model": external_models.custom_choice(reference)}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              external_references=(reference,))
+        _go(run)
+        assert watcher.finished[0][1].code == errors.EXTERNAL_MODEL_CHANGED
+
+    def test_a_forgotten_reference_is_a_retired_model_and_the_run_goes_on(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        settings = {"transcription": {"model": "external:forgotten"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings)
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert [s.setting for s in run.resolution.substitutions] == ["model"]
+        assert run.jobs[0].model_id == "small"
+
+    def test_a_catalogue_model_that_exists_only_in_another_folder_is_chosen_and_run(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "theirs", contents)
+        shared = app_settings.AppSettings(str(tmp_path / "global"))
+        outcome = external_models.accept_catalogue_folder(
+            shared, folder, str(tmp_path / "models"))
+        assert outcome.code == external_models.ACCEPT_ADDED
+        settings = {"transcription": {"model": "alpha"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              installed=None, external_references=(outcome.reference,))
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.jobs[0].model_id == "alpha"
+        assert run.jobs[0].external_references == (outcome.reference,)
+
+    def test_the_automatic_choice_is_made_from_what_is_usable_including_external(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "theirs", contents)
+        shared = app_settings.AppSettings(str(tmp_path / "global"))
+        outcome = external_models.accept_catalogue_folder(
+            shared, folder, str(tmp_path / "models"))
+        run, _watcher = _build(tmp_path, fernet_key, fernet, settings={},
+                               installed=None, external_references=(outcome.reference,))
+        assert run._list_installed(str(tmp_path / "models")) == ("alpha",)
+
+    def test_an_external_copy_whose_folder_is_gone_is_not_a_model_to_choose_from(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        import shutil
+
+        _model, contents = catalogue["alpha"]
+        folder = _write(tmp_path / "theirs", contents)
+        shared = app_settings.AppSettings(str(tmp_path / "global"))
+        outcome = external_models.accept_catalogue_folder(
+            shared, folder, str(tmp_path / "models"))
+        shutil.rmtree(folder)
+        settings = {"transcription": {"model": "alpha"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              installed=None, external_references=(outcome.reference,))
+        _go(run)
+        assert watcher.finished[0][1].code == errors.EXTERNAL_MODEL_MISSING
+
+    def test_the_processor_re_run_keeps_them(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        reference = external_models.ExternalReference("r", "/x", None, True, (1, 2), "/x")
+        run, _watcher = _build(tmp_path, fernet_key, fernet, external_references=(reference,))
+        retry = message_run.MessageTranscription.retry_on_cpu(run)
+        assert retry._external_references == (reference,)
+
+
+class TestAnIncompleteCopyOfTheChosenModel:
+    def test_is_reported_as_damaged_not_as_missing(
+        self, tmp_path, own_temp_dir, fernet_key, fernet, catalogue
+    ):
+        """Since part 10b the run asks model_directory(), which says what
+        ensure_ready() says: WinZapp's own copy is there and incomplete. Repair
+        is what fixes it, and the flow offers the tab for both codes."""
+        _model, contents = catalogue["alpha"]
+        partial = {name: data for name, data in contents.items() if name != "model.bin"}
+        _write(model_store.model_dir(str(tmp_path / "models"), "alpha"), partial)
+        fetched = []
+        run, watcher = _build(tmp_path, fernet_key, fernet, cached=False,
+                              settings={"transcription": {"model": "alpha"}},
+                              installed=None, fetch=lambda msg, path: fetched.append(path))
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.MODEL_CORRUPTED
+        assert fetched == [] and run.jobs == []
+
+
+class TestExternalModelsThatCouldNotBeRead:
+    """None is "app.json could not be read": not "none referenced"."""
+
+    def test_a_custom_choice_is_not_retired_and_the_run_says_wait(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        fetched = []
+        settings = {"transcription": {"model": "external:r1"}}
+        run, watcher = _build(tmp_path, fernet_key, fernet, settings=settings,
+                              cached=False, fetch=lambda msg, path: fetched.append(path),
+                              external_references=None)
+        _go(run)
+        [(_result, error)] = watcher.finished
+        assert error.code == errors.MODELS_BUSY
+        assert run.resolution.substitutions == ()
+        assert fetched == [] and run.jobs == []
+
+    def test_a_model_in_winzapps_own_folder_runs_as_usual(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        run, watcher = _build(tmp_path, fernet_key, fernet, external_references=None)
+        _go(run)
+        assert watcher.finished == [(RESULT, None)]
+        assert run.jobs[0].external_references == ()
+
+    def test_the_processor_re_run_still_does_not_know(
+        self, tmp_path, own_temp_dir, fernet_key, fernet
+    ):
+        run, _watcher = _build(tmp_path, fernet_key, fernet, external_references=None)
+        retry = message_run.MessageTranscription.retry_on_cpu(run)
+        assert retry._external_references_known is False
 
 
 class TestTheLogCarriesNothingPrivate:

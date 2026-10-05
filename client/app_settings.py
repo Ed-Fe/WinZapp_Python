@@ -96,19 +96,31 @@ class AppSettings:
         self._path = os.path.join(self.global_dir, _FILE)
         os.makedirs(self.global_dir, exist_ok=True)
 
-    def _read_unlocked(self) -> dict:
+    def _read_unlocked(self, strict: bool = False) -> dict:
+        """The stored values; {} for a file that is absent or unreadable.
+
+        `strict` keeps "absent" (nothing stored yet: the defaults are the
+        truth) apart from "there and unreadable", which then raises OSError or
+        ValueError instead of reading as the defaults.
+        """
         try:
             with open(self._path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if isinstance(data, dict):
-                return data
+        except FileNotFoundError:
+            return {}
         except (OSError, ValueError):
-            pass
+            if strict:
+                raise
+            return {}
+        if isinstance(data, dict):
+            return data
+        if strict:
+            raise ValueError("app.json does not hold an object")
         return {}
 
-    def _read(self) -> dict:
+    def _read(self, strict: bool = False) -> dict:
         with app_settings_lock(self.global_dir):
-            return self._read_unlocked()
+            return self._read_unlocked(strict)
 
     def _write(self, data: dict) -> None:
         tmp = f"{self._path}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
@@ -131,6 +143,21 @@ class AppSettings:
         if key == "wpp_api_key" and not value:
             return _DEFAULTS[key]
         return value
+
+    def get_strict(self, key: str) -> Any:
+        """get(), for a caller that acts on what is *missing* from the value.
+
+        get() reads a file it could not open or parse as the defaults, which is
+        right for a toggle and wrong for a list whose absent entries mean
+        something: an empty list of external transcription models read during
+        a moment the file was unreadable would have a stored choice of one of
+        them rewritten to "automatic" for good. Raises OSError or ValueError
+        for a file that is there and unreadable (and LockTimeout, like get());
+        an absent file is the defaults, as always.
+        """
+        if key not in _DEFAULTS:
+            raise KeyError(f"{key!r} is not a global setting")
+        return self._read(strict=True).get(key, _default(key))
 
     def set(self, key: str, value: Any) -> None:
         if key not in _DEFAULTS:
