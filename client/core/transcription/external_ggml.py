@@ -71,9 +71,16 @@ def inspect_file(path):
     return None
 
 
-def identify_file(path, progress=None, should_cancel=None):
+def identify_file(path, progress=None, should_cancel=None, known_id=None):
     """(match, model_id) for `path`: MATCH_VERIFIED, MATCH_DIGEST_MISMATCH or
-    MATCH_NONE, hashing the file only when its size is a catalogue file's."""
+    MATCH_NONE, hashing the file only when its size is a catalogue file's.
+
+    A mismatch names `known_id` — the model the file was stored as — when it
+    is one of the entries of that size, and the first of them otherwise:
+    several weigh exactly the same (distil-large-v3, distil-large-v3.5 and
+    both kotoba files), and a file that was distil-large-v3 must not be said
+    to be a damaged distil-large-v3.5.
+    """
     mark = external_models.file_mark(path)
     size = mark[0] if mark is not None else None
     candidates = [entry for entry in whisper_cpp_catalog.MODELS if entry.size_bytes == size]
@@ -90,7 +97,8 @@ def identify_file(path, progress=None, should_cancel=None):
         "[transcription] %s has the size of %s and not its contents: sha256 %s",
         path, ", ".join(entry.id for entry in candidates), digest,
     )
-    return external_models.MATCH_DIGEST_MISMATCH, candidates[0].id
+    named = next((entry for entry in candidates if entry.id == known_id), candidates[0])
+    return external_models.MATCH_DIGEST_MISMATCH, named.id
 
 
 def accept_ggml_file(app_settings, path, models_root, progress=None,
@@ -109,8 +117,13 @@ def accept_ggml_file(app_settings, path, models_root, progress=None,
     if external_models._inside_any(path, models_root, other_roots):
         return external_models.AcceptOutcome(external_models.REFUSED_INSIDE_MODELS_ROOT)
 
+    # The model this file is already stored as, if any: a check that now finds
+    # other contents marks that record unverified and leaves its id alone.
+    known = external_models.reference_for_path(
+        external_models.load_references(app_settings), path)
+    known_id = known.model_id if known is not None and known.is_file else None
     before = external_models.file_mark(path)
-    match, model_id = identify_file(path, progress, should_cancel)
+    match, model_id = identify_file(path, progress, should_cancel, known_id)
     mark = external_models.file_mark(path)
     identification = external_models.Identification(path, match, model_id)
     if mark is None or mark != before:
@@ -121,7 +134,7 @@ def accept_ggml_file(app_settings, path, models_root, progress=None,
         )
         return external_models.AcceptOutcome(code, reference, identification)
     if match == external_models.MATCH_DIGEST_MISMATCH:
-        external_models._store(app_settings, path, model_id, False, mark,
+        external_models._store(app_settings, path, known_id or model_id, False, mark,
                                only_if_present=True, backend=WHISPER_CPP)
         return external_models.AcceptOutcome(
             external_models.ACCEPT_DIGEST_MISMATCH, None, identification

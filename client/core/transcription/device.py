@@ -478,6 +478,12 @@ def auto_select_model(probe, device, installed_ids, catalog=None, language=None,
     user already has on disk is theirs, and rule 1 may still pick it. Ties are
     broken the same way everywhere: the official entry, then the id.
 
+    A 32-bit GGML file (whisper_cpp_catalog.GgmlFile.full_precision) is never
+    a candidate under either rule, installed or not: it plans more memory than
+    its own f16 file for the same model, and ranked by that figure it would
+    win over a better model — distil-small.en at 32 bits over small.en. Only
+    the user's own choice runs one.
+
     `compute_type` is the precision the user chose, when they chose one: a
     model that fits in float16 may not in float32, and int8 makes room for a
     larger one (`model_fits()`). None measures every model as the catalogue
@@ -485,7 +491,9 @@ def auto_select_model(probe, device, installed_ids, catalog=None, language=None,
     """
     models = tuple(catalog) if catalog is not None else model_catalog.list_models()
     models = tuple(
-        m for m in models if getattr(m, "language", None) in (None, language)
+        m for m in models
+        if getattr(m, "language", None) in (None, language)
+        and not getattr(m, "full_precision", False)
     )
     installed = set(installed_ids or ())
     budget_mb = available_memory_mb(probe, device)

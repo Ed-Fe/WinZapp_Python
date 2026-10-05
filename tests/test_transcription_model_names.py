@@ -53,7 +53,8 @@ class TestTheNames:
         )
 
     @pytest.mark.parametrize("model_id", ["distil-large-v3.5", "distil-large-v3",
-                                          "distil-medium.en", "distil-small.en"])
+                                          "distil-large-v2", "distil-medium.en",
+                                          "distil-small.en"])
     def test_every_distilled_model_says_english_only_and_none_says_third_party(
         self, model_id
     ):
@@ -82,6 +83,23 @@ class TestTheNames:
         name = model_names.display_name(_I18n(), "ggml-tiny.en-q8_0")
         assert name == (f"{model_names.QUANTIZED_I18N_KEY}(bits=8,model="
                         f"{model_names.ENGLISH_ONLY_I18N_KEY}(model=tiny.en))")
+
+    @pytest.mark.parametrize("model_id, base_model", [
+        ("ggml-distil-large-v3-f32", "distil-large-v3"),
+        ("ggml-distil-large-v2-f32", "distil-large-v2"),
+        ("ggml-distil-medium.en-f32", "distil-medium.en"),
+        ("ggml-distil-small.en-f32", "distil-small.en"),
+    ])
+    def test_a_32_bit_file_says_full_precision_and_its_f16_sibling_16_bits(
+        self, model_id, base_model
+    ):
+        english = f"{model_names.ENGLISH_ONLY_I18N_KEY}(model={base_model})"
+        assert model_names.display_name(_I18n(), model_id) == (
+            f"{model_names.FULL_PRECISION_I18N_KEY}(model={english})"
+        )
+        assert model_names.display_name(_I18n(), model_id[:-len("-f32")]) == (
+            f"{model_names.QUANTIZED_I18N_KEY}(bits=16,model={english})"
+        )
 
     def test_a_third_party_ggml_file_says_who_and_which_language(self):
         name = model_names.display_name(_I18n(), "ggml-ivrit-large-v3")
@@ -144,6 +162,8 @@ def test_every_name_is_translated_with_the_values_it_is_given(locale):
         model_names.ENGLISH_ONLY_I18N_KEY: {"model"},
         model_names.THIRD_PARTY_I18N_KEY: {"model", "language", "publisher"},
         model_names.QUANTIZED_I18N_KEY: {"model", "bits"},
+        # "32" is written into each sentence: its plural is not 5's in pl or ro.
+        model_names.FULL_PRECISION_I18N_KEY: {"model"},
     }
     assert set(expected) == set(model_names.MODEL_NAME_I18N_KEYS)
     for key, placeholders in expected.items():

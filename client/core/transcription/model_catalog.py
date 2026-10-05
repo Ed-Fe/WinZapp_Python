@@ -452,6 +452,27 @@ MODELS = (
         min_ram_mb=6144,
         language=ENGLISH,
     ),
+    # distil-large-v2, the last official conversion missing, read from the
+    # Hugging Face API on 2026-10-05 (`?blobs=true` and blob by blob, twice,
+    # identical). English-only and distil-large-v3's layout and size, so the
+    # same size class and memory minimums.
+    _model(
+        "distil-large-v2",
+        "Systran/faster-distil-whisper-large-v2",
+        "fe9b404fc56de3f7c38606ef9ba6fd83526d05e4",
+        "b415593cd109c0418d42ecb106c40ae45c8229cb4090e67db12243901e071ab3",
+        (
+            ("config.json", 2_657),
+            ("model.bin", 1_512_556_667),
+            ("preprocessor_config.json", 339),
+            ("tokenizer.json", 2_481_187),
+            ("vocabulary.json", 1_068_103),
+        ),
+        SIZE_LARGE,
+        min_vram_mb=4096,
+        min_ram_mb=6144,
+        language=ENGLISH,
+    ),
     # Third-party fine-tunes of Whisper for one language each, read from the
     # Hugging Face API at the pinned revision with `?blobs=true` and then file
     # by file (2026-10-05; the `tree` listing swapped rows for KBLab, so these

@@ -1712,6 +1712,7 @@
     "transcription_model_name_english_only": "{model}, tylko angielski",
     "transcription_model_name_third_party": "{model} (tylko {language}, od innego wydawcy: {publisher})",
     "transcription_model_name_quantized": "{model}, {bits} bitów",
+    "transcription_model_name_full_precision": "{model}, 32 bity, pełna precyzja",
     "transcription_saved_opened_backend": "Zapisana transkrypcja, wykonana {when} przy użyciu składnika {backend} i modelu {model}.",
     "transcription_whisper_cpp_label": "Program w&hisper.cpp",
     "transcription_whisper_cpp_actions_group": "Program whisper.cpp",

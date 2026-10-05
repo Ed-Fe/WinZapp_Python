@@ -117,9 +117,13 @@ run only with `WINZAPP_RUN_NETWORK_TESTS=1`. Run them whenever a pin changes.
 **Single-language models are offered, and fenced.** These cannot detect a
 language or hear another one:
 
-- the English-only ones: the `.en` models, and the distilled ones including
-  distil-large-v3 (its model card lists "en" alone) and distil-large-v3.5,
-  which is official, from Hugging Face's distil-whisper team;
+- the English-only ones: the `.en` models, and the distilled ones
+  (distil-small.en, distil-medium.en, distil-large-v2, distil-large-v3 — its
+  model card lists "en" alone — and distil-large-v3.5, which is official,
+  from Hugging Face's distil-whisper team). For whisper.cpp the first four
+  also come as f32, the only 32-bit files: planned at the twin's figure plus
+  the bytes they add over their f16 sibling, and never picked by the
+  automatic choice;
 - third-party fine-tunes: KBLab (Swedish), ivrit-ai (Hebrew, Yiddish) and
   kotoba (Japanese).
 
@@ -134,6 +138,9 @@ its own. So `language` is what everything keys on:
   picks a third-party model. ivrit's large-v3 weighs exactly what large-v3
   does, so size alone would choose one by accident. One already on disk is the
   user's own, and rule 1 may still use it.
+- Neither rule ever picks a 32-bit GGML file, not even one on disk: ranked by
+  its larger memory figure it would beat a better model (distil-small.en at
+  32 bits over small.en). Only the user's own choice runs one.
 
 `kotoba-whisper-bilingual-v1.0-faster` is deliberately absent: its repository
 has no `tokenizer.json`, and faster-whisper would fall back to
@@ -199,6 +206,12 @@ crosses modules:
 - **A file is called a file.** A blind user told "the folder ggml-small.bin"
   looks for a folder; the file/folder wording lives in
   `client/core/transcription/external_view.py`.
+- **A recheck that finds other contents keeps the stored id**
+  (`client/core/transcription/external_ggml.py`, `accept_ggml_file()`): the
+  dialog names the entry whose size the file now has, the record keeps the
+  model the user chose, marked unverified, and an unverified reference never
+  runs. Relabelling it after the first entry of that size turned a changed
+  distil-large-v3 into a "damaged distil-large-v3.5".
 
 ## CUDA libraries (faster-whisper)
 

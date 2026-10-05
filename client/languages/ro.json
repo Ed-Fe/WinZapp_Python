@@ -1712,6 +1712,7 @@
     "transcription_model_name_english_only": "{model}, doar engleză",
     "transcription_model_name_third_party": "{model} (doar {language}, terță parte: {publisher})",
     "transcription_model_name_quantized": "{model}, {bits} biți",
+    "transcription_model_name_full_precision": "{model}, 32 de biți, precizie completă",
     "transcription_saved_opened_backend": "Transcriere salvată, făcută la {when} cu {backend} și modelul {model}.",
     "transcription_whisper_cpp_label": "Pro&gramul whisper.cpp",
     "transcription_whisper_cpp_actions_group": "Programul whisper.cpp",

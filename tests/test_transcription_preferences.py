@@ -796,6 +796,27 @@ class TestASingleLanguageModelRunsInItsOwnLanguage:
         assert resolved.language == "pt"
 
 
+class TestA32BitFileIsNeverChosenAutomatically:
+    """A 32-bit GGML file plans more memory than its f16 one for the same
+    model, so "the largest that fits" would land on it over a better model.
+    Installed or not, only the user's own choice runs one."""
+
+    def test_an_installed_32_bit_file_loses_to_a_smaller_better_model(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP, auto_detect_language=False, language="en"),
+            _CPU_ONLY, installed_ids=("ggml-distil-small.en-f32", "ggml-small.en"),
+        )
+        assert resolved.model_id == "ggml-small.en"
+
+    def test_the_users_own_choice_of_one_is_kept(self):
+        resolved = preferences.resolve(
+            _settings(backend=_CPP, model="ggml-distil-small.en-f32",
+                      auto_detect_language=False, language="en"),
+            _CPU_ONLY, installed_ids=("ggml-distil-small.en-f32",),
+        )
+        assert resolved.model_id == "ggml-distil-small.en-f32"
+
+
 class TestAThirdPartyModelIsNeverDownloadedByChance:
     """Fine-tunes weigh what official models weigh — ivrit's large-v3 is
     large-v3's size to the byte — so "the largest that fits" must not land on

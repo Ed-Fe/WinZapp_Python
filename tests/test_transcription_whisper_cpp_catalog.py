@@ -26,6 +26,7 @@ import pytest
 
 from core import tls_trust
 from core.transcription import (
+    device,
     errors,
     model_catalog,
     model_store,
@@ -108,6 +109,10 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
             "base.en": ("f16", "q8_0", "q5_1"),
             "small.en": ("f16", "q8_0", "q5_1"),
             "medium.en": ("f16", "q8_0", "q5_0"),
+            "distil-small.en": ("f32", "f16"),
+            "distil-medium.en": ("f32", "f16"),
+            "distil-large-v2": ("f32", "f16"),
+            "distil-large-v3": ("f32", "f16"),
             "distil-large-v3.5": ("f16",),
             "kb-whisper-tiny": ("f16", "q5_0"),
             "kb-whisper-base": ("f16", "q5_0"),
@@ -155,6 +160,11 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
         assert pinned == {
             ("distil-whisper/distil-large-v3.5-ggml",
              "960ecb5c2ecfba3ebb9ebe485c1032ec266cf436"),
+            ("distil-whisper/distil-large-v3-ggml",
+             "0d78dd96ed9fc152325f63b53788fec3b43de031"),
+            ("distil-whisper/distil-large-v2", "97d2c8f9cae1b0f6c8fc2e173495ee4cedc05843"),
+            ("distil-whisper/distil-medium.en", "6e61418885eaf4d5cc9f64e508e80ac5b4c052b7"),
+            ("distil-whisper/distil-small.en", "9e4a67ca4569c30be43a3fe7fba1621e504f0093"),
             ("KBLab/kb-whisper-tiny", "76d796af43a50fa34321efa562c9b9887a187463"),
             ("KBLab/kb-whisper-base", "1499d2d2f0c7ed545bd6f2eec85287cf8d8c8b38"),
             ("KBLab/kb-whisper-small", "3564d61a42fc210ceaa55a22a96dd64478959c78"),
@@ -177,6 +187,37 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
         kb = whisper_cpp_catalog.variant("kb-whisper-small", "q5_0")
         assert (kb.filename, kb.size_bytes) == ("ggml-model-q5_0.bin", 175_209_680)
         assert kb.sha256 == "6768836a51abc902e420c613153e6d418c90ea2774e913274d02ab23170225b7"
+        medium = whisper_cpp_catalog.variant("distil-medium.en", "f32")
+        assert (medium.id, medium.filename, medium.size_bytes) == (
+            "ggml-distil-medium.en-f32", "ggml-medium-32-2.en.fp32.bin", 1_578_107_268)
+        assert medium.sha256 == (
+            "598761592c57db1f8ad90a38b59a2e20d067fb8225bb605299e1bc68250bff21")
+
+    def test_the_distil_whisper_repositories_give_only_their_ggml_files(self):
+        # They hold pytorch_model*.bin and original-model*.bin beside the GGML
+        # ones: a download of those would be gigabytes whisper.cpp cannot load.
+        distil = [entry for entry in _PUBLISHED_ELSEWHERE
+                  if entry.repo.startswith("distil-whisper/")]
+        assert len(distil) == 9
+        for entry in distil:
+            assert entry.filename.startswith("ggml-"), entry.id
+            assert not entry.filename.startswith(("pytorch_model", "original-model"))
+
+    def test_full_precision_is_the_distil_whisper_teams_beside_each_f16_file(self):
+        full = [entry for entry in whisper_cpp_catalog.MODELS
+                if entry.quantization == whisper_cpp_catalog.QUANT_F32]
+        assert {entry.base_model for entry in full} == {
+            "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3",
+        }
+        for entry in full:
+            half = whisper_cpp_catalog.variant(entry.base_model, "f16")
+            assert (half.repo, half.revision) == (entry.repo, entry.revision), entry.id
+            assert entry.id == f"{half.id}-f32"
+            assert ".fp32." in entry.filename and ".fp32." not in half.filename
+            assert entry.bits == 32 and half.bits == 16
+            # Twice the bytes per weight, and nothing else of any size.
+            assert 1.9 < entry.size_bytes / half.size_bytes < 2.1, entry.id
+            assert (entry.language, entry.origin, entry.publisher) == ("en", "official", "")
 
     def test_pinned_to_the_revisions_that_were_measured(self):
         for entry in _GGERGANOV:
@@ -195,13 +236,35 @@ class TestTheCatalogueIsWhatTheRepositoryPublishes:
                 assert entry.size_class == model.size_class, entry.id
 
     def test_every_faster_whisper_model_has_a_ggml_counterpart(self):
-        # Systran's distilled conversions have none published: their GGML
-        # files are not in ggerganov's repository.
-        without = {"distil-small.en", "distil-medium.en", "distil-large-v3"}
+        # The distilled ones too: not in ggerganov's repository, but in the
+        # distil-whisper team's own.
         for model in model_catalog.MODELS:
-            if model.id in without:
-                continue
             assert whisper_cpp_catalog.variant(model.id, "f16") is not None, model.id
+
+    def test_the_picker_lists_the_english_only_models_as_faster_whisper_does(self):
+        def english(models, name):
+            seen = []
+            for model in models:
+                if model.language == "en" and name(model) not in seen:
+                    seen.append(name(model))
+            return seen
+
+        assert english(whisper_cpp_catalog.list_models(), lambda e: e.base_model) == english(
+            model_catalog.list_models(), lambda m: m.id)
+
+    def test_a_file_plans_its_twins_memory_and_an_f32_one_its_wider_weights_too(self):
+        for entry in whisper_cpp_catalog.MODELS:
+            twin = model_catalog.get_model(entry.base_model) or model_catalog.get_model(
+                "kotoba-whisper-v2.0")
+            figures = (entry.min_vram_mb, entry.min_ram_mb)
+            if entry.quantization != whisper_cpp_catalog.QUANT_F32:
+                assert figures == (twin.min_vram_mb, twin.min_ram_mb), entry.id
+                continue
+            half = whisper_cpp_catalog.variant(entry.base_model, "f16")
+            extra = -(-(entry.size_bytes - half.size_bytes) // (1024 * 1024))
+            assert figures == (half.min_vram_mb + extra, half.min_ram_mb + extra), entry.id
+        large = whisper_cpp_catalog.get_model("ggml-distil-large-v3-f32")
+        assert (large.min_vram_mb, large.min_ram_mb) == (5533, 7581)
 
     def test_a_ggml_file_has_the_language_and_origin_of_its_faster_whisper_twin(self):
         for entry in whisper_cpp_catalog.MODELS:
@@ -239,6 +302,33 @@ class TestLookups:
         classes = [entry.size_class for entry in whisper_cpp_catalog.list_models()]
         assert classes == sorted(classes, key=model_catalog.SIZE_CLASSES.index)
         assert len(whisper_cpp_catalog.list_models()) == len(whisper_cpp_catalog.MODELS)
+
+    @pytest.mark.parametrize("budget_mb", [3_000, 6_000, 9_500, 1_000_000])
+    def test_language_detection_never_picks_an_english_only_file(self, budget_mb):
+        probe = device.HardwareProbe(total_ram_mb=budget_mb, available_ram_mb=budget_mb)
+        chosen = device.auto_select_model(
+            probe, device.DEVICE_CPU, (), catalog=whisper_cpp_catalog.list_models())
+        assert whisper_cpp_catalog.get_model(chosen).language is None, chosen
+
+    @pytest.mark.parametrize("device_id", [device.DEVICE_CPU, device.DEVICE_CUDA])
+    @pytest.mark.parametrize(
+        "budget_mb", [3_000, 3_500, 4_300, 5_000, 6_100, 7_000, 9_500, 1_000_000])
+    def test_the_automatic_choice_never_picks_a_32_bit_file(self, device_id, budget_mb):
+        if device_id == device.DEVICE_CPU:
+            probe = device.HardwareProbe(total_ram_mb=budget_mb, available_ram_mb=budget_mb)
+        else:
+            probe = device.HardwareProbe(
+                cuda_available=True, cuda_device_count=1, compute_capability=(8, 6),
+                total_vram_mb=budget_mb, free_vram_mb=budget_mb)
+        chosen = device.auto_select_model(
+            probe, device_id, (), catalog=whisper_cpp_catalog.list_models(), language="en")
+        assert not whisper_cpp_catalog.get_model(chosen).full_precision, chosen
+        pinned = {(device.DEVICE_CPU, 9_500): "ggml-large-v3-turbo",
+                  (device.DEVICE_CPU, 4_300): "ggml-small.en",
+                  (device.DEVICE_CPU, 1_000_000): "ggml-large-v3",
+                  (device.DEVICE_CUDA, 1_000_000): "ggml-large-v3"}
+        if (device_id, budget_mb) in pinned:
+            assert chosen == pinned[(device_id, budget_mb)]
 
     def test_get_model_finds_the_vad_model_and_answers_none_for_the_unknown(self):
         assert whisper_cpp_catalog.get_model("ggml-silero-v6.2.0") is whisper_cpp_catalog.VAD_MODEL

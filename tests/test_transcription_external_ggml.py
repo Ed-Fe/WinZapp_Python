@@ -123,6 +123,25 @@ class TestIdentifyingAFile:
             external_models.MATCH_VERIFIED, catalogue[which].id
         )
 
+    @pytest.mark.parametrize("model_id", [
+        "ggml-distil-large-v3.5", "ggml-distil-large-v3",
+        "ggml-kotoba-whisper-v2.0", "ggml-kotoba-whisper-v1.0",
+    ])
+    def test_four_real_entries_of_one_size_cost_one_hash(self, tmp_path, monkeypatch, model_id):
+        # The real catalogue: distil-large-v3's f16 file weighs exactly what
+        # distil-large-v3.5's and both kotoba ones do.
+        entry = whisper_cpp_catalog.get_model(model_id)
+        assert len([e for e in whisper_cpp_catalog.MODELS
+                    if e.size_bytes == entry.size_bytes]) == 4
+        hashed = []
+        monkeypatch.setattr(external_models, "file_mark",
+                            lambda path: (entry.size_bytes, 1))
+        monkeypatch.setattr(external_ggml, "_hash",
+                            lambda *args: hashed.append(args) or entry.sha256)
+        path = _file(tmp_path / "ggml-model.bin", b"x")
+        assert external_ggml.identify_file(path) == (external_models.MATCH_VERIFIED, model_id)
+        assert len(hashed) == 1
+
     def test_the_right_size_and_other_bytes_is_a_mismatch(self, tmp_path, catalogue):
         path = _file(tmp_path / "ggml-model.bin", b"Z" * len(_ALPHA))
         match, model_id = external_ggml.identify_file(path)
@@ -146,6 +165,71 @@ class TestAcceptingACatalogueFile:
         assert not os.path.exists(models_root)
         assert os.listdir(os.path.dirname(path)) == ["ggml-model.bin"]
         assert external_models.reference_state(reference) == external_models.REF_READY
+
+    def test_a_rechecked_file_that_changed_keeps_the_model_it_was_stored_as(
+        self, tmp_path, monkeypatch, settings, models_root
+    ):
+        # The real catalogue's same-size group: distil-large-v3's f16 file
+        # weighs what distil-large-v3.5's and both kotoba ones do, and
+        # distil-large-v3.5 comes first. A verified distil-large-v3 replaced by
+        # other bytes of that size is an unverified distil-large-v3, not a
+        # damaged distil-large-v3.5.
+        entry = whisper_cpp_catalog.get_model("ggml-distil-large-v3")
+        first = next(e for e in whisper_cpp_catalog.MODELS if e.size_bytes == entry.size_bytes)
+        assert first.id != entry.id
+        path = _file(tmp_path / "downloads" / "ggml-distil-large-v3.bin", b"x")
+        digest = [entry.sha256]
+        monkeypatch.setattr(external_models, "file_mark",
+                            lambda p: (entry.size_bytes, 1) if str(p) == path else None)
+        monkeypatch.setattr(external_ggml, "_hash", lambda *args: digest[0])
+
+        assert external_ggml.accept_ggml_file(settings, path, models_root).code == (
+            external_models.ACCEPT_ADDED)
+        digest[0] = "0" * 64
+        outcome = external_ggml.accept_ggml_file(settings, path, models_root)
+
+        assert outcome.code == external_models.ACCEPT_DIGEST_MISMATCH
+        assert outcome.identification.model_id == entry.id
+        (reference,) = external_models.load_references(settings)
+        assert (reference.model_id, reference.verified) == (entry.id, False)
+
+    def test_a_stored_file_now_of_another_entrys_size_is_named_by_that_size(
+        self, tmp_path, monkeypatch, settings, models_root
+    ):
+        # The dialog says "has the size of the {model} model", so it names
+        # the first entry of the new size; the record keeps the user's model,
+        # unverified.
+        entry = whisper_cpp_catalog.get_model("ggml-distil-large-v3")
+        other = whisper_cpp_catalog.get_model("ggml-large-v3")
+        first = next(e for e in whisper_cpp_catalog.MODELS if e.size_bytes == other.size_bytes)
+        path = _file(tmp_path / "downloads" / "ggml-distil-large-v3.bin", b"x")
+        state = {"size": entry.size_bytes, "digest": entry.sha256}
+        monkeypatch.setattr(external_models, "file_mark",
+                            lambda p: (state["size"], 1) if str(p) == path else None)
+        monkeypatch.setattr(external_ggml, "_hash", lambda *args: state["digest"])
+
+        assert external_ggml.accept_ggml_file(settings, path, models_root).code == (
+            external_models.ACCEPT_ADDED)
+        state.update(size=other.size_bytes, digest="0" * 64)
+        outcome = external_ggml.accept_ggml_file(settings, path, models_root)
+
+        assert outcome.code == external_models.ACCEPT_DIGEST_MISMATCH
+        assert outcome.identification.model_id == first.id
+        (reference,) = external_models.load_references(settings)
+        assert (reference.model_id, reference.verified) == (entry.id, False)
+
+    def test_a_first_time_mismatch_names_the_first_of_its_size_and_stores_nothing(
+        self, tmp_path, monkeypatch, settings, models_root
+    ):
+        entry = whisper_cpp_catalog.get_model("ggml-distil-large-v3")
+        first = next(e for e in whisper_cpp_catalog.MODELS if e.size_bytes == entry.size_bytes)
+        path = _file(tmp_path / "downloads" / "ggml-model.bin", b"x")
+        monkeypatch.setattr(external_models, "file_mark", lambda p: (entry.size_bytes, 1))
+        monkeypatch.setattr(external_ggml, "_hash", lambda *args: "0" * 64)
+        outcome = external_ggml.accept_ggml_file(settings, path, models_root)
+        assert outcome.code == external_models.ACCEPT_DIGEST_MISMATCH
+        assert outcome.identification.model_id == first.id
+        assert external_models.load_references(settings) == ()
 
     def test_a_mismatch_stores_nothing_new(self, tmp_path, catalogue, settings, models_root):
         path = _file(tmp_path / "downloads" / "ggml-model.bin", b"Z" * len(_ALPHA))

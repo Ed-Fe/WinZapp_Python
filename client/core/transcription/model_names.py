@@ -12,7 +12,9 @@ all say the same thing:
 * a faster-whisper model is its id ("large-v3");
 * a GGML file of whisper.cpp's is its model and its bits per weight ("small, 5
   bits") — for whisper.cpp the quantization *is* the file, and two files of
-  one model are told apart by nothing else;
+  one model are told apart by nothing else. A 32-bit file has a sentence of
+  its own ("distil-small.en, English only, 32 bits, full precision"): "32"
+  takes another plural than 5, 8 and 16 in Polish and Romanian;
 * an English-only model says so ("small.en, English only");
 * a third-party model says its language and who published it
   ("kb-whisper-small (svenska only, third-party: KBLab)") — the language by
@@ -30,9 +32,11 @@ from core.transcription import external_models, preferences, whisper_cpp_catalog
 ENGLISH_ONLY_I18N_KEY = "transcription_model_name_english_only"
 THIRD_PARTY_I18N_KEY = "transcription_model_name_third_party"
 QUANTIZED_I18N_KEY = "transcription_model_name_quantized"
+FULL_PRECISION_I18N_KEY = "transcription_model_name_full_precision"
 
 #: Every key this module asks for; the i18n tests read it.
-MODEL_NAME_I18N_KEYS = (ENGLISH_ONLY_I18N_KEY, THIRD_PARTY_I18N_KEY, QUANTIZED_I18N_KEY)
+MODEL_NAME_I18N_KEYS = (ENGLISH_ONLY_I18N_KEY, THIRD_PARTY_I18N_KEY, QUANTIZED_I18N_KEY,
+                        FULL_PRECISION_I18N_KEY)
 
 
 def display_name(i18n, model_id, references=()):
@@ -51,9 +55,10 @@ def display_name(i18n, model_id, references=()):
     if entry is None:
         return str(model_id)
     if entry in whisper_cpp_catalog.MODELS:
-        return i18n.t(QUANTIZED_I18N_KEY).format(
-            model=_qualified(i18n, entry.base_model, entry), bits=entry.bits,
-        )
+        model = _qualified(i18n, entry.base_model, entry)
+        if entry.full_precision:
+            return i18n.t(FULL_PRECISION_I18N_KEY).format(model=model)
+        return i18n.t(QUANTIZED_I18N_KEY).format(model=model, bits=entry.bits)
     return _qualified(i18n, entry.id, entry)
 
 

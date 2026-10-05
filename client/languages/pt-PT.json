@@ -1712,6 +1712,7 @@
     "transcription_model_name_english_only": "{model}, apenas inglês",
     "transcription_model_name_third_party": "{model} (apenas {language}, de terceiros: {publisher})",
     "transcription_model_name_quantized": "{model}, {bits} bits",
+    "transcription_model_name_full_precision": "{model}, 32 bits, precisão total",
     "transcription_saved_opened_backend": "Transcrição guardada, feita em {when} com o {backend} e o modelo {model}.",
     "transcription_whisper_cpp_label": "Pro&grama whisper.cpp",
     "transcription_whisper_cpp_actions_group": "Programa whisper.cpp",

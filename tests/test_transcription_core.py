@@ -199,6 +199,14 @@ _EXPECTED_REPOS = {
          "preprocessor_config.json": 340, "tokenizer.json": 2_480_645,
          "vocabulary.json": 1_068_114},
     ),
+    "distil-large-v2": (
+        "Systran/faster-distil-whisper-large-v2",
+        "fe9b404fc56de3f7c38606ef9ba6fd83526d05e4",
+        "b415593cd109c0418d42ecb106c40ae45c8229cb4090e67db12243901e071ab3",
+        {"config.json": 2_657, "model.bin": 1_512_556_667,
+         "preprocessor_config.json": 339, "tokenizer.json": 2_481_187,
+         "vocabulary.json": 1_068_103},
+    ),
     "kb-whisper-tiny": (
         "KBLab/kb-whisper-tiny",
         "76d796af43a50fa34321efa562c9b9887a187463",
@@ -443,7 +451,8 @@ class TestModelCatalog:
 
     def test_every_single_language_model_says_which_language(self):
         english = {"tiny.en", "base.en", "small.en", "medium.en", "distil-small.en",
-                   "distil-medium.en", "distil-large-v3", "distil-large-v3.5"}
+                   "distil-medium.en", "distil-large-v2", "distil-large-v3",
+                   "distil-large-v3.5"}
         third_party = {
             "kb-whisper-tiny": ("sv", "KBLab"), "kb-whisper-base": ("sv", "KBLab"),
             "kb-whisper-small": ("sv", "KBLab"), "kb-whisper-medium": ("sv", "KBLab"),

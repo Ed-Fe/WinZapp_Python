@@ -1712,6 +1712,7 @@
   "transcription_model_name_english_only": "{model}, yalnızca İngilizce",
   "transcription_model_name_third_party": "{model} (yalnızca {language}, üçüncü taraf: {publisher})",
   "transcription_model_name_quantized": "{model}, {bits} bit",
+  "transcription_model_name_full_precision": "{model}, 32 bit, tam hassasiyet",
   "transcription_saved_opened_backend": "Kayıtlı döküm, {when} tarihinde {backend} ve {model} modeliyle oluşturuldu.",
   "transcription_whisper_cpp_label": "whisper.cpp pro&gramı",
   "transcription_whisper_cpp_actions_group": "whisper.cpp programı",

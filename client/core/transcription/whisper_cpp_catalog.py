@@ -24,7 +24,7 @@ What differs from the faster-whisper catalogue, and why:
   model.bin has one — nothing here is checked by size alone.
 
 * **The single-language models are offered, and say so.** The English-only
-  ones (`*.en`, distil-large-v3.5) can be the better model of their size for
+  ones (`*.en`, the distilled ones) can be the better model of their size for
   a note in English, and the third-party fine-tunes (KBLab's Swedish,
   ivrit.ai's Hebrew and Yiddish, Kotoba's Japanese) for theirs; the
   maintainers asked for all of them (2026-10-05). None can detect a language
@@ -35,12 +35,21 @@ What differs from the faster-whisper catalogue, and why:
   is the user's language (preferences.resolve()). Each `base_model` is the
   faster-whisper id of the same model ("small.en", "kb-whisper-small").
 
-* **The third-party repositories name their files their own way**
-  (`ggml-model.bin`, `ggml-kotoba-whisper-v2.0-q5_0.bin`), and each has its
-  own repository and revision: those entries carry all of it explicitly
-  (`_published()`), read from the Hugging Face API at the pinned revision on
-  2026-10-05 with `?blobs=true` and then file by file. Only the files listed
-  are fetched — the same repositories hold the PyTorch weights too.
+* **The other repositories name their files their own way**
+  (`ggml-model.bin`, `ggml-kotoba-whisper-v2.0-q5_0.bin`, the distil-whisper
+  team's `ggml-medium-32-2.en.bin`), and each has its own repository and
+  revision: those entries carry all of it explicitly (`_published()`), read
+  from the Hugging Face API at the pinned revision on 2026-10-05 with
+  `?blobs=true` and then file by file. Only the files listed are fetched — the
+  same repositories hold the PyTorch weights too (`pytorch_model*.bin`,
+  `original-model*.bin`).
+
+* **The distil-whisper team publishes full precision too.** Beside each f16
+  file of distil-large-v3, distil-large-v2, distil-medium.en and
+  distil-small.en sits an fp32 one, the only 32-bit files here: twice the
+  download for the same model, offered because they are official
+  (distil-large-v3.5 has none). Only a user's own choice ever runs one: the
+  automatic choice never picks a 32-bit file (device.auto_select_model()).
 
 * **The CoreML `*-encoder.mlmodelc.zip` files are macOS-only** and not listed.
 
@@ -78,16 +87,18 @@ VAD_REVISION = "9ffd54a1e1ee413ddf265af9913beaf518d1639b"
 
 # Quantizations, most faithful first. f16 is what the repository calls plain
 # `ggml-<model>.bin`: the converter writes half precision unless asked to
-# quantize. Ordered so part 11 can offer "the best that fits" by walking it.
+# quantize. f32, full precision, only the distil-whisper team publishes.
+QUANT_F32 = "f32"
 QUANT_F16 = "f16"
 QUANT_Q8_0 = "q8_0"
 QUANT_Q5_1 = "q5_1"
 QUANT_Q5_0 = "q5_0"
 
-QUANTIZATIONS = (QUANT_F16, QUANT_Q8_0, QUANT_Q5_1, QUANT_Q5_0)
+QUANTIZATIONS = (QUANT_F32, QUANT_F16, QUANT_Q8_0, QUANT_Q5_1, QUANT_Q5_0)
 
 # Bits per weight, which is what the picker names a quantization by.
-QUANTIZATION_BITS = {QUANT_F16: 16, QUANT_Q8_0: 8, QUANT_Q5_1: 5, QUANT_Q5_0: 5}
+QUANTIZATION_BITS = {QUANT_F32: 32, QUANT_F16: 16, QUANT_Q8_0: 8, QUANT_Q5_1: 5,
+                     QUANT_Q5_0: 5}
 
 # The Whisper models in the order the picker presents them, each with the
 # size class model_catalog gives the same model — the shared ids are the same
@@ -104,11 +115,16 @@ _BASE_MODELS = (
     ("large-v2", SIZE_LARGE),
     ("large-v3", SIZE_LARGE),
     # After every multilingual model, so that within a size class they are
-    # listed after them, as in model_catalog.list_models().
+    # listed after them, and among themselves in the order of
+    # model_catalog.list_models().
     ("tiny.en", SIZE_SMALL),
     ("base.en", SIZE_SMALL),
+    ("distil-small.en", SIZE_SMALL),
     ("small.en", SIZE_MEDIUM),
+    ("distil-medium.en", SIZE_MEDIUM),
     ("medium.en", SIZE_MEDIUM),
+    ("distil-large-v2", SIZE_LARGE),
+    ("distil-large-v3", SIZE_LARGE),
     ("distil-large-v3.5", SIZE_LARGE),
     # The third-party ones, with the size class of the official model each
     # was trained from.
@@ -172,6 +188,11 @@ class GgmlFile:
         return self.origin == ORIGIN_THIRD_PARTY
 
     @property
+    def full_precision(self) -> bool:
+        """Whether this is a 32-bit file, which only a user's choice runs."""
+        return self.quantization == QUANT_F32
+
+    @property
     def bits(self) -> int | None:
         """How many bits each weight takes in this file, or None for the VAD.
 
@@ -185,12 +206,12 @@ class GgmlFile:
     @property
     def min_ram_mb(self) -> int:
         """Memory to plan for on the processor — see `_memory_twin()`."""
-        return _memory_twin(self).min_ram_mb
+        return _memory_twin(self).min_ram_mb + _full_precision_extra_mb(self)
 
     @property
     def min_vram_mb(self) -> int:
         """Memory to plan for on the graphics card — see `_memory_twin()`."""
-        return _memory_twin(self).min_vram_mb
+        return _memory_twin(self).min_vram_mb + _full_precision_extra_mb(self)
 
     @property
     def files(self) -> tuple[tuple[str, int], ...]:
@@ -334,13 +355,53 @@ MODELS = (
           "76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0"),
     _ggml("ggml-medium.en-q8_0.bin", 823_382_461,
           "43fa2cd084de5a04399a896a9a7a786064e221365c01700cea4666005218f11c"),
-    # distil-large-v3.5, official (Hugging Face's distil-whisper team) and
+    # The distilled models, official (Hugging Face's distil-whisper team) and
     # English-only, and then the third-party fine-tunes: see the docstring.
     _published("ggml-distil-large-v3.5", "distil-whisper/distil-large-v3.5-ggml",
                "960ecb5c2ecfba3ebb9ebe485c1032ec266cf436",
                "ggml-model.bin", 1_519_521_155,
                "ec2498919b498c5f6b00041adb45650124b3cd9f26f545fffa8f5d11c28dcf26",
                "distil-large-v3.5", QUANT_F16, ENGLISH),
+    _published("ggml-distil-large-v3", "distil-whisper/distil-large-v3-ggml",
+               "0d78dd96ed9fc152325f63b53788fec3b43de031",
+               "ggml-distil-large-v3.bin", 1_519_521_155,
+               "2883a11b90fb10ed592d826edeaee7d2929bf1ab985109fe9e1e7b4d2b69a298",
+               "distil-large-v3", QUANT_F16, ENGLISH),
+    _published("ggml-distil-large-v3-f32", "distil-whisper/distil-large-v3-ggml",
+               "0d78dd96ed9fc152325f63b53788fec3b43de031",
+               "ggml-distil-large-v3.fp32.bin", 3_026_260_355,
+               "1a3d507e5e2d82ce0add00cb4e4df4fe3defb82c525c836e5a706188a1a798e0",
+               "distil-large-v3", QUANT_F32, ENGLISH),
+    _published("ggml-distil-large-v2", "distil-whisper/distil-large-v2",
+               "97d2c8f9cae1b0f6c8fc2e173495ee4cedc05843",
+               "ggml-large-32-2.en.bin", 1_519_111_363,
+               "2ed2bbe6c4138b3757f292b0622981bdb3d02bcac57f77095670dac85fab3cd6",
+               "distil-large-v2", QUANT_F16, ENGLISH),
+    _published("ggml-distil-large-v2-f32", "distil-whisper/distil-large-v2",
+               "97d2c8f9cae1b0f6c8fc2e173495ee4cedc05843",
+               "ggml-large-32-2.fp32.en.bin", 3_025_479_363,
+               "05f8644ed040e75575ec58a18c7a692e4763f5e677a164865268f9a8e40172c2",
+               "distil-large-v2", QUANT_F32, ENGLISH),
+    _published("ggml-distil-medium.en", "distil-whisper/distil-medium.en",
+               "6e61418885eaf4d5cc9f64e508e80ac5b4c052b7",
+               "ggml-medium-32-2.en.bin", 794_018_180,
+               "ad53ccb618188b210550e98cc32bf5a13188d86635e395bb11115ed275d6e7aa",
+               "distil-medium.en", QUANT_F16, ENGLISH),
+    _published("ggml-distil-medium.en-f32", "distil-whisper/distil-medium.en",
+               "6e61418885eaf4d5cc9f64e508e80ac5b4c052b7",
+               "ggml-medium-32-2.en.fp32.bin", 1_578_107_268,
+               "598761592c57db1f8ad90a38b59a2e20d067fb8225bb605299e1bc68250bff21",
+               "distil-medium.en", QUANT_F32, ENGLISH),
+    _published("ggml-distil-small.en", "distil-whisper/distil-small.en",
+               "9e4a67ca4569c30be43a3fe7fba1621e504f0093",
+               "ggml-distil-small.en.bin", 336_191_657,
+               "7691eb11167ab7aaf6b3e05d8266f2fd9ad89c550e433f86ac266ebdee6c970a",
+               "distil-small.en", QUANT_F16, ENGLISH),
+    _published("ggml-distil-small.en-f32", "distil-whisper/distil-small.en",
+               "9e4a67ca4569c30be43a3fe7fba1621e504f0093",
+               "ggml-distil-small.en.fp32.bin", 665_129_129,
+               "5fe36f7a61b2d350672401b178a56d47f5c4983968d3926ddca059dfc8dc9e67",
+               "distil-small.en", QUANT_F32, ENGLISH),
     _published("ggml-kb-whisper-tiny", "KBLab/kb-whisper-tiny",
                "76d796af43a50fa34321efa562c9b9887a187463",
                "ggml-model.bin", 77_691_730,
@@ -457,8 +518,9 @@ def _memory_twin(model):
     model here has one. Not a measurement of whisper.cpp — none was made — but
     an upper bound in the safe direction: those minimums cover the model at
     the precision it is loaded in plus its working memory, and every GGML file
-    of a model is at most as large as its f16 one, so a quantized file is
-    planned with room to spare, never too little. large-v3's figures stand in
+    of a model but an f32 one is at most as large as its f16 one, so a
+    quantized file is planned with room to spare, never too little (an f32
+    file adds `_full_precision_extra_mb()`). large-v3's figures stand in
     should a base model ever lack its twin.
     """
     return (model_catalog.get_model(model.base_model)
@@ -469,6 +531,25 @@ def _memory_twin(model):
 #: Base models with no faster-whisper twin, and the one whose memory they
 #: share: kotoba-whisper-v1.0 is v2.0's architecture (distil-large-v3's).
 _MEMORY_STAND_INS = {"kotoba-whisper-v1.0": "kotoba-whisper-v2.0"}
+
+_MIB = 1024 * 1024
+
+
+def _full_precision_extra_mb(model) -> int:
+    """What an f32 file needs beyond its twin's figures, in MB; 0 otherwise.
+
+    The twin's figures cover the f16 file (`_memory_twin()`), and every byte
+    the f32 file adds over that f16 sibling is weight held twice as wide, in
+    memory as on disk; read off the two files' own sizes and rounded up. On
+    the graphics card that is device._requirement_mb()'s own rescale from
+    float16 to float32. On the processor, where the twin's figure is for int8,
+    it is an approximation in the same spirit as `_memory_twin()`'s, not a
+    measurement. Every f32 file here has its f16 sibling.
+    """
+    if not model.full_precision:
+        return 0
+    extra_bytes = model.size_bytes - variant(model.base_model, QUANT_F16).size_bytes
+    return -(-extra_bytes // _MIB)
 
 
 def _order(model: GgmlFile) -> tuple[int, int, int, int]:
