@@ -1870,11 +1870,16 @@ class TestTranslations:
 
 
 def test_the_backend_is_never_imported_at_module_level():
-    """The app has to start on a machine with no faster-whisper installed.
+    """The app has to start on a copy whose faster-whisper is missing or broken.
 
-    The menu item that offers to install it lives in the same process, so a
-    top-level import would make the feature unreachable exactly where it is
-    needed — and would take the conversation window down with it. Checked
+    The backend ships in requirements.txt, but a copy where it will not import
+    must still open. If it is missing, the run falls back to whisper.cpp when
+    its program is installed, or answers BACKEND_MISSING
+    (backend.available_backend_ids(), which is_available()'s find_spec()
+    feeds). If it is present but its DLLs will not load, is_available() cannot
+    tell, and the first load answers BACKEND_MISSING
+    (faster_whisper_backend._whisper_model_class()). Either way, a top-level
+    import would take the conversation window down with it instead. Checked
     against the source rather than sys.modules, because probe_hardware() legally
     imports ctranslate2 inside a function and would mask the difference.
     """

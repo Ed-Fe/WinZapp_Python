@@ -308,9 +308,10 @@ def resolve_device(preference, probe) -> tuple[str, str]:
         # card that is present but unreachable is worth distinguishing from "no
         # GPU here": the first is usually a driver the user can reinstall.
         # Keyed on cuda_probe_error, never on the driver_error aggregate — that
-        # one carries "ctranslate2 is not installed", i.e. every user's state
-        # until the backend ships, and sending those people to reinstall a
-        # graphics driver they may not even have is worse than saying nothing.
+        # one carries "ctranslate2 is not installed", i.e. the state of a copy
+        # whose backend is missing or will not load, and sending those people
+        # to reinstall a graphics driver they may not even have is worse than
+        # saying nothing.
         if probe.cuda_probe_error:
             return DEVICE_CPU, REASON_CUDA_DRIVER_ERROR
         return DEVICE_CPU, REASON_CUDA_UNAVAILABLE
@@ -589,8 +590,9 @@ def probe_hardware() -> HardwareProbe:
 
     Three independent questions, each allowed to fail on its own:
 
-    * how many CUDA devices CTranslate2 can drive — ctranslate2 is an optional
-      dependency, so the import lives here rather than at module level;
+    * how many CUDA devices CTranslate2 can drive — ctranslate2 may be missing
+      or fail to load in a broken copy, so the import lives here rather than
+      at module level;
     * VRAM and compute capability, read from the driver's own ``nvml.dll``
       through ctypes. nvidia-ml-py is deliberately not a dependency: it would
       ship to every user for one call that only matters on the machines that
@@ -614,9 +616,9 @@ def probe_hardware() -> HardwareProbe:
 
     ctranslate2 = None
     try:
-        # Imported here, never at module level: ctranslate2 may not be
-        # installed at all, and the menu that offers to install it has to work
-        # on exactly those machines.
+        # Imported here, never at module level: a copy whose ctranslate2 is
+        # missing or will not load must still open, and this probe still has
+        # to answer on it rather than raise.
         import ctranslate2
 
         cuda_count = int(ctranslate2.get_cuda_device_count())

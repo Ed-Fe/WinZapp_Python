@@ -44,6 +44,8 @@ _DOWNLOADERS = (
     os.path.join("client", "updater.py"),
     os.path.join("client", "ui", "dialogs", "node_download.py"),
     os.path.join("client", "core", "transcription", "model_store.py"),
+    os.path.join("client", "core", "transcription", "cuda_runtime.py"),
+    os.path.join("client", "core", "transcription", "whisper_cpp_runtime.py"),
     # Not a download, but the same certificate: the reachability probe's HEAD
     # at web.whatsapp.com. On the bundled CA list an intercepted machine read
     # as offline (tests/test_offline_session_start_deferral.py::

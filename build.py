@@ -816,12 +816,13 @@ def pyinstaller_compile():
     # drags in onnxruntime.transformers and .quantization, whose imports of
     # torch/transformers/psutil are absent here and fill the build log with
     # warnings. It stays --collect-all anyway, and the asymmetry is the point:
-    # if onnxruntime fails to import in a frozen build ONLY, the filter silently
-    # falls back (faster_whisper_backend._run) and Whisper starts inventing
-    # sentences in the silence at the end of a voice note — which a blind user
-    # cannot detect. Noise in a build log costs a developer a squint; the other
-    # way costs a user a fabricated message. Revisit once a frozen build has
-    # actually been exercised with a voice note and part 6 surfaces vad_used.
+    # if onnxruntime fails to import in a frozen build ONLY, the filter falls
+    # back (faster_whisper_backend._run) and every transcription comes with a
+    # spoken warning that Whisper may have invented sentences in the silence at
+    # the end of the note (TranscriptionResult.vad_used) — the text stays usable
+    # but untrustworthy on every install. Noise in a build log costs a developer
+    # a squint; the other way costs every user that warning. Revisit once a
+    # frozen build has actually been exercised with a voice note.
     cmd += ["--collect-all", "onnxruntime"]
 
     cmd += ["--paths", CLIENT_DIR]
