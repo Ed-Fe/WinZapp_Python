@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Podmenu kontekstowe „Pisownia” w polu wiadomości oferuje sugestie ze słownika Windows. Edytor zachowuje standardową nawigację czytnika ekranu i dźwięk błędu pisowni WinZapp.
+
 - Opcja "Zachowuj kolejność przypiętych czatów" na karcie Interfejs użytkownika w Ustawieniach. Po jej włączeniu nowe wiadomości nie zmieniają pozycji przypiętych czatów, a kolejność jest zachowywana po ponownym uruchomieniu. Domyślnie jest wyłączona; nieprzypięte czaty nadal przesuwają się w górę po otrzymaniu nowych wiadomości.
 
 - Transkrybuj i opisuj pliki za pomocą AI. Nowa karta „AI online: transkrypcje i opisy” w Ustawieniach włącza funkcje AI (domyślnie są wyłączone) i przyjmuje klucz API jednego lub kilku dostawców — Gemini, OpenAI, Claude, Groq i OpenRouter — którzy są wypróbowywani w ustawionej przez Ciebie kolejności; gdy jeden zawiedzie lub wyczerpie limit, odpowiada następny. W menu kontekstowym wiadomości lub skrótem Ctrl+Shift+I „Transkrybuj za pomocą AI online” zamienia wiadomość głosową na tekst, „Opisz” opisuje zdjęcie lub film, „Opisz naklejkę” opisuje naklejkę, a „Konwertuj na dostępny tekst” zamienia plik PDF w zwykły, czytelny tekst. Wynik otwiera się w oknie z tekstem, a dla zdjęć i filmów możesz w nim zadawać dodatkowe pytania. WinZapp pyta przed wysłaniem pliku do dostawcy, a w zablokowanych czatach pyta za każdym razem; klucze są szyfrowane na Twoim komputerze i wysyłane tylko do dostawcy, do którego należą. Podczas pracy dostawcy odtwarzany jest dźwięk oczekiwania, a odpowiedzi mogą być czytane na głos automatycznie. Tekst jest w języku aplikacji.
@@ -12,11 +14,15 @@ NOWOŚCI
 
 - Gdy ktoś zareaguje na Twoją wiadomość, odtwarzany jest osobny dźwięk. Zmień plik lub wyłącz dźwięk w Ustawieniach > Zdarzenia dźwiękowe.
 
-- Własne listy WhatsApp: odświeżanie i filtrowanie według list, tworzenie lub zmiana nazwy listy oraz dodawanie i usuwanie wybranych czatów. Edycja zależy od obsługi konta WhatsApp. Czaty zamknięte w sejfie lub niedostępne lokalnie nie pojawiają się w wyborze; pozostali członkowie są zachowywani. Niepotwierdzone zmiany są zgłaszane bez automatycznego ponawiania.
+- Własne listy WhatsApp: odświeżanie i filtrowanie według list, tworzenie lub zmiana nazwy listy oraz dodawanie i usuwanie wybranych czatów. Edycja zależy od obsługi konta WhatsApp. Czaty zamknięte w sejfie lub niedostępne lokalnie nie pojawiają się w wyborze; pozostali członkowie są zachowywani. Niepotwierdzone zmiany są zgłaszane bez automatycznego ponawiania. Gdy edycja jest niedostępna, menedżer informuje, czy WhatsApp ją wyłączył, czy w tej wersji brakuje potrzebnych funkcji, czy też sprawdzenie obsługi się nie powiodło.
 
 - Kontakty synchronizowane z telefonem: przy dodawaniu kontaktu (w "Informacje o czacie", w "Nowy czat" lub z wiadomości z kontaktem) są teraz dwie karty, "Kontakt lokalny WinZappa" (tylko w WinZappie) i "Kontakt zsynchronizowany z telefonem", która zapisuje nazwę w WhatsAppie i w książce adresowej telefonu. Karta synchronizowana otwiera się domyślnie, numer, który już jest w książce adresowej telefonu, pokazuje tylko tę kartę, a usunięcie kontaktu zsynchronizowanego usuwa go też z WhatsAppa i z telefonu
 
 - Nowy skrót Alt+Shift+P na liście wiadomości: przejście do poprzedniej wiadomości z odpowiedzią do Ciebie, tak jak Alt+Shift+M robi to dla wzmianek. Kolejne naciśnięcia cofają się po nich i wracają do najnowszej. Skrót jest też w "Skróty klawiszowe" (F1)
+
+- "Pisze" na liście wiadomości: gdy osoba w otwartym czacie (lub, w grupie, uczestnik) pisze albo nagrywa wiadomość głosową, na końcu listy wiadomości pojawia się tymczasowy ostatni wiersz, np. "Ana pisze...". Znika, gdy ta osoba przestanie albo gdy przyjdzie jej wiadomość. Nigdy sam nie przenosi fokusu (tylko jeśli jesteś na tym wierszu, gdy znika, fokus przechodzi na ostatnią wiadomość) i nie jest odczytywany sam z siebie, więc dotychczasowy komunikat o pisaniu pozostaje dokładnie taki jak był. To nie jest wiadomość: nie ma menu kontekstowego ani akcji. Domyślnie jest wyłączony; aby go włączyć, zaznacz opcję "Pokazuj, kto pisze lub nagrywa wiadomość głosową, jako ostatni wiersz listy wiadomości" na karcie Interfejs użytkownika w Ustawieniach
+
+- Emotikony zamieniają się w emoji podczas pisania, jak w WhatsApp Web: ":)" w 🙂, ":D" w 😃, "<3" w ❤️ itd., gdy po nich wpiszesz spację lub znak interpunkcyjny albo wyślesz wiadomość zaraz po jednym z nich. Zamieniany jest tylko emotikon stojący osobno, nigdy w linku, w słowie ani w `kodzie`. Naciśnięcie Backspace zaraz po zamianie przywraca to, co wpisano. Można to wyłączyć w Ustawieniach, karta "Ogólne", "Zamieniaj emotikony, takie jak :D, na emoji podczas pisania"
 
 POPRAWKI
 
@@ -29,6 +35,10 @@ POPRAWKI
 - Przycisk „Opisz” przy wiadomościach z multimediami. Przy zdjęciu, naklejce lub wideo (a także przy nagraniach audio i plikach PDF, gdy funkcje AI są włączone) zaraz po „Zapisz jako” pojawia się przycisk dostępny klawiszem Tab, który robi to samo co skrót Ctrl+Shift+I; w menu kontekstowym pozycja znajduje się teraz wśród pozostałych akcji multimediów i także pokazuje Ctrl+Shift+I. Przycisk i pozycja pojawiają się tylko przy wiadomościach, które można opisać.
 
 - Model „Automatycznie (zalecane)” w oknie każdego dostawcy AI (AI online: transkrypcje i opisy). Domyślnie zaznaczone u dostawców, u których nie wybrano jeszcze modelu, pole sprawia, że WinZapp zawsze używa zalecanego modelu, który podąża za aktualizacjami; odznacz je, aby wybrać lub wpisać stały model.
+
+- Pliki audio wysyłane jako załącznik: plik WAV lub OGG Vorbis w stereo lub dźwięku przestrzennym (5.1, 7.1) dociera teraz ze wszystkimi kanałami, jako zwykłe audio, i zachowuje częstotliwość próbkowania do 48 kHz (wyższa jest obniżana do 48 kHz). Wcześniej docierał w mono i wyglądał jak wiadomość głosowa. Plik mający ponad 8 kanałów, czyli więcej, niż obsługuje AAC, jest wysyłany bez zmian jako dokument.
+
+- Aktualizacja WinZappa nie cofa już aktualizacji WPPConnect. Po zaktualizowaniu WPPConnect do wersji nowszej niż ta dołączona do WinZappa (z powiadomienia o aktualizacji albo przez "Wymuś ponowną instalację WPPConnect" w menu Pomoc) następna aktualizacja WinZappa przywracała starą wersję, a ta sama aktualizacja WPPConnect była proponowana ponownie
 
 V2.0.0.0
 
@@ -121,6 +131,8 @@ ULEPSZENIA
 - Wyszukiwanie w czacie za pomocą F3 i Shift+F3. Do następnego wyniku można teraz przejść klawiszem F3, a do poprzedniego klawiszami Shift+F3, z dowolnego miejsca otwartego czatu, także z listy wiadomości, bez wracania do pola wyszukiwania; fokus podąża za wynikiem, a czytnik ekranu ogłasza jego pozycję. Enter i Shift+Enter nadal działają jako alternatywa, ale tylko w polu wyszukiwania, ponieważ na liście wiadomości mają już inne funkcje. Przyciski „Poprzedni wynik” i „Następny wynik” ogłaszają teraz Shift+F3 i F3, a pomoc skrótów została zaktualizowana.
 
 - Przekazywanie dalej potwierdza teraz, że się udało. Wcześniej ogłaszany był tylko błąd; teraz na koniec pojawia się okno z komunikatem „Wiadomość przekazana dalej.” albo z liczbą przekazanych wiadomości.
+
+- Czaty zablokowane na telefonie funkcją Chat Lock WhatsApp są teraz ukryte także w WinZapp. Znikają z listy czatów i pojawiają się tylko w „Zablokowane czaty” (Alt+7), po podaniu kodu PIN WinZapp; jeśli nigdy go nie utworzono, WinZapp zaproponuje to za pierwszym razem. Odblokować je może tylko telefon, więc WinZapp nie oferuje „Odblokuj czat” dla tych czatów, a czat odblokowany na telefonie sam wraca na listę.
 
 POPRAWKI
 

@@ -117,3 +117,18 @@ def test_a_rejected_app_prints_apples_log_and_stops(monkeypatch, notary_env, cap
     assert fake.calls[1][:4] == ["xcrun", "notarytool", "log", "84a9b45d-6600-4fb8-85bb-ccb44d5f1226"]
     assert "hardened runtime" in capsys.readouterr().out
     assert not any("stapler" in c for c in notary_env)
+
+
+def test_a_release_bundle_is_versioned_by_its_tag():
+    """A release is built from the tag's clean checkout, whose version.py is
+    the unstamped placeholder: the tag is the version, numbers only (Apple
+    specifies integers in CFBundleShortVersionString)."""
+    assert build_app.bundle_version(("v2.1.0.4050alpha", "a" * 40)) == "2.1.0.4050"
+    assert build_app.bundle_version(("v2.1.0.4055beta", "a" * 40)) == "2.1.0.4055"
+    assert build_app.bundle_version(("v2.1.0.4060", "a" * 40)) == "2.1.0.4060"
+
+
+def test_a_development_bundle_keeps_version_py(monkeypatch):
+    monkeypatch.syspath_prepend(build_app.CLIENT)   # restores sys.path, bundle_version's insert included
+    from version import __version__
+    assert build_app.bundle_version(None) == __version__

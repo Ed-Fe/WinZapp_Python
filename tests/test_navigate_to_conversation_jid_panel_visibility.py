@@ -263,8 +263,14 @@ def test_the_participant_dialog_passes_the_participants_name(monkeypatch):
 
 class _LockedStub(_Stub):
     _chat_lock_candidates = MainWindow._chat_lock_candidates
+    _chat_lock_vault_holds = MainWindow._chat_lock_vault_holds
     is_chat_locked = MainWindow.is_chat_locked
     is_chat_hidden_by_vault = MainWindow.is_chat_hidden_by_vault
+
+    def is_chat_phone_locked(self, jid):
+        # No chat under WhatsApp's own Chat Lock here; tests/test_phone_chat_lock.py
+        # covers that one.
+        return False
 
     def __init__(self, jid, *, unlocked, pin_given=False):
         super().__init__()

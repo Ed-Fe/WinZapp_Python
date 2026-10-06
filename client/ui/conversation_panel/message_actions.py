@@ -16,6 +16,7 @@ from core.message_edit import (
     edit_window_open,
 )
 from core.message_queue import PendingMessage
+from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
 from ui.conversation_panel.media_paths import discard_local_media_cache
 from core.utils import to_editor_line_endings
@@ -795,8 +796,8 @@ class MessageActionsMixin:
         }
         self._clear_empty_placeholder()
         self._sorted_messages.append(virtual_msg)
-        self.messages_list.Append((self._render_message_line(virtual_msg),))
-        last = self.messages_list.GetItemCount() - 1
+        append_message_row(self, self._render_message_line(virtual_msg))
+        last = message_row_count(self) - 1   # the row just sent, not the typing row
         if last >= 0:
             self.messages_list.EnsureVisible(last)
 
@@ -820,6 +821,9 @@ class MessageActionsMixin:
         self._hide_mention_suggestions()
         self._rebuild_mention_pills()
         self.message_field.SetValue("")
+        # The emoticon undo belonged to the text just discarded.
+        self._emoticon_undo = None
+        self._emoticon_undone = None
         self._cancel_edit_btn.Hide()
         self.conversation_panel.Layout()
         self.message_field.SetFocus()

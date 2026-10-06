@@ -424,20 +424,34 @@ def bundle_runtime(node_dir):
 
 
 # 6 ------------------------------------------------------------------------
-def finish_bundle(source=None):
-    step("Info.plist + signature")
-    plist_path = os.path.join(APP, "Contents", "Info.plist")
-    with open(plist_path, "rb") as fh:
-        plist = plistlib.load(fh)
+def bundle_version(source):
+    """CFBundleShortVersionString: the release tag's version for a release
+    build, which is checked out clean from the tag, so client/version.py there
+    is the unstamped placeholder (CI stamps it only at build); version.py for
+    a development build. The "alpha"/"beta" suffix is dropped so the value
+    stays numeric (Apple expects period-separated integers there; the four
+    parts already shipped notarized), rather than risk notarization or
+    Gatekeeper on a letter; the app itself still runs as the full tag
+    (winzapp_mac/version_mac.py)."""
+    if source:
+        return re.sub(r"(alpha|beta)$", "", load_provenance().tag_version(source[0]))
     sys.path.insert(0, CLIENT)
     try:
         from version import __version__ as ver  # noqa
     except Exception:
         ver = "0"
+    return str(ver)
+
+
+def finish_bundle(source=None):
+    step("Info.plist + signature")
+    plist_path = os.path.join(APP, "Contents", "Info.plist")
+    with open(plist_path, "rb") as fh:
+        plist = plistlib.load(fh)
     plist.update({
         "CFBundleName": "WinZapp",
         "CFBundleDisplayName": "WinZapp",
-        "CFBundleShortVersionString": str(ver),
+        "CFBundleShortVersionString": bundle_version(source),
         "NSMicrophoneUsageDescription": "WinZapp records voice messages and voice calls.",
         "NSCameraUsageDescription": "WinZapp uses the camera for video calls.",
         "NSFocusStatusUsageDescription": "WinZapp stays quiet while a Focus is on.",
@@ -450,7 +464,8 @@ def finish_bundle(source=None):
         plist["WinZappMacReleasesRepo"] = os.environ["WINZAPP_MAC_RELEASES_REPO"]
     # The official tag and commit this app is built from: the tag is the
     # running version for the updater's downgrade check (client/version.py
-    # says 2.0.0.0 in every tagged commit), the commit is refused as an update.
+    # is the unstamped placeholder in every tagged commit), the commit is
+    # refused as an update.
     plist.pop("WinZappSourceCommit", None)
     plist.pop("WinZappReleaseTag", None)
     if source:

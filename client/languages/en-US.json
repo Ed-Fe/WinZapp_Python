@@ -1850,5 +1850,20 @@
     "wa_lists_no_chats": "There are no chats to select.",
     "wa_lists_pick_remove": "Choose chats to remove from '{name}'. Other members will remain.",
     "wa_lists_pick_add": "Choose chats to add to '{name}'.",
-    "wa_lists_selection_changed": "This selection could not be applied. Refresh the lists and select again; choose fewer chats if needed."
+    "wa_lists_selection_changed": "This selection could not be applied. Refresh the lists and select again; choose fewer chats if needed.",
+    "chat_lock_phone_needs_pin": "Some chats are locked on your phone with WhatsApp Chat Lock. They stay hidden here and only appear under Locked chats, protected by a WinZapp PIN. Create the PIN now?",
+    "chat_lock_phone_only": "This chat is locked on your phone with WhatsApp Chat Lock. Only your phone can unlock it.",
+    "spell_orthography": "Spelling",
+    "spell_menu_undo": "Undo",
+    "spell_menu_cut": "Cut",
+    "spell_menu_copy": "Copy",
+    "spell_menu_paste": "Paste",
+    "spell_menu_delete": "Delete",
+    "spell_menu_select_all": "Select all",
+    "convert_emoticons_label": "Convert &emoticons like :D to emoji while typing",
+    "ui_show_typing_row": "Show who is typing or recording audio as the last row of the messages list",
+    "wa_lists_close": "&Close",
+    "wa_lists_account_disabled": "WhatsApp has not enabled list editing for this account on linked devices. You can still view lists.",
+    "wa_lists_runtime_incomplete": "This version lacks the functions needed to edit lists. You can still view lists.",
+    "wa_lists_capability_check_failed": "List editing support could not be checked. Refresh the lists and try again."
 }

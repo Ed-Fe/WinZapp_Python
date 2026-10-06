@@ -282,6 +282,7 @@ from main_window.shortcuts import ShortcutsMixin
 from main_window.settings import SettingsMixin
 from main_window.session_tokens import SessionTokensMixin
 from main_window.chat_lock import ChatLockMixin
+from main_window.phone_chat_lock import PhoneChatLockMixin
 from main_window.account_link import AccountLinkMixin
 from main_window.chats_store import ChatsStoreMixin
 from main_window.groups import GroupsMixin
@@ -329,6 +330,7 @@ class MainWindow(
     SettingsMixin,
     SessionTokensMixin,
     ChatLockMixin,
+    PhoneChatLockMixin,
     AccountLinkMixin,
     ChatsStoreMixin,
     GroupsMixin,
@@ -714,6 +716,8 @@ class MainWindow(
         # List of deleted, archived, pinned, and muted chats, loaded from DB on prepare_sync()
         self._deleted_chats = set()
         self._archived_chats = set()
+        # Chats the PHONE has WhatsApp Chat Lock on (main_window/phone_chat_lock.py)
+        self._phone_locked_chats = set()
         self._pinned_chats = set()
         self._muted_chats = {}
         # Set by init_UI() when all wx widgets are ready.  start_sync() waits

@@ -1850,5 +1850,20 @@
     "wa_lists_no_chats": "Nu există conversații de selectat.",
     "wa_lists_pick_remove": "Alege conversațiile de eliminat din '{name}'. Ceilalți membri vor fi păstrați.",
     "wa_lists_pick_add": "Alege conversațiile de adăugat în '{name}'.",
-    "wa_lists_selection_changed": "Această selecție nu a putut fi aplicată. Reîmprospătează listele și selectează din nou; alege mai puține conversații dacă este necesar."
+    "wa_lists_selection_changed": "Această selecție nu a putut fi aplicată. Reîmprospătează listele și selectează din nou; alege mai puține conversații dacă este necesar.",
+    "spell_orthography": "Ortografie",
+    "spell_menu_undo": "Anulați",
+    "spell_menu_cut": "Decupați",
+    "spell_menu_copy": "Copiați",
+    "spell_menu_paste": "Lipiți",
+    "spell_menu_delete": "Ștergeți",
+    "spell_menu_select_all": "Selectați tot",
+    "convert_emoticons_label": "Convertiți &emoticoanele precum :D în emoji în timpul tastării",
+    "ui_show_typing_row": "Afișează cine tastează sau înregistrează un mesaj vocal ca ultim rând al listei de mesaje",
+    "chat_lock_phone_needs_pin": "Unele conversații sunt blocate pe telefon cu Chat Lock din WhatsApp. Rămân ascunse aici și apar doar în Conversații blocate, protejate de un PIN WinZapp. Creați PIN-ul acum?",
+    "chat_lock_phone_only": "Această conversație este blocată pe telefon cu Chat Lock din WhatsApp. Doar telefonul o poate debloca.",
+    "wa_lists_close": "&Închide",
+    "wa_lists_account_disabled": "WhatsApp nu a activat editarea listelor pentru acest cont pe dispozitivele asociate. Poți vedea în continuare listele.",
+    "wa_lists_runtime_incomplete": "Această versiune nu are funcțiile necesare pentru editarea listelor. Poți vedea în continuare listele.",
+    "wa_lists_capability_check_failed": "Nu s-a putut verifica dacă editarea listelor este disponibilă. Reîmprospătează listele și încearcă din nou."
 }

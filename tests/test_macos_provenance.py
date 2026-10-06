@@ -194,6 +194,13 @@ def test_the_running_version_is_the_plist_release_tag():
         assert P.running_release_tag(info) == ""
 
 
+def test_the_version_of_a_release_tag_drops_only_the_v():
+    assert P.tag_version("v2.1.0.4050alpha") == "2.1.0.4050alpha"
+    assert P.tag_version("v2.1.0.5") == "2.1.0.5"
+    for tag in ("", "2.1.0.5", "v2.1.0.5\n", "v2.1.0", None):
+        assert P.tag_version(tag) == ""
+
+
 def test_the_commit_that_is_already_running_is_not_an_update():
     assert not _verify(running_commit=COMMIT)[0]
     assert _verify(running_commit=OTHER)[0]

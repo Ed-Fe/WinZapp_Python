@@ -21,6 +21,11 @@ _OrigListCtrl = wx.ListCtrl
 CHECK_MARK = "✓ "
 
 
+def row_height(window):
+    """Height in px of one native table row: the text plus intercell spacing."""
+    return window.GetCharHeight() + 4
+
+
 class MacListCtrl(wx.ListBox):
     def __init__(self, parent, id=wx.ID_ANY, pos=wx.DefaultPosition,
                  size=wx.DefaultSize, style=wx.LC_ICON,
@@ -362,8 +367,7 @@ class MacListCtrl(wx.ListBox):
         return True
 
     def GetCountPerPage(self):
-        h = self.GetCharHeight() + 4
-        return max(1, self.GetClientSize().height // max(1, h))
+        return max(1, self.GetClientSize().height // max(1, row_height(self)))
 
     # ---- checkboxes (rendered as a leading check mark) -------------------
     def EnableCheckBoxes(self, enable=True):

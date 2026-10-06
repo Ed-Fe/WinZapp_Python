@@ -636,11 +636,13 @@ class WppServerMixin:
         Worth knowing what this can and cannot see: both numbers come out of
         the release ZIP — api/package.json's own "version" field and
         wpp_minimum_version.txt — so an update rewrites the two together and
-        they agree by construction afterwards. This catches an install that
-        has NOT been updated (a server left behind by an older WinZapp, a
-        hand-built api/), never a drift the update itself introduced. That
-        second case is _library_drifts()'s, and it is the one that
-        was going unnoticed.
+        they agree by construction afterwards, except that an installed server
+        newer than the bundled one keeps its package.json
+        (core/update_keeps_server.py), which is never below the minimum either.
+        This catches an install that has NOT been updated (a server left
+        behind by an older WinZapp, a hand-built api/), never a drift the
+        update itself introduced. That second case is _library_drifts()'s,
+        and it is the one that was going unnoticed.
         """
         minimum = self._read_wpp_minimum_version()
         installed = self._get_installed_wpp_version() if minimum else ""

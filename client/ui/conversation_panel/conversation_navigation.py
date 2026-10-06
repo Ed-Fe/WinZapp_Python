@@ -9,6 +9,7 @@ import logging
 import threading
 import wx
 from core.conversation_view import ARCHIVED, LOCKED
+from ui.conversation_panel.typing_row import message_row_count
 from core.utils import (
     db_fetch_limit,
     effective_unread_count,
@@ -232,7 +233,7 @@ class ConversationNavigationMixin:
         if self._open_focus_target() == "message_field":
             self.message_field.SetFocus()
             return
-        count = self.messages_list.GetItemCount()
+        count = message_row_count(self)
         if count > 0:
             sep = self._unread_sep_idx
             # A separator the user already moved past stays on screen but no

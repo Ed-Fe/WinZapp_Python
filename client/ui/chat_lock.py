@@ -437,9 +437,12 @@ class LockedConversationsPanel(ChatListSelectionMixin, wx.Panel):
                 ("mark_selected_unread", "Ctrl+Alt+Shift+U", self._on_mass_mark_unread_chats),
             ])
         open_item = menu.Append(wx.ID_ANY, self.main_window.i18n.t("chat_lock_open_chat"))
-        unlock_item = menu.Append(wx.ID_ANY, self.main_window.i18n.t("unlock_chat"))
         self.Bind(wx.EVT_MENU, lambda evt, c=chat: self.main_window.open_locked_conversation(c), open_item)
-        self.Bind(wx.EVT_MENU, lambda evt, j=jid: self.main_window.unlock_chat(j), unlock_item)
+        # A chat locked on the phone cannot be unlocked from here, so no item
+        # that would only announce that it cannot.
+        if self.main_window.can_unlock_chat_in_app(jid):
+            unlock_item = menu.Append(wx.ID_ANY, self.main_window.i18n.t("unlock_chat"))
+            self.Bind(wx.EVT_MENU, lambda evt, j=jid: self.main_window.unlock_chat(j), unlock_item)
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -471,12 +474,16 @@ class LockedConversationsPanel(ChatListSelectionMixin, wx.Panel):
     def _on_mass_unlock_chats(self, event):
         if not self.selected_chats:
             return
-        for jid in list(self.selected_chats):
+        jids = list(self.selected_chats)
+        for jid in jids:
             self.main_window.unlock_chat(jid)
         self.selected_chats.clear()
         self._repaint_chat_selection()
-        self.main_window.output(
-            self.main_window.i18n.t("chat_lock_chats_unlocked"), interrupt=True)
+        # Announce the removal only when nothing selected is still locked: a chat
+        # locked on the phone stays, and unlock_chat() already said why.
+        if not any(self.main_window.is_chat_locked(jid) for jid in jids):
+            self.main_window.output(
+                self.main_window.i18n.t("chat_lock_chats_unlocked"), interrupt=True)
 
     def _on_accel_bulk_unlock_chats(self, event):
         """Ctrl+Alt+Shift+T: unlock every selected conversation."""

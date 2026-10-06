@@ -356,9 +356,15 @@ export async function sendFile(req: Request, res: Response) {
     quotedMessageId,
     type,
     uploadId,
+    isPtt,
   } = req.body;
 
   const options = req.body.options || {};
+  // multipart/form-data carries every field as a string, so a plain
+  // truthiness test would read WinZapp's "false" as true. Only an audio send
+  // gets the flag: an attached audio file is ordinary audio, not a voice note.
+  const pttOption =
+    type === 'audio' ? { isPtt: isPtt === true || isPtt === 'true' } : {};
 
   if (!path && !req.file && !base64)
     res.status(401).send({
@@ -400,6 +406,7 @@ export async function sendFile(req: Request, res: Response) {
             // receiving end). multer already knows the real one from the
             // multipart upload's own Content-Type.
             mimetype: req.file?.mimetype,
+            ...pttOption,
             ...options,
           }),
           'send-file'

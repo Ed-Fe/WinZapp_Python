@@ -27,6 +27,13 @@ typing/recording presence. A structural test fails if a new
 `messages_list.DeleteAllItems` appears in the panel's modules. Focus is restored
 only when the control does not already hold it on the right row.
 
+The control may hold one row past `_sorted_messages`: the temporary
+"X is typing..." row (`ui/conversation_panel/typing_row.py`), always last and
+never a message. Count the control's message rows with `message_row_count()`
+and add a message row with `append_message_row()`, never
+`messages_list.Append()` (a structural test guards it), or a message row lands
+below the typing row and the row's removal deletes that message instead.
+
 ## Switching to a chat panel: hidden conversation, chat list focus, no work (2026-10-02)
 
 PR #339 made an open conversation visible only in the panel it was opened

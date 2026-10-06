@@ -432,6 +432,10 @@ class ChatEventsMixin:
             return False
 
         _ppm_updated = False
+        # Participants this event reports typing/recording — the open
+        # conversation's typing row shows them again even if their last
+        # message had taken them off it.
+        _fresh_typing = set()
         for participant_jid, data in presences.items():
             if not isinstance(data, dict):
                 continue
@@ -473,6 +477,7 @@ class ChatEventsMixin:
             timer_key = (chat_jid_norm, canonical)
             if new_lkp in ("composing", "recording"):
                 composing_chats[chat_jid_norm][canonical] = new_lkp
+                _fresh_typing.add(canonical)
                 # Reset the 10-second auto-clear timer on every new event
                 old_timer = self._presence_timers.pop(timer_key, None)
                 if old_timer is not None:
@@ -485,6 +490,10 @@ class ChatEventsMixin:
                         self._composing_chats.get(cjid, {}).pop(part, None)
                         self._presence_timers.pop((cjid, part), None)
                         self._refresh_chat_row_in_list(cjid)
+                        # Same expiry for the open conversation's typing row.
+                        cp = getattr(self, "conversations_panel", None)
+                        if cp is not None and hasattr(cp, "refresh_typing_row"):
+                            cp.refresh_typing_row()
                     return _clear
                 self._presence_timers[timer_key] = wx.CallLater(
                     10_000, _make_clear(chat_jid_norm, canonical)
@@ -549,6 +558,11 @@ class ChatEventsMixin:
         # that causes NVDA to re-read the full list and stutter during TTS echo.
         if presence_changed:
             self._refresh_chat_row_in_list(chat_jid_norm)
+
+        # The open conversation's "X is typing..." last row. Silent by design:
+        # the announcement above is the only speech for this event.
+        if panel is not None and hasattr(panel, "refresh_typing_row"):
+            panel.refresh_typing_row(chat_jid_norm, _fresh_typing)
 
         # Refresh the data-button note for the open conversation
         if panel is None or conv is None:

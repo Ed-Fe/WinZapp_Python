@@ -1850,5 +1850,20 @@
     "wa_lists_no_chats": "Não há conversas para selecionar.",
     "wa_lists_pick_remove": "Escolha as conversas a remover de '{name}'. Os restantes membros serão mantidos.",
     "wa_lists_pick_add": "Escolha as conversas a adicionar a '{name}'.",
-    "wa_lists_selection_changed": "Não foi possível aplicar esta seleção. Atualize as listas e selecione novamente; escolha menos conversas se necessário."
+    "wa_lists_selection_changed": "Não foi possível aplicar esta seleção. Atualize as listas e selecione novamente; escolha menos conversas se necessário.",
+    "chat_lock_phone_needs_pin": "Há conversas trancadas no seu telemóvel, com o Chat Lock do WhatsApp. Ficam escondidas aqui e só aparecem em Conversas trancadas, protegidas por um PIN do WinZapp. Criar o PIN agora?",
+    "chat_lock_phone_only": "Esta conversa está trancada no telemóvel, com o Chat Lock do WhatsApp. Só o telemóvel a pode destrancar.",
+    "spell_orthography": "Ortografia",
+    "spell_menu_undo": "Anular",
+    "spell_menu_cut": "Cortar",
+    "spell_menu_copy": "Copiar",
+    "spell_menu_paste": "Colar",
+    "spell_menu_delete": "Eliminar",
+    "spell_menu_select_all": "Selecionar tudo",
+    "convert_emoticons_label": "Converter &emoticons como :D em emojis ao escrever",
+    "ui_show_typing_row": "Mostrar quem está a escrever ou a gravar áudio como última linha da lista de mensagens",
+    "wa_lists_close": "&Fechar",
+    "wa_lists_account_disabled": "O WhatsApp não ativou a edição de listas para esta conta em dispositivos associados. Pode continuar a ver as listas.",
+    "wa_lists_runtime_incomplete": "Esta versão não tem as funções necessárias para editar listas. Pode continuar a ver as listas.",
+    "wa_lists_capability_check_failed": "Não foi possível verificar o suporte à edição de listas. Atualize as listas e tente novamente."
 }

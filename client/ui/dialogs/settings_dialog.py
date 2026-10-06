@@ -14,6 +14,7 @@ from core.audio_devices import (
     enumerate_output_devices, enumerate_input_devices, test_input_device,
 )
 from core.spell_checker import SPELL_CHECK_MODES, spell_check_mode
+from core.emoticons import emoticon_setting_enabled
 from core.notification_manager import NOTIFICATION_CONTENT_LEVELS
 from core.attachment_types import PASTED_AUDIO_MODES
 from core.reaction_shortcuts import (
@@ -346,6 +347,13 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         )
         gen_sizer.Add(self._spell_check_radio, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Next to spell checking: both act on what is typed in the message
+        # field. Read live by ConversationsPanel on every keystroke.
+        self._convert_emoticons_check = wx.CheckBox(
+            self._general_page, label=i18n.t("convert_emoticons_label")
+        )
+        gen_sizer.Add(self._convert_emoticons_check, 0, wx.ALL, 8)
+
         # Radio group, not a checkbox: the two folding levels are different
         # trades, not "more of the same", so the user picks one rather than
         # discovering NFKD's extra rewrites by surprise (see
@@ -531,6 +539,14 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         )
 
         ui_sizer.Add(msg_list_mode_sizer, 0, wx.EXPAND | wx.ALL, 8)
+
+        # The temporary "X is typing..." last row of the messages list
+        # (ui/conversation_panel/typing_row.py). Read on every presence
+        # update; Apply refreshes the open conversation at once.
+        self._show_typing_row_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_show_typing_row")
+        )
+        ui_sizer.Add(self._show_typing_row_cb, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
 
         self._self_ref_box = wx.StaticBox(
@@ -1874,6 +1890,9 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
 
         self._apply_spell_check_mode()
 
+        convert_emoticons = self.main_window.settings.get("general", {}).get("convert_emoticons", True)
+        self._convert_emoticons_check.SetValue(emoticon_setting_enabled(convert_emoticons))
+
         # "off" unless the user chose otherwise — including for installs
         # whose settings.json predates the option and has no key at all.
         _mode = search_normalization_mode(
@@ -1932,6 +1951,11 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         )
         self._show_listbox_count_cb.SetValue(bool(show_listbox_count))
         self._sync_listbox_count_visibility()
+
+        show_typing_row = self.main_window.settings.get("user_interface", {}).get(
+            "show_typing_row", False
+        )
+        self._show_typing_row_cb.SetValue(bool(show_typing_row))
 
         show_delivery_status = self.main_window.settings.get("user_interface", {}).get(
             "show_delivery_status_in_chat_list", True
@@ -3264,6 +3288,9 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         ui_settings["message_list_mode"] = new_message_list_mode
         ui_settings["show_listbox_item_count"] = new_show_listbox_count
         self.main_window.settings.setdefault("user_interface", {})[
+            "show_typing_row"
+        ] = self._show_typing_row_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
             "show_delivery_status_in_chat_list"
         ] = self._show_delivery_status_cb.GetValue()
         old_keep_pinned_order = ui_settings.get("keep_pinned_chat_order", False)
@@ -3475,6 +3502,11 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
             SPELL_CHECK_MODES[self._spell_check_radio.GetSelection()]
         )
 
+        # Emoticon -> emoji in the message field; read live, like the above.
+        self.main_window.settings.setdefault("general", {})["convert_emoticons"] = (
+            self._convert_emoticons_check.GetValue()
+        )
+
         # Unicode folding in searches
         _sel = self._search_norm_radio.GetSelection()
         self.main_window.settings.setdefault("general", {})["search_normalization"] = (
@@ -3586,6 +3618,10 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         listbox_count_changed = new_show_listbox_count != old_show_listbox_count
         if cp is not None and (message_list_mode_changed or listbox_count_changed):
             cp.apply_message_list_mode(new_message_list_mode)
+        # Show or remove the typing row at once if "show typing row" changed;
+        # a no-op otherwise (it only writes when the row's text changes).
+        if cp is not None and hasattr(cp, "refresh_typing_row"):
+            cp.refresh_typing_row()
 
         # Re-render the open conversation's message list, and the conversation
         # list's last-message previews (which also embed the self-reference
@@ -3717,6 +3753,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
             "spell_check_mode_off",
         )):
             self._spell_check_radio.SetItemLabel(_i, i18n.t(_key))
+        self._convert_emoticons_check.SetLabel(i18n.t("convert_emoticons_label"))
         self._search_norm_radio.SetLabel(i18n.t("search_normalization_label"))
         for _i, _key in enumerate((
             "search_normalization_off",
@@ -3761,6 +3798,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         self._msg_list_mode_classic_rb.SetLabel(i18n.t("ui_message_list_mode_classic"))
         self._msg_list_mode_listbox_rb.SetLabel(i18n.t("ui_message_list_mode_listbox"))
         self._show_listbox_count_cb.SetLabel(i18n.t("ui_show_listbox_item_count"))
+        self._show_typing_row_cb.SetLabel(i18n.t("ui_show_typing_row"))
         self._self_ref_box.SetLabel(i18n.t("ui_self_reference_label"))
         self._self_ref_eu_rb.SetLabel(i18n.t("ui_self_reference_eu"))
         self._self_ref_voce_rb.SetLabel(i18n.t("ui_self_reference_voce"))

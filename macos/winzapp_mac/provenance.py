@@ -138,11 +138,18 @@ def tag_is_newer(tag, running_tag):
 def running_release_tag(info):
     """The official tag this app was built from (Info.plist WinZappReleaseTag,
     written by build_app.py), or "" for a development build. The running
-    version is this and nothing else: client/version.py says 2.0.0.0 in
-    every tagged commit (CI stamps it only at build), so it cannot tell
-    an old release from a new one."""
+    version is this and nothing else: client/version.py is the unstamped
+    placeholder in every tagged commit (CI stamps it only at build), so it
+    cannot tell an old release from a new one."""
     tag = info.get(RELEASE_TAG_KEY)
     return tag if is_release_tag(tag) else ""
+
+
+def tag_version(tag):
+    """The version a release tag names, as client/version.py spells it
+    ("v2.1.0.4050alpha" -> "2.1.0.4050alpha"), or "" for anything that is
+    not a release tag."""
+    return tag[1:] if is_release_tag(tag) else ""
 
 
 # -- the file -------------------------------------------------------------------

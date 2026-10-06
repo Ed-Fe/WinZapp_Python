@@ -19,7 +19,9 @@ from core.utils import (
     normalize_line_separators,
 )
 from core.message_queue import PendingMessage
+from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from core.attachment_types import classify_attachment_media_type
+from core.audio_transcode import exceeds_aac_channel_limit
 from app_paths import data_path
 
 
@@ -143,8 +145,8 @@ class AttachmentsMixin:
         
         self._clear_empty_placeholder()
         self._sorted_messages.append(virtual_msg)
-        self.messages_list.Append((self._render_message_line(virtual_msg),))
-        last = self.messages_list.GetItemCount() - 1
+        append_message_row(self, self._render_message_line(virtual_msg))
+        last = message_row_count(self) - 1   # the row just sent, not the typing row
         if last >= 0:
             self.messages_list.EnsureVisible(last)
         pm = PendingMessage(local_id, remote_jid, contact_info=contact,
@@ -323,6 +325,18 @@ class AttachmentsMixin:
         for attachment in list(self._staged_attachments):
             path       = attachment["path"]
             media_type = attachment.get("media_type", "document")
+            if media_type == "audio" and exceeds_aac_channel_limit(path):
+                # More channels than AAC carries: converting would downmix,
+                # and an attachment never loses a channel, so the original
+                # goes untouched as a document. Decided here and not inside
+                # send_media_attachment(): the pending row built below has to
+                # be a documentMessage too, or on_new_message()'s by-type
+                # echo matching never binds the document echo to it.
+                logging.info(
+                    "[attachments] audio has more than 8 channels; sending "
+                    "the original untouched as a document"
+                )
+                media_type = "document"
 
             vtype      = _VTYPE.get(media_type, "documentMessage")
             is_document = vtype == "documentMessage"
@@ -410,8 +424,9 @@ class AttachmentsMixin:
             
             self._clear_empty_placeholder()
             self._sorted_messages.append(virtual_msg)
-            self.messages_list.Append((self._render_message_line(virtual_msg),))
-            last = self.messages_list.GetItemCount() - 1
+            append_message_row(self, self._render_message_line(virtual_msg))
+            # The row just added — not the typing row that may sit below it.
+            last = message_row_count(self) - 1
             if last >= 0:
                 self.messages_list.Select(last, True)
                 self.messages_list.EnsureVisible(last)

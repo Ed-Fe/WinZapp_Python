@@ -211,9 +211,13 @@ class _MainWindow:
         self._chat_lock_timeout_timer = None
         self._lid_to_phone = {}
         self._phone_to_lid = {}
+        # WhatsApp's Chat Lock set on the phone: none, as on most accounts.
+        self._phone_locked_chats = set()
 
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
     _chat_lock_candidates = MainWindow._chat_lock_candidates
+    _chat_lock_vault_holds = MainWindow._chat_lock_vault_holds
+    is_chat_phone_locked = MainWindow.is_chat_phone_locked
     is_chat_locked = MainWindow.is_chat_locked
     is_chat_hidden_by_vault = MainWindow.is_chat_hidden_by_vault
     get_chat = MainWindow.get_chat

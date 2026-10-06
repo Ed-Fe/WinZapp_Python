@@ -132,6 +132,7 @@ from ui.conversation_panel.accelerators import AcceleratorsMixin
 from ui.conversation_panel.conversation_navigation import ConversationNavigationMixin
 from ui.conversation_panel.chat_lists import WhatsAppListFilterMixin
 from ui.conversation_panel.composer import ComposerMixin
+from ui.conversation_panel.emoticon_conversion import EmoticonConversionMixin
 from ui.conversation_panel.voice_recording import VoiceRecordingMixin
 from ui.conversation_panel.system_audio_recording import SystemAudioRecordingMixin
 from ui.conversation_panel.text_sending import TextSendingMixin
@@ -143,6 +144,7 @@ from ui.conversation_panel.media_files import MediaFilesMixin
 from ui.conversation_panel.links import LinksMixin
 from ui.conversation_panel.mentions import MentionsMixin
 from ui.conversation_panel.unread_separator import UnreadSeparatorMixin
+from ui.conversation_panel.typing_row import TypingRowMixin, sync_typing_row
 from ui.conversation_panel.history_loading import HistoryLoadingMixin
 from ui.conversation_panel.chat_selection import ChatSelectionMixin
 from ui.conversation_panel.message_rows import MessageRowsMixin
@@ -170,6 +172,7 @@ class ConversationsPanel(
     WhatsAppListFilterMixin,
     ConversationPanelVisibilityMixin,
     ComposerMixin,
+    EmoticonConversionMixin,
     VoiceRecordingMixin,
     SystemAudioRecordingMixin,
     TextSendingMixin,
@@ -181,6 +184,7 @@ class ConversationsPanel(
     LinksMixin,
     MentionsMixin,
     UnreadSeparatorMixin,
+    TypingRowMixin,
     HistoryLoadingMixin,
     ChatSelectionMixin,
     MessageRowsMixin,
@@ -247,6 +251,13 @@ class ConversationsPanel(
         # nao — ver _on_conversation_focused() e
         # _restore_conversation_selection().
         self._last_list_focus_jid = ""
+
+        # The "X is typing..." last row of the messages list — only in the
+        # control, never in _sorted_messages (see conversation_panel/typing_row.py).
+        self._typing_row_list = None
+        self._typing_row_text = ""
+        self._typing_row_chat = None
+        self._typing_row_dismissed = set()
 
         # ── Audio / video player state ──────────────────────────────────────
         self._sorted_messages = []
@@ -893,6 +904,7 @@ class ConversationsPanel(
         self.message_field.Bind(wx.EVT_TEXT_ENTER, self.on_send_message)
         self.message_field.Bind(wx.EVT_KEY_DOWN,   self._on_message_field_key_down)
         self.message_field.Bind(wx.EVT_LEFT_UP,    self._cue_spelling_at_caret_on_click)
+        self.message_field.Bind(wx.EVT_CONTEXT_MENU, self._on_message_field_context_menu)
         self.message_field.Bind(wx.EVT_CHAR,       self._on_message_field_char)
         self.message_field.Bind(wx.EVT_TEXT_PASTE, self._on_text_field_paste)
         conv_sizer.Add(self.message_field, 0, wx.EXPAND | wx.ALL, 5)
@@ -1152,6 +1164,10 @@ class ConversationsPanel(
             if total:
                 for index, msg in enumerate(self._sorted_messages):
                     new_list.Append((self._render_message_line(msg, index=index, total=total),))
+            # The typing row lived in the old control (which is cleared the
+            # next time it is switched to); add it back to this one.
+            self._typing_row_list = None
+            sync_typing_row(self)
         finally:
             new_list.Thaw()
 

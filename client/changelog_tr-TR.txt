@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Mesaj alanının bağlam menüsündeki "Yazım" alt menüsü Windows sözlüğünden öneriler sunar. Düzenleyici, ekran okuyucunun standart gezinmesini ve WinZapp'ın yazım hatası sesini korur.
+
 - Ayarlar > Kullanıcı Arayüzü sekmesinde "Sabitlenmiş sohbetlerin sırasını koru" seçeneği. Açıldığında yeni mesajlar sabitlenmiş sohbetlerin yerini değiştirmez ve sıra yeniden açılışta korunur. Varsayılan olarak kapalıdır; normal sohbetler yeni mesajlarla yukarı çıkmaya devam eder.
 
 - Medyayı yapay zekâ ile yazıya dökün ve betimleyin. Ayarlar'daki yeni "Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme" sekmesi yapay zekâ özelliklerini açar (varsayılan olarak kapalıdır) ve bir veya daha fazla sağlayıcının — Gemini, OpenAI, Claude, Groq ve OpenRouter — API anahtarını alır; sağlayıcılar belirlediğiniz sırayla denenir, böylece biri başarısız olduğunda veya kotası bittiğinde sıradaki yanıt verir. Bir mesajın bağlam menüsünde ya da Ctrl+Shift+I ile "Çevrimiçi yapay zekâ ile yazıya dök" sesli mesajı metne çevirir, "Betimle" fotoğrafı veya videoyu anlatır, "Çıkartmayı betimle" çıkartmayı anlatır, "Erişilebilir metne dönüştür" ise bir PDF'yi sade ve okunabilir metne çevirir. Sonuç metinle birlikte bir pencerede açılır; fotoğraf ve videolarda bu pencerede ek sorular sorabilirsiniz. WinZapp medyayı bir sağlayıcıya göndermeden önce sorar, kilitli sohbetlerde her seferinde yeniden sorar; anahtarlarınız bilgisayarınızda şifrelenir ve yalnızca ait oldukları sağlayıcıya gönderilir. Sağlayıcı çalışırken bir bekleme sesi çalar ve yanıtlar otomatik olarak sesli okunabilir. Metin, uygulamanın dilini izler.
@@ -12,11 +14,15 @@ YENİLİKLER
 
 - Mesajınıza tepki geldiğinde ayrı bir ses çalar. Ayarlar > Ses Olayları bölümünden sesi değiştirebilir veya kapatabilirsiniz.
 
-- Özel WhatsApp listeleri: listeleri yenileme ve listeye göre filtreleme, liste oluşturma veya yeniden adlandırma, seçilen sohbetleri ekleme ve çıkarma. Liste düzenleme, WhatsApp hesabının desteğine bağlıdır. Kilitli veya yerelde bulunmayan sohbetler seçimde gösterilmez; diğer üyelikler korunur. Doğrulanamayan değişiklikler otomatik tekrarlanmadan bildirilir.
+- Özel WhatsApp listeleri: listeleri yenileme ve listeye göre filtreleme, liste oluşturma veya yeniden adlandırma, seçilen sohbetleri ekleme ve çıkarma. Liste düzenleme, WhatsApp hesabının desteğine bağlıdır. Kilitli veya yerelde bulunmayan sohbetler seçimde gösterilmez; diğer üyelikler korunur. Doğrulanamayan değişiklikler otomatik tekrarlanmadan bildirilir. Düzenleme kullanılamıyorsa yönetim penceresi, WhatsApp izninin kapalı olduğunu, sürümde gereken desteğin bulunmadığını veya destek kontrolünün başarısız olduğunu açıklar.
 
 - Telefonla eşitlenen kişiler: kişi eklerken ("Sohbet bilgisi" içinde, "Yeni sohbet" içinde veya bir kişi mesajından) artık iki sekme var: "WinZapp yerel kişisi" (yalnızca WinZapp'ta) ve adı WhatsApp'a ve telefonun rehberine kaydeden "Telefonla eşitlenen kişi". Eşitlenen sekme varsayılan olarak açılır, telefonun rehberinde zaten bulunan bir numara yalnızca o sekmeyi gösterir ve eşitlenen bir kişiyi silmek onu WhatsApp'tan ve telefondan da kaldırır
 
 - Mesaj listesinde yeni Alt+Shift+P kısayolu: size yanıt veren önceki mesaja gider; Alt+Shift+M'nin bahsetmeler için yaptığı gibi. Tekrar basınca geriye doğru ilerler ve en yeniye döner. "Klavye kısayolları" (F1) içinde de yer alır
+
+- Mesaj listesinde "yazıyor": açık sohbetteki kişi (ya da bir grupta bir katılımcı) yazarken veya ses kaydederken, mesaj listesinin sonunda "Ana yazıyor..." gibi geçici bir son satır görünür. Kişi durduğunda veya mesajı geldiğinde kaybolur. Odağı kendiliğinden asla taşımaz (yalnızca satır kaybolduğunda üzerindeyseniz son mesaja geçersiniz) ve kendiliğinden okunmaz; yazıyor duyurusu tam olarak eskisi gibi kalır. Bir mesaj değildir: bağlam menüsü ve eylemleri yoktur. Ayarlar > Kullanıcı Arayüzü sekmesindeki "Yazan veya ses kaydeden kişiyi mesaj listesinin son satırı olarak göster" seçeneğini işaretleyerek açılabilir; varsayılan olarak kapalıdır
+
+- Metin ifadeleri, WhatsApp Web'deki gibi yazarken emojiye dönüşür: ":)" 🙂, ":D" 😃, "<3" ❤️ olur; ardından boşluk ya da noktalama işareti yazdığınızda veya mesajı hemen ardından gönderdiğinizde. Yalnızca tek başına duran bir ifade dönüştürülür; bir bağlantının, bir kelimenin ya da `kod`un içindeki asla. Dönüşümden hemen sonra Backspace tuşuna basmak yazdığınızı geri getirir. Ayarlar, "Genel" sekmesi, "Yazarken :D gibi metin ifadelerini emojiye dönüştür" ile kapatılabilir
 
 DÜZELTMELER
 
@@ -29,6 +35,10 @@ DÜZELTMELER
 - Medya mesajlarında "Betimle" düğmesi. Bir fotoğrafta, çıkartmada veya videoda (yapay zekâ özellikleri açıkken ses ve PDF'lerde de) "Farklı kaydet"in hemen ardından Tab ile ulaşılabilen ve Ctrl+Shift+I kısayoluyla aynı işi yapan bir düğme görünür; bağlam menüsünde öğe artık diğer medya eylemleriyle birlikte durur ve Ctrl+Shift+I kısayolunu gösterir. Düğme ve öğe yalnızca betimlenebilen mesajlarda görünür.
 
 - Her yapay zekâ sağlayıcısının penceresinde (Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme) "Otomatik (önerilen)" model. Henüz model seçmediğiniz sağlayıcılarda varsayılan olarak işaretli olan kutu, WinZapp'ın her zaman önerdiği ve güncellemeleri izleyen modeli kullanmasını sağlar; sabit bir model seçmek veya yazmak için işareti kaldırın.
+
+- Ek olarak gönderilen ses dosyaları: stereo veya surround (5.1, 7.1) bir WAV ya da OGG Vorbis dosyası artık tüm kanallarıyla, normal ses olarak ulaşıyor ve örnekleme hızı 48 kHz'e kadar korunuyor (daha yüksek bir hız 48 kHz olarak gönderilir). Önceden mono olarak ulaşıyor ve sesli mesaj gibi görünüyordu. AAC'nin taşıyamadığı 8'den fazla kanala sahip bir dosya ise değiştirilmeden belge olarak gönderilir.
+
+- WinZapp'ı güncellemek artık bir WPPConnect güncellemesini geri almıyor. WPPConnect, WinZapp ile gelenden daha yeni bir sürüme güncellendikten sonra (güncelleme bildiriminden ya da Yardım menüsündeki "WPPConnect'i yeniden yüklemeye zorla" ile), bir sonraki WinZapp güncellemesi onu eski sürüme geri döndürüyor ve aynı WPPConnect güncellemesi yeniden sunuluyordu
 
 V2.0.0.0
 
@@ -121,6 +131,8 @@ YENİLİKLER
 - F3 ve Shift+F3 ile sohbet içinde arama. Artık açık sohbetin herhangi bir yerinden, mesaj listesi dahil, arama alanına dönmeden F3 ile sonraki sonuca, Shift+F3 ile önceki sonuca geçebilirsiniz; odak sonucu izler ve ekran okuyucu konumu duyurur. Enter ve Shift+Enter alternatif olarak çalışmaya devam eder, ancak mesaj listesinde zaten başka işlevleri olduğu için yalnızca arama alanında çalışır. "Önceki sonuç" ve "Sonraki sonuç" düğmeleri artık Shift+F3 ve F3 olarak duyurulur ve kısayol yardımı güncellendi.
 
 - İletme artık başarılı olduğunda bunu bildiriyor. Önceden yalnızca hata duyuruluyordu; artık işlem bitince "Mesaj iletildi." diyen ya da kaç mesajın iletildiğini söyleyen bir kutu çıkıyor.
+
+- Telefonunuzda WhatsApp Chat Lock ile kilitlediğiniz sohbetler artık WinZapp'ta da gizleniyor. Sohbet listesinden çıkar ve yalnızca WinZapp PIN'inizden sonra "Kilitli sohbetler" (Alt+7) bölümünde görünür; hiç PIN oluşturmadıysanız WinZapp ilk seferde oluşturmayı önerir. Kilidi yalnızca telefonunuz açabilir; bu yüzden WinZapp bu sohbetler için "Sohbetin kilidini kaldır" seçeneğini sunmaz ve telefonda kilidini açtığınız sohbet listeye kendiliğinden geri döner.
 
 DÜZELTMELER
 

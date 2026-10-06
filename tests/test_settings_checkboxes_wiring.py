@@ -139,11 +139,17 @@ def _key_lookup(node, section_names):
     return section, node.args[0].value, node.args[1].value
 
 
+#: One-argument functions a load may pass the stored value through before
+#: SetValue(): bool() itself, and a feature's own value guard (so the box
+#: shows what the feature actually does with an odd stored value).
+_VALUE_GUARDS = ("bool", "emoticon_setting_enabled")
+
+
 def _unwrap_bool(node):
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
-        and node.func.id == "bool"
+        and node.func.id in _VALUE_GUARDS
         and node.args
     ):
         return node.args[0]

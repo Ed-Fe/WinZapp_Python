@@ -12,6 +12,7 @@ import time
 import uuid
 import wx
 from core.message_queue import PendingMessage
+from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
 from ui.conversation_panel.media_paths import (
     discard_local_media_cache,
@@ -70,6 +71,11 @@ class TextSendingMixin:
         if not self.main_window.ensure_meta_ai_terms(remote_jid):
             self._last_sent_signature = None
             return
+        # Enter right after an emoticon never typed the boundary that would
+        # have converted it in the field (emoticon_conversion.py). New sends
+        # only: an edit keeps exactly the text the person corrected, so
+        # saving an old message ending in ":/" does not quietly change it.
+        text = self._text_with_trailing_emoticon(text)
         self._send_new_text_message(text, remote_jid)
 
     def _apply_message_edit(self, text: str, remote_jid: str):
@@ -311,9 +317,9 @@ class TextSendingMixin:
         # Add to sorted list and UI list immediately.
         self._clear_empty_placeholder()
         self._sorted_messages.append(virtual_msg)
-        self.messages_list.Append((self._render_message_line(virtual_msg),))
+        append_message_row(self, self._render_message_line(virtual_msg))
         # Scroll to the new item.
-        last = self.messages_list.GetItemCount() - 1
+        last = message_row_count(self) - 1   # the row just sent, not the typing row
         if last >= 0:
             self.messages_list.EnsureVisible(last)
 

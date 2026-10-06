@@ -1850,5 +1850,20 @@
     "wa_lists_no_chats": "Nie ma czatów do wybrania.",
     "wa_lists_pick_remove": "Wybierz czaty do usunięcia z '{name}'. Pozostali członkowie zostaną zachowani.",
     "wa_lists_pick_add": "Wybierz czaty do dodania do '{name}'.",
-    "wa_lists_selection_changed": "Nie udało się zastosować tego wyboru. Odśwież listy i wybierz ponownie; w razie potrzeby wybierz mniej czatów."
+    "wa_lists_selection_changed": "Nie udało się zastosować tego wyboru. Odśwież listy i wybierz ponownie; w razie potrzeby wybierz mniej czatów.",
+    "chat_lock_phone_needs_pin": "Niektóre czaty są zablokowane na telefonie funkcją Chat Lock WhatsApp. Pozostają tu ukryte i pojawiają się tylko w Zablokowanych czatach, chronionych kodem PIN WinZapp. Utworzyć PIN teraz?",
+    "chat_lock_phone_only": "Ten czat jest zablokowany na telefonie funkcją Chat Lock WhatsApp. Odblokować go może tylko telefon.",
+    "spell_orthography": "Pisownia",
+    "spell_menu_undo": "Cofnij",
+    "spell_menu_cut": "Wytnij",
+    "spell_menu_copy": "Kopiuj",
+    "spell_menu_paste": "Wklej",
+    "spell_menu_delete": "Usuń",
+    "spell_menu_select_all": "Zaznacz wszystko",
+    "convert_emoticons_label": "Zamieniaj &emotikony, takie jak :D, na emoji podczas pisania",
+    "ui_show_typing_row": "Pokazuj, kto pisze lub nagrywa wiadomość głosową, jako ostatni wiersz listy wiadomości",
+    "wa_lists_close": "&Zamknij",
+    "wa_lists_account_disabled": "WhatsApp nie włączył edycji list dla tego konta na połączonych urządzeniach. Nadal możesz przeglądać listy.",
+    "wa_lists_runtime_incomplete": "W tej wersji brakuje funkcji potrzebnych do edycji list. Nadal możesz przeglądać listy.",
+    "wa_lists_capability_check_failed": "Nie udało się sprawdzić obsługi edycji list. Odśwież listy i spróbuj ponownie."
 }

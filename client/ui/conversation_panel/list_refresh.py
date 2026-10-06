@@ -9,6 +9,13 @@ import logging
 import time
 import wx
 
+from ui.conversation_panel.typing_row import (
+    append_message_row,
+    dismiss_typing_row_for_message,
+    message_row_count,
+    sync_typing_row,
+)
+
 
 class ListRefreshMixin:
     """Keeping the message list in sync with the data: status repaints, incoming
@@ -211,7 +218,7 @@ class ListRefreshMixin:
         # mensagem trocada. Degrada para o passe completo, que percorre as duas
         # em paralelo e no máximo pinta linhas a mais.
         if (target_ids is not None
-                and self.messages_list.GetItemCount() != len(self._sorted_messages)):
+                and message_row_count(self) != len(self._sorted_messages)):
             logging.info(
                 "[refresh_active_conversation_messages] list out of step with rows "
                 "— full path")
@@ -403,7 +410,11 @@ class ListRefreshMixin:
             # Append the real message (focus must NOT move)
             self._clear_empty_placeholder()
             self._sorted_messages.append(msg)
-            self.messages_list.Append((self._render_message_line(msg),))
+            append_message_row(self, self._render_message_line(msg))
+            # What the sender was typing is here now: take them off the
+            # typing row (which stays below, for anyone else still typing).
+            if not from_me:
+                dismiss_typing_row_for_message(self, msg)
         finally:
             self.messages_list.Thaw()
 
@@ -425,6 +436,9 @@ class ListRefreshMixin:
                             break
             
             if not scrolled:
+                # The very bottom on purpose, typing row included: when it is
+                # still there someone else is typing, and it sits right below
+                # the message that just arrived.
                 last = self.messages_list.GetItemCount() - 1
                 if last >= 0:
                     self.messages_list.EnsureVisible(last)
@@ -567,7 +581,7 @@ class ListRefreshMixin:
             return False
         # Backing list out of step with the control means a targeted
         # SetItemText would write the right text into the wrong row.
-        if self.messages_list.GetItemCount() != len(self._sorted_messages):
+        if message_row_count(self) != len(self._sorted_messages):
             logging.info("[_repaint_message_rows] list out of step with rows — full path")
             return False
         try:
@@ -754,7 +768,7 @@ class ListRefreshMixin:
 
         if not targets:
             return False
-        if self.messages_list.GetItemCount() != len(self._sorted_messages):
+        if message_row_count(self) != len(self._sorted_messages):
             logging.info("[_repaint_changed_rows_in_place] list out of step with rows — full path")
             return False
         first_row = self._sorted_messages[0]
@@ -888,7 +902,7 @@ class ListRefreshMixin:
             return False
         # Lista de fora de passo com o controle: um Append() aqui desalinharia
         # texto e registro para sempre. Mesma guarda de _repaint_message_rows().
-        if self.messages_list.GetItemCount() != len(self._sorted_messages):
+        if message_row_count(self) != len(self._sorted_messages):
             logging.info("[_append_new_tail_rows] list out of step with rows — full path")
             return False
         first_row = self._sorted_messages[0]
@@ -965,7 +979,11 @@ class ListRefreshMixin:
                     if in_step:
                         self._all_sorted_messages.append(m)
                     self._sorted_messages.append(m)
-                    self.messages_list.Append((self._render_message_line(m),))
+                    append_message_row(self, self._render_message_line(m))
+                    # Same as the live path: a message that came in through
+                    # sync takes its sender off the typing row too (own
+                    # messages are ignored inside).
+                    dismiss_typing_row_for_message(self, m)
             finally:
                 self.messages_list.Thaw()
             self._remember_expanded_window()
@@ -1231,7 +1249,7 @@ class ListRefreshMixin:
             # Make the unread separator visible, or select and focus the last (newest) message by default
             if not scrolled:
                 if self._unread_sep_idx >= 0:
-                    last = self.messages_list.GetItemCount() - 1
+                    last = message_row_count(self) - 1
                     target_visible = min(self._unread_sep_idx + 3, last)
                     if target_visible >= 0:
                         self.messages_list.EnsureVisible(target_visible)
@@ -1239,7 +1257,9 @@ class ListRefreshMixin:
                     self.messages_list.Focus(self._unread_sep_idx)
                     self.messages_list.Select(self._unread_sep_idx)
                 else:
-                    last = self.messages_list.GetItemCount() - 1
+                    # The last MESSAGE: a typing row below it is not where a
+                    # freshly opened conversation lands.
+                    last = message_row_count(self) - 1
                     if last >= 0:
                         self.messages_list.EnsureVisible(last)
                         self.messages_list.Focus(last)
@@ -1254,6 +1274,13 @@ class ListRefreshMixin:
                     else:
                         logging.info("[populate_messages] default-select tail: list is empty (last=-1)")
         finally:
+            # The typing row is never written by the rebuild above (it is not
+            # a record); re-decided here, still frozen, because the
+            # conversation may have changed under it.
+            try:
+                sync_typing_row(self)
+            except Exception:
+                logging.exception("[populate_messages] failed to update the typing row")
             self.messages_list.Thaw()
             # A janela que acabou de ser pintada é o piso da próxima. Aqui, no
             # finally, pelo mesmo motivo da assinatura abaixo: o corpo retorna

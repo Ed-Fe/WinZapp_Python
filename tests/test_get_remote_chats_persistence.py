@@ -21,6 +21,7 @@ import json
 import types
 
 import pytest
+from cryptography.fernet import Fernet
 
 import main
 from main import MainWindow
@@ -51,6 +52,7 @@ class _Stub:
     """Minimum surface get_remote_chats() actually reads on the happy path."""
 
     _mute_state_jids = MainWindow._mute_state_jids
+    _PHONE_LOCK_KEY = MainWindow._PHONE_LOCK_KEY
     # The open-chat branch of the merge asks whether the chat is also READ —
     # see the _open_now comment in on_chat_unread_update().
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
@@ -69,6 +71,8 @@ class _Stub:
         self._muted_chats = {}
         self._pinned_chats = set()
         self._archived_chats = set()
+        self._phone_locked_chats = set()
+        self.key = Fernet.generate_key()
         self._lid_to_phone = {}
         self._phone_to_lid = {}
         self._group_name_cache = {}
@@ -101,7 +105,12 @@ class _Stub:
 def _make(chats=None):
     stub = _Stub(chats)
     for name in ("get_remote_chats", "_normalize_jid", "_lift_contact_identity",
-                 "_last_received_jid", "_note_server_unread"):
+                 "_last_received_jid", "_note_server_unread",
+                 # the phone's own Chat Lock is mirrored while the chats merge
+                 # (main_window/phone_chat_lock.py)
+                 "_sync_phone_chat_lock", "_persist_phone_locked_chats",
+                 "_phone_lock_counterpart", "_phone_lock_fp",
+                 "_phone_locked_in_answer"):
         # Read from __dict__, not getattr: accessing a staticmethod through
         # the class hands back the plain function, so `isinstance(...,
         # staticmethod)` is always False there and every one of them would be
@@ -310,3 +319,41 @@ class TestTheSnapshotCanBeHeldBackFromDisk:
         stub.get_remote_chats({}, persist_full=True, notify_errors=False,
                               defer_chat_save=True)
         assert stub.save_data_calls == 1
+
+
+class TestPhoneChatLock:
+    """WhatsApp Chat Lock set on the phone, as the list answer reports it
+    (main_window/phone_chat_lock.py)."""
+
+    JID = "5511900000001@s.whatsapp.net"
+
+    def test_a_locked_chat_joins_the_set_and_a_later_answer_without_the_field_releases_it(self, post):
+        stub = _make()
+        post["payload"] = [_chat("5511900000001@c.us", isLocked=True)]
+        stub.get_remote_chats({}, persist_full=False, notify_errors=False)
+        fingerprint = stub._phone_lock_fp(self.JID)
+        assert fingerprint in stub._phone_locked_chats
+        assert stub.db.metadata["phone_lock_index_v1"] == sorted(stub._phone_locked_chats)
+
+        # Unlocked on the phone, and the server simply omits the field.
+        post["payload"] = [_chat("5511900000001@c.us")]
+        stub.get_remote_chats({}, persist_full=False, notify_errors=False)
+        assert stub._phone_locked_chats == set()
+        assert stub.db.metadata["phone_lock_index_v1"] == []
+
+    @pytest.mark.parametrize("locked_first", [True, False], ids=["lid-first", "phone-first"])
+    def test_the_twin_entry_without_the_field_does_not_unlock_the_chat(self, post, locked_first):
+        # One answer can carry the conversation as @lid (locked) and as the
+        # phone JID (no field): the lock wins, in either order. The chat is
+        # already known, so its record is not the answer's entry object.
+        lid = "123456789012345@lid"
+        stub = _make()
+        stub._phone_to_lid = {self.JID: lid}
+        stub._lid_to_phone = {lid: self.JID}
+        known = {self.JID: {"remoteJid": self.JID, "t": 1700000000, "unreadCount": 0,
+                            "messages": {"messages": {"records": []}}}}
+        entries = [_chat(lid, isLocked=True), _chat("5511900000001@c.us")]
+        post["payload"] = entries if locked_first else entries[::-1]
+        stub.get_remote_chats(known, persist_full=False, notify_errors=False)
+        assert stub._phone_lock_fp(lid) in stub._phone_locked_chats
+        assert stub._phone_lock_fp(self.JID) in stub._phone_locked_chats

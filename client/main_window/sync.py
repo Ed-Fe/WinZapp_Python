@@ -395,7 +395,8 @@ class SyncMixin:
             settings_dirty = True
         else:
             self._archived_chats = set(self.db.get_metadata_json("archived_chats", []))
-            
+        self._load_phone_locked_chats()
+
         # 4. pinned_chats
         if self.db.get_metadata("pinned_chats") is None and "pinned_chats" in self.settings:
             self._pinned_chats = set(self.settings.pop("pinned_chats", []))

@@ -1415,6 +1415,13 @@ class SendingMixin:
             "type":     _wpp_type,
             "uploadId": upload_id,
         }
+        if _wpp_type == "audio":
+            # An attached audio file is ordinary audio, never a voice note —
+            # recordings go through /send-voice-base64 instead. Said outright
+            # rather than left to wa-js's undefined default. The string
+            # "false" is truthy in JS, so sendFile() compares it to "true"
+            # (see _post()'s docstring for the same multipart trap).
+            data["isPtt"] = "false"
         if quoted:
             quoted_id = self._serialize_quoted_id(quoted, fallback_jid=remote_jid)
             if quoted_id:

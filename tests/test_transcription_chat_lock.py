@@ -527,6 +527,10 @@ class _VaultWindow:
 
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
     _chat_lock_candidates = MainWindow._chat_lock_candidates
+    _chat_lock_vault_holds = MainWindow._chat_lock_vault_holds
+    _archived_lookup_jids = MainWindow._archived_lookup_jids
+    _phone_lock_fp = MainWindow._phone_lock_fp
+    is_chat_phone_locked = MainWindow.is_chat_phone_locked
     is_chat_locked = MainWindow.is_chat_locked
     is_chat_hidden_by_vault = MainWindow.is_chat_hidden_by_vault
 
@@ -535,6 +539,7 @@ class _VaultWindow:
         self.chats = {}
         self._lid_to_phone = {}
         self._phone_to_lid = {}
+        self._phone_locked_chats = set()
         self._chat_lock_vault = ChatLockVault(key)
         self._chat_lock_vault.configure("246810", "codigo-secreto")
         self._chat_lock_vault.lock_chat(_JID)
@@ -568,6 +573,17 @@ class TestIsChatHiddenByVault:
 
     def test_no_jid_is_no_chat(self, fernet_key):
         assert _VaultWindow(fernet_key).is_chat_hidden_by_vault("") is False
+
+    def test_a_chat_locked_only_on_the_phone_is_hidden_too(self, fernet_key):
+        """WhatsApp's Chat Lock set on the phone keeps a chat behind the same
+        vault (main_window/phone_chat_lock.py), so its transcription stays
+        off the screen while the vault is closed, like one WinZapp locked."""
+        mw = _VaultWindow(fernet_key)
+        other = "5511911112222@s.whatsapp.net"
+        mw._phone_locked_chats = {mw._phone_lock_fp(other)}
+        assert mw.is_chat_hidden_by_vault(other) is True
+        mw._chat_lock_unlocked = True
+        assert mw.is_chat_hidden_by_vault(other) is False
 
 
 class TestLockChatVaultAsksTheSameRule:

@@ -19,9 +19,11 @@ and adapts WinZapp's UI to how Mac apps and VoiceOver behave:
 | `listctrl.py`, `native_rows.py` | `wx.ListCtrl` is invisible to VoiceOver on macOS (wxGenericListCtrl, custom-drawn). Every list becomes a native table; rows answer VO-Space (activate, like Enter), VO-Shift-M (the row's context menu) and offer the context-menu items as VoiceOver actions (VO-Command-Space), read from WinZapp's own menu handlers so new items appear automatically. |
 | `accessibility_mac.py` | `wx.Accessible` does nothing on macOS; its names, descriptions and shortcuts are bridged to NSAccessibility, and unlabelled fields take the label before them, as NVDA does. |
 | `speech.py` | Speech goes to VoiceOver as NSAccessibility announcements (no AppleScript setting needed); the system voice is the fallback instead of SAPI. |
+| `layout_mac.py` | The messages list keeps a few rows of height when voice playback, recording, a quote or the composer show extra controls: the room comes from the Chats list, which keeps a few rows too. A zero-height list disappears from VoiceOver. |
 | `keymap_mac.py` | Shortcuts follow one rule — Ctrl becomes Command, Alt becomes Command-Option, Ctrl+Alt becomes Control-Command — with exceptions where the rule would hit a macOS command (e.g. Exit is Command-Q, archive is Control-Command-A). Menus, hints and the shortcuts help speak the Mac keys. Option+letter keeps typing characters. |
 | `menubar_mac.py` | Settings, About and Quit in the application menu; Chats and Messages menus mirroring the selected row's context menu; the Windows self-updater is off. |
 | `notify_mac.py` | Native notifications with reply and quick reactions as actions; Focus modes apply. |
+| `launch_mac.py` | Ends wxWidgets 3.2's launch wait as soon as macOS finishes launching (it otherwise idles inside `wx.App()` until an unrelated event arrives, the fix wxWidgets 3.3.2 made) and logs `[STARTUP_TIMING] wx.App:` lines for each phase of `wx.App()`. |
 | `lifecycle_mac.py` | Closing the window keeps WinZapp running (it still receives messages); the Dock icon brings it back; quitting leaves the Dock immediately. |
 | `server_mac.py` | Stops the Node server on quit (the Mac equivalent of `taskkill /F /T`). |
 | `paths_mac.py` | Data and the paired session live in `~/Library/Application Support/WinZapp`; the app installs its bundled server runtime there at launch. |
@@ -30,6 +32,7 @@ and adapts WinZapp's UI to how Mac apps and VoiceOver behave:
 | `strings_mac.py` | Mac wording: a string that describes Windows has a Mac variant beside it in `client/languages` (`<key>_macos`), used in its place on the Mac. |
 | `focus_mac.py` | WinZapp's quiet-hours gate follows macOS Focus (Developer ID builds with the Communication Notifications entitlement). |
 | `updater_mac.py` | Signed release builds update from the macOS release feed named in their Info.plist; without one the updater is off. |
+| `version_mac.py` | A release build runs as its Info.plist release tag (About, update checks), not the unstamped `client/version.py`. |
 
 ## Building
 
@@ -98,12 +101,19 @@ one of our tags and its commit must not install.
 
 **The running version is the official tag the app was built from**
 (Info.plist `WinZappReleaseTag`, written by `build_app.py` before signing,
-next to `WinZappSourceCommit`). It is never `client/version.py`, which says
-`2.0.0.0` in every tagged commit (CI stamps it only at build), so an old
-genuine release would otherwise count as newer. A build without a valid
+next to `WinZappSourceCommit`). It is never `client/version.py`, which is
+the unstamped placeholder in every tagged commit (CI stamps it only at
+build), so an old genuine release would otherwise count as newer. A build without a valid
 `WinZappReleaseTag` (a development build) offers and installs no update, and
 the log says why. Versions compare as integers; an alpha or beta is older
-than the stable of the same number; an equal tag is not newer.
+than the stable of the same number; an equal tag is not newer. The same tag,
+without its `v`, is the version the whole app shows and uses: `version_mac`
+sets `version.__version__` from it at startup (About, the update check's
+User-Agent, `UpdateChecker`'s "is it newer" check), and `build_app.py`
+writes its numbers (no `alpha`/`beta`, which Apple's integer format does
+not allow) as `CFBundleShortVersionString`. Without it, the unstamped `version.py` of the
+tag's checkout would make `UpdateChecker` offer the running release on every
+check.
 
 **What is verified, in this order.** Any failure, or any answer that is not a
 clean 200, is a refusal: nothing is installed. Offline, a timeout, an HTTP

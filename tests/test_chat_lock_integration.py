@@ -22,7 +22,14 @@ class _MainWindowStub:
     _CHAT_LOCK_INDEX_KEY = MainWindow._CHAT_LOCK_INDEX_KEY
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
     _chat_lock_candidates = MainWindow._chat_lock_candidates
+    _chat_lock_vault_holds = MainWindow._chat_lock_vault_holds
     is_chat_locked = MainWindow.is_chat_locked
+    # The phone's own Chat Lock (main_window/phone_chat_lock.py): is_chat_locked()
+    # asks it too, so the stub needs the real lookups it is built on.
+    is_chat_phone_locked = MainWindow.is_chat_phone_locked
+    has_phone_locked_chats = MainWindow.has_phone_locked_chats
+    _archived_lookup_jids = MainWindow._archived_lookup_jids
+    _chat_entry_for_archive = MainWindow._chat_entry_for_archive
     chat_lock_navigation_visible = MainWindow.chat_lock_navigation_visible
     _forget_chat_lock = MainWindow._forget_chat_lock
 
@@ -32,6 +39,7 @@ class _MainWindowStub:
         self._chat_lock_fingerprints = set()
         self._lid_to_phone = {}
         self._phone_to_lid = {}
+        self._phone_locked_chats = set()
         self.chats = {}
         self.db = _Database()
         self.persist_calls = 0
