@@ -925,6 +925,7 @@
     "ui_self_reference_voce": "You",
     "ui_self_reference_other": "Other",
     "ui_self_reference_custom_label": "Custom word",
+    "ui_hide_own_sender_in_message_list": "Hide the sender on my own messages in the messages list",
     "ui_show_delivery_status_in_chat_list": "Show last message's delivery status in the chat list",
     "ui_keep_pinned_chat_order": "Keep pinned chats in a fixed order",
     "ui_preserve_typed_text_as_caption": "Preserve typed message as caption when attaching",

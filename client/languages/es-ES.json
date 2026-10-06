@@ -925,6 +925,7 @@
     "ui_self_reference_voce": "Tú",
     "ui_self_reference_other": "Otro",
     "ui_self_reference_custom_label": "Palabra personalizada",
+    "ui_hide_own_sender_in_message_list": "Ocultar el remitente en mis propios mensajes de la lista de mensajes",
     "ui_show_delivery_status_in_chat_list": "Mostrar el estado de entrega del último mensaje en la lista de chats",
     "ui_keep_pinned_chat_order": "Mantener el orden de las conversaciones fijadas",
     "ui_preserve_typed_text_as_caption": "Preservar el mensaje escrito como leyenda al adjuntar",

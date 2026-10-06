@@ -925,6 +925,7 @@
   "ui_self_reference_voce": "Siz",
   "ui_self_reference_other": "Diğer",
   "ui_self_reference_custom_label": "Özel kelime",
+  "ui_hide_own_sender_in_message_list": "Mesaj listesinde kendi mesajlarımda göndereni gizle",
   "ui_show_delivery_status_in_chat_list": "Sohbet listesinde son mesajın iletim durumunu göster",
   "ui_keep_pinned_chat_order": "Sabitlenmiş sohbetlerin sırasını koru",
   "ui_preserve_typed_text_as_caption": "Ek eklerken yazılan mesajı açıklama olarak koru",

@@ -925,6 +925,7 @@
     "ui_self_reference_voce": "Ty",
     "ui_self_reference_other": "Inaczej",
     "ui_self_reference_custom_label": "Własne słowo",
+    "ui_hide_own_sender_in_message_list": "Ukryj nadawcę przy moich wiadomościach na liście wiadomości",
     "ui_show_delivery_status_in_chat_list": "Pokaż status dostarczenia ostatniej wiadomości na liście czatów",
     "ui_keep_pinned_chat_order": "Zachowuj kolejność przypiętych czatów",
     "ui_preserve_typed_text_as_caption": "Zachowaj wpisaną wiadomość jako podpis przy załączaniu",

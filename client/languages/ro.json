@@ -867,6 +867,7 @@
     "ui_self_reference_voce": "Tu",
     "ui_self_reference_other": "Altele",
     "ui_self_reference_custom_label": "Cuvânt personalizat",
+    "ui_hide_own_sender_in_message_list": "Ascunde expeditorul la mesajele mele din lista de mesaje",
     "ui_show_delivery_status_in_chat_list": "Afișează starea de livrare a ultimului mesaj în lista de conversații",
     "ui_keep_pinned_chat_order": "Păstrează ordinea conversațiilor fixate",
     "ui_preserve_typed_text_as_caption": "Păstrați mesajul tastat ca legendă la atașare",
