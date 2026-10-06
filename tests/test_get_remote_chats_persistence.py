@@ -43,6 +43,9 @@ class _DB:
     def set_metadata_json(self, key, value):
         self.metadata[key] = value
 
+    def get_metadata_json(self, key, default):
+        return self.metadata.get(key, default)
+
 
 class _Stub:
     """Minimum surface get_remote_chats() actually reads on the happy path."""
@@ -131,6 +134,22 @@ def post(monkeypatch):
 
 
 class TestTheFullSaveIsOptional:
+    def test_optional_pin_order_tracks_polls_without_following_message_activity(self, post):
+        from core.pinned_chat_order import METADATA_KEY, sync_pinned_order
+        a, b, c = (f"551190000000{i}@s.whatsapp.net" for i in (1, 2, 3))
+        stub = _make()
+        stub.settings["user_interface"] = {"keep_pinned_chat_order": True}
+        post["payload"] = [_chat(a, pin=1700000001), _chat(b, pin=1700000003),
+                           _chat(c, pin=1700000002)]
+        stub.get_remote_chats({}, persist_full=False, notify_errors=False)
+        assert stub.db.metadata[METADATA_KEY] == [b, c, a]
+        post["payload"][0]["t"] = 1800000000
+        stub.get_remote_chats(stub.chats, persist_full=False, notify_errors=False)
+        assert sync_pinned_order(stub) == (b, c, a)
+        post["payload"][1]["pin"] = False
+        stub.get_remote_chats(stub.chats, persist_full=False, notify_errors=False)
+        assert sync_pinned_order(stub) == (c, a)
+
     def test_persist_full_false_does_not_rewrite_the_database(self, post):
         post["payload"] = [_chat("5511900000001@c.us")]
         stub = _make()

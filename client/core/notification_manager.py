@@ -190,7 +190,9 @@ def format_notification_body(msg: dict, main_window, i18n) -> str:
         )
         for jid in mentioned:
             if main_window and main_window._is_self_jid(jid):
-                name = "eu"
+                # "Como se referir a mim?": the same word the message list
+                # shows, not a fixed "eu" that ignored the setting.
+                name = main_window.self_reference_label()
             else:
                 name = _resolve_participant_name(jid, "", main_window)
             
@@ -487,6 +489,20 @@ def format_locked_notification(unread_count: int, i18n, app_name="WinZapp") -> t
     return app_name or "WinZapp", body
 
 
+# The SOUND_EVENTS key a reaction to one of your messages queues with.
+REACTION_SOUND_EVENT = "reaction_received"
+
+
+def reaction_silenced_now(main_window, remote_jid: str) -> bool:
+    """Whether a queued reaction's chat was locked, muted or archived while
+    it waited. The predicates only read dicts, so this runs off the wx thread
+    too; Windows' and the Mac's _dispatch share it so they cannot drift."""
+    return any(
+        getattr(main_window, check, lambda _jid: False)(remote_jid)
+        for check in ("is_chat_locked", "is_chat_muted", "is_chat_archived")
+    )
+
+
 def format_notification_title(msg: dict, main_window, i18n) -> str:
     """
     Build the notification title for a toast notification.
@@ -777,10 +793,11 @@ class NotificationManager:
                 break
             if dropped:
                 print(f"[NotificationManager] coalesced {dropped} queued toast(s)")
-            title, body, remote_jid, msg_key, queued_at = item
+            title, body, remote_jid, msg_key, queued_at, *sound_events = item
             waited = time.monotonic() - queued_at
             started = time.monotonic()
-            self._dispatch(title, body, remote_jid, msg_key)
+            self._dispatch(title, body, remote_jid, msg_key,
+                           sound_event=sound_events[0] if sound_events else None)
             logging.info(
                 "[notif-timing] %s: %.0fms queued + %.0fms dispatch = %.0fms "
                 "from send() to on screen.",
@@ -975,7 +992,8 @@ class NotificationManager:
             body = ""
         announce_background_message(self.main_window, self.i18n, title, body)
 
-    def _dispatch(self, title: str, body: str, remote_jid: str, msg_key: dict = None):
+    def _dispatch(self, title: str, body: str, remote_jid: str, msg_key: dict = None,
+                  *, sound_event: str = None):
         # Do Not Disturb suppresses the whole background notification — banner,
         # sound and spoken announcement alike. Gating only the sound left the
         # banner popping up during a Do Not Disturb the user had deliberately
@@ -993,13 +1011,17 @@ class NotificationManager:
             )
             return
 
+        main_window = getattr(self, "main_window", None)
+        if sound_event == REACTION_SOUND_EVENT and reaction_silenced_now(main_window, remote_jid):
+            # Preferences or the vault can change while the reaction is queued.
+            return
+        sound_args = (remote_jid,) if sound_event is None else (remote_jid, sound_event)
         if title is None:
             # send_sound_only(): the "sound only" notification level. No
             # banner, so nothing for _announce_unshown() to stand in for.
-            wx.CallAfter(self._play_sound, remote_jid)
+            wx.CallAfter(self._play_sound, *sound_args)
             return
 
-        main_window = getattr(self, "main_window", None)
         get_chat = getattr(main_window, "get_chat", None)
         if callable(get_chat):
             chat = get_chat(remote_jid)
@@ -1019,6 +1041,10 @@ class NotificationManager:
             # _setup_toaster() exhausted every AUMID candidate (or
             # windows_toasts is not importable at all): there will be no
             # banner for the screen reader to read, so announce it ourselves.
+            # A reaction keeps its own sound here: speech alone would not
+            # tell it apart from an ordinary message.
+            if sound_event == REACTION_SOUND_EVENT:
+                wx.CallAfter(self._play_sound, *sound_args)
             self._announce_unshown(title, body)
             return
         try:
@@ -1058,7 +1084,7 @@ class NotificationManager:
             # between hearing the notification and seeing the banner. Not
             # perfect — Windows' own toast pipeline still isn't instant — but
             # this removes the part of the delay that was our own doing.
-            wx.CallAfter(self._play_sound, remote_jid)
+            wx.CallAfter(self._play_sound, *sound_args)
 
             # Clear whatever WinZapp notification is currently on screen (or
             # waiting to be shown) before posting the new one.  This is what
@@ -1185,12 +1211,15 @@ class NotificationManager:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def send(self, title: str, body: str, remote_jid: str, msg_key: dict = None):
+    def send(self, title: str, body: str, remote_jid: str, msg_key: dict = None,
+             *, sound_event: str = None):
         """Enqueue a toast notification (non-blocking).
 
         msg_key: the triggering message's `key` dict, if available — lets the
         toast's "Reagir" action react to that specific message instead of
         needing to look one up later.
+        sound_event: a reaction carries its own Sound Events choice through
+        coalescing; None keeps the usual per-conversation message tone.
         """
         # Stamped here so _dispatch() can say how long the toast waited behind
         # the worker versus how long Windows itself took to put it on screen.
@@ -1198,24 +1227,33 @@ class NotificationManager:
         # ler". Nothing on this path measured anything, so there was no way to
         # tell our own queue from the Windows notification pipeline from the
         # screen reader's own queue — three suspects, no evidence.
-        self._queue.put((title, body, remote_jid, msg_key, time.monotonic()))
+        item = (title, body, remote_jid, msg_key, time.monotonic())
+        if sound_event is not None:
+            item += (sound_event,)
+        self._queue.put(item)
 
-    def send_sound_only(self, remote_jid: str):
+    def send_sound_only(self, remote_jid: str, *, sound_event: str = None):
         """The "sound only" notification level: the background sound, and no
         banner or speech. Queued like a toast, so it is coalesced with a burst
         and waits behind any toast still being shown, and _dispatch() applies
         Do Not Disturb to it exactly as to the sound of a full notification."""
-        self._queue.put((None, None, remote_jid, None, time.monotonic()))
+        item = (None, None, remote_jid, None, time.monotonic())
+        if sound_event is not None:
+            item += (sound_event,)
+        self._queue.put(item)
 
     # ── Callbacks (called on wx main thread via CallAfter) ────────────────────
 
-    def _play_sound(self, remote_jid: str = ""):
+    def _play_sound(self, remote_jid: str = "", sound_event: str = None):
         # WinZapp plays this itself, outside the Windows toast audio pipeline,
         # so nothing else honours Do Not Disturb for it. Single decision point
         # for the sound half of a background notification — see
         # announce_background_message() for the spoken half.
         from core.quiet_hours import is_quiet_hours_active
         if is_quiet_hours_active():
+            return
+        if sound_event == REACTION_SOUND_EVENT:
+            self.main_window.reaction_received_sound.play()
             return
         if hasattr(self.main_window, "play_background_notification_sound"):
             self.main_window.play_background_notification_sound(remote_jid)

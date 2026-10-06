@@ -104,20 +104,26 @@ def _register_categories(mgr):
     _center.setNotificationCategories_(cats)
 
 
-def _dispatch(self, title, body, remote_jid, msg_key=None):
+def _dispatch(self, title, body, remote_jid, msg_key=None, *, sound_event=None):
     """Mirror of NotificationManager._dispatch for the Mac notifier."""
     from core.quiet_hours import is_quiet_hours_active
-    from core.notification_manager import format_locked_notification, format_toast_unread_suffix
+    from core.notification_manager import (
+        REACTION_SOUND_EVENT, format_locked_notification, format_toast_unread_suffix,
+        reaction_silenced_now,
+    )
     from core.utils import effective_unread_count
     # A Focus silences WinZapp's own sound, but the notification is still
     # posted: macOS files it quietly or lets it through if the Focus allows
     # WinZapp or this person (Windows' Do Not Disturb drops it instead).
     quiet = is_quiet_hours_active()
+    mw = getattr(self, "main_window", None)
+    if sound_event == REACTION_SOUND_EVENT and reaction_silenced_now(mw, remote_jid):
+        return
+    sound_args = (remote_jid,) if sound_event is None else (remote_jid, sound_event)
     if title is None:
         if not quiet:
-            wx.CallAfter(self._play_sound, remote_jid)
+            wx.CallAfter(self._play_sound, *sound_args)
         return
-    mw = getattr(self, "main_window", None)
     get_chat = getattr(mw, "get_chat", None)
     chat = get_chat(remote_jid) if callable(get_chat) else getattr(mw, "chats", {}).get(remote_jid)
     locked = bool(getattr(mw, "is_chat_locked", lambda _j: False)(remote_jid))
@@ -132,7 +138,7 @@ def _dispatch(self, title, body, remote_jid, msg_key=None):
         if not locked and chat is not None and not chat.get("_unread_count_unsynced"):
             suffix = format_toast_unread_suffix(effective_unread_count(chat), self.i18n)
         if not quiet:
-            wx.CallAfter(self._play_sound, remote_jid)
+            wx.CallAfter(self._play_sound, *sound_args)
         content = UN.UNMutableNotificationContent.alloc().init()
         content.setTitle_(str(title))
         content.setBody_(f"{body}\n{suffix}".strip() if suffix else str(body))

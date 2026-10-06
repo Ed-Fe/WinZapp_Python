@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import wx
+from core.pinned_chat_order import sync_pinned_order
 from core.utils import (
     parse_bool_flag as _parse_bool_flag,
     clear_chat_applied,
@@ -849,17 +850,20 @@ class ChatActionsMixin:
 
         if hasattr(self, "db") and self.db is not None:
             self.db.set_metadata_json("pinned_chats", list(self._pinned_chats))
+        sync_pinned_order(self)
         self._schedule_set_chats()
 
     def pin_chat(self, jid: str):
+        previous_order = sync_pinned_order(self)
         self._apply_pin_state(jid, True)
-        self._sync_pin_to_server(jid, pinned=True)
+        self._sync_pin_to_server(jid, pinned=True, previous_order=previous_order)
 
     def unpin_chat(self, jid: str):
+        previous_order = sync_pinned_order(self)
         self._apply_pin_state(jid, False)
-        self._sync_pin_to_server(jid, pinned=False)
+        self._sync_pin_to_server(jid, pinned=False, previous_order=previous_order)
 
-    def _sync_pin_to_server(self, jid: str, pinned: bool):
+    def _sync_pin_to_server(self, jid: str, pinned: bool, previous_order=None):
         def _do():
             try:
                 # Prefer `@lid` for API operations if mapped, as WPPConnect expects it
@@ -898,15 +902,17 @@ class ChatActionsMixin:
                     # "unpinned" it again, which is exactly the erratic
                     # pin behaviour reported. Roll it back immediately and
                     # tell the user why instead of waiting for that poll.
-                    wx.CallAfter(self._on_pin_sync_rejected, jid, pinned)
+                    wx.CallAfter(self._on_pin_sync_rejected, jid, pinned, previous_order)
             except Exception as exc:
                 logging.warning("[pin_chat] request failed for %s: %s", jid, exc)
         threading.Thread(target=_do, daemon=True).start()
 
-    def _on_pin_sync_rejected(self, jid: str, attempted_pinned: bool):
+    def _on_pin_sync_rejected(self, jid: str, attempted_pinned: bool, previous_order=None):
         """Revert an optimistic pin/unpin that WhatsApp did not actually
         accept, and tell the user (runs on the wx main thread)."""
         self._apply_pin_state(jid, not attempted_pinned)
+        if previous_order is not None:
+            sync_pinned_order(self, restore=previous_order)
         if not self.background_mode:
             self.error_sound.play()
             key = "pin_chat_failed" if attempted_pinned else "unpin_chat_failed"

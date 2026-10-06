@@ -104,7 +104,7 @@ class _Stub:
     def _sync_incoming_call_bar(self, message=""):
         self.steps.append("call bar")
 
-    def add_chats_to_ui(self):
+    def _schedule_set_chats(self):
         self.steps.append("chat list")
 
     def save_settings(self):
@@ -355,6 +355,15 @@ class TestImporting:
 
 
 class TestTakingEffect:
+    def test_an_import_recomputes_chat_order_instead_of_reusing_sorted_rows(self):
+        stub = _Stub()
+        calls = []
+        stub._schedule_set_chats = lambda: calls.append("recompute")
+        stub.settings["user_interface"]["keep_pinned_chat_order"] = True
+        stub.apply_settings_live()
+        assert calls == ["recompute"]
+        assert "chat list" not in stub.steps
+
     def test_every_part_of_the_app_is_told(self):
         stub = _Stub()
         stub.settings["general"]["global_hotkey"] = {"vk": 0x4B, "mod": 3}

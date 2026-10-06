@@ -31,6 +31,8 @@ from typing import Any
 import aiosqlite
 from cryptography.fernet import Fernet
 
+from core.phone_contacts import SYNCED_KEY, is_phone_synced
+from core.star_storage import preserve_stars, update_star_state
 from core.transcription.stored import (
     TRANSCRIPTION_KEY,
     decision_time,
@@ -89,6 +91,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     push_name       TEXT DEFAULT '',
     profile_pic_url TEXT DEFAULT '',
     is_saved        INTEGER DEFAULT 0,
+    synced_to_phone INTEGER DEFAULT 0,
     updated_at      TEXT DEFAULT (datetime('now'))
 );
 
@@ -135,6 +138,13 @@ _CHAT_PAGE_SIZE = 200
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _synced_to_phone(contact: dict) -> int:
+    """The contacts.synced_to_phone value for *contact*: 1 when it lives in
+    the phone's address book, whether WinZapp saved it there or WhatsApp
+    reports it so (core.phone_contacts.is_phone_synced)."""
+    return 1 if is_phone_synced(contact) else 0
 
 
 def _now_ts() -> str:
@@ -293,6 +303,7 @@ class DatabaseManager:
                 log.error("[connect] ALTER TABLE chats ADD COLUMN t failed: %s", exc)
                 raise
         await self._upgrade_unresolvable_lids()
+        await self._upgrade_contacts_synced_to_phone()
         await self._conn.commit()
 
     async def _upgrade_unresolvable_lids(self) -> None:
@@ -304,6 +315,24 @@ class DatabaseManager:
         log.info("[connect] Upgrading unresolvable_lids to the expiring schema.")
         await self._conn.execute("DROP TABLE IF EXISTS unresolvable_lids")
         await self._conn.executescript(_SCHEMA_SQL)
+
+    async def _upgrade_contacts_synced_to_phone(self) -> None:
+        """Add contacts.synced_to_phone to a database created before it.
+
+        The column records that a contact lives in the phone's address book
+        (core/phone_contacts.py). Without it the mark was lost at every
+        restart, and until the next contact sync a contact saved to the phone
+        was handled as a local one: deleting it removed it from WinZapp only.
+        Existing rows start at 0, which is what they were treated as anyway.
+        """
+        assert self._conn is not None
+        cursor = await self._conn.execute("PRAGMA table_info(contacts)")
+        columns = {row["name"] for row in await cursor.fetchall()}
+        if "synced_to_phone" in columns:
+            return
+        log.info("[connect] Adding contacts.synced_to_phone.")
+        await self._conn.execute(
+            "ALTER TABLE contacts ADD COLUMN synced_to_phone INTEGER DEFAULT 0")
 
     async def close(self) -> None:
         """Close the connection if open."""
@@ -745,6 +774,13 @@ class DatabaseManager:
                 result.append(msg)
         return result
 
+    async def update_message_star_state(self, remote_jid: str, message_id: str, state: dict) -> None:
+        await update_star_state(self, remote_jid, message_id, state)
+
+    async def merge_message_star_states(self, remote_jid: str, messages: list[dict]) -> list[dict]:
+        async with self._write_lock:
+            return await preserve_stars(self, await self._ensure_conn(), remote_jid, messages)
+
     async def get_message_by_id(self, remote_jid: str, message_id: str) -> dict | None:
         """Return one stored message of a chat by its id, or None."""
         if not message_id:
@@ -990,6 +1026,7 @@ class DatabaseManager:
         """
         async with self._write_lock:
             conn = await self._ensure_conn()
+            msg = (await preserve_stars(self, conn, remote_jid, [msg]))[0]
             msg = await self._with_known_local_fields(conn, remote_jid, msg)
             values = self._build_message_values(remote_jid, msg)
             if values is None:
@@ -1026,6 +1063,7 @@ class DatabaseManager:
             conn = await self._ensure_conn()
             try:
                 await conn.execute("BEGIN")
+                msgs = await preserve_stars(self, conn, remote_jid, msgs)
                 stored_rows = await self._stored_rows_by_id(conn, remote_jid, msgs)
                 for msg in msgs:
                     msg = self._apply_stored_row(msg, stored_rows)
@@ -1304,6 +1342,7 @@ class DatabaseManager:
                 "profilePicUrl": row["profile_pic_url"] or "",
                 "type": "contact",
                 "isSaved": bool(row["is_saved"]),
+                SYNCED_KEY: bool(row["synced_to_phone"]),
             }
         return result
 
@@ -1320,9 +1359,10 @@ class DatabaseManager:
             await conn.execute(
                 """INSERT OR REPLACE INTO contacts
                    (jid, remote_jid, name, push_name, profile_pic_url,
-                    is_saved, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (jid, remote_jid, name, push_name, pic, saved, _now_ts()),
+                    is_saved, synced_to_phone, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (jid, remote_jid, name, push_name, pic, saved,
+                 _synced_to_phone(data), _now_ts()),
             )
             await conn.commit()
 
@@ -1341,9 +1381,10 @@ class DatabaseManager:
                     await conn.execute(
                         """INSERT OR REPLACE INTO contacts
                            (jid, remote_jid, name, push_name, profile_pic_url,
-                            is_saved, updated_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (jid, remote_jid, name, push_name, pic, saved, _now_ts()),
+                            is_saved, synced_to_phone, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (jid, remote_jid, name, push_name, pic, saved,
+                         _synced_to_phone(data), _now_ts()),
                     )
                 await conn.commit()
             except Exception:
@@ -1619,9 +1660,10 @@ class DatabaseManager:
                     await conn.execute(
                         """INSERT OR REPLACE INTO contacts
                            (jid, remote_jid, name, push_name, profile_pic_url,
-                            is_saved, updated_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                        (jid, remote_jid, name, push_name, pic, saved, now),
+                            is_saved, synced_to_phone, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (jid, remote_jid, name, push_name, pic, saved,
+                         _synced_to_phone(contact), now),
                     )
                     total += 1
 

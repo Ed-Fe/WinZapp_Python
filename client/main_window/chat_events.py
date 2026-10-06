@@ -9,6 +9,7 @@ import logging
 import time
 import wx
 from core.conversation_view import conversation_in_view
+from core.pinned_chat_order import sync_pinned_order
 from main_window.message_rules import (
     _discount_non_countable_unread,
     note_unread_discount_state,
@@ -927,6 +928,7 @@ class ChatEventsMixin:
 
     def on_chat_pin_update(self, jid: str, is_pinned: bool):
         """Handle pin/unpin status change from chats.update."""
+        sync_pinned_order(self)
         normalized = self._normalize_jid(jid)
         chat = self.chats.get(normalized)
         if chat is None:
@@ -963,4 +965,5 @@ class ChatEventsMixin:
 
         if hasattr(self, "db") and self.db is not None:
             self.db.set_metadata_json("pinned_chats", list(self._pinned_chats))
+        sync_pinned_order(self)
         self._schedule_set_chats()

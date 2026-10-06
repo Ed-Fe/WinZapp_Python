@@ -106,7 +106,7 @@ class _FakeNotificationManager:
     def __init__(self):
         self.sent = []
 
-    def send(self, title, body, remote_jid, msg_key=None):
+    def send(self, title, body, remote_jid, msg_key=None, *, sound_event=None):
         self.sent.append((title, body, remote_jid))
 
 
@@ -159,6 +159,7 @@ class _StubMainWindow:
         self.i18n = _FakeI18n()
         self.message_current_sound = _FakeSound()
         self.message_foreground_sound = _FakeSound()
+        self.reaction_received_sound = _FakeSound()
         self.spoken = []
         self.read_marked = []
         self._last_activation_time = 0
@@ -367,7 +368,8 @@ class TestArchivedChatSoundAndTTS(unittest.TestCase):
 
         stub._maybe_notify_reaction(self.ARCHIVED_JID, msg)
 
-        self.assertEqual(stub.message_current_sound.play_count, 1)
+        self.assertEqual(stub.reaction_received_sound.play_count, 1)
+        self.assertEqual(stub.message_current_sound.play_count, 0)
         self.assertEqual(len(stub.spoken), 1)
         self.assertIn("👍", stub.spoken[0])
 
@@ -422,7 +424,8 @@ class TestArchivedChatSoundAndTTS(unittest.TestCase):
 
         stub._maybe_notify_reaction(self.ARCHIVED_JID, msg)
 
-        self.assertEqual(stub.message_current_sound.play_count, 1)
+        self.assertEqual(stub.reaction_received_sound.play_count, 1)
+        self.assertEqual(stub.message_current_sound.play_count, 0)
         self.assertEqual(len(stub.spoken), 1)
 
     def test_matches_open_conversation_robustness(self):

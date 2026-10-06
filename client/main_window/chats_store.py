@@ -13,6 +13,7 @@ import threading
 import time
 import wx
 from core.conversation_view import conversation_in_view
+from core.pinned_chat_order import keep_pinned_order, reset_pinned_order, sync_pinned_order
 from main_window.log_files import (
     _LazyLogFile,
     _consolidate_legacy_log_dir,
@@ -142,6 +143,9 @@ class ChatsStoreMixin:
         then on. Every other caller ignores it.
         """
         logging.info("[clear_local_data] Clearing all local caches, media, and database...")
+        invalidate = getattr(self, "_invalidate_wa_lists", None)
+        if invalidate is not None:
+            invalidate()
         # Invalidate every background job before touching shared chat state.
         # A backfill captures this generation and must not keep querying or
         # writing after F5/logout has emptied the database underneath it.
@@ -207,6 +211,7 @@ class ChatsStoreMixin:
             self._deleted_chats = set()
             self._archived_chats = set()
             self._pinned_chats = set()
+            reset_pinned_order(self)
             self._muted_chats = {}
             self._blocked_contacts = set()
             self._presence_pushname_map = {}
@@ -754,6 +759,7 @@ class ChatsStoreMixin:
                                 # _extract_lid_mapping() writes the same two
                                 # dicts from the Socket.IO one — same
                                 # check-then-set, same lock.
+                                learned_pair = None
                                 with self._lid_mapping_lock:
                                     if not hasattr(self, "_lid_to_phone"):
                                         self._lid_to_phone = {}
@@ -763,12 +769,18 @@ class ChatsStoreMixin:
                                         if self._lid_to_phone.get(remote) != alt:
                                             self._lid_to_phone[remote] = alt
                                             self._phone_to_lid[alt] = remote
+                                            learned_pair = (remote, alt)
                                             logging.info(f"[LID Mapping] Extracted mapping from lastMessage in get_remote_chats: {remote} <-> {alt}")
                                     elif alt.endswith("@lid") and remote.endswith("@s.whatsapp.net"):
                                         if self._lid_to_phone.get(alt) != remote:
                                             self._lid_to_phone[alt] = remote
                                             self._phone_to_lid[remote] = alt
+                                            learned_pair = (alt, remote)
                                             logging.info(f"[LID Mapping] Extracted mapping from lastMessage in get_remote_chats (alt): {alt} <-> {remote}")
+                                if learned_pair:
+                                    # A contact the user saved under this @lid
+                                    # follows the person to the phone JID.
+                                    self._follow_saved_contacts([learned_pair])
 
                     # Skip status@broadcast — statuses are shown in the Status tab
                     if not jid or jid.endswith("@broadcast"):
@@ -1288,6 +1300,10 @@ class ChatsStoreMixin:
                     self.db.set_metadata_json("pinned_chats", list(self._pinned_chats))
                 if archive_changed and hasattr(self, "db") and self.db is not None:
                     self.db.set_metadata_json("archived_chats", list(self._archived_chats))
+
+                if db_changed and (keep_pinned_order(self) or
+                                   getattr(self, "_pinned_order_state", None) is not None):
+                    sync_pinned_order(self, chats=response_data)
 
                 perms_changed = False
                 groups_total = groups_with_metadata = 0

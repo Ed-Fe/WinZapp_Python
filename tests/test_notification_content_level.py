@@ -140,7 +140,7 @@ class TestWiring:
     def test_background_reactions_apply_the_level(self):
         src = main_window_method_source("_maybe_notify_reaction")
         assert "notification_content_level(self.settings)" in src
-        assert "send_sound_only(remote_jid)" in src
+        assert "send_sound_only(" in src
         assert 'self.i18n.t("notif_hidden_reaction")' in src
 
 
