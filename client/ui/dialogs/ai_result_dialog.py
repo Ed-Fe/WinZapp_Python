@@ -64,20 +64,22 @@ def consent_text(i18n, providers, kind, locked):
 
 class AIConsentDialog(wx.Dialog):
     """Asks before media leaves the machine; names every provider that may
-    receive it, in the order they would be tried."""
+    receive it, in the order they would be tried. Unlike the result window it
+    carries mnemonics: its few controls are all reachable from the keyboard by
+    letter."""
 
     def __init__(self, parent, i18n, providers, kind, locked):
         super().__init__(parent, title=i18n.t("ai_consent_title"))
         layout = wx.BoxSizer(wx.VERTICAL)
         text = wx.TextCtrl(self, value=consent_text(i18n, providers, kind, locked), style=wx.TE_MULTILINE | wx.TE_READONLY,
-                           size=(520, 220), name=i18n.t("ai_consent_title"))
+                           size=(520, 220), name=plain(i18n, "ai_consent_title"))
         layout.Add(text, 1, wx.EXPAND | wx.ALL, 10)
         self.remember = wx.CheckBox(self, label=i18n.t("ai_remember_consent"))
         self.remember.Enable(not locked)
         layout.Add(self.remember, 0, wx.ALL, 10)
         buttons = wx.WrapSizer(wx.HORIZONTAL)
         buttons.Add(wx.Button(self, wx.ID_OK, label=i18n.t("ai_send_media")), 0, wx.ALL, 8)
-        cancel = wx.Button(self, wx.ID_CANCEL, label=plain(i18n, "cancel"))
+        cancel = wx.Button(self, wx.ID_CANCEL, label=i18n.t("cancel"))
         buttons.Add(cancel, 0, wx.ALL, 8)
         layout.Add(buttons)
         self.SetSizerAndFit(layout)
@@ -244,7 +246,13 @@ class AIResultDialog(wx.Dialog):
             providers = self._chain(store)
             if not providers:
                 raise DescriptionError("providers")
-            if not self._consent(providers) or not self._valid():
+            accepted = self._consent(providers)
+            if not accepted and not self._latest and self._valid():
+                # Declining the first prompt leaves nothing to show: close the
+                # window rather than dropping focus into an empty result.
+                self._close()
+                return
+            if not accepted or not self._valid():
                 return
             generation, operation = self.session.begin(question)
             record("ui_start", generation=generation)

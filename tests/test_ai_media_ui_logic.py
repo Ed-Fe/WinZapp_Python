@@ -64,6 +64,9 @@ class Control:
     def Hide(self):
         self.shown = False
 
+    def Show(self, shown=True):
+        self.shown = shown
+
 
 @pytest.mark.parametrize("modal_fails", [False, True])
 def test_technical_help_is_readable_focused_and_destroyed_without_opening_a_window(monkeypatch, modal_fails):
@@ -674,13 +677,14 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
             self.selection = value
         def GetCount(self):
             return 0
-    page = SimpleNamespace(_labels=[], _t=lambda key: key, _profile_labels=lambda: ["quick", "balanced", "detailed"],
+    page = SimpleNamespace(_labels=[], _t=lambda key: key, _plain=lambda key: key,
+                           _profile_labels=lambda: ["quick", "balanced", "detailed"],
                            profile=NamedControl(selection=2), providers=NamedControl(selection=-1),
                            notice=NamedControl(), status=NamedControl(),
                            _refresh_list=lambda selection: None)
     AISettingsPage.refresh_labels(page)
     assert page.notice.name == "ai_settings_help" and page.notice.value == "ai_settings_notice"
-    assert page.status.name == "status" and page.profile.selection == 2
+    assert page.status.name == "ai_status_label" and page.profile.selection == 2
     assert page.profile.items == ["quick", "balanced", "detailed"]
     assert page.providers.name == "ai_provider_list_label"
 
@@ -1006,6 +1010,7 @@ class ProviderWindowStub:
     _refresh_model_choices = AIProviderDialog._refresh_model_choices
     _hide_key = AIProviderDialog._hide_key
     _apply_automatic = AIProviderDialog._apply_automatic
+    _show_manual_model_fields = AIProviderDialog._show_manual_model_fields
     _model_pinned = AIProviderDialog._model_pinned
     _automatic_changed = AIProviderDialog._automatic_changed
 
@@ -1028,6 +1033,7 @@ class ProviderWindowStub:
         self.enabled = Control(True)
         self.status = Control()
         self._reveal = lambda shown: None
+        self._labels = [(Control(), "ai_model_choice"), (Control(), "ai_model"), (Control(), "ai_api_key")]
         self.main_window = SimpleNamespace(i18n=SimpleNamespace(t=lambda key: key))
 
     def _t(self, key):
@@ -1372,17 +1378,17 @@ def test_the_shortcut_and_the_button_act_on_the_selected_message_while_the_butto
     assert seen == [{"id": 2}]
 
 
-def test_automatic_model_follows_the_recommendation_and_pinning_unlocks_the_fields(tmp_path):
+def test_automatic_model_follows_the_recommendation_and_pinning_reveals_the_fields(tmp_path):
     window = ProviderWindowStub(tmp_path)
     window.automatic.value = True
     window.model.value = "gpt-4o"
     assert window.values()["model"] == ""
     window._automatic_changed(SimpleNamespace(Skip=lambda: None))
     assert window.model.value == ai_config.PROVIDERS["openai"].model
-    assert window.model.enabled is False and window.get_models.enabled is False
+    assert window.model.shown is False and window.get_models.enabled is False
     window.automatic.value = False
     window._automatic_changed(SimpleNamespace(Skip=lambda: None))
-    assert window.model.enabled is True and window.get_models.enabled is True
+    assert window.model.shown is True and window.get_models.enabled is True
     window.model.value = "gpt-4o"
     assert window.values()["model"] == "gpt-4o"
 
@@ -1413,3 +1419,90 @@ def test_automatic_keeps_the_model_fields_locked_through_key_edits_and_model_lis
     window.automatic.value = False
     window._refresh_model_choices()
     assert window.model_choice.enabled is True
+
+
+def test_declining_the_first_consent_closes_the_window_instead_of_leaving_an_empty_result(dialog, monkeypatch):
+    module = _prepare_start(dialog, monkeypatch)
+    dialog._consented = False
+    dialog.config["consented"] = []
+    dialog._consent = lambda providers: False
+    monkeypatch.setattr(module, "submit", lambda *args: pytest.fail("dispatched without consent"))
+    dialog._start("describe", regenerate=True)
+    assert dialog.closed and dialog.session.closed and dialog.session.requests == 0
+
+
+def test_declining_a_later_consent_keeps_the_answer_that_is_already_shown(dialog, monkeypatch):
+    module = _prepare_start(dialog, monkeypatch)
+    dialog._latest = "an earlier answer"
+    dialog._consent = lambda providers: False
+    monkeypatch.setattr(module, "submit", lambda *args: pytest.fail("dispatched without consent"))
+    dialog._start("another question")
+    assert not dialog.closed and not dialog.session.closed
+
+
+def test_provider_window_opens_with_the_saved_key_unless_it_is_staged_away(tmp_path):
+    from ui.dialogs.ai_settings_page import key_for_dialog
+    store = CredentialStore(tmp_path)
+    store.set("openai", "saved-key")
+    assert key_for_dialog(store, "openai", {}, set(), False) == "saved-key"
+    assert key_for_dialog(store, "openai", {"openai": "typed"}, set(), False) == "typed"
+    assert key_for_dialog(store, "openai", {}, {"openai"}, False) == ""
+    assert key_for_dialog(store, "openai", {}, set(), True) == ""
+    assert key_for_dialog(store, "gemini", {}, set(), False) == ""
+    store.data_path.write_bytes(b"broken")
+    assert key_for_dialog(store, "openai", {}, set(), False) == ""
+
+
+def test_configure_prefills_the_saved_key_and_stages_only_a_changed_one(tmp_path, monkeypatch):
+    import ui.dialogs.ai_settings_page as module
+    page = PageStub(tmp_path)
+    page.providers.selection = 0
+    provider = page._order[0]
+    page.store.set(provider, "saved-key")
+    seen = []
+    typed = {"key": "saved-key"}
+
+    class WindowStub:
+        def __init__(self, parent, main_window, name, state, store, reset):
+            seen.append(state["key"])
+        def ShowModal(self):
+            return wx.ID_OK
+        def values(self):
+            return {"key": typed["key"], "deleted": False, "model": "", "enabled": True}
+        def Destroy(self):
+            pass
+
+    monkeypatch.setattr(module, "AIProviderDialog", WindowStub)
+    page._configure(None)
+    assert seen == ["saved-key"] and page._drafts == {}  # unchanged: nothing to re-save
+    typed["key"] = "replacement"
+    page._configure(None)
+    assert page._drafts == {provider: "replacement"}
+    page._configure(None)
+    assert seen[-1] == "replacement"  # a staged key comes back as typed
+
+
+def test_the_provider_list_lands_on_the_first_provider_when_nothing_is_selected():
+    selected = []
+    providers = SimpleNamespace(Freeze=lambda: None, Thaw=lambda: None, Set=lambda rows: None,
+                                GetCount=lambda: 5, SetSelection=selected.append)
+    page = SimpleNamespace(providers=providers, _order=["a"] * 5, _row=lambda p: p)
+    AISettingsPage._refresh_list(page)
+    AISettingsPage._refresh_list(page, 3)
+    AISettingsPage._refresh_list(page, 9)
+    assert selected == [0, 3, 0]
+
+
+@pytest.mark.parametrize("automatic", [True, False])
+def test_manual_model_fields_exist_only_while_automatic_is_off(tmp_path, automatic):
+    window = ProviderWindowStub(tmp_path)
+    window.automatic.value = automatic
+    window._apply_automatic()
+    manual = not automatic
+    assert window.model.shown is manual and window.model_choice.shown is manual
+    assert window.get_models.shown is manual and window.get_models.enabled is manual
+    captions = {key: label.shown for label, key in window._labels}
+    assert captions == {"ai_model_choice": manual, "ai_model": manual, "ai_api_key": False}
+    assert window.model.enabled is True  # never left disabled: that reads as read-only
+    if automatic:
+        assert window.model.value == ai_config.PROVIDERS["openai"].model
