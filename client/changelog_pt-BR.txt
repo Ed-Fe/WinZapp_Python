@@ -40,6 +40,10 @@ CORREÇÕES
 
 - Status: "Curtir ❤️" voltou a funcionar. Depois de uma mudança no WhatsApp Web, curtir o status de um contato falhava com "Não foi possível enviar a reação ao status."
 
+- "Usar API personalizada (servidor remoto)": o WinZapp não diz mais "O perfil do navegador usado para conectar ao WhatsApp está danificado e não há cópia salva para restaurar" sobre um perfil que está em ordem. Esse perfil fica no servidor, e o WinZapp o procurava neste computador, não encontrava nada e concluía que estava danificado. Com uma API personalizada, o WinZapp agora deixa o perfil e suas cópias de segurança por conta do servidor e, ao fechar, não encerra mais uma WPPConnect deste computador que ele mesmo não iniciou.
+
+- Contas com muitas conversas, cujo WhatsApp Web leva um pouco mais de 30 segundos para carregar, agora conectam. O WinZapp desistia de esperar com exatamente 30 segundos, e a mesma conta falhava do mesmo jeito toda vez que iniciava.
+
 V2.0.0.0
 
 A grande novidade desta versão são as ligações: agora dá para ligar, atender e recusar ligações de voz e de vídeo pelo próprio WinZapp, sem pegar o celular, com uma janela de ligação acessível, atalhos de teclado, configurações de áudio próprias e o histórico na nova aba Ligações. Também chegaram as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de uso, além de correções em situações em que o WinZapp pedia para parear de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: ela não muda nada no uso, mas deixa o WinZapp mais fácil de manter e de corrigir daqui para a frente.

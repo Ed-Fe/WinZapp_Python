@@ -40,6 +40,10 @@ DÜZELTMELER
 
 - Durum: "Beğen" yeniden çalışıyor. WhatsApp Web'deki bir değişiklikten sonra bir kişinin durumunu beğenmek "Bu duruma tepki gönderilemedi." hatasıyla başarısız oluyordu.
 
+- "Özel sunucu API'sini kullan": WinZapp artık sorunsuz bir profil için "WhatsApp'a bağlanmak için kullanılan tarayıcı profili hasarlı ve geri yüklenebilecek kayıtlı bir kopya yok" demiyor. Bu profil sunucuda bulunuyor; WinZapp onu bu bilgisayarda arıyor, hiçbir şey bulamıyor ve hasarlı olduğu sonucuna varıyordu. Özel bir API ile WinZapp artık profili ve yedeklerini sunucuya bırakıyor ve kapanırken bu bilgisayarda kendi başlatmadığı bir WPPConnect'i durdurmuyor.
+
+- WhatsApp Web'i yüklenmesi 30 saniyeden biraz uzun süren, çok sohbeti olan hesaplar artık bağlanıyor. WinZapp tam 30 saniyede beklemeyi bırakıyordu ve aynı hesap her başlatıldığında aynı şekilde başarısız oluyordu.
+
 V2.0.0.0
 
 Bu sürümün en büyük yeniliği aramalardır: Telefona ihtiyaç duymadan doğrudan WinZapp üzerinden sesli ve görüntülü arama başlatabilir, gelen aramaları yanıtlayabilir veya reddedebilirsiniz. Bu yenilik; tam erişilebilir bir arama penceresi, pratik klavye kısayolları, aramalara özel ses ayarları ve yeni Aramalar sekmesindeki kapsamlı arama geçmişiyle birlikte sunulmaktadır. Ayrıca PIN korumalı kilitli sohbetler, arşivlenmiş sohbetlerde arama, resmi Türkçe ve Rumence dil destekleri ile çeşitli kullanım iyileştirmeleri eklendi; WinZapp'in gereksiz yere yeniden eşleştirme istediği durumlar da düzeltildi. Arka planda programın kod tabanı büyük bir yeniden yapılandırmadan (refactoring) geçti: Bu durum WinZapp'i kullanım şeklinizde hiçbir şeyi değiştirmez; ancak programın uzun vadeli kararlılığını, bakımını ve hata düzeltme süreçlerini önemli ölçüde kolaylaştırır.

@@ -40,6 +40,10 @@ POPRAWKI
 
 - Status: "Polub ❤️" znowu działa. Po zmianie w WhatsApp Web polubienie statusu kontaktu kończyło się błędem "Nie udało się wysłać reakcji na ten status."
 
+- "Użyj niestandardowego API (serwer zdalny)": WinZapp nie wyświetla już komunikatu "Profil przeglądarki używany do połączenia z WhatsApp jest uszkodzony i nie ma zapisanej kopii do przywrócenia" o profilu, który jest w porządku. Ten profil znajduje się na serwerze, a WinZapp szukał go na tym komputerze, niczego nie znajdował i uznawał go za uszkodzony. Przy niestandardowym API WinZapp zostawia teraz profil i jego kopie zapasowe serwerowi, a przy zamykaniu nie zatrzymuje już WPPConnect na tym komputerze, którego sam nie uruchomił.
+
+- Konta z wieloma czatami, których WhatsApp Web ładuje się nieco dłużej niż 30 sekund, teraz się łączą. WinZapp przestawał czekać dokładnie po 30 sekundach, więc to samo konto przy każdym uruchomieniu kończyło się tym samym błędem.
+
 V2.0.0.0
 
 Najważniejszą nowością tej wersji są połączenia: połączenia głosowe i wideo można teraz nawiązywać, odbierać i odrzucać bezpośrednio w WinZapp, bez sięgania po telefon — z dostępnym oknem połączenia, skrótami klawiszowymi, własnymi ustawieniami dźwięku i historią w nowej karcie Połączenia. Doszły też zablokowane czaty, wyszukiwanie w zarchiwizowanych czatach, języki turecki i rumuński oraz kilka usprawnień w obsłudze, a także poprawki sytuacji, w których WinZapp niepotrzebnie prosił o ponowne parowanie. Pod spodem kod programu przeszedł dużą reorganizację: niczego nie zmienia w codziennym używaniu, ale sprawia, że WinZapp będzie łatwiej utrzymywać i naprawiać.

@@ -40,6 +40,10 @@ CORRECCIONES
 
 - Estado: "Me gusta ❤️" vuelve a funcionar. Después de un cambio en WhatsApp Web, dar me gusta al estado de un contacto fallaba con "No se pudo enviar la reacción al estado."
 
+- "Usar API personalizada (servidor remoto)": WinZapp ya no dice "El perfil del navegador que se usa para conectar con WhatsApp está dañado y no hay ninguna copia guardada para restaurar" sobre un perfil que está bien. Ese perfil está en el servidor, y WinZapp lo buscaba en este equipo, no encontraba nada y concluía que estaba dañado. Con una API personalizada, WinZapp ahora deja el perfil y sus copias de seguridad en manos del servidor y, al cerrarse, ya no detiene un WPPConnect de este equipo que no haya iniciado él.
+
+- Las cuentas con muchos chats, cuyo WhatsApp Web tarda algo más de 30 segundos en cargar, ahora se conectan. WinZapp dejaba de esperar a los 30 segundos exactos, y la misma cuenta fallaba igual cada vez que se iniciaba.
+
 V2.0.0.0
 
 La gran novedad de esta versión son las llamadas: ahora se pueden hacer, contestar y rechazar llamadas de voz y videollamadas desde el propio WinZapp, sin coger el móvil, con una ventana de llamada accesible, atajos de teclado, configuración de audio propia y el historial en la nueva pestaña Llamadas. También llegan los chats bloqueados, la búsqueda en las conversaciones archivadas, los idiomas turco y rumano y varias mejoras de uso, además de correcciones en situaciones en las que WinZapp pedía vincular de nuevo sin necesidad. Por dentro, el código del programa ha pasado por una gran reorganización: no cambia nada en el uso, pero hace que WinZapp sea más fácil de mantener y de corregir a partir de ahora.

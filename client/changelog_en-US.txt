@@ -40,6 +40,10 @@ FIXES
 
 - Status: "Like ❤️" works again. After a change in WhatsApp Web, liking a contact's status failed with "Could not send the reaction to this status."
 
+- "Use custom API (remote server)": WinZapp no longer says "The browser profile used to connect to WhatsApp is damaged and there is no saved copy to restore" about a profile that is fine. That profile lives on the server, and WinZapp looked for it on this computer, found nothing and concluded it was damaged. With a custom API, WinZapp now leaves the profile and its backups to the server, and when it closes it no longer stops a WPPConnect on this computer that it did not start.
+
+- Accounts with many chats, whose WhatsApp Web takes a little over 30 seconds to load, now connect. WinZapp gave up waiting at exactly 30 seconds, so the same account failed the same way every time it started.
+
 V2.0.0.0
 
 The big news in this release is calls: you can now place, answer and reject voice and video calls from WinZapp itself, without picking up your phone, with an accessible call window, keyboard shortcuts, dedicated audio settings and your call history in the new Calls tab. Locked chats, search in archived chats, Turkish and Romanian and several usability improvements arrived too, along with fixes for situations where WinZapp asked you to pair again when it did not need to. Under the hood, the program's code went through a major reorganization: it changes nothing in how you use WinZapp, but it makes it easier to maintain and to fix from here on.

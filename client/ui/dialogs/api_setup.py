@@ -602,6 +602,16 @@ class ApiSetupDialog(wx.Dialog):
         except Exception as exc:
             logging.warning("[api_setup] Failed to patch wppconnect-wa.js: %s", exc)
 
+        # browser.js — a large account whose WhatsApp Web needs a little over
+        # 30 s to be ready never connected (issue #414). Takes the outer
+        # api_dir, like the wa-js patch.
+        try:
+            from core.wppconnect_browser_layer_patch import patch_browser_controller
+            ok, note = patch_browser_controller(api_dir)
+            logging.log(logging.INFO if ok else logging.WARNING, "[api_setup] %s", note)
+        except Exception as exc:
+            logging.warning("[api_setup] Failed to patch browser.js: %s", exc)
+
     @staticmethod
     def _patch_wppconnect_status_layer(wppconnect_api_dir: str) -> bool:
         """Patch @wppconnect-team/wppconnect's compiled status.layer.js so

@@ -446,6 +446,7 @@ from core.wppconnect_welcome_layer_patch import (
     latest_version_dependency_is_gone as _welcome_latest_version_dependency_is_gone,
 )
 from core.wppconnect_wa_js_patch import patch_wa_js_bundle as _patch_wa_js_bundle_file
+from core.wppconnect_browser_layer_patch import patch_browser_controller as _patch_browser_controller_file
 from core.wpp_runtime import homologated_wpp_tag
 
 
@@ -683,6 +684,18 @@ def _patch_wa_js_bundle(client_api_dir: str = None) -> bool:
     so this and ApiSetupDialog's call can't drift apart.
     """
     ok, note = _patch_wa_js_bundle_file(client_api_dir or CLIENT_API_DIR)
+    print(f"[{'OK' if ok else 'WARNING'}] {note}")
+    return ok
+
+
+def _patch_wppconnect_browser(client_api_dir: str = None) -> bool:
+    """Patch @wppconnect-team/wppconnect's compiled controllers/browser.js so
+    injectApi() waits longer than puppeteer's default 30 s for WhatsApp Web to
+    be ready (issue #414) — see client/core/wppconnect_browser_layer_patch.py's
+    module docstring. The search-and-replace and the file handling both live
+    there, so this and ApiSetupDialog's call can't drift apart.
+    """
+    ok, note = _patch_browser_controller_file(client_api_dir or CLIENT_API_DIR)
     print(f"[{'OK' if ok else 'WARNING'}] {note}")
     return ok
 
@@ -1129,6 +1142,14 @@ def main():
             _patch_wa_js_bundle()
         except Exception as e:
             print(f"[WARNING] Failed to patch wppconnect-wa.js Meta AI persona id: {e}")
+
+        # A large account whose WhatsApp Web takes a little over 30 s to be
+        # ready never connected (issue #414) — see _patch_wppconnect_browser()'s
+        # docstring.
+        try:
+            _patch_wppconnect_browser()
+        except Exception as e:
+            print(f"[WARNING] Failed to patch browser.js injectApi readiness timeout: {e}")
 
         # Download Chromium (Puppeteer postinstall)
         print("[INFO] Downloading Chromium (Puppeteer)...")
