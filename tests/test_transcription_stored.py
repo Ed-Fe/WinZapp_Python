@@ -387,14 +387,21 @@ async def _stored_text(db, mid=_ID, jid=_JID):
 
 
 def _count_message_selects(db, monkeypatch):
-    """Every SELECT on the messages table from now on, as (sql, params).
-    The caller undoes the patch before reading the rows back."""
+    """Every SELECT on the messages table from now on, as (sql, params),
+    except the star read. The caller undoes the patch before reading the
+    rows back.
+
+    core.star_storage.preserve_stars() reads the same batch on its own, one
+    SELECT per block of ids across every variant of the chat's JID
+    (`remote_jid IN (...)`), for a different rule; what these tests count is
+    the read the local fields need, which asks for the chat's exact JID."""
     conn = db._conn
     original = conn.execute
     selects = []
 
     def _counting(sql, *args, **kwargs):
-        if sql.lstrip().upper().startswith("SELECT") and "FROM messages" in sql:
+        if (sql.lstrip().upper().startswith("SELECT") and "FROM messages" in sql
+                and "remote_jid IN (" not in sql):
             selects.append((sql, tuple(args[0]) if args else ()))
         return original(sql, *args, **kwargs)
 
