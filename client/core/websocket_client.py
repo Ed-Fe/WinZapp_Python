@@ -10,6 +10,7 @@ from core.call_log import CALL_LOG_MESSAGE_TYPE, call_log_creator, call_log_payl
 from core.i18n import I18n
 from core.message_edit import MESSAGE_EDIT, clean_message_id, server_marks_edited
 from core.message_stars import remote_star_state
+from core.reaction_echo import reaction_echo_keys, take_matching_send
 from core.meta_ai import rich_response_text
 from core.sync_contracts import observe_payload
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE, is_view_once_unavailable
@@ -378,8 +379,7 @@ class WebSocketClient:
     def _consume_own_reaction_echo(self, msg):
         """True only for an echo of a reaction just sent by WinZapp."""
         reaction = (msg.get("message") or {}).get("reactionMessage") or {}
-        signature = (str((reaction.get("key") or {}).get("id", "")),
-                     (reaction.get("text") or "").strip())
+        reacted_key = reaction.get("key") or {}
         reaction_id = str((msg.get("key") or {}).get("id", ""))
         now = time.monotonic()
         local_ids = getattr(self, "_locally_sent_reaction_ids", None)
@@ -396,14 +396,18 @@ class WebSocketClient:
         lock = getattr(self.main_window, "_pending_own_reactions_lock", None)
         if pending is None or lock is None:
             return False
+        # Matched with the chat, not just (message id, emoji): a message id is
+        # only unique within its chat, and without it a reaction made on the
+        # phone to another chat's message with the same id and emoji was
+        # swallowed as this echo (core/reaction_echo.py).
+        mw = self.main_window
+        keys = reaction_echo_keys(
+            (reacted_key.get("remoteJid"), (msg.get("key") or {}).get("remoteJid")),
+            reacted_key.get("id", ""), reaction.get("text") or "",
+            getattr(mw, "_lid_to_phone", {}), getattr(mw, "_phone_to_lid", {}))
         with lock:
-            created_at = pending.get(signature)
-            if created_at is None:
+            if take_matching_send(pending, keys, now) is None:
                 return False
-            if now - created_at > 60:
-                pending.pop(signature, None)
-                return False
-            pending.pop(signature, None)
             if reaction_id:
                 self._locally_sent_reaction_ids[reaction_id] = now
             return True
