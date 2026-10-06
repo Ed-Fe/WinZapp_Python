@@ -119,6 +119,7 @@ CUSTOM_SRC_FILES = [
     "src/util/callMediaBridge.ts",
     "src/util/chatListsRuntime.ts",
     "src/util/forwardRuntime.ts",
+    "src/util/statusReactionRuntime.ts",
     "src/util/listChatsDiag.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",

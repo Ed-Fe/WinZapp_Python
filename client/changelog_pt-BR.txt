@@ -38,6 +38,8 @@ CORREÇÕES
 
 - Atualizar o WinZapp não desfaz mais uma atualização da WPPConnect. Depois de atualizar a WPPConnect para uma versão mais nova que a que vem com o WinZapp (pelo aviso de atualização ou por "Forçar reinstalação da WPPConnect" no menu Ajuda), a atualização seguinte do WinZapp a voltava para a versão antiga, e a mesma atualização da WPPConnect era oferecida de novo
 
+- Status: "Curtir ❤️" voltou a funcionar. Depois de uma mudança no WhatsApp Web, curtir o status de um contato falhava com "Não foi possível enviar a reação ao status."
+
 V2.0.0.0
 
 A grande novidade desta versão são as ligações: agora dá para ligar, atender e recusar ligações de voz e de vídeo pelo próprio WinZapp, sem pegar o celular, com uma janela de ligação acessível, atalhos de teclado, configurações de áudio próprias e o histórico na nova aba Ligações. Também chegaram as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de uso, além de correções em situações em que o WinZapp pedia para parear de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: ela não muda nada no uso, mas deixa o WinZapp mais fácil de manter e de corrigir daqui para a frente.

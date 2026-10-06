@@ -30,6 +30,10 @@ import {
 import { contactToArray, unlinkAsync } from '../util/functions';
 import { buildForwardRuntimeExpression } from '../util/forwardRuntime';
 import {
+  buildStatusReactionInstallExpression,
+  STATUS_REACTION_RUNTIME_GLOBAL,
+} from '../util/statusReactionRuntime';
+import {
   buildDiag,
   claimIdbCount,
   diagStateFor,
@@ -1349,8 +1353,9 @@ export async function reactMessage(req: Request, res: Response) {
       // exactly that poster JID. Store.Msg.models is kept as a fallback in
       // case a status is ever ALSO mirrored there on some WhatsApp Web
       // version.
+      await req.client.page.evaluate(buildStatusReactionInstallExpression());
       const outcome = await req.client.page.evaluate(
-        async ({ msgId, reaction, bootloaderPlan, budgetMs }) => {
+        async ({ msgId, reaction, bootloaderPlan, budgetMs, runtimeGlobal }) => {
           const parts = msgId.split('_');
           const rawId = parts.length > 2 ? parts[2] : msgId;
           const posterJid = parts.length > 3 ? parts[3] : null;
@@ -1700,54 +1705,31 @@ export async function reactMessage(req: Request, res: Response) {
                 `errors=${moduleErrors.join('|') || 'none'}`,
             };
           }
-          const reactionText = reaction || '';
-          const sendStatusReaction = statusReactionAction.sendStatusReaction;
-          const hasCurrentReactionCompanions =
-            typeof statusReactionAction.mintStatusReactionKey === 'function' &&
-            typeof statusReactionAction.applyOptimisticStatusReaction ===
-              'function';
-          let callShape = 'legacy-2';
-
-          // WhatsApp Web changed this private action from
-          // (status, reaction) to (status, reaction, reactionKey,
-          // previousOptimisticReaction). Calling the new form with two
-          // arguments fails inside msgKey.toString(). Build the two values
-          // through the companion exports from the same module, while keeping
-          // the legacy call for older web builds.
-          if (hasCurrentReactionCompanions || sendStatusReaction.length >= 3) {
-            if (!hasCurrentReactionCompanions) {
-              return {
-                ok: false,
-                detail:
-                  'native-status-reaction-signature-unsupported; ' +
-                  `arity=${sendStatusReaction.length}; ` +
-                  `mint=${typeof statusReactionAction.mintStatusReactionKey}; ` +
-                  `optimistic=${typeof statusReactionAction.applyOptimisticStatusReaction}`,
-              };
-            }
-            const reactionKey =
-              await statusReactionAction.mintStatusReactionKey(model);
-            const previousOptimisticReaction =
-              statusReactionAction.applyOptimisticStatusReaction(
-                model,
-                reactionText,
-                reactionKey
-              );
-            await sendStatusReaction(
-              model,
-              reactionText,
-              reactionKey,
-              previousOptimisticReaction
-            );
-            callShape = `current-${sendStatusReaction.length}`;
-          } else {
-            await sendStatusReaction(model, reactionText);
+          // How the module's exports are called changes between WhatsApp Web
+          // builds, so the call itself lives in util/statusReactionRuntime.ts,
+          // where both shapes are run by tests. It never throws.
+          const runtime = pageWindow[runtimeGlobal];
+          if (typeof runtime?.call !== 'function') {
+            return { ok: false, detail: 'status-reaction-runtime-not-installed' };
+          }
+          const sent = await runtime.call({
+            action: statusReactionAction,
+            model,
+            reactionText: reaction || '',
+          });
+          if (!sent?.ok) {
+            return {
+              ok: false,
+              detail:
+                `${String(sent?.detail || 'status-reaction-runtime-no-outcome')}; ` +
+                `module=${moduleSource}`,
+            };
           }
           return {
             ok: true,
             detail:
               `native-status-reaction-completed; author=${authorText}; ` +
-              `module=${moduleSource}; signature=${callShape}; loader=${String(
+              `module=${moduleSource}; ${sent.detail}; loader=${String(
                 loader?.loaderType || 'unknown'
               )}`,
           };
@@ -1757,6 +1739,7 @@ export async function reactMessage(req: Request, res: Response) {
           reaction,
           bootloaderPlan: STATUS_REACTION_BOOTLOADER,
           budgetMs: STATUS_REACTION_SEND_BUDGET_MS,
+          runtimeGlobal: STATUS_REACTION_RUNTIME_GLOBAL,
         }
       );
       if (!outcome?.ok) {
@@ -1860,7 +1843,8 @@ export async function acceptMetaAiTerms(req: Request, res: Response) {
 /** Read-only compatibility probe for every send primitive WinZapp uses. */
 export async function getSendCapabilities(req: Request, res: Response) {
   try {
-    const capabilities = await req.client.page.evaluate(async ({ bootloaderPlan, budgetMs }) => {
+    await req.client.page.evaluate(buildStatusReactionInstallExpression());
+    const capabilities = await req.client.page.evaluate(async ({ bootloaderPlan, budgetMs, runtimeGlobal }) => {
       const WPP = (window as any).WPP;
       const loader = WPP?.loader;
       const checks: Record<string, boolean> = {
@@ -1993,12 +1977,12 @@ export async function getSendCapabilities(req: Request, res: Response) {
       const reactionArity = Number(
         reactionModule?.sendStatusReaction?.length ?? -1
       );
-      const hasCurrentReactionCompanions =
-        typeof reactionModule?.mintStatusReactionKey === 'function' &&
-        typeof reactionModule?.applyOptimisticStatusReaction === 'function';
-      checks.statusReaction =
-        typeof reactionModule?.sendStatusReaction === 'function' &&
-        (reactionArity < 3 || hasCurrentReactionCompanions);
+      // The verdict is the send path's own decision (plan() in
+      // util/statusReactionRuntime.ts), not a second copy of it: a probe that
+      // asks for more than the send needs warns about a like that would work.
+      const reactionShape =
+        (window as any)[runtimeGlobal]?.plan?.(reactionModule) ?? null;
+      checks.statusReaction = reactionShape?.supported === true;
       const missing = Object.entries(checks)
         .filter(([, available]) => !available)
         .map(([name]) => name);
@@ -2026,12 +2010,16 @@ export async function getSendCapabilities(req: Request, res: Response) {
         checks,
         missing,
         statusReactionArity: reactionArity,
+        // Name/arity of every export of the private module, so a WhatsApp Web
+        // build that changes them is visible in the log at startup.
+        statusReactionShape: reactionShape,
         loaderType: String(loader?.loaderType || 'unknown'),
         webVersion: String((window as any).WAPI?.getWAVersion?.() || 'unknown'),
       };
     }, {
       bootloaderPlan: STATUS_REACTION_BOOTLOADER,
       budgetMs: STATUS_REACTION_PROBE_BUDGET_MS,
+      runtimeGlobal: STATUS_REACTION_RUNTIME_GLOBAL,
     });
     req.logger.info(`[send-capabilities] ${JSON.stringify(capabilities)}`);
     if (capabilities.inconclusive) {
