@@ -1,6 +1,7 @@
 import json
 import logging
 from app_paths import resource_path
+from core.translation_catalog import load_catalog
 
 # Fallback used only if languages/language_map.json is missing or unreadable
 # — should never happen in a normal install, but adding a language must not
@@ -16,7 +17,7 @@ def _load_language_names() -> dict:
 
     Dict order (== file order, preserved by json.load) determines the order
     shown in the Settings combobox. Adding a new locale only requires
-    dropping languages/<code>.json + a new entry here — no rebuild.
+    installing languages/<code>/LC_MESSAGES/winzapp.mo plus an entry here.
     """
     try:
         with open(resource_path("languages", "language_map.json"), "r", encoding="utf-8") as f:
@@ -36,12 +37,8 @@ _TRANSLATIONS_CACHE: dict = {}
 
 
 def _load_translations(lang_code: str) -> dict:
-    """Load the JSON file for *lang_code* into the cache and return it."""
-    try:
-        with open(resource_path("languages", f"{lang_code}.json"), "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        data = {}
+    """Load gettext into the shared dict cache (also patched by the Mac layer)."""
+    data = load_catalog(lang_code)
     _TRANSLATIONS_CACHE[lang_code] = data
     return data
 

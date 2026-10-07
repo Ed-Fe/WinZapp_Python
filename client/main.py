@@ -915,6 +915,7 @@ class MainWindow(
         # Starts as "connecting" rather than blank/offline — the connection
         # state genuinely isn't known yet at this point in startup.
         self._tray_status = self.i18n.t("tray_connecting")
+        self._tray_status_key = "tray_connecting"
 
         # True from the moment a deliberate app shutdown starts (real_exit())
         # until the process actually exits. _stop_wpp_server() closes the

@@ -142,11 +142,10 @@ def test_the_dialogs_use_plain_wx_controls_only():
 
 
 def test_the_f1_shortcuts_list_names_the_shortcut_in_every_locale():
-    import json
+    from tests.locales import load_strings, registered_locale_codes
     assert 'i18n.t("shortcut_ctrl_shift_i_label")' in read("ui", "dialogs", "shortcuts_dialog.py")
-    languages = CLIENT / "languages"
-    for name in json.loads((languages / "language_map.json").read_text(encoding="utf-8")):
-        label = json.loads((languages / f"{name}.json").read_text(encoding="utf-8"))["shortcut_ctrl_shift_i_label"]
+    for name in registered_locale_codes():
+        label = load_strings(name)["shortcut_ctrl_shift_i_label"]
         assert label.startswith("Ctrl+Shift+I:"), name
 
 

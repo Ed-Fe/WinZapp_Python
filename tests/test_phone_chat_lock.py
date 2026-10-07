@@ -17,9 +17,9 @@ from main import MainWindow
 from main_window import phone_chat_lock as phone_lock_mixin
 
 ROOT = Path(__file__).resolve().parent.parent / "client"
-LOCALES = sorted(
-    p.stem for p in (ROOT / "languages").glob("*.json") if p.stem != "language_map"
-)
+from tests.locales import load_strings, registered_locale_codes
+
+LOCALES = registered_locale_codes()
 
 PHONE = "5511999990000@s.whatsapp.net"
 LID = "123456789012345@lid"
@@ -463,5 +463,5 @@ class TestStringsInEveryLocale:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_string_exists_and_is_not_empty(self, locale):
-        strings = json.loads(_read("languages", f"{locale}.json"))
+        strings = load_strings(locale)
         assert [k for k in self.NEEDED if not str(strings.get(k, "")).strip()] == []

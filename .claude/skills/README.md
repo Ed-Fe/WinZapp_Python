@@ -11,8 +11,8 @@ primeiro vem junto com o `git clone`.
 ### Skills: ninguém invoca, elas aparecem
 
 Uma skill **carrega sozinha** quando a tarefa bate com a descrição dela. Mexeu
-em `client/languages/`, a `i18n-ui-string` entra em cena e o agente já sabe dos
-arquivos de todos os idiomas registrados, do `&&` e dos placeholders — você não precisa lembrar de nada.
+em `translations/` ou `client/languages/`, a `i18n-ui-string` entra em cena e o agente já sabe dos
+catálogos de todos os idiomas registrados, do `&&` e dos placeholders — você não precisa lembrar de nada.
 Para forçar, digite `/nome-da-skill`.
 
 ### Agentes: você chama pelo nome

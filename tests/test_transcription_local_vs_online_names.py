@@ -10,13 +10,12 @@ is a privacy mistake and not only a cosmetic one. The online names now say
 sentence that points at a tab by name must use the tab's current name.
 """
 
-import json
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 
-LOCALES = list(json.load(open(resource_path("languages", "language_map.json"), encoding="utf-8")))
+LOCALES = list(registered_locale_codes())
 
 #: Per locale, lower-case words that mark the local and the online feature.
 #: Taken from the words each file already uses for "local" and "online".
@@ -44,11 +43,6 @@ TAB_REFERENCES = (
 )
 
 
-def _load(locale):
-    with open(resource_path("languages", f"{locale}.json"), encoding="utf-8") as f:
-        return json.load(f)
-
-
 def test_every_locale_has_markers():
     assert sorted(MARKERS) == sorted(LOCALES)
 
@@ -57,22 +51,22 @@ def test_every_locale_has_markers():
 class TestLocalAndOnlineNamesDiffer:
     def test_local_names_say_local(self, locale):
         words = MARKERS[locale][0]
-        strings = _load(locale)
+        strings = load_strings(locale)
         for key in LOCAL_KEYS:
             assert any(w in strings[key].lower() for w in words), key
 
     def test_online_names_say_online(self, locale):
         words = MARKERS[locale][1]
-        strings = _load(locale)
+        strings = load_strings(locale)
         for key in ONLINE_KEYS:
             assert any(w in strings[key].lower() for w in words), key
 
     def test_the_two_menu_items_and_the_two_tabs_are_not_the_same_text(self, locale):
-        strings = _load(locale)
+        strings = load_strings(locale)
         assert strings["transcribe_message"] != strings["ai_transcribe_audio_menu"]
         assert strings["tab_transcription"] != strings["tab_ai_accessibility"]
 
     def test_sentences_pointing_at_a_tab_use_its_current_name(self, locale):
-        strings = _load(locale)
+        strings = load_strings(locale)
         for tab_key, sentence_key in TAB_REFERENCES:
             assert strings[tab_key] in strings[sentence_key], sentence_key

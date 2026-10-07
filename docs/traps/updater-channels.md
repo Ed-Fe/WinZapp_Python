@@ -1,5 +1,79 @@
 # Auto-updater: two channels, the alpha version scheme, one prompt per machine
 
+## Browser cache during WPPConnect updates
+
+The in-place API clean step preserves `.cache`; a background build copies
+complete Windows/Linux browser builds from the live cache into its own cache
+(`core/browser_cache.py`). Never move or hard-link the running browser into
+staging: a cancelled build or a repair must not alter the live API. The
+Puppeteer CLI still selects its required version and downloads it if absent.
+Incomplete version directories (missing/empty executable or `icudtl.dat`)
+are removed only from the destination, so the CLI can repair them.
+
+Preserving the cache also preserves older versions. `start.js` prefers
+Puppeteer's requested executable before its existing fallback search; otherwise
+the directory walk could launch the old Chrome after a successful update.
+Keep `useChrome: false` and the platform preference: system-Chrome discovery
+overwrites the selected executable, and the headless-shell's Windows child
+processes previously opened visible consoles (`tests/test_headless_shell.py`).
+
+## Validate a running API before completing an update
+
+Menu/periodic WPPConnect updates build into `api_staging` in both foreground
+and background modes. Keep `api_old` after the swap: `wpp_update_validation`
+probes `/healthz` and `/winzapp/identity` off the UI thread, checking the
+expected Node instance/PID when available. A listening TCP port alone never
+completes the update. On failure, stop the new Node, wait for the profile and
+port to be released, restore the retained tree and carry its token/log/env
+state back. Only a healthy new API permits deleting `api_old`. A restored
+previous API reports the attempted update as failed, not successful.
+
+Without space for both builds, refuse before stopping the installed API;
+the old destructive foreground fallback is gone. During an update, startup
+timeouts return failure instead of exiting WinZapp before rollback can run.
+
+`core/api_dependencies.py` prepares end-user npm manifests. A precompiled
+API omits development dependencies, promoting Babel runtime helpers,
+declared storage peers and runtime imports before that omission. For the
+known TypeScript/Babel build, keep compiler packages, configured Babel
+modules, type packages and packages imported by source. Unknown build/Babel
+configurations or lifecycle/generation scripts retain all development tools.
+Remove only the root Husky prepare hook; dependency lifecycle scripts remain
+enabled so native libraries can install. This does not change developer setup.
+
+For that known build without custom hooks, use `tsc --noEmit`: Babel's next
+step deletes `dist`, so declarations written there were immediately discarded.
+Keep type checking and the original build for unknown scripts or generation
+hooks. End-user npm installs use `--prefer-offline` to reuse cached metadata;
+missing packages still come from the registry. Never force `--offline`.
+
+After API validation, release `_wpp_updating` before starting reconnection
+workers. HTTP connection probes are serialized per account and suppressed
+during installation; an accepted auto-start has a bounded 60-second pending
+window because create() may still report CLOSED while waiting for login.
+Post-update offline announcements have a separate 90-second grace, cleared
+on real WhatsApp connection. It keeps sending paused without blocking the
+start command, and expires so a genuine failure cannot remain silent forever.
+
+Installation instrumentation uses `[api-timing]` start/end records and a
+monotonic duration. Time API startup, HTTP validation and previous-tree cleanup
+separately. The healthy predecessor is renamed to a unique stale path before
+the callback; a worker cleans it after WhatsApp reconnects (a 90-second cap),
+so another update cannot reuse a path still being deleted. Shutdown leaves it
+for the existing startup sweep. npm subprocess environments enable
+timing JSON and retain 50 logs, including nested TypeScript/Babel scripts.
+No command arguments or tokens are logged by the timing helpers. See
+`docs/reference/test-api-update.md` for collecting a manual run.
+
+Node receives a child-only `NODE_COMPILE_CACHE` under `data/global`, outside
+the replaced API. Respect explicit user configuration and tolerate cache
+creation failure. Flush the cache after the server starts because force-kill
+shutdown does not guarantee Node's exit flush. The first load may cost more;
+measure later starts and reinstallations before claiming a speedup.
+`[node-startup]` logs Puppeteer, config, server imports, catalogue resolution,
+initialization and cache flush. S3 SDK/bucket helper imports live inside the
+upload branch in the patched functions.ts, leaving S3-enabled behavior intact.
+
 > Everything that keeps alpha and stable users from being stranded, and why pid liveness needs a create time.
 >
 > Moved verbatim out of `CLAUDE.md` so it is read when the area is touched, not on every session. Keep it here: this is measured history, not a summary.
@@ -67,7 +141,14 @@ Three rules found in review, each with a test. **One at a time**: with the optio
 - **Room for two servers.** `has_room_for_staging()` wants 3 GB free; without it the update is done in place, silently, as before (`_update_wpp_server(in_place=True)`). It is measured **after** the leftovers of an interrupted build are removed — they are over a gigabyte and would count against the update that removes them — and both happen on a thread. The in-place path sweeps those leftovers too, or with the option off nothing ever would.
 - **Quitting cancels the build** (`cancel_wpp_background_update()` from the exit path), or its npm and Node would outlive the app. `_perform_shutdown()` runs on the shutdown thread, so it goes through `ApiSetupDialog.cancel_background()`: the kill happens right there, and everything wx (timer, report, `Destroy`) is handed to the main thread, where it may never run on a real exit. Calling `_on_cancel()` from that thread stopped a wx timer BEFORE the kill; had wx refused, npm survived. What an interrupted build or swap left on disk is removed when the next update starts — the moment this process holds the machine's WPPConnect update, so no other account can be building.
 
-**Not done.** `api_old` is deleted right after the swap, not kept until the new server proves it starts; the rollback of a server that builds but does not run is still the in-place one. The background build has not been run end to end against a real npm on a real install — the steps are the shared `_run_setup()`, the swap and the orchestration are tested on stubs and temporary directories.
+**Superseded by the validation flow above.** The first implementation deleted
+`api_old` immediately after swapping and fell back to an in-place reinstall.
+The updater now keeps it through HTTP validation and restores it on failure;
+the foreground path builds beside the old API too. The reduced dependency
+set was compiled with TypeScript and Babel in an isolated directory using the
+installed dependency graph (56 to 23 direct development packages for server
+2.10.37). No real session update was run; rollback and health orchestration
+are covered by temporary-directory and stub tests.
 
 ## A WinZapp update put back an older WPPConnect Server (2026-10-06)
 

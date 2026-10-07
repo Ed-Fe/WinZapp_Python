@@ -24,6 +24,7 @@ import json
 import pathlib
 import re
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
 from coord_locks import canonical_dir
@@ -36,8 +37,7 @@ from tests.test_transcription_external_models import (  # noqa: F401  (fixtures)
     catalogue,
 )
 
-LANGUAGES = pathlib.Path(__file__).resolve().parent.parent / "client" / "languages"
-LOCALES = sorted(json.loads((LANGUAGES / "language_map.json").read_text(encoding="utf-8")))
+LOCALES = registered_locale_codes()
 
 
 class _I18n:
@@ -322,7 +322,7 @@ class TestWhatAPickedFolderStandsFor:
 def test_every_string_exists_in_every_locale_and_formats(locale):
     """A missing key is read out as its own name; a dropped placeholder loses
     the folder the sentence is about, and an invented one is a KeyError."""
-    table = json.loads((LANGUAGES / f"{locale}.json").read_text(encoding="utf-8"))
+    table = load_strings(locale)
     values = {"name": "mine", "model": "small", "state": "ok", "revision": "abc",
               "folders": "x", "size_class": "s", "size": "1 GB"}
     for key in external_view.VIEW_I18N_KEYS + (
@@ -351,7 +351,7 @@ def test_the_group_names_and_buttons_spend_no_letter_they_do_not_own(locale):
     """The group is not a tab stop and the five buttons are named by their
     group, like the model and CUDA rows: no Alt key on any of them, so none can
     take one from a control that needs it."""
-    table = json.loads((LANGUAGES / f"{locale}.json").read_text(encoding="utf-8"))
+    table = load_strings(locale)
     for key in ("transcription_external_actions_group",
                 "transcription_external_add_btn", "transcription_external_find_btn",
                 "transcription_external_use_btn", "transcription_external_check_btn",

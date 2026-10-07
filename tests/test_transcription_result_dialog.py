@@ -19,20 +19,14 @@ What is pinned here is what a sighted tester would not notice:
   called.
 """
 
-import json
 import logging
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import errors
 from ui.dialogs import transcription_result
 from ui.dialogs.transcription_result import TranscriptionResultDialog
-
-
-def _load_language(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 class _I18n:
@@ -209,12 +203,12 @@ class TestFileNames:
         assert stem == stem.strip(" .")
         assert len(stem) <= 80
 
-    @pytest.mark.parametrize("locale", sorted(_load_language("language_map")))
+    @pytest.mark.parametrize("locale", registered_locale_codes())
     def test_no_name_is_the_word_alone_not_a_dangling_dash(self, locale):
         """A message whose sender resolves to nothing readable: the pattern's
         separator has nothing after it, and "Transcrição -.txt" is both an
         odd file name and an odd thing to hear."""
-        table = _load_language(locale)
+        table = load_strings(locale)
 
         class _Locale:
             def t(self, key):

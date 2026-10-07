@@ -7,12 +7,11 @@ in English. Every place that names a model asks model_names, so these pin
 what it answers.
 """
 
-import json
 import re
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import (
     backend as backend_module,
     external_models,
@@ -34,13 +33,11 @@ class _Template(str):
 
 
 def _locales():
-    with open(resource_path("languages", "language_map.json"), encoding="utf-8") as fh:
-        return sorted(json.load(fh))
+    return list(registered_locale_codes())
 
 
 def _table(locale):
-    with open(resource_path("languages", f"{locale}.json"), encoding="utf-8") as fh:
-        return json.load(fh)
+    return load_strings(locale)
 
 
 class TestTheNames:

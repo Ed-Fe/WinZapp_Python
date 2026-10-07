@@ -42,9 +42,9 @@ import os
 import pathlib
 import sys
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import (
     audio_prep,
     backend as backend_module,
@@ -89,18 +89,13 @@ _JID = "5511988887777@s.whatsapp.net"
 _REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 
 class _I18n:
     def __init__(self, locale="pt-BR"):
         self.language = locale
-        self._table = _load(locale)
+        self._table = load_strings(locale)
 
     def t(self, key):
         return self._table.get(key, key)
@@ -1910,6 +1905,6 @@ def test_the_flow_and_the_result_window_log_nothing_private():
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_every_key_the_flow_asks_for_exists(locale):
-    table = _load(locale)
+    table = load_strings(locale)
     for key in transcription_flow.FLOW_I18N_KEYS:
         assert table.get(key), f"{locale} lacks {key}"

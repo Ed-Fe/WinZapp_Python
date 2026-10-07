@@ -235,13 +235,19 @@ class ShortcutsMixin:
         self.add_chats_to_ui()
 
         # Update frame title (unread indicator + any status suffix)
+        self._refresh_status_language()
         self._update_title()
         self.main_panel.Layout()
         # Refresh tray icon tooltip with new language
         if self.tray_icon is not None:
             self.tray_icon.refresh_labels()
-        # Refresh menu bar labels
-        self._refresh_menubar()
+        # The Accounts menu contains dynamic radio items as well as its title
+        # and actions. Rebuild it on a language change; merely relabelling the
+        # fixed menus leaves those items in the language used at startup.
+        if getattr(self, "account_id", None) and getattr(self, "registry", None):
+            self._build_menubar()
+        else:
+            self._refresh_menubar()
 
     def on_alt_1(self, event):
         self.lock_chat_vault(silent=True, show_conversations=False)

@@ -57,18 +57,13 @@ import sys
 import threading
 import types
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import device, errors, model_catalog
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 # Repository, pinned revision, model.bin digest and the exact size of every
 # file, as read from the Hugging Face API on 2026-09-03 — restated here rather
@@ -911,7 +906,7 @@ class TestResolveWhisperCppDevice:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_both_reasons_are_said_in_every_language(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         for reason in (device.REASON_CUDA_BUILD_UNSUPPORTED, device.REASON_CUDA_BUILD_MISSING):
             assert table[device.device_reason_i18n_key(reason)], (locale, reason)
 
@@ -1793,7 +1788,7 @@ class TestTheTempDiskIsNamed:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_both_temp_sentences_read_whole_in_every_language(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         for temp_dir in (r"E:\Temp", r"\\srv\temp"):
             key = errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE, temp_dir)
             sentence = table[key].format(
@@ -1813,7 +1808,7 @@ class TestTheTempDiskIsNamed:
     def test_every_error_sentence_formats_with_what_it_is_given(self, locale):
         """A field the sentence asks for and error_i18n_values() does not give
         is a KeyError in the middle of announcing the failure."""
-        table = _load(locale)
+        table = load_strings(locale)
         for code in errors.ERROR_CODES:
             text = table[errors.error_i18n_key(code, r"E:\Temp")]
             sentence = text.format(**errors.error_i18n_values(code, r"E:\Temp"))
@@ -1831,39 +1826,39 @@ class TestTranslations:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_error_code_is_translated_everywhere(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         keys = [errors.error_i18n_key(code, r"C:\Temp") for code in errors.ERROR_CODES]
         keys.append(errors.TEMP_NO_DISK_SPACE_UNNAMED_I18N_KEY)
         missing = sorted(key for key in keys if key not in table)
-        assert missing == [], f"{locale}.json would speak these key names aloud: {missing}"
+        assert missing == [], f"{locale} catalog would speak these key names aloud: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_device_reason_is_translated_everywhere(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         missing = sorted(
             key for key in device.DEVICE_REASON_I18N_KEYS.values() if key not in table
         )
-        assert missing == [], f"{locale}.json is missing device reasons: {missing}"
+        assert missing == [], f"{locale} catalog is missing device reasons: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_cpu_retry_offer_is_translated_everywhere(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         missing = sorted(
             key for key in device.CPU_RETRY_I18N_KEYS.values() if key not in table
         )
-        assert missing == [], f"{locale}.json is missing retry offers: {missing}"
+        assert missing == [], f"{locale} catalog is missing retry offers: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_size_class_is_translated_everywhere(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         missing = sorted(
             key for key in model_catalog.SIZE_CLASS_I18N_KEYS.values() if key not in table
         )
-        assert missing == [], f"{locale}.json is missing size labels: {missing}"
+        assert missing == [], f"{locale} catalog is missing size labels: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_no_transcription_string_is_blank(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         blank = sorted(
             key for key, text in table.items()
             if key.startswith("transcription_") and not text.strip()

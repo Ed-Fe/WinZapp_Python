@@ -46,9 +46,9 @@ import re
 import threading
 import time
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import (
     cuda_runtime,
     device,
@@ -64,12 +64,7 @@ from core.transcription import (
 from tests.conftest import words_found_in
 
 
-def _load_language(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load_language("language_map"))
+LOCALES = registered_locale_codes()
 
 _JOIN_TIMEOUT = 10
 
@@ -1406,7 +1401,7 @@ class TestAnnouncement:
         assert locale in self._SETTINGS_WORDS, (
             f"{locale} is new here: add the words it uses for the settings"
         )
-        table = _load_language(locale)
+        table = load_strings(locale)
         text = table[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY]
         assert words_found_in(text, self._SETTINGS_WORDS[locale]) == []
         assert text.lower() != table["transcription_device_cuda_libraries_missing"].lower()
@@ -1426,7 +1421,7 @@ class TestAnnouncement:
         assert locale in self._DOWNLOAD_WORD, (
             f"{locale} is new here: add the word it uses for a download"
         )
-        text = _load_language(locale)[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY]
+        text = load_strings(locale)[management.CUDA_INSTALLED_NOT_USABLE_I18N_KEY]
         assert words_found_in(text, (self._DOWNLOAD_WORD[locale],)) == []
 
     def test_the_word_search_sees_a_turkish_capital_i(self):
@@ -1552,16 +1547,16 @@ class TestAnnouncement:
 class TestAnnouncementTranslations:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_key_exists_in_every_locale(self, locale):
-        table = _load_language(locale)
+        table = load_strings(locale)
         keys = management.ANNOUNCEMENT_I18N_KEYS + management_whisper_cpp.ANNOUNCEMENT_I18N_KEYS
         missing = [k for k in keys if not table.get(k, "").strip()]
-        assert missing == [], f"{locale}.json would read these key names aloud: {missing}"
+        assert missing == [], f"{locale} catalog would read these key names aloud: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_sentence_formats_with_the_values_it_is_given(self, locale):
         # str.format() raises KeyError on a placeholder nobody passes, which in
         # the tab would be a handler dying after the action already finished.
-        table = _load_language(locale)
+        table = load_strings(locale)
         samples = [
             management.announcement(management.ACTION_DOWNLOAD_MODEL, "d", model_id="tiny"),
             management.announcement(management.ACTION_REPAIR_MODEL, "d", model_id="tiny"),

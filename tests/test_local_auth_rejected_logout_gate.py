@@ -21,14 +21,13 @@ notLogged/QRCODE path uses, sharing the same counters so a healthy reading
 in between resets both.
 """
 
-import json
 import threading
 
 import pytest
 
 import connection_state as cs
-from app_paths import resource_path
 from main import MainWindow
+from tests.locales import load_strings
 
 
 class _Recorder:
@@ -53,8 +52,7 @@ def _real_translations():
     tests/test_translation_format_call_sites.py, which checks the same
     property across every call site rather than only the ones a test reaches.
     """
-    with open(resource_path("languages", "pt-BR.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_strings("pt-BR")
 
 
 _TRANSLATIONS = _real_translations()

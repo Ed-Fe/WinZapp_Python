@@ -26,13 +26,12 @@ Nothing here touches the machine: the probe arrives as an argument, the
 CTranslate2 query is faked where the probe itself is under test.
 """
 
-import json
 import sys
 import types
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import (
     backend as backend_module,
     device,
@@ -47,12 +46,7 @@ from core.transcription import (
 )
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 # What CTranslate2 4.8.2 answered on an Intel x86-64 processor (measured), and
 # what it would answer on an AMD one, which has no int16 kernels.
@@ -82,7 +76,7 @@ def _gpu(capability=(8, 6), cuda_types=_AMPERE, vram=8192):
 class _I18n:
     def __init__(self, locale="en-US"):
         self.language = locale
-        self._table = _load(locale)
+        self._table = load_strings(locale)
 
     def t(self, key):
         return self._table.get(key, key)
@@ -393,7 +387,7 @@ class TestWhatIsSaid:
     def test_every_label_exists_names_its_type_and_is_unique(self, locale):
         """The CTranslate2 name is what a guide or a script calls it; two equal
         labels would be two entries a screen reader cannot tell apart."""
-        table = _load(locale)
+        table = load_strings(locale)
         labels = {}
         for compute, key in precision.COMPUTE_TYPE_I18N_KEYS.items():
             label = table[key]
@@ -404,7 +398,7 @@ class TestWhatIsSaid:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_sentence_formats_with_what_it_is_given(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         table["transcription_note_precision_used"].format(precision="x")
         table["transcription_note_precision_replaced"].format(chosen="x", used="y")
         table["transcription_notice_precision_replaced"].format(chosen="x", used="y")

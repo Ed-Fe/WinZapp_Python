@@ -628,10 +628,8 @@ def _translations():
     every {name}/{author} placeholder, and with the names gone from the
     rendered line the differential below would see no change and pass on
     everything."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "client", "languages", "pt-BR.json")
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+    from tests.locales import load_strings
+    return load_strings("pt-BR")
 
 
 class _I18n:

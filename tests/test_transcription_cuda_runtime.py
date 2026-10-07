@@ -42,14 +42,13 @@ import base64
 import errno
 import hashlib
 import io
-import json
 import os
 import zipfile
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
 import app_paths
-from app_paths import resource_path
 from coord_locks import LockTimeout
 from core import tls_trust
 from core.transcription import cuda_runtime, device, errors
@@ -57,12 +56,7 @@ from core.transcription import cuda_runtime, device, errors
 _NETWORK_OPT_IN_ENV = "WINZAPP_RUN_NETWORK_TESTS"
 
 
-def _load_language(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load_language("language_map"))
+LOCALES = registered_locale_codes()
 
 # What the probe says on a machine that has not got the libraries yet.
 _MISSING = (False, ("cublas64_12.dll",), "could not load cublas64_12.dll")
@@ -1173,7 +1167,7 @@ class TestTellingAnOutdatedInstallFromAnInterruptedOne:
         says "transcription cuda runtime outdated" letter group by letter
         group — which is the failure this repository has already shipped twice.
         """
-        table = _load_language(locale)
+        table = load_strings(locale)
         assert cuda_runtime.OUTDATED_I18N_KEY in table, locale
         assert table[cuda_runtime.OUTDATED_I18N_KEY].strip(), locale
 

@@ -20,8 +20,8 @@ pin is what the user hears and whether the dialog can ever be left hanging:
 
 import json
 import os
-import pathlib
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
 from coord_locks import LockTimeout
@@ -43,12 +43,7 @@ from tests.test_transcription_external_models import (  # noqa: F401  (fixtures)
     settings,
 )
 
-LOCALES = sorted(
-    json.loads(
-        (pathlib.Path(__file__).resolve().parent.parent
-         / "client" / "languages" / "language_map.json").read_text(encoding="utf-8")
-    )
-)
+LOCALES = registered_locale_codes()
 
 
 class _Watcher:
@@ -493,10 +488,7 @@ class TestWhatTheUserHears:
 def test_every_sentence_exists_in_every_locale_and_formats(locale):
     """A missing key is read out as its own name, and a placeholder a locale
     dropped or invented is a KeyError in the middle of announcing."""
-    table = json.loads(
-        (pathlib.Path(__file__).resolve().parent.parent
-         / "client" / "languages" / f"{locale}.json").read_text(encoding="utf-8")
-    )
+    table = load_strings(locale)
     keys = (set(external_job.ANNOUNCEMENT_I18N_KEYS)
             | set(external_job.STATUS_I18N_KEYS.values()))
     values = {"name": "mine", "model": "alpha", "files": "model.bin"}

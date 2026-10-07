@@ -31,11 +31,10 @@ tests/test_no_desktop_visible_windows.py). Its own methods are bound onto a
 plain stub instead — the house pattern.
 """
 
-import json
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import errors, management
 from ui.dialogs import transcription_progress
 from ui.dialogs.transcription_progress import TranscriptionProgressDialog
@@ -43,12 +42,7 @@ from ui.dialogs.transcription_progress import TranscriptionProgressDialog
 _MB = 1024 * 1024
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 
 class _I18n:
@@ -56,7 +50,7 @@ class _I18n:
 
     def __init__(self, locale="pt-BR"):
         self.language = locale
-        self._table = _load(locale)
+        self._table = load_strings(locale)
 
     def t(self, key):
         return self._table.get(key, key)

@@ -36,21 +36,16 @@ get" be answered on a machine with no card at all.
 import json
 import os
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
 import app_settings
-from app_paths import resource_path
 from core.transcription import backend as backend_module
 from core.transcription import device, model_catalog, preferences, whisper_cpp_catalog
 from core.utils import DEFAULT_SETTINGS
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 # A machine with plenty of RAM and no graphics card — the common case, and the
 # one where every "automatic" has an unambiguous right answer.
@@ -1081,7 +1076,7 @@ class TestEveryStringThisModuleNamesIsTranslated:
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_option_labels(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         keys = (
             [preferences.OPTION_AUTO_I18N_KEY,
              preferences.LANGUAGE_DETECT_I18N_KEY,
@@ -1090,16 +1085,16 @@ class TestEveryStringThisModuleNamesIsTranslated:
             + list(preferences.BACKEND_I18N_KEYS.values())
         )
         missing = sorted(key for key in keys if key not in table)
-        assert missing == [], f"{locale}.json would speak these key names: {missing}"
+        assert missing == [], f"{locale} catalog would speak these key names: {missing}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_substitution_warnings(self, locale):
-        table = _load(locale)
+        table = load_strings(locale)
         missing = sorted(
             key for key in preferences.SUBSTITUTION_I18N_KEYS.values()
             if key not in table
         )
-        assert missing == [], f"{locale}.json is missing substitutions: {missing}"
+        assert missing == [], f"{locale} catalog is missing substitutions: {missing}"
 
     def test_every_device_preference_has_a_label(self):
         for preference in (device.PREFERENCE_AUTO, device.PREFERENCE_CUDA,
@@ -1120,12 +1115,12 @@ class TestEveryStringThisModuleNamesIsTranslated:
         """Without a sentence for each, a machine where nothing fits shows
         "Automático" selected and says nothing — which reads as "WinZapp chose
         something" to the one user who cannot see that it did not."""
-        table = _load(locale)
+        table = load_strings(locale)
         missing = sorted(
             key for key in preferences.MODEL_NONE_I18N_KEYS.values()
             if key not in table
         )
-        assert missing == [], f"{locale}.json is missing: {missing}"
+        assert missing == [], f"{locale} catalog is missing: {missing}"
 
     def test_every_reason_resolve_can_report_has_one(self):
         for reason in (preferences.MODEL_NONE_NOTHING_FITS,

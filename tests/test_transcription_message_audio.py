@@ -36,7 +36,6 @@ Everything this file pins is a failure the user cannot see happening:
 
 import ast
 import errno
-import json
 import math
 import os
 import random
@@ -44,18 +43,13 @@ import re
 import struct
 import traceback
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import errors, message_audio
 
 
-def _load_language(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-_LANGUAGE_MAP = _load_language("language_map")
+_LANGUAGE_MAP = registered_locale_codes()
 
 
 # ── Fixtures and helpers ─────────────────────────────────────────────────────
@@ -840,7 +834,7 @@ class TestAFullDiskIsASentence:
     @pytest.mark.parametrize("locale", sorted(_LANGUAGE_MAP))
     def test_the_sentence_is_not_the_downloads_one(self, locale):
         """Two codes that read the same would be one code with extra steps."""
-        table = _load_language(locale)
+        table = load_strings(locale)
         temp = table[errors.error_i18n_key(errors.TEMP_NO_DISK_SPACE)]
         download = table[errors.error_i18n_key(errors.NO_DISK_SPACE)]
         assert temp and temp != download

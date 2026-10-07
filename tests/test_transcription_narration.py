@@ -34,12 +34,11 @@ Nothing here imports wx and nothing formats a string: every assertion is about
 which key, with which values, in which order.
 """
 
-import json
 import re
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 
-from app_paths import resource_path
 from core.transcription import (
     backend as backend_module,
     device,
@@ -67,15 +66,11 @@ def _keys(notes):
 
 
 def _locales():
-    with open(resource_path("languages", "language_map.json"), "r",
-              encoding="utf-8") as handle:
-        return sorted(json.load(handle))
+    return list(registered_locale_codes())
 
 
 def _translations(locale):
-    with open(resource_path("languages", f"{locale}.json"), "r",
-              encoding="utf-8") as handle:
-        return json.load(handle)
+    return load_strings(locale)
 
 
 # ── While it runs ────────────────────────────────────────────────────────────
@@ -416,7 +411,7 @@ class TestTheLanguageNoteOnUntouchedSettings:
         text = _translations(locale)[narration.LANGUAGE_DIFFERS_I18N_KEY]
         offenders = words_found_in(text, _CLAIMS_A_CHOICE[locale])
         assert offenders == [], (
-            f"{locale}.json tells the user this differs from a language they "
+            f"{locale} catalog tells the user this differs from a language they "
             f"chose, which on default settings they did not: {offenders}"
         )
 
@@ -532,7 +527,7 @@ class TestEveryKeyIsTranslated:
     def test_the_locale_defines_every_narration_key(self, locale):
         table = _translations(locale)
         missing = sorted(k for k in narration.NARRATION_I18N_KEYS if k not in table)
-        assert missing == [], f"{locale}.json is missing: {missing}"
+        assert missing == [], f"{locale} catalog is missing: {missing}"
 
     @pytest.mark.parametrize("locale", _locales())
     def test_the_device_sentence_takes_the_model_the_code_passes(self, locale):
@@ -580,7 +575,7 @@ class TestEveryKeyIsTranslated:
         text = _translations(locale)[narration.VAD_UNAVAILABLE_I18N_KEY]
         offenders = words_found_in(text, _TEXT_WORDS[locale])
         assert offenders == [], (
-            f"{locale}.json describes a transcribed text this note also fires "
+            f"{locale} catalog describes a transcribed text this note also fires "
             f"without: {offenders}"
         )
 

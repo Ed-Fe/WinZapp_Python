@@ -243,6 +243,9 @@ class _Window:
     def output(self, text, interrupt=False):
         self.spoken.append(text)
 
+    def _discard_wpp_staging_leftovers(self):
+        pass
+
     def _stop_wpp_server(self):
         pass
 
@@ -273,10 +276,15 @@ def env(monkeypatch):
                         lambda g, a, ignore_corrupt=False: False)
     monkeypatch.setattr(updates, "homologated_wpp_tag", lambda _p: MINIMUM)
     monkeypatch.setattr(updates, "_server_is_built", lambda: False)
+    monkeypatch.setattr(updates.api_staging, "discard", lambda _p: None)
+    monkeypatch.setattr(updates.api_staging, "has_room_for_staging", lambda _p: True)
+    monkeypatch.setattr(updates.api_staging, "swap_in_staged_api", lambda *a, **k: "backup")
+    monkeypatch.setattr(updates, "restart_api_after_update",
+                        lambda window, api, backup, done: (window.ensure_wpp_running(), done(True)))
     tags, results, cancelled = [], [], [False]
 
     class _Dialog:
-        def __init__(self, parent, title_override=None, forced_tag=None):
+        def __init__(self, parent, title_override=None, forced_tag=None, api_dir=None):
             tags.append(forced_tag)
 
         def ShowModal(self):
@@ -470,6 +478,29 @@ def test_a_successful_install_tells_on_finished_true(env):
     _Window()._update_wpp_server(TAG, on_finished=done.append)
     _Threads.started.pop(0)()
     assert done == [True]
+
+
+def test_success_is_not_announced_until_http_validation_finishes(env, monkeypatch):
+    callbacks, done = [], []
+    monkeypatch.setattr(updates, "restart_api_after_update",
+                        lambda window, api, backup, cb: callbacks.append(cb))
+    env.results.append(updates.wx.ID_OK)
+    window = _Window()
+    window._update_wpp_server(TAG, on_finished=done.append)
+    _Threads.started.pop(0)()
+    assert done == [] and window._wpp_updating is True
+    assert "wpp_update_complete" not in window.spoken
+    callbacks.pop()(False)
+    assert done == [False] and window._wpp_updating is False
+    assert "wpp_update_complete" not in window.spoken
+
+
+def test_a_profile_still_in_use_prevents_the_install(env):
+    window = _Window()
+    window.wait_for_profile_release = lambda *a, **k: False
+    window._update_wpp_server(TAG)
+    _Threads.started.pop(0)()
+    assert env.tags == [] and "wpp_update_complete" not in window.spoken
 
 
 def test_a_user_cancel_shows_no_error_box_but_still_restores_a_missing_server(env):
