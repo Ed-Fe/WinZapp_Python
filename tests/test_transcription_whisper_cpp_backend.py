@@ -357,6 +357,9 @@ def setup(tmp_path, monkeypatch, own_temp_dir):
         whisper_cpp_runtime, "executable_path",
         lambda build, root=None: state["cuda" if build.uses_cuda else "cpu"],
     )
+    # The stand-in is in no manifest; verify_executable has its own tests.
+    monkeypatch.setattr(whisper_cpp_runtime, "verify_executable",
+                        lambda build, root=None: None)
     monkeypatch.setattr(whisper_cpp_store, "ensure_ready",
                         lambda root, model_id: str(model_file))
     monkeypatch.setattr(whisper_cpp_store, "vad_model_path", lambda root: state["vad"])
@@ -492,6 +495,21 @@ class TestTranscribing:
         state["cpu"] = _fake_cli(tmp_path, record)
         _backend().transcribe(request())
         assert os.listdir(own_temp_dir) == []
+
+    def test_a_program_that_fails_verification_is_not_launched(
+        self, tmp_path, setup, monkeypatch
+    ):
+        state, record, request, _model = setup
+        state["cpu"] = _fake_cli(tmp_path, record)
+
+        def _tampered(build, root=None):
+            raise errors.TranscriptionError(errors.WHISPER_CPP_CORRUPTED, "sha256")
+
+        monkeypatch.setattr(whisper_cpp_runtime, "verify_executable", _tampered)
+        with pytest.raises(errors.TranscriptionError) as caught:
+            _backend().transcribe(request())
+        assert caught.value.code == errors.WHISPER_CPP_CORRUPTED
+        assert _runs(record) == []
 
     def test_the_transcript_file_is_deleted_as_soon_as_it_is_read(
         self, tmp_path, setup, monkeypatch

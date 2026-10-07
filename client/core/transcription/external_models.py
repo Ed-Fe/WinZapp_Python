@@ -488,12 +488,13 @@ def identify(path, progress=None, should_cancel=None) -> Identification:
         logging.info(
             "[transcription] %s has the sizes of %s (via %s) and not its weights: "
             "model.bin sha256 %s, expected %s",
-            quick.path, model.id, quick.via, digest, model.model_bin_sha256,
+            os.path.basename(quick.path), model.id, quick.via, digest,
+            model.model_bin_sha256,
         )
         return dataclasses.replace(quick, match=MATCH_DIGEST_MISMATCH)
     logging.info(
         "[transcription] %s verified as %s (via %s) in %.1fs",
-        quick.path, model.id, quick.via, time.monotonic() - started,
+        os.path.basename(quick.path), model.id, quick.via, time.monotonic() - started,
     )
     return dataclasses.replace(quick, match=MATCH_VERIFIED)
 
@@ -954,7 +955,7 @@ def model_directory(models_root, choice, references=()) -> str:
         if state == REF_READY:
             logging.info(
                 "[transcription] model %s is loaded from the external folder %s",
-                model.id, reference.path,
+                model.id, os.path.basename(reference.path),
             )
             return reference.path
         states.append((state, reference.path))
@@ -1100,7 +1101,7 @@ def _store(app_settings, path, model_id, verified, weights_mark,
     if reference is not None:
         logging.info(
             "[transcription] external model %s: %s as %s (verified=%s)",
-            code, path, model_id or "custom", verified,
+            code, os.path.basename(path), model_id or "custom", verified,
         )
     return code, reference
 

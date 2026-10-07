@@ -227,6 +227,39 @@ class TestLocatingTheProgram:
         assert builds.locate_executable(["Release/not-whisper-cli.exe"]) is None
 
 
+class TestVerifyingTheProgramBeforeLaunch:
+    def test_an_untouched_program_passes(self, root):
+        build, _executable = _install(root, _zip(_LAYOUT))
+        runtime.verify_executable(build, root)
+
+    def test_a_program_swapped_for_another_of_the_same_size_is_refused(self, root):
+        build, executable = _install(root, _zip(_LAYOUT))
+        body = _LAYOUT["Release/whisper-cli.exe"]
+        with open(executable, "wb") as handle:
+            handle.write(b"X" * len(body))
+        # Same size, so the cheap state still says installed: that is the gap.
+        assert runtime.installation_state(build, root).state == runtime.STATE_INSTALLED
+        with pytest.raises(errors.TranscriptionError) as caught:
+            runtime.verify_executable(build, root)
+        assert caught.value.code == errors.WHISPER_CPP_CORRUPTED
+
+    def test_a_program_that_changes_after_passing_is_checked_again(self, root):
+        build, executable = _install(root, _zip(_LAYOUT))
+        runtime.verify_executable(build, root)
+        body = _LAYOUT["Release/whisper-cli.exe"]
+        with open(executable, "wb") as handle:
+            handle.write(b"Y" * len(body))
+        os.utime(executable, ns=(1, 1))
+        with pytest.raises(errors.TranscriptionError):
+            runtime.verify_executable(build, root)
+
+    def test_no_manifest_is_refused(self, root):
+        build, _executable = _install(root, _zip(_LAYOUT))
+        os.remove(os.path.join(root, "cpu", runtime.MANIFEST_FILENAME))
+        with pytest.raises(errors.TranscriptionError):
+            runtime.verify_executable(build, root)
+
+
 # ── Installing ───────────────────────────────────────────────────────────────
 
 

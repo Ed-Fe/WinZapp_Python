@@ -43,9 +43,10 @@ idna==3.11
 iniconfig==2.3.0
 libloader==1.4.2
 numpy==2.3.5
-# onnxruntime 1.29 has no macOS x86_64 wheel (1.23.2 is the last); on an Intel Mac
-# pip takes faster-whisper's own onnxruntime requirement instead.
+# onnxruntime 1.29 has no macOS x86_64 wheel (1.23.2 is the last), so an Intel
+# Mac gets that one, pinned like every other dependency.
 onnxruntime==1.29.0; sys_platform != "darwin" or platform_machine != "x86_64"
+onnxruntime==1.23.2; sys_platform == "darwin" and platform_machine == "x86_64"
 packaging==25.0
 pefile==2024.8.26
 pillow==12.3.0

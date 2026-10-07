@@ -1639,15 +1639,16 @@ class TestTheNewErrorCodes:
         assert device.should_retry_on_cpu(error, device.DEVICE_CUDA) is False
 
 
-def test_paths_are_what_the_log_keeps(catalogue, tmp_path, caplog):
-    """Folders are the diagnosis — which disk, which cache, which spelling —
-    and name no message, so they are logged on purpose."""
+def test_only_the_folder_name_is_what_the_log_keeps(catalogue, tmp_path, caplog):
+    """The folder's name is the diagnosis; its full path carries the Windows
+    user's name, so it is not logged."""
     import logging
     _model, contents = catalogue["alpha"]
     folder = _write(tmp_path / "mine", contents)
     with caplog.at_level(logging.INFO):
         external_models.identify(folder)
-    assert folder in caplog.text
+    assert os.path.basename(folder) in caplog.text
+    assert folder not in caplog.text
 
 
 # ── Part 10b: the run, the names and the models folder ───────────────────────

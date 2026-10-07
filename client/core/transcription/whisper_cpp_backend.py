@@ -250,7 +250,7 @@ class WhisperCppBackend(TranscriptionBackend):
                           None, None, should_cancel)
         logging.info(
             "[transcription] whisper.cpp trial load of %s on %s succeeded in %.1fs",
-            directory, device, time.monotonic() - started,
+            os.path.basename(directory), device, time.monotonic() - started,
         )
 
     # ── Internals ────────────────────────────────────────────────────────────
@@ -282,6 +282,8 @@ class WhisperCppBackend(TranscriptionBackend):
             )
         executable = whisper_cpp_runtime.executable_path(build, self._runtime_root)
         if executable is not None:
+            # Before every launch, not only at install: see verify_executable.
+            whisper_cpp_runtime.verify_executable(build, self._runtime_root)
             return executable
         if build.uses_cuda:
             # The code that carries the offer to run on the processor instead.

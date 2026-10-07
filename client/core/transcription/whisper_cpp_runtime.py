@@ -163,6 +163,55 @@ def executable_path(build, root=None):
     return os.path.join(build_dir(root, build), *manifest["executable"].split("/"))
 
 
+# What verify_executable() has already hashed: (path, size, mtime_ns, digest).
+# A few MB read once per change of the file instead of once per transcription.
+_verified_executables = set()
+
+
+def verify_executable(build, root=None) -> None:
+    """Hash the program against the manifest before it is launched.
+
+    installation_state() only compares sizes, and the folder is writable by
+    anything running as the user: a swapped whisper-cli.exe of the same size
+    would be run with the user's audio. Only the executable is hashed here (a
+    few MB); `verify_build()` is the one that reads every file.
+    """
+    root = _resolve(root)
+    directory = build_dir(root, build)
+    manifest = _read_manifest(directory)
+    if manifest is None:
+        raise errors.TranscriptionError(
+            errors.WHISPER_CPP_CORRUPTED, f"{build.id}: no manifest"
+        )
+    relative = manifest["executable"]
+    expected = next((d for r, _s, d in manifest["files"] if r == relative), None)
+    path = os.path.join(directory, *relative.split("/"))
+    try:
+        info = os.stat(path)
+    except OSError as exc:
+        raise errors.TranscriptionError(
+            errors.WHISPER_CPP_CORRUPTED, f"{relative}: {exc}"
+        ) from exc
+    key = (path, info.st_size, info.st_mtime_ns, expected)
+    if key in _verified_executables:
+        return
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(_CHUNK_BYTES), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise errors.TranscriptionError(
+            errors.WHISPER_CPP_CORRUPTED, f"{relative}: {exc}"
+        ) from exc
+    if expected is None or digest.hexdigest() != expected:
+        raise errors.TranscriptionError(
+            errors.WHISPER_CPP_CORRUPTED,
+            f"{relative}: sha256 {digest.hexdigest()}, expected {expected}",
+        )
+    _verified_executables.add(key)
+
+
 # ── Install, verify, remove ──────────────────────────────────────────────────
 
 

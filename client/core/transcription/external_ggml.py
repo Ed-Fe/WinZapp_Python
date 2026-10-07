@@ -91,11 +91,11 @@ def identify_file(path, progress=None, should_cancel=None, known_id=None):
     for entry in candidates:
         if digest == entry.sha256:
             logging.info("[transcription] %s verified as %s in %.1fs",
-                         path, entry.id, time.monotonic() - started)
+                         os.path.basename(path), entry.id, time.monotonic() - started)
             return external_models.MATCH_VERIFIED, entry.id
     logging.info(
         "[transcription] %s has the size of %s and not its contents: sha256 %s",
-        path, ", ".join(entry.id for entry in candidates), digest,
+        os.path.basename(path), ", ".join(entry.id for entry in candidates), digest,
     )
     named = next((entry for entry in candidates if entry.id == known_id), candidates[0])
     return external_models.MATCH_DIGEST_MISMATCH, named.id
@@ -220,7 +220,7 @@ def model_file(models_root, choice, references=()) -> str:
         state = external_models.reference_state(reference)
         if state == external_models.REF_READY:
             logging.info("[transcription] model %s is loaded from the external file %s",
-                         entry.id, reference.path)
+                         entry.id, os.path.basename(reference.path))
             return reference.path
         states.append(state)
 

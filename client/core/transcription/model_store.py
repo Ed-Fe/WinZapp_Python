@@ -351,7 +351,8 @@ def ensure_free_space(root, needed_bytes) -> None:
     free = free_bytes(root)
     if free is None:
         logging.info(
-            "[transcription] free space at %s is unknown; allowing the transfer", root
+            "[transcription] free space at %s is unknown; allowing the transfer",
+            os.path.basename(os.path.normpath(root)),
         )
         return
     if free < required_free_bytes(needed_bytes):
