@@ -2199,7 +2199,7 @@ msgstr "Setări video pentru apeluri"
 #: client/ui/dialogs/settings_dialog.py client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
-msgstr "A&nulează"
+msgstr "Anulea&ză"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "cancel_edit"
@@ -10332,7 +10332,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
 msgid "Remove"
-msgstr "Eliminați"
+msgstr "Elimi&nați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
@@ -10582,7 +10582,7 @@ msgstr "8 biți, calcule pe 32 de biți (int8_float32)"
 #: client/ui/dialogs/transcription_precision.py
 msgctxt "transcription_precision_label"
 msgid "Calcula&tion precision (faster-whisper only)"
-msgstr "Preci&zia calculelor (doar faster-whisper)"
+msgstr "&Precizia calculelor (doar faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_progress_cancelling"
