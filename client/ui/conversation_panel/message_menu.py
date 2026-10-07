@@ -375,7 +375,7 @@ class MessageMenuMixin:
         # same messages message_audio.is_transcribable() accepts: voice notes,
         # audio files, and documents whose mimetype is audio/*.
         # A message whose transcription is stored offers it instead of the
-        # wait: Alt+Shift+T moves to "Ver transcrição" (the shortcut opens the
+        # wait: Alt+Shift+T moves to `transcription_view` (the shortcut opens the
         # stored one too), and running it again or deleting it are items of
         # their own. The row itself says nothing about it: a marker there
         # would be read on every pass over every transcribed note, for good,

@@ -59,7 +59,7 @@ class TranscriptionStoreMixin:
         the dict the flow held when the run started: a transcription takes
         minutes, and a sync may have replaced that dict since, or the send of
         an own message may have given it its real id. Memory first, on every
-        copy, so the menu offers "Ver transcrição" at once; the database gets
+        copy, so the menu offers `transcription_view` at once; the database gets
         the dedicated key-only write (never insert_message() of this record,
         whose other fields may be minutes stale) on the transcription write
         queue, in one call covering every JID the conversation's rows may be
@@ -195,8 +195,8 @@ class TranscriptionStoreMixin:
         def _finish(ok):
             if ok:
                 # Only where the tombstone is still the latest decision: this
-                # delete may have waited in the queue behind a "Transcrever
-                # novamente" whose text is already on the copies (and on disk,
+                # delete may have waited in the queue behind a
+                # `transcription_transcribe_again` whose text is already on the copies (and on disk,
                 # written after the tombstone). Overwriting it would put the
                 # older decision back in memory under the new result window.
                 current_copies = self._transcription_copies(jid, msg_id)

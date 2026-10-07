@@ -69,12 +69,10 @@ house pattern, and the reason the page builder takes its parent as an argument.
 """
 
 import ast
-import json
 import pathlib
 import re
 from types import SimpleNamespace
 
-from tests.locales import load_strings, registered_locale_codes
 import pytest
 import wx
 
@@ -83,8 +81,8 @@ from core.transcription import backend as backend_module
 from core.transcription import cuda_runtime, device, errors, management, model_catalog
 from core.transcription import external_job, external_models, external_view
 from core.transcription import model_names, model_store, whisper_cpp_builds, whisper_cpp_catalog
-from core.transcription import whisper_cpp_runtime
 from core.transcription import precision, preferences
+from core.transcription import whisper_cpp_runtime
 from ui.dialogs import transcription_external, transcription_tab, transcription_whisper_cpp
 from ui.dialogs.settings_dialog import SettingsDialog
 from ui.dialogs.transcription_external import ExternalModelsMixin
@@ -93,6 +91,7 @@ from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 from tests.conftest import destroy_now, hidden_frame
 from tests.god_modules import main_window_source
+from tests.locales import load_strings, registered_locale_codes
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SETTINGS_DIALOG_SOURCE = (
@@ -1579,7 +1578,7 @@ class TestRetranslation:
 class TestTheMnemonicsOnThisTab:
     """That the keys exist at all is not checked here any more: every label on
     this tab is asked for as a literal `i18n.t("...")`, which is exactly what
-    tests/test_i18n_keys_exist.py scans for against all five locales, and the
+    tests/test_i18n_keys_exist.py scans for against every locale, and the
     three `transcription_model_choice_*` keys — which are not literals — are
     already covered by test_no_locale_leaves_a_placeholder_to_be_read_out
     above, since a missing one renders as its own key name and no longer

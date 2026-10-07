@@ -9131,7 +9131,7 @@ msgid ""
 "conversation."
 msgstr ""
 "Usunąć transkrypcję tej wiadomości? Wiadomość i jej nagranie pozostaną w "
-"rozmowie."
+"czacie."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_deleted"
@@ -10352,8 +10352,8 @@ msgid ""
 "This transcription was not saved, because the message is no longer in this "
 "conversation."
 msgstr ""
-"Ta transkrypcja nie została zapisana, ponieważ wiadomości nie ma już w tej "
-"rozmowie."
+"Ta transkrypcja nie została zapisana, ponieważ wiadomości nie ma już w tym "
+"czacie."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_not_saved_unsent"

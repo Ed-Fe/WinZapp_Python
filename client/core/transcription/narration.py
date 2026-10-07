@@ -104,7 +104,7 @@ LOW_CONFIDENCE_I18N_KEY = "transcription_note_low_confidence"
 FINISHED_I18N_KEY = "transcription_finished"
 
 #: Every key this module can answer with, besides the ones errors.py and
-#: device.py own. The test that pins the five language files reads this rather
+#: device.py own. The test that pins the language files reads this rather
 #: than a list of its own, so a key added here cannot be added untranslated.
 NARRATION_I18N_KEYS = (
     tuple(PHASE_I18N_KEYS.values())

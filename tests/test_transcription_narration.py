@@ -512,7 +512,7 @@ class TestCpuRetryOffer:
         ) is None
 
 
-# ── The five language files ──────────────────────────────────────────────────
+# ── The language files ──────────────────────────────────────────────────────
 
 
 class TestEveryKeyIsTranslated:

@@ -43,12 +43,12 @@ is Cancel would leave the user two dialogs deep in the middle of a run.
 
 A finished transcription is kept with its message (part 7,
 `core.transcription.stored`), and from then on the message offers it instead
-of the wait: Alt+Shift+T and "Ver transcrição" open the same result window
+of the wait: Alt+Shift+T and `transcription_view` open the same result window
 with the stored text, saying when and with which model it was made, and
 repeating every note that still applies — the voice-filter warning above all,
 since a transcription made without the filter is exactly as untrustworthy the
-tenth time it is read. "Transcrever novamente" is the run above; its result
-replaces the stored one. "Apagar transcrição" asks first, because it throws
+tenth time it is read. `transcription_transcribe_again` is the run above; its result
+replaces the stored one. `transcription_delete` asks first, because it throws
 away minutes of work with one key. A run that finishes after the sender deleted
 the message for everyone is neither kept nor shown: one sentence says so, and
 no window opens (`WITHDRAWN_I18N_KEY`).
@@ -779,7 +779,7 @@ class MessageTranscriptionFlow:
         """Keep `result` with the message; storing's SAVE_* answer.
 
         Dated after the decision the message already holds, whatever the
-        clock says — "Transcrever novamente" after a clock was set back must
+        clock says — `transcription_transcribe_again` after a clock was set back must
         still be the later decision (`stored_transcription.next_decision_time`).
         """
         previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY) if isinstance(self._msg, dict) else None
@@ -853,7 +853,7 @@ class MessageTranscriptionFlow:
         if self._hidden_by_vault():
             # The one place the text reaches the screen, so the last word on
             # it. A fresh result has already been answered for in _report();
-            # "Ver transcrição" gets here only from an open conversation, which
+            # `transcription_view` gets here only from an open conversation, which
             # a locked chat is not while the vault is closed.
             return
         i18n = self._i18n
@@ -992,7 +992,7 @@ class MessageTranscriptionFlow:
 
 
 def transcribe_message(panel, msg):
-    """Run a transcription — "Transcrever novamente", or a message with none."""
+    """Run a transcription — `transcription_transcribe_again`, or a message with none."""
     MessageTranscriptionFlow(panel, msg).start()
 
 
@@ -1010,5 +1010,5 @@ def open_or_transcribe(panel, msg):
 
 
 def delete_transcription(panel, msg):
-    """Entry point for "Apagar transcrição"."""
+    """Entry point for `transcription_delete`."""
     MessageTranscriptionFlow(panel, msg).delete_saved()

@@ -712,7 +712,7 @@ class ConversationSyncMixin:
                              remote_jid, carried)
             # A saved transcription is the same kind of fact, with the same
             # database-side twin (DatabaseManager._with_known_local_fields):
-            # without this it survives on disk and "Ver transcrição" leaves the
+            # without this it survives on disk and `transcription_view` leaves the
             # menu at the first sync.
             carried = stored_transcription.carry_over_transcriptions(all_messages, local_records)
             if carried:

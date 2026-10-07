@@ -70,8 +70,8 @@ they were made from those files, and a wipe that kept them would keep the
 text of conversations the user asked to forget. And a message that enters
 memory through `on_historical_message()` or `fetch_older_messages()` arrives
 from the server without the key: the row on disk keeps it (the write goes
-through the rule), but the menu offers "Transcrever" rather than "Ver" until
-the conversation is reopened and read back from the database. Reading every
+through the rule), but the menu offers `transcription_transcribe_again` rather than
+`transcription_view` until the conversation is reopened and read back from the database. Reading every
 such message back on the UI thread to avoid that would cost more than the
 second run it could save.
 
@@ -306,7 +306,7 @@ def carry_over_transcriptions(new_msgs, old_msgs) -> int:
 
     A resync replaces a conversation's records with the server's copies, which
     never hold the key; without this the transcription would survive on disk
-    and vanish from the screen at the first sync — "Ver transcrição" gone from
+    and vanish from the screen at the first sync — `transcription_view` gone from
     the menu until the next restart. Mutates `new_msgs` in place, the way
     `carry_over_video_durations()` does.
     """
