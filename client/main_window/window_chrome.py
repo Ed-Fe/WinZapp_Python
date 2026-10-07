@@ -28,6 +28,17 @@ class WindowChromeMixin:
     bookmark/global hotkeys and the offline toggle.
     """
 
+    # Status strings are kept for the title/tray API, but retain their stable
+    # key too so a live language change can retranslate the already-visible
+    # status instead of leaving, for example, "Sincronizando" in an English UI.
+    _TRAY_STATUS_KEYS = (
+        "tray_connecting",
+        "synchronizing",
+        "updating_conversations",
+        "preparing_to_sync",
+        "tray_wa_disconnected",
+    )
+
     # ── Menu bar ─────────────────────────────────────────────────────────────
 
     def _format_title(self, unread=0):
@@ -1085,9 +1096,19 @@ class WindowChromeMixin:
         """Update window title and tray tooltip to reflect current status."""
         previous = getattr(self, "_tray_status", "")
         self._tray_status = status
+        self._tray_status_key = next(
+            (key for key in self._TRAY_STATUS_KEYS if status == self.i18n.t(key)),
+            None,
+        )
         if status != previous:
             logging.info("[sync-status] %r -> %r", previous, status)
         self._update_title()
+
+    def _refresh_status_language(self):
+        """Retranslate the current title/tray status after a language change."""
+        key = getattr(self, "_tray_status_key", None)
+        if key:
+            self._tray_status = self.i18n.t(key)
 
     def _set_preparing_status_if_idle(self):
         """Do not let a delayed connection callback regress an active sync."""

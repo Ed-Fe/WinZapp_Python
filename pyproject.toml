@@ -76,11 +76,16 @@ winzapp = "winzapp_tools.cli:app"
 build-onefile = "winzapp_tools.cli:build_onefile"
 build-installer = "winzapp_tools.cli:build_installer"
 test = "winzapp_tools.cli:test"
+translations-update = "winzapp_tools.cli:translations_update"
+translations-check = "winzapp_tools.cli:translations_check"
+translations-check-draft = "winzapp_tools.cli:translations_check_draft"
+translations-compile = "winzapp_tools.cli:translations_compile"
 
 [dependency-groups]
 dev = [
     "coverage==7.14.3",
     "execnet==2.1.2",
+    "polib==1.2.0",
     "pyinstaller==6.21.0",
     "pyinstaller-hooks-contrib==2026.6",
     "pytest==9.1.1",

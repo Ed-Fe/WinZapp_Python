@@ -333,6 +333,10 @@ def mac_libs():
 
 
 def pyinstaller():
+    # Build the same MO-only resources as Windows before bundling any assets.
+    language_resources = os.path.join(BUILD, "languages")
+    run([sys.executable, "-m", "winzapp_tools.translations", "compile",
+         "--mo-dir", language_resources], cwd=ROOT, env=env_with_pydeps())
     step("PyInstaller -> macos/dist/WinZapp.app")
     libdir = mac_libs()
     # sound_lib and accessible_output2 ship Windows/Linux/i386 binaries that
@@ -366,12 +370,13 @@ def pyinstaller():
     for f in sorted(os.listdir(os.path.join(HERE, "winzapp_mac"))):
         if f.endswith(".py") and f != "__init__.py":
             cmd += ["--hidden-import", "winzapp_mac." + f[:-3]]
-    datas = [("sounds", "sounds"), ("languages", "languages"), ("api_patches", "api_patches"),
+    datas = [("sounds", "sounds"), ("api_patches", "api_patches"),
              (os.path.join("data", "settings_default.json"), "data"),
              ("wpp_minimum_version.txt", ".")]
     datas += [(f, ".") for f in os.listdir(CLIENT) if f.startswith("changelog_")]
     for src, dst in datas:
         cmd += ["--add-data", f"{os.path.join(CLIENT, src)}:{dst}"]
+    cmd += ["--add-data", f"{language_resources}:languages"]
     for f in os.listdir(libdir):
         cmd += ["--add-binary", f"{os.path.join(libdir, f)}:lib"]
         if f.endswith(".dylib"):

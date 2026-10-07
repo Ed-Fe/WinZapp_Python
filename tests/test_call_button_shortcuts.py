@@ -19,8 +19,7 @@ are verified against the source text, matching the existing pattern in
 test_call_video.py's test_video_button_is_restricted_to_individual_chats.
 """
 
-import json
-from pathlib import Path
+from tests.locales import load_strings, registered_locale_codes
 
 import wx
 
@@ -88,13 +87,10 @@ def test_call_buttons_have_dedicated_accessible_objects_set():
 
 
 def test_call_button_labels_have_no_mnemonic_in_any_language():
-    languages = Path(__file__).parents[1] / "client" / "languages"
-    for path in languages.glob("*.json"):
-        if path.name == "language_map.json":
-            continue
-        entries = json.loads(path.read_text(encoding="utf-8"))
-        assert "&" not in entries["voice_call_button"], path.name
-        assert "&" not in entries["video_call_button"], path.name
+    for locale in registered_locale_codes():
+        entries = load_strings(locale)
+        assert "&" not in entries["voice_call_button"], locale
+        assert "&" not in entries["video_call_button"], locale
 
 
 # ── Active-call window (self.voice_call_window in MainWindow) ──────────────
@@ -161,7 +157,6 @@ def test_active_call_window_accessible_objects_set_on_buttons_regardless_of_togg
 
 
 def test_active_call_window_button_labels_have_no_mnemonic_in_any_language():
-    languages = Path(__file__).parents[1] / "client" / "languages"
     keys = (
         "voice_call_end_button",
         "voice_call_settings_button",
@@ -170,12 +165,10 @@ def test_active_call_window_button_labels_have_no_mnemonic_in_any_language():
         "voice_call_video_off_button",
         "voice_call_video_on_button",
     )
-    for path in languages.glob("*.json"):
-        if path.name == "language_map.json":
-            continue
-        entries = json.loads(path.read_text(encoding="utf-8"))
+    for locale in registered_locale_codes():
+        entries = load_strings(locale)
         for key in keys:
-            assert "&" not in entries[key], (path.name, key)
+            assert "&" not in entries[key], (locale, key)
 
 
 class _CallAccelStub:
@@ -247,7 +240,6 @@ def test_incoming_call_dialog_mnemonics_are_unique_in_every_language():
     The answer button shows exactly one of its two labels at a time, so each
     is checked against the other simultaneously-visible buttons separately.
     """
-    languages = Path(__file__).parents[1] / "client" / "languages"
     always_visible = (
         "incoming_call_reject_button",
         "incoming_call_silence_button",
@@ -262,10 +254,8 @@ def test_incoming_call_dialog_mnemonics_are_unique_in_every_language():
             "incoming_call_answer_without_video_button",
         ),
     )
-    for path in sorted(languages.glob("*.json")):
-        if path.name == "language_map.json":
-            continue
-        entries = json.loads(path.read_text(encoding="utf-8"))
+    for locale in registered_locale_codes():
+        entries = load_strings(locale)
         for layout in layouts:
             seen = {}
             for key in layout + always_visible:

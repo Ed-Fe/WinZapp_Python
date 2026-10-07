@@ -1,5 +1,4 @@
-import json
-from pathlib import Path
+from tests.locales import load_strings
 
 from main import MainWindow
 from ui.conversations import ConversationsPanel
@@ -57,8 +56,7 @@ def test_deleted_message_in_open_conversation_uses_selected_language():
 
 
 def test_english_deleted_message_translation_matches_whatsapp_wording():
-    language_path = Path(__file__).parents[1] / "client" / "languages" / "en-US.json"
-    translations = json.loads(language_path.read_text(encoding="utf-8"))
+    translations = load_strings("en-US")
 
     assert translations["notif_deleted"] == "This message was deleted"
 

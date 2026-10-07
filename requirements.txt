@@ -36,6 +36,7 @@ pillow==12.3.0
 platform_utils==1.6.0
 platformdirs==4.5.0
 pluggy==1.6.0
+polib==1.2.0
 PyAudio==0.2.14; python_version < "3.14"
 pycparser==2.23
 pydantic==2.12.5

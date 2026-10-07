@@ -178,6 +178,8 @@ def test_main_language_change_repaints_dynamic_content_and_calls():
     assert "cp.populate_messages(preserve_focus=True)" in body
     assert "self._chats_ui_fp = None" in body
     assert "self.add_chats_to_ui()" in body
+    assert "self._refresh_status_language()" in body
+    assert "self._build_menubar()" in body
 
 
 def test_incoming_call_popup_has_live_language_refresh_hook():
