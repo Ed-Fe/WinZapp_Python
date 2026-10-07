@@ -52,6 +52,7 @@ Where to look (and where new code goes):
   Plain modules
     archived_panel           ArchivedConversationsPanel (Alt+3)
     media_paths              media cache/saved paths, reveal in folder, probing
+    own_sender               the sender prefix of a row and the setting that hides it on my own messages
     text_helpers             small text helpers (_URL_RE, captions, last seen)
     selection_rules          pure chat multi-selection rules
     transfer_gauge           the focus-keeping transfer gauge control

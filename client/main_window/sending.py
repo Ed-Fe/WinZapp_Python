@@ -37,6 +37,10 @@ from app_paths import (
     data_path,
     resource_path,
 )
+from core.reaction_echo import (
+    prune_expired as prune_expired_reaction_echoes,
+    reaction_echo_keys,
+)
 from core.utils import encrypt
 from core.voice_stereo import opus_encode_args
 
@@ -1027,6 +1031,7 @@ class SendingMixin:
         """Send a reaction to a message via the WPPConnect Server API."""
         # Resolve the @lid chat to its phone JID the same way deletes do, so the
         # serialized id matches the chat WPPConnect actually has loaded.
+        requested_jid = remote_jid
         lid_jid = getattr(self, "_phone_to_lid", {}).get(remote_jid, "")
         if lid_jid:
             remote_jid = lid_jid
@@ -1039,13 +1044,17 @@ class SendingMixin:
             "msgId": self._serialize_msg_id(remote_jid, msg_key),
             "reaction": emoji
         }
-        reaction_signature = (str(msg_key.get("id", "")), emoji)
+        # The marker the echo is matched against (core/reaction_echo.py): the
+        # chat is part of it, in every spelling known for it, since a message
+        # id is only unique within its chat.
+        reaction_signature = object()
+        echo_keys = reaction_echo_keys(
+            (requested_jid, remote_jid), msg_key.get("id", ""), emoji,
+            getattr(self, "_lid_to_phone", {}), getattr(self, "_phone_to_lid", {}))
         with self._pending_own_reactions_lock:
             now = time.monotonic()
-            for key, created_at in list(self._pending_own_reactions.items()):
-                if now - created_at > 60:
-                    self._pending_own_reactions.pop(key, None)
-            self._pending_own_reactions[reaction_signature] = now
+            prune_expired_reaction_echoes(self._pending_own_reactions, now)
+            self._pending_own_reactions[reaction_signature] = (now, echo_keys)
         try:
             response = api_post(
                 url,

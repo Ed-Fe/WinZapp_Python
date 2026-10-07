@@ -74,6 +74,8 @@ def _make_frame(settings):
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()
     frame.refresh_sound_packs = lambda: None
+    frame.chat_refreshes = []
+    frame.add_chats_to_ui = lambda: frame.chat_refreshes.append(True)
     # Turning "show tray icon" off (its default is on) reads and clears
     # main_window.tray_icon; _init_tray is only reached going off -> on, which
     # these tests never do, and is stubbed so a future one cannot build a real
@@ -157,6 +159,24 @@ def test_opening_again_after_apply_keeps_every_choice(make_dialog):
         if getattr(second, attr).GetValue() is _default(section, key)
     ]
     assert wrong == []
+
+
+def test_hiding_own_sender_refreshes_the_open_messages(make_dialog):
+    from types import SimpleNamespace
+
+    dialog = make_dialog({})
+    refreshed = []
+    dialog.main_window.conversations_panel = SimpleNamespace(
+        conversation={"jid": "chat"},
+        populate_messages=lambda **kwargs: refreshed.append(kwargs),
+    )
+    dialog._hide_own_sender_cb.SetValue(True)
+
+    assert dialog._apply_values() is True
+
+    assert refreshed == [{"preserve_focus": True}]
+    assert dialog.main_window.chat_refreshes == [True]
+    assert dialog.main_window.settings["user_interface"]["hide_own_sender_in_message_list"] is True
 
 
 def test_unchanged_boxes_are_saved_as_they_were(make_dialog):

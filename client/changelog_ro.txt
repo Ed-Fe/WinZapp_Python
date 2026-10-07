@@ -38,6 +38,12 @@ CORECTĂRI
 
 - Actualizarea WinZapp nu mai anulează o actualizare a WPPConnect. După actualizarea WPPConnect la o versiune mai nouă decât cea livrată cu WinZapp (din notificarea de actualizare sau cu „Forțați reinstalarea WPPConnect” din meniul Ajutor), următoarea actualizare a WinZapp o readucea la versiunea veche, iar aceeași actualizare a WPPConnect era oferită din nou
 
+- Status: „Apreciază ❤️” funcționează din nou. După o modificare în WhatsApp Web, aprecierea statusului unui contact eșua cu „Nu s-a putut trimite reacția la acest status.”
+
+- „Utilizați API personalizat (server la distanță)”: WinZapp nu mai spune „Profilul browserului folosit pentru conectarea la WhatsApp este deteriorat și nu există nicio copie salvată pentru restaurare” despre un profil care este în regulă. Acel profil se află pe server, iar WinZapp îl căuta pe acest computer, nu găsea nimic și conchidea că este deteriorat. Cu un API personalizat, WinZapp lasă acum profilul și copiile lui de rezervă în seama serverului și, la închidere, nu mai oprește un WPPConnect de pe acest computer pe care nu l-a pornit el.
+
+- Conturile cu multe conversații, al căror WhatsApp Web se încarcă în puțin peste 30 de secunde, se conectează acum. WinZapp renunța să mai aștepte la exact 30 de secunde, iar același cont eșua la fel la fiecare pornire.
+
 - Actualizarea WPPConnect: versiunea anterioară este păstrată până când cea nouă pornește și răspunde și este restaurată dacă nu o face. Actualizarea este refuzată înainte de a opri ceva atunci când nu există spațiu pe disc pentru ambele, iar reinstalarea refolosește Chrome deja descărcat.
 
 V2.0.0.0

@@ -116,12 +116,24 @@ when it holds a saved key.
 - Plain wx controls only: a read-only multiline text for the result, a plain
   `ListBox` whose rows say "name, state, key" for the providers (not a
   `CheckListBox`, whose state NVDA does not reliably announce).
-- **No shortcut or mnemonic is written into a label or accessible name.**
-  Ctrl+Enter (ask) is announced by `ui/accessible.AccessibleAskQuestion`;
+- **No shortcut is written into a label or accessible name, and the result
+  window carries no mnemonic.** Ctrl+Enter (ask) is announced by
+  `ui/accessible.AccessibleAskQuestion`;
   Ctrl+Shift+I is an accelerator whose menu item shows it the way every other
   message-menu item does; the Describe button reports it through
-  `ui/accessible.AccessibleDescribeButton`. `tests/test_ai_media_i18n_keys.py` fails if a label
-  carries one.
+  `ui/accessible.AccessibleDescribeButton`. A mnemonic also fires on the bare
+  letter while a button has focus, so the result window (which has a question
+  editor next to its buttons) stays free of them. The consent window, the
+  Settings page and the provider window do carry mnemonics, one letter per
+  control and never the letter of OK, Apply or Cancel;
+  `tests/test_ai_media_i18n_keys.py` lists those controls and fails on a
+  collision, on a missing one, or on a mnemonic anywhere else. A control's
+  `name` is its label without the `&`.
+- Declining the consent prompt of the first request closes the result window:
+  nothing was shown, so focus must not land in an empty result.
+- The provider list always has the first provider selected, so it announces it
+  when focused. The provider window opens with the configured API key filled in
+  (masked), and only stages a key that differs from it.
 - All speech goes through `MainWindow.output` (the `speak_output` gate). A
   request speaks its status once at the start; the waiting sound
   (`sound_event_ai_processing`, bundled `ai_processing.wav`) loops until the
@@ -133,9 +145,10 @@ when it holds a saved key.
 
 ## The model catalogue
 
-"Automatic (recommended)" follows the provider model in `config.PROVIDERS`;
-it saves an empty model id and locks the model fields and "Get models".
-Unchecking it allows a fixed model id. This choice is preserved when keys
+"Use the model recommended by WinZapp" (the automatic checkbox) follows the provider model in `config.PROVIDERS`;
+it saves an empty model id and hides the model fields and "Get models" (a
+disabled edit field is announced as unavailable or read-only by screen
+readers). Unchecking it shows them and allows a fixed model id. This choice is preserved when keys
 are reset and re-entered; it does not change the sending-consent rules.
 
 `model_catalog.COMPATIBLE_MODELS` is a short list of exact model ids per
