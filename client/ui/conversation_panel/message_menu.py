@@ -783,6 +783,11 @@ class MessageMenuMixin:
         quoted_msg = ctx.get("quotedMessage") or {}
         if not quoted_msg:
             return False
+        # Missing local history is not evidence that a quote was a status.
+        # Only rebuild an expired status when its origin explicitly says so.
+        if (ctx.get("remoteJid") != "status@broadcast"
+                and "status@broadcast" not in quoted_id):
+            return False
         poster_jid = ctx.get("participant", "") or ""
         msg_type = ""
         for key in ("videoMessage", "imageMessage", "audioMessage", "documentMessage",
