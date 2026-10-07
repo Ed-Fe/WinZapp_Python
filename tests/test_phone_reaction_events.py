@@ -18,6 +18,7 @@ from core.reaction_echo import (
 from core.websocket_client import WebSocketClient
 
 ANA = "5511999990000@s.whatsapp.net"
+ANA_SHORT = "551199990000@s.whatsapp.net"
 ANA_LID = "123456789012345@lid"
 BIA = "5511888880000@s.whatsapp.net"
 LID_TO_PHONE = {ANA_LID: ANA}
@@ -99,6 +100,10 @@ def test_the_same_message_id_in_another_chat_is_a_phone_reaction():
     (ANA_LID, ANA),
     (ANA, "5511999990000@c.us"),           # legacy form
     (ANA, "5511999990000:12@s.whatsapp.net"),  # device suffix
+    (ANA, ANA_SHORT),                      # Brazilian optional ninth digit
+    (ANA_SHORT, ANA),
+    (ANA_SHORT, ANA_LID),                   # bridge stored under the longer phone
+    (ANA_LID, ANA_SHORT),
 ])
 def test_an_echo_under_another_spelling_of_the_chat_is_still_the_echo(sent_to, echoed_as):
     client = _client((sent_to, "message-1", "👍", 0))
@@ -115,10 +120,32 @@ def test_a_consumed_send_leaves_no_spelling_behind():
     assert client._consume_own_reaction_echo(_reaction(chat=ANA, reaction_id="phone")) is False
 
 
+@pytest.mark.parametrize("sent_to,echoed_as", [(ANA, ANA_LID), (ANA_LID, ANA)])
+def test_bridge_stored_under_the_short_phone_spelling(sent_to, echoed_as):
+    window = _MainWindow()
+    window._lid_to_phone = {ANA_LID: ANA_SHORT}
+    window._phone_to_lid = {ANA_SHORT: ANA_LID}
+    window._pending_own_reactions[object()] = (
+        time.monotonic(), reaction_echo_keys(
+            (sent_to,), "message-1", "👍", window._lid_to_phone, window._phone_to_lid))
+    client = WebSocketClient.__new__(WebSocketClient)
+    client.main_window = window
+
+    assert client._consume_own_reaction_echo(_reaction(chat=echoed_as)) is True
+
+
+@pytest.mark.parametrize("domain", ["lid", "g.us", "broadcast", "newsletter"])
+def test_optional_digit_does_not_make_non_phone_chats_equivalent(domain):
+    sent = reaction_echo_keys((f"5511999990000@{domain}",), "m", "👍")
+    echo = reaction_echo_keys((f"551199990000@{domain}",), "m", "👍")
+
+    assert not sent & echo
+
+
 class TestKeys:
     def test_a_chat_is_known_by_its_lid_and_phone_forms(self):
         keys = reaction_echo_keys(("5511999990000@c.us",), "m", " 👍 ", LID_TO_PHONE, PHONE_TO_LID)
-        assert keys == {(ANA, "m", "👍"), (ANA_LID, "m", "👍")}
+        assert keys == {(ANA, "m", "👍"), (ANA_SHORT, "m", "👍"), (ANA_LID, "m", "👍")}
 
     def test_a_group_is_only_itself(self):
         group = "120363000000000000@g.us"
@@ -168,7 +195,8 @@ class TestSendReaction:
 
         assert posted[0]["msgId"] == f"false_{ANA_LID}_message-1"
         (created_at, keys), = window._pending_own_reactions.values()
-        assert keys == {(ANA, "message-1", "👍"), (ANA_LID, "message-1", "👍")}
+        assert keys == {(ANA, "message-1", "👍"), (ANA_SHORT, "message-1", "👍"),
+                        (ANA_LID, "message-1", "👍")}
 
     def test_a_failed_send_leaves_no_marker(self, monkeypatch):
         window, _ = self._window(monkeypatch, status=500)

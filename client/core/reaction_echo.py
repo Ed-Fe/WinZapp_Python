@@ -41,6 +41,22 @@ def _canonical(jid) -> str:
     return jid
 
 
+def _chat_spellings(jid):
+    """Phone aliases include Brazil's optional ninth digit, never LID/group IDs."""
+    jid = _canonical(jid)
+    if not jid:
+        return set()
+    forms = {jid}
+    if jid.endswith("@s.whatsapp.net"):
+        digits = jid.split("@", 1)[0]
+        if digits.isdigit() and digits.startswith("55"):
+            if len(digits) == 13 and digits[4] == "9":
+                forms.add(f"{digits[:4]}{digits[5:]}@s.whatsapp.net")
+            elif len(digits) == 12:
+                forms.add(f"{digits[:4]}9{digits[4:]}@s.whatsapp.net")
+    return forms
+
+
 def reaction_echo_keys(chats, target_id, emoji, lid_to_phone=None, phone_to_lid=None):
     """Every (chat, message id, emoji) a reaction can be recognised by.
 
@@ -57,15 +73,18 @@ def reaction_echo_keys(chats, target_id, emoji, lid_to_phone=None, phone_to_lid=
     lid_to_phone = lid_to_phone or {}
     phone_to_lid = phone_to_lid or {}
     forms = set()
+    remaining = set()
     for chat in chats:
-        chat = _canonical(chat)
-        if not chat:
+        remaining.update(_chat_spellings(chat))
+    # A LID can map to either phone spelling; expand the phone before looking
+    # up its inverse bridge so the other digit count can reach the same LID.
+    while remaining:
+        chat = remaining.pop()
+        if chat in forms:
             continue
         forms.add(chat)
         for bridge in (lid_to_phone, phone_to_lid):
-            other = _canonical(bridge.get(chat, ""))
-            if other:
-                forms.add(other)
+            remaining.update(_chat_spellings(bridge.get(chat, "")) - forms)
     return frozenset((chat, target_id, emoji) for chat in forms)
 
 

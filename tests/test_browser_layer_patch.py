@@ -245,8 +245,18 @@ class TestEveryCallSiteAppliesIt:
 
         assert b"{ timeout: 60000 }" in browser_js.read_bytes()
 
-    def test_build_api(self):
-        src = (ROOT / "build_api.py").read_text(encoding="utf-8")
-        patchers = src[src.index("for patcher in ("):src.index("patcher(api_dir)")]
+    def test_build_api(self, fake_api_dir, monkeypatch):
+        spec = importlib.util.spec_from_file_location("build_api", ROOT / "build_api.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        api_dir, browser_js = fake_api_dir
+        for name in (
+            "_patch_wppconnect_host_layer", "_patch_wppconnect_status_layer",
+            "_patch_wppconnect_sender_layer", "_patch_wppconnect_welcome_layer",
+            "_patch_wa_js_bundle",
+        ):
+            monkeypatch.setattr(module.canonical_setup, name, lambda path: True)
 
-        assert "canonical_setup._patch_wppconnect_browser," in patchers
+        module._apply_node_modules_patches(str(api_dir))
+
+        assert b"{ timeout: 60000 }" in browser_js.read_bytes()
