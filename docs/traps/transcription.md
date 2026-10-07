@@ -19,7 +19,9 @@ ships with WinZapp, and whisper.cpp (`whisper-cli.exe`), downloaded on demand.
   (`faster_whisper_backend._whisper_model_class()`). Either way, nothing takes
   the conversation window down at import.
   `tests/test_transcription_core.py::test_the_backend_is_never_imported_at_module_level`
-  pins it.
+  pins it. The helpers every module of the package shares (cancellation,
+  progress, `unlink`, `remove_empty_dir`, `kill_process`, `private_temp_dir`)
+  are `_fileops`: use them, do not write a seventh copy.
 - **The flow** from the keypress to the text is
   `client/ui/transcription_flow.py`; the dialogs are
   `client/ui/dialogs/transcription_progress.py` and
@@ -346,6 +348,13 @@ maps to, and only that one is a sentence a blind user can act on.
 "The link may have expired" would be false for both, and "try again in a
 moment" would be false for ever for the second.
 
+**`temp_sweep` removes what a killed run left in `%TEMP%`**, at startup, for
+names beginning with `temp_sweep.PREFIXES`. A new temporary with a new prefix
+that is not added there is plaintext nobody ever collects. Its grace is a day
+(newest of mtime and atime), because a run of a long recording outlasts an
+hour and another account's live run must not be touched; a folder with a
+locked file loses what it can and is tried again at the next start.
+
 **A full disk while decrypting is `TEMP_NO_DISK_SPACE`**, not the downloads'
 `NO_DISK_SPACE`. Nothing was being downloaded, and `%TEMP%` may be on another
 drive. The sentence names the drive, and has a second wording for a `%TEMP%`
@@ -436,6 +445,10 @@ duration (`MEASURED_SECONDS_KEY`):
   exists yet** (a message that arrived live and has not been persisted) is a
   snapshot of the record written whole through `insert_message()`. Its rule
   keeps whichever decision is later.
+- **The database is `secure_delete=ON`**: a deleted or overwritten text page
+  is zeroed in the main file. The `-wal` file is not covered: until a
+  checkpoint it can still hold the old page, so a delete is not a promise that
+  the text is gone from the disk at once.
 - **Deleting writes a dated tombstone** instead of removing the key. A removed
   key lets any stale copy still holding the text win it back.
 - **`at` only moves forward** (`next_decision_time()`).
@@ -468,6 +481,9 @@ exception text.
   `__context__` unless `__suppress_context__` is set. That matters because
   `message_audio.py` raises `from None` precisely to leave the exception
   carrying the path behind.
+- **A file path is logged as its basename.** The folders above it carry the
+  Windows user name (and `%TEMP%` paths, the media's own); a log line that
+  needs to name a file says `os.path.basename()` of it.
 - **Folders, error codes, DLL names and model ids stay.** They are what a
   failure is diagnosed with, and the beta's log is not to be trimmed.
 - **`TranscriptionError.__str__` returns the code alone.** The detail travels
@@ -475,6 +491,21 @@ exception text.
   and would read a path aloud.
 
 `tests/test_transcription_backend.py` walks the package's logging calls.
+
+## What is verified before a run
+
+**The whisper.cpp program is hashed on every launch; the models are not.**
+`whisper_cpp_runtime.verify_executable()` reads every file the manifest lists
+(once per process, cached on path, size and mtime) before whisper-cli starts,
+because that code runs with the user's audio and the folder is writable by
+anything running as the user. The manifest sits in that folder too, so it
+cannot vouch for itself: the digests of the executable and every DLL are
+pinned in `whisper_cpp_builds` (read off the pinned zips), and a manifest that
+disagrees or omits one is refused. Models are data, not code: a swapped one
+can give wrong text but not run anything, and hashing gigabytes at every
+transcription would cost far more than it protects, so they are checked at
+download and by the explicit verify. Accepted limit: a swap that restores size
+and mtime after a file has passed is not seen again in that process.
 
 ## Coexistence with online AI transcription
 

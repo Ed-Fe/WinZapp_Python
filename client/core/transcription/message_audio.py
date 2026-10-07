@@ -496,7 +496,7 @@ def discard_temp(path) -> None:
 
     Silent on failure, and silent in the log either way: this module logs
     nothing (a test pins it), so a leftover is for temp_sweep to remove at the
-    next start.
+    next start (once it is a day old).
     """
     if not path:
         return

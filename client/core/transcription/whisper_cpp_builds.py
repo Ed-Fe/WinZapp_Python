@@ -70,10 +70,101 @@ class RuntimeBuild:
     archive_bytes: int
     archive_sha256: str
     uses_cuda: bool
+    #: ((relative path, sha256), ...) of the files that run; () pins nothing.
+    pinned_files: tuple = ()
 
     @property
     def url(self) -> str:
         return _RELEASE_URL.format(tag=RELEASE_TAG, name=self.archive)
+
+
+# Per-file digests of what is loaded or launched — whisper-cli.exe and every
+# DLL — read off the pinned zips above. The manifest in the install folder is
+# written by WinZapp but sits in a folder anything running as the user can
+# rewrite, so verify_executable() holds the files to these instead.
+_CPU_FILES = (
+    ("Release/SDL2.dll",
+     "de23db1694a3c7a4a735e7ecd3d214b2023cc2267922c6c35d30c7fc7370d677"),
+    ("Release/ggml-base.dll",
+     "cb1dfa532b8bf14c3cd54d8bd7ef12b8d07d3f7d85dbef01c135c1475e08ed38"),
+    ("Release/ggml-cpu-alderlake.dll",
+     "660886106a61537002c52cf0c7021bc8a8060174cc802ed650b9bfb77eb9183a"),
+    ("Release/ggml-cpu-cannonlake.dll",
+     "aab6d7e3c1707bd7cbb4da2061fd59fee5d6e3f4fe71606ab1a43ac814f1d89f"),
+    ("Release/ggml-cpu-cascadelake.dll",
+     "bef920f38f26432fa456ad7beda8a35b11d8719d10d198c08e61d1bc33c0ba40"),
+    ("Release/ggml-cpu-haswell.dll",
+     "f52a4824868b8d9ac48f814edeb4f7382e28371f093ef6e115077fb7125bf830"),
+    ("Release/ggml-cpu-icelake.dll",
+     "161baa9fb0061df74d0f0d83339a68890b2be1ba22b6b406d9a0ea23dbf89628"),
+    ("Release/ggml-cpu-sandybridge.dll",
+     "e5cb5b8ecbc52ffc05d54f8456db41eb17036bb6848592f7df8666f0ade12cdb"),
+    ("Release/ggml-cpu-skylakex.dll",
+     "4784b7f45e7b5199981e7ba8c391cd1b5d4aa74413a0929cfd0a6d909098c30e"),
+    ("Release/ggml-cpu-sse42.dll",
+     "674320166d86f18573f8e0e99efcdb90cfa6b7b05b42d9465976ef5e70e5e4a3"),
+    ("Release/ggml-cpu-x64.dll",
+     "ffc1938f2ce3b52cef0e0935c6ce953bb5cc5593757ea55872ae4c4ee8bd577a"),
+    ("Release/ggml.dll",
+     "4e77ead4ecc32324f9432acb06ee71444708880ca6780c918baa6903389ba257"),
+    ("Release/llama.dll",
+     "fdba0284d4cfbe366e7fbc8af764ac14328cda6fa34758e5521c03be68728640"),
+    ("Release/parakeet.dll",
+     "8f864b1008c8b98861583a09ea6035c547cb46a9715b609c7dd7ccca138d1b7e"),
+    ("Release/whisper-cli.exe",
+     "800a0fd754afa75e109c7248286ad735670fb6b23d92ca5d12604647ef638a65"),
+    ("Release/whisper.dll",
+     "0a29e5824c7495185b833ad07df7ab9cadf130a9be848f967c6b88aeca971566"),
+)
+
+_CUDA_FILES = (
+    ("Release/SDL2.dll",
+     "de23db1694a3c7a4a735e7ecd3d214b2023cc2267922c6c35d30c7fc7370d677"),
+    ("Release/cublas64_12.dll",
+     "e40202fe4223c1cd2d2dce7beec59e1ed61c7801bd827309183be9b50e358f4c"),
+    ("Release/cublasLt64_12.dll",
+     "2a896460bef60ed57ef32b0875812f355a6984e671d638bb632f5e8c1d7a831f"),
+    ("Release/cudart64_12.dll",
+     "d28e42265da7462162a54da6b7a99ea4fa2caf8139d862bb500db875d0b32dfc"),
+    ("Release/ggml-base.dll",
+     "de31a549b8d556590926eafc5b1d628a28eaa1a3aec50a06625c858df8f2363e"),
+    ("Release/ggml-cpu-alderlake.dll",
+     "7a5da87e1fe00809de5889bf7bbb5dc332142343d86c67fca5858324ce02ae8e"),
+    ("Release/ggml-cpu-cannonlake.dll",
+     "0aba518143556d1037c395d19fb40e34c7cdd1514a85fc8302388342cac22cce"),
+    ("Release/ggml-cpu-cascadelake.dll",
+     "0fd8759e4837b8287d0bb65b0c528e2682920679def12fbb007b5c9adde64c87"),
+    ("Release/ggml-cpu-haswell.dll",
+     "73a66c51cd7c3ca08a3d6812541b0104e97eabc9f1f3674542b55d5197361b49"),
+    ("Release/ggml-cpu-icelake.dll",
+     "b889deb2f9681e57e9432d848d80be14aabcf618b36063d86737f43f0a3b18d2"),
+    ("Release/ggml-cpu-sandybridge.dll",
+     "fcf516ae20ffe5de4e6f63696e68ff66790371f5d11a6864c92e3a7a76c52b8e"),
+    ("Release/ggml-cpu-skylakex.dll",
+     "e4d9282a55834cd3ffb482cffcb1871e5e0f4a817c7cf12ed2bc7440910f41f2"),
+    ("Release/ggml-cpu-sse42.dll",
+     "f1b46556613803d82438b1b62226e100017dc1f60cc8e6c5ec97420c67b23f9c"),
+    ("Release/ggml-cpu-x64.dll",
+     "2d682c0d8346b0de00c24c34a0d256db7609561a309466d2105f301b49061e95"),
+    ("Release/ggml-cuda.dll",
+     "21c03d8d41173774857da3119913b3a82148febe506c3a219d2bc0fe928cbd82"),
+    ("Release/ggml.dll",
+     "ce49bfa94df2769d31d6030e3862193b4985b6312e9315ae41a314f3b584ff2e"),
+    ("Release/llama.dll",
+     "a52fd15def683aef54d1bb727061b794ff4db78da32d483cd3bce922ee25303c"),
+    ("Release/nvblas64_12.dll",
+     "e42a77405e6e4b1cc661dcfcddead35ec62dcf59c6f9be1a3b5fab73d1f4c616"),
+    ("Release/nvrtc-builtins64_124.dll",
+     "79888dba26c51475ea21fc7b47d2b9dd5b1ffaecc8e5ea22a49fa5f5a722eb43"),
+    ("Release/nvrtc64_120_0.dll",
+     "3aa3cd8aa10437e212760c0e1ed730807811ec3bc330216dbfde4b26211d2243"),
+    ("Release/parakeet.dll",
+     "8ab0612e29c211dbeba10094763a767421dc4808cd019be6e44f8952c873c152"),
+    ("Release/whisper-cli.exe",
+     "41a586cac5863ebfc198cdc8ffb1642795543c1a4506c6be974e55adf301dccb"),
+    ("Release/whisper.dll",
+     "9e16e279afd90ab0d266a7bae89b2444cc4f485761de52a0853aa0a53ed97514"),
+)
 
 
 BUILD_CPU = RuntimeBuild(
@@ -82,6 +173,7 @@ BUILD_CPU = RuntimeBuild(
     archive_bytes=8_361_840,
     archive_sha256="c2a4b60edb11f7e11a9191ffb50929535527d4d91c9903dbe3e554583bbbc63d",
     uses_cuda=False,
+    pinned_files=_CPU_FILES,
 )
 BUILD_CUDA = RuntimeBuild(
     id="cuda-12.4",
@@ -89,6 +181,7 @@ BUILD_CUDA = RuntimeBuild(
     archive_bytes=671_045_732,
     archive_sha256="c1b17166e1e31a91cc8e9c1f910d3785e3ce757bb2958bf9dce13fdb4880005f",
     uses_cuda=True,
+    pinned_files=_CUDA_FILES,
 )
 
 BUILDS = (BUILD_CPU, BUILD_CUDA)

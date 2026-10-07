@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 
 from core.transcription import _fileops, audio_prep, job as job_module, temp_sweep
 
@@ -20,9 +21,9 @@ def _make(root, name, age_seconds, directory=False):
 
 class TestSweep:
     def test_stale_files_and_folders_of_this_package_go(self, tmp_path):
-        old_file = _make(tmp_path, "winzapp-audio-abc.ogg", 7200)
-        old_wav = _make(tmp_path, "winzapp-transcribe-abc.wav", 7200)
-        old_dir = _make(tmp_path, "winzapp-whisper-abc", 7200, directory=True)
+        old_file = _make(tmp_path, "winzapp-audio-abc.ogg", 200000)
+        old_wav = _make(tmp_path, "winzapp-transcribe-abc.wav", 200000)
+        old_dir = _make(tmp_path, "winzapp-whisper-abc", 200000, directory=True)
 
         removed = temp_sweep.sweep_stale_temporaries(str(tmp_path), now=1_000_000.0)
 
@@ -39,13 +40,47 @@ class TestSweep:
         assert temp_sweep.sweep_stale_temporaries(str(tmp_path), now=1_000_000.0) == 0
         assert other.exists()
 
+    def test_an_hour_old_temporary_is_kept(self, tmp_path):
+        recent = _make(tmp_path, "winzapp-audio-abc.ogg", 7200)
+        assert temp_sweep.sweep_stale_temporaries(str(tmp_path), now=1_000_000.0) == 0
+        assert recent.exists()
+
+    def test_a_file_written_long_ago_but_read_lately_is_kept(self, tmp_path):
+        path = _make(tmp_path, "winzapp-audio-abc.ogg", 200000)
+        os.utime(path, (1_000_000.0 - 60, 1_000_000.0 - 200000))
+        assert temp_sweep.sweep_stale_temporaries(str(tmp_path), now=1_000_000.0) == 0
+        assert path.exists()
+
+    def test_a_folder_with_a_locked_file_is_skipped_but_the_rest_goes(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        locked = _make(tmp_path, "winzapp-whisper-locked", 200000, directory=True)
+        (locked / "held.wav").write_text("secret")
+        os.utime(locked, (1_000_000.0 - 200000, 1_000_000.0 - 200000))
+        other = _make(tmp_path, "winzapp-audio-abc.ogg", 200000)
+        real_remove = os.remove
+
+        def _remove(path, *args, **kwargs):
+            if os.path.basename(path) == "held.wav":
+                raise PermissionError(32, "in use", path)
+            return real_remove(path, *args, **kwargs)
+
+        monkeypatch.setattr(shutil.os, "remove", _remove)
+        monkeypatch.setattr(shutil.os, "unlink", _remove)
+        caplog.set_level(logging.DEBUG)
+        assert temp_sweep.sweep_stale_temporaries(str(tmp_path), now=1_000_000.0) == 1
+        assert not other.exists()
+        assert (locked / "held.wav").exists() and not (locked / "out.json").exists()
+        assert "PermissionError" in caplog.text
+        assert str(tmp_path) not in caplog.text
+
     def test_a_missing_folder_is_not_an_error(self, tmp_path):
         assert temp_sweep.sweep_stale_temporaries(str(tmp_path / "nope")) == 0
 
     def test_a_temporary_that_will_not_go_is_logged_without_its_path(
         self, tmp_path, monkeypatch, caplog
     ):
-        _make(tmp_path, "winzapp-audio-abc.ogg", 7200)
+        _make(tmp_path, "winzapp-audio-abc.ogg", 200000)
 
         def _refuse(path):
             raise PermissionError(13, "denied", path)

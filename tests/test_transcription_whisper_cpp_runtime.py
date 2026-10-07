@@ -25,6 +25,7 @@ confirmation of its layout — are marked `network` and skipped unless
 WINZAPP_RUN_NETWORK_TESTS is set.
 """
 
+import dataclasses
 import hashlib
 import io
 import json
@@ -258,6 +259,73 @@ class TestVerifyingTheProgramBeforeLaunch:
         os.remove(os.path.join(root, "cpu", runtime.MANIFEST_FILENAME))
         with pytest.raises(errors.TranscriptionError):
             runtime.verify_executable(build, root)
+
+    def test_a_dll_swapped_for_another_of_the_same_size_is_refused(self, root):
+        build, _executable = _install(root, _zip(_LAYOUT))
+        dll = os.path.join(root, "cpu", "Release", "whisper.dll")
+        with open(dll, "wb") as handle:
+            handle.write(b"X" * len(_LAYOUT["Release/whisper.dll"]))
+        assert runtime.installation_state(build, root).state == runtime.STATE_INSTALLED
+        with pytest.raises(errors.TranscriptionError) as caught:
+            runtime.verify_executable(build, root)
+        assert caught.value.code == errors.WHISPER_CPP_CORRUPTED
+
+    def test_a_forged_manifest_cannot_vouch_for_a_swapped_file(self, root):
+        data = _zip(_LAYOUT)
+        build, executable = _install(root, data)
+        pinned = dataclasses.replace(build, pinned_files=tuple(
+            (name, hashlib.sha256(body).hexdigest()) for name, body in _LAYOUT.items()
+        ))
+        runtime.verify_executable(pinned, root)
+        evil = b"E" * len(_LAYOUT["Release/whisper-cli.exe"])
+        with open(executable, "wb") as handle:
+            handle.write(evil)
+        path = os.path.join(root, "cpu", runtime.MANIFEST_FILENAME)
+        with open(path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        for entry in manifest["files"]:
+            if entry[0] == "Release/whisper-cli.exe":
+                entry[2] = hashlib.sha256(evil).hexdigest()
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(manifest, handle)
+        # Agrees with itself, so the build that trusts the manifest passes...
+        runtime.verify_executable(build, root)
+        # ...and the one holding the files to pinned digests does not.
+        with pytest.raises(errors.TranscriptionError) as caught:
+            runtime.verify_executable(pinned, root)
+        assert caught.value.code == errors.WHISPER_CPP_CORRUPTED
+
+    def test_a_manifest_that_drops_a_pinned_file_is_refused(self, root):
+        build, _executable = _install(root, _zip(_LAYOUT))
+        pinned = dataclasses.replace(build, pinned_files=tuple(
+            (name, hashlib.sha256(body).hexdigest()) for name, body in _LAYOUT.items()
+        ))
+        path = os.path.join(root, "cpu", runtime.MANIFEST_FILENAME)
+        with open(path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        manifest["files"] = [e for e in manifest["files"] if e[0] != "Release/ggml.dll"]
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(manifest, handle)
+        with pytest.raises(errors.TranscriptionError):
+            runtime.verify_executable(pinned, root)
+
+    def test_a_swap_that_keeps_size_and_mtime_is_the_accepted_limit(self, root):
+        # Documented, not wanted: once a file has passed, the cache keys on
+        # (path, size, mtime_ns), and os.utime can restore all three.
+        build, executable = _install(root, _zip(_LAYOUT))
+        runtime.verify_executable(build, root)
+        before = os.stat(executable)
+        with open(executable, "wb") as handle:
+            handle.write(b"Z" * before.st_size)
+        os.utime(executable, ns=(before.st_atime_ns, before.st_mtime_ns))
+        runtime.verify_executable(build, root)
+
+    def test_the_pinned_builds_pin_the_program_and_every_dll(self):
+        for build in builds.BUILDS:
+            pinned = dict(build.pinned_files)
+            assert all(re.fullmatch(r"[0-9a-f]{64}", d) for d in pinned.values())
+            assert builds.locate_executable(list(pinned)) in pinned
+            assert any(name.endswith("/whisper.dll") for name in pinned)
 
 
 # ── Installing ───────────────────────────────────────────────────────────────
