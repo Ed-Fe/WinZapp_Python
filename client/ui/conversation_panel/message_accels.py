@@ -245,6 +245,42 @@ class MessageAccelsMixin:
             return
         self._on_menu_copy_caption(msg)
 
+    # ── Alt+Shift+T: transcribe a voice message ─────────────────────────────
+    # Only the wiring lives here; the flow is ui/transcription_flow.py and the
+    # slow part core/transcription/message_run.py.
+
+    def _on_accel_transcribe(self, event):
+        """Alt+Shift+T on the focused message."""
+        index = self.messages_list.GetFirstSelected()
+        if index < 0 or index >= len(self._sorted_messages):
+            return
+        msg = self._sorted_messages[index]
+        if self._is_separator(msg):
+            return
+        self._on_menu_transcribe(msg)
+
+    def _on_menu_transcribe(self, msg: dict):
+        # Imported here, like SettingsDialog in main_window/settings.py: the
+        # flow pulls in the model store and the CUDA runtime (requests, TLS
+        # setup), and nobody should pay for that at startup before
+        # transcribing anything.
+        from ui.transcription_flow import open_or_transcribe
+
+        # A message with no audio answers with one sentence and opens nothing,
+        # and one with a stored transcription opens it instead of running —
+        # the flow checks both, so the shortcut and the menu cannot disagree.
+        open_or_transcribe(self, msg)
+
+    def _on_menu_transcribe_again(self, msg: dict):
+        from ui.transcription_flow import transcribe_message
+
+        transcribe_message(self, msg)
+
+    def _on_menu_delete_transcription(self, msg: dict):
+        from ui.transcription_flow import delete_transcription
+
+        delete_transcription(self, msg)
+
     def _on_accel_show_text_popup(self, event):
         """Alt+C: show focused message text in a popup dialog."""
         index = self.messages_list.GetFirstSelected()

@@ -33,12 +33,14 @@ from main_window.message_rules import (
 )
 from core.utils import (
     parse_bool_flag as _parse_bool_flag,
+    carry_over_video_durations,
     looks_like_binary_blob,
 )
 from core.api_client import api_post
 from app_paths import data_path
 from traceback import format_exc
 from core.sync_contracts import observe_payload
+from core.transcription import stored as stored_transcription
 from main_window.chat_list import ChatListMixin
 
 
@@ -1482,10 +1484,17 @@ class ChatsStoreMixin:
             """Append src messages that are not already in dst (dedup by msg ID)."""
             if not src_records:
                 return
-            dst_ids = {r.get("key", {}).get("id") for r in dst_records}
+            dst_by_id = {r.get("key", {}).get("id"): r for r in dst_records}
             for r in src_records:
-                if r.get("key", {}).get("id") not in dst_ids:
+                mid = r.get("key", {}).get("id")
+                if mid not in dst_by_id:
                     dst_records.append(r)
+                elif mid:
+                    # The source chat is dropped after this; see
+                    # _merge_lid_into_phone() for why its copy of a message
+                    # already present can still hold something to keep.
+                    stored_transcription.fold_transcription(dst_by_id[mid], r)
+                    carry_over_video_durations([dst_by_id[mid]], [r])
 
         # ── Pass 0: merge phantom "self-referential" chats ────────────────────
         # WPPConnect/Baileys occasionally reports a self-chat send (seen with

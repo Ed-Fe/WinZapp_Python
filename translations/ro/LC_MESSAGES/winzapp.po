@@ -658,10 +658,10 @@ msgstr "Detaliat"
 msgctxt "ai_disabled"
 msgid ""
 "Turn on AI features, add a key for a provider and enable this kind of media "
-"in Settings > Transcriptions and Descriptions first."
+"in Settings > Online AI: Transcriptions and Descriptions first."
 msgstr ""
 "Mai întâi activează funcțiile AI, introdu cheia unui furnizor și activează "
-"acest tip de conținut în Setări > Transcrieri și descrieri."
+"acest tip de conținut în Setări > AI online: transcrieri și descrieri."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_authentication"
@@ -746,13 +746,13 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_providers"
 msgid ""
-"No AI provider is available for this kind of media. In Settings > "
-"Transcriptions and Descriptions, add a key to a provider that handles it and"
-" turn it on."
+"No AI provider is available for this kind of media. In Settings > Online AI:"
+" Transcriptions and Descriptions, add a key to a provider that handles it "
+"and turn it on."
 msgstr ""
 "Niciun furnizor AI nu este disponibil pentru acest tip de conținut. În "
-"Setări > Transcrieri și descrieri, introdu cheia unui furnizor care îl "
-"acceptă și activează-l."
+"Setări > AI online: transcrieri și descrieri, introdu cheia unui furnizor "
+"care îl acceptă și activează-l."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_question"
@@ -1099,8 +1099,8 @@ msgstr "Text accesibil din PDF"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_result_transcription_title"
-msgid "Voice message transcription"
-msgstr "Transcrierea mesajului vocal"
+msgid "Voice message transcription (online AI)"
+msgstr "Transcrierea mesajului vocal (AI online)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1170,8 +1170,8 @@ msgstr "&Transcrieți mesajele vocale"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_menu"
-msgid "Transcribe"
-msgstr "Transcrieți"
+msgid "Transcribe with online AI"
+msgstr "Transcrieți cu AI online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -2199,7 +2199,7 @@ msgstr "Setări video pentru apeluri"
 #: client/ui/dialogs/settings_dialog.py client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
-msgstr "&Anulează"
+msgstr "Anulea&ză"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "cancel_edit"
@@ -2643,7 +2643,8 @@ msgstr "Goliți conversațiile selectate"
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py client/ui/media_viewer.py
+#: client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Închide"
@@ -3007,6 +3008,7 @@ msgstr "%d.%m.%Y"
 #: client/ui/conversation_panel/bulk_messages.py
 #: client/ui/conversation_panel/formatting.py
 #: client/ui/dialogs/conversation_data_dialog.py
+#: client/ui/transcription_flow.py
 msgctxt "datetime_fmt"
 msgid "%m/%d/%Y %I:%M %p"
 msgstr "%d.%m.%Y %H:%M"
@@ -3022,7 +3024,7 @@ msgstr "Dezactivează toate"
 #: client/main_window/session_lifecycle.py
 #: client/ui/conversation_panel/audio_playback.py
 #: client/ui/conversation_panel/formatting.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
 msgctxt "decimal_separator"
 msgid "."
 msgstr ","
@@ -6917,7 +6919,7 @@ msgid "ctrl+comma"
 msgstr "ctrl+virgulă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Setări"
@@ -7072,6 +7074,16 @@ msgid "Alt+Shift+S: open the mute chat menu / unmute"
 msgstr ""
 "Alt+Shift+S: deschideți meniul de dezactivare a notificărilor / reactivați "
 "notificările"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_t_label"
+msgid ""
+"Alt+Shift+T: transcribe the voice message or audio locally with Whisper, or "
+"open the transcription already saved"
+msgstr ""
+"Alt+Shift+T: transcrieți local mesajul vocal sau înregistrarea audio cu "
+"Whisper ori deschideți transcrierea deja salvată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7405,10 +7417,10 @@ msgstr "Ctrl+Shift+H: înregistrați microfonul și sunetul computerului"
 msgctxt "shortcut_ctrl_shift_i_label"
 msgid ""
 "Ctrl+Shift+I: transcribe, describe or convert the media of the focused "
-"message"
+"message with online AI"
 msgstr ""
-"Ctrl+Shift+I: transcrie, descrie sau convertește conținutul mesajului "
-"focalizat"
+"Ctrl+Shift+I: transcrie, descrie sau convertește, cu AI online, conținutul "
+"mesajului focalizat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -8674,8 +8686,8 @@ msgstr "Accesibilitate"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ai_accessibility"
-msgid "Transcriptions and Descriptions"
-msgstr "Transcrieri și descrieri"
+msgid "Online AI: Transcriptions and Descriptions"
+msgstr "AI online: transcrieri și descrieri"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -8748,6 +8760,12 @@ msgstr "Conținut vorbit"
 msgctxt "tab_storage"
 msgid "Storage"
 msgstr "Stocare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_transcription"
+msgid "Local Transcription"
+msgstr "Transcriere locală"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -8856,6 +8874,2131 @@ msgstr "Tokenul utilizatorului nu a putut fi salvat."
 msgctxt "total_label"
 msgid "total"
 msgstr "total"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_message"
+msgid "Transcribe message locally with Whisper"
+msgstr "Transcrieți mesajul local cu Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_apply_folder_first"
+msgid ""
+"Apply the new models folder before downloading, repairing, verifying or "
+"removing a model."
+msgstr ""
+"Aplicați noul folder al modelelor înainte de a descărca, a repara, a "
+"verifica sau a elimina un model."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_backend_faster_whisper"
+msgid "faster-whisper"
+msgstr "faster-whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_backend_label"
+msgid "Transcription com&ponent"
+msgstr "&Componenta de transcriere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_backend_whisper_cpp"
+msgid "whisper.cpp"
+msgstr "whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_cuda"
+msgid "Install the CUDA libraries?"
+msgstr "Instalați bibliotecile CUDA?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_cuda_repair"
+msgid ""
+"Install the CUDA libraries again? The files already in the folder are "
+"deleted first."
+msgstr ""
+"Instalați din nou bibliotecile CUDA? Fișierele aflate deja în folder sunt "
+"șterse mai întâi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_destination"
+msgid "Destination folder: {folder}."
+msgstr "Folder de destinație: {folder}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_device_cpu"
+msgid "After this, transcription will run on the processor."
+msgstr "După aceasta, transcrierea va fi efectuată pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_device_cuda"
+msgid "After this, transcription will run on the graphics card."
+msgstr "După aceasta, transcrierea va fi efectuată pe placa video."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_does_not_fit"
+msgid ""
+"Warning: this model does not fit in that device's memory, and transcription "
+"may fail for lack of memory."
+msgstr ""
+"Atenție: acest model nu încape în memoria acestui dispozitiv, iar "
+"transcrierea poate eșua din lipsă de memorie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_download_size"
+msgid "Download size: {size}."
+msgstr "Dimensiunea descărcării: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_free_space"
+msgid "Free on that disk: {size}."
+msgstr "Liber pe acest disc: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_model"
+msgid "Download the {model} model?"
+msgstr "Descărcați modelul {model}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_model_repair"
+msgid ""
+"Download the {model} model again and verify it? The files already in the "
+"folder are deleted first."
+msgstr ""
+"Descărcați din nou modelul {model} și verificați-l? Fișierele aflate deja în"
+" folder sunt șterse mai întâi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_no_resume"
+msgid ""
+"This is {size} that cannot be resumed: if the download is cancelled or the "
+"connection drops, all of it has to be downloaded again from the start."
+msgstr ""
+"Această descărcare de {size} nu poate fi reluată: dacă este anulată sau "
+"conexiunea se întrerupe, totul va trebui descărcat din nou de la început."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_not_enough_space"
+msgid ""
+"There is not enough space: {required} is needed and {free} is free. Free "
+"some space or choose another models folder."
+msgstr ""
+"Nu există suficient spațiu: este nevoie de {required}, iar spațiul liber "
+"este de {free}. Eliberați spațiu sau alegeți alt folder pentru modele."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_remove_cuda"
+msgid ""
+"Remove the CUDA libraries? Transcription goes back to running on the "
+"processor, and they have to be downloaded again to use the graphics card."
+msgstr ""
+"Eliminați bibliotecile CUDA? Transcrierea va fi efectuată din nou pe "
+"procesor, iar pentru a folosi placa video bibliotecile vor trebui descărcate"
+" din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_remove_model"
+msgid ""
+"Remove the {model} model? Its files are deleted from the disk, and it has to"
+" be downloaded again before it can be used."
+msgstr ""
+"Eliminați modelul {model}? Fișierele lui sunt șterse de pe disc și va trebui"
+" descărcat din nou pentru a fi folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+#, python-brace-format
+msgctxt "transcription_confirm_remove_whisper_cpp"
+msgid ""
+"Remove the whisper.cpp program ({build})? Transcription with whisper.cpp "
+"goes back to running on the processor, and it has to be downloaded again to "
+"use the graphics card."
+msgstr ""
+"Eliminați programul whisper.cpp ({build})? Transcrierea cu whisper.cpp va fi"
+" efectuată din nou pe procesor, iar pentru a folosi placa video programul va"
+" trebui descărcat din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_confirm_remove_whisper_cpp_cpu"
+msgid ""
+"Remove the whisper.cpp program? The graphics card version, if installed, is "
+"removed with it, and whisper.cpp cannot transcribe until it is installed "
+"again."
+msgstr ""
+"Eliminați programul whisper.cpp? Versiunea pentru plăci video, dacă este "
+"instalată, este eliminată odată cu el, iar whisper.cpp nu va putea transcrie"
+" până nu este instalat din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_required_space"
+msgid "Disk space needed: {size}."
+msgstr "Spațiu necesar pe disc: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_space_unknown"
+msgid "The free space on that disk could not be measured."
+msgstr "Spațiul liber de pe acest disc nu a putut fi măsurat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_whisper_cpp"
+msgid "Install the whisper.cpp program ({build})?"
+msgstr "Instalați programul whisper.cpp ({build})?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_whisper_cpp_repair"
+msgid ""
+"Install the whisper.cpp program ({build}) again? The installed files are "
+"replaced by the new ones."
+msgstr ""
+"Instalați din nou programul whisper.cpp ({build})? Fișierele instalate sunt "
+"înlocuite cu cele noi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_whisper_cpp_with_cpu"
+msgid ""
+"The processor version is installed first, because the graphics card version "
+"needs it."
+msgstr ""
+"Mai întâi se instalează versiunea pentru procesor, deoarece versiunea pentru"
+" plăci video are nevoie de ea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_actions_group"
+msgid "CUDA libraries"
+msgstr "Biblioteci CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_install_btn"
+msgid "&Install"
+msgstr "Ins&talați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_remove_btn"
+msgid "Remove"
+msgstr "Eliminați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_repair_btn"
+msgid "Repair"
+msgstr "Reparați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_cuda_runtime_absent"
+msgid "The CUDA libraries are not installed. The download is {size}."
+msgstr "Bibliotecile CUDA nu sunt instalate. Descărcarea are {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_incomplete"
+msgid "The CUDA libraries were not fully installed."
+msgstr "Instalarea bibliotecilor CUDA nu a fost finalizată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_installed"
+msgid "The CUDA libraries are installed."
+msgstr "Bibliotecile CUDA sunt instalate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_label"
+msgid "CU&DA libraries"
+msgstr "&Biblioteci CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_runtime_outdated"
+msgid ""
+"The installed CUDA libraries are from an earlier version. Install them again"
+" to update them."
+msgstr ""
+"Bibliotecile CUDA instalate sunt dintr-o versiune anterioară. Instalați-le "
+"din nou pentru a le actualiza."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_verify_btn"
+msgid "Verif&y"
+msgstr "Verificați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_delete"
+msgid "Delete transcription"
+msgstr "Ștergeți transcrierea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_delete_failed"
+msgid "The transcription could not be deleted."
+msgstr "Transcrierea nu a putut fi ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_delete_question"
+msgid ""
+"Delete this message's transcription? The message and its audio stay in the "
+"conversation."
+msgstr ""
+"Ștergeți transcrierea acestui mesaj? Mesajul și înregistrarea audio rămân în"
+" conversație."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_deleted"
+msgid "Transcription deleted."
+msgstr "Transcriere ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cpu_requested"
+msgid "The transcription will run on the processor."
+msgstr "Transcrierea va fi efectuată pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_build_missing"
+msgid ""
+"The whisper.cpp version for graphics cards is not installed. The "
+"transcription will run on the processor. You can install it in the "
+"transcription settings."
+msgstr ""
+"Versiunea whisper.cpp pentru plăci video nu este instalată. Transcrierea va "
+"fi efectuată pe procesor. O puteți instala din setările de transcriere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_build_unsupported"
+msgid ""
+"The whisper.cpp version for graphics cards does not support this graphics "
+"card, or the card could not be identified. The transcription will run on the"
+" processor."
+msgstr ""
+"Versiunea whisper.cpp pentru plăci video nu este compatibilă cu această "
+"placă video sau placa nu a putut fi identificată. Transcrierea va fi "
+"efectuată pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_driver_error"
+msgid ""
+"The graphics card could not be queried. The transcription will run on the "
+"processor."
+msgstr ""
+"Nu s-au putut obține informații despre placa video. Transcrierea va fi "
+"efectuată pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_libraries_missing"
+msgid ""
+"The CUDA libraries are not installed. The transcription will run on the "
+"processor. You can download them in the transcription settings."
+msgstr ""
+"Bibliotecile CUDA nu sunt instalate. Transcrierea va fi efectuată pe "
+"procesor. Le puteți descărca din setările de transcriere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_selected"
+msgid "The transcription will run on the graphics card."
+msgstr "Transcrierea va fi efectuată pe placa video."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_unavailable"
+msgid "CUDA is not available. The transcription will run on the processor."
+msgstr "CUDA nu este disponibil. Transcrierea va fi efectuată pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_device_label"
+msgid "Whe&re to run the transcription"
+msgstr "&Unde se face transcrierea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_no_cuda_found"
+msgid ""
+"No compatible graphics card was found. The transcription will run on the "
+"processor."
+msgstr ""
+"Nu a fost găsită nicio placă video compatibilă. Transcrierea va fi efectuată"
+" pe procesor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_preference_cpu"
+msgid "Processor"
+msgstr "Procesor"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_preference_cuda"
+msgid "Graphics card"
+msgstr "Placă video"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_discarded_withdrawn"
+msgid ""
+"The message was deleted for everyone while it was being transcribed, so the "
+"transcription was discarded."
+msgstr ""
+"Mesajul a fost șters pentru toată lumea în timp ce era transcris, așa că s-a"
+" renunțat la transcriere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_download_confirm_title"
+msgid "Confirm download"
+msgstr "Confirmați descărcarea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_audio_incomplete"
+msgid "The audio file is incomplete or damaged."
+msgstr "Fișierul audio este incomplet sau deteriorat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_backend_error"
+msgid "An internal error occurred during the transcription."
+msgstr "A apărut o eroare internă în timpul transcrierii."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_backend_missing"
+msgid "The transcription component is not installed in this copy of WinZapp."
+msgstr ""
+"Componenta de transcriere nu este instalată în această copie a WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cancelled"
+msgid "Transcription cancelled."
+msgstr "Transcriere anulată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_busy"
+msgid ""
+"Another WinZapp window is using the CUDA libraries folder. Wait for it to "
+"finish and try again."
+msgstr ""
+"O altă fereastră WinZapp folosește folderul bibliotecilor CUDA. Așteptați să"
+" termine și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_corrupted"
+msgid "The CUDA library files are incomplete or damaged. Install them again."
+msgstr ""
+"Fișierele bibliotecilor CUDA sunt incomplete sau deteriorate. Instalați-le "
+"din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_download_failed"
+msgid ""
+"The CUDA libraries could not be downloaded. Check your connection and try "
+"again."
+msgstr ""
+"Bibliotecile CUDA nu au putut fi descărcate. Verificați conexiunea și "
+"încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_in_use"
+msgid ""
+"The CUDA libraries are in use by this session. Close and reopen WinZapp, "
+"then try again."
+msgstr ""
+"Bibliotecile CUDA sunt folosite în această sesiune. Închideți și "
+"redeschideți WinZapp, apoi încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_unavailable"
+msgid ""
+"CUDA is not available. Switch the device to the processor in the settings "
+"and try again."
+msgstr ""
+"CUDA nu este disponibil. Schimbați dispozitivul pe procesor în setări și "
+"încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_changed"
+msgid ""
+"The files in the chosen model's folder have changed since it was verified. "
+"Verify the model again in the Local Transcription tab in the settings, or "
+"choose another model."
+msgstr ""
+"Fișierele din folderul modelului ales s-au schimbat de când a fost "
+"verificat. Verificați din nou modelul în fila Transcriere locală din setări "
+"sau alegeți alt model."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_changed_file"
+msgid ""
+"The chosen model's file has changed since it was verified. Verify the model "
+"again in the Local Transcription tab in the settings, or choose another "
+"model."
+msgstr ""
+"Fișierul modelului ales s-a schimbat de când a fost verificat. Verificați "
+"din nou modelul în fila Transcriere locală din setări sau alegeți alt model."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_missing"
+msgid ""
+"The folder of the chosen model was not found. If it is on an external drive,"
+" connect the drive; if it was deleted, choose another model."
+msgstr ""
+"Folderul modelului ales nu a fost găsit. Dacă se află pe o unitate externă, "
+"conectați unitatea; dacă a fost șters, alegeți alt model."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_missing_file"
+msgid ""
+"The file of the chosen model was not found. If it is on an external drive, "
+"connect the drive; if it was deleted, choose another model."
+msgstr ""
+"Fișierul modelului ales nu a fost găsit. Dacă se află pe o unitate externă, "
+"conectați unitatea; dacă a fost șters, alegeți alt model."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_ffmpeg_failed"
+msgid "The audio could not be converted for transcription."
+msgstr "Înregistrarea audio nu a putut fi convertită pentru transcriere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_insufficient_ram"
+msgid ""
+"The computer does not have enough memory for this model. Choose a smaller "
+"model."
+msgstr ""
+"Memoria computerului nu este suficientă pentru acest model. Alegeți un model"
+" mai mic."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_insufficient_vram"
+msgid ""
+"The graphics card does not have enough memory for this model. Choose a "
+"smaller model."
+msgstr ""
+"Memoria plăcii video nu este suficientă pentru acest model. Alegeți un model"
+" mai mic."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_media_not_downloaded"
+msgid ""
+"The audio has not been downloaded yet. Wait for the download to finish and "
+"try again."
+msgstr ""
+"Înregistrarea audio nu a fost încă descărcată. Așteptați să se termine "
+"descărcarea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_corrupted"
+msgid "The model files are incomplete or corrupted. Download the model again."
+msgstr ""
+"Fișierele modelului sunt incomplete sau deteriorate. Descărcați din nou "
+"modelul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_download_failed"
+msgid ""
+"The transcription model could not be downloaded. Check your connection and "
+"try again."
+msgstr ""
+"Modelul de transcriere nu a putut fi descărcat. Verificați conexiunea și "
+"încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_move_failed"
+msgid ""
+"The models folder could not be moved. The models are still in the previous "
+"folder."
+msgstr ""
+"Folderul modelelor nu a putut fi mutat. Modelele au rămas în folderul "
+"anterior."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_not_installed"
+msgid ""
+"The selected transcription model is not installed. Download the model before"
+" transcribing."
+msgstr ""
+"Modelul de transcriere ales nu este instalat. Descărcați modelul înainte de "
+"a transcrie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_models_busy"
+msgid ""
+"Another WinZapp window is using the models folder. Wait for it to finish and"
+" try again."
+msgstr ""
+"O altă fereastră WinZapp folosește folderul modelelor. Așteptați să termine "
+"și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_disk_space"
+msgid "There is not enough disk space for this download."
+msgstr "Nu există suficient spațiu pe disc pentru această descărcare."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_precision_unsupported"
+msgid ""
+"The chosen calculation precision could not be used on this device. Choose "
+"another one, or Automatic, in the settings."
+msgstr ""
+"Precizia calculelor aleasă nu a putut fi folosită pe acest dispozitiv. "
+"Alegeți alta sau Automat în setări."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_save_failed"
+msgid "The transcription could not be saved."
+msgstr "Transcrierea nu a putut fi salvată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_error_temp_no_disk_space"
+msgid ""
+"There is no free space on drive {drive} to prepare this message's audio. "
+"Free up some space on that drive and try again."
+msgstr ""
+"Nu există spațiu liber pe unitatea {drive} pentru a pregăti înregistrarea "
+"audio a acestui mesaj. Eliberați spațiu pe acea unitate și încercați din "
+"nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_temp_no_disk_space_unnamed"
+msgid ""
+"There is no free space left for Windows' temporary files, so this message's "
+"audio could not be prepared. Free up some space on the disk that holds them "
+"and try again."
+msgstr ""
+"Nu mai există spațiu liber pentru fișierele temporare ale Windows, așa că "
+"înregistrarea audio a acestui mesaj nu a putut fi pregătită. Eliberați "
+"spațiu pe discul pe care se află acestea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_unsupported_audio_format"
+msgid "This audio format was not recognized and cannot be transcribed."
+msgstr ""
+"Formatul acestei înregistrări audio nu a fost recunoscut și nu poate fi "
+"transcris."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_busy"
+msgid ""
+"The whisper.cpp program folder is in use by another WinZapp window or by "
+"another program, such as an antivirus. Wait a moment and try again."
+msgstr ""
+"Folderul programului whisper.cpp este folosit de o altă fereastră WinZapp "
+"sau de alt program, cum ar fi un antivirus. Așteptați puțin și încercați din"
+" nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_corrupted"
+msgid ""
+"The whisper.cpp program files are incomplete or damaged. Install it again."
+msgstr ""
+"Fișierele programului whisper.cpp sunt incomplete sau deteriorate. "
+"Instalați-l din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_download_failed"
+msgid ""
+"The whisper.cpp program could not be downloaded. Check your connection and "
+"try again."
+msgstr ""
+"Programul whisper.cpp nu a putut fi descărcat. Verificați conexiunea și "
+"încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_not_installed"
+msgid ""
+"The whisper.cpp program is not installed. Install it in the settings before "
+"transcribing."
+msgstr ""
+"Programul whisper.cpp nu este instalat. Instalați-l din setări înainte de a "
+"transcrie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_actions_group"
+msgid "Models in other folders"
+msgstr "Modele existente în alte foldere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_add_btn"
+msgid "Add..."
+msgstr "Adăugați..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_added"
+msgid ""
+"The {model} model in the folder {name} was verified and can now be used."
+msgstr ""
+"Modelul {model} din folderul {name} a fost verificat și poate fi folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_added_file"
+msgid "The {model} model in the file {name} was verified and can now be used."
+msgstr ""
+"Modelul {model} din fișierul {name} a fost verificat și poate fi folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_browse_dialog_title"
+msgid "Choose the folder that holds the model"
+msgstr "Alegeți folderul care conține modelul"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_browse_file_dialog_title"
+msgid "Choose the whisper.cpp model file"
+msgstr "Alegeți fișierul modelului whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_changed_while_checked"
+msgid ""
+"The files in the folder {name} changed while they were being checked, so "
+"nothing was added. Try again once whatever is writing there has finished."
+msgstr ""
+"Fișierele din folderul {name} s-au schimbat în timpul verificării, așa că nu"
+" s-a adăugat nimic. Încercați din nou după ce se termină ce scrie în el."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_changed_while_checked_file"
+msgid ""
+"The file {name} changed while it was being checked, so nothing was added. "
+"Try again once whatever is writing to it has finished."
+msgstr ""
+"Fișierul {name} s-a schimbat în timpul verificării, așa că nu s-a adăugat "
+"nimic. Încercați din nou după ce se termină ce scrie în el."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_check_btn"
+msgid "Verify"
+msgstr "Verificați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_checked"
+msgid ""
+"The {model} model in the folder {name} was checked again and can be used."
+msgstr ""
+"Modelul {model} din folderul {name} a fost verificat din nou și poate fi "
+"folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_checked_file"
+msgid ""
+"The {model} model in the file {name} was checked again and can be used."
+msgstr ""
+"Modelul {model} din fișierul {name} a fost verificat din nou și poate fi "
+"folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_added"
+msgid ""
+"The model in the folder {name} loaded correctly and was added as a custom "
+"model."
+msgstr ""
+"Modelul din folderul {name} s-a încărcat corect și a fost adăugat ca model "
+"personalizat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_added_file"
+msgid ""
+"The model in the file {name} loaded correctly and was added as a custom "
+"model."
+msgstr ""
+"Modelul din fișierul {name} s-a încărcat corect și a fost adăugat ca model "
+"personalizat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_checked"
+msgid ""
+"The custom model in the folder {name} was checked again and loaded "
+"correctly."
+msgstr ""
+"Modelul personalizat din folderul {name} a fost verificat din nou și s-a "
+"încărcat corect."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_checked_file"
+msgid ""
+"The custom model in the file {name} was checked again and loaded correctly."
+msgstr ""
+"Modelul personalizat din fișierul {name} a fost verificat din nou și s-a "
+"încărcat corect."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_digest_mismatch_question"
+msgid ""
+"The folder {name} has the files of the {model} model, but their contents are"
+" not the ones WinZapp knows: it may be a modified or damaged copy. It cannot"
+" be used as the {model} model. WinZapp can try to load it and use it as a "
+"custom model instead. Do you want to try?"
+msgstr ""
+"Folderul {name} are fișierele modelului {model}, dar conținutul lor nu este "
+"cel pe care îl cunoaște WinZapp: poate fi o copie modificată sau "
+"deteriorată. Nu poate fi folosit ca modelul {model}. WinZapp poate încerca "
+"să îl încarce și să îl folosească drept model personalizat. Doriți să "
+"încercați?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_digest_mismatch_question_file"
+msgid ""
+"The file {name} has the size of the {model} model, but its contents are not "
+"the ones WinZapp knows: it may be a modified or damaged copy. It cannot be "
+"used as the {model} model. WinZapp can try to load it and use it as a custom"
+" model instead. Do you want to try?"
+msgstr ""
+"Fișierul {name} are dimensiunea modelului {model}, dar conținutul lui nu "
+"este cel pe care îl cunoaște WinZapp: poate fi o copie modificată sau "
+"deteriorată. Nu poate fi folosit ca modelul {model}. WinZapp poate încerca "
+"să îl încarce și să îl folosească drept model personalizat. Doriți să "
+"încercați?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_file_wildcard"
+msgid "whisper.cpp models (*.bin)|*.bin|All files (*.*)|*.*"
+msgstr "Modele whisper.cpp (*.bin)|*.bin|Toate fișierele (*.*)|*.*"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_btn"
+msgid "Find..."
+msgstr "Căutați..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_find_item_recognised"
+msgid "{name} ({revision}), looks like the {model} model"
+msgstr "{name} ({revision}), pare modelul {model}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_none"
+msgid "No new Whisper models were found in the Hugging Face cache."
+msgstr "Nu a fost găsit niciun model Whisper nou în cache-ul Hugging Face."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_searching"
+msgid "Searching the Hugging Face cache..."
+msgstr "Se caută în cache-ul Hugging Face..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_forget_btn"
+msgid "Forget"
+msgstr "Uitați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forget_question"
+msgid ""
+"Forget the model in the folder {name}? Only WinZapp's reference to it is "
+"removed; the files in the folder are not touched."
+msgstr ""
+"Uitați modelul din folderul {name}? Se elimină doar referința WinZapp la el;"
+" fișierele din folder nu sunt atinse."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forget_question_file"
+msgid ""
+"Forget the model in the file {name}? Only WinZapp's reference to it is "
+"removed; the file is not touched."
+msgstr ""
+"Uitați modelul din fișierul {name}? Se elimină doar referința WinZapp la el;"
+" fișierul nu este atins."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forgotten"
+msgid ""
+"WinZapp forgot the model in the folder {name}. The files were not touched."
+msgstr ""
+"WinZapp a uitat modelul din folderul {name}. Fișierele nu au fost atinse."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forgotten_file"
+msgid "WinZapp forgot the model in the file {name}. The file was not touched."
+msgstr ""
+"WinZapp a uitat modelul din fișierul {name}. Fișierul nu a fost atins."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_forgotten_reset"
+msgid "The transcription model went back to Automatic."
+msgstr "Modelul de transcriere a revenit la Automat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_label"
+msgid "Model&s in other folders"
+msgstr "Modele e&xistente în alte foldere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_load_failed"
+msgid ""
+"WinZapp could not load the model in the folder {name}, so it was not added."
+msgstr ""
+"WinZapp nu a putut încărca modelul din folderul {name}, așa că nu a fost "
+"adăugat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_load_failed_file"
+msgid ""
+"WinZapp could not load the model in the file {name}, so it was not added."
+msgstr ""
+"WinZapp nu a putut încărca modelul din fișierul {name}, așa că nu a fost "
+"adăugat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_added"
+msgid "Nothing was added from the folder {name}."
+msgstr "Nu s-a adăugat nimic din folderul {name}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_added_file"
+msgid "Nothing was added from the file {name}."
+msgstr "Nu s-a adăugat nimic din fișierul {name}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_identified_question"
+msgid ""
+"The folder {name} holds a model WinZapp can read, but not one of the models "
+"it offers, so it cannot be verified. WinZapp can try to load it to see "
+"whether it works, and then use it as a custom model. Do you want to try?"
+msgstr ""
+"Folderul {name} conține un model pe care WinZapp îl poate citi, dar care nu "
+"este unul dintre modelele oferite de el, așa că nu poate fi verificat. "
+"WinZapp poate încerca să îl încarce pentru a vedea dacă funcționează și apoi"
+" să îl folosească drept model personalizat. Doriți să încercați?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_identified_question_file"
+msgid ""
+"The file {name} is not one of the models WinZapp offers, so it cannot be "
+"verified. WinZapp can try to load it with whisper.cpp to see whether it "
+"works, and then use it as a custom model. Do you want to try?"
+msgstr ""
+"Fișierul {name} nu este unul dintre modelele oferite de WinZapp, așa că nu "
+"poate fi verificat. WinZapp poate încerca să îl încarce cu whisper.cpp "
+"pentru a vedea dacă funcționează și apoi să îl folosească drept model "
+"personalizat. Doriți să încercați?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_pick_prompt"
+msgid "Choose the model to check and add."
+msgstr "Alegeți modelul pe care doriți să îl verificați și să îl adăugați."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_pick_title"
+msgid "Add a model"
+msgstr "Adăugați un model"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_custom"
+msgid "Loading the model in the folder {name} to test it..."
+msgstr "Se încarcă modelul din folderul {name} pentru a-l testa..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_custom_file"
+msgid "Loading the model in the file {name} to test it..."
+msgstr "Se încarcă modelul din fișierul {name} pentru a-l testa..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_verify"
+msgid "Verifying the model in the folder {name}. This can take a minute..."
+msgstr ""
+"Se verifică modelul din folderul {name}. Aceasta poate dura un minut..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_verify_file"
+msgid "Verifying the model in the file {name}. This can take a minute..."
+msgstr ""
+"Se verifică modelul din fișierul {name}. Aceasta poate dura un minut..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_question_title"
+msgid "Model in another folder"
+msgstr "Model din alt folder"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_read_failed"
+msgid ""
+"WinZapp could not read the files in the folder {name}, so nothing was added."
+msgstr ""
+"WinZapp nu a putut citi fișierele din folderul {name}, așa că nu s-a adăugat"
+" nimic."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_read_failed_file"
+msgid "WinZapp could not read the file {name}, so nothing was added."
+msgstr "WinZapp nu a putut citi fișierul {name}, așa că nu s-a adăugat nimic."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_bad_config"
+msgid ""
+"The config.json file in that folder is not a model configuration WinZapp can"
+" read, so the folder cannot be used."
+msgstr ""
+"Fișierul config.json din acest folder nu este o configurație de model pe "
+"care WinZapp o poate citi, așa că folderul nu poate fi folosit."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_inside_root"
+msgid ""
+"That folder is inside the WinZapp models folder, which WinZapp already "
+"manages. Choose a folder outside it."
+msgstr ""
+"Folderul se află în folderul de modele WinZapp, pe care WinZapp îl "
+"gestionează deja. Alegeți un folder din afara lui."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_inside_root_file"
+msgid ""
+"That file is inside the WinZapp models folder, which WinZapp already "
+"manages. Choose a file outside it."
+msgstr ""
+"Fișierul se află în folderul de modele WinZapp, pe care WinZapp îl "
+"gestionează deja. Alegeți un fișier din afara lui."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_refused_not_a_model"
+msgid ""
+"That folder does not hold a Whisper model WinZapp can use. Missing: {files}."
+msgstr ""
+"Folderul nu conține un model Whisper pe care WinZapp îl poate folosi. "
+"Lipsesc: {files}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_not_ggml"
+msgid "That file is empty, so it cannot be a whisper.cpp model."
+msgstr "Fișierul este gol, așa că nu poate fi un model whisper.cpp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_unreachable"
+msgid ""
+"That folder could not be opened. If it is on an external drive, connect the "
+"drive and try again."
+msgstr ""
+"Folderul nu a putut fi deschis. Dacă se află pe o unitate externă, conectați"
+" unitatea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_unreachable_file"
+msgid ""
+"That file could not be opened. If it is on an external drive, connect the "
+"drive and try again."
+msgstr ""
+"Fișierul nu a putut fi deschis. Dacă se află pe o unitate externă, conectați"
+" unitatea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_external_root_contains"
+msgid ""
+"The models folder you chose contains folders of models you added from "
+"elsewhere ({folders}). WinZapp deletes files inside it when you remove a "
+"model, so choose another folder or forget those models first."
+msgstr ""
+"Folderul de modele ales conține foldere ale unor modele adăugate din altă "
+"parte ({folders}). WinZapp șterge fișiere din el când eliminați un model, "
+"așa că alegeți alt folder sau uitați mai întâi acele modele."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_external_root_not_applied"
+msgid "The models folder was not changed."
+msgstr "Folderul modelelor nu a fost schimbat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_row_catalogue"
+msgid "{name}: {model} model, {state}"
+msgstr "{name}: modelul {model}, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_row_custom"
+msgid "{name}: custom model, {state}"
+msgstr "{name}: model personalizat, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_changed"
+msgid "files changed, verify again"
+msgstr "fișiere modificate, verificați din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_changed_file"
+msgid "file changed, verify again"
+msgstr "fișier modificat, verificați din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_checking"
+msgid "checking"
+msgstr "se verifică"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_missing"
+msgid "folder not found"
+msgstr "folder negăsit"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_missing_file"
+msgid "file not found"
+msgstr "fișier negăsit"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_ready"
+msgid "ready to use"
+msgstr "gata de utilizare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_unverified"
+msgid "not verified"
+msgstr "neverificat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_use_btn"
+msgid "Use"
+msgstr "Folosiți"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_use_done"
+msgid "The {name} model is selected. Press OK or Apply to keep this choice."
+msgstr ""
+"Modelul {name} a fost selectat. Apăsați OK sau Aplicați pentru a păstra "
+"alegerea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_finished"
+msgid "Transcription finished."
+msgstr "Transcriere finalizată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_hidden_vault_closed"
+msgid ""
+"The transcription finished, but the locked-chats vault was closed. Open the "
+"vault to see the transcription."
+msgstr ""
+"Transcrierea s-a încheiat, dar seiful conversațiilor blocate a fost închis. "
+"Deschideți seiful pentru a vedea transcrierea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_hidden_vault_closed_not_saved"
+msgid ""
+"The transcription finished, but the locked-chats vault was closed, and the "
+"transcription was not saved."
+msgstr ""
+"Transcrierea s-a încheiat, dar seiful conversațiilor blocate a fost închis, "
+"iar transcrierea nu a fost salvată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_insert_refused_vault_closed"
+msgid ""
+"The locked-chats vault was closed, and the transcription was not inserted "
+"into the message."
+msgstr ""
+"Seiful conversațiilor blocate a fost închis, iar transcrierea nu a fost "
+"inserată în mesaj."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_language_detect"
+msgid "D&etect automatically"
+msgstr "&Detectați automat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_language_interface"
+msgid "WinZapp's own language"
+msgstr "Limba interfeței WinZapp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_language_label"
+msgid "Transcription &language"
+msgstr "&Limba transcrierii"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cancelled"
+msgid "Operation cancelled."
+msgstr "Operațiune anulată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed"
+msgid ""
+"The CUDA libraries have been installed. Transcription can now use the "
+"graphics card."
+msgstr ""
+"Bibliotecile CUDA au fost instalate. Transcrierea poate folosi acum placa "
+"video."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed_not_usable"
+msgid ""
+"The CUDA libraries are installed, but the graphics card still cannot use "
+"them. Transcription will keep running on the processor. Check that the "
+"graphics card driver is up to date."
+msgstr ""
+"Bibliotecile CUDA sunt instalate, dar placa video tot nu le poate folosi. "
+"Transcrierea va fi efectuată în continuare pe procesor. Verificați dacă "
+"driverul plăcii video este actualizat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed_unverified"
+msgid ""
+"The CUDA libraries have been installed, but it could not be confirmed that "
+"the graphics card can use them."
+msgstr ""
+"Bibliotecile CUDA au fost instalate, dar nu s-a putut confirma dacă placa "
+"video le poate folosi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_remove_needs_restart"
+msgid ""
+"The CUDA libraries are in use. Close and reopen WinZapp, then remove them "
+"again."
+msgstr ""
+"Bibliotecile CUDA sunt în uz. Închideți și redeschideți WinZapp, apoi "
+"încercați din nou să le eliminați."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_removed"
+msgid "The CUDA libraries have been removed."
+msgstr "Bibliotecile CUDA au fost eliminate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_verified"
+msgid "The CUDA libraries have been verified. Their files are intact."
+msgstr "Bibliotecile CUDA au fost verificate. Fișierele sunt intacte."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_failed"
+msgid "The operation could not be completed."
+msgstr "Operațiunea nu a putut fi finalizată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_downloaded"
+msgid "The {model} model has been downloaded."
+msgstr "Modelul {model} a fost descărcat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_nothing_to_remove"
+msgid "There were no files of the {model} model to remove."
+msgstr "Nu existau fișiere ale modelului {model} de eliminat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_removed"
+msgid "The {model} model has been removed."
+msgstr "Modelul {model} a fost eliminat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_repaired"
+msgid "The {model} model has been downloaded again and verified."
+msgstr "Modelul {model} a fost descărcat din nou și verificat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_verified"
+msgid "The {model} model has been verified. Its files are intact."
+msgstr "Modelul {model} a fost verificat. Fișierele sunt intacte."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_cancelled_partial"
+msgid ""
+"Moving the models was cancelled. Already in the new folder: {moved}. Still "
+"in the previous folder: {remaining}."
+msgstr ""
+"Mutarea modelelor a fost anulată. Sunt deja în noul folder: {moved}. Au "
+"rămas în folderul anterior: {remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_models_move_no_space"
+msgid ""
+"There is not enough disk space in the new folder. The models are still in "
+"the previous folder."
+msgstr ""
+"Nu există suficient spațiu pe disc în noul folder. Modelele au rămas în "
+"folderul anterior."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_partial"
+msgid ""
+"Not all models could be moved. Already in the new folder: {moved}. Still in "
+"the previous folder: {remaining}."
+msgstr ""
+"Nu toate modelele au putut fi mutate. Sunt deja în noul folder: {moved}. Au "
+"rămas în folderul anterior: {remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_partial_no_space"
+msgid ""
+"There is not enough disk space in the new folder to move every model. "
+"Already in the new folder: {moved}. Still in the previous folder: "
+"{remaining}."
+msgstr ""
+"Nu există suficient spațiu pe disc în noul folder pentru a muta toate "
+"modelele. Sunt deja în noul folder: {moved}. Au rămas în folderul anterior: "
+"{remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_moved"
+msgid "The models have been moved to the new folder: {models}."
+msgstr "Modelele au fost mutate în noul folder: {models}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_models_nothing_to_move"
+msgid "No models needed to be moved."
+msgstr "Niciun model nu a trebuit mutat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_installed"
+msgid "The whisper.cpp program has been installed: {build}."
+msgstr "Programul whisper.cpp a fost instalat: {build}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_remove_in_use"
+msgid ""
+"Part of the whisper.cpp program ({build}) is in use by a transcription. "
+"Remove it again once the transcription has finished."
+msgstr ""
+"O parte din programul whisper.cpp ({build}) este folosită de o transcriere. "
+"Eliminați-l din nou după ce se termină transcrierea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_removed"
+msgid "The whisper.cpp program has been removed: {build}."
+msgstr "Programul whisper.cpp a fost eliminat: {build}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_verified"
+msgid ""
+"The whisper.cpp program has been verified: {build}. Its files are intact."
+msgstr ""
+"Programul whisper.cpp a fost verificat: {build}. Fișierele sunt intacte."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_media_send_failed"
+msgid ""
+"There is no audio to transcribe in this message: sending it failed and the "
+"recording was not saved."
+msgstr ""
+"Acest mesaj nu are nicio înregistrare audio de transcris: trimiterea a "
+"eșuat, iar înregistrarea nu a fost salvată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_media_still_preparing"
+msgid ""
+"This message's audio is still being prepared for sending. Try transcribing "
+"it again in a moment."
+msgstr ""
+"Înregistrarea audio a acestui mesaj este încă în curs de pregătire pentru "
+"trimitere. Încercați din nou să o transcrieți peste câteva momente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_actions_group"
+msgid "Selected model"
+msgstr "Modelul selectat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_available"
+msgid "{name}: {size_class}, {size} download, not installed"
+msgstr "{name}: {size_class}, descărcare de {size}, neinstalat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_custom"
+msgid "{name}: custom model, in another folder"
+msgstr "{name}: model personalizat, în alt folder"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_external"
+msgid "{name}: {size_class}, {size} on disk, in another folder"
+msgstr "{name}: {size_class}, {size} pe disc, în alt folder"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_incomplete"
+msgid "{name}: {size_class}, {size} download, download unfinished"
+msgstr "{name}: {size_class}, descărcare de {size}, descărcare neterminată"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_installed"
+msgid "{name}: {size_class}, {size} on disk, installed"
+msgstr "{name}: {size_class}, {size} pe disc, instalat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_download_btn"
+msgid "Dow&nload"
+msgstr "D&escărcați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_model_label"
+msgid "Transcription &model"
+msgstr "&Model de transcriere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_english_only"
+msgid "{model}, English only"
+msgstr "{model}, doar engleză"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_full_precision"
+msgid "{model}, 32 bits, full precision"
+msgstr "{model}, 32 de biți, precizie completă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_quantized"
+msgid "{model}, {bits} bits"
+msgstr "{model}, {bits} biți"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_third_party"
+msgid "{model} ({language} only, third-party: {publisher})"
+msgstr "{model} (doar {language}, terță parte: {publisher})"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_none_nothing_fits"
+msgid ""
+"No transcription model fits in this computer's memory. Choose a smaller "
+"model, or run the transcription on the processor."
+msgstr ""
+"Niciun model de transcriere nu încape în memoria acestui computer. Alegeți "
+"un model mai mic sau folosiți procesorul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_none_unmeasured"
+msgid ""
+"WinZapp could not measure this computer's memory, so it did not choose a "
+"model. Pick one yourself, or download one if there is none here yet."
+msgstr ""
+"WinZapp nu a putut măsura memoria acestui computer, așa că nu a ales niciun "
+"model. Alegeți singur un model sau descărcați unul, dacă încă nu există "
+"niciunul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_remove_btn"
+msgid "Remove"
+msgstr "Elimi&nați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_repair_btn"
+msgid "Repair"
+msgstr "Reparați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_unavailable_auto"
+msgid ""
+"None of the installed transcription models can be used on this computer."
+msgstr ""
+"Niciunul dintre modelele de transcriere instalate nu poate fi folosit pe "
+"acest computer."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_verify_btn"
+msgid "&Verify"
+msgstr "Ver&ificați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_browse_btn"
+msgid "&Browse..."
+msgstr "&Răsfoiți..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_browse_dialog_title"
+msgid "Choose the folder for the transcription models"
+msgstr "Alegeți folderul pentru modelele de transcriere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_models_dir_kept_previous"
+msgid ""
+"The models folder is still the previous one. Choose the new folder again to "
+"move what stayed behind."
+msgstr ""
+"Folderul modelelor rămâne cel anterior. Alegeți din nou noul folder pentru a"
+" muta ce a rămas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_label"
+msgid "Models &folder"
+msgstr "&Folderul modelelor"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_models_dir_now_the_new_one"
+msgid ""
+"Even so, every model is in the new folder, and that is the one the setting "
+"now uses."
+msgstr ""
+"Chiar și așa, toate modelele sunt în noul folder, iar setarea îl folosește "
+"de acum pe acesta."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_no_audio"
+msgid "This message has no audio to transcribe."
+msgstr "Acest mesaj nu are nicio înregistrare audio de transcris."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_missing"
+msgid ""
+"This transcription was not saved, because the message is no longer in this "
+"conversation."
+msgstr ""
+"Această transcriere nu a fost salvată, deoarece mesajul nu mai este în "
+"această conversație."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_unsent"
+msgid ""
+"This transcription was not saved, because the message has not been sent yet."
+" Once it is sent, transcribe it again to save it."
+msgstr ""
+"Această transcriere nu a fost salvată, deoarece mesajul nu a fost încă "
+"trimis. După trimitere, transcrieți-l din nou pentru a o salva."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_differs"
+msgid "This message was transcribed in {language}."
+msgstr "Acest mesaj a fost transcris în limba: {language}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_forced"
+msgid ""
+"This model only understands {language}, so the message is transcribed in "
+"{language}."
+msgstr ""
+"Acest model înțelege doar limba: {language}, așa că mesajul este transcris "
+"în limba: {language}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_overridden"
+msgid ""
+"This model only understands {language}, so the message is transcribed in "
+"{language} and not in {chosen}, the language chosen in the settings."
+msgstr ""
+"Acest model înțelege doar limba: {language}, așa că mesajul este transcris "
+"în limba: {language}, și nu în limba aleasă în setări: {chosen}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_low_confidence"
+msgid ""
+"The language of this message was not identified with certainty, so the text "
+"may be wrong. You can choose the language in the transcription settings."
+msgstr ""
+"Limba acestui mesaj nu a fost identificată cu certitudine, așa că textul "
+"poate fi greșit. Puteți alege limba în setările de transcriere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_no_speech"
+msgid ""
+"No speech was found in this message, so the transcription came out empty."
+msgstr "Nu s-a găsit vorbire în acest mesaj, așa că transcrierea este goală."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_precision_replaced"
+msgid ""
+"The chosen calculation precision, {chosen}, cannot be used here, so {used} "
+"is used instead."
+msgstr ""
+"Precizia calculelor aleasă, {chosen}, nu poate fi folosită aici, așa că se "
+"folosește {used} în locul ei."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_precision_used"
+msgid "Calculation precision: {precision}."
+msgstr "Precizia calculelor: {precision}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_vad_unavailable"
+msgid ""
+"The voice filter could not be used for this transcription, so it may not be "
+"reliable."
+msgstr ""
+"Filtrul de voce nu a putut fi folosit la această transcriere, așa că s-ar "
+"putea să nu fie de încredere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_notice_language_forced"
+msgid ""
+"The selected model only understands one language, the one named in its line "
+"in the list. Transcriptions with it use that language instead of detecting "
+"it."
+msgstr ""
+"Modelul selectat înțelege o singură limbă, cea numită în rândul lui din "
+"listă. Transcrierile cu el folosesc acea limbă în loc să o detecteze."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_notice_language_overridden"
+msgid ""
+"The selected model only understands one language, the one named in its line "
+"in the list, and it is not the transcription language chosen below. "
+"Transcriptions with it will use the model's language."
+msgstr ""
+"Modelul selectat înțelege o singură limbă, cea numită în rândul lui din "
+"listă, iar aceasta nu este limba de transcriere aleasă mai jos. "
+"Transcrierile cu el vor folosi limba modelului."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_notice_precision_replaced"
+msgid ""
+"The chosen calculation precision, {chosen}, cannot be used where the "
+"transcription will run, so {used} will be used instead."
+msgstr ""
+"Precizia calculelor aleasă, {chosen}, nu poate fi folosită acolo unde se "
+"face transcrierea, așa că se va folosi {used} în locul ei."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_open_settings_question"
+msgid "Do you want to open the Local Transcription tab in the settings now?"
+msgstr "Doriți să deschideți acum fila Transcriere locală din setări?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_option_auto"
+msgid "Automatic"
+msgstr "Automat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_downloading_audio"
+msgid "Downloading the message audio..."
+msgstr "Se descarcă înregistrarea audio a mesajului..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_loading_model"
+msgid "Loading the transcription model..."
+msgstr "Se încarcă modelul de transcriere..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_preparing_audio"
+msgid "Preparing the audio..."
+msgstr "Se pregătește înregistrarea audio..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_transcribing"
+msgid "Transcribing the message..."
+msgstr "Se transcrie mesajul..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_bfloat16"
+msgid "16 bits, bfloat16 format (bfloat16)"
+msgstr "16 biți, format bfloat16 (bfloat16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_float16"
+msgid "16 bits (float16)"
+msgstr "16 biți (float16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_float32"
+msgid "32 bits (float32), full precision, larger and slower"
+msgstr "32 de biți (float32), precizie completă, mai mare și mai lent"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int16"
+msgid "16-bit integers (int16)"
+msgstr "numere întregi pe 16 biți (int16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8"
+msgid "8 bits (int8), smaller and faster"
+msgstr "8 biți (int8), mai mic și mai rapid"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_bfloat16"
+msgid "8 bits, calculations in bfloat16 (int8_bfloat16)"
+msgstr "8 biți, calcule în bfloat16 (int8_bfloat16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_float16"
+msgid "8 bits, calculations in 16 bits (int8_float16)"
+msgstr "8 biți, calcule pe 16 biți (int8_float16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_float32"
+msgid "8 bits, calculations in 32 bits (int8_float32)"
+msgstr "8 biți, calcule pe 32 de biți (int8_float32)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_precision.py
+msgctxt "transcription_precision_label"
+msgid "Calcula&tion precision (faster-whisper only)"
+msgstr "&Precizia calculelor (doar faster-whisper)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_cancelling"
+msgid "Cancelling..."
+msgstr "Se anulează..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_download_model"
+msgid "Downloading the {model} model..."
+msgstr "Se descarcă modelul {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_install_cuda"
+msgid "Installing the CUDA libraries..."
+msgstr "Se instalează bibliotecile CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_install_whisper_cpp"
+msgid "Installing the whisper.cpp program ({build})..."
+msgstr "Se instalează programul whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_move_models"
+msgid "Moving the models to the new folder..."
+msgstr "Se mută modelele în noul folder..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_percent"
+msgid "{percent}%"
+msgstr "{percent}%"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_remove_cuda"
+msgid "Removing the CUDA libraries..."
+msgstr "Se elimină bibliotecile CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_remove_model"
+msgid "Removing the {model} model..."
+msgstr "Se elimină modelul {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_remove_whisper_cpp"
+msgid "Removing the whisper.cpp program ({build})..."
+msgstr "Se elimină programul whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_repair_cuda"
+msgid "Installing the CUDA libraries again..."
+msgstr "Se instalează din nou bibliotecile CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_repair_model"
+msgid "Downloading the {model} model again..."
+msgstr "Se descarcă din nou modelul {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_repair_whisper_cpp"
+msgid "Installing the whisper.cpp program ({build}) again..."
+msgstr "Se instalează din nou programul whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_progress.py
+#: client/ui/dialogs/transcription_result.py client/ui/transcription_flow.py
+msgctxt "transcription_progress_title"
+msgid "Transcription"
+msgstr "Transcriere"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_verify_cuda"
+msgid "Verifying the CUDA libraries..."
+msgstr "Se verifică bibliotecile CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_verify_model"
+msgid "Verifying the {model} model..."
+msgstr "Se verifică modelul {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_verify_whisper_cpp"
+msgid "Verifying the whisper.cpp program ({build})..."
+msgstr "Se verifică programul whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+#: client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_remove_confirm_title"
+msgid "Confirm removal"
+msgstr "Confirmați eliminarea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_copied"
+msgid "Transcription copied."
+msgstr "Transcriere copiată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_copy"
+msgid "C&opy"
+msgstr "&Copiați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_copy_failed"
+msgid "Could not copy the transcription."
+msgstr "Transcrierea nu a putut fi copiată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_has_notes"
+msgid "There are warnings above the text."
+msgstr "Există avertismente deasupra textului."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_insert"
+msgid "&Insert into message"
+msgstr "&Inserați în mesaj"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_notes_label"
+msgid "&Warnings"
+msgstr "&Avertismente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_save"
+msgid "&Save..."
+msgstr "&Salvați..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_saved"
+msgid "Transcription saved."
+msgstr "Transcriere salvată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_text_label"
+msgid "&Transcribed text"
+msgstr "&Text transcris"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+#, python-brace-format
+msgctxt "transcription_result_title"
+msgid "Transcription — {name}"
+msgstr "Transcriere — {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_cuda"
+msgid ""
+"The graphics card could not be used. Do you want to transcribe again using "
+"the processor?"
+msgstr ""
+"Placa video nu a putut fi folosită. Doriți să refaceți transcrierea folosind"
+" procesorul?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_precision"
+msgid ""
+"The graphics card could not use the chosen calculation precision. Do you "
+"want to transcribe again using the processor?"
+msgstr ""
+"Placa video nu a putut folosi precizia calculelor aleasă. Doriți să refaceți"
+" transcrierea folosind procesorul?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_vram"
+msgid ""
+"The graphics card did not have enough memory. Do you want to transcribe "
+"again using the processor?"
+msgstr ""
+"Memoria plăcii video nu a fost suficientă. Doriți să refaceți transcrierea "
+"folosind procesorul?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_on_cpu"
+msgid "The transcription will use the {model} model and the processor."
+msgstr "Transcrierea va folosi modelul {model} și procesorul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_on_cuda"
+msgid "The transcription will use the {model} model and the graphics card."
+msgstr "Transcrierea va folosi modelul {model} și placa video."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_with_backend_on_cpu"
+msgid ""
+"The transcription will use {backend} with the {model} model and the "
+"processor."
+msgstr "Transcrierea va folosi {backend} cu modelul {model} și procesorul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_with_backend_on_cuda"
+msgid ""
+"The transcription will use {backend} with the {model} model and the graphics"
+" card."
+msgstr "Transcrierea va folosi {backend} cu modelul {model} și placa video."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+#, python-brace-format
+msgctxt "transcription_save_default_name"
+msgid "Transcription - {name}"
+msgstr "Transcriere - {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_save_title"
+msgid "Save transcription"
+msgstr "Salvați transcrierea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_save_wildcard"
+msgid "Text files (*.txt)|*.txt"
+msgstr "Fișiere text (*.txt)|*.txt"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened"
+msgid "Saved transcription, made on {when} with the {model} model."
+msgstr "Transcriere salvată, făcută la {when} cu modelul {model}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_backend"
+msgid ""
+"Saved transcription, made on {when} with {backend} and the {model} model."
+msgstr ""
+"Transcriere salvată, făcută la {when} cu {backend} și modelul {model}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_no_model"
+msgid "Saved transcription, made on {when}."
+msgstr "Transcriere salvată, făcută la {when}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_no_model_backend"
+msgid "Saved transcription, made on {when} with {backend}."
+msgstr "Transcriere salvată, făcută la {when} cu {backend}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_accurate"
+msgid "accurate"
+msgstr "precis"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_balanced"
+msgid "balanced"
+msgstr "echilibrat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_fast"
+msgid "fast"
+msgstr "rapid"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_starting"
+msgid "Starting the transcription..."
+msgstr "Se pornește transcrierea..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_store.py
+msgctxt "transcription_store_failed"
+msgid "The transcription could not be saved."
+msgstr "Transcrierea nu a putut fi salvată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_backend"
+msgid ""
+"The selected transcription component is not available on this computer. "
+"WinZapp will use another one automatically."
+msgstr ""
+"Componenta de transcriere aleasă nu este disponibilă pe acest computer. "
+"WinZapp va folosi automat alta."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_compute_type"
+msgid ""
+"The selected calculation precision is no longer recognized. WinZapp will "
+"choose one automatically."
+msgstr ""
+"Precizia calculelor aleasă nu mai este recunoscută. WinZapp va alege automat"
+" una."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_device"
+msgid ""
+"The selected transcription device is no longer recognized. WinZapp will "
+"choose one automatically."
+msgstr ""
+"Dispozitivul de transcriere ales nu mai este recunoscut. WinZapp va alege "
+"automat unul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_substituted_label"
+msgid "&Warning"
+msgstr "A&vertisment"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_language"
+msgid ""
+"The selected transcription language is not available. The language of each "
+"message will be detected automatically."
+msgstr ""
+"Limba de transcriere aleasă nu este disponibilă. Limba fiecărui mesaj va fi "
+"detectată automat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_model"
+msgid ""
+"The selected transcription model no longer exists. WinZapp will choose one "
+"automatically."
+msgstr ""
+"Modelul de transcriere ales nu mai există. WinZapp va alege automat unul."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_transcribe_again"
+msgid "Transcribe again"
+msgstr "Transcrieți din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_unknown_dirs"
+msgid ""
+"This folder holds folders WinZapp does not know about and cannot remove: "
+"{folders}. Delete them in File Explorer if you no longer need them."
+msgstr ""
+"Aici există foldere pe care WinZapp nu le cunoaște și nu le poate elimina: "
+"{folders}. Dacă nu mai aveți nevoie de ele, ștergeți-le din Windows "
+"Explorer."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_view"
+msgid "View transcription"
+msgstr "Afișați transcrierea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_actions_group"
+msgid "whisper.cpp program"
+msgstr "Programul whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_build_cpu"
+msgid "Processor version"
+msgstr "Versiunea pentru procesor"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_build_cuda"
+msgid "NVIDIA graphics card version (CUDA)"
+msgstr "Versiunea pentru plăci video NVIDIA (CUDA)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_absent"
+msgid "{build}, {size} download, not installed"
+msgstr "{build}, descărcare de {size}, neinstalată"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_incomplete"
+msgid "{build}, {size} download, incomplete or from an earlier version"
+msgstr ""
+"{build}, descărcare de {size}, incompletă sau dintr-o versiune anterioară"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_installed"
+msgid "{build}, installed"
+msgstr "{build}, instalată"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_install_btn"
+msgid "Install"
+msgstr "Instalați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_whisper_cpp_label"
+msgid "whisper.cpp pro&gram"
+msgstr "Pro&gramul whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_remove_btn"
+msgid "Remove"
+msgstr "Eliminați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_repair_btn"
+msgid "Repair"
+msgstr "Reparați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_verify_btn"
+msgid "Verify"
+msgstr "Verificați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/main_window/connection.py

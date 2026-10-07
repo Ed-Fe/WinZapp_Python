@@ -30,6 +30,7 @@ from main_window.runtime_setup import _looks_like_json_response
 from core.api_client import api_post
 from app_paths import data_path
 from ui.conversations import probe_media_duration
+from core.transcription import stored as stored_transcription
 
 
 class MediaMixin:
@@ -512,6 +513,10 @@ class MediaMixin:
 
         # Prepare body with media details to bypass Puppeteer cache lookups in WPPConnect Server
         body_data = dict(media)
+        # The record goes over the wire whole, and a saved transcription is
+        # part of it — the text of a private voice note, which the server has
+        # no use for and never had a copy of.
+        body_data.pop(stored_transcription.TRANSCRIPTION_KEY, None)
         msg_type = media.get("messageType")
         msg_inner_obj = media.get("message")
         if isinstance(msg_inner_obj, str):

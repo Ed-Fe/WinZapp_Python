@@ -48,7 +48,9 @@ def test_only_one_flow_exists_for_the_menu_the_shortcut_and_the_window():
                  "eligible_photo", "_ai_menu_label_for_type", "_on_menu_ai_process", "ai_providers",
                  "close_image_description", "PhotoConsentDialog", "PhotoSession")
     for path in [*(CLIENT.rglob("*.py")), *(ROOT / "tests").glob("test_ai_*.py")]:
-        if "api" in path.relative_to(ROOT).parts[:2] or path.name in ("test_ai_media_wiring.py", "test_ai_media_i18n_keys.py"):
+        # client/venv is where the pip route keeps third-party packages: not
+        # WinZapp's code (Pillow's ExifTags.py has an "ImageDescription" tag).
+        if {"api", "venv"} & set(path.relative_to(ROOT).parts[:2]) or path.name in ("test_ai_media_wiring.py", "test_ai_media_i18n_keys.py"):
             continue
         text = path.read_text(encoding="utf-8")
         assert [name for name in leftovers if name in text] == [], path

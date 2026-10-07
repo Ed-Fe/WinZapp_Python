@@ -29,6 +29,10 @@ from core.call_log import (
     is_call_log,
     is_returnable_missed_call,
 )
+from core.transcription import (
+    message_audio,
+    stored as stored_transcription,
+)
 from core.wrapped_text import (
     original_range,
     selection_offsets,
@@ -366,6 +370,48 @@ class MessageMenuMixin:
             self.Bind(
                 wx.EVT_MENU, self._on_action_show_in_folder, show_in_folder_item
             )
+
+        # Transcribe (Alt+Shift+T) — next to the audio's own Save As, for the
+        # same messages message_audio.is_transcribable() accepts: voice notes,
+        # audio files, and documents whose mimetype is audio/*.
+        # A message whose transcription is stored offers it instead of the
+        # wait: Alt+Shift+T moves to `transcription_view` (the shortcut opens the
+        # stored one too), and running it again or deleting it are items of
+        # their own. The row itself says nothing about it: a marker there
+        # would be read on every pass over every transcribed note, for good,
+        # and the one action it would inform — Alt+Shift+T — already does the
+        # right thing either way, opening the stored text or starting a run.
+        if message_audio.is_transcribable(msg):
+            if stored_transcription.saved_transcription(msg) is not None:
+                view_item = menu.Append(
+                    wx.ID_ANY, f"{i18n.t('transcription_view')}\tAlt+Shift+T"
+                )
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe(m),
+                    view_item,
+                )
+                again_item = menu.Append(wx.ID_ANY, i18n.t("transcription_transcribe_again"))
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe_again(m),
+                    again_item,
+                )
+                delete_item = menu.Append(wx.ID_ANY, i18n.t("transcription_delete"))
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_delete_transcription(m),
+                    delete_item,
+                )
+            else:
+                transcribe_item = menu.Append(
+                    wx.ID_ANY, f"{i18n.t('transcribe_message')}\tAlt+Shift+T"
+                )
+                self.Bind(
+                    wx.EVT_MENU,
+                    lambda e, m=msg: self._on_menu_transcribe(m),
+                    transcribe_item,
+                )
 
         # Edit (own text messages within WhatsApp's edit window — see
         # core.message_edit.EDIT_UI_WINDOW_SECONDS for how it was measured)

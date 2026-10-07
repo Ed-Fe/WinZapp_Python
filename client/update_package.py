@@ -20,7 +20,7 @@ import tempfile
 import zipfile
 from dataclasses import dataclass
 
-import requests
+from core import tls_trust
 
 _CHUNK = 65536
 #: Prefix of the temporary directory an update is extracted into.
@@ -61,7 +61,7 @@ def download_update_package(zip_url: str, sha256sums_url: str, signature_url: st
 
     logging.info("Auto-updater: Downloading ZIP from %s to %s", zip_url, zip_path)
     try:
-        resp = requests.get(zip_url, stream=True, timeout=60)
+        resp = tls_trust.get(zip_url, stream=True, timeout=60)
         resp.raise_for_status()
 
         total = int(resp.headers.get("content-length", 0))

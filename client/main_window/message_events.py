@@ -40,6 +40,7 @@ from core.utils import (
     prune_message_record,
     reaction_targets_status,
 )
+from core.transcription import stored as stored_transcription
 
 
 class MessageEventsMixin:
@@ -73,6 +74,10 @@ class MessageEventsMixin:
         existing["message"]     = incoming.get("message")
         existing["messageType"] = "protocolMessage"
         existing.pop("_edited", None)
+        # The transcription is the withdrawn content in another form. The
+        # database drops it on its own for a record that is no longer audio
+        # (core.transcription.stored), but this dict is the one on screen.
+        existing.pop(stored_transcription.TRANSCRIPTION_KEY, None)
 
         def _bg_persist():
             try:

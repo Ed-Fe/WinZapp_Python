@@ -277,14 +277,42 @@ class MediaFilesMixin:
             return False
 
         wx.CallAfter(self.main_window.output, i18n.t("downloading"))
+        if self._download_media_to_disk(msg, media_path):
+            return True
+
+        wx.CallAfter(
+            wx.MessageBox,
+            i18n.t("media_download_failed"),
+            i18n.t("error").format(app_name=self.main_window.app_name),
+            wx.OK | wx.ICON_ERROR,
+        )
+        return False
+
+    def _download_media_to_disk(self, msg: dict, media_path: str) -> bool:
+        """Download a message's media and answer whether the file is now there.
+        Says nothing to the user — that is the whole difference from
+        _ensure_media_on_disk(), which reports its own failures.
+
+        Split out for the voice-message transcription, which runs this behind
+        a modal progress dialog: the message box _ensure_media_on_disk() posts
+        through wx.CallAfter would surface on top of that dialog, and the
+        transcription would then report the same failure a second time. It
+        says it once itself, after the dialog has closed (see
+        ui/transcription_flow.py). Runs on a worker thread, like every caller
+        of _ensure_media_on_disk().
+        """
         try:
             if msg.get("messageType") == "audioMessage":
                 self.main_window.handle_audio_message(msg)
             else:
                 self.main_window.handle_media_message(msg)
         except Exception as exc:
+            # Labelled with this helper's own name, not its caller's: a
+            # transcription reaches it without passing through
+            # _ensure_media_on_disk(), and a log read for one should not
+            # name the other.
             logging.info(
-                "[_ensure_media_on_disk] download raised for %s: %s",
+                "[_download_media_to_disk] download raised for %s: %s",
                 (msg.get("key") or {}).get("id", ""), exc,
             )
 
@@ -292,15 +320,9 @@ class MediaFilesMixin:
             return True
 
         logging.info(
-            "[_ensure_media_on_disk] %s: still missing after download attempt "
-            "(%s) — reporting it instead of opening.",
+            "[_download_media_to_disk] %s: still missing after download attempt "
+            "(%s) — the caller reports it.",
             (msg.get("key") or {}).get("id", ""), media_path,
-        )
-        wx.CallAfter(
-            wx.MessageBox,
-            i18n.t("media_download_failed"),
-            i18n.t("error").format(app_name=self.main_window.app_name),
-            wx.OK | wx.ICON_ERROR,
         )
         return False
 

@@ -35,11 +35,30 @@ from pathlib import Path
 
 import pytest
 
+from app_settings import _CONNECTION_GLOBAL
+from core.transcription import preferences as transcription_preferences
 from core.utils import DEFAULT_SETTINGS
 
 SETTINGS_DIALOG = (
     Path(__file__).resolve().parent.parent / "client" / "ui" / "dialogs" / "settings_dialog.py"
 )
+
+TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+
+
+def _dialog_class():
+    """SettingsDialog with TranscriptionTabMixin's methods merged in: that tab
+    lives in transcription_tab.py but is loaded and applied as part of the
+    dialog."""
+    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    tab = ast.parse(TRANSCRIPTION_TAB.read_text(encoding="utf-8"))
+    mixin = next(
+        n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
+    )
+    cls.body = cls.body + mixin.body
+    return cls
+
 
 #: Checkboxes that deliberately do not mirror a settings.json key, and why.
 #: Each one must still exist, so a stale entry here fails rather than hiding.
@@ -53,6 +72,25 @@ NOT_BACKED_BY_SETTINGS = {
         "shows the authenticated encrypted-vault policy rather than a "
         "settings.json value, and is applied through "
         "MainWindow.set_chat_lock_navigation_hidden()"
+    ),
+}
+
+#: Checkboxes that DO mirror a settings.json key, but through a module that
+#: owns the section instead of a literal settings.get("sec", {}).get("key")
+#: here — a shape this parse cannot follow. Each entry declares the
+#: (section, key) it writes, taken from the owning module's own names rather
+#: than retyped, so checkbox_keys() can still hand it to the real-dialog round
+#: trip; without the pair the box dropped out of that test entirely and was
+#: covered only by a stub. Each must still be a checkbox this file sees.
+WIRED_THROUGH_A_MODULE = {
+    "_transcription_detect_language_check": (
+        (transcription_preferences.SECTION,
+         transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE),
+        "the Local Transcription tab reads its section through "
+        "core.transcription.preferences.read_section(), which validates every "
+        "value and owns the key names; the stub-level round trip is "
+        "tests/test_transcription_settings_tab.py::"
+        "TestEverySettingIsReadBackAndWritten"
     ),
 }
 
@@ -118,11 +156,19 @@ def _unwrap_bool(node):
     return node
 
 
+def _chosen_section(target):
+    """Section of `choices["key"] = ...`: an install-wide key the dialog hands
+    to MainWindow.choose_global_settings(), which stores it under the section
+    app_settings files it in -- still a save of that settings key."""
+    if isinstance(target.value, ast.Name) and target.value.id == "choices":
+        return "connection" if target.slice.value in _CONNECTION_GLOBAL else "general"
+    return None
+
+
 def _parse():
     """{attr: {"page", "line", "loads": [(section, key, default)],
     "saves": [(section, key)]}} for every wx.CheckBox in SettingsDialog."""
-    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = _dialog_class()
 
     boxes = {}
     for node in ast.walk(cls):
@@ -194,6 +240,8 @@ def _parse():
                 if isinstance(target, ast.Subscript) and isinstance(target.slice, ast.Constant):
                     section = _section_of(target.value, section_names)
                     if section is None:
+                        section = _chosen_section(target)
+                    if section is None:
                         continue
                     if is_getvalue(value):
                         boxes[_self_attr(value.func.value)]["saves"].append((section, target.slice.value))
@@ -224,8 +272,7 @@ def _parse():
 
 def _checkbox_constructions():
     """Every wx.CheckBox(...) call in SettingsDialog, however it is stored."""
-    tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = _dialog_class()
     return [
         n.lineno for n in ast.walk(cls)
         if isinstance(n, ast.Call)
@@ -235,16 +282,22 @@ def _checkbox_constructions():
 
 
 BOXES = _parse()
-WIRED = sorted(attr for attr in BOXES if attr not in NOT_BACKED_BY_SETTINGS)
+WIRED = sorted(
+    attr for attr in BOXES
+    if attr not in NOT_BACKED_BY_SETTINGS and attr not in WIRED_THROUGH_A_MODULE
+)
 
 
 def checkbox_keys():
-    """[(attr, section, key)] for the round-trip test, from the same parse."""
+    """[(attr, section, key)] for the round-trip test, from the same parse plus
+    the pairs WIRED_THROUGH_A_MODULE declares."""
     out = []
     for attr in WIRED:
         saves = BOXES[attr]["saves"]
         if len(saves) == 1:
             out.append((attr, saves[0][0], saves[0][1]))
+    for attr, ((section, key), _reason) in WIRED_THROUGH_A_MODULE.items():
+        out.append((attr, section, key))
     return out
 
 
@@ -277,7 +330,7 @@ def test_the_parse_finds_the_checkboxes_on_every_tab():
         "_chat_lock_page",
     ):
         assert page in pages, f"no checkbox found on {page}"
-    assert len(checkbox_keys()) == len(WIRED)
+    assert len(checkbox_keys()) == len(WIRED) + len(WIRED_THROUGH_A_MODULE)
 
 
 def test_every_exception_still_exists_and_is_really_unwired():
@@ -292,6 +345,31 @@ def test_every_exception_still_exists_and_is_really_unwired():
             f"from there — either wire both halves and remove it from "
             f"NOT_BACKED_BY_SETTINGS, or stop writing it ({reason})"
         )
+
+
+def test_every_module_wired_checkbox_still_exists_and_is_not_wired_here():
+    for attr, ((section, key), reason) in WIRED_THROUGH_A_MODULE.items():
+        assert attr in BOXES, f"{attr} is no longer a checkbox; drop it from WIRED_THROUGH_A_MODULE"
+        assert BOXES[attr]["loads"] == [] and BOXES[attr]["saves"] == [], (
+            f"{attr} is now wired in the shape this file checks "
+            f"({BOXES[attr]['loads']!r} / {BOXES[attr]['saves']!r}); remove it from "
+            f"WIRED_THROUGH_A_MODULE so it is checked like every other ({reason})"
+        )
+        # The round trip reads the expected state off DEFAULT_SETTINGS, so a
+        # declared pair that is not a shipped default would only surface there
+        # as a KeyError, in CI.
+        assert key in DEFAULT_SETTINGS.get(section, {}), (
+            f"{attr} declares {section}.{key}, which is not in core/utils.py DEFAULT_SETTINGS"
+        )
+
+
+def test_the_transcription_detection_box_is_handed_to_the_real_dialog_round_trip():
+    """Pinned by the settings.json spelling, not the module's constants: the
+    round trip exercises exactly the tuples checkbox_keys() returns, and this
+    box once fell out of that list without any test noticing."""
+    assert (
+        "_transcription_detect_language_check", "transcription", "auto_detect_language"
+    ) in checkbox_keys()
 
 
 @pytest.mark.parametrize("attr", WIRED)

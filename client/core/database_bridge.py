@@ -361,6 +361,20 @@ class DatabaseBridge:
         )
 
 
+    def set_message_transcription(
+        self, remote_jids, message_id: str, value: dict
+    ) -> bool:
+        return self._call(
+            self._db.set_message_transcription(remote_jids, message_id, value)
+        )
+
+    def delete_message_transcription(
+        self, remote_jids, message_id: str, deleted_at: float
+    ) -> bool:
+        return self._call(
+            self._db.delete_message_transcription(remote_jids, message_id, deleted_at)
+        )
+
     def delete_chat(self, jid: str) -> None:
         return self._call(self._db.delete_chat(jid))
 

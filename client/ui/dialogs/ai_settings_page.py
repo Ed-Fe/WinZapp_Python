@@ -1,4 +1,4 @@
-"""The "Transcriptions and Descriptions" page of Settings, and the window that
+"""The "Online AI: Transcriptions and Descriptions" page of Settings, and the window that
 sets up one provider.
 
 Install-wide, shared by every account (``app.json``), with the API keys in the
@@ -300,7 +300,7 @@ class AISettingsPage(ScrolledPanel):
         super().__init__(parent)
         self.main_window = main_window
         self._on_change = on_change
-        self.app = getattr(main_window, "app_settings", None) or AppSettings(global_dir())
+        self.app = getattr(main_window, "_app_settings", None) or AppSettings(global_dir())
         self.store = CredentialStore(global_dir())
         self._alive = True
         self._labels = []

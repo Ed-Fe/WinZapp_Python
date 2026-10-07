@@ -21,11 +21,11 @@ import threading
 import logging
 import ctypes
 import subprocess
-import requests
 import wx
 
 from app_paths import _outer_exe_dir, _is_frozen, resource_path, log_path
 from core import release_keys
+from core import tls_trust
 from core.release_signature import SIGNATURE_ASSET_NAME, check_release_manifest
 from core.dialog_foreground import bring_to_front_if_hidden, message_box, parent_is_hidden
 from core.wpp_runtime import homologated_wpp_tag
@@ -83,7 +83,7 @@ def _verify_sha256sums(file_path: str, filename: str, sha256sums_url: str,
     manifest = None
     if sha256sums_url:
         try:
-            resp = requests.get(sha256sums_url, timeout=15)
+            resp = tls_trust.get(sha256sums_url, timeout=15)
             resp.raise_for_status()
         except Exception as exc:
             return False, f"Failed to download SHA256SUMS.txt: {exc}"
@@ -92,7 +92,7 @@ def _verify_sha256sums(file_path: str, filename: str, sha256sums_url: str,
     signature_text = None
     if manifest is not None and signature_url:
         try:
-            sig_resp = requests.get(signature_url, timeout=15)
+            sig_resp = tls_trust.get(signature_url, timeout=15)
             sig_resp.raise_for_status()
         except Exception as exc:
             return False, f"Failed to download {SIGNATURE_ASSET_NAME}: {exc}"
@@ -1235,7 +1235,7 @@ class UpdateChecker(BackgroundDownloadMixin):
             return False
 
     def _get_json(self, url: str, params: "dict | None" = None):
-        resp = requests.get(
+        resp = tls_trust.get(
             url,
             headers={"User-Agent": f"WinZapp/{__version__}"},
             params=params,
@@ -1416,7 +1416,11 @@ class UpdateChecker(BackgroundDownloadMixin):
 
         # Prefer a local, per-version changelog file (see resolve_changelog())
         # over the GitHub release body — only used as a last resort.
-        lang_code = self._mw.i18n.get_language() if hasattr(self._mw, "i18n") else "pt-BR"
+        # The language the window shows, not re-read from settings: that is
+        # install-wide and another account may have changed it since (see
+        # core.i18n.I18n.get_language()), and re-reading it on the window's own
+        # instance switched every string drawn from here on.
+        lang_code = self._mw.i18n.language if hasattr(self._mw, "i18n") else "pt-BR"
         changelog = resolve_changelog(local_version, remote_version, lang_code, data.get("body", ""))
 
         if not self._claim_prompt(remote_version):

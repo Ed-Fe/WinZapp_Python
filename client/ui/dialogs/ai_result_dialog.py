@@ -264,7 +264,13 @@ class AIResultDialog(wx.Dialog):
             history = () if regenerate else tuple(self.session.history)
             config = dict(self.config)
             kind, mime, loader = self.kind, self.mime, self.loader
-            language = self.i18n.get_language()
+            # The language the window shows, not re-read from settings:
+            # self.i18n is the window's own instance, and get_language() on
+            # it applies a language another account chose -- under this
+            # dialog, with nothing repainted, and the switch the window had
+            # pending then finds it "already applied" (see
+            # MainWindow._apply_pending_language_switch()).
+            language = self.i18n.language
             def work():
                 operation.check()
                 record("media_load_started", generation=generation)

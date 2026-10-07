@@ -328,7 +328,7 @@ class ConversationDataDialog(wx.Dialog):
         # Same builder the group dialog uses. The tab labels are the
         # "group_*" i18n keys on purpose: their values are already generic
         # ("Visão geral", "Mídia"), and a second key with the same text would
-        # be one more thing for five locales to drift on.
+        # be one more thing for the locales to drift on.
         self._build_media_tab()
 
         outer.Add(self._notebook, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)

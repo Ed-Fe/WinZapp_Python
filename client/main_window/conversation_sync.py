@@ -56,6 +56,7 @@ from core.remote_deletions import (
     comparable_local_records,
     message_timestamp_seconds,
 )
+from core.transcription import stored as stored_transcription
 
 
 class ConversationSyncMixin:
@@ -709,6 +710,15 @@ class ConversationSyncMixin:
             if carried:
                 logging.info("[sync_chat_messages] %s: kept %d measured video duration(s)",
                              remote_jid, carried)
+            # A saved transcription is the same kind of fact, with the same
+            # database-side twin (DatabaseManager._with_known_local_fields):
+            # without this it survives on disk and `transcription_view` leaves the
+            # menu at the first sync.
+            carried = stored_transcription.carry_over_transcriptions(all_messages, local_records)
+            if carried:
+                # A count only — not even the chat: part of the transcription
+                # package's rule that nothing about whose note it was is logged.
+                logging.info("[sync_chat_messages] kept %d saved transcription(s)", carried)
             # Same shape for the "Editada" marker, which the server copy may
             # not restate (core/message_edit.carry_over_edited_marker()).
             carried_edits = carry_over_edited_marker(all_messages, local_records)
@@ -781,6 +791,11 @@ class ConversationSyncMixin:
                         .get("records", []))
         if live_records:
             carry_over_stars(all_messages, live_records)
+            # A transcription saved or deleted while the fetch was in flight
+            # landed on the live records, after the carry-over above read the
+            # snapshot — and it is the more recent decision, which is the one
+            # the rule keeps.
+            stored_transcription.carry_over_transcriptions(all_messages, live_records)
             current_ids = {r.get("key", {}).get("id") for r in all_messages}
             dropped_edit_ids = getattr(self, "_dropped_edit_event_ids", set())
             late_extra  = [r for r in live_records

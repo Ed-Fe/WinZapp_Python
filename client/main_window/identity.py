@@ -16,9 +16,11 @@ from core.api_client import (
     api_post,
 )
 from core.utils import (
+    carry_over_video_durations,
     format_number,
     is_phone_like,
 )
+from core.transcription import stored as stored_transcription
 
 
 class IdentityMixin:
@@ -63,10 +65,19 @@ class IdentityMixin:
                 .get("messages", {})
                 .get("records", [])
             )
-            dst_ids = {r.get("key", {}).get("id") for r in dst_records}
+            dst_by_id = {r.get("key", {}).get("id"): r for r in dst_records}
             for r in src_records:
-                if r.get("key", {}).get("id") not in dst_ids:
+                mid = r.get("key", {}).get("id")
+                if mid not in dst_by_id:
                     dst_records.append(r)
+                elif mid:
+                    # The @lid copy is about to be dropped, and it can be the
+                    # only one holding what WinZapp alone knows: a voice note
+                    # transcribed while the conversation was still the @lid
+                    # one, a video whose length was measured there. The
+                    # database keeps the same rule in merge_or_rename_chat().
+                    stored_transcription.fold_transcription(dst_by_id[mid], r)
+                    carry_over_video_durations([dst_by_id[mid]], [r])
         else:
             lid_chat = self.chats.pop(lid_jid)
             lid_chat["remoteJid"] = phone_jid

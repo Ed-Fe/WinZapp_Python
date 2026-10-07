@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import wx
+from core import tls_trust
 from main_window.http_pool import _http_session
 from core.api_client import (
     api_get,
@@ -26,6 +27,37 @@ from core.wpp_connection_recovery import (
     serialized_connection_probe, update_reconnection_pending,
     session_start_pending, note_session_start, finish_update_reconnection,
 )
+
+
+# The reachability probe's session, built on first use and pooled from then on
+# the way the process-wide one in http_pool is. Not that one: it verifies
+# against certifi's fixed CA list, and on a machine whose antivirus intercepts
+# HTTPS the certificate web.whatsapp.com is shown there is signed by a root
+# only Windows' own store holds. requests raises SSLError for that — a
+# ConnectionError subclass — so the probe read a perfectly good network as
+# "no route", and the offline start deferral (connection_state.py) held the
+# session closed for up to its unproven cap on a machine that was online.
+# The interception itself was measured on a developer's machine during issue
+# #112: certifi-verified requests to huggingface.co, nodejs.org and
+# api.github.com all failed there, and all succeeded through the system store.
+# What counts as offline below is unchanged; only the verification moved.
+#
+# The opposite machine exists too — Windows' root updates switched off by
+# policy, an isolated image — where the system store cannot build the chain
+# and certifi can. So an SSLError from this session is retried once on
+# http_pool's certifi one, and either verifying means reachable: closer to
+# Chrome, which trusts its own roots and the machine's. See
+# _probe_whatsapp_host().
+_probe_session = None
+
+
+def _whatsapp_probe_session():
+    global _probe_session
+    if _probe_session is None:
+        # Two threads racing here build two sessions and one is dropped;
+        # harmless, and cheaper than a lock on every probe.
+        _probe_session = tls_trust.create_session()
+    return _probe_session
 
 
 class ConnectionMixin:
@@ -1197,20 +1229,35 @@ class ConnectionMixin:
         already talks to through the browser session.
         """
         try:
-            # Reuses the module-level pooled session (requests.head is not one
-            # of the patched, pooled helpers).
-            _http_session.head("https://web.whatsapp.com", timeout=6,
-                               allow_redirects=False)
+            try:
+                # Its own pooled session, verifying through the Windows trust
+                # store — see _whatsapp_probe_session().
+                _whatsapp_probe_session().head("https://web.whatsapp.com", timeout=6,
+                                               allow_redirects=False)
+            except requests.exceptions.SSLError as e:
+                # One more try, on certifi's list: a store that cannot build
+                # the chain is not a missing route. This probe feeds the
+                # automatic offline mode, the startup grace, the restart
+                # deferral and the resume, so a false "offline" here holds a
+                # working machine offline. Both failing falls through to the
+                # classification below exactly as a single failure did.
+                logging.info("[_probe_whatsapp_host] system trust store refused "
+                             "the certificate (%s); retrying on the bundled CA list", e)
+                _http_session.head("https://web.whatsapp.com", timeout=6,
+                                   allow_redirects=False)
             # Proof this probe works on this machine — see
             # connection_state.offline_start_still_deferred().
             self._whatsapp_probe_proven = True
             return True
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            # SSLError included: it is a ConnectionError subclass, so a
+            # certificate neither list verifies lands here, as it always has.
             logging.info("[_probe_whatsapp_host] network unreachable: %s", e)
             return False
         except Exception:
-            # Anything else (odd TLS/proxy behaviour) still proves we reached
-            # something — do not call that an outage.
+            # Anything else — an invalid URL, a malformed answer, a proxy
+            # misbehaving in a way requests does not map to ConnectionError —
+            # still proves we reached something; do not call that an outage.
             return True
 
     #: How often a connected session may re-try proving the host probe after

@@ -1192,6 +1192,23 @@ DEFAULT_SETTINGS = {
         "extended_sr_compat_enabled": True,
         "sapi_fallback_enabled": True
     },
+    # Local (offline) transcription of voice messages. Every value is a stored
+    # "automatic" rather than a blank — see core/transcription/preferences.py,
+    # which owns the meaning of each one and is pinned to this copy by a test.
+    # The models FOLDER is deliberately absent: it is install-wide and lives in
+    # app_settings.py, because the model files are shared by every account.
+    "transcription": {
+        "backend": "auto",
+        "model": "auto",
+        "device": "auto",
+        # faster-whisper's precision (CTranslate2 compute type), part 11.
+        "compute_type": "auto",
+        # Which language to force when auto-detection is off. "interface" means
+        # "whatever language WinZapp itself is in", kept as a sentinel so it
+        # follows a later change of the interface language.
+        "language": "interface",
+        "auto_detect_language": True
+    },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old
     # unconditional Downloads: it degrades to Downloads on the first save of a

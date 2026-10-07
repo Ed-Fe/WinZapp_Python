@@ -71,6 +71,11 @@ class WindowLifecycleMixin:
         # Read by _window_can_ask() from the poll thread, which cannot ask wx.
         self._main_window_active = active
         self._set_bookmark_zero_hotkey(active)
+        # A language another account chose while this window was the active
+        # one waited for this: switching it with focus here would have NVDA
+        # read the focused control again (_apply_pending_language_switch()).
+        if not active:
+            self._retry_pending_language_switch()
         if active:
             # Disabling the popup means "do not interrupt what I am doing",
             # not "hide the call controls". Once the user deliberately comes
@@ -182,6 +187,34 @@ class WindowLifecycleMixin:
         if show:
             from core.tray_manager import TrayIcon
             self.tray_icon = TrayIcon(self)
+
+    def _sync_tray_icon_with_setting(self):
+        """Put the tray icon in line with show_tray_icon when the setting
+        changed without this window being asked: another account chose it
+        (_apply_pulled_global_settings()).
+
+        Turning it on is always safe. Turning it off is deferred while the
+        window is hidden -- to the tray, by an account switch, or never shown
+        (--background): without the icon only the global hotkey or another
+        account's switch could bring it back, and the user who unticked the
+        box in another window never chose that for this one. restore_window()
+        calls this again, so it takes effect the moment the window is back.
+        Neither direction moves focus or says anything.
+        """
+        show = self.settings.get("general", {}).get("show_tray_icon", True)
+        # getattr: a pull can land before init_UI() has set the attribute.
+        tray_icon = getattr(self, "tray_icon", None)
+        if show and tray_icon is None:
+            self._init_tray()
+        elif not show and tray_icon is not None:
+            if getattr(self, "_window_hidden", False) or getattr(self, "background_mode", False):
+                return
+            try:
+                tray_icon.RemoveIcon()
+                tray_icon.Destroy()
+            except Exception:
+                logging.exception("[tray] removing the icon failed")
+            self.tray_icon = None
 
     def _on_close(self, event):
         """
@@ -318,6 +351,12 @@ class WindowLifecycleMixin:
         # is already visible to Win32 so SW_SHOW is a no-op at the OS level).
         if not self.IsShown():
             self.Show(True)
+        # A tray icon another account turned off while this window was hidden
+        # was kept for exactly this moment (_sync_tray_icon_with_setting()).
+        try:
+            self._sync_tray_icon_with_setting()
+        except Exception:
+            logging.exception("[tray] syncing the icon on restore failed")
         if hasattr(self, "conversations_panel"):
             wx.CallAfter(self.add_chats_to_ui)
         # Put keyboard focus on a real navigable control. After a

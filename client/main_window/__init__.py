@@ -31,6 +31,7 @@ Where to look (and where new code goes):
     message_actions     edit, delete, forward, resend, mark played
     message_stars       verified WhatsApp star writes, remote star persistence
     media               media download, failed ids, base64 fetch, durations
+    transcription_store saved voice-message transcriptions: store, delete
     read_state          mark read/unread, local-read anchor
     chat_actions        block, mute, archive, delete, clear, typing, pin
     chat_list           computing and rendering the chat list and previews

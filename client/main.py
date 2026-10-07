@@ -146,6 +146,7 @@ from core.chat_lock_vault import (
     validate_reveal_code,
 )
 from core import token_vault
+from core.transcription import cuda_runtime, temp_sweep
 from app_paths import resource_path, data_path, accounts_root, global_dir as _global_dir
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -289,6 +290,7 @@ from main_window.contacts import ContactsMixin
 from main_window.backfill import BackfillMixin
 from main_window.conversation_sync import ConversationSyncMixin
 from main_window.media import MediaMixin
+from main_window.transcription_store import TranscriptionStoreMixin
 from main_window.chat_events import ChatEventsMixin
 from main_window.history import HistoryMixin
 from main_window.read_state import ReadStateMixin
@@ -336,6 +338,7 @@ class MainWindow(
     BackfillMixin,
     ConversationSyncMixin,
     MediaMixin,
+    TranscriptionStoreMixin,
     ChatEventsMixin,
     HistoryMixin,
     ReadStateMixin,
@@ -465,6 +468,22 @@ class MainWindow(
         self.settings = {}
         logging.info("MainWindow: Loading settings...")
         self.load_settings()
+
+        # The CUDA libraries a previous session downloaded are on no loader
+        # search path when this process starts, so without this call a user who
+        # already paid for that 550 MB download is silently back on the
+        # processor today, with nothing anywhere saying why. It must run before
+        # the first device decision — anything reaching device.probe_hardware()
+        # or resolve_device() — and after load_settings(), so that a configured
+        # folder is already readable. Cheap (a couple of os.path.isfile plus an
+        # add_dll_directory), never raises, and False simply means there is
+        # nothing installed to register.
+        logging.info(
+            "MainWindow: CUDA transcription libraries registered=%s",
+            cuda_runtime.register_installed_runtime(),
+        )
+        # Decrypted audio a run killed mid-way left in %TEMP% (privacy).
+        temp_sweep.sweep_stale_temporaries()
 
         #Initialize sound system
         logging.info("MainWindow: Initializing sound system...")
@@ -915,6 +934,9 @@ class MainWindow(
         # every path into it (the live event above, and the periodic
         # health-checker) is covered by one guard.
         self._shutting_down = False
+        # Kept by _on_window_activate(); read by _apply_pending_language_switch()
+        # before the first activation event has arrived.
+        self._main_window_active = False
 
         # Track whether the user went through the pairing flow this session
         self._just_paired = False
@@ -1023,6 +1045,18 @@ class MainWindow(
         # on_new_message (DB inserts, LID resolution, media downloads).
         self._msg_bg_executor = ThreadPoolExecutor(
             max_workers=4, thread_name_prefix="msg-bg"
+        )
+        # Saving and deleting a stored transcription (issue #112) go through
+        # their own queue of ONE thread, not the pool above: the order they
+        # reach the database in has to be the order the user decided them in.
+        # On four threads, a save held up behind a busy database (a sync)
+        # could land after the delete the user made once the result window
+        # showed the text — and bring it back after "Transcrição apagada" had
+        # been said. Like the pool above it is never joined: real_exit() ends
+        # in os._exit(), and every call it makes is bounded by the database
+        # bridge's own timeout.
+        self._transcription_write_queue = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="transcription-db"
         )
         # jid -> Future of the most recent message insert submitted for an
         # @lid chat, so _merge_lid_into_phone() can wait for it before moving

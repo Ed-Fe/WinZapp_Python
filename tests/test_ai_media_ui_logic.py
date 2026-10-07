@@ -443,7 +443,7 @@ def _prepare_start(dialog, monkeypatch):
     import ui.dialogs.ai_result_dialog as module
     dialog.config.update(profile="detailed")
     dialog._consent = lambda providers: True
-    dialog.i18n.get_language = lambda: "tr-TR"
+    dialog.i18n.language = "tr-TR"
     dialog.loader = lambda token: b"synthetic photo"
     monkeypatch.setattr(module, "CredentialStore", lambda path: SimpleNamespace(
         saved=lambda: {"gemini", "openai"}, get=lambda provider: "fake-key"))
@@ -467,8 +467,14 @@ def test_requests_follow_current_application_language(dialog, monkeypatch, langu
     module = _prepare_start(dialog, monkeypatch)
     dialog.kind = kind
     dialog.session = MediaSession("a", "c", "m", kind)
-    dialog.main_window.settings = {"general": {"language": language}}
-    dialog.i18n = I18n(dialog.main_window)
+    # As in the app: the dialog holds the window's own I18n. The window showed
+    # Turkish and has applied `language` since (the Settings dialog's OK, a
+    # switch that was pending) -- _start must ask for what it shows now.
+    dialog.main_window.settings = {"general": {"language": "tr-TR"}}
+    dialog.main_window.i18n = dialog.i18n = I18n(dialog.main_window)
+    dialog.i18n.get_language()
+    dialog.main_window.settings["general"]["language"] = language
+    dialog.i18n.get_language()
     sent = []
     def chain(operation, providers, models, key_for, media, history, question, instruction, profile, **kwargs):
         sent.append((list(providers), question, instruction))
@@ -476,8 +482,6 @@ def test_requests_follow_current_application_language(dialog, monkeypatch, langu
     monkeypatch.setattr(module, "run_chain", chain)
     monkeypatch.setattr(module, "submit", lambda work, complete: work())
     monkeypatch.setattr(module, "prepare_media", lambda kind, data, mime, profile: Media(kind, data, "x/y", "f"))
-    # _start must re-read the language, not rely on a cached Turkish demo locale.
-    dialog.i18n.language = "tr-TR"
     question = first_question(kind) if regenerate else "Question in another language"
     dialog._start(question, regenerate=regenerate)
     assert len(sent) == 1
@@ -485,6 +489,60 @@ def test_requests_follow_current_application_language(dialog, monkeypatch, langu
     assert providers == ["gemini", "openai"]  # the person's order, both with a saved key
     assert asked == question
     assert (f"Answer in language {language}" in instruction) or (kind == "audio" and "language that is spoken" in instruction)
+
+
+@pytest.mark.parametrize("regenerate, held_by", [
+    # Ctrl+Shift+I with consent remembered: __init__ queues the first request
+    # before ShowModal(), so it runs ahead of the switch the main window
+    # queues on losing the focus to this dialog.
+    (True, "_main_window_active"),
+    # Ask during a call: the switch waits for the call window to close.
+    (False, "voice_call_window"),
+])
+def test_a_request_leaves_the_windows_pending_language_switch_to_the_window(dialog, monkeypatch, regenerate, held_by):
+    """self.i18n is the window's own I18n, and _start asked it get_language()
+    for the answer's language. On that instance the call reads the settings,
+    where a language chosen in another account was waiting for the window to
+    be allowed to repaint: it was applied right there, with nothing repainted,
+    and MainWindow._apply_pending_language_switch() then found it "already
+    applied" -- a window in two languages until the next start."""
+    from unittest.mock import Mock
+    from core.i18n import I18n
+    from core.ai_media.prompts import first_question
+    from main import MainWindow
+    module = _prepare_start(dialog, monkeypatch)
+    window = dialog.main_window
+    window.settings = {"general": {"language": "pt-BR"}}
+    window.i18n = dialog.i18n = I18n(window)
+    window.i18n.get_language()
+    window.apply_language_changes = Mock()
+    window._incoming_call_dialogs = {}
+    window.voice_call_window = Mock(IsShown=Mock(return_value=held_by == "voice_call_window"))
+    window._main_window_active = held_by == "_main_window_active"
+    window._call_window_on_screen = lambda: MainWindow._call_window_on_screen(window)
+    window.settings["general"]["language"] = "en-US"  # pulled from another account
+    window._pending_language_switch = True
+    MainWindow._apply_pending_language_switch(window)
+    assert window._pending_language_switch is True  # held
+    sent = []
+    def chain(operation, providers, models, key_for, media, history, question, instruction, profile, **kwargs):
+        sent.append(instruction)
+        return "synthetic answer", providers[0]
+    monkeypatch.setattr(module, "run_chain", chain)
+    monkeypatch.setattr(module, "submit", lambda work, complete: work())
+
+    dialog._start(first_question("image") if regenerate else "What is on the table?", regenerate=regenerate)
+
+    # Answered in the language the dialog and the window are still in.
+    assert len(sent) == 1 and "Answer in language pt-BR" in sent[0]
+    assert window.i18n.language == "pt-BR"
+
+    window._main_window_active = False
+    window.voice_call_window.IsShown.return_value = False
+    MainWindow._apply_pending_language_switch(window)
+
+    assert window.i18n.language == "en-US"
+    window.apply_language_changes.assert_called_once()
 
 
 def test_only_providers_with_a_key_and_the_kind_are_tried_in_the_persons_order(dialog, monkeypatch):
@@ -1110,7 +1168,7 @@ def test_disabled_feature_never_opens_a_window_or_downloads(tmp_path, monkeypatc
     import ui.conversation_panel.ai_actions as module
     spoken = []
     monkeypatch.setattr(module, "global_dir", lambda: str(tmp_path))
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=AppSettings(str(tmp_path)),
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=AppSettings(str(tmp_path)),
                             i18n=SimpleNamespace(t=lambda key: key), output=spoken.append))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     AIActionsMixin._on_ai_action(panel, message=message("imageMessage"))
@@ -1139,7 +1197,7 @@ def ready(tmp_path, monkeypatch):
 
 def test_the_menu_offers_only_what_a_provider_with_a_key_can_do(ready):
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     i18n = SimpleNamespace(t=lambda key: key)
     label = lambda msg: AIActionsMixin._ai_menu_label(panel, msg, i18n)
@@ -1155,7 +1213,7 @@ def test_the_menu_offers_only_what_a_provider_with_a_key_can_do(ready):
 
 def test_the_menu_hides_a_kind_whose_switch_is_off_and_everything_when_the_feature_is_off(ready):
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     i18n = SimpleNamespace(t=lambda key: key)
     app.set("ai_media", {"enabled": True, "kinds": {"audio": False}})
@@ -1170,7 +1228,7 @@ def test_the_menu_offers_nothing_when_no_provider_has_a_key(tmp_path, monkeypatc
     monkeypatch.setattr(module, "global_dir", lambda: str(tmp_path))
     app = AppSettings(str(tmp_path))
     app.set("ai_media", {"enabled": True})
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app))
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     assert AIActionsMixin._ai_menu_label(panel, message("imageMessage"), SimpleNamespace(t=lambda k: k)) == ""
 
@@ -1273,7 +1331,7 @@ def test_entry_point_opens_one_window_with_the_kind_chat_and_message_and_restore
             built.append("destroyed")
     monkeypatch.setattr(dialog_module, "AIResultDialog", WindowStub)
     msg = message("audioMessage", mimetype="audio/ogg; codecs=opus")
-    mw = SimpleNamespace(app_settings=app, key=b"k", IsShown=lambda: True, i18n=SimpleNamespace(t=lambda k: k),
+    mw = SimpleNamespace(_app_settings=app, key=b"k", IsShown=lambda: True, i18n=SimpleNamespace(t=lambda k: k),
                          is_chat_locked=lambda jid: False, output=lambda text: None)
     panel = SimpleNamespace(main_window=mw, conversation={"remoteJid": "c"}, _sorted_messages=[msg],
                             messages_list=SimpleNamespace(Focus=lambda i: focused.append(i), Select=lambda i: None,
@@ -1289,7 +1347,7 @@ def test_entry_point_opens_one_window_with_the_kind_chat_and_message_and_restore
 def test_a_locked_chat_is_not_processed_until_the_vault_is_unlocked(ready, monkeypatch):
     module, app = ready
     spoken = []
-    mw = SimpleNamespace(app_settings=app, i18n=SimpleNamespace(t=lambda k: k), output=spoken.append,
+    mw = SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda k: k), output=spoken.append,
                          is_chat_locked=lambda jid: True, _chat_lock_unlocked=False)
     panel = SimpleNamespace(main_window=mw, conversation={"remoteJid": "c"})
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
@@ -1340,7 +1398,7 @@ def test_the_describe_button_follows_the_menu_rule(ready):
     button = SimpleNamespace(SetLabel=lambda text: shown.append(("label", text)),
                              Show=lambda: shown.append("show"), Hide=lambda: shown.append("hide"))
     module, app = ready
-    panel = SimpleNamespace(main_window=SimpleNamespace(app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
                             _action_describe_btn=button)
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
     panel._ai_menu_label = lambda msg, i18n: AIActionsMixin._ai_menu_label(panel, msg, i18n)

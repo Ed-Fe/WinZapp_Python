@@ -30,6 +30,11 @@ SETTINGS_DIALOG = (
     Path(__file__).resolve().parent.parent / "client" / "ui" / "dialogs" / "settings_dialog.py"
 )
 
+TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+TRANSCRIPTION_EXTERNAL = SETTINGS_DIALOG.with_name("transcription_external.py")
+TRANSCRIPTION_WHISPER_CPP = SETTINGS_DIALOG.with_name("transcription_whisper_cpp.py")
+TRANSCRIPTION_PRECISION = SETTINGS_DIALOG.with_name("transcription_precision.py")
+
 LABELLED_CONTROLS = {"StaticText", "CheckBox", "RadioButton", "StaticBox", "Button", "RadioBox"}
 
 
@@ -59,8 +64,36 @@ def _i18n_keys(node):
 
 
 def _dialog_class():
+    """SettingsDialog with the methods of the mixins that hold a tab merged in:
+    the Local Transcription tab lives in transcription_tab.py (and its models-in-other-folders
+    section in transcription_external.py, its whisper.cpp section in
+    transcription_whisper_cpp.py, its precision picker in
+    transcription_precision.py) but is built, relabelled and applied as part
+    of the dialog."""
     tree = ast.parse(SETTINGS_DIALOG.read_text(encoding="utf-8"))
-    return next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SettingsDialog")
+    tab = ast.parse(TRANSCRIPTION_TAB.read_text(encoding="utf-8"))
+    mixin = next(
+        n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
+    )
+    external = ast.parse(TRANSCRIPTION_EXTERNAL.read_text(encoding="utf-8"))
+    external_mixin = next(
+        n for n in external.body
+        if isinstance(n, ast.ClassDef) and n.name == "ExternalModelsMixin"
+    )
+    whisper_cpp = ast.parse(TRANSCRIPTION_WHISPER_CPP.read_text(encoding="utf-8"))
+    whisper_cpp_mixin = next(
+        n for n in whisper_cpp.body
+        if isinstance(n, ast.ClassDef) and n.name == "WhisperCppMixin"
+    )
+    precision = ast.parse(TRANSCRIPTION_PRECISION.read_text(encoding="utf-8"))
+    precision_mixin = next(
+        n for n in precision.body
+        if isinstance(n, ast.ClassDef) and n.name == "TranscriptionPrecisionMixin"
+    )
+    cls.body = (cls.body + mixin.body + external_mixin.body + whisper_cpp_mixin.body
+                + precision_mixin.body)
+    return cls
 
 
 def _built_and_refreshed():
@@ -127,7 +160,25 @@ def _built_and_refreshed():
         for name, p in inspect.signature(AlertPreviewController.__init__).parameters.items()
         if name in ("play_label_key", "stop_label_key")
     }
-    for node in ast.walk(refresh):
+    # _refresh_dialog_labels() may hand a whole tab to a `self._refresh_*()`
+    # helper of its own (the Local Transcription tab's _refresh_transcription_labels()
+    # rebuilds comboboxes as well as relabelling); what such a helper re-applies
+    # is re-applied on Apply just the same, so it is read as part of it.
+    methods = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
+    # Followed to any depth: _refresh_transcription_labels() hands the section
+    # for models in other folders on to _refresh_external_labels().
+    scopes = [refresh]
+    for scope in scopes:
+        for node in ast.walk(scope):
+            if (
+                isinstance(node, ast.Call)
+                and _self_attr(node.func)
+                and node.func.attr.startswith("_refresh_")
+                and node.func.attr in methods
+                and methods[node.func.attr] not in scopes
+            ):
+                scopes.append(methods[node.func.attr])
+    for node in (n for scope in scopes for n in ast.walk(scope)):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
             continue
         # self._x.SetLabel(i18n.t(k)) / self._x.SetItemLabel(i, i18n.t(k)) / ...

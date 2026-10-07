@@ -206,7 +206,7 @@ class TestWorkerReleasesFailedInstallClaim:
         dialog._worker = updater.UpdateProgressDialog._worker.__get__(dialog)
 
         monkeypatch.setattr(updater, "_is_frozen", lambda: True)
-        monkeypatch.setattr(updater.requests, "get", lambda *args, **kwargs: _Response())
+        monkeypatch.setattr(updater.tls_trust, "get", lambda *args, **kwargs: _Response())
         monkeypatch.setattr(updater, "_verify_sha256sums", lambda *args, **kwargs: (True, ""))
         monkeypatch.setattr(updater, "_run_batch_installer",
                             lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("launch failed")))

@@ -47,25 +47,59 @@ class I18n:
     def __init__(self, main_window):
         self.main_window = main_window
         self.language = "pt-BR"  # default, overwritten by get_language()
+        # Whether get_language() has read the settings yet; see t().
+        self._language_read = False
 
     def get_language(self):
-        """Read the current language from settings and cache it in self.language."""
+        """Set self.language to the language this window shows, and return it.
+
+        The window's own instance (`main_window.i18n`) reads it from settings:
+        it is asked only where a language is being applied -- startup, the
+        Settings dialog's OK, a settings import -- each followed by
+        apply_language_changes(). Every other instance (the tray, the
+        notification manager, the WebSocket client, a few dialogs) follows
+        that instance instead of the settings.
+
+        They used to read the settings too, and the language setting is
+        install-wide: when another account changes it, this window's copy is
+        updated on its next save, and the window applies it as a whole only
+        once it is not the active one
+        (MainWindow._apply_pending_language_switch()). The helpers switched on
+        their own before that -- toasts and tray menus in the new language
+        over a window still in the old one, or the window's own strings
+        switching one at a time. Before the window's instance exists (early
+        startup), there is
+        nothing to follow and the settings are read.
+        """
+        window_i18n = getattr(self.main_window, "i18n", None)
+        if isinstance(window_i18n, I18n) and window_i18n is not self:
+            self.language = window_i18n.language
+            return self.language
         self.language = self.main_window.settings.get("general", {}).get("language", "pt-BR")
+        self._language_read = True
         return self.language
 
     def t(self, key: str) -> str:
         """Translate *key* into the user's current language.
 
-        The language is re-read from settings on every lookup: an I18n
-        starts at "pt-BR" and used to follow the user's choice only after
-        someone called get_language(), so text produced before that came out
-        in Portuguese on, say, an English install (seen with the pairing
-        error "no_pairing_code_received"). The read is a dict lookup.
+        The language is refreshed on every lookup: an I18n starts at "pt-BR"
+        and used to follow the user's choice only after someone called
+        get_language(), so text produced before that came out in Portuguese
+        on, say, an English install (seen with the pairing error
+        "no_pairing_code_received"). The read is a dict lookup.
+
+        Except on the window's own instance once it has a language: that one
+        changes only when asked (see get_language()). Refreshing it here read
+        the settings another account's change had just reached, so each
+        string drawn after that came out in the new language over a window
+        still in the old one, and _apply_pending_language_switch() then found
+        the language "already applied" and never repainted the rest.
         """
-        try:
-            self.get_language()
-        except Exception:
-            pass  # no settings yet: keep the last known language
+        if not (self._language_read and getattr(self.main_window, "i18n", None) is self):
+            try:
+                self.get_language()
+            except Exception:
+                pass  # no settings yet: keep the last known language
         lang = self.language
         translations = _TRANSLATIONS_CACHE.get(lang)
         if translations is None:

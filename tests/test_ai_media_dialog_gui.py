@@ -21,7 +21,7 @@ def context(wx_app, tmp_path, monkeypatch):
     frame = hidden_frame()
     frame.settings = {"general": {"language": "en-US"}}
     frame.i18n = I18n(frame)
-    frame.app_settings = AppSettings(str(tmp_path))
+    frame._app_settings = AppSettings(str(tmp_path))
     monkeypatch.setattr("ui.dialogs.ai_settings_page.global_dir", lambda: str(tmp_path))
     monkeypatch.setattr("ui.dialogs.ai_result_dialog.wx.CallAfter", lambda *args, **kw: None)
     yield frame, tmp_path
@@ -36,9 +36,9 @@ def plain(frame, key):
 def result_window(frame, kind="image"):
     panel = wx.Panel(frame)
     panel.main_window = frame
-    config = ai_config.preferences(frame.app_settings)
+    config = ai_config.preferences(frame._app_settings)
     return panel, AIResultDialog(panel, ("account", "chat", "message"), kind, False, config,
-                                 frame.app_settings, lambda token: b"", "image/jpeg")
+                                 frame._app_settings, lambda token: b"", "image/jpeg")
 
 
 def test_result_and_question_are_keyboard_readable_native_controls(context):
@@ -252,7 +252,7 @@ def test_settings_page_is_appended_without_moving_connection_or_exposing_vault(c
     from tests.test_settings_checkboxes_roundtrip import _make_frame
     _, path = context
     frame = _make_frame({"general": {"language": "en-US"}})
-    frame.app_settings = AppSettings(str(path))
+    frame._app_settings = AppSettings(str(path))
     frame._chat_lock_vault = ChatLockVault(Fernet.generate_key())
     frame._chat_lock_vault.configure("246810", "reveal-code")
     frame._chat_lock_vault.set_hide_navigation(hidden)

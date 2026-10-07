@@ -665,10 +665,11 @@ msgstr "Detalhada"
 msgctxt "ai_disabled"
 msgid ""
 "Turn on AI features, add a key for a provider and enable this kind of media "
-"in Settings > Transcriptions and Descriptions first."
+"in Settings > Online AI: Transcriptions and Descriptions first."
 msgstr ""
 "Primeiro ative as funcionalidades de IA, introduza a chave de um fornecedor "
-"e ative este tipo de conteúdo em Definições > Transcrições e Descrições."
+"e ative este tipo de conteúdo em Definições > IA online: Transcrições e "
+"Descrições."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_authentication"
@@ -753,13 +754,13 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_providers"
 msgid ""
-"No AI provider is available for this kind of media. In Settings > "
-"Transcriptions and Descriptions, add a key to a provider that handles it and"
-" turn it on."
+"No AI provider is available for this kind of media. In Settings > Online AI:"
+" Transcriptions and Descriptions, add a key to a provider that handles it "
+"and turn it on."
 msgstr ""
 "Nenhum fornecedor de IA está disponível para este tipo de conteúdo. Em "
-"Definições > Transcrições e Descrições, introduza a chave de um fornecedor "
-"que o aceite e ative-o."
+"Definições > IA online: Transcrições e Descrições, introduza a chave de um "
+"fornecedor que o aceite e ative-o."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_error_question"
@@ -1109,8 +1110,8 @@ msgstr "Texto acessível do PDF"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_result_transcription_title"
-msgid "Voice message transcription"
-msgstr "Transcrição da mensagem de voz"
+msgid "Voice message transcription (online AI)"
+msgstr "Transcrição da mensagem de voz (IA online)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1180,8 +1181,8 @@ msgstr "Transcrever mensagens de áudio/&voz"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_menu"
-msgid "Transcribe"
-msgstr "Transcrever"
+msgid "Transcribe with online AI"
+msgstr "Transcrever com IA online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -2663,7 +2664,8 @@ msgstr "Limpar conversas selecionadas"
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py client/ui/media_viewer.py
+#: client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Fechar"
@@ -3029,6 +3031,7 @@ msgstr "%d/%m/%Y"
 #: client/ui/conversation_panel/bulk_messages.py
 #: client/ui/conversation_panel/formatting.py
 #: client/ui/dialogs/conversation_data_dialog.py
+#: client/ui/transcription_flow.py
 msgctxt "datetime_fmt"
 msgid "%m/%d/%Y %I:%M %p"
 msgstr "%d/%m/%Y %H:%M"
@@ -3044,7 +3047,7 @@ msgstr "Desativar todos"
 #: client/main_window/session_lifecycle.py
 #: client/ui/conversation_panel/audio_playback.py
 #: client/ui/conversation_panel/formatting.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
 msgctxt "decimal_separator"
 msgid "."
 msgstr "."
@@ -6935,7 +6938,7 @@ msgid "ctrl+comma"
 msgstr "ctrl+vírgula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Definições"
@@ -7088,6 +7091,16 @@ msgstr "Alt+Shift+R: responder em privado (grupos)"
 msgctxt "shortcut_alt_shift_s_label"
 msgid "Alt+Shift+S: open the mute chat menu / unmute"
 msgstr "Alt+Shift+S: abrir o menu silenciar conversa / ativar o som"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_t_label"
+msgid ""
+"Alt+Shift+T: transcribe the voice message or audio locally with Whisper, or "
+"open the transcription already saved"
+msgstr ""
+"Alt+Shift+T: transcrever localmente a mensagem de voz ou o áudio com o "
+"Whisper, ou abrir a transcrição já guardada"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7422,10 +7435,10 @@ msgstr "Ctrl+Shift+H: gravar microfone e áudio do computador"
 msgctxt "shortcut_ctrl_shift_i_label"
 msgid ""
 "Ctrl+Shift+I: transcribe, describe or convert the media of the focused "
-"message"
+"message with online AI"
 msgstr ""
 "Ctrl+Shift+I: transcrever, descrever ou converter o conteúdo da mensagem em "
-"foco"
+"foco com IA online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -8680,8 +8693,8 @@ msgstr "Acessibilidade"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ai_accessibility"
-msgid "Transcriptions and Descriptions"
-msgstr "Transcrições e Descrições"
+msgid "Online AI: Transcriptions and Descriptions"
+msgstr "IA online: Transcrições e Descrições"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -8754,6 +8767,12 @@ msgstr "Conteúdo falado"
 msgctxt "tab_storage"
 msgid "Storage"
 msgstr "Armazenamento"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_transcription"
+msgid "Local Transcription"
+msgstr "Transcrição local"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -8864,6 +8883,2132 @@ msgstr "Não foi possível guardar o token do utilizador."
 msgctxt "total_label"
 msgid "total"
 msgstr "no total"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_message"
+msgid "Transcribe message locally with Whisper"
+msgstr "Transcrever mensagem localmente com o Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_apply_folder_first"
+msgid ""
+"Apply the new models folder before downloading, repairing, verifying or "
+"removing a model."
+msgstr ""
+"Aplique a nova pasta dos modelos antes de transferir, reparar, verificar ou "
+"remover um modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_backend_faster_whisper"
+msgid "faster-whisper"
+msgstr "faster-whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_backend_label"
+msgid "Transcription com&ponent"
+msgstr "Compo&nente de transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_backend_whisper_cpp"
+msgid "whisper.cpp"
+msgstr "whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_cuda"
+msgid "Install the CUDA libraries?"
+msgstr "Instalar as bibliotecas CUDA?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_cuda_repair"
+msgid ""
+"Install the CUDA libraries again? The files already in the folder are "
+"deleted first."
+msgstr ""
+"Instalar novamente as bibliotecas CUDA? Os ficheiros que já estão na pasta "
+"são apagados antes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_destination"
+msgid "Destination folder: {folder}."
+msgstr "Pasta de destino: {folder}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_device_cpu"
+msgid "After this, transcription will run on the processor."
+msgstr "Depois disto, a transcrição será executada pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_confirm_device_cuda"
+msgid "After this, transcription will run on the graphics card."
+msgstr "Depois disto, a transcrição será executada pela placa gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_does_not_fit"
+msgid ""
+"Warning: this model does not fit in that device's memory, and transcription "
+"may fail for lack of memory."
+msgstr ""
+"Atenção: este modelo não cabe na memória desse dispositivo, e a transcrição "
+"pode falhar por falta de memória."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_download_size"
+msgid "Download size: {size}."
+msgstr "Tamanho da transferência: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_free_space"
+msgid "Free on that disk: {size}."
+msgstr "Livre neste disco: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_model"
+msgid "Download the {model} model?"
+msgstr "Transferir o modelo {model}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_model_repair"
+msgid ""
+"Download the {model} model again and verify it? The files already in the "
+"folder are deleted first."
+msgstr ""
+"Transferir novamente o modelo {model} e verificá-lo? Os ficheiros que já "
+"estão na pasta são apagados antes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_no_resume"
+msgid ""
+"This is {size} that cannot be resumed: if the download is cancelled or the "
+"connection drops, all of it has to be downloaded again from the start."
+msgstr ""
+"São {size} que não podem ser retomados: se a transferência for cancelada ou "
+"a ligação cair, será preciso transferir tudo outra vez desde o início."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_not_enough_space"
+msgid ""
+"There is not enough space: {required} is needed and {free} is free. Free "
+"some space or choose another models folder."
+msgstr ""
+"Não há espaço suficiente: são necessários {required} e estão livres {free}. "
+"Liberte espaço ou escolha outra pasta para os modelos."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_remove_cuda"
+msgid ""
+"Remove the CUDA libraries? Transcription goes back to running on the "
+"processor, and they have to be downloaded again to use the graphics card."
+msgstr ""
+"Remover as bibliotecas CUDA? A transcrição voltará a ser executada pelo "
+"processador, e será preciso transferi-las outra vez para utilizar a placa "
+"gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_remove_model"
+msgid ""
+"Remove the {model} model? Its files are deleted from the disk, and it has to"
+" be downloaded again before it can be used."
+msgstr ""
+"Remover o modelo {model}? Os ficheiros dele são apagados do disco, e será "
+"preciso transferi-lo outra vez para o utilizar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+#, python-brace-format
+msgctxt "transcription_confirm_remove_whisper_cpp"
+msgid ""
+"Remove the whisper.cpp program ({build})? Transcription with whisper.cpp "
+"goes back to running on the processor, and it has to be downloaded again to "
+"use the graphics card."
+msgstr ""
+"Remover o programa whisper.cpp ({build})? A transcrição com o whisper.cpp "
+"voltará a ser executada pelo processador, e será preciso transferi-lo outra "
+"vez para utilizar a placa gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_confirm_remove_whisper_cpp_cpu"
+msgid ""
+"Remove the whisper.cpp program? The graphics card version, if installed, is "
+"removed with it, and whisper.cpp cannot transcribe until it is installed "
+"again."
+msgstr ""
+"Remover o programa whisper.cpp? A versão para placas gráficas, se estiver "
+"instalada, é removida também, e o whisper.cpp não poderá transcrever até ser"
+" instalado novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_confirm_required_space"
+msgid "Disk space needed: {size}."
+msgstr "Espaço necessário no disco: {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_space_unknown"
+msgid "The free space on that disk could not be measured."
+msgstr "Não foi possível medir o espaço livre neste disco."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_whisper_cpp"
+msgid "Install the whisper.cpp program ({build})?"
+msgstr "Instalar o programa whisper.cpp ({build})?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_confirm_whisper_cpp_repair"
+msgid ""
+"Install the whisper.cpp program ({build}) again? The installed files are "
+"replaced by the new ones."
+msgstr ""
+"Instalar novamente o programa whisper.cpp ({build})? Os ficheiros instalados"
+" são substituídos pelos novos."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_confirm_whisper_cpp_with_cpu"
+msgid ""
+"The processor version is installed first, because the graphics card version "
+"needs it."
+msgstr ""
+"A versão para o processador é instalada primeiro, porque a versão para "
+"placas gráficas precisa dela."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_actions_group"
+msgid "CUDA libraries"
+msgstr "Bibliotecas CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_install_btn"
+msgid "&Install"
+msgstr "Insta&lar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_remove_btn"
+msgid "Remove"
+msgstr "Remover"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_repair_btn"
+msgid "Repair"
+msgstr "Reparar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_cuda_runtime_absent"
+msgid "The CUDA libraries are not installed. The download is {size}."
+msgstr "As bibliotecas CUDA não estão instaladas. A transferência tem {size}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_incomplete"
+msgid "The CUDA libraries were not fully installed."
+msgstr "A instalação das bibliotecas CUDA ficou incompleta."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_installed"
+msgid "The CUDA libraries are installed."
+msgstr "As bibliotecas CUDA estão instaladas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_cuda_runtime_label"
+msgid "CU&DA libraries"
+msgstr "&Bibliotecas CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_runtime_outdated"
+msgid ""
+"The installed CUDA libraries are from an earlier version. Install them again"
+" to update them."
+msgstr ""
+"As bibliotecas CUDA instaladas são de uma versão anterior. Instale-as "
+"novamente para as atualizar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_cuda_verify_btn"
+msgid "Verif&y"
+msgstr "Veri&ficar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_delete"
+msgid "Delete transcription"
+msgstr "Apagar transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_delete_failed"
+msgid "The transcription could not be deleted."
+msgstr "Não foi possível apagar a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_delete_question"
+msgid ""
+"Delete this message's transcription? The message and its audio stay in the "
+"conversation."
+msgstr ""
+"Apagar a transcrição desta mensagem? A mensagem e o áudio continuam na "
+"conversa."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_deleted"
+msgid "Transcription deleted."
+msgstr "Transcrição apagada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cpu_requested"
+msgid "The transcription will run on the processor."
+msgstr "A transcrição será executada pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_build_missing"
+msgid ""
+"The whisper.cpp version for graphics cards is not installed. The "
+"transcription will run on the processor. You can install it in the "
+"transcription settings."
+msgstr ""
+"A versão do whisper.cpp para placas gráficas não está instalada. A "
+"transcrição será executada pelo processador. Pode instalá-la nas definições "
+"de transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_build_unsupported"
+msgid ""
+"The whisper.cpp version for graphics cards does not support this graphics "
+"card, or the card could not be identified. The transcription will run on the"
+" processor."
+msgstr ""
+"A versão do whisper.cpp para placas gráficas não é compatível com esta placa"
+" gráfica, ou não foi possível identificar a placa. A transcrição será "
+"executada pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_driver_error"
+msgid ""
+"The graphics card could not be queried. The transcription will run on the "
+"processor."
+msgstr ""
+"Não foi possível consultar a placa gráfica. A transcrição será executada "
+"pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_libraries_missing"
+msgid ""
+"The CUDA libraries are not installed. The transcription will run on the "
+"processor. You can download them in the transcription settings."
+msgstr ""
+"As bibliotecas CUDA não estão instaladas. A transcrição será executada pelo "
+"processador. Pode transferi-las nas definições de transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_selected"
+msgid "The transcription will run on the graphics card."
+msgstr "A transcrição será executada pela placa gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_cuda_unavailable"
+msgid "CUDA is not available. The transcription will run on the processor."
+msgstr ""
+"O CUDA não está disponível. A transcrição será executada pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_device_label"
+msgid "Whe&re to run the transcription"
+msgstr "On&de executar a transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_no_cuda_found"
+msgid ""
+"No compatible graphics card was found. The transcription will run on the "
+"processor."
+msgstr ""
+"Não foi encontrada nenhuma placa gráfica compatível. A transcrição será "
+"executada pelo processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_preference_cpu"
+msgid "Processor"
+msgstr "Processador"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_device_preference_cuda"
+msgid "Graphics card"
+msgstr "Placa gráfica"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_discarded_withdrawn"
+msgid ""
+"The message was deleted for everyone while it was being transcribed, so the "
+"transcription was discarded."
+msgstr ""
+"A mensagem foi eliminada para todos enquanto estava a ser transcrita, por "
+"isso a transcrição foi descartada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_download_confirm_title"
+msgid "Confirm download"
+msgstr "Confirmar transferência"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_audio_incomplete"
+msgid "The audio file is incomplete or damaged."
+msgstr "O ficheiro de áudio está incompleto ou danificado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_backend_error"
+msgid "An internal error occurred during the transcription."
+msgstr "Ocorreu um erro interno durante a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_backend_missing"
+msgid "The transcription component is not installed in this copy of WinZapp."
+msgstr ""
+"O componente de transcrição não está instalado nesta cópia do WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cancelled"
+msgid "Transcription cancelled."
+msgstr "Transcrição cancelada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_busy"
+msgid ""
+"Another WinZapp window is using the CUDA libraries folder. Wait for it to "
+"finish and try again."
+msgstr ""
+"Outra janela do WinZapp está a usar a pasta das bibliotecas CUDA. Aguarde "
+"que termine e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_corrupted"
+msgid "The CUDA library files are incomplete or damaged. Install them again."
+msgstr ""
+"Os ficheiros das bibliotecas CUDA estão incompletos ou danificados. Instale-"
+"as novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_download_failed"
+msgid ""
+"The CUDA libraries could not be downloaded. Check your connection and try "
+"again."
+msgstr ""
+"Não foi possível transferir as bibliotecas CUDA. Verifique a ligação e tente"
+" novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_runtime_in_use"
+msgid ""
+"The CUDA libraries are in use by this session. Close and reopen WinZapp, "
+"then try again."
+msgstr ""
+"As bibliotecas CUDA estão a ser utilizadas nesta sessão. Feche e volte a "
+"abrir o WinZapp e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_cuda_unavailable"
+msgid ""
+"CUDA is not available. Switch the device to the processor in the settings "
+"and try again."
+msgstr ""
+"O CUDA não está disponível. Mude o dispositivo para o processador nas "
+"definições e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_changed"
+msgid ""
+"The files in the chosen model's folder have changed since it was verified. "
+"Verify the model again in the Local Transcription tab in the settings, or "
+"choose another model."
+msgstr ""
+"Os ficheiros na pasta do modelo escolhido mudaram desde que foi verificado. "
+"Verifique o modelo novamente no separador Transcrição local das definições "
+"ou escolha outro modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_changed_file"
+msgid ""
+"The chosen model's file has changed since it was verified. Verify the model "
+"again in the Local Transcription tab in the settings, or choose another "
+"model."
+msgstr ""
+"O ficheiro do modelo escolhido mudou desde que foi verificado. Verifique o "
+"modelo novamente no separador Transcrição local das definições ou escolha "
+"outro modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_missing"
+msgid ""
+"The folder of the chosen model was not found. If it is on an external drive,"
+" connect the drive; if it was deleted, choose another model."
+msgstr ""
+"A pasta do modelo escolhido não foi encontrada. Se estiver num disco "
+"externo, ligue o disco; se foi eliminada, escolha outro modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_external_model_missing_file"
+msgid ""
+"The file of the chosen model was not found. If it is on an external drive, "
+"connect the drive; if it was deleted, choose another model."
+msgstr ""
+"O ficheiro do modelo escolhido não foi encontrado. Se estiver num disco "
+"externo, ligue o disco; se foi eliminado, escolha outro modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_ffmpeg_failed"
+msgid "The audio could not be converted for transcription."
+msgstr "Não foi possível converter o áudio para transcrever."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_insufficient_ram"
+msgid ""
+"The computer does not have enough memory for this model. Choose a smaller "
+"model."
+msgstr ""
+"A memória do computador não é suficiente para este modelo. Escolha um modelo"
+" mais pequeno."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_insufficient_vram"
+msgid ""
+"The graphics card does not have enough memory for this model. Choose a "
+"smaller model."
+msgstr ""
+"A memória da placa gráfica não é suficiente para este modelo. Escolha um "
+"modelo mais pequeno."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_media_not_downloaded"
+msgid ""
+"The audio has not been downloaded yet. Wait for the download to finish and "
+"try again."
+msgstr ""
+"O áudio ainda não foi transferido. Aguarde o fim da transferência e tente "
+"novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_corrupted"
+msgid "The model files are incomplete or corrupted. Download the model again."
+msgstr ""
+"Os ficheiros do modelo estão incompletos ou danificados. Transfira o modelo "
+"novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_download_failed"
+msgid ""
+"The transcription model could not be downloaded. Check your connection and "
+"try again."
+msgstr ""
+"Não foi possível transferir o modelo de transcrição. Verifique a ligação e "
+"tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_move_failed"
+msgid ""
+"The models folder could not be moved. The models are still in the previous "
+"folder."
+msgstr ""
+"Não foi possível mover a pasta dos modelos. Os modelos continuam na pasta "
+"anterior."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_model_not_installed"
+msgid ""
+"The selected transcription model is not installed. Download the model before"
+" transcribing."
+msgstr ""
+"O modelo de transcrição escolhido não está instalado. Transfira o modelo "
+"antes de transcrever."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_models_busy"
+msgid ""
+"Another WinZapp window is using the models folder. Wait for it to finish and"
+" try again."
+msgstr ""
+"Outra janela do WinZapp está a usar a pasta dos modelos. Aguarde que termine"
+" e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_disk_space"
+msgid "There is not enough disk space for this download."
+msgstr "Não há espaço em disco suficiente para esta transferência."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_precision_unsupported"
+msgid ""
+"The chosen calculation precision could not be used on this device. Choose "
+"another one, or Automatic, in the settings."
+msgstr ""
+"Não foi possível utilizar a precisão de cálculo escolhida neste dispositivo."
+" Escolha outra, ou Automático, nas definições."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_save_failed"
+msgid "The transcription could not be saved."
+msgstr "Não foi possível guardar a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_error_temp_no_disk_space"
+msgid ""
+"There is no free space on drive {drive} to prepare this message's audio. "
+"Free up some space on that drive and try again."
+msgstr ""
+"Não há espaço livre no disco {drive} para preparar o áudio desta mensagem. "
+"Liberte espaço nesse disco e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_temp_no_disk_space_unnamed"
+msgid ""
+"There is no free space left for Windows' temporary files, so this message's "
+"audio could not be prepared. Free up some space on the disk that holds them "
+"and try again."
+msgstr ""
+"Não há espaço livre para os ficheiros temporários do Windows, por isso não "
+"foi possível preparar o áudio desta mensagem. Liberte espaço no disco onde "
+"eles se encontram e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_unsupported_audio_format"
+msgid "This audio format was not recognized and cannot be transcribed."
+msgstr "O formato deste áudio não foi reconhecido e não pode ser transcrito."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_busy"
+msgid ""
+"The whisper.cpp program folder is in use by another WinZapp window or by "
+"another program, such as an antivirus. Wait a moment and try again."
+msgstr ""
+"A pasta do programa whisper.cpp está a ser usada por outra janela do WinZapp"
+" ou por outro programa, como um antivírus. Aguarde um momento e tente "
+"novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_corrupted"
+msgid ""
+"The whisper.cpp program files are incomplete or damaged. Install it again."
+msgstr ""
+"Os ficheiros do programa whisper.cpp estão incompletos ou danificados. "
+"Instale-o novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_download_failed"
+msgid ""
+"The whisper.cpp program could not be downloaded. Check your connection and "
+"try again."
+msgstr ""
+"Não foi possível transferir o programa whisper.cpp. Verifique a ligação e "
+"tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_whisper_cpp_not_installed"
+msgid ""
+"The whisper.cpp program is not installed. Install it in the settings before "
+"transcribing."
+msgstr ""
+"O programa whisper.cpp não está instalado. Instale-o nas definições antes de"
+" transcrever."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_actions_group"
+msgid "Models in other folders"
+msgstr "Modelos noutras pastas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_add_btn"
+msgid "Add..."
+msgstr "Adicionar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_added"
+msgid ""
+"The {model} model in the folder {name} was verified and can now be used."
+msgstr "O modelo {model} da pasta {name} foi verificado e já pode ser usado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_added_file"
+msgid "The {model} model in the file {name} was verified and can now be used."
+msgstr ""
+"O modelo {model} do ficheiro {name} foi verificado e já pode ser usado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_browse_dialog_title"
+msgid "Choose the folder that holds the model"
+msgstr "Selecione a pasta que contém o modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_browse_file_dialog_title"
+msgid "Choose the whisper.cpp model file"
+msgstr "Selecione o ficheiro do modelo do whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_changed_while_checked"
+msgid ""
+"The files in the folder {name} changed while they were being checked, so "
+"nothing was added. Try again once whatever is writing there has finished."
+msgstr ""
+"Os ficheiros da pasta {name} mudaram enquanto eram verificados, por isso "
+"nada foi adicionado. Tente novamente quando o que estiver a escrever nela "
+"terminar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_changed_while_checked_file"
+msgid ""
+"The file {name} changed while it was being checked, so nothing was added. "
+"Try again once whatever is writing to it has finished."
+msgstr ""
+"O ficheiro {name} mudou enquanto era verificado, por isso nada foi "
+"adicionado. Tente novamente quando o que estiver a escrever nele terminar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_check_btn"
+msgid "Verify"
+msgstr "Verificar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_checked"
+msgid ""
+"The {model} model in the folder {name} was checked again and can be used."
+msgstr ""
+"O modelo {model} da pasta {name} foi verificado novamente e pode ser usado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_checked_file"
+msgid ""
+"The {model} model in the file {name} was checked again and can be used."
+msgstr ""
+"O modelo {model} do ficheiro {name} foi verificado novamente e pode ser "
+"usado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_added"
+msgid ""
+"The model in the folder {name} loaded correctly and was added as a custom "
+"model."
+msgstr ""
+"O modelo da pasta {name} foi carregado sem problemas e adicionado como "
+"modelo personalizado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_added_file"
+msgid ""
+"The model in the file {name} loaded correctly and was added as a custom "
+"model."
+msgstr ""
+"O modelo do ficheiro {name} foi carregado sem problemas e adicionado como "
+"modelo personalizado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_checked"
+msgid ""
+"The custom model in the folder {name} was checked again and loaded "
+"correctly."
+msgstr ""
+"O modelo personalizado da pasta {name} foi verificado novamente e carregou "
+"sem problemas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_custom_checked_file"
+msgid ""
+"The custom model in the file {name} was checked again and loaded correctly."
+msgstr ""
+"O modelo personalizado do ficheiro {name} foi verificado novamente e "
+"carregou sem problemas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_digest_mismatch_question"
+msgid ""
+"The folder {name} has the files of the {model} model, but their contents are"
+" not the ones WinZapp knows: it may be a modified or damaged copy. It cannot"
+" be used as the {model} model. WinZapp can try to load it and use it as a "
+"custom model instead. Do you want to try?"
+msgstr ""
+"A pasta {name} tem os ficheiros do modelo {model}, mas o conteúdo não é o "
+"que o WinZapp conhece: pode ser uma cópia modificada ou danificada. Não pode"
+" ser usada como o modelo {model}. O WinZapp pode tentar carregá-la e usá-la "
+"como modelo personalizado. Quer tentar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_digest_mismatch_question_file"
+msgid ""
+"The file {name} has the size of the {model} model, but its contents are not "
+"the ones WinZapp knows: it may be a modified or damaged copy. It cannot be "
+"used as the {model} model. WinZapp can try to load it and use it as a custom"
+" model instead. Do you want to try?"
+msgstr ""
+"O ficheiro {name} tem o tamanho do modelo {model}, mas o conteúdo não é o "
+"que o WinZapp conhece: pode ser uma cópia modificada ou danificada. Não pode"
+" ser usado como o modelo {model}. O WinZapp pode tentar carregá-lo e usá-lo "
+"como modelo personalizado. Quer tentar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_file_wildcard"
+msgid "whisper.cpp models (*.bin)|*.bin|All files (*.*)|*.*"
+msgstr "Modelos do whisper.cpp (*.bin)|*.bin|Todos os ficheiros (*.*)|*.*"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_btn"
+msgid "Find..."
+msgstr "Localizar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_find_item_recognised"
+msgid "{name} ({revision}), looks like the {model} model"
+msgstr "{name} ({revision}), parece o modelo {model}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_none"
+msgid "No new Whisper models were found in the Hugging Face cache."
+msgstr ""
+"Não foi encontrado nenhum modelo Whisper novo na cache do Hugging Face."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_find_searching"
+msgid "Searching the Hugging Face cache..."
+msgstr "A procurar na cache do Hugging Face..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_forget_btn"
+msgid "Forget"
+msgstr "Esquecer"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forget_question"
+msgid ""
+"Forget the model in the folder {name}? Only WinZapp's reference to it is "
+"removed; the files in the folder are not touched."
+msgstr ""
+"Esquecer o modelo da pasta {name}? Apenas a referência do WinZapp a ele é "
+"removida; os ficheiros da pasta não são tocados."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forget_question_file"
+msgid ""
+"Forget the model in the file {name}? Only WinZapp's reference to it is "
+"removed; the file is not touched."
+msgstr ""
+"Esquecer o modelo do ficheiro {name}? Apenas a referência do WinZapp a ele é"
+" removida; o ficheiro não é tocado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forgotten"
+msgid ""
+"WinZapp forgot the model in the folder {name}. The files were not touched."
+msgstr ""
+"O WinZapp esqueceu o modelo da pasta {name}. Os ficheiros não foram tocados."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_forgotten_file"
+msgid "WinZapp forgot the model in the file {name}. The file was not touched."
+msgstr ""
+"O WinZapp esqueceu o modelo do ficheiro {name}. O ficheiro não foi tocado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_forgotten_reset"
+msgid "The transcription model went back to Automatic."
+msgstr "O modelo de transcrição voltou para Automático."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_label"
+msgid "Model&s in other folders"
+msgstr "Modelos no&utras pastas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_load_failed"
+msgid ""
+"WinZapp could not load the model in the folder {name}, so it was not added."
+msgstr ""
+"O WinZapp não conseguiu carregar o modelo da pasta {name}, por isso não foi "
+"adicionado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_load_failed_file"
+msgid ""
+"WinZapp could not load the model in the file {name}, so it was not added."
+msgstr ""
+"O WinZapp não conseguiu carregar o modelo do ficheiro {name}, por isso não "
+"foi adicionado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_added"
+msgid "Nothing was added from the folder {name}."
+msgstr "Nada foi adicionado da pasta {name}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_added_file"
+msgid "Nothing was added from the file {name}."
+msgstr "Nada foi adicionado do ficheiro {name}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_identified_question"
+msgid ""
+"The folder {name} holds a model WinZapp can read, but not one of the models "
+"it offers, so it cannot be verified. WinZapp can try to load it to see "
+"whether it works, and then use it as a custom model. Do you want to try?"
+msgstr ""
+"A pasta {name} contém um modelo que o WinZapp consegue ler, mas que não é um"
+" dos modelos que oferece, por isso não é possível verificá-lo. O WinZapp "
+"pode tentar carregá-lo para ver se funciona e, depois, utilizá-lo como "
+"modelo personalizado. Quer tentar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_not_identified_question_file"
+msgid ""
+"The file {name} is not one of the models WinZapp offers, so it cannot be "
+"verified. WinZapp can try to load it with whisper.cpp to see whether it "
+"works, and then use it as a custom model. Do you want to try?"
+msgstr ""
+"O ficheiro {name} não é um dos modelos que o WinZapp oferece, por isso não é"
+" possível verificá-lo. O WinZapp pode tentar carregá-lo com o whisper.cpp "
+"para ver se funciona e, depois, utilizá-lo como modelo personalizado. Quer "
+"tentar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_pick_prompt"
+msgid "Choose the model to check and add."
+msgstr "Escolha o modelo que quer verificar e adicionar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_pick_title"
+msgid "Add a model"
+msgstr "Adicionar modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_custom"
+msgid "Loading the model in the folder {name} to test it..."
+msgstr "A carregar o modelo da pasta {name} para o testar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_custom_file"
+msgid "Loading the model in the file {name} to test it..."
+msgstr "A carregar o modelo do ficheiro {name} para o testar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_verify"
+msgid "Verifying the model in the folder {name}. This can take a minute..."
+msgstr "A verificar o modelo da pasta {name}. Isto pode demorar um minuto..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_progress_verify_file"
+msgid "Verifying the model in the file {name}. This can take a minute..."
+msgstr ""
+"A verificar o modelo do ficheiro {name}. Isto pode demorar um minuto..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+msgctxt "transcription_external_question_title"
+msgid "Model in another folder"
+msgstr "Modelo noutra pasta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_read_failed"
+msgid ""
+"WinZapp could not read the files in the folder {name}, so nothing was added."
+msgstr ""
+"O WinZapp não conseguiu ler os ficheiros da pasta {name}, por isso nada foi "
+"adicionado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_read_failed_file"
+msgid "WinZapp could not read the file {name}, so nothing was added."
+msgstr ""
+"O WinZapp não conseguiu ler o ficheiro {name}, por isso nada foi adicionado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_bad_config"
+msgid ""
+"The config.json file in that folder is not a model configuration WinZapp can"
+" read, so the folder cannot be used."
+msgstr ""
+"O ficheiro config.json dessa pasta não é a configuração de um modelo que o "
+"WinZapp consiga ler, por isso não pode ser usada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_inside_root"
+msgid ""
+"That folder is inside the WinZapp models folder, which WinZapp already "
+"manages. Choose a folder outside it."
+msgstr ""
+"Essa pasta está dentro da pasta dos modelos do WinZapp, que o WinZapp já "
+"gere. Escolha uma pasta fora dela."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_inside_root_file"
+msgid ""
+"That file is inside the WinZapp models folder, which WinZapp already "
+"manages. Choose a file outside it."
+msgstr ""
+"Esse ficheiro está dentro da pasta dos modelos do WinZapp, que o WinZapp já "
+"gere. Escolha um ficheiro fora dela."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_refused_not_a_model"
+msgid ""
+"That folder does not hold a Whisper model WinZapp can use. Missing: {files}."
+msgstr ""
+"Essa pasta não contém um modelo Whisper que o WinZapp possa usar. Em falta: "
+"{files}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_not_ggml"
+msgid "That file is empty, so it cannot be a whisper.cpp model."
+msgstr ""
+"Esse ficheiro está vazio, por isso não pode ser um modelo do whisper.cpp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_unreachable"
+msgid ""
+"That folder could not be opened. If it is on an external drive, connect the "
+"drive and try again."
+msgstr ""
+"Não foi possível abrir essa pasta. Se estiver num disco externo, ligue o "
+"disco e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_refused_unreachable_file"
+msgid ""
+"That file could not be opened. If it is on an external drive, connect the "
+"drive and try again."
+msgstr ""
+"Não foi possível abrir esse ficheiro. Se estiver num disco externo, ligue o "
+"disco e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_external_root_contains"
+msgid ""
+"The models folder you chose contains folders of models you added from "
+"elsewhere ({folders}). WinZapp deletes files inside it when you remove a "
+"model, so choose another folder or forget those models first."
+msgstr ""
+"A pasta dos modelos escolhida contém pastas de modelos que adicionou de "
+"outro local ({folders}). O WinZapp apaga ficheiros dentro dela ao remover um"
+" modelo, por isso escolha outra pasta ou esqueça primeiro esses modelos."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_external_root_not_applied"
+msgid "The models folder was not changed."
+msgstr "A pasta dos modelos não foi alterada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_row_catalogue"
+msgid "{name}: {model} model, {state}"
+msgstr "{name}: modelo {model}, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_row_custom"
+msgid "{name}: custom model, {state}"
+msgstr "{name}: modelo personalizado, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_changed"
+msgid "files changed, verify again"
+msgstr "ficheiros alterados, verifique novamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_changed_file"
+msgid "file changed, verify again"
+msgstr "ficheiro alterado, verifique novamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_checking"
+msgid "checking"
+msgstr "a verificar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_missing"
+msgid "folder not found"
+msgstr "pasta não encontrada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_missing_file"
+msgid "file not found"
+msgstr "ficheiro não encontrado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_ready"
+msgid "ready to use"
+msgstr "pronto a usar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_state_unverified"
+msgid "not verified"
+msgstr "não verificado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_external_use_btn"
+msgid "Use"
+msgstr "Usar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_external_use_done"
+msgid "The {name} model is selected. Press OK or Apply to keep this choice."
+msgstr ""
+"O modelo {name} foi selecionado. Prima OK ou Aplicar para manter a escolha."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_finished"
+msgid "Transcription finished."
+msgstr "Transcrição concluída."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_hidden_vault_closed"
+msgid ""
+"The transcription finished, but the locked-chats vault was closed. Open the "
+"vault to see the transcription."
+msgstr ""
+"A transcrição terminou, mas o cofre de conversas trancadas foi fechado. Abra"
+" o cofre para ver a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_hidden_vault_closed_not_saved"
+msgid ""
+"The transcription finished, but the locked-chats vault was closed, and the "
+"transcription was not saved."
+msgstr ""
+"A transcrição terminou, mas o cofre de conversas trancadas foi fechado, e a "
+"transcrição não foi guardada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_insert_refused_vault_closed"
+msgid ""
+"The locked-chats vault was closed, and the transcription was not inserted "
+"into the message."
+msgstr ""
+"O cofre de conversas trancadas foi fechado, e a transcrição não foi inserida"
+" na mensagem."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_language_detect"
+msgid "D&etect automatically"
+msgstr "Dete&tar automaticamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_language_interface"
+msgid "WinZapp's own language"
+msgstr "O idioma do WinZapp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_language_label"
+msgid "Transcription &language"
+msgstr "&Idioma da transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cancelled"
+msgid "Operation cancelled."
+msgstr "Operação cancelada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed"
+msgid ""
+"The CUDA libraries have been installed. Transcription can now use the "
+"graphics card."
+msgstr ""
+"As bibliotecas CUDA foram instaladas. A transcrição já pode usar a placa "
+"gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed_not_usable"
+msgid ""
+"The CUDA libraries are installed, but the graphics card still cannot use "
+"them. Transcription will keep running on the processor. Check that the "
+"graphics card driver is up to date."
+msgstr ""
+"As bibliotecas CUDA estão instaladas, mas a placa gráfica ainda não as "
+"consegue utilizar. A transcrição continuará a ser executada pelo "
+"processador. Verifique se o controlador da placa gráfica está atualizado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_installed_unverified"
+msgid ""
+"The CUDA libraries have been installed, but it could not be confirmed that "
+"the graphics card can use them."
+msgstr ""
+"As bibliotecas CUDA foram instaladas, mas não foi possível confirmar se a "
+"placa gráfica as consegue utilizar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_remove_needs_restart"
+msgid ""
+"The CUDA libraries are in use. Close and reopen WinZapp, then remove them "
+"again."
+msgstr ""
+"As bibliotecas CUDA estão a ser utilizadas. Feche e volte a abrir o WinZapp,"
+" e remova-as novamente para concluir a remoção."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_removed"
+msgid "The CUDA libraries have been removed."
+msgstr "As bibliotecas CUDA foram removidas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_cuda_verified"
+msgid "The CUDA libraries have been verified. Their files are intact."
+msgstr "As bibliotecas CUDA foram verificadas. Os ficheiros estão íntegros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_failed"
+msgid "The operation could not be completed."
+msgstr "Não foi possível concluir a operação."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_downloaded"
+msgid "The {model} model has been downloaded."
+msgstr "O modelo {model} foi transferido."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_nothing_to_remove"
+msgid "There were no files of the {model} model to remove."
+msgstr "Não havia ficheiros do modelo {model} para remover."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_removed"
+msgid "The {model} model has been removed."
+msgstr "O modelo {model} foi removido."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_repaired"
+msgid "The {model} model has been downloaded again and verified."
+msgstr "O modelo {model} foi transferido novamente e verificado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_model_verified"
+msgid "The {model} model has been verified. Its files are intact."
+msgstr "O modelo {model} foi verificado. Os ficheiros estão íntegros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_cancelled_partial"
+msgid ""
+"Moving the models was cancelled. Already in the new folder: {moved}. Still "
+"in the previous folder: {remaining}."
+msgstr ""
+"A mudança dos modelos foi cancelada. Já estão na nova pasta: {moved}. "
+"Continuam na pasta anterior: {remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_models_move_no_space"
+msgid ""
+"There is not enough disk space in the new folder. The models are still in "
+"the previous folder."
+msgstr ""
+"Não há espaço em disco suficiente na nova pasta. Os modelos continuam na "
+"pasta anterior."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_partial"
+msgid ""
+"Not all models could be moved. Already in the new folder: {moved}. Still in "
+"the previous folder: {remaining}."
+msgstr ""
+"Não foi possível mover todos os modelos. Já estão na nova pasta: {moved}. "
+"Continuam na pasta anterior: {remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_move_partial_no_space"
+msgid ""
+"There is not enough disk space in the new folder to move every model. "
+"Already in the new folder: {moved}. Still in the previous folder: "
+"{remaining}."
+msgstr ""
+"Não há espaço em disco suficiente na nova pasta para mover todos os modelos."
+" Já estão na nova pasta: {moved}. Continuam na pasta anterior: {remaining}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_models_moved"
+msgid "The models have been moved to the new folder: {models}."
+msgstr "Os modelos foram movidos para a nova pasta: {models}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_manage_models_nothing_to_move"
+msgid "No models needed to be moved."
+msgstr "Não foi necessário mover nenhum modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_installed"
+msgid "The whisper.cpp program has been installed: {build}."
+msgstr "O programa whisper.cpp foi instalado: {build}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_remove_in_use"
+msgid ""
+"Part of the whisper.cpp program ({build}) is in use by a transcription. "
+"Remove it again once the transcription has finished."
+msgstr ""
+"Uma parte do programa whisper.cpp ({build}) está a ser utilizada por uma "
+"transcrição. Remova-o novamente quando a transcrição terminar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_removed"
+msgid "The whisper.cpp program has been removed: {build}."
+msgstr "O programa whisper.cpp foi removido: {build}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_manage_whisper_cpp_verified"
+msgid ""
+"The whisper.cpp program has been verified: {build}. Its files are intact."
+msgstr ""
+"O programa whisper.cpp foi verificado: {build}. Os ficheiros estão íntegros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_media_send_failed"
+msgid ""
+"There is no audio to transcribe in this message: sending it failed and the "
+"recording was not saved."
+msgstr ""
+"Não há áudio para transcrever nesta mensagem: o envio falhou e a gravação "
+"não foi guardada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_media_still_preparing"
+msgid ""
+"This message's audio is still being prepared for sending. Try transcribing "
+"it again in a moment."
+msgstr ""
+"O áudio desta mensagem ainda está a ser preparado para o envio. Tente "
+"transcrever novamente dentro de instantes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_actions_group"
+msgid "Selected model"
+msgstr "Modelo selecionado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_available"
+msgid "{name}: {size_class}, {size} download, not installed"
+msgstr "{name}: {size_class}, transferência de {size}, não instalado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_custom"
+msgid "{name}: custom model, in another folder"
+msgstr "{name}: modelo personalizado, noutra pasta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_external"
+msgid "{name}: {size_class}, {size} on disk, in another folder"
+msgstr "{name}: {size_class}, {size} no disco, noutra pasta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_incomplete"
+msgid "{name}: {size_class}, {size} download, download unfinished"
+msgstr ""
+"{name}: {size_class}, transferência de {size}, transferência incompleta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_choice_installed"
+msgid "{name}: {size_class}, {size} on disk, installed"
+msgstr "{name}: {size_class}, {size} no disco, instalado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_download_btn"
+msgid "Dow&nload"
+msgstr "Tran&sferir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_model_label"
+msgid "Transcription &model"
+msgstr "&Modelo de transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_english_only"
+msgid "{model}, English only"
+msgstr "{model}, apenas inglês"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_full_precision"
+msgid "{model}, 32 bits, full precision"
+msgstr "{model}, 32 bits, precisão total"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_quantized"
+msgid "{model}, {bits} bits"
+msgstr "{model}, {bits} bits"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_model_name_third_party"
+msgid "{model} ({language} only, third-party: {publisher})"
+msgstr "{model} (apenas {language}, de terceiros: {publisher})"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_none_nothing_fits"
+msgid ""
+"No transcription model fits in this computer's memory. Choose a smaller "
+"model, or run the transcription on the processor."
+msgstr ""
+"Nenhum modelo de transcrição cabe na memória deste computador. Escolha um "
+"modelo mais pequeno ou use o processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_none_unmeasured"
+msgid ""
+"WinZapp could not measure this computer's memory, so it did not choose a "
+"model. Pick one yourself, or download one if there is none here yet."
+msgstr ""
+"O WinZapp não conseguiu medir a memória deste computador, por isso não "
+"escolheu nenhum modelo. Escolha um modelo manualmente, ou transfira um se "
+"ainda não houver nenhum."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_remove_btn"
+msgid "Remove"
+msgstr "Remover"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_repair_btn"
+msgid "Repair"
+msgstr "Reparar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_unavailable_auto"
+msgid ""
+"None of the installed transcription models can be used on this computer."
+msgstr ""
+"Nenhum modelo de transcrição instalado pode ser utilizado neste computador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_model_verify_btn"
+msgid "&Verify"
+msgstr "V&erificar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_browse_btn"
+msgid "&Browse..."
+msgstr "P&rocurar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_browse_dialog_title"
+msgid "Choose the folder for the transcription models"
+msgstr "Selecione a pasta dos modelos de transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_models_dir_kept_previous"
+msgid ""
+"The models folder is still the previous one. Choose the new folder again to "
+"move what stayed behind."
+msgstr ""
+"A pasta dos modelos continua a ser a anterior. Escolha novamente a nova "
+"pasta para mover o que ficou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_label"
+msgid "Models &folder"
+msgstr "&Pasta dos modelos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_models_dir_now_the_new_one"
+msgid ""
+"Even so, every model is in the new folder, and that is the one the setting "
+"now uses."
+msgstr ""
+"Ainda assim, todos os modelos estão na pasta nova, e é essa que a "
+"configuração passa a usar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_no_audio"
+msgid "This message has no audio to transcribe."
+msgstr "Esta mensagem não tem áudio para transcrever."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_missing"
+msgid ""
+"This transcription was not saved, because the message is no longer in this "
+"conversation."
+msgstr ""
+"Esta transcrição não foi guardada, porque a mensagem já não está nesta "
+"conversa."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_unsent"
+msgid ""
+"This transcription was not saved, because the message has not been sent yet."
+" Once it is sent, transcribe it again to save it."
+msgstr ""
+"Esta transcrição não foi guardada, porque a mensagem ainda não foi enviada. "
+"Depois do envio, transcreva-a de novo para a guardar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_differs"
+msgid "This message was transcribed in {language}."
+msgstr "Esta mensagem foi transcrita em {language}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_forced"
+msgid ""
+"This model only understands {language}, so the message is transcribed in "
+"{language}."
+msgstr ""
+"Este modelo só entende {language}, por isso a mensagem é transcrita em "
+"{language}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_language_overridden"
+msgid ""
+"This model only understands {language}, so the message is transcribed in "
+"{language} and not in {chosen}, the language chosen in the settings."
+msgstr ""
+"Este modelo só entende {language}, por isso a mensagem é transcrita em "
+"{language}, e não em {chosen}, o idioma escolhido nas definições."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_low_confidence"
+msgid ""
+"The language of this message was not identified with certainty, so the text "
+"may be wrong. You can choose the language in the transcription settings."
+msgstr ""
+"O idioma desta mensagem não foi identificado com certeza, por isso o texto "
+"pode estar errado. Pode escolher o idioma nas definições de transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_no_speech"
+msgid ""
+"No speech was found in this message, so the transcription came out empty."
+msgstr ""
+"Não foi encontrada nenhuma fala nesta mensagem, por isso a transcrição ficou"
+" vazia."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_precision_replaced"
+msgid ""
+"The chosen calculation precision, {chosen}, cannot be used here, so {used} "
+"is used instead."
+msgstr ""
+"A precisão de cálculo escolhida, {chosen}, não pode ser utilizada aqui; em "
+"vez dela é utilizada {used}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_note_precision_used"
+msgid "Calculation precision: {precision}."
+msgstr "Precisão de cálculo: {precision}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_note_vad_unavailable"
+msgid ""
+"The voice filter could not be used for this transcription, so it may not be "
+"reliable."
+msgstr ""
+"O filtro de voz não pôde ser usado nesta transcrição, por isso ela pode não "
+"ser fiável."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_notice_language_forced"
+msgid ""
+"The selected model only understands one language, the one named in its line "
+"in the list. Transcriptions with it use that language instead of detecting "
+"it."
+msgstr ""
+"O modelo selecionado só entende um idioma, o que aparece na linha dele na "
+"lista. As transcrições com ele utilizam esse idioma em vez de o detetar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_notice_language_overridden"
+msgid ""
+"The selected model only understands one language, the one named in its line "
+"in the list, and it is not the transcription language chosen below. "
+"Transcriptions with it will use the model's language."
+msgstr ""
+"O modelo selecionado só entende um idioma, o que aparece na linha dele na "
+"lista, e esse não é o idioma da transcrição escolhido abaixo. As "
+"transcrições com ele vão utilizar o idioma do modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_notice_precision_replaced"
+msgid ""
+"The chosen calculation precision, {chosen}, cannot be used where the "
+"transcription will run, so {used} will be used instead."
+msgstr ""
+"A precisão de cálculo escolhida, {chosen}, não pode ser utilizada onde a "
+"transcrição vai ser executada; em vez dela será utilizada {used}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_open_settings_question"
+msgid "Do you want to open the Local Transcription tab in the settings now?"
+msgstr "Quer abrir o separador Transcrição local das definições agora?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_option_auto"
+msgid "Automatic"
+msgstr "Automático"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_downloading_audio"
+msgid "Downloading the message audio..."
+msgstr "A transferir o áudio da mensagem..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_loading_model"
+msgid "Loading the transcription model..."
+msgstr "A carregar o modelo de transcrição..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_preparing_audio"
+msgid "Preparing the audio..."
+msgstr "A preparar o áudio..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_phase_transcribing"
+msgid "Transcribing the message..."
+msgstr "A transcrever a mensagem..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_bfloat16"
+msgid "16 bits, bfloat16 format (bfloat16)"
+msgstr "16 bits, formato bfloat16 (bfloat16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_float16"
+msgid "16 bits (float16)"
+msgstr "16 bits (float16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_float32"
+msgid "32 bits (float32), full precision, larger and slower"
+msgstr "32 bits (float32), precisão total, maior e mais lento"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int16"
+msgid "16-bit integers (int16)"
+msgstr "inteiros de 16 bits (int16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8"
+msgid "8 bits (int8), smaller and faster"
+msgstr "8 bits (int8), mais pequeno e mais rápido"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_bfloat16"
+msgid "8 bits, calculations in bfloat16 (int8_bfloat16)"
+msgstr "8 bits, cálculos em bfloat16 (int8_bfloat16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_float16"
+msgid "8 bits, calculations in 16 bits (int8_float16)"
+msgstr "8 bits, cálculos em 16 bits (int8_float16)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_precision_int8_float32"
+msgid "8 bits, calculations in 32 bits (int8_float32)"
+msgstr "8 bits, cálculos em 32 bits (int8_float32)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_precision.py
+msgctxt "transcription_precision_label"
+msgid "Calcula&tion precision (faster-whisper only)"
+msgstr "Precisão de cálculo (e&xclusiva do faster-whisper)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_cancelling"
+msgid "Cancelling..."
+msgstr "A cancelar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_download_model"
+msgid "Downloading the {model} model..."
+msgstr "A transferir o modelo {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_install_cuda"
+msgid "Installing the CUDA libraries..."
+msgstr "A instalar as bibliotecas CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_install_whisper_cpp"
+msgid "Installing the whisper.cpp program ({build})..."
+msgstr "A instalar o programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_move_models"
+msgid "Moving the models to the new folder..."
+msgstr "A mover os modelos para a nova pasta..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_percent"
+msgid "{percent}%"
+msgstr "{percent}%"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_remove_cuda"
+msgid "Removing the CUDA libraries..."
+msgstr "A remover as bibliotecas CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_remove_model"
+msgid "Removing the {model} model..."
+msgstr "A remover o modelo {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_remove_whisper_cpp"
+msgid "Removing the whisper.cpp program ({build})..."
+msgstr "A remover o programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_repair_cuda"
+msgid "Installing the CUDA libraries again..."
+msgstr "A instalar novamente as bibliotecas CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_repair_model"
+msgid "Downloading the {model} model again..."
+msgstr "A transferir novamente o modelo {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_repair_whisper_cpp"
+msgid "Installing the whisper.cpp program ({build}) again..."
+msgstr "A instalar novamente o programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_progress.py
+#: client/ui/dialogs/transcription_result.py client/ui/transcription_flow.py
+msgctxt "transcription_progress_title"
+msgid "Transcription"
+msgstr "Transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_progress_verify_cuda"
+msgid "Verifying the CUDA libraries..."
+msgstr "A verificar as bibliotecas CUDA..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_verify_model"
+msgid "Verifying the {model} model..."
+msgstr "A verificar o modelo {model}..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_progress_verify_whisper_cpp"
+msgid "Verifying the whisper.cpp program ({build})..."
+msgstr "A verificar o programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_external.py
+#: client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_remove_confirm_title"
+msgid "Confirm removal"
+msgstr "Confirmar remoção"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_copied"
+msgid "Transcription copied."
+msgstr "Transcrição copiada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_copy"
+msgid "C&opy"
+msgstr "&Copiar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_copy_failed"
+msgid "Could not copy the transcription."
+msgstr "Não foi possível copiar a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_result_has_notes"
+msgid "There are warnings above the text."
+msgstr "Há avisos acima do texto."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_insert"
+msgid "&Insert into message"
+msgstr "&Inserir na mensagem"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_notes_label"
+msgid "&Warnings"
+msgstr "A&visos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_save"
+msgid "&Save..."
+msgstr "&Guardar..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_saved"
+msgid "Transcription saved."
+msgstr "Transcrição guardada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_result_text_label"
+msgid "&Transcribed text"
+msgstr "&Texto transcrito"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+#, python-brace-format
+msgctxt "transcription_result_title"
+msgid "Transcription — {name}"
+msgstr "Transcrição — {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_cuda"
+msgid ""
+"The graphics card could not be used. Do you want to transcribe again using "
+"the processor?"
+msgstr ""
+"Não foi possível utilizar a placa gráfica. Quer refazer a transcrição "
+"utilizando o processador?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_precision"
+msgid ""
+"The graphics card could not use the chosen calculation precision. Do you "
+"want to transcribe again using the processor?"
+msgstr ""
+"A placa gráfica não conseguiu utilizar a precisão de cálculo escolhida. Quer"
+" refazer a transcrição utilizando o processador?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_retry_on_cpu_vram"
+msgid ""
+"The graphics card did not have enough memory. Do you want to transcribe "
+"again using the processor?"
+msgstr ""
+"A memória da placa gráfica não foi suficiente. Quer refazer a transcrição "
+"utilizando o processador?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_on_cpu"
+msgid "The transcription will use the {model} model and the processor."
+msgstr "A transcrição vai usar o modelo {model} e o processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_on_cuda"
+msgid "The transcription will use the {model} model and the graphics card."
+msgstr "A transcrição vai usar o modelo {model} e a placa gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_with_backend_on_cpu"
+msgid ""
+"The transcription will use {backend} with the {model} model and the "
+"processor."
+msgstr ""
+"A transcrição vai usar o {backend} com o modelo {model} e o processador."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_running_with_backend_on_cuda"
+msgid ""
+"The transcription will use {backend} with the {model} model and the graphics"
+" card."
+msgstr ""
+"A transcrição vai usar o {backend} com o modelo {model} e a placa gráfica."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+#, python-brace-format
+msgctxt "transcription_save_default_name"
+msgid "Transcription - {name}"
+msgstr "Transcrição - {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_save_title"
+msgid "Save transcription"
+msgstr "Guardar transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_result.py
+msgctxt "transcription_save_wildcard"
+msgid "Text files (*.txt)|*.txt"
+msgstr "Ficheiros de texto (*.txt)|*.txt"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened"
+msgid "Saved transcription, made on {when} with the {model} model."
+msgstr "Transcrição guardada, feita em {when} com o modelo {model}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_backend"
+msgid ""
+"Saved transcription, made on {when} with {backend} and the {model} model."
+msgstr ""
+"Transcrição guardada, feita em {when} com o {backend} e o modelo {model}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_no_model"
+msgid "Saved transcription, made on {when}."
+msgstr "Transcrição guardada, feita em {when}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_saved_opened_no_model_backend"
+msgid "Saved transcription, made on {when} with {backend}."
+msgstr "Transcrição guardada, feita em {when} com o {backend}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_accurate"
+msgid "accurate"
+msgstr "preciso"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_balanced"
+msgid "balanced"
+msgstr "equilibrado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_size_fast"
+msgid "fast"
+msgstr "rápido"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_starting"
+msgid "Starting the transcription..."
+msgstr "A iniciar a transcrição..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_store.py
+msgctxt "transcription_store_failed"
+msgid "The transcription could not be saved."
+msgstr "Não foi possível guardar a transcrição."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_backend"
+msgid ""
+"The selected transcription component is not available on this computer. "
+"WinZapp will use another one automatically."
+msgstr ""
+"O componente de transcrição escolhido não está disponível neste computador. "
+"O WinZapp irá utilizar outro automaticamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_compute_type"
+msgid ""
+"The selected calculation precision is no longer recognized. WinZapp will "
+"choose one automatically."
+msgstr ""
+"A precisão de cálculo escolhida já não é reconhecida. O WinZapp irá escolher"
+" uma automaticamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_device"
+msgid ""
+"The selected transcription device is no longer recognized. WinZapp will "
+"choose one automatically."
+msgstr ""
+"O dispositivo de transcrição escolhido já não é reconhecido. O WinZapp irá "
+"escolher um automaticamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_substituted_label"
+msgid "&Warning"
+msgstr "A&viso"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_language"
+msgid ""
+"The selected transcription language is not available. The language of each "
+"message will be detected automatically."
+msgstr ""
+"O idioma de transcrição escolhido não está disponível. O idioma de cada "
+"mensagem será detetado automaticamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_substituted_model"
+msgid ""
+"The selected transcription model no longer exists. WinZapp will choose one "
+"automatically."
+msgstr ""
+"O modelo de transcrição escolhido já não existe. O WinZapp irá escolher um "
+"automaticamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_transcribe_again"
+msgid "Transcribe again"
+msgstr "Transcrever novamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#, python-brace-format
+msgctxt "transcription_unknown_dirs"
+msgid ""
+"This folder holds folders WinZapp does not know about and cannot remove: "
+"{folders}. Delete them in File Explorer if you no longer need them."
+msgstr ""
+"Há pastas aqui que o WinZapp não conhece e não consegue remover: {folders}. "
+"Se já não precisar delas, apague-as no Explorador de Ficheiros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcription_view"
+msgid "View transcription"
+msgstr "Ver transcrição"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_actions_group"
+msgid "whisper.cpp program"
+msgstr "Programa whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_build_cpu"
+msgid "Processor version"
+msgstr "Versão para o processador"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_build_cuda"
+msgid "NVIDIA graphics card version (CUDA)"
+msgstr "Versão para placas gráficas NVIDIA (CUDA)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_absent"
+msgid "{build}, {size} download, not installed"
+msgstr "{build}, transferência de {size}, não instalada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_incomplete"
+msgid "{build}, {size} download, incomplete or from an earlier version"
+msgstr ""
+"{build}, transferência de {size}, incompleta ou de uma versão anterior"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_whisper_cpp_choice_installed"
+msgid "{build}, installed"
+msgstr "{build}, instalada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_install_btn"
+msgid "Install"
+msgstr "Instalar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_whisper_cpp_label"
+msgid "whisper.cpp pro&gram"
+msgstr "Pro&grama whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_remove_btn"
+msgid "Remove"
+msgstr "Remover"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_repair_btn"
+msgid "Repair"
+msgstr "Reparar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_whisper_cpp_verify_btn"
+msgid "Verify"
+msgstr "Verificar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/main_window/connection.py

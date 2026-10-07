@@ -15,6 +15,7 @@ from core.utils import (
     effective_unread_count,
     is_phone_like,
 )
+from core.transcription import stored as stored_transcription
 
 
 class ConversationNavigationMixin:
@@ -179,6 +180,39 @@ class ConversationNavigationMixin:
         )
         self.conversation_panel.Layout()
 
+    def _load_conversation_page_from_db(self, conversation):
+        """Replace *conversation*'s records with its newest page from the database.
+
+        A method of its own, and not lines inside navigate_to_conversation(),
+        only so the carry-over below can be tested: navigate_to_conversation()
+        cannot run against a stub, and a call with its two arguments swapped
+        reads exactly like the right one.
+        """
+        _conv_jid = conversation.get("remoteJid", "")
+        if not _conv_jid:
+            return
+        configured_limit = int(self.main_window.settings.get("user_interface", {}).get("messages_page_size", 200))
+        unread_count = int(conversation.get("unreadCount") or 0)
+        limit = db_fetch_limit(configured_limit, unread_count)
+        db_msgs = self.main_window.db.get_messages(_conv_jid, limit=limit)
+        db_msgs.reverse()
+        # The stored copy can be a moment behind a transcription just
+        # saved or deleted — MainWindow.store_message_transcription()
+        # writes it on a background executor — and these records are
+        # about to replace the ones that already have it.
+        stored_transcription.carry_over_transcriptions(
+            db_msgs,
+            ((conversation.get("messages") or {}).get("messages") or {}).get("records") or [],
+        )
+        if "messages" not in conversation:
+            conversation["messages"] = {}
+        conversation["messages"]["messages"] = {
+            "total": self.main_window.db.get_message_count(_conv_jid),
+            "pages": 1,
+            "currentPage": 1,
+            "records": db_msgs
+        }
+
     def _open_focus_target(self) -> str:
         """Where opening a conversation puts keyboard focus: "messages_list" or
         "message_field". Settings > User Interface > "focus_on_open" — the
@@ -301,21 +335,7 @@ class ConversationNavigationMixin:
         
         # Load up to 200 messages from local DB when opening conversation to support fast startup
         try:
-            _conv_jid = conversation.get("remoteJid", "")
-            if _conv_jid:
-                configured_limit = int(self.main_window.settings.get("user_interface", {}).get("messages_page_size", 200))
-                unread_count = int(conversation.get("unreadCount") or 0)
-                limit = db_fetch_limit(configured_limit, unread_count)
-                db_msgs = self.main_window.db.get_messages(_conv_jid, limit=limit)
-                db_msgs.reverse()
-                if "messages" not in conversation:
-                    conversation["messages"] = {}
-                conversation["messages"]["messages"] = {
-                    "total": self.main_window.db.get_message_count(_conv_jid),
-                    "pages": 1,
-                    "currentPage": 1,
-                    "records": db_msgs
-                }
+            self._load_conversation_page_from_db(conversation)
         except Exception as e:
             logging.error(f"[navigate_to_conversation] Failed to load messages from DB: {e}")
 

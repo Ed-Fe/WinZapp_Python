@@ -103,6 +103,8 @@ uv run translations-check               # release-ready catalog validation
   `client/status_tab/`. Each package's `__init__.py` is the map — **grep
   those packages first**; the method you need very likely exists. A mixin
   never imports `main`.
+- **Local transcription** (Whisper: faster-whisper, optional whisper.cpp) —
+  `client/core/transcription/`; read `docs/traps/transcription.md` first.
 
 ### JID handling — the recurring source of bugs
 
