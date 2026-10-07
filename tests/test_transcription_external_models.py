@@ -239,7 +239,11 @@ class _Factory:
 
 
 def _backend(factory):
-    return faster_whisper_backend.FasterWhisperBackend(model_factory=factory)
+    backend = faster_whisper_backend.FasterWhisperBackend(model_factory=factory)
+    # is_available() looks for the faster_whisper package on this machine; these
+    # tests hand the backend their own model factory, so it is not needed.
+    backend.is_available = lambda: True
+    return backend
 
 
 # ── Tests ────────────────────────────────────────────────────────────────────

@@ -787,8 +787,11 @@ def pyinstaller_compile():
         # resolves cublas64_12.dll dynamically at run time — so a release built
         # from this list runs the transcription on the CPU anywhere, and on the
         # GPU only where a CUDA runtime is already present. Bundling it would
-        # be some 500 MB for every user; part 4 downloads it on demand, the way
-        # the models are downloaded, when the user turns NVIDIA acceleration on.
+        # be some 500 MB for every user; part 4 downloads it, the way the
+        # models are downloaded, when the user takes the explicit action to
+        # install the CUDA libraries in the transcription settings
+        # (`transcription_cuda_install_btn`); turning NVIDIA acceleration on
+        # downloads nothing by itself.
         "faster_whisper",
         "ctranslate2",
         "av",

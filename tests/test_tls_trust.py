@@ -46,6 +46,10 @@ _DOWNLOADERS = (
     os.path.join("client", "core", "transcription", "model_store.py"),
     os.path.join("client", "core", "transcription", "cuda_runtime.py"),
     os.path.join("client", "core", "transcription", "whisper_cpp_runtime.py"),
+    # The AI image/audio description providers: HTTPS to third-party APIs, with
+    # the session injectable (session_factory=tls_trust.create_session).
+    os.path.join("client", "core", "ai_media", "service.py"),
+    os.path.join("client", "core", "ai_media", "model_catalog.py"),
     # Not a download, but the same certificate: the reachability probe's HEAD
     # at web.whatsapp.com. On the bundled CA list an intercepted machine read
     # as offline (tests/test_offline_session_start_deferral.py::
@@ -75,6 +79,7 @@ def _no_truststore(monkeypatch):
 
 class TestSessionConstruction:
     def test_https_is_verified_through_the_system_store(self):
+        pytest.importorskip("truststore")
         session = tls_trust.create_session()
         adapter = session.get_adapter("https://example.invalid/")
         assert isinstance(adapter, tls_trust._SystemTrustAdapter)

@@ -248,9 +248,10 @@ class WhisperCppBackend(TranscriptionBackend):
                 handle.writeframes(b"\x00\x00" * _SAMPLE_RATE * _TRIAL_SECONDS)
             self._execute(executable, directory, silence, workdir, "en", device,
                           None, None, should_cancel)
+        model_name = os.path.basename(directory)
         logging.info(
             "[transcription] whisper.cpp trial load of %s on %s succeeded in %.1fs",
-            os.path.basename(directory), device, time.monotonic() - started,
+            model_name, device, time.monotonic() - started,
         )
 
     # ── Internals ────────────────────────────────────────────────────────────
