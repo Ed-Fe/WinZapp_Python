@@ -70,3 +70,22 @@ log `newer_than_cache` separately from new IDs: an older-history backfill can
 add hundreds of IDs without recovering any missing recent message. UTC ISO
 timestamps keep the latest returned/cached times readable through PII masking.
 A log truncated by relaunch cannot establish what happened at the prior wake.
+
+## A known LID is an update to the phone chat, not a duplicate to discard
+
+On 2026-10-07 a cached private conversation ended at 2026-10-06 21:26:33 UTC,
+while its linked-device chat held messages through 2026-10-07 23:00:48 UTC.
+The phone/LID mapping was correct. A read-only 200-message query returned
+200 IDs absent from the cache, all newer than its last message.
+
+`get_remote_chats()` saw the incoming `@lid` mapped to an existing phone chat,
+recorded only the server unread count, then continued. This dropped `t` and
+`lastReceivedKey` before the delta planner could see them, so normal startup
+and periodic rounds classified the stale conversation as unchanged. More wake
+rechecks did not repair that merge bug.
+
+Resolve that snapshot to the existing phone key after checking deletion under
+both aliases, then run the ordinary merge. Preserve cached records and the
+activity floor; keep the clear/read guards and the group-participant filter.
+Leave the raw snapshot's `remoteJid` intact for the later metadata passes.
+The same measured snapshot now selects an incremental activity refresh.

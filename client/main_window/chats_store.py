@@ -821,13 +821,6 @@ class ChatsStoreMixin:
                             if pushName:
                                 self.contacts[lid_jid]["pushName"] = pushName
 
-                    if jid.endswith("@lid"):
-                        phone_jid = getattr(self, "_lid_to_phone", {}).get(jid)
-                        if phone_jid and phone_jid in chats:
-                            # The chat lives under its phone JID, but this is
-                            # still WhatsApp's count for it (see below).
-                            self._note_server_unread(phone_jid, chat.get("unreadCount"))
-                            continue
                     if jid in deleted:
                         continue
                     if jid.endswith("@lid"):
@@ -838,6 +831,15 @@ class ChatsStoreMixin:
                         lid_jid = getattr(self, "_phone_to_lid", {}).get(jid)
                         if lid_jid and lid_jid in deleted:
                             continue
+                    if jid.endswith("@lid"):
+                        phone_jid = getattr(self, "_lid_to_phone", {}).get(jid)
+                        if phone_jid and phone_jid in chats:
+                            # This snapshot belongs to the existing phone chat.
+                            # Skipping it as a duplicate discards t/lastReceivedKey
+                            # and makes the delta planner miss newer messages.
+                            # Use the ordinary merge, including unread and clear
+                            # guards, while retaining the cached message records.
+                            jid = phone_jid
                     # What WhatsApp itself says, before anything below discounts
                     # or zeroes it: opening the chat must reach the server
                     # whenever the server still counts it unread.
