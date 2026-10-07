@@ -155,6 +155,7 @@ from core.transcription import (
     preferences,
     whisper_cpp_catalog,
 )
+from core.transcription._fileops import check_cancel as _check_cancel
 
 #: The install-wide key holding the references, in app_settings.py's own
 #: `_DEFAULTS`. Spelled out rather than imported, for the reason
@@ -1324,11 +1325,6 @@ def _hash_file(path, total_bytes, progress, should_cancel, folder) -> str:
             ) from exc
         raise errors.TranscriptionError(errors.MODEL_CORRUPTED, f"{path}: {exc}") from exc
     return digest.hexdigest()
-
-
-def _check_cancel(should_cancel) -> None:
-    if should_cancel is not None and should_cancel():
-        raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")
 
 
 def _report(progress, done, total) -> None:

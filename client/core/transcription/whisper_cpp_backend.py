@@ -54,11 +54,11 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import time
 import wave
 
 from core.transcription import (
+    _fileops,
     device as device_module,
     errors,
     external_ggml,
@@ -74,7 +74,11 @@ from core.transcription.backend import (
     TranscriptionBackend,
     TranscriptionResult,
 )
-from core.transcription._fileops import check_cancel as _check_cancel
+from core.transcription._fileops import (
+    check_cancel as _check_cancel,
+    private_temp_dir,
+    unlink as _unlink,
+)
 from core.transcription.device import DEVICE_CUDA
 
 # How often the running program is checked on: what a cancellation waits, at
@@ -235,9 +239,7 @@ class WhisperCppBackend(TranscriptionBackend):
         device = "cpu"
         executable = self._executable_for(device, None)
         started = time.monotonic()
-        with tempfile.TemporaryDirectory(
-            prefix="winzapp-whisper-", ignore_cleanup_errors=True
-        ) as workdir:
+        with private_temp_dir("winzapp-whisper-") as workdir:
             silence = os.path.join(workdir, "trial.wav")
             with wave.open(silence, "wb") as handle:
                 handle.setnchannels(1)
@@ -292,9 +294,7 @@ class WhisperCppBackend(TranscriptionBackend):
 
     def _run(self, executable, model_file, request, vad_model, progress, should_cancel):
         """(segments, language, probability) for one run of the program."""
-        with tempfile.TemporaryDirectory(
-            prefix="winzapp-whisper-", ignore_cleanup_errors=True
-        ) as workdir:
+        with private_temp_dir("winzapp-whisper-") as workdir:
             stderr_text = self._execute(
                 executable, model_file, request.audio_path, workdir, request.language,
                 request.device, vad_model, progress, should_cancel,
@@ -302,6 +302,9 @@ class WhisperCppBackend(TranscriptionBackend):
             try:
                 with open(os.path.join(workdir, "out.json"), "rb") as handle:
                     raw = handle.read()
+                # The transcript, in the clear: gone the moment it is read
+                # rather than whenever the folder is.
+                _unlink(os.path.join(workdir, "out.json"))
                 segments, language = whisper_cpp_cli.parse_output_json(raw)
             except (OSError, ValueError) as exc:
                 raise errors.TranscriptionError(
@@ -406,17 +409,6 @@ def _run_process(command, cwd, stderr_path, progress, should_cancel):
             # Killed, not abandoned: an orphaned whisper-cli keeps every core
             # busy, and keeps the temporary folder's files open so they cannot
             # be deleted.
-            _kill(process)
+            _fileops.kill_process(process, "whisper.cpp")
             raise
     return returncode, b"".join(received).decode("utf-8", errors="replace")
-
-
-def _kill(process) -> None:
-    try:
-        process.kill()
-        process.wait(timeout=5)
-    except Exception as exc:
-        # Gone already, or refusing to die; nothing more can be done from
-        # inside an `except` that has its own error to re-raise.
-        logging.warning("[transcription] could not stop whisper.cpp: %s",
-                        errors.exception_report(exc))

@@ -494,8 +494,9 @@ def _out_of_memory():
 def discard_temp(path) -> None:
     """Delete a temporary written by `decrypt_to_temp()`. Never raises.
 
-    Silent on failure, and silent in the log either way: the only thing worth
-    saying here would be the path, which is the one thing that may not be said.
+    Silent on failure, and silent in the log either way: this module logs
+    nothing (a test pins it), so a leftover is for temp_sweep to remove at the
+    next start.
     """
     if not path:
         return
@@ -509,9 +510,8 @@ def discard_temp(path) -> None:
 def decrypted_audio(media_path, key, decrypt=None):
     """`decrypt_to_temp()` with the file removed however the block ends.
 
-    For callers that will never pass the file on — the mirror of
-    `audio_prep.prepared_audio()`, and with the same exception: a run that may
-    be redone on the processor keeps the file past its own end, so it calls
+    For callers that will never pass the file on. A run that may be redone on
+    the processor keeps the file past its own end, so it calls
     `decrypt_to_temp()` and `discard_temp()` itself.
     """
     temp_path = decrypt_to_temp(media_path, key, decrypt=decrypt)

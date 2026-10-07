@@ -55,6 +55,7 @@ import time
 import pytest
 
 from core.transcription import (
+    _fileops,
     audio_prep,
     backend as backend_module,
     cuda_runtime,
@@ -872,9 +873,12 @@ class TestAudioPreparation:
         source = _voice_note(tmp_path)
         ffmpeg = _fake_ffmpeg(tmp_path, seconds=2.0)
 
-        with audio_prep.prepared_audio(ffmpeg, source) as prepared:
+        prepared = audio_prep.prepare_audio(ffmpeg, source)
+        try:
             assert os.path.isfile(prepared.path)
             assert prepared.duration_seconds == pytest.approx(2.0, abs=0.01)
+        finally:
+            audio_prep.discard(prepared)
         assert _leftovers(own_temp_dir) == []
 
     def test_the_command_carries_the_target_format(self):
@@ -1001,13 +1005,13 @@ class TestAudioPreparation:
         """
         ffmpeg = _fake_ffmpeg(tmp_path, sleep=1.5, marker=str(tmp_path / "finished"))
         killed = []
-        real_kill = audio_prep._kill
+        real_kill = _fileops.kill_process
 
-        def _spy(process):
+        def _spy(process, program):
             killed.append(process)
-            real_kill(process)
+            real_kill(process, program)
 
-        monkeypatch.setattr(audio_prep, "_kill", _spy)
+        monkeypatch.setattr(_fileops, "kill_process", _spy)
 
         # False the first time, so the run gets as far as spawning ffmpeg: the
         # check before that one is the cheap "already cancelled?" guard, and it
@@ -1030,14 +1034,18 @@ class TestAudioPreparation:
     def test_the_temporary_is_not_named_after_the_message(self, tmp_path, own_temp_dir):
         ffmpeg = _fake_ffmpeg(tmp_path, seconds=1.0)
         source = _voice_note(tmp_path)
-        with audio_prep.prepared_audio(ffmpeg, source) as prepared:
+        prepared = audio_prep.prepare_audio(ffmpeg, source)
+        try:
             assert os.path.basename(source) not in prepared.path
             assert os.path.splitext(os.path.basename(source))[0] not in prepared.path
+        finally:
+            audio_prep.discard(prepared)
 
-    def test_the_temporary_is_gone_once_the_block_ends(self, tmp_path, own_temp_dir):
+    def test_the_temporary_is_gone_once_discarded(self, tmp_path, own_temp_dir):
         ffmpeg = _fake_ffmpeg(tmp_path, seconds=1.0)
-        with audio_prep.prepared_audio(ffmpeg, _voice_note(tmp_path)) as prepared:
-            path = prepared.path
+        prepared = audio_prep.prepare_audio(ffmpeg, _voice_note(tmp_path))
+        path = prepared.path
+        audio_prep.discard(prepared)
         assert not os.path.exists(path)
         assert _leftovers(own_temp_dir) == []
 
@@ -1760,7 +1768,7 @@ class TestLogPrivacy:
                 raise subprocess.TimeoutExpired(["ffmpeg.exe", "-i", path], timeout)
 
         caplog.set_level(logging.DEBUG)
-        audio_prep._kill(_Stuck())
+        _fileops.kill_process(_Stuck(), "ffmpeg")
         assert "could not stop ffmpeg: TimeoutExpired" in caplog.text
         assert self._LEAKY_ID not in caplog.text
 

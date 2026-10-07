@@ -38,6 +38,7 @@ import time
 import pytest
 
 from core.transcription import (
+    _fileops,
     backend as backend_module,
     errors,
     whisper_cpp_backend,
@@ -306,8 +307,13 @@ def _fake_cli(tmp_path, record, payload=_PAYLOAD, lines=_PROGRESS_LINES, returnc
     )
     if sys.platform == "win32":
         launcher = folder / f"{name}.bat"
+        # The base interpreter, not a venv's: a venv's python.exe is itself a
+        # launcher that starts the real one, which leaves a third process
+        # holding the stderr file the kill was meant to free. The script uses
+        # the standard library only.
+        interpreter = getattr(sys, "_base_executable", sys.executable)
         launcher.write_text(
-            f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n', encoding="utf-8"
+            f'@echo off\r\n"{interpreter}" "{script}" %*\r\n', encoding="utf-8"
         )
     else:
         launcher = folder / f"{name}.sh"
@@ -487,6 +493,33 @@ class TestTranscribing:
         _backend().transcribe(request())
         assert os.listdir(own_temp_dir) == []
 
+    def test_the_transcript_file_is_deleted_as_soon_as_it_is_read(
+        self, tmp_path, setup, monkeypatch
+    ):
+        state, record, request, _model = setup
+        state["cpu"] = _fake_cli(tmp_path, record)
+        real_parse = cli.parse_output_json
+        still_there = []
+
+        def _spy(raw):
+            result = real_parse(raw)
+            still_there.extend(
+                name for name in os.listdir(os.path.dirname(seen[0])) if name == "out.json"
+            )
+            return result
+
+        seen = []
+        real_unlink = _fileops.unlink
+
+        def _note(path):
+            seen.append(path)
+            return real_unlink(path)
+
+        monkeypatch.setattr(whisper_cpp_backend, "_unlink", _note)
+        monkeypatch.setattr(cli, "parse_output_json", _spy)
+        _backend().transcribe(request())
+        assert seen and not still_there
+
     def test_cancelling_kills_the_program_and_leaves_nothing(
         self, tmp_path, setup, own_temp_dir, monkeypatch
     ):
@@ -505,13 +538,13 @@ class TestTranscribing:
         state["cpu"] = _fake_cli(tmp_path, record, sleep=10.0,
                                  started=started_marker, stop=stop_marker)
         killed = []
-        real_kill = whisper_cpp_backend._kill
+        real_kill = _fileops.kill_process
 
-        def _spy(process):
+        def _spy(process, program):
             killed.append(process)
-            real_kill(process)
+            real_kill(process, program)
 
-        monkeypatch.setattr(whisper_cpp_backend, "_kill", _spy)
+        monkeypatch.setattr(_fileops, "kill_process", _spy)
 
         began = time.monotonic()
         try:

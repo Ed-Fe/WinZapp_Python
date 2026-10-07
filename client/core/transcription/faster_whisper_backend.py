@@ -50,6 +50,7 @@ import threading
 import time
 
 from core.transcription import errors, external_models
+from core.transcription._fileops import check_cancel as _check_cancel
 from core.transcription.backend import (
     BACKEND_FASTER_WHISPER,
     TranscriptionBackend,
@@ -507,8 +508,3 @@ def _whisper_model_class():
             errors.BACKEND_MISSING, f"{type(exc).__name__}: {exc}"
         ) from exc
     return WhisperModel
-
-
-def _check_cancel(should_cancel) -> None:
-    if should_cancel is not None and should_cancel():
-        raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")

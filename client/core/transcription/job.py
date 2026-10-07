@@ -235,10 +235,9 @@ class TranscriptionJob:
         prepared = audio_prep.prepare_audio(
             self._ffmpeg, self._audio_path, should_cancel=self._should_cancel
         )
-        # Written out rather than run under audio_prep.prepared_audio(), which
-        # always deletes: whether this file may outlive the run depends on the
-        # error and on the device it happened on, and neither is anything that
-        # context manager can see.
+        # Not a context manager that always deletes: whether this file may
+        # outlive the run depends on the error and on the device it happened
+        # on, and neither is anything such a wrapper can see.
         try:
             return self._decode(backend, prepared)
         except errors.TranscriptionError as exc:
@@ -346,7 +345,12 @@ class TranscriptionJob:
         )
 
         self._enter(phase)
-        self._call(self._on_finished, result, error)
+        if not self._call(self._on_finished, result, error):
+            # The handover is the caller's to discard, and a caller whose
+            # finished-callback raised never took it: the WAV of the whole
+            # recording would stay in %TEMP% for good.
+            audio_prep.discard(self.prepared_handover)
+            self.prepared_handover = None
 
     # ── Plumbing ─────────────────────────────────────────────────────────────
 
@@ -358,16 +362,19 @@ class TranscriptionJob:
         self._call(self._on_progress, fraction)
 
     def _call(self, callback, *args):
+        """Run a callback; False if it raised."""
         if callback is None:
-            return
+            return True
         try:
             callback(*args)
+            return True
         except Exception as exc:
             # A callback that raises must not cost the run its remaining
             # phases, and above all must not cost it the finished report the
             # UI is waiting on.
             logging.error("[transcription] a job callback raised: %s",
                           errors.exception_report(exc))
+            return False
 
     def _should_cancel(self) -> bool:
         return self._cancelled.is_set()

@@ -27,14 +27,12 @@ Two decisions carry most of the weight:
   keeping; the name identifies the message and, through it, the conversation.
 
 The converted file is a temporary that is always removed — on success by the
-caller (`prepared_audio()` is the context manager that does it), and on every
-failure and cancellation by this module itself. The single exception is a run
-that hands the file on instead of finishing with it, so that a transcription
-which failed on the GPU can be redone on the CPU without converting the audio
-again: there the receiver becomes the one who calls `discard()`, and
-`prepared_audio()`'s own docstring says which callers may not use it. It is
-written under a random name rather than the message's, for the same privacy
-reason.
+caller (`discard()`), and on every failure and cancellation by this module
+itself. A run that hands the file on instead of finishing with it, so that a
+transcription which failed on the GPU can be redone on the CPU without
+converting the audio again, makes the receiver the one who calls `discard()`.
+It is written under a random name rather than the message's, for the same
+privacy reason.
 """
 
 from __future__ import annotations
@@ -49,7 +47,8 @@ import time
 import wave
 from dataclasses import dataclass
 
-from core.transcription import errors
+from core.transcription import _fileops, errors
+from core.transcription._fileops import check_cancel, unlink
 
 TARGET_SAMPLE_RATE = 16000
 TARGET_CHANNELS = 1
@@ -112,26 +111,9 @@ class PreparedAudio:
     duration_seconds: float
 
 
-@contextlib.contextmanager
-def prepared_audio(ffmpeg, source_path, should_cancel=None):
-    """`prepare_audio()` with the temporary file removed however it ends.
-
-    For callers that will never pass the file on. One that might — a run that
-    fails on the GPU and may be redone on the CPU with the same audio — calls
-    `prepare_audio()` and `discard()` itself instead, because only it can see
-    whether the file was handed to somebody else, and that decision must not be
-    pushed into a context manager that cannot.
-    """
-    prepared = prepare_audio(ffmpeg, source_path, should_cancel=should_cancel)
-    try:
-        yield prepared
-    finally:
-        discard(prepared)
-
-
 def prepare_audio(ffmpeg, source_path, should_cancel=None) -> PreparedAudio:
     """Convert `source_path` to PCM 16 kHz mono, or raise the right code."""
-    _check_cancel(should_cancel)
+    check_cancel(should_cancel)
 
     try:
         source_bytes = os.path.getsize(source_path)
@@ -174,7 +156,7 @@ def prepare_audio(ffmpeg, source_path, should_cancel=None) -> PreparedAudio:
         # included: a run abandoned half way must not leave a WAV of an hour of
         # audio behind in %TEMP%. BaseException rather than Exception because a
         # KeyboardInterrupt on a developer's machine leaves the same file.
-        _unlink(output_path)
+        unlink(output_path)
         raise
 
     logging.info(
@@ -187,7 +169,12 @@ def discard(prepared) -> None:
     """Remove a prepared file. Safe to call twice, and on None."""
     if prepared is None:
         return
-    _unlink(getattr(prepared, "path", None))
+    path = getattr(prepared, "path", None)
+    if path and not unlink(path) and os.path.exists(path):
+        # Basename only: the full path has the user's name in it.
+        leftover = os.path.basename(path)
+        logging.warning("[transcription] could not remove the converted audio %s",
+                        leftover)
 
 
 def _run_ffmpeg(ffmpeg, source_path, output_path, source_bytes, should_cancel):
@@ -244,7 +231,7 @@ def _run_ffmpeg(ffmpeg, source_path, output_path, source_bytes, should_cancel):
             # Killed, not merely abandoned: an orphaned ffmpeg keeps the media
             # file open (so nothing can clean it up) and keeps burning a core
             # for as long as the app runs.
-            _kill(process)
+            _fileops.kill_process(process, "ffmpeg")
             raise
 
         stderr_file.seek(0)
@@ -309,32 +296,3 @@ def _timeout_for(source_bytes) -> float:
             min(_MAX_TIMEOUT_SECONDS, source_bytes // _TIMEOUT_BYTES_PER_SECOND),
         )
     )
-
-
-def _kill(process) -> None:
-    try:
-        process.kill()
-        process.wait(timeout=5)
-    except Exception as exc:
-        # The process is already gone, or refuses to die; either way there is
-        # nothing further this path can do about it, and it is running inside
-        # an `except` that has an error of its own to re-raise. Not
-        # exc_info=True: a TimeoutExpired prints the whole command line, and
-        # the command line holds the media file's path, named after the
-        # message id.
-        logging.warning("[transcription] could not stop ffmpeg: %s",
-                        errors.exception_report(exc))
-
-
-def _unlink(path) -> None:
-    if not path:
-        return
-    try:
-        os.unlink(path)
-    except OSError:
-        pass
-
-
-def _check_cancel(should_cancel) -> None:
-    if should_cancel is not None and should_cancel():
-        raise errors.TranscriptionError(errors.CANCELLED, "cancelled by the user")
