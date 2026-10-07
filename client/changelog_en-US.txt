@@ -4,6 +4,8 @@ This release brings AI transcription and description of voice messages, images, 
 
 WHAT'S NEW
 
+- Pinned messages: a button in each chat lists the messages pinned on WhatsApp, including older messages. Press Enter to go to one in the history. Opening a chat announces the number of pinned messages without moving focus; each pinned message also has a readable marker.
+
 - The message field's "Spelling" context submenu offers Windows dictionary suggestions. The editor keeps its standard screen-reader navigation and WinZapp's spelling-error sound.
 
 - "Keep pinned chats in a fixed order" in the User Interface tab of Settings. When enabled, new messages do not move pinned chats, and their order is kept after restarting. It starts off; unpinned chats still rise when new messages arrive.

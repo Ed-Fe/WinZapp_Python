@@ -4838,6 +4838,12 @@ msgid "Status"
 msgstr "Status"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "message_pinned"
+msgid "Pinned"
+msgstr "Przypięta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "message_recovered_from_quote_label"
@@ -5784,6 +5790,47 @@ msgstr "Nie udało się przypiąć tej wiadomości. Spróbuj ponownie za chwilę
 msgctxt "pin_selected"
 msgid "Pin selected"
 msgstr "Przypnij zaznaczone"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_choose"
+msgid "Select a pinned message and press Enter to go to it in the history."
+msgstr ""
+"Wybierz przypiętą wiadomość i naciśnij Enter, aby przejść do niej w "
+"historii."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_count"
+msgid "Pinned messages ({count})"
+msgstr "Przypięte wiadomości ({count})"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_empty"
+msgid "This chat has no pinned messages."
+msgstr "Ten czat nie ma przypiętych wiadomości."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_failed"
+msgid "Pinned messages could not be loaded. Please try again in a moment."
+msgstr ""
+"Nie udało się wczytać przypiętych wiadomości. Spróbuj ponownie za chwilę."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_notice"
+msgid "Pinned messages in this chat: {count}."
+msgstr "Przypięte wiadomości w tym czacie: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_title"
+msgid "Pinned messages"
+msgstr "Przypięte wiadomości"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 #: client/main_window/chat_list.py

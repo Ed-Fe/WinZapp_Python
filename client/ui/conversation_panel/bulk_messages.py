@@ -137,6 +137,7 @@ class BulkMessagesMixin:
 
         for m in to_pin:
             m["pinInChat"] = True
+        self._pinned_messages_state_changed(to_pin, jid)
         self._persist_message_local_flags(jid, to_pin)
         self.main_window._schedule_save()
         self._repaint_or_repopulate(ids)   # see _on_mass_star_messages on `ids`
@@ -146,6 +147,7 @@ class BulkMessagesMixin:
         # by a resync while the requests are still in flight.
         pending = [(m, dict(m.get("key", {}))) for m in to_pin]
         total   = len(pending)
+        job = self._begin_pinned_message_write(jid)
 
         def _do(j=jid, items=pending, n=total):
             failed = []
@@ -160,6 +162,7 @@ class BulkMessagesMixin:
                     failed.append(m)
             if failed:
                 wx.CallAfter(self._on_mass_pin_failed, failed, j, n)
+            wx.CallAfter(self._finish_pinned_message_write, job)
 
         threading.Thread(target=_do, daemon=True).start()
 
@@ -169,9 +172,11 @@ class BulkMessagesMixin:
         than _on_pin_message_failed()'s per-message repaint + modal."""
         for m in failed:
             m["pinInChat"] = False
+        self._pinned_messages_state_changed(failed, jid)
         self._persist_message_local_flags(jid, failed)
         self.main_window._schedule_save()
-        self._repaint_or_repopulate([m.get("key", {}).get("id", "") for m in failed])
+        if (self.conversation or {}).get("remoteJid") == jid:
+            self._repaint_or_repopulate([m.get("key", {}).get("id", "") for m in failed])
         i18n = self.main_window.i18n
         wx.MessageBox(
             f"{i18n.t('pin_message_failed')} ({len(failed)}/{total})",

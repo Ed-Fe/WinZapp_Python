@@ -158,6 +158,7 @@ from ui.conversation_panel.message_stars import StarActionsMixin
 from ui.conversation_panel.message_accels import MessageAccelsMixin
 from ui.conversation_panel.bookmarks import BookmarksMixin
 from ui.conversation_panel.message_search import MessageSearchMixin
+from ui.conversation_panel.pinned_messages import PinnedMessagesMixin
 from ui.conversation_panel.reactions import ReactionsMixin
 from ui.conversation_panel.attachments import AttachmentsMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
@@ -198,6 +199,7 @@ class ConversationsPanel(
     MessageAccelsMixin,
     BookmarksMixin,
     MessageSearchMixin,
+    PinnedMessagesMixin,
     ReactionsMixin,
     AttachmentsMixin,
     ContactMessagesMixin,
@@ -615,6 +617,8 @@ class ConversationsPanel(
         self._voice_call_btn.Bind(wx.EVT_BUTTON, self._on_voice_call)
         conv_sizer.Add(self._voice_call_btn, 0, wx.LEFT | wx.TOP, 5)
         self._voice_call_btn.Hide()
+
+        self._init_pinned_messages_button(conv_sizer)
 
         # ── Search in conversation button ───────────────────────────────────
         self._search_open_btn = wx.Button(
@@ -1214,6 +1218,7 @@ class ConversationsPanel(
 
         self._new_conv_btn.SetLabel(i18n.t("new_conversation"))
         self._search_open_btn.SetLabel(i18n.t("search_in_conv"))
+        self._update_pinned_messages_button()
         self._voice_call_btn.SetLabel(i18n.t("voice_call_button"))
         self._search_close_btn.SetLabel(i18n.t("search_close"))
         self._search_field_label.SetLabel(i18n.t("search_in_conv"))

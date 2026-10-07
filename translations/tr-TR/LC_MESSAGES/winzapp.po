@@ -4806,6 +4806,12 @@ msgid "Status"
 msgstr "Durum"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "message_pinned"
+msgid "Pinned"
+msgstr "Sabitlendi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "message_recovered_from_quote_label"
@@ -5745,6 +5751,46 @@ msgstr "Bu mesaj sabitlenemedi. Lütfen birazdan tekrar deneyin."
 msgctxt "pin_selected"
 msgid "Pin selected"
 msgstr "Seçilenleri sabitle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_choose"
+msgid "Select a pinned message and press Enter to go to it in the history."
+msgstr ""
+"Sabitlenen bir mesajı seçin ve geçmişte o mesaja gitmek için Enter tuşuna "
+"basın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_count"
+msgid "Pinned messages ({count})"
+msgstr "Sabitlenen mesajlar ({count})"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_empty"
+msgid "This chat has no pinned messages."
+msgstr "Bu sohbette sabitlenen mesaj yok."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_failed"
+msgid "Pinned messages could not be loaded. Please try again in a moment."
+msgstr "Sabitlenen mesajlar yüklenemedi. Lütfen birazdan tekrar deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_notice"
+msgid "Pinned messages in this chat: {count}."
+msgstr "Bu sohbetteki sabitlenen mesajlar: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_title"
+msgid "Pinned messages"
+msgstr "Sabitlenen mesajlar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 #: client/main_window/chat_list.py

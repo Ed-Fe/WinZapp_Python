@@ -231,6 +231,8 @@ class ConversationNavigationMixin:
             # field unconditionally, and ignored take_focus).
             if take_focus:
                 wx.CallAfter(self._focus_already_open_conversation)
+            self._begin_pinned_messages_visit(reset_history=False)
+            wx.CallAfter(self._load_pinned_messages, announce=take_focus)
             return
         # Record that the user actually looked at this conversation. It is the
         # gate on asking the *phone* for its older history: every such request
@@ -298,7 +300,8 @@ class ConversationNavigationMixin:
             self._search_open_btn.Show()
             self._search_field.SetValue("")
         self.conversation = conversation
-        
+        self._begin_pinned_messages_visit()
+
         # Load up to 200 messages from local DB when opening conversation to support fast startup
         try:
             _conv_jid = conversation.get("remoteJid", "")
@@ -446,6 +449,7 @@ class ConversationNavigationMixin:
                 daemon=True,
             ).start()
         wx.CallAfter(_start_mark_as_read)
+        wx.CallAfter(self._load_pinned_messages, announce=take_focus)
 
     def _clear_chat_search_on_open(self):
         """Opening a conversation ends the chat search, unless the user asked

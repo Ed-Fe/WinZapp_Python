@@ -4792,6 +4792,12 @@ msgid "Status"
 msgstr "Status"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "message_pinned"
+msgid "Pinned"
+msgstr "Pinned"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "message_recovered_from_quote_label"
@@ -5733,6 +5739,44 @@ msgstr "This message could not be pinned. Please try again in a moment."
 msgctxt "pin_selected"
 msgid "Pin selected"
 msgstr "Pin selected"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_choose"
+msgid "Select a pinned message and press Enter to go to it in the history."
+msgstr "Select a pinned message and press Enter to go to it in the history."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_count"
+msgid "Pinned messages ({count})"
+msgstr "Pinned messages ({count})"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_empty"
+msgid "This chat has no pinned messages."
+msgstr "This chat has no pinned messages."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_failed"
+msgid "Pinned messages could not be loaded. Please try again in a moment."
+msgstr "Pinned messages could not be loaded. Please try again in a moment."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+#, python-brace-format
+msgctxt "pinned_messages_notice"
+msgid "Pinned messages in this chat: {count}."
+msgstr "Pinned messages in this chat: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/pinned_messages.py
+msgctxt "pinned_messages_title"
+msgid "Pinned messages"
+msgstr "Pinned messages"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 #: client/main_window/chat_list.py
