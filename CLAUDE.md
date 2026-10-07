@@ -149,6 +149,16 @@ The `mattpocock-skills` plugin provides `/grill-with-docs` → `/to-spec` →
   then mark it ready for review or merge it. This applies to every developer
   and every Claude session, so nobody merges a PR while its review is still
   running.
+- **Clean up your own branches when the work ends.** A thread works on its
+  own branch (`claude/...`, a worktree branch) and often opens the PR from a
+  different one, which leaves two branches for one piece of work. The
+  `delete-merged-branch.yml` workflow only removes the PR's head branch after
+  a merge; it never sees the thread's leftover. When the work is done (PR
+  merged or closed, or the thread abandoned), delete every branch the thread
+  created that no open PR still uses — remote (`git push origin --delete
+  <branch>`) and local — and its worktree (`ccd_host clean_up_worktrees`).
+  Never delete a branch with unpushed commits or an open PR, `main`,
+  `release/*`, `joaopr4` or `evolution_legacy`; look at the target first.
 - The "coding standards" `/code-review` looks for are this file,
   `docs/traps/` and `.claude/skills/`.
 
