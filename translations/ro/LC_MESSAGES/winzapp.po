@@ -2199,7 +2199,7 @@ msgstr "Setări video pentru apeluri"
 #: client/ui/dialogs/settings_dialog.py client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
-msgstr "&Anulează"
+msgstr "A&nulează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "cancel_edit"
@@ -10332,7 +10332,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
 msgid "Remove"
-msgstr "Elimi&nați"
+msgstr "Eliminați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
