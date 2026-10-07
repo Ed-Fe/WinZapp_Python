@@ -13,12 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {
-  CreateBucketCommand,
-  PutObjectCommand,
-  PutPublicAccessBlockCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
 import api from 'axios';
 import Crypto from 'crypto';
 import { Request } from 'express';
@@ -32,7 +26,6 @@ import config from '../config';
 import { convert } from '../mapper/index';
 import { ServerOptions } from '../types/ServerOptions';
 import { WhatsAppServer } from '../types/WhatsAppServer';
-import { bucketAlreadyExists } from './bucketAlreadyExists';
 
 let mime: any, crypto: any; //, aws: any;
 if (config.webhook.uploadS3) {
@@ -194,6 +187,9 @@ export async function autoDownload(client: any, req: any, message: any) {
         req.serverOptions.webhook.uploadS3 ||
         req.serverOptions?.websocket?.uploadS3
       ) {
+        const { CreateBucketCommand, PutObjectCommand, PutPublicAccessBlockCommand, S3Client } =
+          require('@aws-sdk/client-s3') as typeof import('@aws-sdk/client-s3');
+        const { bucketAlreadyExists } = require('./bucketAlreadyExists') as typeof import('./bucketAlreadyExists');
         const hashName = crypto.randomBytes(24).toString('hex');
 
         if (

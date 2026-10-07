@@ -5,7 +5,6 @@ with descriptions). Nothing here may fall back to a key of either original:
 every string is declared once, in every locale, and used by the code.
 """
 import ast
-import json
 import re
 from pathlib import Path
 
@@ -13,8 +12,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "client"
-LANGUAGES = CLIENT / "languages"
-LOCALES = tuple(json.loads((LANGUAGES / "language_map.json").read_text(encoding="utf-8")))
+from tests.locales import load_strings, registered_locale_codes
+
+LOCALES = registered_locale_codes()
 
 #: The modules that own this feature's text; any key in a string literal of
 #: these files counts as used.
@@ -65,7 +65,7 @@ def used_keys():
 
 
 def locale(name):
-    return json.loads((LANGUAGES / f"{name}.json").read_text(encoding="utf-8"))
+    return load_strings(name)
 
 
 @pytest.fixture(scope="module")

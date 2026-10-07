@@ -49,6 +49,7 @@ Modal result:
 import io
 import json
 import logging
+from core.api_install_timing import timed_call, timed_step, timed_subprocess
 import os
 import shutil
 import subprocess
@@ -191,7 +192,7 @@ _PATCHED_DEPENDENCY_KEYS = [
 # api/.gitignore) and nothing writes to it any more — it is empty on a
 # current install — but dropping it here would delete whatever an old
 # install still has in it.
-_KEEP_RUNTIME = {"tokens", "wppconnect_tokens", "userDataDir", "wppconnect.log"}
+_KEEP_RUNTIME = {"tokens", "wppconnect_tokens", "userDataDir", "wppconnect.log", ".cache"}
 
 # WinZapp's patches on top of upstream wppconnect-server — same list as
 # setup_api.py's custom_files and build.py's API_CUSTOM_SRC_FILES. Unlike
@@ -410,6 +411,7 @@ class ApiSetupDialog(wx.Dialog):
 
     # ── Download helper ───────────────────────────────────────────────────────
 
+    @timed_step("source_download")
     def _download_zip(self, url: str, dest_path: str, start_pct: int = 2, end_pct: int = 25) -> bool:
         """
         Stream-download the ZIP at *url* to *dest_path*.
@@ -529,6 +531,7 @@ class ApiSetupDialog(wx.Dialog):
         )
 
     @staticmethod
+    @timed_step("dependency_patches")
     def _apply_node_modules_patches(api_dir: str) -> None:
         """Apply WinZapp's patches to files INSIDE node_modules (a vendored
         dependency of WPPConnect Server, not WPPConnect Server itself), which
@@ -805,6 +808,7 @@ class ApiSetupDialog(wx.Dialog):
                 logging.info("[api_setup] host.layer.js — %s", note)
         return ok
 
+    @timed_step("source_extract")
     def _extract_zip(self, zip_path: str, api_dir: str) -> bool:
         """
         Extract the GitHub source ZIP into *api_dir*.
@@ -875,6 +879,7 @@ class ApiSetupDialog(wx.Dialog):
 
     # ── npm subprocess helper ─────────────────────────────────────────────────
 
+    @timed_subprocess
     def _run_subprocess(self, cmd, cwd=None, env=None):
         """
         Run a subprocess and wait for it to finish.
@@ -903,6 +908,7 @@ class ApiSetupDialog(wx.Dialog):
 
     # ── Background setup thread ───────────────────────────────────────────────
 
+    @timed_step("setup_worker")
     def _run_setup(self):
         import sys
         import shutil
@@ -940,6 +946,8 @@ class ApiSetupDialog(wx.Dialog):
         npm_env  = {
             **os.environ,
             "PATH": path_env,
+            "npm_config_timing": "true",
+            "npm_config_logs_max": "50",
             "PUPPETEER_CACHE_DIR": puppeteer_cache
         }
 
@@ -1130,8 +1138,12 @@ class ApiSetupDialog(wx.Dialog):
             # Skip it here; step 4.5 below downloads Chrome explicitly, with
             # its own status text, right after npm install actually finishes.
             npm_install_env = {**npm_env, "PUPPETEER_SKIP_DOWNLOAD": "true"}
+            from core.api_dependencies import prepare_api_dependencies
+
+            dependency_flags = timed_call("dependency_manifest", prepare_api_dependencies,
+                                          api_dir, building=not modules_only)
             ok, err = self._run_subprocess(
-                npm_cmd + ["install", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"],
+                npm_cmd + ["install", "--prefer-offline", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"] + dependency_flags,
                 cwd=api_dir,
                 env=npm_install_env,
             )
@@ -1170,6 +1182,17 @@ class ApiSetupDialog(wx.Dialog):
                 "chrome" if sys.platform == "win32" else "chrome-headless-shell"
             )
             self._set_stage(self._i18n.t("api_setup_downloading_chrome"), *stages["chrome"])
+            from core.browser_cache import prepare_browser_cache
+
+            # Keep the installed browser through an in-place update, or copy
+            # it into staging without touching the running API. The CLI below
+            # still installs the exact version its new Puppeteer requires.
+            timed_call("browser_cache", prepare_browser_cache,
+                puppeteer_cache, browser_product,
+                source_cache=resource_path("api", ".cache") if staging_dir else None,
+            )
+            if self._cancelled:
+                return
             ok, err = self._run_subprocess(
                 npm_cmd + ["exec", "puppeteer", "browsers", "install", browser_product],
                 cwd=api_dir,
@@ -1354,12 +1377,15 @@ class ApiSetupDialog(wx.Dialog):
         self._timer.Stop()
         self._trickling = False
         self._gauge.SetValue(100)
-        wx.MessageBox(
-            self._i18n.t("api_setup_success_message"),
-            self._i18n.t("api_setup_success_title"),
-            wx.OK | wx.ICON_INFORMATION,
-            self,
-        )
+        # A staged build is not installed or validated yet. Its caller
+        # announces success only after the new API answers its health check.
+        if not getattr(self, "_api_dir", None):
+            wx.MessageBox(
+                self._i18n.t("api_setup_success_message"),
+                self._i18n.t("api_setup_success_title"),
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
         self._end_modal_safely(wx.ID_OK)
 
     def _finish_error(self, details: str = ""):

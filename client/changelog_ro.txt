@@ -44,6 +44,8 @@ CORECTĂRI
 
 - Conturile cu multe conversații, al căror WhatsApp Web se încarcă în puțin peste 30 de secunde, se conectează acum. WinZapp renunța să mai aștepte la exact 30 de secunde, iar același cont eșua la fel la fiecare pornire.
 
+- Actualizarea WPPConnect: versiunea anterioară este păstrată până când cea nouă pornește și răspunde și este restaurată dacă nu o face. Actualizarea este refuzată înainte de a opri ceva atunci când nu există spațiu pe disc pentru ambele, iar reinstalarea refolosește Chrome deja descărcat.
+
 V2.0.0.0
 
 Marea noutate a acestei versiuni sunt apelurile: acum puteți iniția, prelua și respinge apeluri vocale și video direct din WinZapp, fără să luați telefonul, cu o fereastră de apel accesibilă, comenzi rapide de la tastatură, setări audio proprii și istoricul în noua filă, Apeluri. Alte noutăți apărute: conversațiile blocate, căutarea în conversațiile arhivate, limbile turcă și română și mai multe îmbunătățiri de utilizare, precum și corecții pentru situațiile în care WinZapp cerea o nouă asociere fără să fie nevoie. În spate, codul programului a trecut printr-o reorganizare amplă: nu schimbă nimic în utilizare, dar face WinZapp mai ușor de întreținut și de corectat de acum înainte.

@@ -76,6 +76,19 @@ def accounts_menu_signature(accounts: list[dict]) -> tuple:
     )
 
 
+def account_display_name(account: dict, i18n) -> str:
+    """Return the user-facing name for an account menu entry.
+
+    ``default`` is the internal name assigned to the first migrated/new
+    account, not a name the user entered. Keep user-chosen names unchanged,
+    but localize that one generated label.
+    """
+    name = account.get("name", account.get("id", ""))
+    if name == "default":
+        return i18n.t("acc_default_name")
+    return name
+
+
 def manager_rows(accounts: list[dict]) -> list[dict]:
     """Rows for the manager list: every non-deleting account, ordered, with a
     display state. 'deleting' accounts are hidden (mid-removal)."""
@@ -339,7 +352,7 @@ def build_accounts_menu(menu, accounts, current_account_id, i18n, id_factory):
     id_map: dict = {}
     for slot, acc in accelerator_slots(switchable_accounts(accounts)):
         item_id = id_factory()
-        label = f"&{slot} {acc.get('name', acc['id'])}\tCtrl+Alt+{slot}"
+        label = f"&{slot} {account_display_name(acc, i18n)}\tCtrl+Alt+{slot}"
         item = menu.AppendRadioItem(item_id, label)
         if acc.get("id") == current_account_id:
             item.Check(True)

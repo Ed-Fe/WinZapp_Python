@@ -15,11 +15,17 @@ you open a matching file; the reasoning is in `docs/traps/` and
    desktop — never run an ad-hoc script that creates a wx window or hooks
    WinEvents. Enforced by `tests/test_no_desktop_visible_windows.py`;
    history in `docs/traps/tests-never-open-windows.md`.
-2. **Every user-facing string goes into every locale file**
-   (`client/languages/<locale>.json`, `client/changelog_<locale>.txt`; the
+2. **Every user-facing string goes into every locale catalog**
+   (`translations/<locale>/LC_MESSAGES/winzapp.po`, `client/changelog_<locale>.txt`; the
    list is `client/languages/language_map.json`). `I18n.t()` has no fallback:
    a missing key is shown as the raw key. Reuse the words that locale already
    uses (`docs/reference/i18n-terminology.md`). Skill: `i18n-ui-string`.
+   PO is authoritative: add stable `msgctxt` + English `msgid` to the en-US PO,
+   run `uv run translations-update`, then translate/review the
+   new or fuzzy entries in each locale. `uv run translations-check` and release builds
+   reject missing/fuzzy entries. Run `uv run translations-compile`
+   to refresh MO resources and the runtime key map.
+   See `docs/reference/gettext-migration.md` for the complete workflow.
 3. **A function or fix ships with its test in the same change**: pure logic
    extracted, or the unbound method called on a plain stub. Skill:
    `write-test`.
@@ -59,6 +65,10 @@ uv run pytest tests/test_database.py   # the test files for what you touched —
 uv run pytest -n auto                  # whole suite in parallel (~1 min); CI itself runs it serially
 uv run build-installer                 # WinZappInstaller.exe + WinZapp.zip
 uv run build-onefile                   # single-file WinZapp.exe
+uv run translations-update              # merge source messages into each PO
+uv run translations-check-draft         # validate unfinished translator work
+uv run translations-compile             # validate + compile MO resources
+uv run translations-check               # release-ready catalog validation
 ```
 
 - Run only the test files for what you changed; run the whole suite locally

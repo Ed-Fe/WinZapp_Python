@@ -726,6 +726,10 @@ def _write_version_file(work_dir):
 
 
 def pyinstaller_compile():
+    from pathlib import Path
+    from winzapp_tools.translation_build import prepare_runtime
+
+    prepare_runtime(Path(ROOT_DIR), Path(BUILD_DIR) / "languages")
     mode = "onefile" if ONEFILE else "onedir"
     step(f"2/8  Compiling client with PyInstaller (--{mode})")
 
@@ -783,7 +787,7 @@ def pyinstaller_compile():
             (SOUND_LIB_X64, "lib"),
             (AO2_LIB, "lib"),
             (os.path.join(CLIENT_DIR, "sounds"), "sounds"),
-            (os.path.join(CLIENT_DIR, "languages"), "languages"),
+            (os.path.join(BUILD_DIR, "languages"), "languages"),
             (SETTINGS_DEFAULT, os.path.join("data", "settings_default.json")),
         ]
         wpp_min_version_file = os.path.join(CLIENT_DIR, "wpp_minimum_version.txt")
@@ -832,6 +836,10 @@ def pyinstaller_compile():
 # -- Step 3: Assemble staging dir (onedir only) -----------------------------
 
 def assemble_staging():
+    from pathlib import Path
+    from winzapp_tools.translation_build import prepare_runtime
+
+    prepare_runtime(Path(ROOT_DIR), Path(BUILD_DIR) / "languages")
     step("3/8  Assembling staging distribution")
 
     if os.path.isdir(STAGING_DIR):
@@ -901,9 +909,9 @@ def assemble_staging():
     sounds_count = len(os.listdir(sounds_src))
     print(f"  -> sounds/  ({sounds_count} files)")
 
-    langs_src = os.path.join(CLIENT_DIR, "languages")
+    langs_src = os.path.join(BUILD_DIR, "languages")
     shutil.copytree(langs_src, os.path.join(STAGING_DIR, "languages"))
-    langs_count = len(os.listdir(langs_src))
+    langs_count = sum(len(files) for _root, _dirs, files in os.walk(langs_src))
     print(f"  -> languages/  ({langs_count} files)")
 
     data_dir = os.path.join(STAGING_DIR, "data")

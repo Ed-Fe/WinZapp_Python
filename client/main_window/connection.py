@@ -22,6 +22,10 @@ from core.api_client import (
 from main_window.identity_rules import record_linked_phone_if_unknown
 from app_paths import resource_path
 from core.profile_recovery import profile_is_local
+from core.wpp_connection_recovery import (
+    serialized_connection_probe, update_reconnection_pending,
+    session_start_pending, note_session_start, finish_update_reconnection,
+)
 
 
 class ConnectionMixin:
@@ -809,6 +813,8 @@ class ConnectionMixin:
             # and only suppress the announcement.
             return
         connected = bool(connected)
+        if connected and getattr(self, "_wpp_updating", False):
+            return  # An old in-flight answer must not reopen sending during installation.
         was = bool(getattr(self, "_wa_connected", False))
         self._wa_connected = connected
         if not connected and getattr(self, "_active_voice_call", None):
@@ -835,6 +841,7 @@ class ConnectionMixin:
                 return
 
         if connected:
+            finish_update_reconnection(self)
             if not self.token:
                 # _on_disconnect() (Arquivo > Desconectar) clears self.token
                 # and self._wa_connected together, but a check_wa_connection_
@@ -1021,7 +1028,7 @@ class ConnectionMixin:
 
         self._wa_offline_strikes += 1
 
-        if self._self_inflicted_teardown_expected():
+        if self._self_inflicted_teardown_expected() or (not confirmed and update_reconnection_pending(self)):
             logging.info(
                 "[connection] Self-inflicted session teardown in progress "
                 "(%s) — engaging offline mode and showing 'connecting' "
@@ -1820,6 +1827,7 @@ class ConnectionMixin:
             )
             self._act_on_unlink_decision(decision, log_label=f"HTTP {http_status}")
 
+    @serialized_connection_probe
     def check_wa_connection_http(self):
         """Query the WPPConnect API via HTTP to check if the instance is already connected to WhatsApp."""
         if self._is_pairing_dialog_active() or getattr(self, "_pairing_in_progress", False):
@@ -2007,12 +2015,18 @@ class ConnectionMixin:
                     # Asked only when nothing else blocks: it probes the network.
                     if not block and self._offline_start_deferral_holds():
                         block = cs.AUTO_START_DEFERRED_OFFLINE
+                    if not block and session_start_pending(self):
+                        block = "a session start is already pending"
                     if block:
                         logging.info("[check_wa_connection_http] Skipping auto-start — %s.", block)
                     else:
                         try:
                             start_url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/start-session"
-                            api_post(start_url, json={"waitQrCode": False}, headers=headers, timeout=10)
+                            note_session_start(self)
+                            started = api_post(start_url, json={"waitQrCode": False}, headers=headers, timeout=10)
+                            if started.status_code not in (200, 201, 202):
+                                self._wpp_pending_start_until = 0.0
+                                raise RuntimeError(f"start-session HTTP {started.status_code}")
                             logging.info("[check_wa_connection_http] Sent auto-start session command")
                             # Direct evidence that a start is being attempted.
                             # The tracker used to depend on a 30 s poll landing
