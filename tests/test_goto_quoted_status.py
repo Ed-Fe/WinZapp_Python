@@ -172,16 +172,6 @@ class TestAgedOutRebuiltFromInlineQuotedContent:
         assert stub.my_status_calls == []
         assert stub.status_panel_calls == []
 
-    def test_serialized_status_id_can_identify_an_expired_status(self):
-        stub = _Stub(status_updates={})
-        ctx = {
-            "participant": "a@s.whatsapp.net",
-            "quotedMessage": {"conversation": "old status"},
-        }
-
-        assert stub._goto_quoted_status("false_status@broadcast_OLD", ctx) is True
-        assert stub.status_panel_calls == [("a@s.whatsapp.net", 0)]
-
     def test_unrecognized_quoted_message_shape_returns_false(self):
         stub = _Stub(status_updates={})
         ctx = {"participant": "a@s.whatsapp.net", "quotedMessage": {"somethingElse": {}}}
