@@ -1547,7 +1547,7 @@ msgstr "WinZapp"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "apply"
 msgid "&Apply"
-msgstr "A&plicați"
+msgstr "&Aplicați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_menu.py

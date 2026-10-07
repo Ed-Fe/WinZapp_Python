@@ -11,7 +11,7 @@ the screen reader.
 import pytest
 import wx
 
-from tests.conftest import hidden_frame
+from tests.conftest import destroy_now, hidden_frame
 from ui.dialogs.transcription_result import TranscriptionResultDialog
 
 # Creates a REAL top-level wx dialog - see the wxgui marker in pytest.ini.
@@ -49,7 +49,7 @@ def test_the_fields_are_read_only_and_escape_is_close(wx_app):
         finally:
             dialog.Destroy()
     finally:
-        window.Destroy()
+        destroy_now(window)
 
 
 def test_no_notes_field_without_notes(wx_app):
@@ -62,7 +62,7 @@ def test_no_notes_field_without_notes(wx_app):
         finally:
             dialog.Destroy()
     finally:
-        window.Destroy()
+        destroy_now(window)
 
 
 def test_the_focus_starts_on_the_text_at_its_first_character(wx_app, monkeypatch):
@@ -94,4 +94,4 @@ def test_the_focus_starts_on_the_text_at_its_first_character(wx_app, monkeypatch
         finally:
             dialog.Destroy()
     finally:
-        window.Destroy()
+        destroy_now(window)

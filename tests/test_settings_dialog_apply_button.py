@@ -30,7 +30,7 @@ import pytest
 from core.i18n import I18n
 from core.sound_system import DEFAULT_PACK_ID
 from ui.dialogs.settings_dialog import SettingsDialog
-from tests.conftest import hidden_frame
+from tests.conftest import destroy_now, hidden_frame
 from tests.settings_dialog_frame import give_global_settings
 
 # Creates a REAL top-level wx dialog - see the wxgui marker in pytest.ini.
@@ -75,7 +75,7 @@ def dialog(wx_app):
 
     dlg = SettingsDialog(frame)
     yield dlg
-    dlg.Destroy()
+    destroy_now(dlg)
 
 
 def _fire(control, event_type):
