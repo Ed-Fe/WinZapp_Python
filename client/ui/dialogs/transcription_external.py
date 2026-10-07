@@ -423,6 +423,10 @@ class ExternalModelsMixin:
         reference = self._selected_external_reference()
         if reference is None or self._transcription_job_running:
             return
+        # The button is off for a folder that is not ready; the handler says
+        # the same so that nothing but that button's rule can choose it.
+        if self._transcription_external_states.get(reference.id) != external_models.REF_READY:
+            return
         choice = (external_models.custom_choice(reference) if reference.is_custom
                   else reference.model_id)
         if reference.backend != self._transcription_picker_backend():

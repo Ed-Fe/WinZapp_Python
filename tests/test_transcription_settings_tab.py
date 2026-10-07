@@ -74,10 +74,10 @@ import pathlib
 import re
 from types import SimpleNamespace
 
+from tests.locales import load_strings, registered_locale_codes
 import pytest
 import wx
 
-from app_paths import resource_path
 from coord_locks import canonical_dir
 from core.transcription import backend as backend_module
 from core.transcription import cuda_runtime, device, errors, management, model_catalog
@@ -91,7 +91,7 @@ from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
-from tests.conftest import hidden_frame
+from tests.conftest import destroy_now, hidden_frame
 from tests.god_modules import main_window_source
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -109,12 +109,7 @@ TRANSCRIPTION_EXTERNAL_SOURCE = (
 ).read_text(encoding="utf-8")
 
 
-def _load(name):
-    with open(resource_path("languages", f"{name}.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-LOCALES = sorted(_load("language_map"))
+LOCALES = registered_locale_codes()
 
 # A machine with plenty of RAM and no graphics card — the common case, and the
 # one where every "automatic" has an unambiguous answer.
@@ -126,7 +121,7 @@ class _I18n:
 
     def __init__(self, locale="pt-BR"):
         self.language = locale
-        self._table = _load(locale)
+        self._table = load_strings(locale)
 
     def t(self, key):
         return self._table.get(key, key)
@@ -390,7 +385,7 @@ def tab(wx_app, tmp_path, no_hardware_probe):
     try:
         yield owner
     finally:
-        frame.Destroy()
+        destroy_now(frame)
 
 
 class TestLookingIsNotEditing:
@@ -877,7 +872,7 @@ class TestTheModelsFolder:
                 model_store.default_models_dir()
             )
         finally:
-            frame.Destroy()
+            destroy_now(frame)
 
     def test_the_field_is_not_typed_into(self, tab):
         """Writing the resolved path back would freeze a data folder that is
@@ -916,7 +911,7 @@ class TestTheModelsFolder:
             owner._apply_transcription_values()
             assert owner._transcription_models_dir == ""
         finally:
-            frame.Destroy()
+            destroy_now(frame)
 
 
 class TestTheSubstitutionWarningIsSaidOnceAndOnce:
@@ -1155,7 +1150,7 @@ class TestOpeningTheDialogProbesNoHardware:
             assert probes == []
             assert len(started) == 1
         finally:
-            frame.Destroy()
+            destroy_now(frame)
 
     def test_the_first_visit_shows_the_tab_before_the_probe_answers(
         self, tab, monkeypatch
@@ -1666,7 +1661,7 @@ class TestTheMnemonicsOnThisTab:
         reached with it — and which one is undefined. The buttons are in here
         even though they are not owed a letter: the ones that *have* one must
         still not take somebody else's."""
-        table = _load(locale)
+        table = load_strings(locale)
         used = [
             self._mnemonic(table[key])
             for key in self.LABELLED + self.ACTION_BUTTONS
@@ -1678,7 +1673,7 @@ class TestTheMnemonicsOnThisTab:
     def test_the_group_names_spend_no_letter(self, locale):
         """A wx.StaticBox is not a tab stop, and an & in its label would take
         a letter from the buttons inside it for nothing."""
-        table = _load(locale)
+        table = load_strings(locale)
         for key in self.GROUPS:
             assert table[key], f"{locale}: {key} is empty"
             assert self._mnemonic(table[key]) is None, f"{locale}: {key}"
@@ -1687,7 +1682,7 @@ class TestTheMnemonicsOnThisTab:
     def test_a_button_is_one_word_and_the_group_says_what_it_acts_on(self, locale):
         """The whole point of the grouping: the object is announced once, on
         entry, instead of inside all four labels."""
-        table = _load(locale)
+        table = load_strings(locale)
         for key in self.ACTION_BUTTONS:
             label = table[key].replace("&", "")
             assert " " not in label.strip(), f"{locale}: {key} is {label!r}"
@@ -1708,7 +1703,7 @@ class TestTheMnemonicsOnThisTab:
         """A control with no mnemonic is one a keyboard user can only reach by
         tabbing past everything above it. transcription_language_detect had
         none in any of the five."""
-        table = _load(locale)
+        table = load_strings(locale)
         without = sorted(
             key for key in self.LABELLED if self._mnemonic(table[key]) is None
         )
@@ -2466,11 +2461,14 @@ class TestTheModelsMoveOnlyAfterOk:
 
     @staticmethod
     def _function(name):
-        tree = ast.parse(SETTINGS_DIALOG_SOURCE)
-        return next(
-            node for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef) and node.name == name
-        )
+        # The handlers live in the mixins the dialog inherits, not in the
+        # dialog file itself.
+        for source in (TRANSCRIPTION_TAB_SOURCE, TRANSCRIPTION_EXTERNAL_SOURCE,
+                       SETTINGS_DIALOG_SOURCE):
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, ast.FunctionDef) and node.name == name:
+                    return node
+        raise AssertionError(f"{name} is defined nowhere")
 
     @staticmethod
     def _called(function):
@@ -2893,7 +2891,7 @@ def tab_with(wx_app, tmp_path, no_hardware_probe):
         yield _make
     finally:
         for frame in frames:
-            frame.Destroy()
+            destroy_now(frame)
 
 
 class _Workers:
@@ -4155,13 +4153,17 @@ class TestTheWhisperCppProgram:
 
     def test_each_line_says_the_build_its_state_and_its_size(self):
         i18n = _I18n()
-        line = transcription_whisper_cpp.whisper_cpp_build_label(
+        installed = transcription_whisper_cpp.whisper_cpp_build_label(
             i18n, _CUDA_BUILD, whisper_cpp_runtime.STATE_INSTALLED)
-        assert transcription_tab._whisper_cpp_build_name(i18n, _CUDA_BUILD.id) in line
-        assert transcription_tab._format_transcription_size(
-            i18n, _CUDA_BUILD.archive_bytes) in line
-        assert line != transcription_whisper_cpp.whisper_cpp_build_label(
+        absent = transcription_whisper_cpp.whisper_cpp_build_label(
             i18n, _CUDA_BUILD, whisper_cpp_runtime.STATE_ABSENT)
+        name = transcription_tab._whisper_cpp_build_name(i18n, _CUDA_BUILD.id)
+        size = transcription_tab._format_transcription_size(
+            i18n, _CUDA_BUILD.archive_bytes)
+        assert name in installed and name in absent
+        # The size is the download's cost: a build already here costs none.
+        assert size in absent and size not in installed
+        assert installed != absent
 
     def test_nothing_installed_offers_the_install_and_nothing_else(self, tab):
         tab._load_transcription_values()

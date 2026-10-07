@@ -106,6 +106,7 @@ class _VaultPanel(_Panel):
     _list_panel_for = ConversationsPanel._list_panel_for
     _apply_panel_layout = ConversationsPanel._apply_panel_layout
     _log_panel_switch = ConversationsPanel._log_panel_switch
+    _detail_on_screen = ConversationsPanel._detail_on_screen
 
     def close_conversation_for_panel_switch(self):
         # What _close_conversation_core() does to the state the flow reads:
