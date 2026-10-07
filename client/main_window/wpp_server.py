@@ -33,7 +33,8 @@ from core.api_client import (
     api_post,
 )
 from core import browser_payload
-from app_paths import resource_path
+from app_paths import resource_path, global_dir
+from core.node_compile_cache import cache_environment
 
 
 class WppServerMixin:
@@ -1153,6 +1154,7 @@ class WppServerMixin:
                 creationflags=creation_flags,
                 stdout=log_fh,
                 stderr=log_fh,
+                env=cache_environment(os.environ, global_dir("node-compile-cache")),
             )
             # Release Python's file handle now that node.exe has inherited it.
             # This avoids a double-lock on wppconnect.log so an update extraction
@@ -1672,7 +1674,9 @@ class WppServerMixin:
                     return
                 time.sleep(1)
             logging.error("[ensure_wpp_running] WPPConnect never came up within "
-                          "300s in background mode — exiting.")
+                          "300s in background mode.")
+            if getattr(self, "_wpp_updating", False):
+                return False  # Let the updater restore its retained predecessor.
             sys.exit(1)
 
         # Settle the port BEFORE the dialog captures it. _start_wpp_background()
@@ -1709,6 +1713,8 @@ class WppServerMixin:
         result = self.run_on_main_thread(_show_startup_dlg)
 
         if result != wx.ID_OK:
+            if getattr(self, "_wpp_updating", False):
+                return False
             details = ""
             log_path = getattr(self, "_wpp_log_path", None)
             if log_path and os.path.isfile(log_path):
