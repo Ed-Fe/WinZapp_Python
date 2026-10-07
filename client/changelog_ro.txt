@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Mesaje fixate: un buton în fiecare chat afișează mesajele fixate în WhatsApp, inclusiv mesajele mai vechi. Apăsați Enter pentru a merge la mesajul ales în istoric. La deschiderea chatului este anunțat numărul mesajelor fixate fără a muta focalizarea; fiecare mesaj fixat are și un marcaj text.
+
 - Submeniul contextual „Ortografie” al câmpului de mesaj oferă sugestii din dicționarul Windows. Editorul păstrează navigarea standard a cititorului de ecran și sunetul de eroare de ortografie WinZapp.
 
 - "Păstrează ordinea conversațiilor fixate" din fila Interfață utilizator a Setărilor. Când este activată, mesajele noi nu schimbă poziția conversațiilor fixate, iar ordinea se păstrează după repornire. Este dezactivată implicit; conversațiile nefixate continuă să urce când sosesc mesaje noi.

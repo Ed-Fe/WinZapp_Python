@@ -29,6 +29,7 @@ import { encryptSession } from '../controller/encryptController';
 import * as GroupController from '../controller/groupController';
 import * as LabelsController from '../controller/labelsController';
 import * as MessageController from '../controller/messageController';
+import * as PinnedMessagesController from '../controller/pinnedMessagesController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
 import * as OrderController from '../controller/orderController';
@@ -184,6 +185,12 @@ routes.post(
   verifyToken,
   statusConnection,
   MessageController.pinMessage
+);
+routes.post(
+  '/api/:session/pinned-messages',
+  verifyToken,
+  statusConnection,
+  PinnedMessagesController.readPinnedMessages
 );
 routes.post(
   '/api/:session/mark-played',

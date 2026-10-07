@@ -17,6 +17,7 @@
 import { Request, Response } from 'express';
 
 import { unlinkAsync } from '../util/functions';
+import { writePinnedMessage } from '../util/pinnedMessagesRuntime';
 
 function returnError(req: Request, res: Response, error: any) {
   req.logger.error(error);
@@ -1931,15 +1932,7 @@ export async function pinMessage(req: Request, res: Response) {
 
   try {
     const result = await page.evaluate(
-      async ({ messageId, pin }: { messageId: string; pin: boolean }) => {
-        try {
-          const wpp = (window as any).WPP;
-          const r = await wpp.chat.pinMsg(messageId, pin);
-          return { ok: true, pinned: r?.pinned ?? pin };
-        } catch (err: any) {
-          return { ok: false, error: err?.message || String(err) };
-        }
-      },
+      writePinnedMessage,
       { messageId, pin }
     );
 
@@ -1955,11 +1948,10 @@ export async function pinMessage(req: Request, res: Response) {
       response: { messageId, pinned: result.pinned },
     });
   } catch (error) {
-    req.logger.error(error);
+    req.logger.error('[pin-message] page operation failed');
     res.status(500).json({
       status: 'error',
       message: 'Error on pin message',
-      error,
     });
   }
 }

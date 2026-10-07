@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Mensagens afixadas: um botão em cada conversa lista as mensagens afixadas no WhatsApp, incluindo mensagens antigas. Prima Enter para ir até uma delas no histórico. Ao abrir a conversa, a quantidade de afixadas é anunciada sem mudar o foco; cada mensagem afixada também tem uma indicação em texto.
+
 - O submenu de contexto "Ortografia" do campo de mensagem oferece sugestões do dicionário do Windows. O editor mantém a navegação padrão do leitor de ecrã e o som de erro ortográfico do WinZapp.
 
 - "Manter a ordem das conversas afixadas" no separador Interface do utilizador das Definições. Quando ativado, novas mensagens não alteram a posição das conversas afixadas e a ordem mantém-se ao reiniciar. Está desativado por predefinição; as conversas não afixadas continuam a subir com novas mensagens.

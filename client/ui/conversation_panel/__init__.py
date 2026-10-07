@@ -42,6 +42,7 @@ Where to look (and where new code goes):
     links                    links panel of the focused message
     mentions                 @mentions panel and suggestions
     bookmarks                message bookmarks
+    pinned_messages          pinned-message overview and history navigation
     message_search           search inside the conversation
     chat_menu                conversations-list context menu and chat actions
     chat_list_selection      chat multi-selection shared by every chat list (main, archived, locked)

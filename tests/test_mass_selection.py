@@ -25,6 +25,7 @@ import pytest
 import wx
 
 from ui.conversations import ConversationsPanel, _SAVEABLE_MESSAGE_TYPES
+from ui.conversation_panel.pinned_messages import PinnedMessagesMixin
 from tests.god_modules import patch_conversations_global
 
 
@@ -178,7 +179,7 @@ class _FakeEvent:
         self.skipped = True
 
 
-class _Panel:
+class _Panel(PinnedMessagesMixin):
     """Stub carrying exactly what the handlers under test touch."""
 
     _is_separator = ConversationsPanel._is_separator

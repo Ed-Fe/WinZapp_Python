@@ -4,6 +4,8 @@ Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, 
 
 NOVEDADES
 
+- Mensajes fijados: un botón en cada conversación muestra los mensajes fijados en WhatsApp, incluidos los antiguos. Pulsa Intro para ir a uno de ellos en el historial. Al abrir la conversación se anuncia la cantidad de mensajes fijados sin mover el foco; cada mensaje fijado también tiene una indicación en texto.
+
 - El submenú contextual "Ortografía" del campo de mensaje ofrece sugerencias del diccionario de Windows. El editor mantiene la navegación estándar del lector de pantalla y el sonido de error ortográfico de WinZapp.
 
 - "Mantener el orden de las conversaciones fijadas" en la pestaña Interfaz de usuario de Configuración. Al activarlo, los mensajes nuevos no cambian la posición de las conversaciones fijadas y su orden se conserva al reiniciar. Está desactivado por defecto; las conversaciones sin fijar siguen subiendo con los mensajes nuevos.

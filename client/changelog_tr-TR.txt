@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Sabitlenen mesajlar: her sohbetteki bir düğme, eski mesajlar dahil WhatsApp üzerinde sabitlenen mesajları listeler. Seçilen mesaja geçmişte gitmek için Enter tuşuna basın. Sohbet açıldığında odak değiştirilmeden sabitlenen mesajların sayısı duyurulur; her sabitlenen mesajda ayrıca bir metin işareti bulunur.
+
 - Mesaj alanının bağlam menüsündeki "Yazım" alt menüsü Windows sözlüğünden öneriler sunar. Düzenleyici, ekran okuyucunun standart gezinmesini ve WinZapp'ın yazım hatası sesini korur.
 
 - Ayarlar > Kullanıcı Arayüzü sekmesinde "Sabitlenmiş sohbetlerin sırasını koru" seçeneği. Açıldığında yeni mesajlar sabitlenmiş sohbetlerin yerini değiştirmez ve sıra yeniden açılışta korunur. Varsayılan olarak kapalıdır; normal sohbetler yeni mesajlarla yukarı çıkmaya devam eder.

@@ -93,27 +93,36 @@ class MessageActionsMixin:
             return
         pin = not bool(msg.get("pinInChat"))
         msg["pinInChat"] = pin
+        self._pinned_message_state_changed(msg)
         self.main_window._schedule_save()
         self._persist_message_local_flag(jid, msg)
         self._repaint_or_repopulate([msg.get("key", {}).get("id", "")])
 
         msg_key = dict(msg.get("key", {}))
 
+        job = self._begin_pinned_message_write(jid)
         def _do(m=msg, k=msg_key, j=jid, p=pin):
-            ok = self.main_window.pin_message(j, k, p)
+            try:
+                ok = self.main_window.pin_message(j, k, p)
+            except Exception:
+                logging.warning("[pin-message] write failed")
+                ok = False
             if not ok:
-                wx.CallAfter(self._on_pin_message_failed, m, p)
+                wx.CallAfter(self._on_pin_message_failed, m, p, j)
+            wx.CallAfter(self._finish_pinned_message_write, job)
 
         threading.Thread(target=_do, daemon=True).start()
 
-    def _on_pin_message_failed(self, msg: dict, attempted_pin: bool):
+    def _on_pin_message_failed(self, msg: dict, attempted_pin: bool, jid=None):
         """Roll back an optimistic pin/unpin the server rejected (main thread)."""
         msg["pinInChat"] = not attempted_pin
-        jid = self.conversation.get("remoteJid", "") if self.conversation else ""
+        jid = jid or (self.conversation or {}).get("remoteJid", "")
+        self._pinned_message_state_changed(msg, jid)
         if jid:
             self._persist_message_local_flag(jid, msg)
         self.main_window._schedule_save()
-        self._repaint_or_repopulate([msg.get("key", {}).get("id", "")])
+        if (self.conversation or {}).get("remoteJid") == jid:
+            self._repaint_or_repopulate([msg.get("key", {}).get("id", "")])
         i18n = self.main_window.i18n
         wx.MessageBox(
             i18n.t("pin_message_failed" if attempted_pin else "unpin_message_failed"),

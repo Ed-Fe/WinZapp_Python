@@ -1178,7 +1178,7 @@ class MessageRenderingMixin:
         if msg.get("starred"):
             pieces[0] = f"★ {pieces[0]}"
         if msg.get("pinInChat"):
-            pieces[0] = f"📌 {pieces[0]}"
+            pieces[0] = f"📌 {i18n.t('message_pinned')}, {pieces[0]}"
         # Settings > Interface do usuário > "Anunciar 'Encaminhada' no início
         # da mensagem" (default off). Off keeps the long-standing behavior of
         # a trailing ", Encaminhada" clause below, same position as "Editada"
