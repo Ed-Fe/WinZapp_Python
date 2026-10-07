@@ -27,6 +27,7 @@ from core.utils import (
     reaction_targets_status,
     video_seconds,
 )
+from ui.conversation_panel.own_sender import row_lead, should_hide_sender
 
 
 class MessageRenderingMixin:
@@ -1170,12 +1171,9 @@ class MessageRenderingMixin:
             # which a screen reader reads out twice.
             pieces = [body]
         else:
-            if quoted_sender:
-                header = f"{sender}, {i18n.t('replying_to').format(name=quoted_sender)}"
-            else:
-                header = sender
-
-            pieces = [f"{header}: {body}"]
+            replying_to = i18n.t('replying_to').format(name=quoted_sender) if quoted_sender else ""
+            pieces = [row_lead(sender, replying_to, body,
+                               should_hide_sender(msg, self.main_window.settings))]
         is_forwarded = not self._is_system_event(msg) and self._is_message_forwarded(msg)
         if msg.get("starred"):
             pieces[0] = f"★ {pieces[0]}"

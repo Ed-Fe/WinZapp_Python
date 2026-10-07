@@ -28,6 +28,11 @@ def context(wx_app, tmp_path, monkeypatch):
     destroy_now(frame)
 
 
+def plain(frame, key):
+    """A control's name: its label without the mnemonic marker."""
+    return frame.i18n.t(key).replace("&", "")
+
+
 def result_window(frame, kind="image"):
     panel = wx.Panel(frame)
     panel.main_window = frame
@@ -113,7 +118,7 @@ def test_provider_list_is_a_named_plain_listbox_with_state_in_the_item_text(cont
     CredentialStore(path).set("openai", "synthetic-key")
     _, page = settings_page(frame)
     assert isinstance(page.providers, wx.ListBox) and not isinstance(page.providers, wx.CheckListBox)
-    assert page.providers.GetName() == frame.i18n.t("ai_provider_list_label")
+    assert page.providers.GetName() == plain(frame, "ai_provider_list_label")
     assert page.providers.GetCount() == len(ai_config.PROVIDERS)
     rows = [page.providers.GetString(i) for i in range(page.providers.GetCount())]
     openai = next(row for row in rows if row.startswith("OpenAI"))
@@ -121,15 +126,21 @@ def test_provider_list_is_a_named_plain_listbox_with_state_in_the_item_text(cont
     assert page.GetBestSize().height <= 600
 
 
+def test_provider_list_has_the_first_provider_selected_so_it_lands_there(context):
+    frame, _ = context
+    _, page = settings_page(frame)
+    assert page.providers.GetSelection() == 0
+
+
 def test_page_controls_are_plain_named_controls(context):
     frame, _ = context
     _, page = settings_page(frame)
-    assert page.notice.GetName() == frame.i18n.t("ai_settings_help")
+    assert page.notice.GetName() == plain(frame, "ai_settings_help")
     assert page.notice.GetPrevSibling().GetLabel() == frame.i18n.t("ai_settings_help")
-    assert page.status.GetName() == frame.i18n.t("status")
+    assert page.status.GetName() == plain(frame, "ai_status_label")
     assert page.status.GetWindowStyleFlag() & wx.TE_MULTILINE
     assert set(page.toggles) == set(ai_config.KINDS) and all(isinstance(c, wx.CheckBox) for c in page.toggles.values())
-    assert isinstance(page.profile, wx.Choice) and page.profile.GetName() == frame.i18n.t("ai_profile")
+    assert isinstance(page.profile, wx.Choice) and page.profile.GetName() == plain(frame, "ai_profile")
 
 
 def provider_window(frame, path, provider="openai", **state):
@@ -153,6 +164,29 @@ def test_saved_key_is_masked_and_deliberately_readable_on_request(context):
         window.Destroy()
 
 
+def test_manual_model_fields_follow_the_automatic_checkbox(context):
+    frame, path = context
+    for pinned in (False, True):
+        window = provider_window(frame, path, model="gpt-4.1" if pinned else "")
+        try:
+            assert window.automatic.GetValue() is (not pinned)
+            for control in (window.model, window.model_choice, window.get_models):
+                assert control.IsShown() is pinned
+            assert window.model.IsEnabled()
+        finally:
+            window.Destroy()
+
+
+def test_provider_window_opens_with_the_configured_key_filled_in(context):
+    frame, path = context
+    window = provider_window(frame, path, key="synthetic-key")
+    try:
+        assert window.key.GetValue() == "synthetic-key"
+        assert window.key_state.GetLabel() == frame.i18n.t("ai_key_saved")
+    finally:
+        window.Destroy()
+
+
 def test_provider_window_says_what_the_provider_handles(context):
     frame, path = context
     window = provider_window(frame, path, "claude")
@@ -172,7 +206,7 @@ def test_model_list_is_a_named_native_choice_and_selection_is_explicit(context, 
     window = provider_window(frame, path)
     try:
         assert isinstance(window.model_choice, wx.Choice)
-        assert window.model_choice.GetName() == frame.i18n.t("ai_model_choice")
+        assert window.model_choice.GetName() == plain(frame, "ai_model_choice")
         assert not window.model_choice.IsEnabled()
         monkeypatch.setattr(module, "fetch_models", lambda *args: (
             ModelOption("gpt-4.1-mini", "GPT-4.1 Mini"), ModelOption("gpt-4.1", "GPT-4.1")))
@@ -199,7 +233,7 @@ def test_optional_technical_help_has_native_readable_text_and_close_button(conte
             assert isinstance(text, wx.TextCtrl)
             assert text.GetWindowStyleFlag() & wx.TE_READONLY
             assert text.GetWindowStyleFlag() & wx.TE_MULTILINE
-            assert text.GetName() == frame.i18n.t("ai_technical_info")
+            assert text.GetName() == plain(frame, "ai_technical_info")
             assert "store=false" in text.GetValue()
             assert close.GetId() == wx.ID_CANCEL
             seen.append(True)

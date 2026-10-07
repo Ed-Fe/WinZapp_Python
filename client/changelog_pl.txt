@@ -40,6 +40,12 @@ POPRAWKI
 
 - Aktualizacja WinZappa nie cofa już aktualizacji WPPConnect. Po zaktualizowaniu WPPConnect do wersji nowszej niż ta dołączona do WinZappa (z powiadomienia o aktualizacji albo przez "Wymuś ponowną instalację WPPConnect" w menu Pomoc) następna aktualizacja WinZappa przywracała starą wersję, a ta sama aktualizacja WPPConnect była proponowana ponownie
 
+- Status: "Polub ❤️" znowu działa. Po zmianie w WhatsApp Web polubienie statusu kontaktu kończyło się błędem "Nie udało się wysłać reakcji na ten status."
+
+- "Użyj niestandardowego API (serwer zdalny)": WinZapp nie wyświetla już komunikatu "Profil przeglądarki używany do połączenia z WhatsApp jest uszkodzony i nie ma zapisanej kopii do przywrócenia" o profilu, który jest w porządku. Ten profil znajduje się na serwerze, a WinZapp szukał go na tym komputerze, niczego nie znajdował i uznawał go za uszkodzony. Przy niestandardowym API WinZapp zostawia teraz profil i jego kopie zapasowe serwerowi, a przy zamykaniu nie zatrzymuje już WPPConnect na tym komputerze, którego sam nie uruchomił.
+
+- Konta z wieloma czatami, których WhatsApp Web ładuje się nieco dłużej niż 30 sekund, teraz się łączą. WinZapp przestawał czekać dokładnie po 30 sekundach, więc to samo konto przy każdym uruchomieniu kończyło się tym samym błędem.
+
 - Aktualizacja WPPConnect: poprzednia wersja jest zachowywana, dopóki nowa nie uruchomi się i nie zacznie odpowiadać, a jeśli się to nie uda, zostaje przywrócona. Aktualizacja jest odrzucana przed zatrzymaniem czegokolwiek, gdy brakuje miejsca na dysku na obie wersje, a ponowna instalacja korzysta z już pobranej przeglądarki Chrome.
 
 V2.0.0.0

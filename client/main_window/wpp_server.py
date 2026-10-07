@@ -33,6 +33,7 @@ from core.api_client import (
     api_post,
 )
 from core import browser_payload
+from core.profile_recovery import profile_is_local
 from app_paths import resource_path, global_dir
 from core.node_compile_cache import cache_environment
 
@@ -1430,6 +1431,14 @@ class WppServerMixin:
         pid = None
         if proc and proc.poll() is None:
             pid = proc.pid
+        elif proc is None and not profile_is_local(self):
+            # A custom API server is not ours to stop: WinZapp never started
+            # it, and whatever listens on its port on THIS machine (a server
+            # the user runs here, or an unrelated program when the server is
+            # remote) must not be tree-killed on the way out. Our own session
+            # on it was closed above.
+            self._shutdown_audit("custom API — the server is not ours to stop")
+            return
         elif proc is None:
             # This session never spawned WPPConnect itself — it found the port
             # already open (e.g. a previous session was force-quit and its

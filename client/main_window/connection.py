@@ -22,6 +22,7 @@ from core.api_client import (
 )
 from main_window.identity_rules import record_linked_phone_if_unknown
 from app_paths import resource_path
+from core.profile_recovery import profile_is_local
 from core.wpp_connection_recovery import (
     serialized_connection_probe, update_reconnection_pending,
     session_start_pending, note_session_start, finish_update_reconnection,
@@ -387,8 +388,13 @@ class ConnectionMixin:
 
         Never raises and never blocks — a diagnostic must not be able to cost
         a teardown.
+
+        "remote" with a custom API: the store is on that server, and "absent"
+        read like a profile that had vanished (issue #414).
         """
         try:
+            if not profile_is_local(self):
+                return "remote"
             from core import profile_recovery
             global_dir = getattr(self, "global_dir", None)
             name = session_name or (getattr(self, "token", "") or "").split(":")[0]
@@ -400,6 +406,12 @@ class ConnectionMixin:
 
     def wait_for_profile_release(self, session_name: str, timeout: float = 20.0) -> bool:
         import sys
+        if not profile_is_local(self):
+            # The browser runs on the custom API server, and its release is
+            # that server's to wait for. Polling this machine's chrome.exe
+            # list would find nothing and report a release that never
+            # happened; killing by session name has nothing to kill.
+            return True
         if sys.platform != "win32" or not session_name:
             return True
         deadline = time.monotonic() + timeout
@@ -464,7 +476,7 @@ class ConnectionMixin:
         user's own Chrome, never another account's browser.
         """
         import sys
-        if sys.platform != "win32":
+        if sys.platform != "win32" or not profile_is_local(self):
             return
         import connection_state as cs
         session_name = session_name or (getattr(self, "token", "") or "").split(":")[0]
@@ -508,7 +520,11 @@ class ConnectionMixin:
                    else resource_path("api", "userDataDir", session_name))
             for name in ("lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"):
                 p = os.path.join(udd, name)
-                if os.path.exists(p):
+                # lexists, not exists: Chrome's Singleton* markers are
+                # symlinks to `<host>-<pid>`, and once that process is gone the
+                # link dangles — exists() follows it and says False, so the
+                # stale lock was never removed (issue #414).
+                if os.path.lexists(p):
                     try:
                         os.remove(p)
                         logging.info("[wake-recover] removed stale %s", name)

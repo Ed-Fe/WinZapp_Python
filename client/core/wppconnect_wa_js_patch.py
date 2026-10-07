@@ -34,7 +34,7 @@ it is matched by structure instead of by one literal per build: node_modules
 is not moved by a WinZapp update, and the patch runs on every launch against
 whatever bundle is on disk.
 
-Unlike the four wppconnect_*_layer_patch modules this file is not inside
+Unlike the five wppconnect_*_layer_patch modules this file is not inside
 @wppconnect-team/wppconnect, so the three call sites (setup_api.py,
 build_api.py and ApiSetupDialog._apply_node_modules_patches()) hand
 patch_wa_js_bundle() the outer api directory and it finds the bundle itself.

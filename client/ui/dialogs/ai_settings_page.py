@@ -42,6 +42,25 @@ KIND_NAMES = (("image", "ai_kind_image"), ("sticker", "ai_kind_sticker"), ("vide
               ("audio", "ai_kind_audio"), ("pdf", "ai_kind_pdf"))
 
 
+#: Captions of the manual model fields, hidden while "automatic" is on.
+MANUAL_MODEL_CAPTIONS = ("ai_model_choice", "ai_model")
+
+
+def key_for_dialog(store, provider, drafts, deleted, reset):
+    """The key the provider window opens with: the one staged in this Settings
+    session, else the saved one, so the field shows what is configured. Blank
+    once it is staged for removal or reset, or when the store cannot be read
+    (the window then reports the unreadable store itself)."""
+    if provider in drafts:
+        return drafts[provider]
+    if provider in deleted or reset:
+        return ""
+    try:
+        return store.get(provider) or ""
+    except CredentialError:
+        return ""
+
+
 class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
     """Key, model and on/off of one provider. Edits a draft: nothing is saved
     until the Settings dialog is applied."""
@@ -90,9 +109,9 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
         self._button(body, "ai_test_connection", self._test)
         self._button(body, "ai_billing", lambda e: wx.LaunchDefaultBrowser(spec.billing_url))
         self._button(body, "ai_privacy_link", lambda e: wx.LaunchDefaultBrowser(spec.privacy_url))
-        self._caption(body, "status")
+        self._caption(body, "ai_status_label")
         self.status = wx.TextCtrl(body, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(-1, 65),
-                                  name=self._t("status"))
+                                  name=self._plain("ai_status_label"))
         self.sizer.Add(self.status, 0, wx.EXPAND | wx.ALL, 8)
         body.SetSizer(self.sizer)
         body.SetupScrolling(scroll_x=False, rate_y=15, scrollIntoView=True)
@@ -103,8 +122,8 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
         self.model.Bind(wx.EVT_TEXT, self._manual_model_changed)
         self.Bind(wx.EVT_WINDOW_DESTROY, self._destroyed)
         buttons = wx.StdDialogButtonSizer()
-        ok = wx.Button(self, wx.ID_OK, label=self._plain("ok"))
-        cancel = wx.Button(self, wx.ID_CANCEL, label=self._plain("cancel"))
+        ok = wx.Button(self, wx.ID_OK, label=self._t("ok"))
+        cancel = wx.Button(self, wx.ID_CANCEL, label=self._t("cancel"))
         buttons.AddButton(ok)
         buttons.AddButton(cancel)
         buttons.Realize()
@@ -122,7 +141,7 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
         return self.main_window.i18n.t(key)
 
     def _plain(self, key):
-        """A label without its mnemonic marker (see ai_result_dialog.plain)."""
+        """A label without its mnemonic marker, for a control's name."""
         return self._t(key).replace("&", "")
 
     def _caption(self, body, key):
@@ -132,13 +151,13 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
 
     def _text(self, body, key, style=0):
         self._caption(body, key)
-        control = wx.TextCtrl(body, style=style, name=self._t(key))
+        control = wx.TextCtrl(body, style=style, name=self._plain(key))
         self.sizer.Add(control, 0, wx.EXPAND | wx.ALL, 8)
         return control
 
     def _choice(self, body, key, choices):
         self._caption(body, key)
-        control = wx.Choice(body, choices=choices, name=self._t(key))
+        control = wx.Choice(body, choices=choices, name=self._plain(key))
         self.sizer.Add(control, 0, wx.EXPAND | wx.ALL, 8)
         return control
 
@@ -154,9 +173,23 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
         pinned = self._model_pinned()
         if not pinned:
             self.model.ChangeValue(PROVIDERS[self._provider].model)
-        self.model.Enable(pinned)
         self.get_models.Enable(pinned)
         self.model_choice.Enable(pinned and bool(self._model_options))
+        self._show_manual_model_fields(pinned)
+
+    def _show_manual_model_fields(self, shown):
+        """The manual model fields exist only while "automatic" is off. A
+        disabled edit field is announced as unavailable or read-only by screen
+        readers, which misdescribes a field that is editable once unlocked."""
+        for control in (self.model_choice, self.model, self.get_models):
+            control.Show(shown)
+        for label, key in self._labels:
+            if key in MANUAL_MODEL_CAPTIONS:
+                label.Show(shown)
+        body = getattr(self, "_body", None)
+        if body is not None:
+            body.Layout()
+            body.FitInside()
 
     def _automatic_changed(self, event):
         self._cancel_model_list(clear=True)
@@ -283,7 +316,7 @@ class AISettingsPage(ScrolledPanel):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.enabled = self._check("ai_accessibility_enabled_label", config["enabled"])
         self._label("ai_provider_list_label")
-        self.providers = wx.ListBox(self, name=self._t("ai_provider_list_label"))
+        self.providers = wx.ListBox(self, name=self._plain("ai_provider_list_label"))
         self.providers.Bind(wx.EVT_LISTBOX_DCLICK, self._configure)
         self.sizer.Add(self.providers, 0, wx.EXPAND | wx.ALL, 8)
         self.configure_button = self._button("ai_provider_configure_button", self._configure)
@@ -298,7 +331,7 @@ class AISettingsPage(ScrolledPanel):
         self.sizer.Add(self.notice, 0, wx.EXPAND | wx.ALL, 8)
         self._button("ai_technical_info", self._technical_info)
         self._button("ai_reset_keys", self._reset_keys)
-        self._label("status")
+        self._label("ai_status_label")
         self.status = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(-1, 65))
         self.sizer.Add(self.status, 0, wx.EXPAND | wx.ALL, 8)
         self.SetSizer(self.sizer)
@@ -314,6 +347,10 @@ class AISettingsPage(ScrolledPanel):
     def _t(self, key):
         return self.main_window.i18n.t(key)
 
+    def _plain(self, key):
+        """A label without its mnemonic marker, for a control's name."""
+        return self._t(key).replace("&", "")
+
     def _label(self, key):
         label = wx.StaticText(self, label=self._t(key))
         self._labels.append((label, key))
@@ -321,7 +358,7 @@ class AISettingsPage(ScrolledPanel):
 
     def _choice(self, key, choices):
         self._label(key)
-        control = wx.Choice(self, choices=choices, name=self._t(key))
+        control = wx.Choice(self, choices=choices, name=self._plain(key))
         self.sizer.Add(control, 0, wx.EXPAND | wx.ALL, 8)
         return control
 
@@ -345,14 +382,14 @@ class AISettingsPage(ScrolledPanel):
     def refresh_labels(self):
         for control, key in self._labels:
             control.SetLabel(self._t(key))
-        self.providers.SetName(self._t("ai_provider_list_label"))
-        self.profile.SetName(self._t("ai_profile"))
+        self.providers.SetName(self._plain("ai_provider_list_label"))
+        self.profile.SetName(self._plain("ai_profile"))
         selection = self.profile.GetSelection()
         self.profile.SetItems(self._profile_labels())
         self.profile.SetSelection(selection)
-        self.notice.SetName(self._t("ai_settings_help"))
+        self.notice.SetName(self._plain("ai_settings_help"))
         self.notice.ChangeValue(self._t("ai_settings_notice"))
-        self.status.SetName(self._t("status"))
+        self.status.SetName(self._plain("ai_status_label"))
         self._refresh_list(self.providers.GetSelection())
 
     def _has_key(self, provider):
@@ -368,10 +405,15 @@ class AISettingsPage(ScrolledPanel):
                           self._t("ai_key_saved" if self._has_key(provider) else "ai_key_missing")))
 
     def _refresh_list(self, selection=wx.NOT_FOUND):
+        """Rebuild the rows. Without a valid selection the first provider is
+        selected, so the list lands on it when focused instead of on nothing."""
         self.providers.Freeze()
         try:
             self.providers.Set([self._row(p) for p in self._order])
-            if 0 <= selection < self.providers.GetCount():
+            count = self.providers.GetCount()
+            if not 0 <= selection < count:
+                selection = 0
+            if count:
                 self.providers.SetSelection(selection)
         finally:
             self.providers.Thaw()
@@ -395,7 +437,8 @@ class AISettingsPage(ScrolledPanel):
         index, provider = self._selected()
         if provider is None:
             return
-        state = {"key": self._drafts.get(provider, ""), "deleted": provider in self._deleted,
+        state = {"key": key_for_dialog(self.store, provider, self._drafts, self._deleted, self._reset),
+                 "deleted": provider in self._deleted,
                  "model": "" if provider in self._auto else self._models[provider],
                  "enabled": provider not in self._disabled}
         dialog = AIProviderDialog(self.GetTopLevelParent(), self.main_window, provider, state,
@@ -409,7 +452,9 @@ class AISettingsPage(ScrolledPanel):
         if draft["deleted"]:
             self._deleted.add(provider)
             self._drafts.pop(provider, None)
-        elif draft["key"]:
+        elif draft["key"] and draft["key"] != state["key"]:
+            # Only a key that differs from the one the window opened with is
+            # staged; an unchanged prefill needs no re-save.
             self._deleted.discard(provider)
             self._drafts[provider] = draft["key"]
         if draft["model"]:
@@ -433,15 +478,15 @@ class AISettingsPage(ScrolledPanel):
         self._on_change()
 
     def _technical_info(self, event):
-        dialog = wx.Dialog(self, title=self._t("ai_technical_info"), size=(560, 400),
+        dialog = wx.Dialog(self, title=self._t("ai_technical_info").replace("&", ""), size=(560, 400),
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         try:
             layout = wx.BoxSizer(wx.VERTICAL)
             text = wx.TextCtrl(dialog, value=self._t("ai_technical_notice"),
                                style=wx.TE_MULTILINE | wx.TE_READONLY,
-                               name=self._t("ai_technical_info"))
+                               name=self._t("ai_technical_info").replace("&", ""))
             layout.Add(text, 1, wx.EXPAND | wx.ALL, 12)
-            close = wx.Button(dialog, wx.ID_CANCEL, label=self._t("close").replace("&", ""))
+            close = wx.Button(dialog, wx.ID_CANCEL, label=self._t("close"))
             layout.Add(close, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
             dialog.SetSizer(layout)
             dialog.SetMinSize((420, 260))

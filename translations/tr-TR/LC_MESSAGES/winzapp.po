@@ -469,8 +469,8 @@ msgstr "Daha fazla &dosya ekle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_accessibility_enabled_label"
-msgid "Enable AI features (transcription and description)"
-msgstr "Yapay zekâ özelliklerini etkinleştir (yazıya dökme ve betimleme)"
+msgid "Enable AI &features (transcription and description)"
+msgstr "Yapay zekâ özelliklerini &etkinleştir (yazıya dökme ve betimleme)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -481,8 +481,8 @@ msgstr "Yanıtlayan: {provider}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_api_key"
-msgid "API key (leave blank to keep the saved key)"
-msgstr "API anahtarı (kayıtlı anahtarı korumak için boş bırakın)"
+msgid "&API key"
+msgstr "&API anahtarı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_ask"
@@ -503,8 +503,8 @@ msgstr "Dengeli"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_billing"
-msgid "Usage and billing"
-msgstr "Kullanım ve faturalandırma"
+msgid "Usage and &billing"
+msgstr "Kullanım ve &faturalandırma"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -566,8 +566,8 @@ msgstr "Son yanıtı kopyala"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_delete_key"
-msgid "Remove saved key"
-msgstr "Kayıtlı anahtarı kaldır"
+msgid "Remove &saved key"
+msgstr "&Kayıtlı anahtarı kaldır"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 msgctxt "ai_demo_lock_test"
@@ -619,8 +619,8 @@ msgstr "Betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received images"
-msgstr "Alınan fotoğrafları betimle"
+msgid "Describe received &images"
+msgstr "Alınan &fotoğrafları betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_sticker_menu"
@@ -629,8 +629,8 @@ msgstr "Çıkartmayı betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received stickers"
-msgstr "Alınan çıkartmaları betimle"
+msgid "Describe received &stickers"
+msgstr "Alınan çıkartmaları bet&imle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_video_menu"
@@ -639,8 +639,8 @@ msgstr "Betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_videos_label"
-msgid "Describe received videos"
-msgstr "Alınan videoları betimle"
+msgid "Describe &received videos"
+msgstr "Alınan &videoları betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_detailed"
@@ -817,13 +817,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_get_key"
-msgid "Get an API key"
-msgstr "API anahtarı al"
+msgid "Get an API &key"
+msgstr "API ana&htarı al"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_get_models"
-msgid "Get models"
-msgstr "Modelleri getir"
+msgid "&Get models"
+msgstr "Modelleri &getir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -844,8 +844,8 @@ msgstr "Kayıtlı anahtar yok"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_key_readable"
-msgid "Readable API key"
-msgstr "Okunabilir API anahtarı"
+msgid "&Readable API key"
+msgstr "&Okunabilir API anahtarı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_key_removal_notice"
@@ -917,18 +917,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
-msgid "Model identifier (advanced)"
-msgstr "Model kimliği (gelişmiş)"
+msgid "Model &identifier (advanced)"
+msgstr "Model k&imliği (gelişmiş)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model_automatic"
-msgid "Automatic (recommended)"
-msgstr "Otomatik (önerilen)"
+msgid "&Use the model recommended by WinZapp"
+msgstr "&WinZapp'in önerdiği modeli kullan"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model_choice"
-msgid "Model"
-msgstr "Model"
+msgid "&Model"
+msgstr "&Model"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_models_empty"
@@ -956,8 +956,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessible text"
-msgstr "Alınan PDF'leri erişilebilir metne dönüştür"
+msgid "Convert received PDFs to accessi&ble text"
+msgstr "Alınan &PDF'leri erişilebilir metne dönüştür"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_menu"
@@ -966,8 +966,8 @@ msgstr "Erişilebilir metne dönüştür"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_privacy_link"
-msgid "Provider privacy policy"
-msgstr "Sağlayıcının gizlilik ilkesi"
+msgid "&Provider privacy policy"
+msgstr "&Sağlayıcının gizlilik ilkesi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_processing_msg"
@@ -976,8 +976,8 @@ msgstr "Yapay zekâ ile işleniyor, lütfen bekleyin..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_profile"
-msgid "Description detail"
-msgstr "Betimleme ayrıntısı"
+msgid "D&escription detail"
+msgstr "Betimleme ayrı&ntısı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -987,28 +987,28 @@ msgstr "{provider} sağlayıcısını ayarla"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_configure_button"
-msgid "Set up selected provider"
-msgstr "Seçili sağlayıcıyı ayarla"
+msgid "Set up se&lected provider"
+msgstr "&Seçili sağlayıcıyı ayarla"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_enabled_checkbox"
-msgid "Enabled (tried automatically)"
-msgstr "Etkin (otomatik olarak denenir)"
+msgid "&Enabled (tried automatically)"
+msgstr "&Etkin (otomatik olarak denenir)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_list_label"
-msgid "AI providers (order = try order)"
-msgstr "Yapay zekâ sağlayıcıları (sıra = deneme sırası)"
+msgid "AI &providers (order = try order)"
+msgstr "Yapay &zekâ sağlayıcıları (sıra = deneme sırası)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move down"
-msgstr "Aşağı taşı"
+msgid "Move &down"
+msgstr "&Aşağı taşı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_up_button"
-msgid "Move up"
-msgstr "Yukarı taşı"
+msgid "&Move up"
+msgstr "&Yukarı taşı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_state_disabled"
@@ -1039,8 +1039,8 @@ msgstr "Sorunuz yanıtlanıyor…"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_read_answers"
-msgid "Read new answers aloud using WinZapp speech settings"
-msgstr "Yeni yanıtları WinZapp konuşma ayarlarıyla seslendir"
+msgid "Read &new answers aloud using WinZapp speech settings"
+msgstr "Yeni yanıtları &WinZapp konuşma ayarlarıyla seslendir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1056,8 +1056,8 @@ msgstr "Yeniden çalıştır (yeni istek)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_remember_consent"
-msgid "Remember this consent for media outside locked chats"
-msgstr "Kilitli sohbet dışındaki dosyalar için bu onayı hatırla"
+msgid "Remember this consent &for media outside locked chats"
+msgstr "Kilitli sohbet dışındaki dosyalar için bu onayı &hatırla"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_confirm"
@@ -1071,8 +1071,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_keys"
-msgid "Reset all saved AI keys"
-msgstr "Kayıtlı tüm yapay zekâ anahtarlarını sıfırla"
+msgid "Reset all saved AI &keys"
+msgstr "&Kayıtlı tüm yapay zekâ anahtarlarını sıfırla"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1098,13 +1098,13 @@ msgstr "Sesli mesajın yazıya dökümü (çevrimiçi yapay zekâ)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_send_media"
-msgid "Send media"
-msgstr "Dosyayı gönder"
+msgid "Send &media"
+msgstr "&Dosyayı gönder"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_help"
-msgid "Usage and privacy information"
-msgstr "Kullanım ve gizlilik bilgileri"
+msgid "&Usage and privacy information"
+msgstr "Kullanım ve &gizlilik bilgileri"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_notice"
@@ -1127,13 +1127,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_show_key"
-msgid "Show or hide key"
-msgstr "Anahtarı göster veya gizle"
+msgid "Show or &hide key"
+msgstr "Anahtarı göster &veya gizle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_status_label"
+msgid "S&tatus"
+msgstr "&Durum"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_info"
-msgid "Technical information"
-msgstr "Teknik bilgiler"
+msgid "Tec&hnical information"
+msgstr "Teknik &bilgiler"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_notice"
@@ -1148,13 +1153,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_test_connection"
-msgid "Test connection without sending media"
-msgstr "Dosya göndermeden bağlantıyı denetle"
+msgid "Test connection &without sending media"
+msgstr "Dosya göndermeden &bağlantıyı denetle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_label"
-msgid "Transcribe voice messages"
-msgstr "Sesli mesajları yazıya dök"
+msgid "Transcribe &voice messages"
+msgstr "Sesli &mesajları yazıya dök"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_menu"
@@ -2179,6 +2184,7 @@ msgstr "Görüntülü arama ayarları"
 #: client/ui/conversation_panel/message_actions.py
 #: client/ui/conversation_panel/reactions.py
 #: client/ui/dialogs/add_member_dialog.py
+#: client/ui/dialogs/ai_result_dialog.py
 #: client/ui/dialogs/attach_contact_dialog.py
 #: client/ui/dialogs/emoji_picker.py client/ui/dialogs/meta_ai_terms.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
@@ -11016,6 +11022,12 @@ msgctxt "ui_group_media_default_types_label"
 msgid "Message types shown by default in a group's Media tab"
 msgstr ""
 "Bir grubun Medya sekmesinde varsayılan olarak gösterilen mesaj türleri"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_own_sender_in_message_list"
+msgid "Hide the sender on my own messages in the messages list"
+msgstr "Mesaj listesinde kendi mesajlarımda göndereni gizle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

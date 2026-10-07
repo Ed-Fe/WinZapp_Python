@@ -40,6 +40,12 @@ CORREÇÕES
 
 - Atualizar o WinZapp não desfaz mais uma atualização da WPPConnect. Depois de atualizar a WPPConnect para uma versão mais nova que a que vem com o WinZapp (pelo aviso de atualização ou por "Forçar reinstalação da WPPConnect" no menu Ajuda), a atualização seguinte do WinZapp a voltava para a versão antiga, e a mesma atualização da WPPConnect era oferecida de novo
 
+- Status: "Curtir ❤️" voltou a funcionar. Depois de uma mudança no WhatsApp Web, curtir o status de um contato falhava com "Não foi possível enviar a reação ao status."
+
+- "Usar API personalizada (servidor remoto)": o WinZapp não diz mais "O perfil do navegador usado para conectar ao WhatsApp está danificado e não há cópia salva para restaurar" sobre um perfil que está em ordem. Esse perfil fica no servidor, e o WinZapp o procurava neste computador, não encontrava nada e concluía que estava danificado. Com uma API personalizada, o WinZapp agora deixa o perfil e suas cópias de segurança por conta do servidor e, ao fechar, não encerra mais uma WPPConnect deste computador que ele mesmo não iniciou.
+
+- Contas com muitas conversas, cujo WhatsApp Web leva um pouco mais de 30 segundos para carregar, agora conectam. O WinZapp desistia de esperar com exatamente 30 segundos, e a mesma conta falhava do mesmo jeito toda vez que iniciava.
+
 - Atualização da WPPConnect: a versão anterior é mantida até a nova iniciar e responder, e é restaurada se isso não acontecer. A atualização é recusada antes de parar qualquer coisa quando não há espaço em disco para as duas, e a reinstalação reaproveita o Chrome já baixado.
 
 V2.0.0.0

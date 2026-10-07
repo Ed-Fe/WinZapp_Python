@@ -40,6 +40,12 @@ FIXES
 
 - Updating WinZapp no longer undoes a WPPConnect update. After updating WPPConnect to a newer version than the one WinZapp comes with (from the update notice or with "Force reinstall WPPConnect" in the Help menu), the next WinZapp update put it back to the old version, and the same WPPConnect update was offered again
 
+- Status: "Like ❤️" works again. After a change in WhatsApp Web, liking a contact's status failed with "Could not send the reaction to this status."
+
+- "Use custom API (remote server)": WinZapp no longer says "The browser profile used to connect to WhatsApp is damaged and there is no saved copy to restore" about a profile that is fine. That profile lives on the server, and WinZapp looked for it on this computer, found nothing and concluded it was damaged. With a custom API, WinZapp now leaves the profile and its backups to the server, and when it closes it no longer stops a WPPConnect on this computer that it did not start.
+
+- Accounts with many chats, whose WhatsApp Web takes a little over 30 seconds to load, now connect. WinZapp gave up waiting at exactly 30 seconds, so the same account failed the same way every time it started.
+
 - WPPConnect update: the previous version is kept until the new one starts and responds, and is restored if it does not. The update is refused before stopping anything when there is not enough disk space for both, and reinstalling reuses the Chrome already downloaded.
 
 V2.0.0.0

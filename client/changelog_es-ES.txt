@@ -40,6 +40,12 @@ CORRECCIONES
 
 - Actualizar WinZapp ya no deshace una actualización de WPPConnect. Después de actualizar WPPConnect a una versión más reciente que la que trae WinZapp (desde el aviso de actualización o con "Forzar reinstalación de WPPConnect" en el menú Ayuda), la siguiente actualización de WinZapp la devolvía a la versión anterior, y se volvía a ofrecer la misma actualización de WPPConnect
 
+- Estado: "Me gusta ❤️" vuelve a funcionar. Después de un cambio en WhatsApp Web, dar me gusta al estado de un contacto fallaba con "No se pudo enviar la reacción al estado."
+
+- "Usar API personalizada (servidor remoto)": WinZapp ya no dice "El perfil del navegador que se usa para conectar con WhatsApp está dañado y no hay ninguna copia guardada para restaurar" sobre un perfil que está bien. Ese perfil está en el servidor, y WinZapp lo buscaba en este equipo, no encontraba nada y concluía que estaba dañado. Con una API personalizada, WinZapp ahora deja el perfil y sus copias de seguridad en manos del servidor y, al cerrarse, ya no detiene un WPPConnect de este equipo que no haya iniciado él.
+
+- Las cuentas con muchos chats, cuyo WhatsApp Web tarda algo más de 30 segundos en cargar, ahora se conectan. WinZapp dejaba de esperar a los 30 segundos exactos, y la misma cuenta fallaba igual cada vez que se iniciaba.
+
 - Actualización de WPPConnect: la versión anterior se conserva hasta que la nueva arranca y responde, y se restaura si no lo hace. La actualización se rechaza antes de detener nada cuando no hay espacio en disco para las dos, y la reinstalación reutiliza el Chrome ya descargado.
 
 V2.0.0.0

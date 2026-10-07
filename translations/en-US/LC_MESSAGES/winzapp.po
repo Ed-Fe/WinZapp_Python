@@ -469,8 +469,8 @@ msgstr "Add more &files"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_accessibility_enabled_label"
-msgid "Enable AI features (transcription and description)"
-msgstr "Enable AI features (transcription and description)"
+msgid "Enable AI &features (transcription and description)"
+msgstr "Enable AI &features (transcription and description)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -481,8 +481,8 @@ msgstr "Answered by {provider}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_api_key"
-msgid "API key (leave blank to keep the saved key)"
-msgstr "API key (leave blank to keep the saved key)"
+msgid "&API key"
+msgstr "&API key"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_ask"
@@ -503,8 +503,8 @@ msgstr "Balanced"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_billing"
-msgid "Usage and billing"
-msgstr "Usage and billing"
+msgid "Usage and &billing"
+msgstr "Usage and &billing"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -566,8 +566,8 @@ msgstr "Copy latest answer"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_delete_key"
-msgid "Remove saved key"
-msgstr "Remove saved key"
+msgid "Remove &saved key"
+msgstr "Remove &saved key"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 msgctxt "ai_demo_lock_test"
@@ -619,8 +619,8 @@ msgstr "Describe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received images"
-msgstr "Describe received images"
+msgid "Describe received &images"
+msgstr "Describe received &images"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_sticker_menu"
@@ -629,8 +629,8 @@ msgstr "Describe sticker"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received stickers"
-msgstr "Describe received stickers"
+msgid "Describe received &stickers"
+msgstr "Describe received &stickers"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_video_menu"
@@ -639,8 +639,8 @@ msgstr "Describe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_videos_label"
-msgid "Describe received videos"
-msgstr "Describe received videos"
+msgid "Describe &received videos"
+msgstr "Describe &received videos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_detailed"
@@ -816,13 +816,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_get_key"
-msgid "Get an API key"
-msgstr "Get an API key"
+msgid "Get an API &key"
+msgstr "Get an API &key"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_get_models"
-msgid "Get models"
-msgstr "Get models"
+msgid "&Get models"
+msgstr "&Get models"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -843,8 +843,8 @@ msgstr "No key saved"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_key_readable"
-msgid "Readable API key"
-msgstr "Readable API key"
+msgid "&Readable API key"
+msgstr "&Readable API key"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_key_removal_notice"
@@ -916,18 +916,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
-msgid "Model identifier (advanced)"
-msgstr "Model identifier (advanced)"
+msgid "Model &identifier (advanced)"
+msgstr "Model &identifier (advanced)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model_automatic"
-msgid "Automatic (recommended)"
-msgstr "Automatic (recommended)"
+msgid "&Use the model recommended by WinZapp"
+msgstr "&Use the model recommended by WinZapp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model_choice"
-msgid "Model"
-msgstr "Model"
+msgid "&Model"
+msgstr "&Model"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_models_empty"
@@ -954,8 +954,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessible text"
-msgstr "Convert received PDFs to accessible text"
+msgid "Convert received PDFs to accessi&ble text"
+msgstr "Convert received PDFs to accessi&ble text"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_menu"
@@ -964,8 +964,8 @@ msgstr "Convert to accessible text"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_privacy_link"
-msgid "Provider privacy policy"
-msgstr "Provider privacy policy"
+msgid "&Provider privacy policy"
+msgstr "&Provider privacy policy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_processing_msg"
@@ -974,8 +974,8 @@ msgstr "Processing with AI, please wait..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_profile"
-msgid "Description detail"
-msgstr "Description detail"
+msgid "D&escription detail"
+msgstr "D&escription detail"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -985,28 +985,28 @@ msgstr "Set up {provider}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_configure_button"
-msgid "Set up selected provider"
-msgstr "Set up selected provider"
+msgid "Set up se&lected provider"
+msgstr "Set up se&lected provider"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_enabled_checkbox"
-msgid "Enabled (tried automatically)"
-msgstr "Enabled (tried automatically)"
+msgid "&Enabled (tried automatically)"
+msgstr "&Enabled (tried automatically)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_list_label"
-msgid "AI providers (order = try order)"
-msgstr "AI providers (order = try order)"
+msgid "AI &providers (order = try order)"
+msgstr "AI &providers (order = try order)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move down"
-msgstr "Move down"
+msgid "Move &down"
+msgstr "Move &down"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_up_button"
-msgid "Move up"
-msgstr "Move up"
+msgid "&Move up"
+msgstr "&Move up"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_state_disabled"
@@ -1037,8 +1037,8 @@ msgstr "Answering your question…"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_read_answers"
-msgid "Read new answers aloud using WinZapp speech settings"
-msgstr "Read new answers aloud using WinZapp speech settings"
+msgid "Read &new answers aloud using WinZapp speech settings"
+msgstr "Read &new answers aloud using WinZapp speech settings"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1054,8 +1054,8 @@ msgstr "Run again (new request)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_remember_consent"
-msgid "Remember this consent for media outside locked chats"
-msgstr "Remember this consent for media outside locked chats"
+msgid "Remember this consent &for media outside locked chats"
+msgstr "Remember this consent &for media outside locked chats"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_confirm"
@@ -1068,8 +1068,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_keys"
-msgid "Reset all saved AI keys"
-msgstr "Reset all saved AI keys"
+msgid "Reset all saved AI &keys"
+msgstr "Reset all saved AI &keys"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1095,13 +1095,13 @@ msgstr "Voice message transcription (online AI)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_send_media"
-msgid "Send media"
-msgstr "Send media"
+msgid "Send &media"
+msgstr "Send &media"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_help"
-msgid "Usage and privacy information"
-msgstr "Usage and privacy information"
+msgid "&Usage and privacy information"
+msgstr "&Usage and privacy information"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_notice"
@@ -1124,13 +1124,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_show_key"
-msgid "Show or hide key"
-msgstr "Show or hide key"
+msgid "Show or &hide key"
+msgstr "Show or &hide key"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_status_label"
+msgid "S&tatus"
+msgstr "S&tatus"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_info"
-msgid "Technical information"
-msgstr "Technical information"
+msgid "Tec&hnical information"
+msgstr "Tec&hnical information"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_notice"
@@ -1145,13 +1150,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_test_connection"
-msgid "Test connection without sending media"
-msgstr "Test connection without sending media"
+msgid "Test connection &without sending media"
+msgstr "Test connection &without sending media"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_label"
-msgid "Transcribe voice messages"
-msgstr "Transcribe voice messages"
+msgid "Transcribe &voice messages"
+msgstr "Transcribe &voice messages"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_menu"
@@ -2169,6 +2174,7 @@ msgstr "Call video settings"
 #: client/ui/conversation_panel/message_actions.py
 #: client/ui/conversation_panel/reactions.py
 #: client/ui/dialogs/add_member_dialog.py
+#: client/ui/dialogs/ai_result_dialog.py
 #: client/ui/dialogs/attach_contact_dialog.py
 #: client/ui/dialogs/emoji_picker.py client/ui/dialogs/meta_ai_terms.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
@@ -11028,6 +11034,12 @@ msgstr "Announce \"Forwarded\" at the start of the message, before the sender"
 msgctxt "ui_group_media_default_types_label"
 msgid "Message types shown by default in a group's Media tab"
 msgstr "Message types shown by default in a group's Media tab"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_own_sender_in_message_list"
+msgid "Hide the sender on my own messages in the messages list"
+msgstr "Hide the sender on my own messages in the messages list"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
