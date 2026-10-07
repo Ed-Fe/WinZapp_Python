@@ -255,6 +255,7 @@ class ChatsStoreMixin:
             # chat out of select_stale_rechecks() for a full
             # _STALE_RECHECK_AFTER.
             self._chat_verified_at = {}
+            self._resume_message_sync_since = 0
             # Which conversations the user opened — the gate on asking the
             # PHONE for older history, and the one collection here whose
             # leftovers the user of the new account can see, on their own

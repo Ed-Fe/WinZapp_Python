@@ -33,6 +33,7 @@ from core.remote_reconcile import (
 )
 from core.incremental_sync import (
     chat_message_records as _chat_message_records,
+    message_id as _message_id,
     messages_overlap as _messages_overlap,
     next_incremental_limit as _next_incremental_limit,
 )
@@ -215,6 +216,7 @@ class ConversationSyncMixin:
 
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full",
                            fetched_ids_out=None, outcome_out=None):
+        fetch_started_at = time.time()
         star_snapshot_started = time.time_ns()
         # fetched_ids_out: an optional set that receives the ids get-messages
         # actually returned for this chat, before they are merged with local
@@ -276,6 +278,7 @@ class ConversationSyncMixin:
             except Exception:
                 local_chat_before = None
         local_records_before = _chat_message_records(local_chat_before or {})
+        known_ids_before = {_message_id(msg) for msg in local_records_before}
         incremental = sync_mode == "incremental" and bool(local_records_before)
         incremental_window = max(1, int(getattr(self, "_INCREMENTAL_MESSAGE_WINDOW", 50)))
         limit = min(page_size, incremental_window) if incremental else page_size
@@ -1075,10 +1078,16 @@ class ConversationSyncMixin:
         # starts causing the resync loop it was added to help diagnose.
         if message_fetch_satisfied:
             try:
-                self._note_chat_verified_now(remote_jid)
+                self._note_chat_verified_now(remote_jid, started_at=fetch_started_at)
             except Exception as exc:
                 logging.warning("[sync_chat_messages] could not record the "
                                 "verification time for %s: %s", remote_jid, exc)
+
+        if api_ok:
+            fetched_ids = {_message_id(msg) for msg in all_messages} - {""}
+            logging.info("[message-refresh] %s: mode=%s fetched=%d new_to_cache=%d persisted=%s",
+                         remote_jid, sync_mode, len(fetched_ids),
+                         len(fetched_ids - known_ids_before), persist_ok)
 
         # Reports whether this chat's sync FAILED, which neither an empty delta
         # nor a chat_not_found did: the retry for those is carried by
