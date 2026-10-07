@@ -10,6 +10,7 @@ import os
 import threading
 import time
 import wx
+from core.message_sync_diagnostics import fetched_page_summary, newest_message_seconds
 from core.message_stars import apply_star_fields, carry_over_stars, stamp_star_snapshot
 from main_window.message_rules import (
     _MAX_ABSENT_CHAT_RETRIES,
@@ -279,6 +280,7 @@ class ConversationSyncMixin:
                 local_chat_before = None
         local_records_before = _chat_message_records(local_chat_before or {})
         known_ids_before = {_message_id(msg) for msg in local_records_before}
+        newest_cached_before = newest_message_seconds(local_records_before)
         incremental = sync_mode == "incremental" and bool(local_records_before)
         incremental_window = max(1, int(getattr(self, "_INCREMENTAL_MESSAGE_WINDOW", 50)))
         limit = min(page_size, incremental_window) if incremental else page_size
@@ -670,6 +672,9 @@ class ConversationSyncMixin:
                 matching_messages.append(message)
             all_messages = matching_messages
 
+        # Snapshot the actual response before merging preserved/late cache rows.
+        refresh_summary = fetched_page_summary(
+            all_messages, known_ids_before, newest_cached_before) if api_ok else None
         if fetched_ids_out is not None and api_ok:
             fetched_ids_out.update(
                 (m.get("key") or {}).get("id") for m in all_messages
@@ -1083,11 +1088,10 @@ class ConversationSyncMixin:
                 logging.warning("[sync_chat_messages] could not record the "
                                 "verification time for %s: %s", remote_jid, exc)
 
-        if api_ok:
-            fetched_ids = {_message_id(msg) for msg in all_messages} - {""}
-            logging.info("[message-refresh] %s: mode=%s fetched=%d new_to_cache=%d persisted=%s",
-                         remote_jid, sync_mode, len(fetched_ids),
-                         len(fetched_ids - known_ids_before), persist_ok)
+        if refresh_summary is not None:
+            logging.info("[message-refresh] %s: mode=%s fetched=%d new_to_cache=%d "
+                         "newer_than_cache=%d latest_fetched=%s latest_cached=%s persisted=%s",
+                         remote_jid, sync_mode, *refresh_summary, persist_ok)
 
         # Reports whether this chat's sync FAILED, which neither an empty delta
         # nor a chat_not_found did: the retry for those is carried by

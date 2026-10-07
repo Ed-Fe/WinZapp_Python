@@ -131,7 +131,8 @@ def test_stale_metadata_new_messages_are_saved_and_counted(monkeypatch, caplog):
                                             sync_mode="incremental") is True
     assert any(m["key"]["id"] == "new" for _, messages in stub.db.inserted for m in messages)
     assert stub._chat_verified_at[jid] == 1000.6
-    assert "new_to_cache=1 persisted=True" in caplog.text
+    assert "new_to_cache=1 newer_than_cache=1" in caplog.text
+    assert "persisted=True" in caplog.text
 
 
 def test_wake_poll_waits_for_connection_and_active_sync(monkeypatch):

@@ -61,3 +61,12 @@ start, not its completion: a query frozen across suspension must not satisfy
 the recovery. Alias forms count as the same verified chat. Account-data reset
 clears the wake cutoff. `[message-refresh]` logs fetched and new-to-cache ID
 counts, while `[resume-message-sync]` explains promotions and deferred batches.
+
+The follow-up log from 16:27–16:33 that day contained a fresh launch, no wake
+event, and an automatic 50-message query for the affected chat. The diagnostic
+claimed `fetched=200`: it was counting the merged cache, not the response.
+Take the diagnostic snapshot before merging local/late-arriving records, and
+log `newer_than_cache` separately from new IDs: an older-history backfill can
+add hundreds of IDs without recovering any missing recent message. UTC ISO
+timestamps keep the latest returned/cached times readable through PII masking.
+A log truncated by relaunch cannot establish what happened at the prior wake.
