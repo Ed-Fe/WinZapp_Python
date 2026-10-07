@@ -396,6 +396,18 @@ class TestAStoredTranscriptionStaysBehindTheVault:
         assert vault.jobs == []
         assert vault.main_window.speak_output.spoken == []
 
+    def test_deleting_asks_nothing_and_deletes_nothing(self, vault, monkeypatch):
+        _saved(vault)
+        _close_the_vault(vault)
+
+        def _no_dialog(*args, **kwargs):
+            raise AssertionError("a question was asked about a hidden note")
+
+        monkeypatch.setattr(transcription_flow.wx, "MessageDialog", _no_dialog)
+        transcription_flow.delete_transcription(vault.panel, vault.target)
+        assert vault.main_window.speak_output.spoken == []
+        assert not [c for c in vault.main_window.db.calls if c[0] == "delete"]
+
     def test_the_window_itself_refuses(self, vault):
         """The one place the text reaches the screen, asked directly: a
         future path that forgets to ask is still caught here."""

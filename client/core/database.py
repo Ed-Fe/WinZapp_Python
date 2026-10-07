@@ -212,6 +212,16 @@ def _delivery_status(msg: dict) -> int:
     return 0
 
 
+# Labels of message_type whose rows can never hold a transcription or a
+# measured video duration (see _carries_local_fields): both the Baileys-style
+# keys _message_type() produces and WPPConnect's own `type` spellings.
+_TYPES_WITHOUT_LOCAL_FIELDS = (
+    "conversation", "extendedTextMessage", "imageMessage", "stickerMessage",
+    "contactMessage", "pollCreationMessage", "buttonsMessage", "listMessage",
+    "templateMessage", "protocolMessage", "chat", "image", "sticker",
+)
+
+
 def _message_type(msg: dict) -> str:
     """Determine the message-type label from a normalized message."""
     mt = msg.get("messageType", "")
@@ -631,11 +641,19 @@ class DatabaseManager:
             #    duration had the same hole. Each twin is decrypted once, and
             #    its survivor read only when it carries one of the two.
             cursor = await conn.execute(
-                "SELECT message_id, message_json FROM messages WHERE remote_jid=?",
-                (old_jid,),
+                "SELECT COUNT(*) FROM messages WHERE remote_jid=?", (old_jid,)
+            )
+            remaining = (await cursor.fetchone())[0]
+            # message_type is in clear: a text, image or sticker row cannot
+            # carry a transcription or a measured duration, and decrypting
+            # every one of a long chat's twins to learn so is the cost.
+            placeholders = ",".join("?" * len(_TYPES_WITHOUT_LOCAL_FIELDS))
+            cursor = await conn.execute(
+                "SELECT message_id, message_json FROM messages "
+                f"WHERE remote_jid=? AND message_type NOT IN ({placeholders})",
+                (old_jid, *_TYPES_WITHOUT_LOCAL_FIELDS),
             )
             twins = await cursor.fetchall()
-            remaining = len(twins)
             folded = 0
             for twin in twins:
                 src = self._decrypt_json(twin["message_json"])

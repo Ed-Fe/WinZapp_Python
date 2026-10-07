@@ -862,6 +862,27 @@ class TestMergingTwoChatsKeepsIt:
         assert reads == ["B"]
         assert await _stored_text(in_memory_db, "B") == _SECRET
 
+    async def test_text_twins_are_not_even_decrypted(self, in_memory_db, monkeypatch):
+        """message_type is in clear: a long chat's text rows cost nothing."""
+        for mid in ("T1", "T2"):
+            for jid in (_LID, _JID):
+                await in_memory_db.insert_message(jid, {
+                    "key": {"id": mid, "remoteJid": jid, "fromMe": False},
+                    "messageType": "conversation", "messageTimestamp": 1,
+                    "message": {"conversation": "oi"},
+                })
+        decrypted = []
+        original = DatabaseManager._decrypt_json
+
+        def _counting(self, blob):
+            decrypted.append(blob)
+            return original(self, blob)
+
+        monkeypatch.setattr(DatabaseManager, "_decrypt_json", _counting)
+        await in_memory_db.merge_or_rename_chat(_LID, _JID)
+        assert decrypted == []
+        assert await in_memory_db.get_messages(_LID) == []
+
 
 @pytest.fixture
 def synchronous_merge(monkeypatch):

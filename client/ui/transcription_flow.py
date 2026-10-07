@@ -816,6 +816,11 @@ class MessageTranscriptionFlow:
 
     def delete_saved(self):
         """Ask, delete the stored transcription, and say how it went."""
+        if self._hidden_by_vault():
+            # Unreachable from the conversation, like start(): a locked chat is
+            # open only while the vault is. Kept so that no future entry point
+            # can ask about, or confirm the existence of, a note it may not show.
+            return
         i18n = self._i18n
         dlg = wx.MessageDialog(
             self._main_window,
