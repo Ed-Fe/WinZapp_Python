@@ -650,7 +650,8 @@ class DatabaseManager:
             placeholders = ",".join("?" * len(_TYPES_WITHOUT_LOCAL_FIELDS))
             cursor = await conn.execute(
                 "SELECT message_id, message_json FROM messages "
-                f"WHERE remote_jid=? AND message_type NOT IN ({placeholders})",
+                "WHERE remote_jid=? AND (message_type IS NULL "
+                f"OR message_type NOT IN ({placeholders}))",
                 (old_jid, *_TYPES_WITHOUT_LOCAL_FIELDS),
             )
             twins = await cursor.fetchall()

@@ -843,6 +843,15 @@ class TestMergingTwoChatsKeepsIt:
         stored_video = (await _stored_record(in_memory_db, "V1"))["message"]["videoMessage"]
         assert stored_video[MEASURED_SECONDS_KEY] == 42
 
+    async def test_a_twin_with_no_message_type_is_still_read(self, in_memory_db):
+        """NOT IN is never true for a NULL, so the SQL filter alone would
+        skip a row whose type column was never filled."""
+        await self._both(in_memory_db, lid_value=_value())
+        await in_memory_db._conn.execute("UPDATE messages SET message_type=NULL")
+        await in_memory_db._conn.commit()
+        await in_memory_db.merge_or_rename_chat(_LID, _JID)
+        assert await _stored_text(in_memory_db) == _SECRET
+
     async def test_the_survivor_is_read_only_when_the_twin_carries_something(
             self, in_memory_db, monkeypatch):
         """The step runs on every @lid resolution."""
