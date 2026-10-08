@@ -37,6 +37,7 @@ Where to look (and where new code goes):
     attachments              attaching files and contacts
     contact_messages         contact (vCard) and location messages
     media_files              opening/saving/downloading media, transfer progress
+    message_data             the Message data window (local history, live receipts, group breakdown)
     ai_actions               transcribe/describe a message's media with the person's AI providers
     audio_playback           voice/audio playback, chaining, speed, seek
     links                    links panel of the focused message

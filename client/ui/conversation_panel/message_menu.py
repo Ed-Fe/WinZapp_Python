@@ -468,47 +468,6 @@ class MessageMenuMixin:
 
     # ── Message context menu handlers ────────────────────────────────────────
 
-    def _on_menu_message_data(self, msg: dict):
-        i18n     = self.main_window.i18n
-        ts       = self._extract_timestamp(msg)
-        time_str = self._format_date(ts) if ts else ""
-        sender   = self._sender_label(msg)
-        content  = self._get_message_content(msg)
-
-        lines = [f"{sender}: {content}"]
-        if time_str:
-            lines.append(time_str)
-
-        history = self._status_history_lines(msg)
-        if history:
-            lines.extend(history)
-        else:
-            status = self._map_status(msg)
-            if status:
-                lines.append(f"{i18n.t('message_data_status_label')}: {status}")
-
-        dlg = wx.Dialog(
-            self.main_window, title=i18n.t("message_data"),
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-            size=(420, 280),
-        )
-        panel = wx.Panel(dlg)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        info_ctrl = wx.TextCtrl(
-            panel, value="\n".join(lines),
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
-        )
-        sizer.Add(info_ctrl, 1, wx.EXPAND | wx.ALL, 8)
-        close_btn = wx.Button(panel, wx.ID_OK, label=i18n.t("close"))
-        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
-        panel.SetSizer(sizer)
-        dlg_sizer = wx.BoxSizer(wx.VERTICAL)
-        dlg_sizer.Add(panel, 1, wx.EXPAND)
-        dlg.SetSizer(dlg_sizer)
-        info_ctrl.SetFocus()
-        dlg.ShowModal()
-        dlg.Destroy()
-
     # Media types WhatsApp allows a caption on (audio/sticker never do).
     _CAPTIONABLE_TYPES = ("imageMessage", "videoMessage", "documentMessage")
 

@@ -26,6 +26,8 @@ YENİLİKLER
 
 - Metin ifadeleri, WhatsApp Web'deki gibi yazarken emojiye dönüşür: ":)" 🙂, ":D" 😃, "<3" ❤️ olur; ardından boşluk ya da noktalama işareti yazdığınızda veya mesajı hemen ardından gönderdiğinizde. Yalnızca tek başına duran bir ifade dönüştürülür; bir bağlantının, bir kelimenin ya da `kod`un içindeki asla. Dönüşümden hemen sonra Backspace tuşuna basmak yazdığınızı geri getirir. Ayarlar, "Genel" sekmesi, "Yazarken :D gibi metin ifadelerini emojiye dönüştür" ile kapatılabilir
 
+- "Mesaj bilgisi" WhatsApp'ın kendi bildiklerini gösterir. Gönderdiğiniz bir mesaj için pencere (Alt+Shift+D) artık WhatsApp'a ne zaman iletildiğini, okunduğunu ve oynatıldığını sorar; böylece WinZapp kapalıyken gelen makbuzlar da, her biri tam tarih ve saatle birlikte görünür. Bir grupta, mesajı kimlerin aldığını ve okuduğunu "Okundu (2/9): Ana, Bia" gibi isimleriyle listeler.
+
 DÜZELTMELER
 
 - Bahsetmeler: @tümü ile birlikte adıyla anılan kişi mesajın bahsetmelerinde bağlantısını korur ve sizden bahsedilmesi, bildirimde ve sohbet listesi önizlemesinde, sabit bir sözcük yerine "Kendimden nasıl bahsedilsin?" ayarında seçilen sözcüğü kullanır
