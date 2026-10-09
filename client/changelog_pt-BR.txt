@@ -34,6 +34,8 @@ NOVIDADES
 
 - As informações do chat pessoal agora também mostram o nome de perfil que o contato escolheu, o nome verificado de uma empresa e se a conta é comercial. Um nome que só repete o já exibido é omitido.
 
+- Atalhos para os filtros de conversas: Alt+Shift+F vai para os botões de opção dos filtros de conversas, que agora anunciam esse atalho, e Alt+Shift+A, Alt+Shift+U, Alt+Shift+G e Alt+Shift+I escolhem Tudo, Não lidas, Grupos e Individuais direto da lista de conversas. As opções de listas do WhatsApp e "Gerenciar listas do WhatsApp" agora vêm antes dos filtros de conversas. Todos estão na ajuda de atalhos (F1).
+
 CORREÇÕES
 
 - Menções: uma pessoa mencionada pelo nome junto com @todos mantém seu link nas menções da mensagem, e uma menção a você, na notificação e na prévia da lista de conversas, usa a palavra escolhida em "Como se referir a mim?" em vez de uma palavra fixa
