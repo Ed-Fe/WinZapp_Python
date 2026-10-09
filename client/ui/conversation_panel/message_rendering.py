@@ -668,7 +668,8 @@ class MessageRenderingMixin:
             return "sent"
         return ""
 
-    def _status_history_lines(self, msg, chat_jid: "str | None" = None) -> list:
+    def _status_history_lines(self, msg, chat_jid: "str | None" = None,
+                              full_dates: bool = False) -> list:
         """Per-stage delivery/read/played timeline for a sent message, one
         line per stage actually reached ("Enviada: 14:29", "Entregue: 14:30",
         "Lida: 14:32", …), mirroring the official WhatsApp message-info
@@ -677,8 +678,12 @@ class MessageRenderingMixin:
         are shown — messages whose status was only ever seen as a single
         aggregate value (e.g. loaded from history sync) fall back to the
         caller's plain "Status: X" line instead, since no per-stage time
-        exists for them."""
+        exists for them.
+
+        full_dates=True writes every stage with its full date and time (the
+        message-data window); the default keeps the short "today" form."""
         i18n = self.main_window.i18n
+        fmt = self._format_full_datetime if full_dates else self._format_date
         from_me = msg.get("key", {}).get("fromMe", False)
         updates = msg.get("MessageUpdate")
         if not isinstance(updates, list):
@@ -724,18 +729,19 @@ class MessageRenderingMixin:
         for stage in stage_order:
             ts = first_ts.get(stage)
             if ts is not None:
-                lines.append(f"{i18n.t(label_keys[stage])}: {self._format_date(ts)}")
+                lines.append(f"{i18n.t(label_keys[stage])}: {fmt(ts)}")
         if failed_ts is not None:
-            lines.append(f"{i18n.t('status_failed')}: {self._format_date(failed_ts)}")
+            lines.append(f"{i18n.t('status_failed')}: {fmt(failed_ts)}")
         return lines
 
-    def _sender_label(self, msg) -> str:
-        if msg.get("key", {}).get("fromMe"):
-            return self.main_window.self_reference_label()
-        key         = msg.get("key", {})
-        participant = key.get("participant", "")
-        jid         = key.get("remoteJid", "")
-        lookup_jid  = participant or jid
+    def _saved_contact_name(self, lj: str) -> str:
+        """The saved or known display name of a JID, or "" when none is good.
+
+        Tries every JID format the contact may be filed under (@s.whatsapp.net,
+        @c.us, @lid), strips Baileys device suffixes, prefers the address-book
+        entry over a chat name over a presence-learned push name. It is what
+        _sender_label() always did, moved here unchanged so the message-data
+        window can name a participant the same way a message row names its sender."""
         mw = self.main_window
         lid_to_phone = getattr(mw, "_lid_to_phone", {})
 
@@ -807,12 +813,24 @@ class MessageRenderingMixin:
                     return pname
             return ""
 
+        return _contact_name(lj)
+
+    def _sender_label(self, msg) -> str:
+        if msg.get("key", {}).get("fromMe"):
+            return self.main_window.self_reference_label()
+        key         = msg.get("key", {})
+        participant = key.get("participant", "")
+        jid         = key.get("remoteJid", "")
+        lookup_jid  = participant or jid
+        mw = self.main_window
+        lid_to_phone = getattr(mw, "_lid_to_phone", {})
+
         # Don't use the group JID (@g.us) itself as a sender lookup — when
         # key.participant is absent, lookup_jid falls back to the remoteJid of
         # the group, and _contact_name would return the group name for every
         # message, making all messages appear to be from the same sender.
         if lookup_jid and not lookup_jid.endswith("@g.us"):
-            n = _contact_name(lookup_jid)
+            n = self._saved_contact_name(lookup_jid)
             if n:
                 return n
 

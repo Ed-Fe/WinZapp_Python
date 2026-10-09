@@ -64,6 +64,22 @@ class FormattingMixin:
         except Exception:
             return ""
 
+    def _format_full_datetime(self, ts):
+        """Like _format_date(), but always the full date and time: never just
+        "14:32" for today or "ontem às 14:32". The message-data window lists
+        several stages (sent, delivered, read) and each has to be unambiguous on
+        its own, without relying on "today" still meaning the day it is read."""
+        if not ts:
+            return ""
+        try:
+            ts_val = int(ts)
+            if ts_val > 1_000_000_000_000:
+                ts_val //= 1000
+            dt = datetime.fromtimestamp(ts_val)
+            return dt.strftime(get_datetime_format(self.main_window.i18n.t("datetime_fmt")))
+        except Exception:
+            return ""
+
     def _probe_audio_duration(self, path: str):
         """Method form of probe_media_duration() — see that function."""
         return probe_media_duration(path)

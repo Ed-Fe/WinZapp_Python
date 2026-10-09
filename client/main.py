@@ -301,6 +301,7 @@ from main_window.message_actions import MessageActionsMixin
 from main_window.message_stars import MessageStarsMixin
 from main_window.message_pins import MessagePinsMixin
 from main_window.quick_audio_devices import QuickAudioDevicesMixin
+from main_window.message_ack import MessageAckMixin
 
 
 requests.get = _patched_get
@@ -351,6 +352,7 @@ class MainWindow(
     MessageStarsMixin,
     MessagePinsMixin,
     QuickAudioDevicesMixin,
+    MessageAckMixin,
     wx.Frame,
 ):
     def __init__(self, account_id=None, account_name=None, startup_source="user",

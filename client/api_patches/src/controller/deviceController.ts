@@ -4750,3 +4750,75 @@ export async function getPlatformFromMessage(req: Request, res: Response) {
     });
   }
 }
+
+export async function getMessageAck(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Messages"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+     #swagger.requestBody = {
+      required: true,
+      "@content": {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              messageId: { type: "string", description: "Serialized message id, e.g. true_5511999999999@c.us_3EB0ABCDEF" },
+            }
+          },
+          examples: {
+            "Ack info of a sent message": {
+              value: { messageId: "true_5511999999999@c.us_3EB0ABCDEF" }
+            },
+          }
+        }
+      }
+     }
+   *
+   * Asks WhatsApp Web itself, through WPP.chat.getMessageACK(), when each
+   * recipient of one of OUR sent messages received, read and played it. The
+   * answer is phone-synced, so it includes receipts that arrived while this
+   * session was closed. @wppconnect-team/wppconnect has no wrapper for it.
+   *
+   * Answers {ack, fromMe, deliveryRemaining, readRemaining, playedRemaining,
+   * participants: [{id, deliveredAt?, readAt?, playedAt?}]}; the participant's
+   * Wid object is dropped, only the serializable fields are returned.
+   */
+  const { messageId } = req.body;
+  if (!messageId || typeof messageId !== 'string') {
+    return res
+      .status(400)
+      .json({ status: 'error', message: 'messageId is required' });
+  }
+  try {
+    const info = await req.client.page.evaluate(async (id: string) => {
+      const raw = await (window as any).WPP.chat.getMessageACK(id);
+      return {
+        ack: raw.ack,
+        fromMe: raw.fromMe,
+        deliveryRemaining: raw.deliveryRemaining,
+        readRemaining: raw.readRemaining,
+        playedRemaining: raw.playedRemaining,
+        participants: (raw.participants || []).map((p: any) => ({
+          id: p.id,
+          deliveredAt: p.deliveredAt,
+          readAt: p.readAt,
+          playedAt: p.playedAt,
+        })),
+      };
+    }, messageId);
+    return res.status(200).json({ status: 'success', response: info });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error on get message ack',
+      error: String((e as any)?.message || e),
+    });
+  }
+}
