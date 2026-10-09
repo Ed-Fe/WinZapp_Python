@@ -230,6 +230,46 @@ class ApiStartBehindWindowMixin:
                       API_START_TIMEOUT_SECONDS)
         return False
 
+    def _main_window_is_up(self) -> bool:
+        """True once post_ui_init has run: the window is built and shown (or,
+        for --background, is the tray), so a restart of Node needs no dialog."""
+        event = getattr(self, "_ui_ready_event", None)
+        return bool(event is not None and event.is_set()) and not self.background_mode
+
+    def _start_api_under_open_window(self):
+        """ensure_wpp_running()'s start when the main window is already up.
+
+        Runs on a worker (the update flows call it from one). Same spawn as the
+        startup dialog's (catalogue wait, then the spawn on the UI thread) and
+        the same 300 s budget and endings, but the progress is the window
+        title, not a modal. Returns None once Node answers, False when an
+        update owns the failure; otherwise the startup error and sys.exit(1),
+        as after the dialog.
+        """
+        self._ensure_wpp_port_still_free()
+        self._wpp_log_path = None
+        self._wpp_log_fh = None
+        wx.CallAfter(self._set_status, self.i18n.t("tray_starting_wppconnect"))
+        try:
+            self._start_wpp_background_after_catalogue()
+            deadline = time.time() + API_START_TIMEOUT_SECONDS
+            while time.time() < deadline:
+                if self._is_wpp_running():
+                    self._check_wpp_version_pin()
+                    return None
+                if getattr(self, "_shutting_down", False):
+                    return False
+                time.sleep(1)
+        finally:
+            wx.CallAfter(self._leave_starting_wppconnect_status)
+        logging.error("[ensure_wpp_running] WPPConnect never came up within %ss "
+                      "(window already open).", API_START_TIMEOUT_SECONDS)
+        if getattr(self, "_wpp_updating", False):
+            return False
+        self._show_api_startup_failure()
+        import sys
+        sys.exit(1)
+
     def _leave_starting_wppconnect_status(self):
         """UI thread: Node answers, so the title goes on to "connecting".
 

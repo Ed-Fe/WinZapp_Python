@@ -566,3 +566,37 @@ class TestStartingWppconnectTitle:
         stub, calls = self._stub("synchronizing")
         asbw.ApiStartBehindWindowMixin._leave_starting_wppconnect_status(stub)
         assert calls == []
+
+
+class TestRestartUnderOpenWindow:
+    """Update / forced reinstall / rollback restarts show no modal either."""
+
+    def test_ensure_wpp_running_skips_the_dialog_when_the_window_is_up(self):
+        from main_window.wpp_server import WppServerMixin
+        src = inspect.getsource(WppServerMixin.ensure_wpp_running)
+        assert src.index("self._main_window_is_up()") < src.index("ApiStartupDialog")
+
+    def test_window_is_up_only_after_post_ui_init_and_not_in_background(self):
+        up = asbw.ApiStartBehindWindowMixin._main_window_is_up
+        ready = threading.Event()
+        stub = types.SimpleNamespace(_ui_ready_event=ready, background_mode=False)
+        assert up(stub) is False
+        ready.set()
+        assert up(stub) is True
+        stub.background_mode = True
+        assert up(stub) is False
+
+    def test_node_answering_returns_none_and_clears_the_title(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(asbw.wx, "CallAfter", lambda f, *a: calls.append((f.__name__, a)))
+        stub = types.SimpleNamespace(
+            i18n=types.SimpleNamespace(t=lambda k: k),
+            _ensure_wpp_port_still_free=lambda: None,
+            _start_wpp_background_after_catalogue=lambda: None,
+            _is_wpp_running=lambda: True,
+            _check_wpp_version_pin=lambda: None,
+            _set_status=lambda s: None,
+            _leave_starting_wppconnect_status=lambda: None)
+        assert asbw.ApiStartBehindWindowMixin._start_api_under_open_window(stub) is None
+        assert calls[0][1] == ("tray_starting_wppconnect",)
+        assert calls[-1][0] == "<lambda>"

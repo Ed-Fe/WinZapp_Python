@@ -1697,6 +1697,12 @@ class WppServerMixin:
                 return False  # Let the updater restore its retained predecessor.
             sys.exit(1)
 
+        if self._main_window_is_up():
+            # An update, a forced reinstall or a rollback restarting Node under
+            # a window that is already on screen: the title says "starting
+            # WPPConnect..." instead of a modal taking focus (issue #407).
+            return self._start_api_under_open_window()
+
         # Settle the port BEFORE the dialog captures it. _start_wpp_background()
         # calls this too, but it runs from the wx.CallAfter below — i.e. after
         # ApiStartupDialog.__init__ has already stored self.wpp_port and started
