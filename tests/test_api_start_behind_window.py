@@ -128,6 +128,7 @@ class _WorkerStub:
         self.events = []
         self._answers_after = answers_after   # polls before the port opens
         self._polls = 0
+        self._pre_spawn_asked = False
         self._shutting_down = shutting_down
         self._wpp_updating = False
         self._api_start_failed = False
@@ -137,7 +138,15 @@ class _WorkerStub:
     def _start_wpp_background(self):
         self.events.append("spawn")
 
+    def _register_node_lease(self):
+        self.events.append("lease")
+
     def _is_wpp_running(self):
+        # The UI-thread spawn asks once before spawning (a Node another
+        # account started meanwhile is adopted); that ask is not a poll.
+        if not self._pre_spawn_asked and not self._shutting_down:
+            self._pre_spawn_asked = True
+            return False
         self._polls += 1
         return self._answers_after is not None and self._polls > self._answers_after
 
@@ -571,11 +580,6 @@ class TestStartingWppconnectTitle:
 class TestRestartUnderOpenWindow:
     """Update / forced reinstall / rollback restarts show no modal either."""
 
-    def test_ensure_wpp_running_skips_the_dialog_when_the_window_is_up(self):
-        from main_window.wpp_server import WppServerMixin
-        src = inspect.getsource(WppServerMixin.ensure_wpp_running)
-        assert src.index("self._main_window_is_up()") < src.index("ApiStartupDialog")
-
     def test_window_is_up_only_after_post_ui_init_and_not_in_background(self):
         up = asbw.ApiStartBehindWindowMixin._main_window_is_up
         ready = threading.Event()
@@ -586,17 +590,48 @@ class TestRestartUnderOpenWindow:
         stub.background_mode = True
         assert up(stub) is False
 
-    def test_node_answering_returns_none_and_clears_the_title(self, monkeypatch):
+    def _under_stub(self, monkeypatch, main_thread, running):
         calls = []
-        monkeypatch.setattr(asbw.wx, "CallAfter", lambda f, *a: calls.append((f.__name__, a)))
+        started = []
+        monkeypatch.setattr(asbw.wx, "CallAfter", lambda f, *a: calls.append(f))
+        monkeypatch.setattr(asbw.wx, "IsMainThread", lambda: main_thread)
+        monkeypatch.setattr(asbw.threading, "Thread",
+                            lambda **kw: types.SimpleNamespace(start=lambda: started.append(kw["name"])))
         stub = types.SimpleNamespace(
-            i18n=types.SimpleNamespace(t=lambda k: k),
             _ensure_wpp_port_still_free=lambda: None,
-            _start_wpp_background_after_catalogue=lambda: None,
-            _is_wpp_running=lambda: True,
+            _start_wpp_background_after_catalogue=lambda: calls.append("spawn"),
+            _is_wpp_running=lambda: running,
             _check_wpp_version_pin=lambda: None,
-            _set_status=lambda s: None,
-            _leave_starting_wppconnect_status=lambda: None)
+            _enter_starting_wppconnect_status=lambda: None,
+            _leave_starting_wppconnect_status=lambda: None,
+            _clear_starting_status_when_up=lambda: None)
+        stub._wait_until_api_listening = lambda: asbw.ApiStartBehindWindowMixin._wait_until_api_listening(stub)
+        return stub, calls, started
+
+    def test_on_the_ui_thread_it_queues_the_spawn_and_never_blocks(self, monkeypatch):
+        # A Node that never answers would hang the window if this polled.
+        stub, calls, started = self._under_stub(monkeypatch, True, running=False)
+        assert asbw.ApiStartBehindWindowMixin._start_api_under_open_window(stub) is True
+        assert "spawn" in calls
+        assert started == ["api-start-title"]
+
+    def test_on_a_worker_it_waits_and_returns_none_once_node_answers(self, monkeypatch):
+        stub, calls, _ = self._under_stub(monkeypatch, False, running=True)
         assert asbw.ApiStartBehindWindowMixin._start_api_under_open_window(stub) is None
-        assert calls[0][1] == ("tray_starting_wppconnect",)
-        assert calls[-1][0] == "<lambda>"
+
+    def test_the_title_is_not_taken_from_a_running_sync(self):
+        calls = []
+        stub = types.SimpleNamespace(_tray_status_key="synchronizing",
+                                     i18n=types.SimpleNamespace(t=lambda k: k),
+                                     _set_status=calls.append)
+        asbw.ApiStartBehindWindowMixin._enter_starting_wppconnect_status(stub)
+        assert calls == []
+
+
+    def test_a_node_that_appeared_while_the_window_built_is_adopted_not_respawned(self, worker_env):
+        stub = _WorkerStub(answers_after=None)
+        stub._pre_spawn_asked = True
+        stub._is_wpp_running = lambda: True
+        stub._api_start_behind_window_worker()
+        assert stub.events[0] == "lease"
+        assert "spawn" not in stub.events

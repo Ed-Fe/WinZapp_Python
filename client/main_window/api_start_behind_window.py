@@ -190,6 +190,12 @@ class ApiStartBehindWindowMixin:
                 if getattr(self, "_shutting_down", False):
                     outcome["skipped"] = True
                     return
+                if self._is_wpp_running():
+                    # Another account or process brought Node up while the
+                    # window was building: adopt it, a second spawn would only
+                    # die on EADDRINUSE.
+                    self._register_node_lease()
+                    return
                 self._start_wpp_background()
             except Exception as exc:
                 outcome["error"] = exc
@@ -231,37 +237,39 @@ class ApiStartBehindWindowMixin:
         return False
 
     def _main_window_is_up(self) -> bool:
-        """True once post_ui_init has run: the window is built and shown (or,
-        for --background, is the tray), so a restart of Node needs no dialog."""
+        """True once init_UI has finished (_ui_ready_event): the window is built
+        and shown, so a restart of Node needs no dialog. Never for --background."""
         event = getattr(self, "_ui_ready_event", None)
         return bool(event is not None and event.is_set()) and not self.background_mode
 
     def _start_api_under_open_window(self):
         """ensure_wpp_running()'s start when the main window is already up.
 
-        Runs on a worker (the update flows call it from one). Same spawn as the
-        startup dialog's (catalogue wait, then the spawn on the UI thread) and
-        the same 300 s budget and endings, but the progress is the window
-        title, not a modal. Returns None once Node answers, False when an
-        update owns the failure; otherwise the startup error and sys.exit(1),
-        as after the dialog.
+        Same spawn as the startup dialog's (catalogue wait, then the spawn on
+        the UI thread), but the progress is the window title, not a modal.
+
+        The update flows call this ON the UI thread (restart_api_after_update
+        runs from wx.CallAfter), where nothing may block: the queued spawn
+        could never run, and the window would hang. There it only queues the
+        spawn and returns True; the caller's own probe thread waits for the API
+        and a watcher thread clears the title. From any other thread it waits
+        here, with the dialog's 300 s budget and endings: None once Node
+        answers, False when an update owns the failure, otherwise the startup
+        error and sys.exit(1).
         """
         self._ensure_wpp_port_still_free()
         self._wpp_log_path = None
         self._wpp_log_fh = None
-        wx.CallAfter(self._set_status, self.i18n.t("tray_starting_wppconnect"))
-        try:
-            self._start_wpp_background_after_catalogue()
-            deadline = time.time() + API_START_TIMEOUT_SECONDS
-            while time.time() < deadline:
-                if self._is_wpp_running():
-                    self._check_wpp_version_pin()
-                    return None
-                if getattr(self, "_shutting_down", False):
-                    return False
-                time.sleep(1)
-        finally:
-            wx.CallAfter(self._leave_starting_wppconnect_status)
+        wx.CallAfter(self._enter_starting_wppconnect_status)
+        self._start_wpp_background_after_catalogue()
+        if wx.IsMainThread():
+            threading.Thread(target=self._clear_starting_status_when_up,
+                             name="api-start-title", daemon=True).start()
+            return True
+        up = self._wait_until_api_listening()
+        wx.CallAfter(self._leave_starting_wppconnect_status)
+        if up is not None:
+            return up
         logging.error("[ensure_wpp_running] WPPConnect never came up within %ss "
                       "(window already open).", API_START_TIMEOUT_SECONDS)
         if getattr(self, "_wpp_updating", False):
@@ -269,6 +277,28 @@ class ApiStartBehindWindowMixin:
         self._show_api_startup_failure()
         import sys
         sys.exit(1)
+
+    def _wait_until_api_listening(self):
+        """True once Node answers, False on a quit, None on the timeout."""
+        deadline = time.time() + API_START_TIMEOUT_SECONDS
+        while time.time() < deadline:
+            if self._is_wpp_running():
+                self._check_wpp_version_pin()
+                return True
+            if getattr(self, "_shutting_down", False):
+                return False
+            time.sleep(1)
+        return None
+
+    def _clear_starting_status_when_up(self):
+        self._wait_until_api_listening()
+        wx.CallAfter(self._leave_starting_wppconnect_status)
+
+    def _enter_starting_wppconnect_status(self):
+        """UI thread: title "starting WPPConnect...", unless a sync or another
+        live status owns the line."""
+        if getattr(self, "_tray_status_key", None) in (None, "tray_connecting", "tray_wa_disconnected"):
+            self._set_status(self.i18n.t("tray_starting_wppconnect"))
 
     def _leave_starting_wppconnect_status(self):
         """UI thread: Node answers, so the title goes on to "connecting".
