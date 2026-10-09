@@ -104,6 +104,7 @@ class _Stub:
     _COALESCE_SETTLE_SECONDS = 0
 
     _coalesce_pending     = NotificationManager._coalesce_pending
+    _chat_key             = NotificationManager._chat_key
     _clear_active_toasts  = NotificationManager._clear_active_toasts
     _dispatch             = NotificationManager._dispatch
     _do_reply             = NotificationManager._do_reply
