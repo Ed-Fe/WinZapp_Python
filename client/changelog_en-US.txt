@@ -42,6 +42,8 @@ WHAT'S NEW
 
 FIXES
 
+- When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.
+
 - After the computer wakes from sleep, new messages are fetched reliably: the open conversation and recent chats are checked again even when WhatsApp's chat list looks unchanged, and updates for chats linked by a linked-device ID are no longer ignored
 
 - Mentions: a person mentioned by name next to @all keeps their link in the message's mentions, and a mention of you, in the notification and in the chat list preview, uses the word chosen in "How should I be referred to?" instead of a fixed word

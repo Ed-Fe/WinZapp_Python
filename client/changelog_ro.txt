@@ -42,6 +42,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- Când deschizi sau citești o conversație în WinZapp, notificarea mesajului ei nou este eliminată din zona de notificări în loc să rămână acolo.
+
 - După ce computerul iese din repaus, mesajele noi sunt preluate în mod fiabil: conversația deschisă și conversațiile recente sunt verificate din nou chiar și când lista de conversații WhatsApp pare nemodificată, iar actualizările conversațiilor legate printr-un ID de dispozitiv conectat nu mai sunt ignorate
 
 - Mențiuni: o persoană menționată pe nume alături de @toți își păstrează linkul în mențiunile mesajului, iar o mențiune a dumneavoastră, în notificare și în previzualizarea din lista de conversații, folosește cuvântul ales în "Cum să se facă referire la mine?" în locul unui cuvânt fix

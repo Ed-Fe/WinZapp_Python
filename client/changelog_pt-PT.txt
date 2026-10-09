@@ -42,6 +42,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Ao abrir ou ler uma conversa dentro do WinZapp, a notificação da mensagem nova dessa conversa é removida da área de notificações em vez de ficar lá.
+
 - Depois de o computador sair da suspensão, as mensagens novas são obtidas de forma fiável: a conversa aberta e as conversas recentes são verificadas de novo mesmo quando a lista de conversas do WhatsApp parece inalterada, e as atualizações de conversas ligadas por um ID de dispositivo associado deixam de ser ignoradas
 
 - Menções: uma pessoa mencionada pelo nome juntamente com @todos mantém a sua ligação nas menções da mensagem, e uma menção a si, na notificação e na pré-visualização da lista de conversas, usa a palavra escolhida em "Como se referir a mim?" em vez de uma palavra fixa
