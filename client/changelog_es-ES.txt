@@ -38,6 +38,8 @@ NOVEDADES
 
 CORRECCIONES
 
+- Al abrir o leer un chat dentro de WinZapp, la notificación de su mensaje nuevo se quita del área de notificaciones en lugar de quedarse allí.
+
 - Tras reactivar el equipo de la suspensión, los mensajes nuevos se reciben de forma fiable: la conversación abierta y los chats recientes se vuelven a comprobar aunque la lista de chats de WhatsApp parezca sin cambios, y las actualizaciones de chats vinculados por un ID de dispositivo vinculado ya no se ignoran
 
 - Menciones: una persona mencionada por su nombre junto a @todos conserva su enlace en las menciones del mensaje, y una mención tuya, en la notificación y en la vista previa de la lista de conversaciones, usa la palabra elegida en "¿Cómo debo referirme a mí?" en lugar de una palabra fija

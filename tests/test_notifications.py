@@ -829,3 +829,45 @@ class TestDoNotDisturbSuppressesTheWholeNotification:
         notification there is — it must not be lost."""
         mgr = self._dispatch(monkeypatch, quiet=False)
         assert mgr.announced == [("Fulano", "oi")]
+
+
+class TestClearForChat:
+    """Reading a chat inside the app removes its toast from the notification area."""
+
+    class _Mgr(_Stub):
+        _chat_key = NotificationManager._chat_key
+        _note_clear = NotificationManager._note_clear
+        _remove_toast_for_chat = NotificationManager._remove_toast_for_chat
+        clear_for_chat = NotificationManager.clear_for_chat
+
+        def __init__(self):
+            super().__init__(toaster=_FakeToaster())
+            self._last_toast_jid = None
+
+    def test_removes_toast_of_the_read_chat(self):
+        mgr = self._Mgr()
+        mgr._last_toast, mgr._last_toast_jid = object(), "a@s.whatsapp.net"
+        mgr._remove_toast_for_chat("a@s.whatsapp.net")
+        assert mgr._toaster.removed_groups == [mgr.TOAST_GRP]
+        assert mgr._last_toast_jid is None
+
+    def test_keeps_toast_of_another_chat(self):
+        mgr = self._Mgr()
+        mgr._last_toast, mgr._last_toast_jid = object(), "b@s.whatsapp.net"
+        mgr._remove_toast_for_chat("a@s.whatsapp.net")
+        assert mgr._toaster.removed_groups == []
+        assert mgr._last_toast_jid == "b@s.whatsapp.net"
+
+    def test_clear_request_is_queued_and_never_replaces_a_toast(self):
+        mgr = self._Mgr()
+        mgr.clear_for_chat("a@s.whatsapp.net")
+        item, dropped = mgr._coalesce_pending(("Bia", "oi", "b@s.whatsapp.net"))
+        assert item == ("Bia", "oi", "b@s.whatsapp.net")
+        assert dropped == 0
+
+    def test_pending_toast_of_the_read_chat_is_skipped(self):
+        mgr = self._Mgr()
+        mgr._skip_jids = set()
+        mgr.clear_for_chat("a@s.whatsapp.net")
+        mgr._coalesce_pending(("Ana", "oi", "a@s.whatsapp.net"))
+        assert "a@s.whatsapp.net" in mgr._skip_jids
