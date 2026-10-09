@@ -56,6 +56,8 @@ CORREÇÕES
 
 - O visto por último em uma conversa aberta agora se mantém atualizado. O botão da conversa, o Alt+T e os detalhes do contato mostram as mesmas informações, e uma resposta antiga não pode mais sobrescrever uma atualização mais recente de online ou de visto por último.
 
+- A recuperação da conexão e a sincronização de mensagens não confundem mais uma sessão ou rodada de sincronização antiga com a atual. Respostas atrasadas da conexão, da lista de conversas ou do histórico de mensagens são descartadas, uma verificação de conexão lenta não é mais confundida com o computador voltando de suspensão, e uma nova sincronização não deixa mais o histórico pendente sem um processo para tratá-lo. Isso evita passagens desnecessárias para "offline" e históricos de mensagens incompletos.
+
 V2.0.0.0
 
 A grande novidade desta versão são as ligações: agora dá para ligar, atender e recusar ligações de voz e de vídeo pelo próprio WinZapp, sem pegar o celular, com uma janela de ligação acessível, atalhos de teclado, configurações de áudio próprias e o histórico na nova aba Ligações. Também chegaram as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de uso, além de correções em situações em que o WinZapp pedia para parear de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: ela não muda nada no uso, mas deixa o WinZapp mais fácil de manter e de corrigir daqui para a frente.
