@@ -62,6 +62,8 @@ DÜZELTMELER
 
 - Açık bir sohbetteki son görülme bilgisi artık güncel kalıyor. Sohbet düğmesi, Alt+T ve kişi ayrıntıları aynı bilgiyi gösteriyor; eski bir yanıt artık daha yeni bir çevrimiçi veya son görülme güncellemesinin üzerine yazamıyor.
 
+- Açık bir sohbetteki son görülme bilgisi, ilk yanıt hâlâ beklemedeyken kişinin bilinen alternatif kimliğini de sorgular; böylece veriler diğer kimlik altında mevcutken Alt+T ve durum düğmesi artık bilgi yok demez.
+
 - Bağlantı kurtarma ve mesaj eşitleme artık eski bir oturumu veya eşitleme turunu geçerli olanla karıştırmıyor. Bağlantıdan, sohbet listesinden veya mesaj geçmişinden gelen geç yanıtlar yok sayılır, yavaş bir bağlantı denetimi artık bilgisayarın uykudan uyanması sanılmaz ve yeni bir eşitleme bekleyen geçmişi onu işleyecek bir iş parçacığı olmadan bırakmaz. Bu, gereksiz çevrimdışı geçişlerini ve eksik mesaj geçmişini önler.
 
 - Bir sohbeti okundu olarak işaretlemek, sohbet hem telefon numarasıyla hem de bağlı cihaz kimliğiyle biliniyorsa yeniden telefona ulaşıyor; başarısız olan bir okuma, sohbeti bir sonraki açışınızda yeniden deneniyor, böylece WinZapp'ta okuduğunuz bir sohbet telefonda okunmamış kalmıyor.

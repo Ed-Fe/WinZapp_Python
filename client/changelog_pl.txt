@@ -62,6 +62,8 @@ POPRAWKI
 
 - Informacja o ostatnim widzeniu w otwartym czacie jest teraz stale aktualna. Przycisk czatu, Alt+T i szczegóły kontaktu pokazują te same informacje, a stara odpowiedź nie może już nadpisać nowszej aktualizacji statusu online lub „widziano”.
 
+- Informacja o ostatnim widzeniu w otwartym czacie sprawdza teraz także znany alternatywny identyfikator kontaktu, gdy pierwsza odpowiedź jest nadal oczekująca, więc Alt+T i przycisk statusu nie zgłaszają już braku informacji, gdy dane istnieją pod innym identyfikatorem.
+
 - Odzyskiwanie połączenia i synchronizacja wiadomości nie mylą już starej sesji ani starej rundy synchronizacji z bieżącą. Spóźnione odpowiedzi połączenia, listy czatów i historii wiadomości są odrzucane, wolne sprawdzanie połączenia nie jest już brane za wybudzenie komputera z uśpienia, a nowa synchronizacja nie zostawia już oczekującej historii bez procesu, który się nią zajmie. Dzięki temu unikamy niepotrzebnych przejść do trybu offline i niepełnej historii wiadomości.
 
 - Oznaczenie czatu jako przeczytanego ponownie dociera do telefonu, gdy czat jest znany zarówno po numerze telefonu, jak i po identyfikatorze połączonego urządzenia, a nieudane oznaczenie jest ponawiane przy następnym otwarciu czatu, więc czat nie pozostaje nieprzeczytany w telefonie po przeczytaniu go w WinZapp.
