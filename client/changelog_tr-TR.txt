@@ -32,13 +32,19 @@ YENİLİKLER
 
 - Metin ifadeleri, WhatsApp Web'deki gibi yazarken emojiye dönüşür: ":)" 🙂, ":D" 😃, "<3" ❤️ olur; ardından boşluk ya da noktalama işareti yazdığınızda veya mesajı hemen ardından gönderdiğinizde. Yalnızca tek başına duran bir ifade dönüştürülür; bir bağlantının, bir kelimenin ya da `kod`un içindeki asla. Dönüşümden hemen sonra Backspace tuşuna basmak yazdığınızı geri getirir. Ayarlar, "Genel" sekmesi, "Yazarken :D gibi metin ifadelerini emojiye dönüştür" ile kapatılabilir
 
+- Mesaj listesinde indirme ilerlemesi: bir belge indirilirken mesaj, örneğin "35% (13,8 mb / 39,4 mb)" gösterir ve indirme bitince dosya adı ve boyutuna döner.
+
 - "Mesaj bilgisi" WhatsApp'ın kendi bildiklerini gösterir. Gönderdiğiniz bir mesaj için pencere (Alt+Shift+D) artık WhatsApp'a ne zaman iletildiğini, okunduğunu ve oynatıldığını sorar; böylece WinZapp kapalıyken gelen makbuzlar da, her biri tam tarih ve saatle birlikte görünür. Bir grupta, mesajı kimlerin aldığını ve okuduğunu "Okundu (2/9): Ana, Bia" gibi isimleriyle listeler.
 
 - Kişisel sohbet bilgileri artık kişinin kendi seçtiği profil adını, bir işletmenin doğrulanmış adını ve hesabın işletme hesabı olup olmadığını da listeliyor. Zaten gösterilen adı yalnızca tekrarlayan bir ad atlanır.
 
 - Sohbet filtreleri için kısayollar: Alt+Shift+F sohbet filtresi seçenek düğmelerine gider ve bu düğmeler artık kısayolu duyurur; Alt+Shift+A, Alt+Shift+U, Alt+Shift+G ve Alt+Shift+I sohbet listesinden doğrudan Tümü, Okunmamış, Gruplar ve Bireysel filtrelerini seçer. WhatsApp listesi seçenekleri ve "WhatsApp listelerini yönet" artık sohbet filtrelerinden önce gelir. Hepsi kısayol yardımında (F1) yer alır.
 
+- WinZapp daha hızlı açılıyor. Hesabınız zaten bağlıysa ana pencere ve sohbetleriniz hemen görünür; WPPConnect arka planda başlatılır ve WhatsApp arka planda bağlanır. Artık "WPPConnect başlatılıyor, lütfen bekleyin..." penceresinin kapanması beklenmez. Bu sırada gönderdiğiniz mesajlar bekletilir ve WhatsApp bağlanır bağlanmaz gönderilir. İlk başlatma ve henüz eşlenmesi gereken bir hesap, bu pencereyi eskisi gibi gösterir. Hazır olana kadar pencere başlığında "WPPConnect başlatılıyor..." yazar. WPPConnect güncellemeleri ve zorla yeniden kurulum için de aynısı geçerlidir: hiçbir pencere yolunuza çıkmaz.
+
 DÜZELTMELER
+
+- WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.
 
 - Bilgisayar uykudan uyandığında yeni iletiler güvenilir biçimde alınır: WhatsApp sohbet listesi değişmemiş görünse bile açık sohbet ve son sohbetler yeniden denetlenir, bağlı cihaz kimliğiyle bağlanan sohbetlerin güncellemeleri artık yok sayılmaz
 
