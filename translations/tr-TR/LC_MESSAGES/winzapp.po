@@ -2726,6 +2726,11 @@ msgctxt "connection_ws_server_label"
 msgid "WebSocket Address (WS/WSS):"
 msgstr "WebSocket Adresi (WS/WSS):"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_business_account"
+msgid "Business account"
+msgstr "İşletme hesabı"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "contact_copy_number"
@@ -2780,6 +2785,11 @@ msgctxt "contact_pick_number"
 msgid "This contact has more than one number. Choose one:"
 msgstr "Bu kişinin birden fazla numarası var. Birini seçin:"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_profile_name_label"
+msgid "Profile name"
+msgstr "Profil adı"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
 msgctxt "contact_retrieval_failed"
 msgid "Failed to retrieve the contact list."
@@ -2789,6 +2799,11 @@ msgstr "Kişi listesi alınamadı."
 msgctxt "contact_surname"
 msgid "&Surname"
 msgstr "&Soyad"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_verified_name_label"
+msgid "Verified name"
+msgstr "Doğrulanmış ad"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -11376,6 +11391,26 @@ msgstr "Mesaj listesinde kendi mesajlarımda göndereni gizle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_unnamed_sender_numbers"
+msgid "Hide phone numbers of unnamed senders in messages"
+msgstr "Mesajlarda isimsiz gönderenlerin telefon numaralarını gizle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_unnamed_sender_numbers_help"
+msgid ""
+"In message rows and open-chat announcements, omit the sender prefix when no "
+"name is available. Applies to private and group chats, including reply "
+"prefixes. Names, message content, chat titles and other notifications stay "
+"unchanged. Off by default."
+msgstr ""
+"Adı olmayan gönderenlerin önekini mesaj satırlarında ve açık sohbet "
+"duyurularında kaldırır. Yanıt önekleri dahil bireysel ve grup sohbetlerinde "
+"geçerlidir. Adlar, mesaj içeriği, sohbet başlıkları ve diğer bildirimler "
+"değişmez. Varsayılan olarak kapalıdır."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_keep_pinned_chat_order"
 msgid "Keep pinned chats in a fixed order"
 msgstr "Sabitlenmiş sohbetlerin sırasını koru"
@@ -11671,8 +11706,8 @@ msgstr ""
 "deneyin."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/chat_list.py
-#: client/main_window/identity.py
+#: client/core/message_sender_labels.py client/core/notification_manager.py
+#: client/main_window/chat_list.py client/main_window/identity.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "unnamed_participant"
 msgid "Unnamed participant"

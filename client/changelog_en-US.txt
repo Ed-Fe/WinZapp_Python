@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Optional "Hide phone numbers of unnamed senders in messages" in Settings > User Interface. When enabled, messages from people without a name start directly with their content, in the messages list and open-chat announcements; no substitute sender label is added. Names and numbers inside message content are kept. It starts off.
+
 - Customizable keyboard shortcuts: the new Shortcuts tab in Settings lists every application shortcut, including the global show-window shortcut. Select one, press Change and type the new combination, or disable it, restore its default or restore them all. Conflicts are reported before you apply, and changes only take effect with Apply or OK.
 
 - Pinned messages: a button in each chat lists the messages pinned on WhatsApp, including older messages. Press Enter to go to one in the history. Opening a chat announces the number of pinned messages without moving focus; each pinned message also has a readable marker.
@@ -30,6 +32,8 @@ WHAT'S NEW
 
 - "Message info" shows what WhatsApp itself knows. For a message you sent, the window (Alt+Shift+D) now asks WhatsApp when it was delivered, read and played, so receipts that arrived while WinZapp was closed appear too, each with its full date and time. In a group it lists who received and who read it, by name, like "Read (2/9): Ana, Bia".
 
+- Chat info of a personal chat now also lists the profile name the contact chose for themselves, the verified name of a business and whether it is a business account. A name that only repeats the one already shown is skipped.
+
 FIXES
 
 - Mentions: a person mentioned by name next to @all keeps their link in the message's mentions, and a mention of you, in the notification and in the chat list preview, uses the word chosen in "How should I be referred to?" instead of a fixed word
@@ -55,6 +59,8 @@ FIXES
 - WPPConnect update: the previous version is kept until the new one starts and responds, and is restored if it does not. The update is refused before stopping anything when there is not enough disk space for both, and reinstalling reuses the Chrome already downloaded.
 
 - Last seen in an open chat now stays up to date. The conversation button, Alt+T and the contact details show the same information, and an old answer can no longer overwrite a newer online or last-seen update.
+
+- Connection recovery and message sync no longer mix up an old session or sync round with the current one. Late replies from the connection, the chat list or the message history are discarded, a slow connection check is no longer mistaken for the computer waking from sleep, and a new sync no longer leaves pending history without a worker. This avoids needless "offline" transitions and incomplete message history.
 
 - Marking a chat as read now reaches the phone again when the chat is known by both its phone number and its linked-device ID, and a read that fails is retried the next time you open the chat, so a chat no longer stays unread on the phone after you read it in WinZapp.
 

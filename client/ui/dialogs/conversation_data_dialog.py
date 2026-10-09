@@ -24,6 +24,7 @@ from datetime import datetime
 import wx
 import wx.adv
 from core import phone_contacts
+from core.contact_identity import contact_identity_lines
 from ui.accessible import AccessibleSaveAs
 from core.utils import (
     format_number, GROUP_MEDIA_TYPES, GROUP_MEDIA_FILTERS,
@@ -760,6 +761,10 @@ class ConversationDataDialog(wx.Dialog):
         lines.append(f"{i18n.t('conversations')}: {name}")
         if phone:
             lines.append(f"{i18n.t('phone_label')}: {phone}")
+
+        # Fields the /contact/ reply already carries: the name the person chose
+        # for themselves, a business's verified name, and the account type.
+        lines.extend(contact_identity_lines(cdata, name, i18n))
 
         # About/bio text comes from the dedicated profile-status endpoint
         # (exposed as "aboutText"). Never use the top-level "status", which is
