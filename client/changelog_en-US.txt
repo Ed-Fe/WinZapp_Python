@@ -32,6 +32,8 @@ WHAT'S NEW
 
 - "Message info" shows what WhatsApp itself knows. For a message you sent, the window (Alt+Shift+D) now asks WhatsApp when it was delivered, read and played, so receipts that arrived while WinZapp was closed appear too, each with its full date and time. In a group it lists who received and who read it, by name, like "Read (2/9): Ana, Bia".
 
+- Chat info of a personal chat now also lists the profile name the contact chose for themselves, the verified name of a business and whether it is a business account. A name that only repeats the one already shown is skipped.
+
 FIXES
 
 - Mentions: a person mentioned by name next to @all keeps their link in the message's mentions, and a mention of you, in the notification and in the chat list preview, uses the word chosen in "How should I be referred to?" instead of a fixed word

@@ -2736,6 +2736,11 @@ msgctxt "connection_ws_server_label"
 msgid "WebSocket Address (WS/WSS):"
 msgstr "Adresa WebSocket (WS/WSS):"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_business_account"
+msgid "Business account"
+msgstr "Cont business"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "contact_copy_number"
@@ -2790,6 +2795,11 @@ msgctxt "contact_pick_number"
 msgid "This contact has more than one number. Choose one:"
 msgstr "Acest contact are mai multe numere. Alegeți unul:"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_profile_name_label"
+msgid "Profile name"
+msgstr "Nume de profil"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
 msgctxt "contact_retrieval_failed"
 msgid "Failed to retrieve the contact list."
@@ -2799,6 +2809,11 @@ msgstr "Nu s-a putut prelua lista de contacte."
 msgctxt "contact_surname"
 msgid "&Surname"
 msgstr "&Nume de familie"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_verified_name_label"
+msgid "Verified name"
+msgstr "Nume verificat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py

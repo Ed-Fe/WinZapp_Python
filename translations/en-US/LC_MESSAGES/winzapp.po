@@ -2713,6 +2713,11 @@ msgctxt "connection_ws_server_label"
 msgid "WebSocket Address (WS/WSS):"
 msgstr "WebSocket Address (WS/WSS):"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_business_account"
+msgid "Business account"
+msgstr "Business account"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "contact_copy_number"
@@ -2767,6 +2772,11 @@ msgctxt "contact_pick_number"
 msgid "This contact has more than one number. Choose one:"
 msgstr "This contact has more than one number. Choose one:"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_profile_name_label"
+msgid "Profile name"
+msgstr "Profile name"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
 msgctxt "contact_retrieval_failed"
 msgid "Failed to retrieve the contact list."
@@ -2776,6 +2786,11 @@ msgstr "Failed to retrieve the contact list."
 msgctxt "contact_surname"
 msgid "&Surname"
 msgstr "&Surname"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_verified_name_label"
+msgid "Verified name"
+msgstr "Verified name"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
