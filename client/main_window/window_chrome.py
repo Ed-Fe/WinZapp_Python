@@ -32,6 +32,7 @@ class WindowChromeMixin:
     # key too so a live language change can retranslate the already-visible
     # status instead of leaving, for example, "Sincronizando" in an English UI.
     _TRAY_STATUS_KEYS = (
+        "tray_starting_wppconnect",
         "tray_connecting",
         "synchronizing",
         "updating_conversations",

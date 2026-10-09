@@ -536,3 +536,33 @@ class TestInitWiring:
         src = inspect.getsource(MainWindow.__init__)
         check = src.index("if not self.background_mode and not self._api_started_behind_window:")
         assert check < src.index("self._pair_account_at_startup()")
+
+
+class TestStartingWppconnectTitle:
+    """The title keeps the phrase the startup dialog used to show."""
+
+    def test_init_starts_the_title_status_as_starting_wppconnect(self):
+        src = inspect.getsource(MainWindow.__init__)
+        assert '"tray_starting_wppconnect"' in src
+        assert "if self._api_started_behind_window" in src
+
+    def test_the_status_is_a_known_tray_status_key(self):
+        assert "tray_starting_wppconnect" in MainWindow._TRAY_STATUS_KEYS
+
+    def _stub(self, key):
+        calls = []
+        stub = types.SimpleNamespace(
+            _tray_status_key=key,
+            i18n=types.SimpleNamespace(t=lambda k: k),
+            _set_status=calls.append)
+        return stub, calls
+
+    def test_node_answering_moves_the_title_on_to_connecting(self):
+        stub, calls = self._stub("tray_starting_wppconnect")
+        asbw.ApiStartBehindWindowMixin._leave_starting_wppconnect_status(stub)
+        assert calls == ["tray_connecting"]
+
+    def test_a_later_status_is_left_alone(self):
+        stub, calls = self._stub("synchronizing")
+        asbw.ApiStartBehindWindowMixin._leave_starting_wppconnect_status(stub)
+        assert calls == []

@@ -939,8 +939,13 @@ class MainWindow(
         # Status text shown in the title bar and tray tooltip (e.g. "sincronizando").
         # Starts as "connecting" rather than blank/offline — the connection
         # state genuinely isn't known yet at this point in startup.
-        self._tray_status = self.i18n.t("tray_connecting")
-        self._tray_status_key = "tray_connecting"
+        # While Node still starts behind the window (issue #407) the title
+        # carries the phrase the startup dialog used to show.
+        _initial_status_key = ("tray_starting_wppconnect"
+                               if self._api_started_behind_window
+                               else "tray_connecting")
+        self._tray_status = self.i18n.t(_initial_status_key)
+        self._tray_status_key = _initial_status_key
 
         # True from the moment a deliberate app shutdown starts (real_exit())
         # until the process actually exits. _stop_wpp_server() closes the

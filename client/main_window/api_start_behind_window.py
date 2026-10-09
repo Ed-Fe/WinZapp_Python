@@ -223,11 +223,20 @@ class ApiStartBehindWindowMixin:
                 self._wa_startup_time = time.time()
                 self._reset_startup_probe()
                 self._api_start_settled.set()
+                wx.CallAfter(self._leave_starting_wppconnect_status)
                 return True
             time.sleep(1)
         logging.error("[api-start-behind-window] WPPConnect never came up within %ss.",
                       API_START_TIMEOUT_SECONDS)
         return False
+
+    def _leave_starting_wppconnect_status(self):
+        """UI thread: Node answers, so the title goes on to "connecting".
+
+        Only when the title still says "Starting WPPConnect...": a status a
+        later event already set (connected, syncing) is not touched."""
+        if getattr(self, "_tray_status_key", None) == "tray_starting_wppconnect":
+            self._set_status(self.i18n.t("tray_connecting"))
 
     def _fail_api_start_behind_window(self):
         """Release every waiter, then end the way the startup dialog ends.
