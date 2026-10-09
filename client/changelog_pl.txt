@@ -38,6 +38,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Po wybudzeniu komputera z uśpienia nowe wiadomości są pobierane niezawodnie: otwarta rozmowa i ostatnie czaty są sprawdzane ponownie, nawet gdy lista czatów WhatsApp wygląda na niezmienioną, a aktualizacje czatów powiązanych przez identyfikator połączonego urządzenia nie są już pomijane
+
 - Wzmianki: osoba wspomniana z imienia obok @wszyscy zachowuje swój link we wzmiankach wiadomości, a wzmianka o Tobie, w powiadomieniu i w podglądzie na liście czatów, używa słowa wybranego w "Jak mam się do Ciebie zwracać?" zamiast stałego słowa
 
 - Ustawienia, karta "Interfejs użytkownika": karta jest teraz przewijana, a grupy opcji na jej końcu znów są odczytywane we właściwym miejscu. Na mniejszych ekranach czytnik ekranu ogłaszał "Pozycja ogłaszania zaznaczonych elementów" przy następnym polu wyboru, a nie przy przyciskach opcji tej grupy
