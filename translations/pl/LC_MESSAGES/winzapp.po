@@ -6108,6 +6108,31 @@ msgid "Ctrl+Left: previous status"
 msgstr "Ctrl+Lewo: poprzedni status"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_f_filter_label"
+msgid "Alt+Shift+F: go to the chat filters"
+msgstr "Alt+Shift+F: przejdź do filtrów czatów"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_all_label"
+msgid "Alt+Shift+A: show all chats"
+msgstr "Alt+Shift+A: pokaż wszystkie czaty"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_unread_label"
+msgid "Alt+Shift+U: show unread chats"
+msgstr "Alt+Shift+U: pokaż nieprzeczytane czaty"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_groups_label"
+msgid "Alt+Shift+G: show group chats"
+msgstr "Alt+Shift+G: pokaż grupy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_individual_label"
+msgid "Alt+Shift+I: show individual chats"
+msgstr "Alt+Shift+I: pokaż czaty osobiste"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_ctrl_n_label"
 msgid "Ctrl+N: new chat"
 msgstr "Ctrl+N: nowy czat"

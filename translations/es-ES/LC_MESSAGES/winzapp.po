@@ -7105,6 +7105,12 @@ msgstr "Alt+Shift+D: datos del mensaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_f_filter_label"
+msgid "Alt+Shift+F: go to the chat filters"
+msgstr "Alt+Shift+F: ir a los filtros de conversaciones"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_k_label"
 msgid "Alt+Shift+K: announce the focused message's date and time"
 msgstr "Alt+Shift+K: anunciar la fecha y hora del mensaje enfocado"
@@ -7681,6 +7687,30 @@ msgstr "F1: mostrar atajos de teclado"
 msgctxt "shortcut_f5_label"
 msgid "F5: resync all chats"
 msgstr "F5: resincronizar todas las conversaciones"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_all_label"
+msgid "Alt+Shift+A: show all chats"
+msgstr "Alt+Shift+A: mostrar todas las conversaciones"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_groups_label"
+msgid "Alt+Shift+G: show group chats"
+msgstr "Alt+Shift+G: mostrar los grupos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_individual_label"
+msgid "Alt+Shift+I: show individual chats"
+msgstr "Alt+Shift+I: mostrar las conversaciones individuales"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_unread_label"
+msgid "Alt+Shift+U: show unread chats"
+msgstr "Alt+Shift+U: mostrar las conversaciones sin leer"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_insert_mention"

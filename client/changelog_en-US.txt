@@ -34,6 +34,8 @@ WHAT'S NEW
 
 - Chat info of a personal chat now also lists the profile name the contact chose for themselves, the verified name of a business and whether it is a business account. A name that only repeats the one already shown is skipped.
 
+- Chat filter shortcuts: Alt+Shift+F goes to the chat filter radio buttons, which now announce it, and Alt+Shift+A, Alt+Shift+U, Alt+Shift+G and Alt+Shift+I pick All, Unread, Groups and Individual straight from the chat list. The WhatsApp list options and "Manage WhatsApp lists" now come before the chat filters. All of them are in the F1 shortcuts help.
+
 FIXES
 
 - Mentions: a person mentioned by name next to @all keeps their link in the message's mentions, and a mention of you, in the notification and in the chat list preview, uses the word chosen in "How should I be referred to?" instead of a fixed word

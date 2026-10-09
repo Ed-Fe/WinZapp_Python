@@ -34,6 +34,8 @@ NOWOŚCI
 
 - Informacje o czacie prywatnym pokazują teraz także nazwę profilu wybraną przez kontakt, zweryfikowaną nazwę firmy i informację, czy to konto firmowe. Nazwa, która tylko powtarza już wyświetloną, jest pomijana.
 
+- Skróty do filtrów czatów: Alt+Shift+F przechodzi do przycisków opcji filtrów czatów, które teraz zapowiadają ten skrót, a Alt+Shift+A, Alt+Shift+U, Alt+Shift+G i Alt+Shift+I wybierają Wszystkie, Nieprzeczytane, Grupy i Osobiste bezpośrednio z listy czatów. Opcje list WhatsApp i „Zarządzaj listami WhatsApp” są teraz przed filtrami czatów. Wszystkie skróty są w pomocy skrótów (F1).
+
 POPRAWKI
 
 - Wzmianki: osoba wspomniana z imienia obok @wszyscy zachowuje swój link we wzmiankach wiadomości, a wzmianka o Tobie, w powiadomieniu i w podglądzie na liście czatów, używa słowa wybranego w "Jak mam się do Ciebie zwracać?" zamiast stałego słowa

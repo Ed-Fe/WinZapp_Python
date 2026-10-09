@@ -34,6 +34,8 @@ YENİLİKLER
 
 - Kişisel sohbet bilgileri artık kişinin kendi seçtiği profil adını, bir işletmenin doğrulanmış adını ve hesabın işletme hesabı olup olmadığını da listeliyor. Zaten gösterilen adı yalnızca tekrarlayan bir ad atlanır.
 
+- Sohbet filtreleri için kısayollar: Alt+Shift+F sohbet filtresi seçenek düğmelerine gider ve bu düğmeler artık kısayolu duyurur; Alt+Shift+A, Alt+Shift+U, Alt+Shift+G ve Alt+Shift+I sohbet listesinden doğrudan Tümü, Okunmamış, Gruplar ve Bireysel filtrelerini seçer. WhatsApp listesi seçenekleri ve "WhatsApp listelerini yönet" artık sohbet filtrelerinden önce gelir. Hepsi kısayol yardımında (F1) yer alır.
+
 DÜZELTMELER
 
 - Bahsetmeler: @tümü ile birlikte adıyla anılan kişi mesajın bahsetmelerinde bağlantısını korur ve sizden bahsedilmesi, bildirimde ve sohbet listesi önizlemesinde, sabit bir sözcük yerine "Kendimden nasıl bahsedilsin?" ayarında seçilen sözcüğü kullanır
