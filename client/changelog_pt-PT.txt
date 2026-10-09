@@ -62,6 +62,8 @@ CORREÇÕES
 
 - A recuperação da ligação e a sincronização de mensagens já não confundem uma sessão ou ronda de sincronização antiga com a atual. As respostas tardias da ligação, da lista de conversas ou do histórico de mensagens são descartadas, uma verificação de ligação lenta já não é confundida com o computador a sair da suspensão, e uma nova sincronização já não deixa o histórico pendente sem um processo para o tratar. Isto evita passagens desnecessárias para "offline" e históricos de mensagens incompletos.
 
+- Marcar uma conversa como lida volta a chegar ao telemóvel quando a conversa é conhecida pelo número de telefone e pelo ID de dispositivo associado, e uma leitura que falha é tentada de novo da próxima vez que abrir a conversa; assim, a conversa deixa de ficar por ler no telemóvel depois de lida no WinZapp.
+
 V2.0.0.0
 
 A grande novidade desta versão são as chamadas: agora é possível fazer, atender e recusar chamadas de voz e de vídeo no próprio WinZapp, sem pegar no telemóvel, com uma janela de chamada acessível, atalhos de teclado, definições de áudio próprias e o histórico no novo separador Chamadas. Chegaram também as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de utilização, além de correções em situações em que o WinZapp pedia para emparelhar de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: não muda nada na utilização, mas torna o WinZapp mais fácil de manter e de corrigir daqui para a frente.

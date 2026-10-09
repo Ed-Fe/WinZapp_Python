@@ -62,6 +62,8 @@ POPRAWKI
 
 - Odzyskiwanie połączenia i synchronizacja wiadomości nie mylą już starej sesji ani starej rundy synchronizacji z bieżącą. Spóźnione odpowiedzi połączenia, listy czatów i historii wiadomości są odrzucane, wolne sprawdzanie połączenia nie jest już brane za wybudzenie komputera z uśpienia, a nowa synchronizacja nie zostawia już oczekującej historii bez procesu, który się nią zajmie. Dzięki temu unikamy niepotrzebnych przejść do trybu offline i niepełnej historii wiadomości.
 
+- Oznaczenie czatu jako przeczytanego ponownie dociera do telefonu, gdy czat jest znany zarówno po numerze telefonu, jak i po identyfikatorze połączonego urządzenia, a nieudane oznaczenie jest ponawiane przy następnym otwarciu czatu, więc czat nie pozostaje nieprzeczytany w telefonie po przeczytaniu go w WinZapp.
+
 V2.0.0.0
 
 Najważniejszą nowością tej wersji są połączenia: połączenia głosowe i wideo można teraz nawiązywać, odbierać i odrzucać bezpośrednio w WinZapp, bez sięgania po telefon — z dostępnym oknem połączenia, skrótami klawiszowymi, własnymi ustawieniami dźwięku i historią w nowej karcie Połączenia. Doszły też zablokowane czaty, wyszukiwanie w zarchiwizowanych czatach, języki turecki i rumuński oraz kilka usprawnień w obsłudze, a także poprawki sytuacji, w których WinZapp niepotrzebnie prosił o ponowne parowanie. Pod spodem kod programu przeszedł dużą reorganizację: niczego nie zmienia w codziennym używaniu, ale sprawia, że WinZapp będzie łatwiej utrzymywać i naprawiać.
