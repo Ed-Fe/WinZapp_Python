@@ -3313,11 +3313,18 @@ msgid "downloading media"
 msgstr "descargando medios"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/message_rendering.py
+#: client/ui/conversation_panel/formatting.py
 #, python-brace-format
 msgctxt "downloading_progress"
 msgid "downloading, {pct}% done"
 msgstr "descargando, {pct}% completado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/formatting.py
+#, python-brace-format
+msgctxt "downloading_progress_size"
+msgid "downloading, {pct}% ({done} of {total})"
+msgstr "descargando, {pct}% ({done} de {total})"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_log.py
 #: client/ui/conversation_panel/message_rendering.py

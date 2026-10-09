@@ -26,6 +26,8 @@ NOVIDADES
 
 - Os emoticons passam a emojis enquanto escreve, como no WhatsApp Web: ":)" passa a 🙂, ":D" a 😃, "<3" a ❤️ e assim por diante, ao escrever um espaço ou uma pontuação a seguir, ou ao enviar a mensagem logo a seguir a um. Só é convertido um emoticon isolado, nunca um dentro de um link, de uma palavra ou de `código`. Premir Backspace logo após a conversão repõe o que escreveu. Pode ser desativado em Definições, separador "Geral", "Converter emoticons como :D em emojis ao escrever"
 
+- Progresso da transferência na lista de mensagens: enquanto um documento é descarregado, a mensagem mostra, por exemplo, "35% (13,8 mb de 39,4 mb)" e volta ao nome e tamanho do ficheiro quando a transferência termina.
+
 CORREÇÕES
 
 - Menções: uma pessoa mencionada pelo nome juntamente com @todos mantém a sua ligação nas menções da mensagem, e uma menção a si, na notificação e na pré-visualização da lista de conversas, usa a palavra escolhida em "Como se referir a mim?" em vez de uma palavra fixa

@@ -26,6 +26,8 @@ YENİLİKLER
 
 - Metin ifadeleri, WhatsApp Web'deki gibi yazarken emojiye dönüşür: ":)" 🙂, ":D" 😃, "<3" ❤️ olur; ardından boşluk ya da noktalama işareti yazdığınızda veya mesajı hemen ardından gönderdiğinizde. Yalnızca tek başına duran bir ifade dönüştürülür; bir bağlantının, bir kelimenin ya da `kod`un içindeki asla. Dönüşümden hemen sonra Backspace tuşuna basmak yazdığınızı geri getirir. Ayarlar, "Genel" sekmesi, "Yazarken :D gibi metin ifadelerini emojiye dönüştür" ile kapatılabilir
 
+- Mesaj listesinde indirme ilerlemesi: bir belge indirilirken mesaj, örneğin "35% (13,8 mb / 39,4 mb)" gösterir ve indirme bitince dosya adı ve boyutuna döner.
+
 DÜZELTMELER
 
 - Bahsetmeler: @tümü ile birlikte adıyla anılan kişi mesajın bahsetmelerinde bağlantısını korur ve sizden bahsedilmesi, bildirimde ve sohbet listesi önizlemesinde, sabit bir sözcük yerine "Kendimden nasıl bahsedilsin?" ayarında seçilen sözcüğü kullanır

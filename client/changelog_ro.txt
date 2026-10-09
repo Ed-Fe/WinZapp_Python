@@ -26,6 +26,8 @@ NOUTĂȚI
 
 - Emoticoanele devin emoji în timp ce tastați, ca în WhatsApp Web: ":)" devine 🙂, ":D" devine 😃, "<3" devine ❤️ și așa mai departe, când tastați un spațiu sau un semn de punctuație după ele ori trimiteți mesajul imediat după unul. Se convertește doar un emoticon de sine stătător, niciodată unul dintr-un link, dintr-un cuvânt sau din `cod`. Apăsarea tastei Backspace imediat după conversie readuce ce ați tastat. Se poate dezactiva în Setări, fila "Generale", "Convertiți emoticoanele precum :D în emoji în timpul tastării"
 
+- Progresul descărcării în lista de mesaje: cât timp un document se descarcă, mesajul afișează, de exemplu, „35% (13,8 mb din 39,4 mb)”, iar la final revine la numele și dimensiunea fișierului.
+
 CORECTĂRI
 
 - Mențiuni: o persoană menționată pe nume alături de @toți își păstrează linkul în mențiunile mesajului, iar o mențiune a dumneavoastră, în notificare și în previzualizarea din lista de conversații, folosește cuvântul ales în "Cum să se facă referire la mine?" în locul unui cuvânt fix
