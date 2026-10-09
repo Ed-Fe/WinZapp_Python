@@ -30,6 +30,8 @@ NOWOŚCI
 
 - „Informacje o wiadomości” pokazuje to, co wie sam WhatsApp. Dla wysłanej przez Ciebie wiadomości okno (Alt+Shift+D) pyta teraz WhatsApp, kiedy została dostarczona, odczytana i odtworzona, więc pojawiają się też potwierdzenia, które przyszły przy zamkniętym WinZapp, każde z pełną datą i godziną. W grupie wyświetla listę osób, które ją odebrały i odczytały, z nazwami, np. „Wyświetlono (2/9): Ana, Bia”.
 
+- Informacje o czacie prywatnym pokazują teraz także nazwę profilu wybraną przez kontakt, zweryfikowaną nazwę firmy i informację, czy to konto firmowe. Nazwa, która tylko powtarza już wyświetloną, jest pomijana.
+
 POPRAWKI
 
 - Wzmianki: osoba wspomniana z imienia obok @wszyscy zachowuje swój link we wzmiankach wiadomości, a wzmianka o Tobie, w powiadomieniu i w podglądzie na liście czatów, używa słowa wybranego w "Jak mam się do Ciebie zwracać?" zamiast stałego słowa

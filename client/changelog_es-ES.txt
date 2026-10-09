@@ -30,6 +30,8 @@ NOVEDADES
 
 - "Datos del mensaje" muestra lo que el propio WhatsApp sabe. En un mensaje que enviaste, la ventana (Alt+Shift+D) ahora pregunta a WhatsApp cuándo se entregó, se leyó y se reprodujo, así que también aparecen los recibos que llegaron con WinZapp cerrado, cada uno con fecha y hora completas. En un grupo, lista quién lo recibió y quién lo leyó, por nombre, como "Leído (2/9): Ana, Bia".
 
+- La información del chat personal ahora también muestra el nombre de perfil que el contacto eligió, el nombre verificado de una empresa y si es una cuenta de empresa. Se omite un nombre que solo repite el ya mostrado.
+
 CORRECCIONES
 
 - Menciones: una persona mencionada por su nombre junto a @todos conserva su enlace en las menciones del mensaje, y una mención tuya, en la notificación y en la vista previa de la lista de conversaciones, usa la palabra elegida en "¿Cómo debo referirme a mí?" en lugar de una palabra fija
