@@ -4439,6 +4439,9 @@ msgstr ""
 "Are you sure you want to mark all chats as read? Unread chats: {count}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/archived_panel.py
+#: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/conversation_panel/chat_menu.py
 msgctxt "mark_all_read_dont_show_again"
 msgid "Don't show again"
 msgstr "Don't show again"
@@ -11349,6 +11352,18 @@ msgstr ""
 msgctxt "ui_bulk_action_shortcuts"
 msgid "Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr "Replace shortcuts with bulk actions when selecting chats and messages"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_clear_chat"
+msgid "Ask for confirmation before clearing chats"
+msgstr "Ask for confirmation before clearing chats"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_delete_chat"
+msgid "Ask for confirmation before deleting chats"
+msgstr "Ask for confirmation before deleting chats"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

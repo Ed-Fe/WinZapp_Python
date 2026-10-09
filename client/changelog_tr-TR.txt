@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Sohbetleri temizlemek veya silmek artık onay istemeyebilir: iki iletişim kutusunda da yalnızca Evet ile birlikte geçerli olan "Bir daha gösterme" kutusu bulunur. Soru kapalıyken temizleme yıldızlı iletileri korur. Ayarlar > Kullanıcı arayüzü içinde onayı yeniden açan iki ilgili seçenek vardır.
+
 - Ayarlar > Kullanıcı Arayüzü altında isteğe bağlı "Mesajlarda isimsiz gönderenlerin telefon numaralarını gizle" seçeneği. Açıldığında adı olmayan kişilerin mesajları, mesaj listesinde ve açık sohbet duyurularında doğrudan içerikle başlar; yerine başka bir gönderen etiketi eklenmez. Adlar ve mesaj içeriğindeki numaralar korunur. Başlangıçta kapalıdır.
 
 - Özelleştirilebilir klavye kısayolları: Ayarlar'daki yeni Kısayollar sekmesi, pencereyi gösteren genel kısayol dahil uygulamanın tüm kısayollarını listeler. Birini seçip Değiştir'e basın ve yeni birleşimi yazın; ya da devre dışı bırakın, varsayılana döndürün veya tümünü sıfırlayın. Çakışmalar uygulamadan önce bildirilir ve değişiklikler yalnızca Uygula veya Tamam ile geçerli olur.

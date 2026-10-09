@@ -636,6 +636,20 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             self._confirm_mark_all_read_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
         )
 
+        # Same arrangement for clearing and deleting chats.
+        self._confirm_clear_chat_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_confirm_clear_chat")
+        )
+        ui_sizer.Add(
+            self._confirm_clear_chat_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+        self._confirm_delete_chat_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_confirm_delete_chat")
+        )
+        ui_sizer.Add(
+            self._confirm_delete_chat_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
         # Same arrangement for F5 and Shift+F5: each mirrors the key its
         # confirmation's "don't show again" box clears.
         self._confirm_resync_all_cb = wx.CheckBox(
@@ -2000,6 +2014,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         self._confirm_mark_all_read_cb.SetValue(bool(confirm_mark_all_read))
 
+        for key, cb in (
+            ("confirm_clear_chat", self._confirm_clear_chat_cb),
+            ("confirm_delete_chat", self._confirm_delete_chat_cb),
+        ):
+            cb.SetValue(bool(self.main_window.settings.get("user_interface", {}).get(key, True)))
+
         confirm_resync_all = self.main_window.settings.get("user_interface", {}).get(
             "confirm_resync_all", True
         )
@@ -3336,6 +3356,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "confirm_mark_all_read"
         ] = self._confirm_mark_all_read_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
+            "confirm_clear_chat"
+        ] = self._confirm_clear_chat_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "confirm_delete_chat"
+        ] = self._confirm_delete_chat_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
             "confirm_resync_all"
         ] = self._confirm_resync_all_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
@@ -3893,6 +3919,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._confirm_mark_all_read_cb.SetLabel(i18n.t("ui_confirm_mark_all_read"))
         self._confirm_resync_all_cb.SetLabel(i18n.t("ui_confirm_resync_all"))
         self._confirm_resync_conversation_cb.SetLabel(i18n.t("ui_confirm_resync_conversation"))
+        self._confirm_clear_chat_cb.SetLabel(i18n.t("ui_confirm_clear_chat"))
+        self._confirm_delete_chat_cb.SetLabel(i18n.t("ui_confirm_delete_chat"))
         self._warn_system_audio_cb.SetLabel(i18n.t("ui_warn_system_audio_recording"))
         self._space_selects_cb.SetLabel(i18n.t("ui_space_selects_in_selection_mode"))
         self._escape_clears_selection_cb.SetLabel(i18n.t("ui_escape_clears_selection"))
