@@ -38,6 +38,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Bilgisayar uykudan uyandığında yeni iletiler güvenilir biçimde alınır: WhatsApp sohbet listesi değişmemiş görünse bile açık sohbet ve son sohbetler yeniden denetlenir, bağlı cihaz kimliğiyle bağlanan sohbetlerin güncellemeleri artık yok sayılmaz
+
 - Bahsetmeler: @tümü ile birlikte adıyla anılan kişi mesajın bahsetmelerinde bağlantısını korur ve sizden bahsedilmesi, bildirimde ve sohbet listesi önizlemesinde, sabit bir sözcük yerine "Kendimden nasıl bahsedilsin?" ayarında seçilen sözcüğü kullanır
 
 - Ayarlar, "Kullanıcı Arayüzü" sekmesi: sekme artık kaydırılabiliyor ve sonundaki seçenek grupları yeniden doğru yerde okunuyor. Küçük ekranlarda ekran okuyucu "Seçili öğelerin duyurulacağı konum" grup adını grubun kendi seçenek düğmelerinde değil, ondan sonraki onay kutusunda duyuruyordu
