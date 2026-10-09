@@ -16,6 +16,7 @@ import pytest
 
 from core import message_ack
 from main_window.message_ack import MessageAckMixin
+from ui.conversation_panel.message_data import MessageDataMixin
 import main_window.message_ack as ack_module
 from tests.god_modules import patch_conversations_global
 from tests.locales import load_strings, registered_locale_codes
@@ -474,12 +475,14 @@ class TestWiring:
     CONTROLLER = _read("api_patches", "src", "controller", "deviceController.ts")
 
     def test_both_mixins_are_part_of_their_class(self):
-        assert self.MAIN.count("MessageAckMixin") == 2
-        assert self.PANEL.count("MessageDataMixin") == 2
+        assert re.search(r"class MainWindow\([^)]*\bMessageAckMixin\b", self.MAIN)
+        assert issubclass(ConversationsPanel, MessageDataMixin)
+        assert callable(MessageAckMixin.fetch_message_ack)
 
     def test_the_handler_lives_in_one_place_only(self):
-        assert "def _on_menu_message_data" not in self.MENU
-        assert "def _on_menu_message_data" in _read("ui", "conversation_panel", "message_data.py")
+        assert "_on_menu_message_data" in vars(MessageDataMixin)
+        assert "_on_menu_message_data" not in vars(ConversationsPanel)
+        assert callable(ConversationsPanel._on_menu_message_data)
 
     def test_the_menu_item_still_calls_it(self):
         assert "self._on_menu_message_data(m)" in self.MENU
