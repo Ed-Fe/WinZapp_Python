@@ -113,6 +113,7 @@ from core.wpp_runtime import read_homologated_wpp_version
 from core.utils import reaction_targets_status, encrypt, decrypt, encrypt_json, decrypt_json, generate_and_save_key, retrieve_key, format_number, is_phone_like, looks_like_binary_blob, prune_message_record, prune_chats_messages, effective_unread_count, mute_response_accepted, normalize_for_search, search_normalization_mode, parse_bool_flag as _parse_bool_flag, group_setting_notif_value, DEFAULT_SETTINGS, append_selected_marker, is_message_forwarded, plan_row_updates, display_page_fetch_limit, carry_over_video_durations, video_seconds, MEASURED_SECONDS_KEY, is_voice_message, backfill_missing_defaults, auto_download_allows, migrate_voice_messages_media_types, migrate_voice_message_mode_default, migrate_spell_check_mode, migrate_call_exclusive_mode_split
 from core.utils import clear_chat_applied, clear_chat_keep_starred_echo
 from ui.dialogs.checkbox_confirm import confirm_with_checkbox
+from ui.shortcut_bindings import make_shortcut_table
 from core.settings_transfer import connection_runtime as _connection_runtime
 from core.profile_backup import (
     close_snapshot_max_age as _close_snapshot_max_age,
@@ -292,6 +293,7 @@ from main_window.conversation_sync import ConversationSyncMixin
 from main_window.media import MediaMixin
 from main_window.transcription_store import TranscriptionStoreMixin
 from main_window.chat_events import ChatEventsMixin
+from main_window.contact_presence import ContactPresenceMixin
 from main_window.history import HistoryMixin
 from main_window.read_state import ReadStateMixin
 from main_window.chat_actions import ChatActionsMixin
@@ -299,6 +301,7 @@ from main_window.message_actions import MessageActionsMixin
 from main_window.message_stars import MessageStarsMixin
 from main_window.message_pins import MessagePinsMixin
 from main_window.quick_audio_devices import QuickAudioDevicesMixin
+from main_window.message_ack import MessageAckMixin
 
 
 requests.get = _patched_get
@@ -341,6 +344,7 @@ class MainWindow(
     MediaMixin,
     TranscriptionStoreMixin,
     ChatEventsMixin,
+    ContactPresenceMixin,
     HistoryMixin,
     ReadStateMixin,
     ChatActionsMixin,
@@ -348,6 +352,7 @@ class MainWindow(
     MessageStarsMixin,
     MessagePinsMixin,
     QuickAudioDevicesMixin,
+    MessageAckMixin,
     wx.Frame,
 ):
     def __init__(self, account_id=None, account_name=None, startup_source="user",
@@ -1346,13 +1351,13 @@ class MainWindow(
         self.ID_CALL_SETTINGS = wx.NewIdRef()  # call settings       (Ctrl+C)
         self.ID_CALL_VIDEO    = wx.NewIdRef()  # toggle video        (Ctrl+V)
         self.ID_CALL_PROMOTE  = wx.NewIdRef()  # voice -> video      (Ctrl+P)
-        call_accel_tbl = wx.AcceleratorTable([
+        call_accel_tbl = make_shortcut_table(self, 'call', [
             (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord("Q"), self.ID_CALL_END),
             (wx.ACCEL_CTRL,                  ord("M"), self.ID_CALL_MUTE),
             (wx.ACCEL_CTRL,                  ord("C"), self.ID_CALL_SETTINGS),
             (wx.ACCEL_CTRL,                  ord("V"), self.ID_CALL_VIDEO),
             (wx.ACCEL_CTRL,                  ord("P"), self.ID_CALL_PROMOTE),
-        ])
+        ], target=self.voice_call_window)
         self.voice_call_window.SetAcceleratorTable(call_accel_tbl)
         self.voice_call_window.Bind(wx.EVT_MENU, self.end_active_call,          id=self.ID_CALL_END)
         self.voice_call_window.Bind(wx.EVT_MENU, self.toggle_call_microphone,   id=self.ID_CALL_MUTE)

@@ -15,6 +15,8 @@ Screen-reader accessibility is achieved through standard wxPython controls
 and proper label association — no visual-only information is presented.
 """
 
+from ui.shortcut_bindings import command_key_event
+from ui.shortcut_bindings import refresh_popup_shortcuts
 import logging
 import os
 import threading
@@ -22,6 +24,7 @@ from datetime import datetime
 import wx
 import wx.adv
 from core import phone_contacts
+from core.contact_identity import contact_identity_lines
 from ui.accessible import AccessibleSaveAs
 from core.utils import (
     format_number, GROUP_MEDIA_TYPES, GROUP_MEDIA_FILTERS,
@@ -759,6 +762,10 @@ class ConversationDataDialog(wx.Dialog):
         if phone:
             lines.append(f"{i18n.t('phone_label')}: {phone}")
 
+        # Fields the /contact/ reply already carries: the name the person chose
+        # for themselves, a business's verified name, and the account type.
+        lines.extend(contact_identity_lines(cdata, name, i18n))
+
         # About/bio text comes from the dedicated profile-status endpoint
         # (exposed as "aboutText"). Never use the top-level "status", which is
         # the API result word ("success").
@@ -766,15 +773,14 @@ class ConversationDataDialog(wx.Dialog):
         if about:
             lines.append(f"{i18n.t('about_label')}: {about}")
 
-        # Online / last-seen: prefer the live presence cache (populated by
-        # presence.update events); fall back to the last-seen fetched directly
-        # from the API (data["lastSeenTs"]) since presence events may not have
-        # arrived yet.
+        # Read the shared snapshot after the profile worker's cache callback.
+        # Captured HTTP values must not override later live/withheld information.
         canonical = self._mw._normalize_jid(canonical)
-        presence  = getattr(self._mw, "_presence_cache", {}).get(canonical, {})
+        from core.contact_presence import cached
+        presence = cached(self._mw, canonical)
         lkp       = presence.get("lastKnownPresence", "")
-        last_seen = presence.get("lastSeen") or data.get("lastSeenTs")
-        from ui.conversations import _fmt_last_seen
+        last_seen = presence.get("lastSeen")
+        from ui.conversation_panel.text_helpers import _fmt_last_seen
         if lkp in ("available", "composing", "recording"):
             lines.append(i18n.t("online_status"))
         elif last_seen:
@@ -1490,6 +1496,7 @@ class ConversationDataDialog(wx.Dialog):
         on the list rather than through a dialog-wide accelerator table so they
         cannot fire while the user is on the filter radio or a checkbox.
         """
+        event = command_key_event(self, 'messages', event)
         code = event.GetKeyCode()
         ctrl, shift, alt = event.ControlDown(), event.ShiftDown(), event.AltDown()
         msg = self._selected_media_message()
@@ -1612,6 +1619,7 @@ class ConversationDataDialog(wx.Dialog):
             )
             hint.Enable(False)
 
+        refresh_popup_shortcuts(self, 'messages', menu)
         self._media_list.PopupMenu(menu)
         menu.Destroy()
 
@@ -1849,6 +1857,7 @@ class ConversationDataDialog(wx.Dialog):
             promote_item = menu.Append(wx.ID_ANY, i18n.t("promote_to_admin"))
             self.Bind(wx.EVT_MENU, lambda e, j=jid, n=name: self._on_promote_member(j, n), promote_item)
 
+        refresh_popup_shortcuts(self, 'messages', menu)
         self.PopupMenu(menu)
         menu.Destroy()
 

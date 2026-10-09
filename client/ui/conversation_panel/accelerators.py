@@ -5,6 +5,7 @@ the ConversationsPanel instance, so every attribute set in
 ConversationsPanel.__init__/init_UI is available here.
 """
 
+from ui.shortcut_bindings import make_shortcut_table
 import wx
 from core.conversation_view import mnemonic_letter
 
@@ -45,6 +46,12 @@ class AcceleratorsMixin:
         # moves focus there, as the native mnemonic of the label inside the
         # hidden pane cannot (panel_visibility).
         self.ID_ALT_M_LIST          = wx.NewIdRef()
+        # Alt+Shift+F goes to the chat filter radio buttons; A/U/G/I pick one.
+        self.ID_FILTER_FOCUS        = wx.NewIdRef()
+        self.ID_FILTER_ALL          = wx.NewIdRef()
+        self.ID_FILTER_UNREAD       = wx.NewIdRef()
+        self.ID_FILTER_GROUPS       = wx.NewIdRef()
+        self.ID_FILTER_INDIVIDUAL   = wx.NewIdRef()
         # ── Mass actions (only act while conversations are selected) ─────────
         # One shortcut per entry of the chat list's "Ações em massa" submenu,
         # for the same reason the messages list has its own set (see
@@ -71,7 +78,7 @@ class AcceleratorsMixin:
         AS = wx.ACCEL_ALT | wx.ACCEL_SHIFT
         CAS = wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT
         i18n = self.main_window.i18n
-        accel_tbl = wx.AcceleratorTable([
+        accel_tbl = make_shortcut_table(self, 'chats', [
             (wx.ACCEL_ALT,    ord(mnemonic_letter(i18n.t("messages"), "M")), self.ID_ALT_M_LIST),
             (wx.ACCEL_CTRL,   ord("F"),        self.ID_CTRL_F),
             (wx.ACCEL_CTRL,   ord("N"),        self.ID_CTRL_N),
@@ -92,6 +99,11 @@ class AcceleratorsMixin:
             (wx.ACCEL_CTRL,   ord("W"),         self.ID_CLOSE_CONV_LIST),
             (wx.ACCEL_ALT,    ord("2"),         self.ID_ALT_2_LIST),
             (wx.ACCEL_ALT,    ord("3"),         self.ID_ALT_3_LIST),
+            (AS,              ord("F"),         self.ID_FILTER_FOCUS),
+            (AS,              ord("A"),         self.ID_FILTER_ALL),
+            (AS,              ord("U"),         self.ID_FILTER_UNREAD),
+            (AS,              ord("G"),         self.ID_FILTER_GROUPS),
+            (AS,              ord("I"),         self.ID_FILTER_INDIVIDUAL),
             (CAS,             ord("L"),         self.ID_BULK_CLEAR_CHATS),
             (CS,              wx.WXK_DELETE,    self.ID_BULK_DELETE_CHATS),
             (CAS,             ord("A"),         self.ID_BULK_ARCHIVE_CHATS),
@@ -115,6 +127,12 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_list_jump_last,            id=self.ID_ALT_2_LIST)
         self.Bind(wx.EVT_MENU, self._on_list_jump_unread,          id=self.ID_ALT_3_LIST)
         self.Bind(wx.EVT_MENU, self._on_list_focus_messages,       id=self.ID_ALT_M_LIST)
+        self.Bind(wx.EVT_MENU, self._on_accel_focus_conversation_filter, id=self.ID_FILTER_FOCUS)
+        for _id, _key in (
+            (self.ID_FILTER_ALL, 'all'), (self.ID_FILTER_UNREAD, 'unread'),
+            (self.ID_FILTER_GROUPS, 'groups'), (self.ID_FILTER_INDIVIDUAL, 'individual'),
+        ):
+            self.Bind(wx.EVT_MENU, lambda event, key=_key: self._on_accel_conversation_filter(key), id=_id)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_clear_chats,    id=self.ID_BULK_CLEAR_CHATS)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete_chats,   id=self.ID_BULK_DELETE_CHATS)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_archive_chats,  id=self.ID_BULK_ARCHIVE_CHATS)
@@ -235,7 +253,7 @@ class AcceleratorsMixin:
         focus_list_letter = mnemonic_letter(
             self.main_window.i18n.t("messages"), "M")
 
-        accel_tbl = wx.AcceleratorTable([
+        accel_tbl = make_shortcut_table(self, 'messages', [
             (CS,               ord("I"),          self.ID_AI_ACTION),
             (wx.ACCEL_ALT,     ord(focus_field_letter), self.ID_ALT_FOCUS_FIELD),
             (wx.ACCEL_ALT,     ord(focus_list_letter),  self.ID_ALT_FOCUS_LIST),
@@ -312,7 +330,7 @@ class AcceleratorsMixin:
             (AS,            ord(str(d)), self.ID_TEMP_BOOKMARK[d]) for d in range(10)
         ] + [
             (CAS,           ord(str(d)), self.ID_TEMP_BOOKMARK_REMOVE[d]) for d in range(10)
-        ])
+        ], target=self.conversation_panel)
         self.conversation_panel.SetAcceleratorTable(accel_tbl)
         self.Bind(wx.EVT_MENU, self._on_accel_focus_field,          id=self.ID_ALT_FOCUS_FIELD)
         self.Bind(wx.EVT_MENU, self._on_accel_focus_list,           id=self.ID_ALT_FOCUS_LIST)
