@@ -64,6 +64,8 @@ CORRECCIONES
 
 - La última conexión en un chat abierto ahora se mantiene actualizada. El botón de la conversación, Alt+T y los detalles del contacto muestran la misma información, y una respuesta antigua ya no puede sobrescribir una actualización más reciente de en línea o de última conexión.
 
+- La última conexión en un chat abierto ahora también consulta el identificador alternativo conocido del contacto cuando la primera respuesta sigue pendiente, de modo que Alt+T y el botón de estado ya no indican información no disponible cuando los datos existen con el otro identificador.
+
 - La recuperación de la conexión y la sincronización de mensajes ya no confunden una sesión o ronda de sincronización antigua con la actual. Las respuestas tardías de la conexión, de la lista de chats o del historial de mensajes se descartan, una comprobación de conexión lenta ya no se confunde con el equipo saliendo de la suspensión, y una nueva sincronización ya no deja el historial pendiente sin un proceso que lo atienda. Así se evitan pasos innecesarios a "sin conexión" y historiales de mensajes incompletos.
 
 - Marcar un chat como leído vuelve a llegar al teléfono cuando el chat se conoce por su número de teléfono y por su ID de dispositivo vinculado, y una lectura que falla se reintenta la próxima vez que abres el chat, así que un chat ya no se queda sin leer en el teléfono después de leerlo en WinZapp.

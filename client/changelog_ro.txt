@@ -64,6 +64,8 @@ CORECTĂRI
 
 - Ultima accesare dintr-o conversație deschisă rămâne acum la zi. Butonul conversației, Alt+T și detaliile contactului afișează aceleași informații, iar un răspuns vechi nu mai poate suprascrie o actualizare mai nouă de online sau de ultima accesare.
 
+- Ultima accesare dintr-o conversație deschisă verifică acum și identificatorul alternativ cunoscut al contactului când primul răspuns este încă în așteptare, astfel încât Alt+T și butonul de stare nu mai raportează informații indisponibile când datele există sub celălalt identificator.
+
 - Recuperarea conexiunii și sincronizarea mesajelor nu mai confundă o sesiune sau o rundă de sincronizare veche cu cea curentă. Răspunsurile întârziate ale conexiunii, ale listei de conversații sau ale istoricului de mesaje sunt ignorate, o verificare lentă a conexiunii nu mai este luată drept revenirea calculatorului din repaus, iar o sincronizare nouă nu mai lasă istoricul în așteptare fără un proces care să-l preia. Astfel se evită trecerile inutile în modul offline și istoricul incomplet al mesajelor.
 
 - Marcarea unei conversații ca citită ajunge din nou pe telefon atunci când conversația este cunoscută atât după numărul de telefon, cât și după ID-ul dispozitivului asociat, iar o citire eșuată este reîncercată data viitoare când deschideți conversația, astfel încât o conversație nu mai rămâne necitită pe telefon după ce a fost citită în WinZapp.

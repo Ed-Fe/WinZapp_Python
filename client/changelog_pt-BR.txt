@@ -64,6 +64,8 @@ CORREÇÕES
 
 - O visto por último em uma conversa aberta agora se mantém atualizado. O botão da conversa, o Alt+T e os detalhes do contato mostram as mesmas informações, e uma resposta antiga não pode mais sobrescrever uma atualização mais recente de online ou de visto por último.
 
+- O visto por último em uma conversa aberta agora também consulta o identificador alternativo conhecido do contato quando a primeira resposta ainda está pendente, então o Alt+T e o botão de status deixam de informar indisponibilidade quando os dados existem no outro identificador.
+
 - A recuperação da conexão e a sincronização de mensagens não confundem mais uma sessão ou rodada de sincronização antiga com a atual. Respostas atrasadas da conexão, da lista de conversas ou do histórico de mensagens são descartadas, uma verificação de conexão lenta não é mais confundida com o computador voltando de suspensão, e uma nova sincronização não deixa mais o histórico pendente sem um processo para tratá-lo. Isso evita passagens desnecessárias para "offline" e históricos de mensagens incompletos.
 
 - Marcar uma conversa como lida volta a chegar ao celular quando a conversa é conhecida pelo número de telefone e pelo ID de dispositivo vinculado, e uma leitura que falha é tentada de novo na próxima vez que você abrir a conversa; assim, a conversa não fica mais como não lida no celular depois de lida no WinZapp.

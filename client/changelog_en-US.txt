@@ -64,6 +64,8 @@ FIXES
 
 - Last seen in an open chat now stays up to date. The conversation button, Alt+T and the contact details show the same information, and an old answer can no longer overwrite a newer online or last-seen update.
 
+- Last seen in an open chat now also checks the contact's known alternative identifier when the first answer is still pending, so Alt+T and the status button no longer report unavailable information when the data exists under the other identifier.
+
 - Connection recovery and message sync no longer mix up an old session or sync round with the current one. Late replies from the connection, the chat list or the message history are discarded, a slow connection check is no longer mistaken for the computer waking from sleep, and a new sync no longer leaves pending history without a worker. This avoids needless "offline" transitions and incomplete message history.
 
 - Marking a chat as read now reaches the phone again when the chat is known by both its phone number and its linked-device ID, and a read that fails is retried the next time you open the chat, so a chat no longer stays unread on the phone after you read it in WinZapp.
