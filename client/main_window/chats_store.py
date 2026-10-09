@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import wx
+from core.sync_lifecycle import capture_sync_context, sync_context_is_current
 from core.conversation_view import conversation_in_view
 from core.pinned_chat_order import keep_pinned_order, reset_pinned_order, sync_pinned_order
 from main_window.log_files import (
@@ -564,7 +565,8 @@ class ChatsStoreMixin:
         return parts[1] if len(parts) > 1 else ""
 
     def get_remote_chats(self, chats, persist_full: bool = True, notify_errors: bool = True,
-                         prune_stale: "bool | None" = None, defer_chat_save: bool = False):
+                         prune_stale: "bool | None" = None, defer_chat_save: bool = False,
+                         expected_context=None):
         """Fetch/merge the remote chat list into `chats`.
 
         Returns the merged dict on success and **None** when every attempt
@@ -604,6 +606,7 @@ class ChatsStoreMixin:
         """
         if prune_stale is None:
             prune_stale = persist_full
+        context = expected_context if expected_context is not None else capture_sync_context(self)
         # Use the modern `list-chats` endpoint (WPP.chat.list) instead of the
         # deprecated `all-chats` (legacy WAPI.getAllChats). The legacy call omits
         # some chats — notably muted or pinned groups — so those never got
@@ -655,8 +658,12 @@ class ChatsStoreMixin:
         self._last_chat_fetch_count = 0
         self._last_chat_fetch_disconnected = False
         for attempt, _timeout in enumerate(_TIMEOUTS):
+            if not sync_context_is_current(self, context):
+                return None
             try:
                 response = api_post(url, json=payload, headers=headers, timeout=_timeout)
+                if not sync_context_is_current(self, context):
+                    return None
                 if response.status_code not in (200, 201):
                     logging.error(
                         "[get_remote_chats] API error %s (attempt %d/%d): %s",
@@ -699,6 +706,8 @@ class ChatsStoreMixin:
 
                 # list-chats returns the array directly; tolerate the legacy
                 # {"response": [...]} envelope too in case of a mixed deployment.
+                if not sync_context_is_current(self, context):
+                    return None
                 if isinstance(body, list):
                     response_data = body
                 elif isinstance(body, dict):

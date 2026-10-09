@@ -265,9 +265,15 @@ class SessionLifecycleMixin:
         while time.monotonic() < deadline:
             polls += 1
             try:
-                resp = api_get(url, headers=headers, timeout=5)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                resp = api_get(url, headers=headers, timeout=min(5, remaining))
                 if resp.status_code in (200, 201):
-                    status = resp.json().get("status", "") or ""
+                    payload = resp.json()
+                    status = payload.get("status") if isinstance(payload, dict) else None
+                    if not isinstance(status, str):
+                        status = None
                     self._shutdown_audit(
                         f"flush poll #{polls} status={status!r} "
                         f"elapsed={time.monotonic()-started:.1f}s")
@@ -277,12 +283,13 @@ class SessionLifecycleMixin:
                     self._shutdown_audit(
                         f"flush poll #{polls} HTTP {resp.status_code}")
             except Exception as e:
-                # A connection error here usually means the Node already tore the
-                # session/HTTP server down — treat as flushed rather than block.
+                # A lost/unreadable API is no proof Chrome flushed its profile.
+                # Keep polling within the shutdown budget; the caller can still
+                # stop Node on timeout, but must not capture a clean snapshot.
                 self._shutdown_audit(
-                    f"flush poll #{polls} conn-error ({e!r}) — treating as closed")
-                return True
-            time.sleep(self._SHUTDOWN_FLUSH_POLL)
+                    f"flush poll #{polls} unreadable ({type(e).__name__}) — still pending")
+            time.sleep(min(self._SHUTDOWN_FLUSH_POLL,
+                           max(0, deadline - time.monotonic())))
         self._shutdown_audit(
             f"flush TIMEOUT after {polls} polls / {timeout:.1f}s "
             "— never saw CLOSED")

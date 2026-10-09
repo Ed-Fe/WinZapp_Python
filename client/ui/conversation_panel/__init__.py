@@ -13,6 +13,7 @@ Where to look (and where new code goes):
   Mixins (methods of ConversationsPanel)
     accelerators             accelerator tables (list and open conversation)
     conversation_navigation  open/close/restore a conversation, chat-list filter
+    contact_presence         active-contact timer and visit cancellation
     chat_lists               native WhatsApp custom-list filter and manager entry
     panel_visibility         which panel an open conversation belongs to, and showing it only there
     composer                 message field: spell check, link preview, keys, paste
@@ -37,6 +38,7 @@ Where to look (and where new code goes):
     attachments              attaching files and contacts
     contact_messages         contact (vCard) and location messages
     media_files              opening/saving/downloading media, transfer progress
+    message_data             the Message data window (local history, live receipts, group breakdown)
     ai_actions               transcribe/describe a message's media with the person's AI providers
     audio_playback           voice/audio playback, chaining, speed, seek
     links                    links panel of the focused message
@@ -51,7 +53,7 @@ Where to look (and where new code goes):
     formatting               timestamps, dates, durations, file sizes
 
   Plain modules
-    archived_panel           ArchivedConversationsPanel (Alt+3)
+    archived_panel           ArchivedConversationsPanel (default Alt+4)
     media_paths              media cache/saved paths, reveal in folder, probing
     own_sender               the sender prefix of a row and the setting that hides it on my own messages
     text_helpers             small text helpers (_URL_RE, captions, last seen)

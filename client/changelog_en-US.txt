@@ -4,6 +4,10 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Optional "Hide phone numbers of unnamed senders in messages" in Settings > User Interface. When enabled, messages from people without a name start directly with their content, in the messages list and open-chat announcements; no substitute sender label is added. Names and numbers inside message content are kept. It starts off.
+
+- Customizable keyboard shortcuts: the new Shortcuts tab in Settings lists every application shortcut, including the global show-window shortcut. Select one, press Change and type the new combination, or disable it, restore its default or restore them all. Conflicts are reported before you apply, and changes only take effect with Apply or OK.
+
 - Pinned messages: a button in each chat lists the messages pinned on WhatsApp, including older messages. Press Enter to go to one in the history. Opening a chat announces the number of pinned messages without moving focus; each pinned message also has a readable marker.
 
 - The message field's "Spelling" context submenu offers Windows dictionary suggestions. The editor keeps its standard screen-reader navigation and WinZapp's spelling-error sound.
@@ -25,6 +29,12 @@ WHAT'S NEW
 - "Is typing" in the messages list: while the person in the open chat (or, in a group, a participant) is typing or recording audio, a temporary last row such as "Ana is typing..." appears at the end of the messages list. It goes away when they stop or when their message arrives. It never moves the focus on its own (only if you are on the row when it goes away are you moved to the last message) and is not read out on its own, so the typing announcement stays exactly as it was. It is not a message: it has no context menu and no actions. It starts off; to turn it on, tick "Show who is typing or recording audio as the last row of the messages list" in the User Interface tab of Settings
 
 - Emoticons become emoji as you type, like in WhatsApp Web: ":)" turns into 🙂, ":D" into 😃, "<3" into ❤️ and so on, when you type a space or punctuation after them, or send the message right after one. Only an emoticon standing on its own is converted, never one inside a link, a word or `code`. Pressing Backspace right after a conversion puts back what you typed. It can be turned off in Settings, "General" tab, "Convert emoticons like :D to emoji while typing"
+
+- "Message info" shows what WhatsApp itself knows. For a message you sent, the window (Alt+Shift+D) now asks WhatsApp when it was delivered, read and played, so receipts that arrived while WinZapp was closed appear too, each with its full date and time. In a group it lists who received and who read it, by name, like "Read (2/9): Ana, Bia".
+
+- Chat info of a personal chat now also lists the profile name the contact chose for themselves, the verified name of a business and whether it is a business account. A name that only repeats the one already shown is skipped.
+
+- Chat filter shortcuts: Alt+Shift+F goes to the chat filter radio buttons, which now announce it, and Alt+Shift+A, Alt+Shift+U, Alt+Shift+G and Alt+Shift+I pick All, Unread, Groups and Individual straight from the chat list. The WhatsApp list options and "Manage WhatsApp lists" now come before the chat filters. All of them are in the F1 shortcuts help.
 
 FIXES
 
@@ -49,6 +59,12 @@ FIXES
 - Accounts with many chats, whose WhatsApp Web takes a little over 30 seconds to load, now connect. WinZapp gave up waiting at exactly 30 seconds, so the same account failed the same way every time it started.
 
 - WPPConnect update: the previous version is kept until the new one starts and responds, and is restored if it does not. The update is refused before stopping anything when there is not enough disk space for both, and reinstalling reuses the Chrome already downloaded.
+
+- Last seen in an open chat now stays up to date. The conversation button, Alt+T and the contact details show the same information, and an old answer can no longer overwrite a newer online or last-seen update.
+
+- Connection recovery and message sync no longer mix up an old session or sync round with the current one. Late replies from the connection, the chat list or the message history are discarded, a slow connection check is no longer mistaken for the computer waking from sleep, and a new sync no longer leaves pending history without a worker. This avoids needless "offline" transitions and incomplete message history.
+
+- Marking a chat as read now reaches the phone again when the chat is known by both its phone number and its linked-device ID, and a read that fails is retried the next time you open the chat, so a chat no longer stays unread on the phone after you read it in WinZapp.
 
 V2.0.0.0
 

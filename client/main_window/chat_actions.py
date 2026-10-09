@@ -10,6 +10,7 @@ import threading
 import time
 import wx
 from core.pinned_chat_order import sync_pinned_order
+from core.sync_lifecycle import capture_sync_context, sync_context_is_current
 from core.utils import (
     parse_bool_flag as _parse_bool_flag,
     clear_chat_applied,
@@ -64,12 +65,15 @@ class ChatActionsMixin:
                     return True
         return False
 
-    def get_block_list(self):
+    def get_block_list(self, expected_context=None):
         """Fetch the account's blocked-contacts list from WPPConnect and sync
         it into _blocked_contacts. Block state is account-wide, not a
         per-chat field WPPConnect's list-chats response carries (unlike
         mute/pin/archive), so it needs its own endpoint — called from the
         full sync and the periodic chat/contact poll."""
+        context = expected_context if expected_context is not None else capture_sync_context(self)
+        if not sync_context_is_current(self, context):
+            return
         url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/blocklist"
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -77,10 +81,14 @@ class ChatActionsMixin:
         }
         try:
             resp = api_get(url, headers=headers, timeout=10)
+            if not sync_context_is_current(self, context):
+                return
             if resp.status_code not in (200, 201):
                 logging.warning("[get_block_list] HTTP %s", resp.status_code)
                 return
             data = resp.json()
+            if not sync_context_is_current(self, context):
+                return
             entries = data.get("response", []) if isinstance(data, dict) else []
             digits_set = set()
             for entry in entries:
@@ -96,7 +104,10 @@ class ChatActionsMixin:
                 self._blocked_contacts = digits_set
                 if hasattr(self, "db") and self.db is not None:
                     self.db.set_metadata_json("blocked_contacts", list(self._blocked_contacts))
-                wx.CallAfter(self._schedule_set_chats)
+                def refresh():
+                    if sync_context_is_current(self, context):
+                        self._schedule_set_chats()
+                wx.CallAfter(refresh)
         except Exception as e:
             logging.warning("[get_block_list] failed: %s", e)
 

@@ -28,6 +28,7 @@ from ui.dialogs.transcription_tab import TranscriptionTabMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
+from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -198,7 +199,7 @@ def chat_lock_tab_visible(main_window) -> bool:
     return bool(getattr(main_window, "_chat_lock_unlocked", False))
 
 
-class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
+class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
                      TranscriptionPrecisionMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
@@ -220,6 +221,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         self._build_ui()
         self._loading_values = True
         self._load_values()
+        self._refresh_shortcut_rows()
         self._loading_values = False
         self._apply_btn.Hide()
         # Catches every checkbox/radio/combo/choice/text change anywhere in the
@@ -587,6 +589,13 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
             self._ui_page, label=i18n.t("ui_hide_own_sender_in_message_list")
         )
         self_ref_sizer.Add(self._hide_own_sender_cb, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self._hide_unnamed_sender_numbers_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_hide_unnamed_sender_numbers")
+        )
+        self._hide_unnamed_sender_numbers_cb.SetHelpText(
+            i18n.t("ui_hide_unnamed_sender_numbers_help")
+        )
+        self_ref_sizer.Add(self._hide_unnamed_sender_numbers_cb, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         for rb in (self._self_ref_eu_rb, self._self_ref_voce_rb, self._self_ref_other_rb):
             rb.Bind(wx.EVT_RADIOBUTTON, self._on_self_reference_toggle)
@@ -1507,6 +1516,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         # at index 14 or 15 and this one at 15 or 16.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
+        self._build_shortcuts_page()
 
         # ── Button row ───────────────────────────────────────────────────────
         btn_sizer = wx.StdDialogButtonSizer()
@@ -2097,6 +2107,11 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
             "hide_own_sender_in_message_list", False
         )
         self._hide_own_sender_cb.SetValue(bool(hide_own_sender))
+        self._hide_unnamed_sender_numbers_cb.SetValue(
+            self.main_window.settings.get("user_interface", {}).get(
+                "hide_unnamed_sender_numbers", False
+            ) is True
+        )
 
         accessibility = self.main_window.settings.get("accessibility", {})
         self._extended_sr_compat_check.SetValue(accessibility.get("extended_sr_compat_enabled", True))
@@ -3234,6 +3249,8 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
 
     def _apply_values(self) -> bool:
         """Validate, save, and apply all settings. Returns True on success."""
+        if not self._validate_shortcut_values():
+            return False
         if not self._validate():
             return False
 
@@ -3387,6 +3404,9 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
             self_reference_mode = "eu"
         self_reference_custom_word = self._self_ref_custom_field.GetValue().strip()
         old_ui_settings = self.main_window.settings.get("user_interface", {})
+        sender_numbers_changed = (
+            old_ui_settings.get("hide_unnamed_sender_numbers", False) is True
+        ) != self._hide_unnamed_sender_numbers_cb.GetValue()
         self_reference_changed = (
             old_ui_settings.get("self_reference_mode", "eu") != self_reference_mode
             or old_ui_settings.get("self_reference_custom_word", "") != self_reference_custom_word
@@ -3402,6 +3422,9 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         self.main_window.settings.setdefault("user_interface", {})[
             "hide_own_sender_in_message_list"
         ] = self._hide_own_sender_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "hide_unnamed_sender_numbers"
+        ] = self._hide_unnamed_sender_numbers_cb.GetValue()
 
         # Accessibility
         self.main_window.settings.setdefault("accessibility", {})[
@@ -3608,6 +3631,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         self._apply_chat_lock_values()
 
         # Persist and propagate
+        self._apply_shortcut_values()
         self.main_window.save_settings()
         from core.pinned_chat_order import refresh_after_order_setting_change
         refresh_after_order_setting_change(self.main_window, old_keep_pinned_order)
@@ -3645,6 +3669,9 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         # word for chats whose last message is our own), so a self-reference
         # change (e.g. "Eu" -> "Você") takes effect immediately instead of
         # only on the next restart.
+        if sender_numbers_changed and not (self_reference_changed or vm_mode_changed):
+            if cp is not None and getattr(cp, "conversation", None) is not None:
+                cp.populate_messages(preserve_focus=True)
         if self_reference_changed or vm_mode_changed:
             if cp is not None and getattr(cp, "conversation", None) is not None:
                 cp.populate_messages(preserve_focus=True)
@@ -3681,6 +3708,7 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
 
     def _refresh_dialog_labels(self):
         """Update this dialog's own title and notebook tab captions after a language change."""
+        self._refresh_shortcut_labels()
         i18n = self.main_window.i18n
         self.SetTitle(i18n.t("settings_title"))
         self._notebook.SetPageText(0, i18n.t("tab_general"))
@@ -3822,6 +3850,8 @@ class SettingsDialog(TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin
         self._self_ref_other_rb.SetLabel(i18n.t("ui_self_reference_other"))
         self._self_ref_custom_label.SetLabel(i18n.t("ui_self_reference_custom_label"))
         self._hide_own_sender_cb.SetLabel(i18n.t("ui_hide_own_sender_in_message_list"))
+        self._hide_unnamed_sender_numbers_cb.SetLabel(i18n.t("ui_hide_unnamed_sender_numbers"))
+        self._hide_unnamed_sender_numbers_cb.SetHelpText(i18n.t("ui_hide_unnamed_sender_numbers_help"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._keep_pinned_order_cb.SetLabel(i18n.t("ui_keep_pinned_chat_order"))
         self._show_link_previews_cb.SetLabel(i18n.t("ui_show_link_previews_label"))

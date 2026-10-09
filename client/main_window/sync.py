@@ -10,6 +10,7 @@ import os
 import threading
 import time
 import wx
+from core.sync_lifecycle import capture_sync_context, sync_context_is_current, schedule_backfill
 from core.database_bridge import DatabaseBridge
 from core.remote_reconcile import (
     MAX_MIRRORED_DELETIONS,
@@ -699,6 +700,7 @@ class SyncMixin:
         # which keeps running (media phase) long after the backfill starts.
         run_id = getattr(self, "_sync_run_id", 0) + 1
         self._sync_run_id = run_id
+        context = capture_sync_context(self)
         # Latch before _run_sync(), not after: it can bail out early (no
         # WhatsApp connection yet), and in exactly that case there is no sync
         # coming to re-fetch anything, so live events are the only source of
@@ -733,7 +735,10 @@ class SyncMixin:
             # against a nominal 120 s. Keeping the entry stamp as well means a
             # round that dies immediately still cannot spin.
             self._last_sync_attempt_ts = time.time()
-            wx.CallAfter(self._set_status, "")
+            def clear_status():
+                if sync_context_is_current(self, context, require_online=True):
+                    self._set_status("")
+            wx.CallAfter(clear_status)
 
     @staticmethod
     def _attempts_needed_to_confirm(attempt: int, max_attempts: int,
@@ -1096,6 +1101,9 @@ class SyncMixin:
         # distinct status: the user can tell the client is refreshing state
         # without being told a full synchronization started on every launch.
         def _announce_sync_stage():
+            if (_current_run_id() != my_run_id
+                    or not sync_context_is_current(self, announcement_context, require_online=True)):
+                return
             if force_full:
                 self._set_status(self.i18n.t("synchronizing"))
                 if self._announce_sync_events_enabled():
@@ -1114,6 +1122,7 @@ class SyncMixin:
                     )
                     if announce_start_tts:
                         self.output(self.i18n.t("conversations_update_started"), interrupt=False)
+        announcement_context = capture_sync_context(self)
         wx.CallAfter(_announce_sync_stage)
 
         # After first pairing the API may need a few seconds to populate chats.
@@ -1834,6 +1843,9 @@ class SyncMixin:
         # (previously fired directly on this background thread) visibly
         # outrunning the queued status-text clear.
         def _announce_messages_synced():
+            if (_current_run_id() != my_run_id
+                    or not sync_context_is_current(self, announcement_context, require_online=True)):
+                return
             self._set_status("")
             # Only announce completion when the chat list really came from the
             # server — otherwise this is a partial sync that is about to be
@@ -2007,11 +2019,7 @@ class SyncMixin:
                 "%d still unnamed, %d awaiting a deeper walk, history still "
                 "landing=%s.",
                 pending, unnamed, deep_pending, still_landing)
-            existing = getattr(self, "_backfill_thread", None)
-            if existing is None or not existing.is_alive():
-                self._backfill_thread = threading.Thread(
-                    target=self._backfill_empty_chats, daemon=True, name="chat-backfill")
-                self._backfill_thread.start()
+            schedule_backfill(self)
 
         # ── Phase 2: download media ──────────────────────────────────────────
         # Opt-in via Settings > Armazenamento > "Baixar mídias automaticamente
@@ -2496,14 +2504,15 @@ class SyncMixin:
             logging.warning("[sync] failed to persist chat_verified_at: %s", exc)
 
     def sync_remote_chats(self, target_chats=None, incremental: bool = False,
-                          expected_run_id=None):
+                          expected_run_id=None, expected_context=None):
         # Also deliberately NOT gated on an active voice call: this returns the
         # set of chats that FAILED, so an early empty set is read by the caller
         # as "every chat succeeded" — see the comment at the top of
         # sync_chat_messages() for what that costs.
-        # expected_run_id is passed only by _run_sync() (issue #198); the
-        # periodic poll leaves it None and behaves exactly as before.
+        # Both initial sync and the periodic poll own a captured generation.
         def _superseded():
+            if expected_context is not None and not sync_context_is_current(self, expected_context):
+                return True
             if expected_run_id is None:
                 return False
             # Normalized the way _run_sync()'s _current_run_id() is, for the
@@ -2560,12 +2569,14 @@ class SyncMixin:
             # line. Only the few already fetching finish their write.
             if incremental:
                 futures = {
-                    pool.submit(self.sync_chat_messages, chat, expected_run_id, "incremental"): chat
+                    pool.submit(self.sync_chat_messages, chat, expected_run_id, "incremental",
+                                **({"expected_context": expected_context} if expected_context is not None else {})): chat
                     for chat in valid_chats
                 }
             else:
                 futures = {
-                    pool.submit(self.sync_chat_messages, chat, expected_run_id): chat
+                    pool.submit(self.sync_chat_messages, chat, expected_run_id,
+                                **({"expected_context": expected_context} if expected_context is not None else {})): chat
                     for chat in valid_chats
                 }
 

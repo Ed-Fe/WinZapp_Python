@@ -5,6 +5,8 @@ the ConversationsPanel instance, so every attribute set in
 ConversationsPanel.__init__/init_UI is available here.
 """
 
+from ui.shortcut_bindings import set_shortcut_label
+from ui.shortcut_bindings import refresh_popup_shortcuts
 import logging
 import os
 import pyperclip
@@ -463,51 +465,11 @@ class MessageMenuMixin:
             del_item,
         )
 
+        refresh_popup_shortcuts(self, 'messages', menu)
         self.PopupMenu(menu)
         menu.Destroy()
 
     # ── Message context menu handlers ────────────────────────────────────────
-
-    def _on_menu_message_data(self, msg: dict):
-        i18n     = self.main_window.i18n
-        ts       = self._extract_timestamp(msg)
-        time_str = self._format_date(ts) if ts else ""
-        sender   = self._sender_label(msg)
-        content  = self._get_message_content(msg)
-
-        lines = [f"{sender}: {content}"]
-        if time_str:
-            lines.append(time_str)
-
-        history = self._status_history_lines(msg)
-        if history:
-            lines.extend(history)
-        else:
-            status = self._map_status(msg)
-            if status:
-                lines.append(f"{i18n.t('message_data_status_label')}: {status}")
-
-        dlg = wx.Dialog(
-            self.main_window, title=i18n.t("message_data"),
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-            size=(420, 280),
-        )
-        panel = wx.Panel(dlg)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        info_ctrl = wx.TextCtrl(
-            panel, value="\n".join(lines),
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
-        )
-        sizer.Add(info_ctrl, 1, wx.EXPAND | wx.ALL, 8)
-        close_btn = wx.Button(panel, wx.ID_OK, label=i18n.t("close"))
-        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
-        panel.SetSizer(sizer)
-        dlg_sizer = wx.BoxSizer(wx.VERTICAL)
-        dlg_sizer.Add(panel, 1, wx.EXPAND)
-        dlg.SetSizer(dlg_sizer)
-        info_ctrl.SetFocus()
-        dlg.ShowModal()
-        dlg.Destroy()
 
     # Media types WhatsApp allows a caption on (audio/sticker never do).
     _CAPTIONABLE_TYPES = ("imageMessage", "videoMessage", "documentMessage")
@@ -659,7 +621,7 @@ class MessageMenuMixin:
         else:
             label = i18n.t("reply_to").format(name=sender)
 
-        self.message_label.SetLabel(label)
+        set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD', label)
         self._remove_quote_btn.Show()
         self.conversation_panel.Layout()
         self.message_field.SetFocus()
@@ -782,6 +744,12 @@ class MessageMenuMixin:
 
         quoted_msg = ctx.get("quotedMessage") or {}
         if not quoted_msg:
+            return False
+        # Missing local history is not evidence that a quote was a status.
+        # Only rebuild an expired status when its origin explicitly says so.
+        # stanzaId reaches here already stripped of its status@broadcast prefix,
+        # so the origin is only ever in contextInfo.remoteJid.
+        if ctx.get("remoteJid") != "status@broadcast":
             return False
         poster_jid = ctx.get("participant", "") or ""
         msg_type = ""

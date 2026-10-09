@@ -4,6 +4,10 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Ayarlar > Kullanıcı Arayüzü altında isteğe bağlı "Mesajlarda isimsiz gönderenlerin telefon numaralarını gizle" seçeneği. Açıldığında adı olmayan kişilerin mesajları, mesaj listesinde ve açık sohbet duyurularında doğrudan içerikle başlar; yerine başka bir gönderen etiketi eklenmez. Adlar ve mesaj içeriğindeki numaralar korunur. Başlangıçta kapalıdır.
+
+- Özelleştirilebilir klavye kısayolları: Ayarlar'daki yeni Kısayollar sekmesi, pencereyi gösteren genel kısayol dahil uygulamanın tüm kısayollarını listeler. Birini seçip Değiştir'e basın ve yeni birleşimi yazın; ya da devre dışı bırakın, varsayılana döndürün veya tümünü sıfırlayın. Çakışmalar uygulamadan önce bildirilir ve değişiklikler yalnızca Uygula veya Tamam ile geçerli olur.
+
 - Sabitlenen mesajlar: her sohbetteki bir düğme, eski mesajlar dahil WhatsApp üzerinde sabitlenen mesajları listeler. Seçilen mesaja geçmişte gitmek için Enter tuşuna basın. Sohbet açıldığında odak değiştirilmeden sabitlenen mesajların sayısı duyurulur; her sabitlenen mesajda ayrıca bir metin işareti bulunur.
 
 - Mesaj alanının bağlam menüsündeki "Yazım" alt menüsü Windows sözlüğünden öneriler sunar. Düzenleyici, ekran okuyucunun standart gezinmesini ve WinZapp'ın yazım hatası sesini korur.
@@ -25,6 +29,12 @@ YENİLİKLER
 - Mesaj listesinde "yazıyor": açık sohbetteki kişi (ya da bir grupta bir katılımcı) yazarken veya ses kaydederken, mesaj listesinin sonunda "Ana yazıyor..." gibi geçici bir son satır görünür. Kişi durduğunda veya mesajı geldiğinde kaybolur. Odağı kendiliğinden asla taşımaz (yalnızca satır kaybolduğunda üzerindeyseniz son mesaja geçersiniz) ve kendiliğinden okunmaz; yazıyor duyurusu tam olarak eskisi gibi kalır. Bir mesaj değildir: bağlam menüsü ve eylemleri yoktur. Ayarlar > Kullanıcı Arayüzü sekmesindeki "Yazan veya ses kaydeden kişiyi mesaj listesinin son satırı olarak göster" seçeneğini işaretleyerek açılabilir; varsayılan olarak kapalıdır
 
 - Metin ifadeleri, WhatsApp Web'deki gibi yazarken emojiye dönüşür: ":)" 🙂, ":D" 😃, "<3" ❤️ olur; ardından boşluk ya da noktalama işareti yazdığınızda veya mesajı hemen ardından gönderdiğinizde. Yalnızca tek başına duran bir ifade dönüştürülür; bir bağlantının, bir kelimenin ya da `kod`un içindeki asla. Dönüşümden hemen sonra Backspace tuşuna basmak yazdığınızı geri getirir. Ayarlar, "Genel" sekmesi, "Yazarken :D gibi metin ifadelerini emojiye dönüştür" ile kapatılabilir
+
+- "Mesaj bilgisi" WhatsApp'ın kendi bildiklerini gösterir. Gönderdiğiniz bir mesaj için pencere (Alt+Shift+D) artık WhatsApp'a ne zaman iletildiğini, okunduğunu ve oynatıldığını sorar; böylece WinZapp kapalıyken gelen makbuzlar da, her biri tam tarih ve saatle birlikte görünür. Bir grupta, mesajı kimlerin aldığını ve okuduğunu "Okundu (2/9): Ana, Bia" gibi isimleriyle listeler.
+
+- Kişisel sohbet bilgileri artık kişinin kendi seçtiği profil adını, bir işletmenin doğrulanmış adını ve hesabın işletme hesabı olup olmadığını da listeliyor. Zaten gösterilen adı yalnızca tekrarlayan bir ad atlanır.
+
+- Sohbet filtreleri için kısayollar: Alt+Shift+F sohbet filtresi seçenek düğmelerine gider ve bu düğmeler artık kısayolu duyurur; Alt+Shift+A, Alt+Shift+U, Alt+Shift+G ve Alt+Shift+I sohbet listesinden doğrudan Tümü, Okunmamış, Gruplar ve Bireysel filtrelerini seçer. WhatsApp listesi seçenekleri ve "WhatsApp listelerini yönet" artık sohbet filtrelerinden önce gelir. Hepsi kısayol yardımında (F1) yer alır.
 
 DÜZELTMELER
 
@@ -49,6 +59,12 @@ DÜZELTMELER
 - WhatsApp Web'i yüklenmesi 30 saniyeden biraz uzun süren, çok sohbeti olan hesaplar artık bağlanıyor. WinZapp tam 30 saniyede beklemeyi bırakıyordu ve aynı hesap her başlatıldığında aynı şekilde başarısız oluyordu.
 
 - WPPConnect güncellemesi: önceki sürüm, yenisi başlayıp yanıt verene kadar korunur ve bunu yapmazsa geri yüklenir. İki sürüm için diskte yeterli yer yoksa güncelleme hiçbir şeyi durdurmadan önce reddedilir ve yeniden kurulum önceden indirilmiş Chrome'u yeniden kullanır.
+
+- Açık bir sohbetteki son görülme bilgisi artık güncel kalıyor. Sohbet düğmesi, Alt+T ve kişi ayrıntıları aynı bilgiyi gösteriyor; eski bir yanıt artık daha yeni bir çevrimiçi veya son görülme güncellemesinin üzerine yazamıyor.
+
+- Bağlantı kurtarma ve mesaj eşitleme artık eski bir oturumu veya eşitleme turunu geçerli olanla karıştırmıyor. Bağlantıdan, sohbet listesinden veya mesaj geçmişinden gelen geç yanıtlar yok sayılır, yavaş bir bağlantı denetimi artık bilgisayarın uykudan uyanması sanılmaz ve yeni bir eşitleme bekleyen geçmişi onu işleyecek bir iş parçacığı olmadan bırakmaz. Bu, gereksiz çevrimdışı geçişlerini ve eksik mesaj geçmişini önler.
+
+- Bir sohbeti okundu olarak işaretlemek, sohbet hem telefon numarasıyla hem de bağlı cihaz kimliğiyle biliniyorsa yeniden telefona ulaşıyor; başarısız olan bir okuma, sohbeti bir sonraki açışınızda yeniden deneniyor, böylece WinZapp'ta okuduğunuz bir sohbet telefonda okunmamış kalmıyor.
 
 V2.0.0.0
 

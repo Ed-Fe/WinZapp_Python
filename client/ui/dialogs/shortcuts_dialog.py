@@ -65,6 +65,9 @@ class ShortcutsDialog(wx.Dialog):
     @staticmethod
     def _build_text(i18n, main_window=None) -> str:
         """Compose the shortcuts text from i18n keys."""
+        if main_window is not None and hasattr(main_window, 'settings'):
+            from ui.dialogs.shortcuts_tab import shortcuts_help_text
+            return shortcuts_help_text(main_window, i18n)
         def section(key):
             return f"── {i18n.t(key)} ──"
 
@@ -101,6 +104,11 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_ctrl_comma_label"),
             i18n.t("shortcut_f1_label"),
             i18n.t("shortcut_ctrl_n_label"),
+            i18n.t("shortcut_alt_shift_f_filter_label"),
+            i18n.t("shortcut_filter_all_label"),
+            i18n.t("shortcut_filter_unread_label"),
+            i18n.t("shortcut_filter_groups_label"),
+            i18n.t("shortcut_filter_individual_label"),
             i18n.t("shortcut_ctrl_shift_q_list_label"),
             i18n.t("shortcut_ctrl_shift_t_list_label"),
             i18n.t("shortcut_ctrl_shift_alt_m_label"),

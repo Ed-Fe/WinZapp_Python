@@ -4,6 +4,10 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Opção "Ocultar números de telefone de remetentes sem nome nas mensagens" em Definições > Interface do utilizador. Quando ativada, as mensagens de pessoas sem nome começam diretamente pelo conteúdo, na lista de mensagens e nos anúncios da conversa aberta, sem uma etiqueta de remetente substituta. Os nomes e os números no conteúdo das mensagens são mantidos. Começa desativada.
+
+- Atalhos de teclado personalizáveis: o novo separador Atalhos das Definições lista todos os atalhos da aplicação, incluindo o atalho global para mostrar a janela. Seleccione um, prima Alterar e escreva a nova combinação, ou desactive-o, reponha a predefinição ou reponha todos. Os conflitos são avisados antes de aplicar, e as alterações só têm efeito com Aplicar ou OK.
+
 - Mensagens afixadas: um botão em cada conversa lista as mensagens afixadas no WhatsApp, incluindo mensagens antigas. Prima Enter para ir até uma delas no histórico. Ao abrir a conversa, a quantidade de afixadas é anunciada sem mudar o foco; cada mensagem afixada também tem uma indicação em texto.
 
 - O submenu de contexto "Ortografia" do campo de mensagem oferece sugestões do dicionário do Windows. O editor mantém a navegação padrão do leitor de ecrã e o som de erro ortográfico do WinZapp.
@@ -25,6 +29,12 @@ NOVIDADES
 - "A escrever" na lista de mensagens: enquanto a pessoa da conversa aberta (ou, num grupo, um participante) está a escrever ou a gravar áudio, uma última linha temporária, como "Ana está a escrever...", aparece no fim da lista de mensagens. Desaparece quando a pessoa para ou quando a mensagem chega. Nunca move o foco por si só (só se estiveres na linha quando ela desaparecer és levado para a última mensagem) e não é lida sozinha, por isso o anúncio de escrita continua exatamente como era. Não é uma mensagem: não tem menu de contexto nem ações. Está desativada por predefinição; para a ativar, marca "Mostrar quem está a escrever ou a gravar áudio como última linha da lista de mensagens", no separador Interface do utilizador das Definições
 
 - Os emoticons passam a emojis enquanto escreve, como no WhatsApp Web: ":)" passa a 🙂, ":D" a 😃, "<3" a ❤️ e assim por diante, ao escrever um espaço ou uma pontuação a seguir, ou ao enviar a mensagem logo a seguir a um. Só é convertido um emoticon isolado, nunca um dentro de um link, de uma palavra ou de `código`. Premir Backspace logo após a conversão repõe o que escreveu. Pode ser desativado em Definições, separador "Geral", "Converter emoticons como :D em emojis ao escrever"
+
+- "Detalhes da mensagem" mostra o que o próprio WhatsApp sabe. Numa mensagem que enviou, a janela (Alt+Shift+D) passa a perguntar ao WhatsApp quando foi entregue, lida e reproduzida, por isso os recibos que chegaram com o WinZapp fechado também aparecem, cada um com data e hora completas. Num grupo, lista quem recebeu e quem leu, pelo nome, como "Lida (2/9): Ana, Bia".
+
+- As informações da conversa pessoal passam também a mostrar o nome de perfil que o contacto escolheu, o nome verificado de uma empresa e se a conta é comercial. Um nome que apenas repete o já apresentado é omitido.
+
+- Atalhos para os filtros de conversas: Alt+Shift+F vai para os botões de opção dos filtros de conversas, que agora anunciam esse atalho, e Alt+Shift+A, Alt+Shift+U, Alt+Shift+G e Alt+Shift+I escolhem Todas, Não lidas, Grupos e Individuais diretamente da lista de conversas. As opções de listas do WhatsApp e "Gerir listas do WhatsApp" passam a vir antes dos filtros de conversas. Todos estão na ajuda de atalhos (F1).
 
 CORREÇÕES
 
@@ -49,6 +59,12 @@ CORREÇÕES
 - As contas com muitas conversas, cujo WhatsApp Web demora um pouco mais de 30 segundos a carregar, passam a ligar-se. O WinZapp desistia de esperar aos 30 segundos exatos, e a mesma conta falhava da mesma forma sempre que arrancava.
 
 - Atualização da WPPConnect: a versão anterior é mantida até a nova iniciar e responder, e é restaurada se isso não acontecer. A atualização é recusada antes de parar o que quer que seja quando não há espaço em disco para as duas, e a reinstalação reaproveita o Chrome já transferido.
+
+- O visto pela última vez numa conversa aberta mantém-se agora atualizado. O botão da conversa, o Alt+T e os detalhes do contacto mostram as mesmas informações, e uma resposta antiga já não pode substituir uma atualização mais recente de online ou de visto pela última vez.
+
+- A recuperação da ligação e a sincronização de mensagens já não confundem uma sessão ou ronda de sincronização antiga com a atual. As respostas tardias da ligação, da lista de conversas ou do histórico de mensagens são descartadas, uma verificação de ligação lenta já não é confundida com o computador a sair da suspensão, e uma nova sincronização já não deixa o histórico pendente sem um processo para o tratar. Isto evita passagens desnecessárias para "offline" e históricos de mensagens incompletos.
+
+- Marcar uma conversa como lida volta a chegar ao telemóvel quando a conversa é conhecida pelo número de telefone e pelo ID de dispositivo associado, e uma leitura que falha é tentada de novo da próxima vez que abrir a conversa; assim, a conversa deixa de ficar por ler no telemóvel depois de lida no WinZapp.
 
 V2.0.0.0
 
