@@ -2014,11 +2014,15 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         self._confirm_mark_all_read_cb.SetValue(bool(confirm_mark_all_read))
 
-        for key, cb in (
-            ("confirm_clear_chat", self._confirm_clear_chat_cb),
-            ("confirm_delete_chat", self._confirm_delete_chat_cb),
-        ):
-            cb.SetValue(bool(self.main_window.settings.get("user_interface", {}).get(key, True)))
+        confirm_clear_chat = self.main_window.settings.get("user_interface", {}).get(
+            "confirm_clear_chat", True
+        )
+        self._confirm_clear_chat_cb.SetValue(bool(confirm_clear_chat))
+
+        confirm_delete_chat = self.main_window.settings.get("user_interface", {}).get(
+            "confirm_delete_chat", True
+        )
+        self._confirm_delete_chat_cb.SetValue(bool(confirm_delete_chat))
 
         confirm_resync_all = self.main_window.settings.get("user_interface", {}).get(
             "confirm_resync_all", True
