@@ -4491,6 +4491,9 @@ msgstr ""
 " {count}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/archived_panel.py
+#: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/conversation_panel/chat_menu.py
 msgctxt "mark_all_read_dont_show_again"
 msgid "Don't show again"
 msgstr "Nu mai afișați"
@@ -11498,6 +11501,18 @@ msgid "Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr ""
 "Înlocuiți comenzile rapide cu acțiuni în bloc atunci când selectați "
 "conversații și mesaje"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_clear_chat"
+msgid "Ask for confirmation before clearing chats"
+msgstr "Cere confirmare înainte de a șterge conținutul conversațiilor"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_delete_chat"
+msgid "Ask for confirmation before deleting chats"
+msgstr "Cere confirmare înainte de a șterge conversațiile"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
