@@ -253,7 +253,7 @@ class ApiStartBehindWindowMixin:
         could never run, and the window would hang. There it only queues the
         spawn and returns True; the caller's own probe thread waits for the API
         and a watcher thread clears the title. From any other thread it waits
-        here, with the dialog's 300 s budget and endings: None once Node
+        here, with the dialog's 300 s budget and endings: True once Node
         answers, False when an update owns the failure, otherwise the startup
         error and sys.exit(1).
         """

@@ -141,6 +141,9 @@ class _WorkerStub:
     def _register_node_lease(self):
         self.events.append("lease")
 
+    def _leave_starting_wppconnect_status(self):
+        pass
+
     def _is_wpp_running(self):
         # The UI-thread spawn asks once before spawning (a Node another
         # account started meanwhile is adopted); that ask is not a poll.
@@ -615,9 +618,9 @@ class TestRestartUnderOpenWindow:
         assert "spawn" in calls
         assert started == ["api-start-title"]
 
-    def test_on_a_worker_it_waits_and_returns_none_once_node_answers(self, monkeypatch):
+    def test_on_a_worker_it_waits_and_returns_true_once_node_answers(self, monkeypatch):
         stub, calls, _ = self._under_stub(monkeypatch, False, running=True)
-        assert asbw.ApiStartBehindWindowMixin._start_api_under_open_window(stub) is None
+        assert asbw.ApiStartBehindWindowMixin._start_api_under_open_window(stub) is True
 
     def test_the_title_is_not_taken_from_a_running_sync(self):
         calls = []
