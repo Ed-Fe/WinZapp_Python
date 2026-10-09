@@ -18,6 +18,7 @@ import threading
 import time
 import wx
 from core.message_queue import MessageCancelled
+from core.connection_lifecycle import schedule_connection_check
 from core.meta_ai import (
     STATE_ACCEPTED,
     STATE_NOT_ACCEPTED,
@@ -295,7 +296,7 @@ class SendingMixin:
             logging.warning("[send] WhatsApp reported Disconnected or TargetCloseError — pausing queue and triggering session recovery")
             self._set_wa_connected(False, "API answered Disconnected or TargetCloseError")
             # Proactively schedule connection check to auto-recover session via HTTP
-            wx.CallAfter(self.check_wa_connection_http)
+            schedule_connection_check(self)
         return disconnected
 
     def _classify_send_exception(self, exc, where: str) -> dict:

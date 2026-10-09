@@ -167,6 +167,9 @@ class _HoldStub:
     _offline_start_deferral_holds = MainWindow._offline_start_deferral_holds
 
     def __init__(self, *, since, network_up, proven):
+        self.token = "synthetic-session:key"
+        self.wpp_server = "http://synthetic.invalid"
+        self.wpp_port = 6300
         self._offline_start_deferred_since = since
         self.network_up = network_up
         self._whatsapp_probe_proven = proven

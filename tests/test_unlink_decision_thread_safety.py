@@ -71,6 +71,9 @@ class _Stub:
         self.profile_health_readings.append(status)
 
     def __init__(self, *, probe=cs.LINK_PROBE_UNLINKED):
+        self.token = "synthetic-session:key"
+        self.wpp_server = "http://synthetic.invalid"
+        self.wpp_port = 6300
         self.profile_health_readings = []
         self._unlink_decision_lock = threading.Lock()
         self._probe = probe

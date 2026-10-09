@@ -57,6 +57,7 @@ Where to look (and where new code goes):
     win32_helpers       elevation, hotkeys, de-elevated spawn
     log_files           early log-file plumbing
     http_pool           the pooled requests session
+    core.sync_lifecycle   generation/session ownership, backfill handoff, phone budget
 
 Rules for this package:
 

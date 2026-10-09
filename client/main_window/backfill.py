@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import wx
+from core.sync_lifecycle import capture_sync_context, sync_context_is_current, record_phone_request_attempt
 from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
@@ -781,7 +782,7 @@ class BackfillMixin:
             logging.info("[backfill] Name resolution bridged %d new LID(s).", gained)
         return gained
 
-    def _backfill_empty_chats(self):
+    def _backfill_empty_chats(self, expected_context=None):
         """Re-fetch messages for chats whose history WhatsApp Web had not loaded.
 
         Runs on its own daemon thread after the initial message sync. Each pass
@@ -796,6 +797,9 @@ class BackfillMixin:
         re-reads the queue and re-kicks it if needed.
         """
         my_run = getattr(self, "_sync_run_id", 0)
+        context = expected_context if expected_context is not None else capture_sync_context(self)
+        if not sync_context_is_current(self, context):
+            return
         deadline = time.monotonic() + self._BACKFILL_BUDGET
         # A fresh pairing can take longer to deliver and decode its history than
         # the ordinary budget allows, and stopping halfway leaves conversations
@@ -816,11 +820,15 @@ class BackfillMixin:
                 for _ in range(delay):
                     if not self._ui_ready_event.is_set():
                         return
+                    if not sync_context_is_current(self, context):
+                        return
                     if getattr(self, "_sync_run_id", 0) != my_run:
                         logging.info("[backfill] A newer sync took over — stopping.")
                         return
                     time.sleep(1)
 
+                if not sync_context_is_current(self, context):
+                    return
                 if self._voice_call_in_progress():
                     # Logged once per call, not once per second: this loop
                     # re-checks every second and the line was filling the log
@@ -926,7 +934,7 @@ class BackfillMixin:
                         if getattr(self, "_sync_run_id", 0) != my_run:
                             return
                         try:
-                            deep_stored += self.deep_backfill_chat(jid)
+                            deep_stored += self.deep_backfill_chat(jid, expected_context=context)
                         except Exception as exc:
                             logging.warning("[deep-backfill] %s failed: %s", jid, exc)
                     if deep_stored:
@@ -1035,14 +1043,15 @@ class BackfillMixin:
                 if targets:
                     with ThreadPoolExecutor(max_workers=self._BACKFILL_WORKERS) as pool:
                         futs = [pool.submit(
-                            self.sync_chat_messages, c, my_run) for c in targets]
+                            self.sync_chat_messages, c, my_run,
+                            expected_context=context) for c in targets]
                         for fut in as_completed(futs):
                             try:
                                 fut.result()
                             except Exception as exc:
                                 logging.warning("[backfill] chat sync failed: %s", exc)
 
-                if getattr(self, "_sync_run_id", 0) != my_run:
+                if not sync_context_is_current(self, context):
                     logging.info("[backfill] A newer sync took over — stopping before phone requests.")
                     return
 
@@ -1110,38 +1119,21 @@ class BackfillMixin:
                         continue
                     phone_requests_left -= 1
                     self._last_phone_request_at = time.monotonic()
-                    attempts[jid] = attempts.get(jid, 0) + 1
-                    requested = self.request_older_messages(jid)
+                    outcome = {}
+                    requested = self.request_older_messages(
+                        jid, outcome_out=outcome, expected_context=context)
+                    if not sync_context_is_current(self, context):
+                        return
+                    record_phone_request_attempt(self, jid, requested, outcome, time.time())
                     if requested is True:
                         if not hasattr(self, "_older_requested_chats"):
                             self._older_requested_chats = {}
                         self._older_requested_chats[jid] = time.time()
                         self._persist_older_requested()
                     elif requested is False:
-                        # The API answered definitively that it did not send a
-                        # request (normally primaryHasMore=false). This is the
-                        # evidence that distinguishes a genuinely short chat —
-                        # and it is also the terminal answer for a persisted gap
-                        # whose phone no longer has any older page to provide.
-                        self._remove_backfill_pending(jid)
-                        # ...and record it as asked. _keep_backfill_pending()
-                        # above runs before this decision on every pass, so the
-                        # removal is undone by the next sweep and the chat comes
-                        # straight back. Without a timestamp its asked_at stays
-                        # None, the request is therefore always due, and a chat
-                        # the API has already refused is re-asked every ~30 s
-                        # for the whole backfill budget — measured at 40+ round
-                        # trips for one @lid chat in a single 46-minute run.
-                        if not hasattr(self, "_older_requested_chats"):
-                            self._older_requested_chats = {}
-                        self._older_requested_chats[jid] = time.time()
-                        self._persist_older_requested()
-                        with self._backfill_state_guard():
-                            gap_forms = set(self._jid_address_forms(jid))
-                            gap_forms.update(
-                                self._jid_address_forms(self._canonical_backfill_jid(jid))
-                            )
-                            self._history_gap_jids.difference_update(gap_forms)
+                        # Only explicit no-more/phone-only answers are False.
+                        # Retire durably without spending a send budget.
+                        self._retire_chat_without_older_history(jid)
 
                 completed = self._completed_backfill_targets(window)
                 grew = sum(1 for j, was in counts_before.items()
@@ -1183,8 +1175,9 @@ class BackfillMixin:
         except Exception:
             logging.exception("[backfill] Unhandled error in the backfill loop")
         finally:
-            self._persist_backfill_pending_state()
-            self._persist_history_gap_jids()
+            if sync_context_is_current(self, context):
+                self._persist_backfill_pending_state()
+                self._persist_history_gap_jids()
 
     # ── History-sync health ─────────────────────────────────────────────────
     # WhatsApp's multi-device design keeps older history on the phone and only
@@ -1335,28 +1328,23 @@ class BackfillMixin:
             logging.info("[history-sync] unblock endpoint unavailable: %s", exc)
             return None
 
-    def request_older_messages(self, remote_jid: str, timeout: int = 60) -> bool | None:
+    def request_older_messages(self, remote_jid: str, timeout: int = 60,
+                               outcome_out=None, expected_context=None) -> bool | None:
         """Ask the phone for history older than what this device holds.
 
         Fire-and-forget by nature: the phone answers with a history-sync chunk
         minutes later, never in this response, so a True here means "the
         request went out", not "there are new messages now".
 
-        The 60 s timeout is not generosity — a timeout here returns False, and
-        the caller in fetch_older_messages() reads False as "the request never
-        went out" and drops the chat into _exhausted_chats, which stops it from
-        ever being re-queried. Timing out early therefore writes off exactly the
-        chats that still have history coming.
-
-        That used to be bounded by the session, because _exhausted_chats died
-        with the process. It no longer is: the set is persisted, so the write-off
-        outlives the run and takes the user's own scroll-up with it. What keeps
-        the two apart now is _OLDER_REQUEST_GRACE — the write-off is only made
-        durable once this request has had far longer than its reply window to be
-        answered. See that constant.
+        False means an explicit no-more/phone-only verdict. None is temporary
+        or unknown. outcome_out marks an ambiguous send so callers keep the
+        reply grace and notification budget rather than blindly resending.
         """
-        if not getattr(self, "_wa_connected", False):
-            return False
+        context = expected_context if expected_context is not None else capture_sync_context(self)
+        if outcome_out is not None:
+            outcome_out["ambiguous"] = False
+        if not getattr(self, "_wa_connected", False) or not sync_context_is_current(self, context):
+            return None
         jid = self._normalize_jid(remote_jid)
         url = history_boundary.older_history_url(self, jid, "request-older-messages")
         try:
@@ -1367,10 +1355,14 @@ class BackfillMixin:
                 timeout=timeout,
             )
             body = {}
+            if not sync_context_is_current(self, context):
+                return None
             try:
                 body = response.json()
             except Exception:
                 pass
+            if not sync_context_is_current(self, context):
+                return None
             payload = body.get("response") if isinstance(body, dict) else None
             phone_only = history_boundary.note_verdict(self, jid, payload)
             if response.status_code in (200, 201) and isinstance(payload, dict) \
@@ -1422,8 +1414,19 @@ class BackfillMixin:
                 "(status=%s, payload=%s).", jid, response.status_code,
                 payload if payload else response.text[:200],
             )
-            return False
+            if outcome_out is not None:
+                error = str(payload.get("error", "")) if isinstance(payload, dict) else ""
+                # These refusals happen before the send. An unknown transport/
+                # send error may already have notified the phone: retain grace.
+                outcome_out["ambiguous"] = not (
+                    isinstance(payload, dict) and payload.get("requested") is False
+                ) and not any(word in error.lower() for word in
+                    ("module", "registry", "missing from", "oldest message key",
+                     "disabled", "invalid chat id"))
+            return None
         except Exception as exc:
+            if outcome_out is not None:
+                outcome_out["ambiguous"] = True
             logging.warning(
                 "[history-sync] Older-message request failed for %s: %s", jid, exc)
             return None

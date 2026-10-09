@@ -10,6 +10,8 @@ import os
 import threading
 import time
 import wx
+from core.sync_lifecycle import (capture_sync_context, sync_context_is_current,
+                                 message_response, chat_content_identity)
 from core.message_stars import apply_star_fields, carry_over_stars, stamp_star_snapshot
 from main_window.message_rules import (
     _MAX_ABSENT_CHAT_RETRIES,
@@ -73,29 +75,34 @@ class ConversationSyncMixin:
     # deliver: its internal loop stops at 10 extra pages.
     _HISTORY_GAP_MAX_COUNT = 2000
 
-    def _normalize_fetched_messages(self, raw_messages, remote_jid: str) -> list:
-        """WPPConnect get-messages payload -> WinZapp's canonical message dicts."""
+    def _normalize_fetched_messages(self, raw_messages, remote_jid: str) -> list | None:
+        """Canonical page, or unknown when a nonempty page is wholly unreadable."""
         out = []
         edit_event_ids = set()
+        readable = False
         for wm in raw_messages or []:
             if isinstance(wm, dict) and self.ws:
                 try:
                     normalized = self.ws._normalize_wpp_message(wm)
+                    if not isinstance(normalized, dict):
+                        continue
                     # Never a row: the message it edits carries its current
                     # text wherever it is fetched from (core/message_edit.py).
                     if is_edit_event(normalized):
+                        readable = True
                         event_id = (normalized.get("key") or {}).get("id")
                         if event_id:
                             edit_event_ids.add(event_id)
                         continue
                     prune_message_record(normalized)
                     out.append(normalized)
+                    readable = True
                 except Exception as e:
                     logging.error(f"[sync_chat_messages] Failed to normalize message in {remote_jid}: {e}")
         if edit_event_ids:
             self._remember_dropped_edit_events(edit_event_ids)
             wx.CallAfter(self._purge_materialized_edit_rows, remote_jid, edit_event_ids)
-        return out
+        return None if raw_messages and not readable else out
 
     @classmethod
     def _needs_display_page_refill(cls, raw_count: int, messages: list,
@@ -155,7 +162,10 @@ class ConversationSyncMixin:
                     remote_jid, len(raw) if isinstance(raw, list) else 0, count)
                 break
             best_len = len(raw)
-            widest = self._normalize_fetched_messages(raw, remote_jid)
+            normalized = self._normalize_fetched_messages(raw, remote_jid)
+            if normalized is None:
+                break
+            widest = normalized
             if history_gap_closed(widest, local_records, hole_top_ts):
                 logging.info("[history-gap] %s: closed at count=%d (%d messages).",
                              remote_jid, count, len(widest))
@@ -214,8 +224,11 @@ class ConversationSyncMixin:
         return payload if isinstance(payload, dict) else None
 
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full",
-                           fetched_ids_out=None, outcome_out=None):
+                           fetched_ids_out=None, outcome_out=None, expected_context=None):
         star_snapshot_started = time.time_ns()
+        context = expected_context if expected_context is not None else capture_sync_context(self)
+        if not sync_context_is_current(self, context):
+            return False
         # fetched_ids_out: an optional set that receives the ids get-messages
         # actually returned for this chat, before they are merged with local
         # records -- the only way a caller can tell the server's answer apart
@@ -306,6 +319,8 @@ class ConversationSyncMixin:
         if getattr(self, "_wa_connected", False):
             max_retries = 3
             for attempt in range(max_retries):
+                if not sync_context_is_current(self, context):
+                    return False
                 if (expected_run_id is not None
                         and getattr(self, "_sync_run_id", 0) != expected_run_id):
                     logging.info(
@@ -324,6 +339,8 @@ class ConversationSyncMixin:
                     # which carries <session>:<token> in its path. The two
                     # lines this replaces printed it in full, twice per chat.
                     response = api_get(url, headers=headers, timeout=30)
+                    if not sync_context_is_current(self, context):
+                        return False
 
                     # Alternate JID query fallback (resolves 401/TypeError or Chat not found errors)
                     both_jid_forms_failed = False
@@ -365,6 +382,8 @@ class ConversationSyncMixin:
                             logging.info(f"[sync_chat_messages] Primary query failed. Retrying with alternate JID {alternate_jid}...")
                             try:
                                 alt_response = api_get(alt_url, headers=headers, timeout=30)
+                                if not sync_context_is_current(self, context):
+                                    return False
                                 if alt_response.status_code in (200, 201):
                                     response = alt_response
                                     fetch_jid = alternate_jid
@@ -377,7 +396,9 @@ class ConversationSyncMixin:
 
                     if response.status_code in (200, 201):
                         body = response.json()
-                        wpp_messages = body.get("response", []) if isinstance(body, dict) else []
+                        wpp_messages = message_response(body)
+                        if wpp_messages is None:
+                            break
                         logging.info(
                             "[sync_chat_messages] Fetched %d messages from API for %s "
                             "(mode=%s, count=%d)",
@@ -388,6 +409,8 @@ class ConversationSyncMixin:
                             wpp_messages = []
                         normalized_messages = self._normalize_fetched_messages(
                             wpp_messages, remote_jid)
+                        if normalized_messages is None:
+                            break
 
                         # Warm-cache rounds start with a small newest-message
                         # window. If that window does not touch any locally
@@ -420,17 +443,20 @@ class ConversationSyncMixin:
                             try:
                                 expanded_response = api_get(
                                     expand_url, headers=headers, timeout=30)
+                                if not sync_context_is_current(self, context):
+                                    return False
                                 if expanded_response.status_code not in (200, 201):
                                     break
                                 expanded_body = expanded_response.json()
-                                expanded_messages = (
-                                    expanded_body.get("response", [])
-                                    if isinstance(expanded_body, dict) else [])
-                                if not isinstance(expanded_messages, list):
+                                expanded_messages = message_response(expanded_body)
+                                if expanded_messages is None:
+                                    break
+                                expanded_normalized = self._normalize_fetched_messages(
+                                    expanded_messages, remote_jid)
+                                if expanded_normalized is None:
                                     break
                                 wpp_messages = expanded_messages
-                                normalized_messages = self._normalize_fetched_messages(
-                                    wpp_messages, remote_jid)
+                                normalized_messages = expanded_normalized
                                 limit = next_limit
                             except Exception as expand_error:
                                 logging.warning(
@@ -462,6 +488,8 @@ class ConversationSyncMixin:
                             try:
                                 refill_response = api_get(
                                     refill_url, headers=headers, timeout=30)
+                                if not sync_context_is_current(self, context):
+                                    return False
                                 if refill_response.status_code in (200, 201):
                                     refill_body = refill_response.json()
                                     refill_messages = (
@@ -469,8 +497,10 @@ class ConversationSyncMixin:
                                         if isinstance(refill_body, dict) else [])
                                     if (isinstance(refill_messages, list)
                                             and len(refill_messages) > len(wpp_messages)):
-                                        normalized_messages = self._normalize_fetched_messages(
+                                        refill_normalized = self._normalize_fetched_messages(
                                             refill_messages, remote_jid)
+                                        if refill_normalized is not None:
+                                            normalized_messages = refill_normalized
                             except Exception as refill_error:
                                 logging.warning(
                                     "[sync_chat_messages] Visible-page refill failed "
@@ -535,6 +565,8 @@ class ConversationSyncMixin:
         # account's chat back into all of them — and on a confirmed logout
         # there is no second wipe to take it out again.
         def _superseded_while_fetching():
+            if not sync_context_is_current(self, context):
+                return True
             if (expected_run_id is None
                     or getattr(self, "_sync_run_id", 0) == expected_run_id):
                 return False
@@ -1123,6 +1155,7 @@ class ConversationSyncMixin:
         """
         if not self.ws:
             return None
+        context = capture_sync_context(self)
         lid = getattr(self, "_phone_to_lid", {}).get(remote_jid, "")
         if lid:
             phone = lid
@@ -1136,11 +1169,13 @@ class ConversationSyncMixin:
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         try:
             response = api_get(url, headers=headers, timeout=15)
+            if not sync_context_is_current(self, context):
+                return None
             if response.status_code not in (200, 201):
                 return None
             body = response.json()
-            wpp_messages = body.get("response", []) if isinstance(body, dict) else []
-            if not isinstance(wpp_messages, list):
+            wpp_messages = message_response(body)
+            if wpp_messages is None:
                 return None
             pairs = []
             oldest = None
@@ -1226,7 +1261,8 @@ class ConversationSyncMixin:
 
     def _deletions_before_remote_window(self, remote_jid: str, candidates: list,
                                         window_ids: set, window_oldest_ts: int,
-                                        anchor_id: str) -> set:
+                                        anchor_id: str, expected_context=None,
+                                        expected_content=None) -> set:
         """Ids of local messages OLDER than the newest window that a page of
         WhatsApp Web's database proves deleted.
 
@@ -1258,10 +1294,16 @@ class ConversationSyncMixin:
         found = set()
         anchor = anchor_id
         cause = "page budget spent" if anchor else "no anchor"
+        def current():
+            return ((expected_context is None or sync_context_is_current(self, expected_context))
+                    and (expected_content is None
+                         or chat_content_identity(self.chats.get(remote_jid)) == expected_content))
         for _page in range(self._REMOTE_BEFORE_PAGES):
-            if not anchor:
+            if not anchor or not current():
                 break
             page = self._fetch_remote_messages_before(remote_jid, anchor)
+            if not current():
+                return set()
             if page is None:
                 cause = "page fetch failed"
                 break
@@ -1375,6 +1417,9 @@ class ConversationSyncMixin:
         Called once per periodic-poll cycle (start_periodic_contacts_sync);
         a no-op — no HTTP call at all — whenever no conversation is open.
         """
+        context = capture_sync_context(self)
+        if not sync_context_is_current(self, context):
+            return
         if not hasattr(self, "_remote_clear_strikes"):
             self._remote_clear_strikes = {}
         if not hasattr(self, "_remote_deletion_strikes"):
@@ -1428,7 +1473,11 @@ class ConversationSyncMixin:
         if len(comparable_local_ids(records, limit, _stable_cutoff, None,
                                     is_countable_message)) < 2:
             return
+        content = chat_content_identity(chat)
         remote = self._fetch_remote_message_window(remote_jid)
+        if (not sync_context_is_current(self, context)
+                or chat_content_identity(self.chats.get(remote_jid)) != content):
+            return
         if remote is None:
             return
         remote_ids, remote_oldest_ts, anchor_id = remote
@@ -1458,7 +1507,11 @@ class ConversationSyncMixin:
             self._remote_clear_strikes.pop(remote_jid, None)
             direct = _deletions_within_remote_window(candidates, remote_ids, remote_oldest_ts)
             inferred = self._deletions_before_remote_window(
-                remote_jid, candidates, remote_ids, remote_oldest_ts, anchor_id)
+                remote_jid, candidates, remote_ids, remote_oldest_ts, anchor_id,
+                expected_context=context, expected_content=content)
+            if (not sync_context_is_current(self, context)
+                    or chat_content_identity(self.chats.get(remote_jid)) != content):
+                return
             immediate, to_confirm = _split_deletions(direct, inferred)
             confirmed = _observe_deletions(self._remote_deletion_strikes, remote_jid,
                                            to_confirm, self._REMOTE_CLEAR_CONFIRM_STRIKES)
@@ -1471,7 +1524,11 @@ class ConversationSyncMixin:
                 )
             missing_ids = immediate | confirmed
             if missing_ids:
-                wx.CallAfter(self._mirror_remote_deletions, remote_jid, missing_ids)
+                def mirror_deletions():
+                    if (sync_context_is_current(self, context)
+                            and chat_content_identity(self.chats.get(remote_jid)) == content):
+                        self._mirror_remote_deletions(remote_jid, missing_ids)
+                wx.CallAfter(mirror_deletions)
             return
         self._remote_deletion_strikes.pop(remote_jid, None)
         if not candidates:
@@ -1501,7 +1558,11 @@ class ConversationSyncMixin:
             )
             return
         self._remote_clear_strikes.pop(remote_jid, None)
-        wx.CallAfter(self._mirror_remote_clear, remote_jid)
+        def mirror_clear():
+            if (sync_context_is_current(self, context)
+                    and chat_content_identity(self.chats.get(remote_jid)) == content):
+                self._mirror_remote_clear(remote_jid)
+        wx.CallAfter(mirror_clear)
 
     def _mirror_remote_clear(self, remote_jid: str):
         """Mirror a conversation cleared on the phone. Runs on the main thread."""

@@ -75,6 +75,9 @@ class _Stub:
 
     def __init__(self, *, paired=True, restart_grace_active=False,
                  probe=cs.LINK_PROBE_UNLINKED):
+        self.token = "synthetic-session:key"
+        self.wpp_server = "http://synthetic.invalid"
+        self.wpp_port = 6300
         self.settings = {"privateinfo": {"paired": paired}}
         self._wa_connect_announced = False
         self._wa_connected = True

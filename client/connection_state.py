@@ -495,13 +495,12 @@ def end_resume_recovery(obj, lock) -> None:
 
 
 # Status strings WPPConnect reports once a session's browser has fully shut
-# down after a close-session: the WhatsApp Web page is gone and its auth state
-# has been flushed to userDataDir. An empty string is a session no longer known
-# to the server (also closed).
-_CLOSED_AFTER_FLUSH_STATES = ("CLOSED", "DESTROYED", "")
+# down after a close-session. Unknown/unreadable is not proof of teardown;
+# the server explicitly returns CLOSED for a session it no longer knows.
+_CLOSED_AFTER_FLUSH_STATES = ("CLOSED", "DESTROYED")
 
 
-def session_closed_after_flush(status: str) -> bool:
+def session_closed_after_flush(status: str | None) -> bool:
     """True once WPPConnect has finished its own teardown of the session.
 
     This is HALF the shutdown gate, not the whole one. It says the server let
@@ -526,7 +525,7 @@ def session_closed_after_flush(status: str) -> bool:
 
     Pure/wx-free so the decision is unit-testable without the requests/wx stack.
     """
-    return (status or "") in _CLOSED_AFTER_FLUSH_STATES
+    return status in _CLOSED_AFTER_FLUSH_STATES
 
 
 # A wake-recovery restart is only a SUCCESS when the session reaches a truly
