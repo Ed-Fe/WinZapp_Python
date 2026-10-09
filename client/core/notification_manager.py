@@ -785,6 +785,8 @@ class NotificationManager:
         # Chat the toast above was shown for, so reading that chat in the app
         # can take its banner out of the notification area (clear_for_chat).
         self._last_toast_jid = None
+        # Chats read while their toast still waited in the queue (worker only).
+        self._skip_jids = set()
         # monotonic() timestamp of the last show_toast() call, or None.  Lets
         # _dispatch() skip _clear_active_toasts()'s blocking WinRT/COM
         # round-trip when the previous toast has almost certainly already
@@ -870,6 +872,8 @@ class NotificationManager:
                 self._note_clear(item, newer)
                 continue
             item = newer
+            # A toast queued after the read is a genuinely new message.
+            getattr(self, "_skip_jids", set()).discard(self._chat_key(item[2]))
             dropped += 1
 
         deadline = time.monotonic() + self._COALESCE_SETTLE_SECONDS
@@ -887,6 +891,8 @@ class NotificationManager:
                 self._note_clear(item, newer)
                 continue
             item = newer
+            # A toast queued after the read is a genuinely new message.
+            getattr(self, "_skip_jids", set()).discard(self._chat_key(item[2]))
             dropped += 1
 
     @staticmethod

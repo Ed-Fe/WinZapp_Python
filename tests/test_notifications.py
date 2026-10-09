@@ -871,3 +871,13 @@ class TestClearForChat:
         mgr.clear_for_chat("a@s.whatsapp.net")
         mgr._coalesce_pending(("Ana", "oi", "a@s.whatsapp.net"))
         assert "a@s.whatsapp.net" in mgr._skip_jids
+
+    def test_toast_queued_after_the_read_is_not_skipped(self):
+        from core.notification_manager import _ClearRequest
+        mgr = self._Mgr()
+        mgr._skip_jids = set()
+        mgr._queue.put(_ClearRequest("a@s.whatsapp.net"))
+        mgr._queue.put(("Ana", "m2", "a@s.whatsapp.net"))
+        item, _ = mgr._coalesce_pending(("Ana", "m1", "a@s.whatsapp.net"))
+        assert item[1] == "m2"
+        assert "a@s.whatsapp.net" not in mgr._skip_jids
