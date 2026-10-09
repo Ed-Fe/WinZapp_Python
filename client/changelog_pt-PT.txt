@@ -30,6 +30,8 @@ NOVIDADES
 
 - Os emoticons passam a emojis enquanto escreve, como no WhatsApp Web: ":)" passa a 🙂, ":D" a 😃, "<3" a ❤️ e assim por diante, ao escrever um espaço ou uma pontuação a seguir, ou ao enviar a mensagem logo a seguir a um. Só é convertido um emoticon isolado, nunca um dentro de um link, de uma palavra ou de `código`. Premir Backspace logo após a conversão repõe o que escreveu. Pode ser desativado em Definições, separador "Geral", "Converter emoticons como :D em emojis ao escrever"
 
+- Progresso da transferência na lista de mensagens: enquanto um documento é descarregado, a mensagem mostra, por exemplo, "35% (13,8 mb de 39,4 mb)" e volta ao nome e tamanho do ficheiro quando a transferência termina.
+
 - "Detalhes da mensagem" mostra o que o próprio WhatsApp sabe. Numa mensagem que enviou, a janela (Alt+Shift+D) passa a perguntar ao WhatsApp quando foi entregue, lida e reproduzida, por isso os recibos que chegaram com o WinZapp fechado também aparecem, cada um com data e hora completas. Num grupo, lista quem recebeu e quem leu, pelo nome, como "Lida (2/9): Ana, Bia".
 
 - As informações da conversa pessoal passam também a mostrar o nome de perfil que o contacto escolheu, o nome verificado de uma empresa e se a conta é comercial. Um nome que apenas repete o já apresentado é omitido.
