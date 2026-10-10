@@ -1,10 +1,10 @@
 V2.1.0.0
 
-Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.
-
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.
 
 WHAT'S NEW
+
+- Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.
 
 - Clearing or deleting chats can stop asking for confirmation: both dialogs now have a "Don't show again" checkbox, which only takes effect together with Yes. When the question is off, clearing keeps starred messages. Settings > User Interface has the two matching options to turn the confirmations back on.
 

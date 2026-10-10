@@ -118,6 +118,18 @@ class TestCommentContracts:
         post.assert_not_called()
 
 class TestCommentWindow:
+    def test_read_failure_logs_only_a_static_code(self, caplog):
+        dlg=Dialog()
+        dlg._finish_refresh(None, "private token/name/text")
+        assert caplog.messages == ["[community_comments] read_failed code=unavailable"]
+
+    def test_send_failure_logs_only_a_static_code(self, caplog):
+        dlg=Dialog();dlg._loaded=True
+        dlg._mw.send_announcement_comment.side_effect=TimeoutError("private token/name/text")
+        dlg._on_send(None);dlg.work.pop()()
+        assert caplog.messages == ["[community_comments] send_failed code=unconfirmed"]
+        assert dlg._text.value==" exact text " and dlg._uncertain
+
     def test_initial_read_is_background_and_preserves_focus(self):
         dlg=Dialog();dlg._on_refresh(None)
         dlg._mw.get_announcement_comments.assert_not_called()

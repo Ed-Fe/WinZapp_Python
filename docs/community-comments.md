@@ -1,12 +1,12 @@
 # Respostas aos avisos de comunidades
 
-Implementação local em `feat/community-announcement-replies`. O suporte upstream ainda não
-foi publicado. Há mudanças separadas nos repositórios irmãos `wa-js`,
-`wppconnect` e `wppconnect-server`.
+Leitura e envio de respostas nativas aos avisos, pela interface acessível do
+WinZapp. A integração provisória usa patches enquanto o suporte público
+proposto em WA-JS, WPPConnect e WPPConnect Server não estiver publicado.
 
 ## Testar no WinZapp
 
-Depois de compilar a API com `uv run python build_api.py`, feche o WinZapp e
+Depois de preparar a API com `uv run setup-api`, feche o WinZapp e
 abra novamente a partir deste checkout (`uv run winzapp`). O processo antigo
 não incorpora mudanças de Python nem novas rotas de Node.
 
@@ -55,18 +55,15 @@ build usados nos demais patches. Não edite `client/api/` manualmente.
 
 ## Validação realizada
 
-- Compilação dos três projetos upstream e da API do WinZapp.
-- Testes de contratos, segurança dos dados, falhas de envio, eventos upstream,
+- Testes de contratos, segurança dos dados, falhas de envio,
   callbacks de janela encerrada e seleção preservada, usando widgets simulados.
 - Traduções completas nos sete idiomas cadastrados; MO e mapa de chaves compilados.
-- Módulos novos resolvidos em uma página nova sem login, em modo headless,
-  no WhatsApp Web `2.3000.1049878396`.
-- Controlador compilado do WinZapp executado contra a sessão real no WhatsApp
-  Web `2.3000.1049861608`: sete respostas com nomes, incluindo uma resposta própria identificada.
-  A leitura anterior de seis respostas confirmou a preservação do estado de leitura.
+- Teste manual com NVDA, incluindo envio real pelo WinZapp. A consulta posterior
+  encontrou sete respostas, incluindo a enviada pelo usuário, identificada como própria.
 
-As verificações automatizadas não enviaram respostas reais. O usuário testou
-manualmente o envio pelo WinZapp: sua resposta foi a sétima, posteriormente
-encontrada na sessão real e identificada como própria. Esse teste usou o adaptador
+As verificações automatizadas não enviaram respostas reais. O teste manual usou o adaptador
 nativo provisório do WinZapp; a cadeia completa dos pacotes upstream ainda
-precisa de validação. A experiência com NVDA também precisa de confirmação manual.
+precisa de validação.
+
+Falhas de leitura e envio registram apenas códigos estáticos em `log.log`, com
+o prefixo `[community_comments]`. Não registram texto, autores ou identificadores.

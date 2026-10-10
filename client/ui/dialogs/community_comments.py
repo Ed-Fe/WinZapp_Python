@@ -1,6 +1,7 @@
 """Native announcement thread, with explicit refresh and a single-attempt composer."""
 
 import copy
+import logging
 from datetime import datetime
 
 import wx
@@ -129,6 +130,9 @@ class CommunityCommentsDialog(wx.Dialog):
         self._busy = False
         i18n = self._mw.i18n
         if rows is None:
+            # Never log the exception, parent id, author or message content.
+            code = "not_announcement" if error == "not_announcement" else "unavailable"
+            logging.warning("[community_comments] read_failed code=%s", code)
             if error == "not_announcement":
                 self._loaded = False
             text = (i18n.t("community_comments_not_announcement") if error == "not_announcement"
@@ -182,6 +186,8 @@ class CommunityCommentsDialog(wx.Dialog):
             return
         self._busy = False
         self._uncertain = not confirmed
+        if not confirmed:
+            logging.warning("[community_comments] send_failed code=unconfirmed")
         if confirmed:
             self._text.ChangeValue("")
         text = self._mw.i18n.t("community_comments_sent") if confirmed else self._mw.i18n.t("community_comments_unconfirmed")
