@@ -86,6 +86,8 @@ DÜZELTMELER
 
 - npm'in kaydettiği paket listesi sunucunun ihtiyaç duyduğu sürümlerden eskiyse WPPConnect Server güncellemesi artık npm "ETARGET" hatasıyla başarısız olmuyor. WinZapp şimdi npm'den çevrimiçi kontrol etmesini istiyor ve yeniden deniyor.
 
+- Bir güncelleme veya Node indirmesi tam bittiği anda iptal edildiğinde WinZapp "Attempt to exit a non-running event loop" hatasını gösterebiliyordu. Geç gelen tamamlanmalar artık yok sayılıyor.
+
 V2.0.0.0
 
 Bu sürümün en büyük yeniliği aramalardır: Telefona ihtiyaç duymadan doğrudan WinZapp üzerinden sesli ve görüntülü arama başlatabilir, gelen aramaları yanıtlayabilir veya reddedebilirsiniz. Bu yenilik; tam erişilebilir bir arama penceresi, pratik klavye kısayolları, aramalara özel ses ayarları ve yeni Aramalar sekmesindeki kapsamlı arama geçmişiyle birlikte sunulmaktadır. Ayrıca PIN korumalı kilitli sohbetler, arşivlenmiş sohbetlerde arama, resmi Türkçe ve Rumence dil destekleri ile çeşitli kullanım iyileştirmeleri eklendi; WinZapp'in gereksiz yere yeniden eşleştirme istediği durumlar da düzeltildi. Arka planda programın kod tabanı büyük bir yeniden yapılandırmadan (refactoring) geçti: Bu durum WinZapp'i kullanım şeklinizde hiçbir şeyi değiştirmez; ancak programın uzun vadeli kararlılığını, bakımını ve hata düzeltme süreçlerini önemli ölçüde kolaylaştırır.
