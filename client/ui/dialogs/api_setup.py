@@ -61,6 +61,7 @@ import requests
 import wx
 
 from app_paths import resource_path
+from core.api_dependencies import npm_cached_metadata_is_stale
 from core.wpp_runtime import homologated_wpp_tag
 
 # GitHub download URLs — no git required
@@ -1145,11 +1146,13 @@ class ApiSetupDialog(wx.Dialog):
 
             dependency_flags = timed_call("dependency_manifest", prepare_api_dependencies,
                                           api_dir, building=not modules_only)
-            ok, err = self._run_subprocess(
-                npm_cmd + ["install", "--prefer-offline", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"] + dependency_flags,
-                cwd=api_dir,
-                env=npm_install_env,
-            )
+            install_cmd = npm_cmd + ["install", "--prefer-offline", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"] + dependency_flags
+            ok, err = self._run_subprocess(install_cmd, cwd=api_dir, env=npm_install_env)
+            if not ok and not self._cancelled and npm_cached_metadata_is_stale(err):
+                # The cached registry metadata predates a version upstream
+                # now asks for; ask the registry again instead of failing.
+                install_cmd = [arg for arg in install_cmd if arg != "--prefer-offline"] + ["--prefer-online"]
+                ok, err = self._run_subprocess(install_cmd, cwd=api_dir, env=npm_install_env)
             if not ok:
                 if not self._cancelled:
                     wx.CallAfter(self._finish_error,

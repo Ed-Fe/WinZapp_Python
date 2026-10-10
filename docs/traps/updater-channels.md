@@ -46,6 +46,8 @@ step deletes `dist`, so declarations written there were immediately discarded.
 Keep type checking and the original build for unknown scripts or generation
 hooks. End-user npm installs use `--prefer-offline` to reuse cached metadata;
 missing packages still come from the registry. Never force `--offline`.
+If npm answers ETARGET/notarget (cached metadata older than a version upstream
+now asks for), `_run_setup` retries once with `--prefer-online`.
 
 After API validation, release `_wpp_updating` before starting reconnection
 workers. HTTP connection probes are serialized per account and suppressed
