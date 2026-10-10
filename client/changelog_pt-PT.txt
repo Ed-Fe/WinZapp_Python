@@ -1,10 +1,10 @@
 V2.1.0.0
 
-Os erros de instala??o e atualiza??o da WPPConnect passam a aparecer num campo de texto s? de leitura, com detalhes para ler e copiar. As atualiza??es preparadas separadamente mostram um ?nico relat?rio de erro, sem avisos duplicados.
-
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.
 
 NOVIDADES
+
+- Os erros de instala??o e atualiza??o da WPPConnect passam a aparecer num campo de texto s? de leitura, com detalhes para ler e copiar. As atualiza??es preparadas separadamente mostram um ?nico relat?rio de erro, sem avisos duplicados.
 
 - Limpar ou eliminar conversas pode deixar de pedir confirmação: os dois diálogos passam a ter a caixa "Não mostrar novamente", que só vale em conjunto com Sim. Com a pergunta desligada, limpar mantém as mensagens com estrela. Em Definições > Interface do utilizador existem as duas opções correspondentes para voltar a pedir confirmação.
 

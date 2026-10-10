@@ -1,10 +1,10 @@
 V2.1.0.0
 
-Erorile de instalare ?i actualizare WPPConnect apar acum ?ntr-un c?mp de text doar pentru citire, cu detalii care pot fi citite ?i copiate. Actualiz?rile preg?tite separat afi?eaz? un singur raport de eroare, f?r? notific?ri duplicate.
-
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.
 
 NOUTĂȚI
+
+- Erorile de instalare ?i actualizare WPPConnect apar acum ?ntr-un c?mp de text doar pentru citire, cu detalii care pot fi citite ?i copiate. Actualiz?rile preg?tite separat afi?eaz? un singur raport de eroare, f?r? notific?ri duplicate.
 
 - Ștergerea conținutului sau a conversațiilor poate înceta să mai ceară confirmare: ambele dialoguri au acum caseta "Nu mai afișa", care are efect doar împreună cu Da. Cu întrebarea oprită, golirea păstrează mesajele cu stea. În Setări > Interfața utilizator există cele două opțiuni corespunzătoare pentru a reactiva confirmarea.
 

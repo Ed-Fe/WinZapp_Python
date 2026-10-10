@@ -1,10 +1,10 @@
 V2.1.0.0
 
-WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
-
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.
 
 WHAT'S NEW
+
+- WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 
 - Clearing or deleting chats can stop asking for confirmation: both dialogs now have a "Don't show again" checkbox, which only takes effect together with Yes. When the question is off, clearing keeps starred messages. Settings > User Interface has the two matching options to turn the confirmations back on.
 
