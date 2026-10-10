@@ -1,5 +1,7 @@
 V2.1.0.0
 
+Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Okno umożliwia odświeżanie odpowiedzi i zachowuje tekst, gdy wysłanie nie zostanie potwierdzone. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
+
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
 
 NOWOŚCI

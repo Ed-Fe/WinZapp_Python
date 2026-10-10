@@ -1,5 +1,7 @@
 V2.1.0.0
 
+Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. La ventana permite actualizar las respuestas y conserva tu texto si el envío no se confirma. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.
+
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
 
 NOVEDADES
