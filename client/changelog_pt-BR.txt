@@ -1,5 +1,7 @@
 V2.1.0.0
 
+Erros de instala??o e atualiza??o da WPPConnect agora aparecem em um campo de texto somente leitura, com detalhes para ler e copiar. Atualiza??es preparadas separadamente mostram um ?nico relat?rio de erro, sem avisos duplicados.
+
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada a lugar nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, figurinhas e PDFs.
 
 NOVIDADES
