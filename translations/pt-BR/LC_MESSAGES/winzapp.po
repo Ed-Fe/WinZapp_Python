@@ -2670,6 +2670,23 @@ msgid "&Close chat"
 msgstr "&Fechar conversa"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_none"
+msgid "No groups in common found"
+msgstr "Nenhum grupo em comum encontrado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "common_groups_tab"
+msgid "Groups in common"
+msgstr "Grupos em comum"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_unavailable"
+msgid "Could not get the groups in common"
+msgstr "Não foi possível obter os grupos em comum"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 #: client/ui/dialogs/community_comments.py
 #, python-brace-format
@@ -2774,21 +2791,6 @@ msgstr "Respostas ao aviso - {name}"
 msgctxt "community_comments_write"
 msgid "Write a r&eply"
 msgstr "Escrever uma res&posta"
-#: client/ui/dialogs/common_groups_tab.py
-msgctxt "common_groups_none"
-msgid "No groups in common found"
-msgstr "Nenhum grupo em comum encontrado"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "common_groups_tab"
-msgid "Groups in common"
-msgstr "Grupos em comum"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/common_groups_tab.py
-msgctxt "common_groups_unavailable"
-msgid "Could not get the groups in common"
-msgstr "Não foi possível obter os grupos em comum"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "connect_dialog_cancel"

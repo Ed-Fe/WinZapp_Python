@@ -2666,6 +2666,23 @@ msgid "&Close chat"
 msgstr "&Închide conversația"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_none"
+msgid "No groups in common found"
+msgstr "Nu s-au găsit grupuri în comun"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "common_groups_tab"
+msgid "Groups in common"
+msgstr "Grupuri în comun"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_unavailable"
+msgid "Could not get the groups in common"
+msgstr "Nu s-au putut obține grupurile în comun"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 #: client/ui/dialogs/community_comments.py
 #, python-brace-format
@@ -2770,21 +2787,6 @@ msgstr "Răspunsuri la anunț - {name}"
 msgctxt "community_comments_write"
 msgid "Write a r&eply"
 msgstr "Scrie un răs&puns"
-#: client/ui/dialogs/common_groups_tab.py
-msgctxt "common_groups_none"
-msgid "No groups in common found"
-msgstr "Nu s-au găsit grupuri în comun"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "common_groups_tab"
-msgid "Groups in common"
-msgstr "Grupuri în comun"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/common_groups_tab.py
-msgctxt "common_groups_unavailable"
-msgid "Could not get the groups in common"
-msgstr "Nu s-au putut obține grupurile în comun"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "connect_dialog_cancel"

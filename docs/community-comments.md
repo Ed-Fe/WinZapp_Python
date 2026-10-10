@@ -1,6 +1,6 @@
 # Respostas aos avisos de comunidades
 
-Implementação local em `feat/community-comments`. O suporte upstream ainda não
+Implementação local em `feat/community-announcement-replies`. O suporte upstream ainda não
 foi publicado. Há mudanças separadas nos repositórios irmãos `wa-js`,
 `wppconnect` e `wppconnect-server`.
 
@@ -20,7 +20,7 @@ não incorpora mudanças de Python nem novas rotas de Node.
 4. Escreva no campo de resposta e use **Enviar resposta** ou **Ctrl+Enter**.
    **Enter** sozinho continua inserindo uma linha no campo.
 5. Ao navegar pelos avisos, a contagem conhecida de respostas é anunciada no
-   depois do conteúdo da mensagem. Abrir ou atualizar as respostas também atualiza essa contagem.
+   final, depois do conteúdo da mensagem. Abrir ou atualizar as respostas também atualiza essa contagem.
 6. **Escape** fecha a janela. Atualizações preservam a resposta selecionada.
 
 Chats antigos podem não ter a identificação de comunidade no cache. Nesse

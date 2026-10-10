@@ -2707,6 +2707,112 @@ msgctxt "common_groups_unavailable"
 msgid "Could not get the groups in common"
 msgstr "Nie udało się pobrać wspólnych grup"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/community_comments.py
+#, python-brace-format
+msgctxt "community_comments_count"
+msgid "Replies: {count}"
+msgstr "Odpowiedzi: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_deleted"
+msgid "Deleted reply"
+msgstr "Usunięta odpowiedź"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_empty"
+msgid ""
+"No replies are synchronized on this device. Replies available only on the "
+"phone may be missing."
+msgstr ""
+"Na tym urządzeniu nie ma zsynchronizowanych odpowiedzi. Może brakować "
+"odpowiedzi dostępnych tylko w telefonie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_encrypted"
+msgid "Reply not yet decrypted"
+msgstr "Odpowiedź nie została jeszcze odszyfrowana"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_failed"
+msgid ""
+"Could not load the replies. Check the connection and update the WinZapp API."
+msgstr ""
+"Nie udało się wczytać odpowiedzi. Sprawdź połączenie i zaktualizuj API "
+"WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_list"
+msgid "&Replies"
+msgstr "&Odpowiedzi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_not_announcement"
+msgid "This message is not in a community announcement group."
+msgstr "Ta wiadomość nie znajduje się w grupie ogłoszeń społeczności."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_refresh"
+msgid "&Refresh replies"
+msgstr "O&dśwież odpowiedzi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_send"
+msgid "&Send reply"
+msgstr "&Wyślij odpowiedź"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_sending"
+msgid "Sending reply..."
+msgstr "Wysyłanie odpowiedzi..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_sent"
+msgid "Reply sent."
+msgstr "Odpowiedź wysłana."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/community_comments.py
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "community_comments_title"
+msgid "Community announcement replies..."
+msgstr "Odpowiedzi na ogłoszenie społeczności..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_unconfirmed"
+msgid ""
+"Sending was not confirmed. Refresh and check the replies before trying "
+"again. Your text was kept."
+msgstr ""
+"Wysłanie nie zostało potwierdzone. Odśwież i sprawdź odpowiedzi przed "
+"ponowną próbą. Twój tekst został zachowany."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+#, python-brace-format
+msgctxt "community_comments_window"
+msgid "Announcement replies - {name}"
+msgstr "Odpowiedzi na ogłoszenie - {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+#| msgid "Write a &reply"
+msgctxt "community_comments_write"
+msgid "Write a r&eply"
+msgstr "Napisz od&powiedź"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "connect_dialog_cancel"
 msgid "Cance&l"
@@ -13020,109 +13126,3 @@ msgstr "&Tak"
 msgctxt "yesterday_at"
 msgid "Yesterday at {time}"
 msgstr "Wczoraj o {time}"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/message_rendering.py
-#: client/ui/dialogs/community_comments.py
-#, python-brace-format
-msgctxt "community_comments_count"
-msgid "Replies: {count}"
-msgstr "Odpowiedzi: {count}"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_deleted"
-msgid "Deleted reply"
-msgstr "Usunięta odpowiedź"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_empty"
-msgid ""
-"No replies are synchronized on this device. Replies available only on the "
-"phone may be missing."
-msgstr ""
-"Na tym urządzeniu nie ma zsynchronizowanych odpowiedzi. Może brakować "
-"odpowiedzi dostępnych tylko w telefonie."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_encrypted"
-msgid "Reply not yet decrypted"
-msgstr "Odpowiedź nie została jeszcze odszyfrowana"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_failed"
-msgid ""
-"Could not load the replies. Check the connection and update the WinZapp API."
-msgstr ""
-"Nie udało się wczytać odpowiedzi. Sprawdź połączenie i zaktualizuj API "
-"WinZapp."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_list"
-msgid "&Replies"
-msgstr "&Odpowiedzi"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_not_announcement"
-msgid "This message is not in a community announcement group."
-msgstr "Ta wiadomość nie znajduje się w grupie ogłoszeń społeczności."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "O&dśwież odpowiedzi"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_send"
-msgid "&Send reply"
-msgstr "&Wyślij odpowiedź"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_sending"
-msgid "Sending reply..."
-msgstr "Wysyłanie odpowiedzi..."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_sent"
-msgid "Reply sent."
-msgstr "Odpowiedź wysłana."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/community_comments.py
-#: client/ui/conversation_panel/message_menu.py
-msgctxt "community_comments_title"
-msgid "Community announcement replies..."
-msgstr "Odpowiedzi na ogłoszenie społeczności..."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_unconfirmed"
-msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
-msgstr ""
-"Wysłanie nie zostało potwierdzone. Odśwież i sprawdź odpowiedzi przed "
-"ponowną próbą. Twój tekst został zachowany."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-#, python-brace-format
-msgctxt "community_comments_window"
-msgid "Announcement replies - {name}"
-msgstr "Odpowiedzi na ogłoszenie - {name}"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
-#| msgid "Write a &reply"
-msgctxt "community_comments_write"
-msgid "Write a r&eply"
-msgstr "Napisz od&powiedź"

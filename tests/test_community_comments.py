@@ -233,6 +233,7 @@ class TestReplyNamesAndCounts:
         normalized=_Normalizer()._normalize_wpp_message(raw)
         assert normalized["replyCount"]==7
         panel=Renderer()
+        panel._get_message_content=lambda msg: msg["message"]["conversation"]
         panel.main_window.i18n=SimpleNamespace(t=lambda key: "Replies: {count}" if key=="community_comments_count" else key)
         rendered=panel._render_message_line(normalized)
         assert ", Replies: 7" in rendered
