@@ -1,3 +1,4 @@
+from ui.shortcut_bindings import set_shortcut_label
 import base64 as _b64
 import copy
 import logging
@@ -64,6 +65,7 @@ from ui.accessible import (
     AccessibleSearchNextResult,
     AccessibleSearchPrevResult,
     AccessibleNewConversationButton,
+    AccessibleConversationFilter,
     AccessibleMessagesListControl,
     AccessibleReadMoreButton,
     AccessibleReturnCallButton,
@@ -152,6 +154,7 @@ from ui.conversation_panel.audio_playback import AudioPlaybackMixin
 from ui.conversation_panel.formatting import FormattingMixin
 from ui.conversation_panel.message_rendering import MessageRenderingMixin
 from ui.conversation_panel.conversation_info import ConversationInfoMixin
+from ui.conversation_panel.contact_presence import ContactPresencePanelMixin
 from ui.conversation_panel.forwarding import ForwardingMixin
 from ui.conversation_panel.message_actions import MessageActionsMixin
 from ui.conversation_panel.message_stars import StarActionsMixin
@@ -163,6 +166,7 @@ from ui.conversation_panel.reactions import ReactionsMixin
 from ui.conversation_panel.attachments import AttachmentsMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
 from ui.conversation_panel.bulk_messages import BulkMessagesMixin
+from ui.conversation_panel.message_data import MessageDataMixin
 from ui.conversation_panel.panel_visibility import ConversationPanelVisibilityMixin
 from ui.conversation_panel.ai_actions import AIActionsMixin
 
@@ -193,6 +197,7 @@ class ConversationsPanel(
     FormattingMixin,
     MessageRenderingMixin,
     ConversationInfoMixin,
+    ContactPresencePanelMixin,
     ForwardingMixin,
     MessageActionsMixin,
     StarActionsMixin,
@@ -205,6 +210,7 @@ class ConversationsPanel(
     ContactMessagesMixin,
     BulkMessagesMixin,
     AIActionsMixin,
+    MessageDataMixin,
     wx.Panel,
 ):
     # Windows' native SysListView32 (the classic wx.ListCtrl) reads each item's
@@ -556,6 +562,8 @@ class ConversationsPanel(
         self._new_conv_btn.Bind(wx.EVT_BUTTON, self._on_new_conversation)
         outer_sizer.Add(self._new_conv_btn, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 5)
 
+        self._build_wa_list_controls(outer_sizer)
+
         # ── Conversation filter tabs ─────────────────────────────────────────
         # Tracks the active filter key: 'all' | 'unread' | 'groups' | 'individual'
         self._conv_filter = 'all'
@@ -572,9 +580,8 @@ class ConversationsPanel(
             style=wx.RA_SPECIFY_ROWS,
         )
         self._filter_radio.Bind(wx.EVT_RADIOBOX, self._on_filter_changed)
+        self._filter_radio.SetAccessible(AccessibleConversationFilter())
         outer_sizer.Add(self._filter_radio, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 5)
-
-        self._build_wa_list_controls(outer_sizer)
 
         # ── Conversations list ──────────────────────────────────────────────
         self.conversations_label = wx.StaticText(self, label=i18n.t("conversations"))
@@ -1225,7 +1232,7 @@ class ConversationsPanel(
         self._search_prev_btn.SetLabel(i18n.t("search_prev_result"))
         self._search_next_btn.SetLabel(i18n.t("search_next_result"))
 
-        self.messages_label.SetLabel(i18n.t("messages"))
+        set_shortcut_label(self, self.messages_label, 'navigation.messages', i18n.t("messages"))
         col2 = wx.ListItem()
         col2.SetText(i18n.t("messages").replace("&", ""))
         for control in getattr(self, "_message_list_controls", {"active": self.messages_list}).values():
@@ -1240,13 +1247,13 @@ class ConversationsPanel(
 
         if self.conversation is not None and self.conversation_panel.IsShown():
             if self.conversation_name:
-                self.message_label.SetLabel(
+                set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD',
                     f"{i18n.t('type_message')} {self.conversation_name}"
                 )
             else:
-                self.message_label.SetLabel(i18n.t("type_message"))
+                set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD', i18n.t("type_message"))
         else:
-            self.message_label.SetLabel(i18n.t("type_message"))
+            set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD', i18n.t("type_message"))
 
         self.send_message_btn.SetLabel(i18n.t("send_message"))
         self._emoji_btn.SetLabel(i18n.t("emoji_button"))

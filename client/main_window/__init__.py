@@ -19,6 +19,7 @@ Where to look (and where new code goes):
     session_tokens      WA_token vault, session store, abandoned sessions
     session_lifecycle   Windows end-session teardown, profile recovery/snapshots
     wpp_server          local WPPConnect Server: install, version, ports, start/stop
+    api_start_behind_window  a paired launch: window first, Node started behind it (#407)
     updates             app and WPPConnect Server update checks
     wpp_background_update  WPPConnect Server update built in the background, then swapped in
     sync                prepare_sync, _run_sync, per-chat sync planning
@@ -27,6 +28,7 @@ Where to look (and where new code goes):
     conversation_sync   sync_chat_messages, remote windows, deletion reconcile
     message_events      on_new_message / on_historical_message, edits, revokes
     chat_events         acks, presence, unread counters, archive/pin events
+    contact_presence    bounded open-contact refresh and connection invalidation
     sending             text/audio/media/contact/reaction sends, queue callbacks
     message_actions     edit, delete, forward, resend, mark played
     message_stars       verified WhatsApp star writes, remote star persistence
@@ -45,6 +47,7 @@ Where to look (and where new code goes):
     chat_lock           locked-chats vault
     phone_chat_lock     chats locked with WhatsApp Chat Lock on the phone
     quick_audio_devices Ctrl+Alt+Shift+H/G quick output/recording device switch
+    message_ack         live delivered/read/played times of our own sent messages
 
   Plain functions (import and test them directly — no wx, no stub)
     message_rules       unread/history-gap/countable-message rules
@@ -55,6 +58,7 @@ Where to look (and where new code goes):
     win32_helpers       elevation, hotkeys, de-elevated spawn
     log_files           early log-file plumbing
     http_pool           the pooled requests session
+    core.sync_lifecycle   generation/session ownership, backfill handoff, phone budget
 
 Rules for this package:
 

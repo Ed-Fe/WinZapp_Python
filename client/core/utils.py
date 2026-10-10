@@ -1008,6 +1008,7 @@ def get_downloads_folder() -> str:
 # one copy avoids the two call sites drifting apart when a new settings key
 # is added to only one of them.
 DEFAULT_SETTINGS = {
+    "keyboard_shortcuts": {},
     "connection": {
         "wpp_server": "http://127.0.0.1",
         "wpp_port": 6300,
@@ -1114,11 +1115,14 @@ DEFAULT_SETTINGS = {
         "self_reference_mode": "eu",
         "self_reference_custom_word": "",
         "hide_own_sender_in_message_list": False,
+        "hide_unnamed_sender_numbers": False,
         "show_delivery_status_in_chat_list": True,
         "keep_pinned_chat_order": False,
         "preserve_typed_text_as_attachment_caption": True,
         "bulk_action_shortcuts": True,
         "confirm_mark_all_read": True,
+        "confirm_clear_chat": True,
+        "confirm_delete_chat": True,
         # Ask before F5 / Shift+F5 (MainWindow._confirm_resync()); the
         # confirmations' own "don't show again" boxes clear these.
         "confirm_resync_all": True,

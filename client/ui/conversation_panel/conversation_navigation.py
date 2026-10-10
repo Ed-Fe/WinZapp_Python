@@ -5,6 +5,7 @@ the ConversationsPanel instance, so every attribute set in
 ConversationsPanel.__init__/init_UI is available here.
 """
 
+from ui.shortcut_bindings import set_shortcut_label
 import logging
 import threading
 import wx
@@ -16,6 +17,9 @@ from core.utils import (
     is_phone_like,
 )
 from core.transcription import stored as stored_transcription
+
+# Order of the chat-filter radio buttons (conv_filter_* labels).
+CONVERSATION_FILTERS = ('all', 'unread', 'groups', 'individual')
 
 
 class ConversationNavigationMixin:
@@ -152,7 +156,7 @@ class ConversationNavigationMixin:
         # be called depends only on its JID kind, which cannot change while the
         # conversation stays open. The two places that DO open a conversation
         # sync it; a live permission refresh only has to touch the composer.
-        self.message_label.SetLabel(
+        set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD',
             self._message_label_text(jid, conversation, self.conversation_name)
         )
         self.conversation_panel.Layout()
@@ -175,7 +179,7 @@ class ConversationNavigationMixin:
         self.conversation_name = new_name
         is_group = jid.endswith("@g.us")
         self._conv_data_btn.SetNote(self._conversation_note_text(new_name, is_group))
-        self.message_label.SetLabel(
+        set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD',
             self._message_label_text(jid, self.main_window.chats.get(jid, {}), new_name)
         )
         self.conversation_panel.Layout()
@@ -267,6 +271,7 @@ class ConversationNavigationMixin:
                 wx.CallAfter(self._focus_already_open_conversation)
             self._begin_pinned_messages_visit(reset_history=False)
             wx.CallAfter(self._load_pinned_messages, announce=take_focus)
+            self._start_contact_presence()
             return
         # Record that the user actually looked at this conversation. It is the
         # gate on asking the *phone* for its older history: every such request
@@ -368,7 +373,7 @@ class ConversationNavigationMixin:
 
         self._apply_composer_permissions(jid, conversation)
         self._sync_voice_call_button(jid)
-        self.message_label.SetLabel(
+        set_shortcut_label(self, self.message_label, 'messages.ID_ALT_FOCUS_FIELD',
             self._message_label_text(jid, conversation, self.conversation_name)
         )
             
@@ -388,11 +393,13 @@ class ConversationNavigationMixin:
         # wx.CallAfter queue as the focus change, scheduled further down,
         # guarantees FIFO order instead of leaving it to thread-timing luck.
         # Background: fetch profile/last-seen and update button note
-        threading.Thread(
-            target=self._fetch_and_update_profile,
-            args=(conversation,),
-            daemon=True,
-        ).start()
+        self._start_contact_presence()
+        if is_group:
+            threading.Thread(
+                target=self._fetch_and_update_profile,
+                args=(conversation, self._contact_presence_visit),
+                daemon=True,
+            ).start()
         # Subscribe to presence events for this contact so last-seen and typing
         # indicators arrive via onpresencechanged Socket.IO events.
         self.main_window.subscribe_presence(jid)
@@ -495,9 +502,8 @@ class ConversationNavigationMixin:
 
     def _on_filter_changed(self, event):
         """Update the active conversation filter and rebuild the list."""
-        _filter_map = ['all', 'unread', 'groups', 'individual']
         sel = self._filter_radio.GetSelection()
-        self._conv_filter = _filter_map[sel] if 0 <= sel < len(_filter_map) else 'all'
+        self._conv_filter = CONVERSATION_FILTERS[sel] if 0 <= sel < len(CONVERSATION_FILTERS) else 'all'
         self.main_window.add_chats_to_ui()
         # Selecting a filter option leaves keyboard focus on the radio box —
         # the list itself gets rebuilt but nothing ever moves focus/selection
@@ -511,6 +517,17 @@ class ConversationNavigationMixin:
             lst.Focus(0)
             lst.Select(0)
             lst.EnsureVisible(0)
+
+    def _on_accel_conversation_filter(self, filter_key):
+        """Alt+Shift+A/U/G/I: pick a chat filter without moving keyboard focus."""
+        index = CONVERSATION_FILTERS.index(filter_key)
+        self._filter_radio.SetSelection(index)
+        self._on_filter_changed(None)
+        self.main_window.speak_output.output(self._filter_radio.GetString(index))
+
+    def _on_accel_focus_conversation_filter(self, event):
+        """Alt+Shift+F: move focus to the chat filter radio buttons."""
+        self._filter_radio.SetFocus()
 
     def on_ctrl_f(self, event):
         self.search_field.SetFocus()
@@ -553,6 +570,7 @@ class ConversationNavigationMixin:
             self._hide_mention_suggestions()
             self.message_field.SetFocus()
             return False, ""
+        self._stop_contact_presence()
         if hasattr(self, "close_ai_media"):
             self.close_ai_media()
         self._stop_typing_for_current_conversation()

@@ -113,6 +113,7 @@ from core.wpp_runtime import read_homologated_wpp_version
 from core.utils import reaction_targets_status, encrypt, decrypt, encrypt_json, decrypt_json, generate_and_save_key, retrieve_key, format_number, is_phone_like, looks_like_binary_blob, prune_message_record, prune_chats_messages, effective_unread_count, mute_response_accepted, normalize_for_search, search_normalization_mode, parse_bool_flag as _parse_bool_flag, group_setting_notif_value, DEFAULT_SETTINGS, append_selected_marker, is_message_forwarded, plan_row_updates, display_page_fetch_limit, carry_over_video_durations, video_seconds, MEASURED_SECONDS_KEY, is_voice_message, backfill_missing_defaults, auto_download_allows, migrate_voice_messages_media_types, migrate_voice_message_mode_default, migrate_spell_check_mode, migrate_call_exclusive_mode_split
 from core.utils import clear_chat_applied, clear_chat_keep_starred_echo
 from ui.dialogs.checkbox_confirm import confirm_with_checkbox
+from ui.shortcut_bindings import make_shortcut_table
 from core.settings_transfer import connection_runtime as _connection_runtime
 from core.profile_backup import (
     close_snapshot_max_age as _close_snapshot_max_age,
@@ -276,6 +277,7 @@ from main_window.calls import CallsMixin
 from main_window.identity import IdentityMixin
 from main_window.message_events import MessageEventsMixin
 from main_window.wpp_server import WppServerMixin
+from main_window.api_start_behind_window import ApiStartBehindWindowMixin, wait_for_api_start
 from main_window.sending import SendingMixin
 from main_window.session_lifecycle import SessionLifecycleMixin
 from main_window.shortcuts import ShortcutsMixin
@@ -292,6 +294,7 @@ from main_window.conversation_sync import ConversationSyncMixin
 from main_window.media import MediaMixin
 from main_window.transcription_store import TranscriptionStoreMixin
 from main_window.chat_events import ChatEventsMixin
+from main_window.contact_presence import ContactPresenceMixin
 from main_window.history import HistoryMixin
 from main_window.read_state import ReadStateMixin
 from main_window.chat_actions import ChatActionsMixin
@@ -299,6 +302,7 @@ from main_window.message_actions import MessageActionsMixin
 from main_window.message_stars import MessageStarsMixin
 from main_window.message_pins import MessagePinsMixin
 from main_window.quick_audio_devices import QuickAudioDevicesMixin
+from main_window.message_ack import MessageAckMixin
 
 
 requests.get = _patched_get
@@ -325,6 +329,7 @@ class MainWindow(
     IdentityMixin,
     MessageEventsMixin,
     WppServerMixin,
+    ApiStartBehindWindowMixin,
     SendingMixin,
     SessionLifecycleMixin,
     ShortcutsMixin,
@@ -341,6 +346,7 @@ class MainWindow(
     MediaMixin,
     TranscriptionStoreMixin,
     ChatEventsMixin,
+    ContactPresenceMixin,
     HistoryMixin,
     ReadStateMixin,
     ChatActionsMixin,
@@ -348,6 +354,7 @@ class MainWindow(
     MessageStarsMixin,
     MessagePinsMixin,
     QuickAudioDevicesMixin,
+    MessageAckMixin,
     wx.Frame,
 ):
     def __init__(self, account_id=None, account_name=None, startup_source="user",
@@ -728,6 +735,11 @@ class MainWindow(
         # on this before making any wx.CallAfter calls so it never touches
         # widgets that don't exist yet (e.g. when ShowModal() is blocking init_UI).
         self._ui_ready_event = threading.Event()
+        # Set by _start_api_behind_window() when this launch builds the window
+        # before WPPConnect answers (issue #407); wait_for_api_start() is what
+        # the threads that need Node block on. Every other launch has already
+        # waited for Node inside __init__, so there is nothing to wait for.
+        self._api_started_behind_window = False
 
         # Check if we should ask the user to choose between local and custom/remote API (first run)
         self._check_api_type_first_run()
@@ -788,9 +800,18 @@ class MainWindow(
                 from core.wa_version_refresh import start_at_launch
                 start_at_launch(self, resource_path("api", "node_modules"),
                                 _global_dir())
-                logging.info("[STARTUP_TIMING] T+%.3fs — Ensuring WPPConnect Server process is running...", _time.perf_counter() - _t_start)
-                self.ensure_wpp_running()
-                logging.info("[STARTUP_TIMING] T+%.3fs — WPPConnect Server process ready!", _time.perf_counter() - _t_start)
+                if self._may_start_api_behind_window():
+                    # An already-paired account: the window and its chat list
+                    # come from the local database and need nothing from Node,
+                    # so Node starts behind them instead of behind the startup
+                    # dialog (issue #407; who keeps the dialog, and why, is in
+                    # main_window/api_start_behind_window.py).
+                    logging.info("[STARTUP_TIMING] T+%.3fs — Starting WPPConnect Server behind the main window...", _time.perf_counter() - _t_start)
+                    self._start_api_behind_window()
+                else:
+                    logging.info("[STARTUP_TIMING] T+%.3fs — Ensuring WPPConnect Server process is running...", _time.perf_counter() - _t_start)
+                    self.ensure_wpp_running()
+                    logging.info("[STARTUP_TIMING] T+%.3fs — WPPConnect Server process ready!", _time.perf_counter() - _t_start)
             except Exception as exc:
                 logging.error("[STARTUP_TIMING] Error in API initialization: %s", exc)
 
@@ -918,8 +939,13 @@ class MainWindow(
         # Status text shown in the title bar and tray tooltip (e.g. "sincronizando").
         # Starts as "connecting" rather than blank/offline — the connection
         # state genuinely isn't known yet at this point in startup.
-        self._tray_status = self.i18n.t("tray_connecting")
-        self._tray_status_key = "tray_connecting"
+        # While Node still starts behind the window (issue #407) the title
+        # carries the phrase the startup dialog used to show.
+        _initial_status_key = ("tray_starting_wppconnect"
+                               if self._api_started_behind_window
+                               else "tray_connecting")
+        self._tray_status = self.i18n.t(_initial_status_key)
+        self._tray_status_key = _initial_status_key
 
         # True from the moment a deliberate app shutdown starts (real_exit())
         # until the process actually exits. _stop_wpp_server() closes the
@@ -958,38 +984,17 @@ class MainWindow(
         # blip.
         self._pairing_in_progress = False
 
-        #Check for what window should be shown (skipped in background mode)
-        if not self.background_mode:
+        #Check for what window should be shown (skipped in background mode,
+        # and moved to post_ui_init when Node is still starting behind the
+        # window: _confirm_pairing_behind_window() asks once it can answer)
+        if not self.background_mode and not self._api_started_behind_window:
             logging.info("MainWindow: Checking WhatsApp connection status...")
-            if not self.connect.check_connection_status():
-                # This account is unpaired (session lost, or pairing never
-                # finished). If OTHER paired accounts exist, do NOT trap the
-                # user in this dead account's pairing dialog with no way to
-                # reach a working account or the menu (reported live: after an
-                # overnight session loss, launch showed only the connect dialog
-                # of the logged-out account — no way to switch to the healthy
-                # one). Offer connect-this / switch-to-other / quit first.
-                if self._offer_switch_when_unpaired():
-                    return  # switching away; this process is shutting down
-                logging.info("MainWindow: WhatsApp connection not paired. Showing connection dialog...")
-                self.connect.show_connection_dial()
-                if not self.connect.check_connection_status():
-                    logging.info("Connection dialog closed without pairing. Exiting application.")
-                    sys.exit()
-                # Do NOT disconnect self.ws here — see the "Initialize
-                # websocket" block below for why this used to cause the
-                # pairing session to crash.
-                self._just_paired = True
-                # Multi-account: pairing succeeded → promote this account from
-                # pending to paired in the registry, so it appears in the
-                # switcher/autostart (plan Zad 3.2/GPT r7 #1). last_foreground is
-                # set later, only after the window is ready and for source=user.
-                if getattr(self, "account_id", None) and getattr(self, "registry", None):
-                    try:
-                        self.registry.set_state(self.account_id, "paired")
-                        self.resume_pending = False
-                    except Exception:
-                        logging.exception("[accounts] pending→paired transition failed")
+            pairing = self._pair_account_at_startup()
+            if pairing == "switching":
+                return  # switching away; this process is shutting down
+            if pairing == "unpaired":
+                logging.info("Connection dialog closed without pairing. Exiting application.")
+                sys.exit()
 
         self._startup_token_tail_done = False
 
@@ -1080,26 +1085,34 @@ class MainWindow(
             logging.info("[post_ui_init] *** THREAD STARTED ***")
             try:
                 logging.info("[post_ui_init] STEP 1 — checking background_mode=%s", self.background_mode)
-                if not self.background_mode:
-                    logging.info("[post_ui_init] STEP 1a — calling check_connection_status()...")
-                    _connected = self.connect.check_connection_status()
-                    logging.info("[post_ui_init] STEP 1a — check_connection_status() returned: %s", _connected)
-                    if not _connected:
-                        logging.info("[post_ui_init] STEP 1b — not paired, showing connection dialog...")
-                        self.connect.show_connection_dial()
-                        logging.info("[post_ui_init] STEP 1b — dialog closed. Re-checking connection...")
-                        if not self.connect.check_connection_status():
-                            logging.info("[post_ui_init] STEP 1b — still not paired after dialog. Exiting.")
-                            sys.exit()
-                        logging.info("[post_ui_init] STEP 1b — pairing completed via dialog.")
-                        self._just_paired = True
+                if self._api_started_behind_window:
+                    # Every step below talks to WPPConnect, which may still be
+                    # starting behind the window. A start that never came up
+                    # has already shown its error and queued real_exit().
+                    if not wait_for_api_start(self):
+                        logging.info("[post_ui_init] WPPConnect never came up — stopping.")
+                        return
+                    if not self._confirm_pairing_behind_window():
+                        return
+                elif not self.background_mode:
+                    if not self._recheck_pairing_after_ui():
+                        return  # real_exit() already queued
 
                 logging.info("[post_ui_init] STEP 2 — retrieving token...")
-                self.retrieve_token()
+                if not self.retrieve_token():
+                    return  # the error and real_exit() are already queued
                 logging.info("[post_ui_init] STEP 2 — token retrieved: %s", bool(self.token))
                 if not self.token:
-                    logging.error("[post_ui_init] STEP 2 — NO TOKEN. Exiting application.")
-                    sys.exit()
+                    # Only a race guard now: retrieve_token() has either set a
+                    # token or returned False above, but a logout handled on
+                    # the UI thread in between
+                    # (WebSocketClient._reset_credentials_and_show_pairing())
+                    # clears self.token — and opens the pairing dialog. That
+                    # re-pair flow owns what happens next, so this thread only
+                    # stops: quitting here would close WinZapp under the
+                    # dialog the user is about to pair with.
+                    logging.error("[post_ui_init] STEP 2 — NO TOKEN after a logout. Leaving it to the re-pairing flow.")
+                    return
 
                 logging.info("[post_ui_init] STEP 3 — initializing WebSocketClient (just_paired=%s)...", self._just_paired)
                 reuse_existing_ws = (
@@ -1346,13 +1359,13 @@ class MainWindow(
         self.ID_CALL_SETTINGS = wx.NewIdRef()  # call settings       (Ctrl+C)
         self.ID_CALL_VIDEO    = wx.NewIdRef()  # toggle video        (Ctrl+V)
         self.ID_CALL_PROMOTE  = wx.NewIdRef()  # voice -> video      (Ctrl+P)
-        call_accel_tbl = wx.AcceleratorTable([
+        call_accel_tbl = make_shortcut_table(self, 'call', [
             (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord("Q"), self.ID_CALL_END),
             (wx.ACCEL_CTRL,                  ord("M"), self.ID_CALL_MUTE),
             (wx.ACCEL_CTRL,                  ord("C"), self.ID_CALL_SETTINGS),
             (wx.ACCEL_CTRL,                  ord("V"), self.ID_CALL_VIDEO),
             (wx.ACCEL_CTRL,                  ord("P"), self.ID_CALL_PROMOTE),
-        ])
+        ], target=self.voice_call_window)
         self.voice_call_window.SetAcceleratorTable(call_accel_tbl)
         self.voice_call_window.Bind(wx.EVT_MENU, self.end_active_call,          id=self.ID_CALL_END)
         self.voice_call_window.Bind(wx.EVT_MENU, self.toggle_call_microphone,   id=self.ID_CALL_MUTE)
