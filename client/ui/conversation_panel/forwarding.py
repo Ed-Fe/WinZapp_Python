@@ -18,6 +18,21 @@ from ui.conversation_panel.selection_rules import (
 )
 
 
+def focus_first_result(event, lst) -> bool:
+    """Down arrow in the forward dialog's search field: focus the first row.
+
+    Returns True when the key was handled. An empty list swallows the key
+    too, like the conversations search; any other key is left to the field.
+    """
+    if event.GetKeyCode() != wx.WXK_DOWN:
+        event.Skip()
+        return False
+    if lst.GetCount() > 0:
+        lst.SetFocus()
+        lst.SetSelection(0)
+    return True
+
+
 def forward_outcome(i18n, forwarded: int, failed_names, target_count: int):
     """What to tell the user once a forward is over: (kind, text).
 
@@ -393,6 +408,8 @@ class ForwardingMixin:
                 lst.SetSelection(0)
 
         search_field.Bind(wx.EVT_TEXT, _on_search)
+        search_field.Bind(
+            wx.EVT_KEY_DOWN, lambda event: focus_first_result(event, lst))
         if all_names:
             lst.SetSelection(0)
         ok_btn.SetDefault()
