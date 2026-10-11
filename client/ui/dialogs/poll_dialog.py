@@ -31,8 +31,10 @@ class PollDialog(wx.Dialog):
                   0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(question, 0, wx.EXPAND | wx.ALL, 8)
 
-        hint = i18n.t("poll_allows_several" if allows_multiple(poll) else "poll_allows_one")
-        sizer.Add(wx.StaticText(panel, label=hint), 0, wx.LEFT | wx.RIGHT, 8)
+        multiple = allows_multiple(poll)
+        if multiple is not None:
+            hint = i18n.t("poll_allows_several" if multiple else "poll_allows_one")
+            sizer.Add(wx.StaticText(panel, label=hint), 0, wx.LEFT | wx.RIGHT, 8)
 
         self._list = wx.ListCtrl(
             panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER
@@ -54,6 +56,8 @@ class PollDialog(wx.Dialog):
         # of the votes. Named after the option so a screen reader says which.
         for option in ordered:
             percent = vote_percent(option, ordered)
+            if percent is None:
+                continue  # votes unknown: no bar rather than an empty one
             gauge = wx.Gauge(panel, range=100)
             gauge.SetValue(percent)
             gauge.SetName(i18n.t("poll_option_percent").format(

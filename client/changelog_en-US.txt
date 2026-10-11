@@ -4,7 +4,7 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
-- Polls: choose Poll, the last item of the attachment menu, to send a poll with a question, up to 12 options and the choice of allowing several answers. Received polls are no longer shown as unsupported messages: the row reads the question first, then each option with its votes, and Enter opens a window with the same list.
+- Polls: choose Poll, the last item of the attachment menu, to send a poll with a question, up to 12 options and the choice of allowing several answers. Received polls are no longer shown as unsupported messages: the row reads the question first, then each option (with its votes when WinZapp receives them), and Enter opens a window with the same list.
 
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 

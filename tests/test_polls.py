@@ -108,6 +108,12 @@ class TestNormalizer:
             "selectableOptionsCount": 1,
         }
 
+    def test_a_missing_selectable_count_stays_unknown(self):
+        raw = _raw_poll()
+        del raw["pollSelectableOptionsCount"]
+        poll = _Normalizer()._normalize_wpp_message(raw)["message"]["pollCreationMessage"]
+        assert "selectableOptionsCount" not in poll
+
     def test_the_old_type_name_still_works(self):
         result = _Normalizer()._normalize_wpp_message(_raw_poll(type="pollCreation"))
         assert result["messageType"] == "pollCreationMessage"
@@ -117,15 +123,20 @@ class TestNormalizer:
         poll = result["message"]["pollCreationMessage"]
         assert polls.allows_multiple(poll) is True
         assert polls.allows_multiple({"selectableOptionsCount": 1}) is False
+        assert polls.allows_multiple({}) is None
 
 
 class TestRow:
-    POLL = {"name": "Q?", "options": [{"name": "a"}, {"name": "b", "votes": 3}]}
+    POLL = {"name": "Q?", "options": [{"name": "a", "votes": 0}, {"name": "b", "votes": 3}]}
 
     def test_question_first_then_options_most_voted_first(self):
         assert polls.poll_row_text(_I18n(), self.POLL) == (
             "Poll: Q?. Options: b, votes: 3; a, votes: 0"
         )
+
+    def test_unknown_votes_are_never_spoken_as_zero(self):
+        poll = {"name": "Q?", "options": [{"name": "a"}, {"name": "b"}]}
+        assert polls.poll_row_text(_I18n(), poll) == "Poll: Q?. Options: a; b"
 
     def test_a_poll_without_options_still_reads_as_a_poll(self):
         assert polls.poll_row_text(_I18n(), {"name": "Q?"}) == "Poll: Q?"
@@ -260,3 +271,7 @@ class TestVoteBars:
     def test_no_votes_is_zero_everywhere(self):
         empty = [{"name": "a", "votes": 0}]
         assert polls.vote_percent(empty[0], empty) == 0
+
+    def test_unknown_votes_have_no_percent(self):
+        unknown = [{"name": "a", "votes": None}]
+        assert polls.vote_percent(unknown[0], unknown) is None

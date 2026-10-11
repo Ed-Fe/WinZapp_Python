@@ -27,15 +27,16 @@ def poll_message_from_wpp(wpp_msg: dict) -> dict:
         name = opt.get("name") if isinstance(opt, dict) else opt
         if name:
             options.append({"name": str(name)})
-    try:
-        selectable = int(wpp_msg.get("pollSelectableOptionsCount") or 0)
-    except (TypeError, ValueError):
-        selectable = 0
-    return {
+    poll = {
         "name": wpp_msg.get("pollName") or wpp_msg.get("body") or "",
         "options": options,
-        "selectableOptionsCount": selectable,
     }
+    if wpp_msg.get("pollSelectableOptionsCount") is not None:
+        try:
+            poll["selectableOptionsCount"] = int(wpp_msg["pollSelectableOptionsCount"])
+        except (TypeError, ValueError):
+            pass
+    return poll
 
 
 def clean_poll_input(question: str, options) -> tuple[str, list[str]]:
@@ -80,41 +81,51 @@ def poll_content(msg_obj: dict) -> dict:
 
 
 def poll_options(poll: dict) -> list[dict]:
-    """The options as ``[{"name": str, "votes": int}]``, blanks dropped.
+    """The options as ``[{"name": str, "votes": int | None}]``, blanks dropped.
 
-    ``votes`` is 0 for an option no vote was recorded on. An option may be a
-    bare string (a poll stored by hand or by another source).
+    ``votes`` is None when no vote data reached WinZapp for the option: that is
+    "unknown", never 0, because a spoken "votes: 0" on a poll that has votes is
+    a false count a screen-reader user cannot notice. An option may be a bare
+    string.
     """
     result = []
     for opt in (poll or {}).get("options") or []:
+        votes = None
         if isinstance(opt, dict):
             name = str(opt.get("name") or opt.get("optionName") or "").strip()
-            try:
-                votes = max(0, int(opt.get("votes") or 0))
-            except (TypeError, ValueError):
-                votes = 0
+            if opt.get("votes") is not None:
+                try:
+                    votes = max(0, int(opt["votes"]))
+                except (TypeError, ValueError):
+                    votes = None
         else:
-            name, votes = str(opt or "").strip(), 0
+            name = str(opt or "").strip()
         if name:
             result.append({"name": name, "votes": votes})
     return result
 
 
-def allows_multiple(poll: dict) -> bool:
-    """True when a voter may pick more than one option."""
+def allows_multiple(poll: dict):
+    """True when a voter may pick several options, False for one, None when
+    the poll did not say (the field is absent)."""
+    value = (poll or {}).get("selectableOptionsCount")
+    if value is None:
+        return None
     try:
-        return int((poll or {}).get("selectableOptionsCount") or 0) != 1
+        return int(value) != 1
     except (TypeError, ValueError):
-        return True
+        return None
 
 
 def options_by_votes(options: list[dict]) -> list[dict]:
     """Most voted first; equal counts keep the order the author gave them."""
-    return sorted(options, key=lambda opt: -opt["votes"])
+    return sorted(options, key=lambda opt: -(opt["votes"] or 0))
 
 
 def option_label(i18n, option: dict) -> str:
-    """One option as spoken: its name, then its votes."""
+    """One option as spoken: its name, then its votes when they are known."""
+    if option["votes"] is None:
+        return option["name"]
     return i18n.t("poll_option_votes").format(
         name=option["name"], count=option["votes"]
     )
@@ -150,7 +161,9 @@ def poll_send_payload(phone: str, poll: dict, *, is_group: bool, is_lid: bool) -
     }
 
 
-def vote_percent(option: dict, options: list[dict]) -> int:
-    """The option's share of all votes, 0-100 (0 when nobody has voted)."""
-    total = sum(opt["votes"] for opt in options)
+def vote_percent(option: dict, options: list[dict]) -> int | None:
+    """The option's share of all votes, 0-100; None while votes are unknown."""
+    if option["votes"] is None:
+        return None
+    total = sum(opt["votes"] or 0 for opt in options)
     return round(100 * option["votes"] / total) if total else 0
