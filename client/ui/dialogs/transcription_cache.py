@@ -19,15 +19,13 @@ from core.transcription import model_names
 from core.transcription import preferences as transcription_preferences
 from core.transcription import stored as stored_transcription
 
-_LABEL_KEY = "transcription_clear_cache_btn"
-
 
 class TranscriptionCacheMixin:
     """The "clear this model's saved transcriptions" button, for `SettingsDialog`."""
 
     def _build_transcription_clear_cache_button(self, page, sizer) -> None:
         i18n = self.main_window.i18n
-        self._transcription_clear_cache_btn = wx.Button(page, label=i18n.t(_LABEL_KEY))
+        self._transcription_clear_cache_btn = wx.Button(page, label=i18n.t("transcription_clear_cache_btn"))
         self._transcription_clear_cache_btn.Bind(
             wx.EVT_BUTTON, self._on_transcription_clear_cache
         )
@@ -35,9 +33,11 @@ class TranscriptionCacheMixin:
         self._sync_transcription_clear_cache_button()
 
     def _refresh_transcription_clear_cache_label(self) -> None:
-        button = getattr(self, "_transcription_clear_cache_btn", None)
-        if button is not None:
-            button.SetLabel(self.main_window.i18n.t(_LABEL_KEY))
+        if getattr(self, "_transcription_clear_cache_btn", None) is None:
+            return
+        self._transcription_clear_cache_btn.SetLabel(
+            self.main_window.i18n.t("transcription_clear_cache_btn")
+        )
 
     def _transcription_clear_cache_target(self):
         """The model the button acts on, or None: "Automatic" names no model."""
