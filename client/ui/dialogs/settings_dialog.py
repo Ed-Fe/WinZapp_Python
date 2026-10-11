@@ -786,7 +786,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         ui_sizer.Add(voice_msg_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
-        # Off: Enter and Space play a voice message and Ctrl+Shift+T transcribes
+        # Off: Enter and Space play a voice message and Alt+Shift+N transcribes
         # it into its line. On: the two swap. The label says both halves, since
         # it is the only place the setting is explained.
         self._enter_transcribes_voice_cb = wx.CheckBox(

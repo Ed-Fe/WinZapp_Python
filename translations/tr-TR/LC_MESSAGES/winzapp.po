@@ -7244,6 +7244,19 @@ msgstr "Alt+Shift+M: sizden bahseden önceki mesaja git"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_n_label"
+msgid ""
+"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
+"it locally with Whisper into its line in the list, or play or pause it when "
+"Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr ""
+"Alt+Shift+N: sesli mesajda Enter ve Boşluk'un yapmadığını yapar: mesajı "
+"Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve "
+"Boşluk yazıya dökecek şekilde ayarlıysa oynatır veya duraklatır (Ayarlar > "
+"Kullanıcı Arayüzü)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_num_label"
 msgid ""
 "Alt+Shift+0 to Alt+Shift+9: temporarily bookmark the focused message, or "
@@ -7749,15 +7762,6 @@ msgid ""
 msgstr ""
 "Ctrl+Shift+Boşluk: tüm sohbetleri veya mesajları seç ya da hepsi zaten "
 "seçiliyse tümünün seçimini kaldır"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/shortcuts_dialog.py
-msgctxt "shortcut_ctrl_shift_t_label"
-msgid ""
-"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
-" it locally with Whisper into its line in the list, or play or pause it when"
-" Enter and Space are set to transcribe (Settings > User Interface)"
-msgstr "Ctrl+Shift+T: sesli mesajda Enter ve Boşluk'un yapmadığını yapar: mesajı Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır veya duraklatır (Ayarlar > Kullanıcı Arayüzü)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -11650,9 +11654,12 @@ msgstr ""
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
 "Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
-"play it and Ctrl+Shift+T transcribes it into its line"
-msgstr "Sesli mesajda Enter ve Boşluk, mesajı oynatmak yerine listedeki satırına yazıya döker (Ctrl+Shift+T oynatır); kapalıyken Enter ve Boşluk oynatır, Ctrl+Shift+T satıra yazıya döker"
+"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
+"play it and Alt+Shift+N transcribes it into its line"
+msgstr ""
+"Sesli mesajda Enter ve Boşluk, mesajı oynatmak yerine listedeki satırına "
+"yazıya döker (Alt+Shift+N oynatır); kapalıyken Enter ve Boşluk oynatır, "
+"Alt+Shift+N satıra yazıya döker"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -463,7 +463,7 @@ class MessageTranscriptionFlow:
     def __init__(self, panel, msg, inline=False):
         self._panel = panel
         #: Whether the text goes into the message's own line of the list
-        #: instead of a result window (Ctrl+Shift+T, or Enter set to transcribe).
+        #: instead of a result window (Alt+Shift+N, or Enter set to transcribe).
         self._inline = bool(inline)
         self._main_window = panel.main_window
         self._i18n = self._main_window.i18n
@@ -947,7 +947,7 @@ class MessageTranscriptionFlow:
             repaint([self._msg_id])
 
     def inline_saved(self):
-        """Ctrl+Shift+T on a message that already has a transcription: no run.
+        """Alt+Shift+N on a message that already has a transcription: no run.
 
         Put in the line (marking the stored one as wanted there) and read
         aloud, exactly as a fresh one would be; the model, the date and the
@@ -1084,7 +1084,7 @@ def open_or_transcribe(panel, msg):
 
 
 def transcribe_inline(panel, msg):
-    """Entry point for Ctrl+Shift+T (and Enter when it is set to transcribe).
+    """Entry point for Alt+Shift+N (and Enter when it is set to transcribe).
 
     The text goes into the message's line of the list and is read aloud; no
     window opens. A transcription already stored is used instead of a run.

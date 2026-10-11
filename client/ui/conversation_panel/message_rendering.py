@@ -201,7 +201,7 @@ class MessageRenderingMixin:
             # picker — see _probe_audio_duration()): omit the clause entirely
             # rather than read "duração: " with nothing after the colon.
             line = f"{lbl}, {i18n.t('duration')}: {dur}" if dur else lbl
-            # A transcription the user asked to have in the line (Ctrl+Shift+T,
+            # A transcription the user asked to have in the line (Alt+Shift+N,
             # or Enter when it is set to transcribe): "…, duração: 0:12,
             # transcrição: texto".
             written = stored_transcription.inline_row_text(msg)

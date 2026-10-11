@@ -1140,7 +1140,7 @@ DEFAULT_SETTINGS = {
         # results. Off: the long-standing behaviour, so no migration.
         "keep_search_after_open": False,
         # Enter and Space on a voice message transcribe it into its line of the
-        # list instead of playing it; Ctrl+Shift+T then plays it (and, with this
+        # list instead of playing it; Alt+Shift+N then plays it (and, with this
         # off, is what transcribes it). Off: Enter plays, as it always has.
         "enter_transcribes_voice_messages": False,
         "auto_focus_next_audio": True,

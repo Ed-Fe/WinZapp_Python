@@ -7289,6 +7289,19 @@ msgstr "Alt+Shift+M: ir para a mensagem anterior que menciona você"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_n_label"
+msgid ""
+"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
+"it locally with Whisper into its line in the list, or play or pause it when "
+"Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr ""
+"Alt+Shift+N: em uma mensagem de voz, faz o que Enter e Espaço não fazem: "
+"transcrever localmente com o Whisper na linha dela na lista, ou reproduzir "
+"ou pausar quando Enter e Espaço estiverem configurados para transcrever "
+"(Configurações > Interface do usuário)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_num_label"
 msgid ""
 "Alt+Shift+0 to Alt+Shift+9: temporarily bookmark the focused message, or "
@@ -7797,15 +7810,6 @@ msgid ""
 msgstr ""
 "Ctrl+Shift+Espaço: marcar todas as conversas ou mensagens, ou desmarcar "
 "todas se já estiverem todas marcadas"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/shortcuts_dialog.py
-msgctxt "shortcut_ctrl_shift_t_label"
-msgid ""
-"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
-" it locally with Whisper into its line in the list, or play or pause it when"
-" Enter and Space are set to transcribe (Settings > User Interface)"
-msgstr "Ctrl+Shift+T: em uma mensagem de voz, faz o que Enter e Espaço não fazem: transcrever localmente com o Whisper na linha dela na lista, ou reproduzir ou pausar quando Enter e Espaço estiverem configurados para transcrever (Configurações > Interface do usuário)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -11756,9 +11760,12 @@ msgstr "Mostrar vídeos nas conversas em player separado (abre novo diálogo)"
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
 "Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
-"play it and Ctrl+Shift+T transcribes it into its line"
-msgstr "Enter e Espaço em uma mensagem de voz a transcrevem na linha dela na lista em vez de reproduzi-la (Ctrl+Shift+T a reproduz); desmarcado, Enter e Espaço a reproduzem e Ctrl+Shift+T a transcreve na linha"
+"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
+"play it and Alt+Shift+N transcribes it into its line"
+msgstr ""
+"Enter e Espaço em uma mensagem de voz a transcrevem na linha dela na lista "
+"em vez de reproduzi-la (Alt+Shift+N a reproduz); desmarcado, Enter e Espaço "
+"a reproduzem e Alt+Shift+N a transcreve na linha"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

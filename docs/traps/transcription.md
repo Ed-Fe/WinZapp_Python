@@ -605,16 +605,16 @@ other lists read, not new ones.
 - Only catalogue models are markable; "Automatic" and the models in other
   folders have nothing to download.
 
-## The transcription in the message's line (Ctrl+Shift+T)
+## The transcription in the message's line (Alt+Shift+N)
 
-Alt+Shift+T opens the result window; **Ctrl+Shift+T** puts the text in the
+Alt+Shift+T opens the result window; **Alt+Shift+N** puts the text in the
 message's own row (`, duração: 0:12, transcrição: texto`) and reads it aloud.
 It is one key that **alternates** with `user_interface.enter_transcribes_voice_messages`
 (default off):
 
-- off: Enter and Space play the voice message, Ctrl+Shift+T transcribes it into
+- off: Enter and Space play the voice message, Alt+Shift+N transcribes it into
   the line;
-- on: Enter and Space transcribe it into the line, Ctrl+Shift+T plays or pauses
+- on: Enter and Space transcribe it into the line, Alt+Shift+N plays or pauses
   it.
 
 So each of the two actions always has a key. The menu item and the F1 line say

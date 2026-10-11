@@ -271,13 +271,13 @@ class MessageAccelsMixin:
         # the flow checks both, so the shortcut and the menu cannot disagree.
         open_or_transcribe(self, msg)
 
-    # ── Ctrl+Shift+T: the other half of "Enter transcribes" ──────────────────
+    # ── Alt+Shift+N: the other half of "Enter transcribes" ──────────────────
     # One key that always does the action Enter and Space do not: with the
     # setting off (Enter plays) it transcribes the voice message into its line
     # of the list; with it on (Enter transcribes) it plays or pauses it.
 
     def _on_accel_transcribe_inline(self, event):
-        """Ctrl+Shift+T on the focused message."""
+        """Alt+Shift+N on the focused message."""
         index = self.messages_list.GetFirstSelected()
         if index < 0 or index >= len(self._sorted_messages):
             return
@@ -287,7 +287,7 @@ class MessageAccelsMixin:
         self._on_menu_toggle_voice_action(msg)
 
     def _on_menu_toggle_voice_action(self, msg: dict):
-        """The action the setting leaves for Ctrl+Shift+T and the menu item."""
+        """The action the setting leaves for Alt+Shift+N and the menu item."""
         if self._enter_transcribes_voice() and msg.get("messageType") == "audioMessage":
             self._toggle_audio_message_playback(msg)
             return

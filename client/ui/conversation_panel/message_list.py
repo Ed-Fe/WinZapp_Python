@@ -35,7 +35,7 @@ def enter_transcribes_voice(panel) -> bool:
 
 def activate_audio_message(panel, msg: dict) -> None:
     """What Enter and plain Space do on an audioMessage: play/pause it, or —
-    when the setting above is on — transcribe it into its line. Ctrl+Shift+T
+    when the setting above is on — transcribe it into its line. Alt+Shift+N
     (`_on_accel_transcribe_inline`) does the other one, so each of the two
     actions always has a key whichever way the setting points.
 

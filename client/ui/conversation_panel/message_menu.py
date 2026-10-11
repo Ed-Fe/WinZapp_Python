@@ -388,7 +388,7 @@ class MessageMenuMixin:
         # and the one action it would inform — Alt+Shift+T — already does the
         # right thing either way, opening the stored text or starting a run.
         if message_audio.is_transcribable(msg):
-            # Ctrl+Shift+T: the action Enter and Space do NOT do on a voice
+            # Alt+Shift+N: the action Enter and Space do NOT do on a voice
             # message, so the item names whichever that is today — "Play" when
             # the setting makes Enter transcribe, "Transcribe into the line"
             # when Enter plays. It is the only place the menu says which way
@@ -397,7 +397,7 @@ class MessageMenuMixin:
                                and msg.get("messageType") == "audioMessage")
             toggle_key = ("play_voice_message_menu" if toggles_to_play
                           else "transcribe_inline_menu")
-            toggle_item = menu.Append(wx.ID_ANY, f"{i18n.t(toggle_key)}\tCtrl+Shift+T")
+            toggle_item = menu.Append(wx.ID_ANY, f"{i18n.t(toggle_key)}\tAlt+Shift+N")
             self.Bind(
                 wx.EVT_MENU,
                 lambda e, m=msg: self._on_menu_toggle_voice_action(m),

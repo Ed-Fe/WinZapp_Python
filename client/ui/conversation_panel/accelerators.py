@@ -199,9 +199,9 @@ class AcceleratorsMixin:
         # Not Alt+T: that one announces the conversation's presence (seen /
         # online / typing) and lives in MainWindow's own table, not this one.
         self.ID_ALT_SHIFT_T     = wx.NewIdRef()  # transcribe with Whisper (Alt+Shift+T)
-        # The other half of "Enter transcribes" (Ctrl+Shift+T): transcribes into
+        # The other half of "Enter transcribes" (Alt+Shift+N): transcribes into
         # the message's line, or plays it when Enter is set to transcribe.
-        self.ID_CTRL_SHIFT_T    = wx.NewIdRef()
+        self.ID_ALT_SHIFT_N    = wx.NewIdRef()
         # ── Message star ─────────────────────────────────────────────────────
         self.ID_CTRL_SHIFT_O    = wx.NewIdRef()  # star message            (Ctrl+Shift+O)
         # ── Mass actions (only act while messages are selected) ──────────────
@@ -310,7 +310,7 @@ class AcceleratorsMixin:
             (AS,               ord("Q"),          self.ID_ALT_SHIFT_Q),
             (AS,               ord("S"),          self.ID_ALT_SHIFT_S),
             (AS,               ord("T"),          self.ID_ALT_SHIFT_T),
-            (CS,               ord("T"),          self.ID_CTRL_SHIFT_T),
+            (AS,               ord("N"),          self.ID_ALT_SHIFT_N),
             (CS,               ord("O"),           self.ID_CTRL_SHIFT_O),
             (wx.ACCEL_ALT,     ord(","),           self.ID_ALT_COMMA),
             (wx.ACCEL_ALT,     ord("."),           self.ID_ALT_PERIOD),
@@ -380,7 +380,7 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_goto_quoted,         id=self.ID_ALT_SHIFT_Q)
         self.Bind(wx.EVT_MENU, self._on_accel_mute,                id=self.ID_ALT_SHIFT_S)
         self.Bind(wx.EVT_MENU, self._on_accel_transcribe,          id=self.ID_ALT_SHIFT_T)
-        self.Bind(wx.EVT_MENU, self._on_accel_transcribe_inline,   id=self.ID_CTRL_SHIFT_T)
+        self.Bind(wx.EVT_MENU, self._on_accel_transcribe_inline,   id=self.ID_ALT_SHIFT_N)
         self.Bind(wx.EVT_MENU, self._on_accel_star,                 id=self.ID_CTRL_SHIFT_O)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_decrease,      id=self.ID_ALT_COMMA)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_increase,      id=self.ID_ALT_PERIOD)

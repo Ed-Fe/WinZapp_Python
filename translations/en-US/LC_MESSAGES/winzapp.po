@@ -7227,6 +7227,18 @@ msgstr "Alt+Shift+M: jump to the previous message that mentions you"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_n_label"
+msgid ""
+"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
+"it locally with Whisper into its line in the list, or play or pause it when "
+"Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr ""
+"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
+"it locally with Whisper into its line in the list, or play or pause it when "
+"Enter and Space are set to transcribe (Settings > User Interface)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_num_label"
 msgid ""
 "Alt+Shift+0 to Alt+Shift+9: temporarily bookmark the focused message, or "
@@ -7731,18 +7743,6 @@ msgid ""
 msgstr ""
 "Ctrl+Shift+Space: select every chat or message, or deselect all if "
 "everything is already selected"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/shortcuts_dialog.py
-msgctxt "shortcut_ctrl_shift_t_label"
-msgid ""
-"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
-" it locally with Whisper into its line in the list, or play or pause it when"
-" Enter and Space are set to transcribe (Settings > User Interface)"
-msgstr ""
-"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
-" it locally with Whisper into its line in the list, or play or pause it when"
-" Enter and Space are set to transcribe (Settings > User Interface)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -11659,12 +11659,12 @@ msgstr "Show chat videos in a separate player (opens a new dialog)"
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
 "Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
-"play it and Ctrl+Shift+T transcribes it into its line"
+"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
+"play it and Alt+Shift+N transcribes it into its line"
 msgstr ""
 "Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
-"play it and Ctrl+Shift+T transcribes it into its line"
+"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
+"play it and Alt+Shift+N transcribes it into its line"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

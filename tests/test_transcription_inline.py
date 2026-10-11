@@ -1,6 +1,6 @@
 """A transcription in the message's own line, and the key that decides how.
 
-Ctrl+Shift+T is the action Enter and Space do not do on a voice message: with
+Alt+Shift+N is the action Enter and Space do not do on a voice message: with
 "Enter and Space transcribe" off (Enter plays) it transcribes the message into
 its line of the list; with it on, it plays or pauses the message and Enter and
 Space transcribe. ConversationsPanel needs a wx.App, so the methods run against
@@ -167,25 +167,25 @@ class TestWhatIsSaid:
 class TestTheWiring:
     def test_the_key_is_in_the_messages_table_and_bound(self):
         source = (CLIENT / "ui/conversation_panel/accelerators.py").read_text(encoding="utf-8")
-        assert 'ord("T"),          self.ID_CTRL_SHIFT_T' in source
-        assert "self._on_accel_transcribe_inline,   id=self.ID_CTRL_SHIFT_T" in source
+        assert 'ord("N"),          self.ID_ALT_SHIFT_N' in source
+        assert "self._on_accel_transcribe_inline,   id=self.ID_ALT_SHIFT_N" in source
 
     def test_it_is_in_the_catalogue_with_ctrl_shift_t(self):
         from core.shortcut_catalog import SHORTCUTS
 
-        row = next(s for s in SHORTCUTS if s.id == "messages.ID_CTRL_SHIFT_T")
-        assert (row.mod, row.key) == (6, ord("T"))
-        assert row.label == "shortcut_ctrl_shift_t_label"
+        row = next(s for s in SHORTCUTS if s.id == "messages.ID_ALT_SHIFT_N")
+        assert (row.mod, row.key) == (5, ord("N"))
+        assert row.label == "shortcut_alt_shift_n_label"
 
     def test_the_f1_list_describes_it(self):
         source = (CLIENT / "ui/dialogs/shortcuts_dialog.py").read_text(encoding="utf-8")
-        assert 'i18n.t("shortcut_ctrl_shift_t_label")' in source
+        assert 'i18n.t("shortcut_alt_shift_n_label")' in source
 
     def test_the_menu_item_names_the_action_the_setting_leaves(self):
         source = (CLIENT / "ui/conversation_panel/message_menu.py").read_text(encoding="utf-8")
         assert '"play_voice_message_menu"' in source
         assert '"transcribe_inline_menu"' in source
-        assert "\\tCtrl+Shift+T" in source
+        assert "\\tAlt+Shift+N" in source
 
     def test_the_setting_is_off_by_default_in_both_defaults(self):
         import json
@@ -201,13 +201,13 @@ class TestTheWiring:
 class TestTheStringsExplainIt:
     def test_the_checkbox_names_both_keys_and_both_ways(self, locale):
         label = load_strings(locale)["ui_enter_transcribes_voice"]
-        assert label.count("Ctrl+Shift+T") == 2
+        assert label.count("Alt+Shift+N") == 2
         assert "Enter" in label
 
     def test_the_f1_line_and_the_menu_say_local(self, locale):
         table = load_strings(locale)
         words = {"tr-TR": ("yerel", "bu bilgisayarda"), "pl": ("lokaln",)}.get(locale, ("local",))
-        for key in ("transcribe_inline_menu", "shortcut_ctrl_shift_t_label"):
+        for key in ("transcribe_inline_menu", "shortcut_alt_shift_n_label"):
             assert any(w in table[key].lower() for w in words), (locale, key)
 
     def test_the_spoken_sentence_carries_the_text(self, locale):

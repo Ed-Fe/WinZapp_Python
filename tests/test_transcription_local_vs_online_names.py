@@ -31,7 +31,7 @@ MARKERS = {
 
 LOCAL_KEYS = (
     "tab_transcription", "transcribe_message", "shortcut_alt_shift_t_label",
-    "transcribe_inline_menu", "shortcut_ctrl_shift_t_label",
+    "transcribe_inline_menu", "shortcut_alt_shift_n_label",
 )
 ONLINE_KEYS = (
     "tab_ai_accessibility", "ai_transcribe_audio_menu", "shortcut_ctrl_shift_i_label",
