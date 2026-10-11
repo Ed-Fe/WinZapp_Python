@@ -30,7 +30,7 @@ YENİLİKLER
 
 - Telefonla eşitlenen kişiler: kişi eklerken ("Sohbet bilgisi" içinde, "Yeni sohbet" içinde veya bir kişi mesajından) artık iki sekme var: "WinZapp yerel kişisi" (yalnızca WinZapp'ta) ve adı WhatsApp'a ve telefonun rehberine kaydeden "Telefonla eşitlenen kişi". Eşitlenen sekme varsayılan olarak açılır, telefonun rehberinde zaten bulunan bir numara yalnızca o sekmeyi gösterir ve eşitlenen bir kişiyi silmek onu WhatsApp'tan ve telefondan da kaldırır
 
-- Mesaj listesinde yeni Alt+Shift+P kısayolu: size yanıt veren önceki mesaja gider; Alt+Shift+M'nin bahsetmeler için yaptığı gibi. Tekrar basınca geriye doğru ilerler ve en yeniye döner. "Klavye kısayolları" (F1) içinde de yer alır
+- Mesaj listesinde yeni Alt+Shift+P kısayolu: size yanıt veren önceki mesaja gider; Alt+Shift+M'nin bahsetmeler için yaptığı gibi. Tekrar basınca geriye doğru ilerler ve en yeniye döner. "Klavye kısayolları" (F1) içinde de yer alır Alt+Shift+J ve Alt+Shift+O aynısını ileriye doğru yapar: sonraki bahsetme ve size gelen sonraki yanıt.
 
 - Mesaj listesinde "yazıyor": açık sohbetteki kişi (ya da bir grupta bir katılımcı) yazarken veya ses kaydederken, mesaj listesinin sonunda "Ana yazıyor..." gibi geçici bir son satır görünür. Kişi durduğunda veya mesajı geldiğinde kaybolur. Odağı kendiliğinden asla taşımaz (yalnızca satır kaybolduğunda üzerindeyseniz son mesaja geçersiniz) ve kendiliğinden okunmaz; yazıyor duyurusu tam olarak eskisi gibi kalır. Bir mesaj değildir: bağlam menüsü ve eylemleri yoktur. Ayarlar > Kullanıcı Arayüzü sekmesindeki "Yazan veya ses kaydeden kişiyi mesaj listesinin son satırı olarak göster" seçeneğini işaretleyerek açılabilir; varsayılan olarak kapalıdır
 

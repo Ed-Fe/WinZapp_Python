@@ -7226,6 +7226,12 @@ msgstr "Alt+Shift+F: sohbet filtrelerine git"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_j_label"
+msgid "Alt+Shift+J: jump to the next message that mentions you"
+msgstr "Alt+Shift+J: sizden bahseden sonraki mesaja git"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_k_label"
 msgid "Alt+Shift+K: announce the focused message's date and time"
 msgstr "Alt+Shift+K: odaklanılan mesajın tarih ve saatini duyur"
@@ -7264,6 +7270,12 @@ msgid ""
 msgstr ""
 "Alt+Shift+0 - Alt+Shift+9: odaklanılan mesaja geçici yer işareti koy veya "
 "mevcut geçici yer işaretine git (sohbetten ayrıldığınızda temizlenir)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_o_label"
+msgid "Alt+Shift+O: jump to the next message that replies to you"
+msgstr "Alt+Shift+O: size yanıt veren sonraki mesaja git"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py

@@ -7306,6 +7306,12 @@ msgstr "Alt+Shift+F: przejdź do filtrów czatów"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_j_label"
+msgid "Alt+Shift+J: jump to the next message that mentions you"
+msgstr "Alt+Shift+J: przejdź do następnej wiadomości ze wzmianką o Tobie"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_k_label"
 msgid "Alt+Shift+K: announce the focused message's date and time"
 msgstr "Alt+Shift+K: odczytaj datę i godzinę zaznaczonej wiadomości"
@@ -7345,6 +7351,12 @@ msgstr ""
 "Alt+Shift+0 do Alt+Shift+9: ustaw zakładkę tymczasową na zaznaczonej "
 "wiadomości lub przejdź do istniejącej zakładki tymczasowej (usuwane po "
 "opuszczeniu czatu)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_o_label"
+msgid "Alt+Shift+O: jump to the next message that replies to you"
+msgstr "Alt+Shift+O: przejdź do następnej odpowiedzi na Twoją wiadomość"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py

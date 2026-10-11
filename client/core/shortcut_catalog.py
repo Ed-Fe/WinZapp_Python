@@ -87,6 +87,8 @@ SHORTCUTS = (
     Shortcut('messages.ID_ALT_SHIFT_E', 'messages', 'ID_ALT_SHIFT_E', 'recent_reactions', 5, 69, 0),
     Shortcut('messages.ID_ALT_SHIFT_M', 'messages', 'ID_ALT_SHIFT_M', 'shortcut_alt_shift_m_label', 5, 77, 0),
     Shortcut('messages.ID_ALT_SHIFT_P', 'messages', 'ID_ALT_SHIFT_P', 'shortcut_alt_shift_p_label', 5, 80, 0),
+    Shortcut('messages.ID_ALT_SHIFT_J', 'messages', 'ID_ALT_SHIFT_J', 'shortcut_alt_shift_j_label', 5, 74, 0),
+    Shortcut('messages.ID_ALT_SHIFT_O', 'messages', 'ID_ALT_SHIFT_O', 'shortcut_alt_shift_o_label', 5, 79, 0),
     Shortcut('messages.ID_ALT_SHIFT_C', 'messages', 'ID_ALT_SHIFT_C', 'shortcut_alt_shift_c_label', 5, 67, 0),
     Shortcut('messages.ID_ALT_SHIFT_V', 'messages', 'ID_ALT_SHIFT_V', 'shortcut_alt_shift_v_label', 5, 86, 0),
     Shortcut('messages.ID_CTRL_SHIFT_V', 'messages', 'ID_CTRL_SHIFT_V', 'voice_call_button', 6, 86, 0),

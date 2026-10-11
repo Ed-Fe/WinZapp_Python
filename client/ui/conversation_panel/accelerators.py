@@ -189,6 +189,9 @@ class AcceleratorsMixin:
         self.ID_ALT_SHIFT_E     = wx.NewIdRef()  # recent reactions        (Alt+Shift+E)
         self.ID_ALT_SHIFT_M     = wx.NewIdRef()  # mentions                (Alt+Shift+M)
         self.ID_ALT_SHIFT_P     = wx.NewIdRef()  # replies to me           (Alt+Shift+P)
+        # The forward halves of the two above: next mention, next reply.
+        self.ID_ALT_SHIFT_J     = wx.NewIdRef()  # next mention           (Alt+Shift+J)
+        self.ID_ALT_SHIFT_O     = wx.NewIdRef()  # next reply to me        (Alt+Shift+O)
         self.ID_ALT_SHIFT_C     = wx.NewIdRef()  # copy phone number       (Alt+Shift+C)
         self.ID_ALT_SHIFT_V     = wx.NewIdRef()  # converse with           (Alt+Shift+V)
         self.ID_CTRL_SHIFT_V    = wx.NewIdRef()  # voice call              (Ctrl+Shift+V)
@@ -303,6 +306,8 @@ class AcceleratorsMixin:
             (AS,               ord("E"),          self.ID_ALT_SHIFT_E),
             (AS,               ord("M"),          self.ID_ALT_SHIFT_M),
             (AS,               ord("P"),          self.ID_ALT_SHIFT_P),
+            (AS,               ord("J"),          self.ID_ALT_SHIFT_J),
+            (AS,               ord("O"),          self.ID_ALT_SHIFT_O),
             (AS,               ord("C"),          self.ID_ALT_SHIFT_C),
             (AS,               ord("V"),          self.ID_ALT_SHIFT_V),
             (CS,               ord("V"),          self.ID_CTRL_SHIFT_V),
@@ -373,6 +378,8 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_recent_reactions,    id=self.ID_ALT_SHIFT_E)
         self.Bind(wx.EVT_MENU, self._on_accel_mentions,            id=self.ID_ALT_SHIFT_M)
         self.Bind(wx.EVT_MENU, self._on_accel_replies,             id=self.ID_ALT_SHIFT_P)
+        self.Bind(wx.EVT_MENU, self._on_accel_mentions_next,       id=self.ID_ALT_SHIFT_J)
+        self.Bind(wx.EVT_MENU, self._on_accel_replies_next,        id=self.ID_ALT_SHIFT_O)
         self.Bind(wx.EVT_MENU, self._on_accel_copy_number_speak,   id=self.ID_ALT_SHIFT_C)
         self.Bind(wx.EVT_MENU, self._on_accel_alt_shift_v,         id=self.ID_ALT_SHIFT_V)
         self.Bind(wx.EVT_MENU, self._on_accel_voice_call,          id=self.ID_CTRL_SHIFT_V)

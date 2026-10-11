@@ -7308,6 +7308,12 @@ msgstr "Alt+Shift+F: ir para os filtros de conversas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_j_label"
+msgid "Alt+Shift+J: jump to the next message that mentions you"
+msgstr "Alt+Shift+J: ir para a mensagem seguinte que te menciona"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_k_label"
 msgid "Alt+Shift+K: announce the focused message's date and time"
 msgstr "Alt+Shift+K: anunciar a data e a hora da mensagem focada"
@@ -7346,6 +7352,12 @@ msgid ""
 msgstr ""
 "Alt+Shift+0 a Alt+Shift+9: criar marcador temporário na mensagem em foco, ou"
 " ir até um marcador temporário já criado (apagados ao sair da conversa)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_o_label"
+msgid "Alt+Shift+O: jump to the next message that replies to you"
+msgstr "Alt+Shift+O: ir para a mensagem seguinte que te responde"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py

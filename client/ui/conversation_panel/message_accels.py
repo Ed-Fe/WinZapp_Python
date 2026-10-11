@@ -33,6 +33,70 @@ def jump_to_older_message(panel, indices, found_key):
     panel.main_window.output(panel.main_window.i18n.t(found_key), interrupt=True)
 
 
+def pick_newer_index(indices, current):
+    """The closest of *indices* below the row *current* (a newer message, going
+    forwards), wrapping to the oldest after the newest. -1 when there are none.
+
+    The mirror of what jump_to_older_message() does going backwards. With no
+    row focused (*current* < 0) it starts from the oldest. Pure, so the wrap is
+    tested without a list control.
+    """
+    if not indices:
+        return -1
+    for idx in indices:
+        if idx > current:
+            return idx
+    return indices[0]
+
+
+def jump_to_newer_message(panel, indices, found_key):
+    """Focus the closest of *indices* below the focused row (a newer message),
+    wrapping to the oldest after the newest, and announce *found_key*. Shared by
+    the "next mention" and "next reply" keys, the forward halves of Alt+Shift+M
+    and Alt+Shift+P."""
+    target_idx = pick_newer_index(indices, panel.messages_list.GetFocusedItem())
+    panel.messages_list.Focus(target_idx)
+    panel.messages_list.Select(target_idx, True)
+    panel.messages_list.EnsureVisible(target_idx)
+    panel.main_window.output(panel.main_window.i18n.t(found_key), interrupt=True)
+
+
+def mention_indices(panel):
+    """Rows of *panel*'s messages that mention me, oldest first."""
+    mentions = []
+    for i, msg in enumerate(panel._sorted_messages):
+        if panel._is_separator(msg): continue
+
+        # Check if mentioned
+        msg_inner = msg.get("message", {})
+        if isinstance(msg_inner, str):
+            import json
+            try:
+                msg_inner = json.loads(msg_inner)
+            except:
+                msg_inner = {}
+
+        mentioned_jids = []
+        for msg_type_dict in msg_inner.values():
+            if isinstance(msg_type_dict, dict):
+                ctx = msg_type_dict.get("contextInfo", {})
+                if "mentionedJid" in ctx:
+                    mentioned_jids = ctx["mentionedJid"]
+                    break
+
+        if any(panel.main_window._is_self_jid(j) for j in mentioned_jids):
+            mentions.append(i)
+    return mentions
+
+
+def reply_indices(panel):
+    """Rows of *panel*'s messages that reply to me, oldest first."""
+    return [
+        i for i, msg in enumerate(panel._sorted_messages)
+        if not panel._is_separator(msg) and panel._is_reply_to_me(msg)
+    ]
+
+
 class MessageAccelsMixin:
     """Accelerator handlers for the open conversation's messages.
     """
@@ -490,38 +554,26 @@ class MessageAccelsMixin:
         self.main_window.output(text, interrupt=True)
 
     def _on_accel_mentions(self, event):
+        """Alt+Shift+M: jump to the previous message that mentions me."""
         if not self.conversation:
             return
-
-        mentions = []
-        for i, msg in enumerate(self._sorted_messages):
-            if self._is_separator(msg): continue
-
-            # Check if mentioned
-            msg_inner = msg.get("message", {})
-            if isinstance(msg_inner, str):
-                import json
-                try:
-                    msg_inner = json.loads(msg_inner)
-                except:
-                    msg_inner = {}
-
-            mentioned_jids = []
-            for msg_type_dict in msg_inner.values():
-                if isinstance(msg_type_dict, dict):
-                    ctx = msg_type_dict.get("contextInfo", {})
-                    if "mentionedJid" in ctx:
-                        mentioned_jids = ctx["mentionedJid"]
-                        break
-
-            if any(self.main_window._is_self_jid(j) for j in mentioned_jids):
-                mentions.append(i)
-
+        mentions = mention_indices(self)
         if not mentions:
             self.main_window.output(self.main_window.i18n.t("no_mentions_found"), interrupt=True)
             return
 
         jump_to_older_message(self, mentions, "jumped_to_mention")
+
+    def _on_accel_mentions_next(self, event):
+        """Alt+Shift+J: jump to the next message that mentions me — the forward
+        half of Alt+Shift+M."""
+        if not self.conversation:
+            return
+        mentions = mention_indices(self)
+        if not mentions:
+            self.main_window.output(self.main_window.i18n.t("no_mentions_found"), interrupt=True)
+            return
+        jump_to_newer_message(self, mentions, "jumped_to_mention")
 
     def _is_reply_to_me(self, msg) -> bool:
         """Whether *msg*, written by someone else, quotes one of MY messages.
@@ -553,11 +605,19 @@ class MessageAccelsMixin:
         """Alt+Shift+P: jump to the previous message that replies to me."""
         if not self.conversation:
             return
-        replies = [
-            i for i, msg in enumerate(self._sorted_messages)
-            if not self._is_separator(msg) and self._is_reply_to_me(msg)
-        ]
+        replies = reply_indices(self)
         if not replies:
             self.main_window.output(self.main_window.i18n.t("no_replies_found"), interrupt=True)
             return
         jump_to_older_message(self, replies, "jumped_to_reply")
+
+    def _on_accel_replies_next(self, event):
+        """Alt+Shift+O: jump to the next message that replies to me — the
+        forward half of Alt+Shift+P."""
+        if not self.conversation:
+            return
+        replies = reply_indices(self)
+        if not replies:
+            self.main_window.output(self.main_window.i18n.t("no_replies_found"), interrupt=True)
+            return
+        jump_to_newer_message(self, replies, "jumped_to_reply")

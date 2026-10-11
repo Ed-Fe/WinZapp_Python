@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 253 ayrı düzenlenebilir yerel atama ve bunların 271 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 255 ayrı düzenlenebilir yerel atama ve bunların 273 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -106,6 +106,8 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | Son tepkiler: | Alt+Shift+E | messages.ID_ALT_SHIFT_E |
 | Sohbet içi | sizden bahseden önceki mesaja git | Alt+Shift+M | messages.ID_ALT_SHIFT_M |
 | Sohbet içi | size yanıt veren önceki mesaja git | Alt+Shift+P | messages.ID_ALT_SHIFT_P |
+| Sohbet içi | sizden bahseden sonraki mesaja git | Alt+Shift+J | messages.ID_ALT_SHIFT_J |
+| Sohbet içi | size yanıt veren sonraki mesaja git | Alt+Shift+O | messages.ID_ALT_SHIFT_O |
 | Sohbet içi | telefon numarasını kopyala | Alt+Shift+C | messages.ID_ALT_SHIFT_C |
 | Sohbet içi | katılımcıyla sohbet et (gruplar) | Alt+Shift+V | messages.ID_ALT_SHIFT_V |
 | Sohbet içi | Sesli ara | Kontrol+Shift+V | messages.ID_CTRL_SHIFT_V |
