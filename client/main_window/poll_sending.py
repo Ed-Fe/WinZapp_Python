@@ -72,3 +72,42 @@ class PollSendingMixin:
             }
         except Exception as exc:
             return self._classify_send_exception(exc, "send_poll_message")
+
+    def fetch_poll_votes(self, messages: list) -> dict:
+        """``{message key id: {"voters", "options"}}`` for the polls in
+        *messages*, as WhatsApp Web counts them; {} when it cannot say."""
+        ids = {}
+        for msg in messages:
+            key = msg.get("key") or {}
+            serialized = self._serialize_msg_id(key.get("remoteJid", ""), key, msg)
+            if serialized:
+                ids[serialized] = key.get("id", "")
+        if not ids:
+            return {}
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/poll-votes"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"messageIds": list(ids)}, headers=headers, timeout=15)
+            if r.status_code != 200:
+                return {}
+            response = (r.json() or {}).get("response") or {}
+        except Exception as exc:
+            logging.warning("[fetch_poll_votes] %s", type(exc).__name__)
+            return {}
+        return {ids[serialized]: data for serialized, data in response.items() if serialized in ids}
+
+    def send_poll_vote(self, msg: dict, local_ids: list) -> bool:
+        """Cast (or, with no ids, clear) the user's vote on poll *msg*."""
+        key = msg.get("key") or {}
+        serialized = self._serialize_msg_id(key.get("remoteJid", ""), key, msg)
+        if not serialized:
+            return False
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/vote-poll"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"messageId": serialized, "localIds": local_ids},
+                         headers=headers, timeout=20)
+            return r.status_code == 200
+        except Exception as exc:
+            logging.warning("[send_poll_vote] %s", type(exc).__name__)
+            return False

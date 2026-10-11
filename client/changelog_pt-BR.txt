@@ -4,7 +4,7 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
-- Enquetes: escolha Enquete, o último item do menu de anexo, para enviar uma enquete com pergunta, até 12 opções e a escolha de permitir várias respostas. As enquetes recebidas deixam de aparecer como mensagem incompatível: a linha lê a pergunta primeiro e depois cada opção (com seus votos quando o WinZapp os recebe), e Enter abre uma janela com a mesma lista.
+- Enquetes: escolha Enquete, o último item do menu de anexo, para enviar uma enquete com pergunta, até 12 opções e a escolha de permitir várias respostas. As enquetes recebidas deixam de aparecer como mensagem incompatível: a linha lê a pergunta primeiro e depois cada opção (com seus votos quando o WinZapp os recebe), e Enter abre uma janela com a mesma lista, caixas de seleção para votar e uma barra de progresso por opção.
 
 - Erros de instalação e atualização da WPPConnect agora aparecem em um campo de texto somente leitura, com detalhes para ler e copiar. Atualizações preparadas separadamente mostram um único relatório de erro, sem avisos duplicados.
 

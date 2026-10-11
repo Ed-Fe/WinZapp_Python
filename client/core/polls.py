@@ -26,7 +26,10 @@ def poll_message_from_wpp(wpp_msg: dict) -> dict:
     for opt in wpp_msg.get("pollOptions") or []:
         name = opt.get("name") if isinstance(opt, dict) else opt
         if name:
-            options.append({"name": str(name)})
+            option = {"name": str(name)}
+            if isinstance(opt, dict) and isinstance(opt.get("localId"), int):
+                option["localId"] = opt["localId"]
+            options.append(option)
     poll = {
         "name": wpp_msg.get("pollName") or wpp_msg.get("body") or "",
         "options": options,
@@ -93,6 +96,8 @@ def poll_options(poll: dict) -> list[dict]:
         votes = None
         if isinstance(opt, dict):
             name = str(opt.get("name") or opt.get("optionName") or "").strip()
+            local_id = opt.get("localId")
+            mine = bool(opt.get("mine"))
             if opt.get("votes") is not None:
                 try:
                     votes = max(0, int(opt["votes"]))
@@ -100,8 +105,13 @@ def poll_options(poll: dict) -> list[dict]:
                     votes = None
         else:
             name = str(opt or "").strip()
+            local_id, mine = None, False
         if name:
-            result.append({"name": name, "votes": votes})
+            result.append({
+                "name": name, "votes": votes, "mine": mine,
+                # WhatsApp numbers options 0..n-1 in the order they were given.
+                "localId": local_id if isinstance(local_id, int) else len(result),
+            })
     return result
 
 
@@ -169,3 +179,34 @@ def vote_percent(option: dict, options: list[dict]) -> int | None:
         return None
     total = sum(opt["votes"] or 0 for opt in options)
     return round(100 * option["votes"] / total) if total else 0
+
+
+def apply_vote_result(poll: dict, result: dict) -> bool:
+    """Write the votes WhatsApp Web reported for *poll* into it, in place.
+
+    *result* is one entry of ``/poll-votes``: ``{"voters", "options": [{name,
+    localId, votes, mine}]}``. Returns whether anything changed, so callers
+    repaint only then. Options are matched by name, so a result for another
+    poll can never overwrite this one.
+    """
+    reported = [
+        opt for opt in (result or {}).get("options") or []
+        if isinstance(opt, dict) and isinstance(opt.get("votes"), int)
+    ]
+    if not poll or [o.get("name") for o in reported] != [o["name"] for o in poll_options(poll)]:
+        return False
+    new = [
+        {"name": o["name"], "localId": o.get("localId"), "votes": o["votes"],
+         "mine": bool(o.get("mine"))}
+        for o in reported
+    ]
+    if new == poll.get("options"):
+        return False
+    poll["options"] = new
+    return True
+
+
+def vote_poll_ids(options: list[dict], checked_names: list[str]) -> list[int]:
+    """The ``localId`` of every checked option, for ``/vote-poll``."""
+    chosen = set(checked_names)
+    return [opt["localId"] for opt in options if opt["name"] in chosen]

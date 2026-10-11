@@ -4,7 +4,7 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
-- Sondaje: alegeți Sondaj, ultimul element din meniul de atașare, pentru a trimite un sondaj cu întrebare, până la 12 opțiuni și posibilitatea de a permite mai multe răspunsuri. Sondajele primite nu mai apar ca mesaj neacceptat: rândul citește mai întâi întrebarea, apoi fiecare opțiune (cu voturile ei, când WinZapp le primește), iar Enter deschide o fereastră cu aceeași listă.
+- Sondaje: alegeți Sondaj, ultimul element din meniul de atașare, pentru a trimite un sondaj cu întrebare, până la 12 opțiuni și posibilitatea de a permite mai multe răspunsuri. Sondajele primite nu mai apar ca mesaj neacceptat: rândul citește mai întâi întrebarea, apoi fiecare opțiune (cu voturile ei, când WinZapp le primește), iar Enter deschide o fereastră cu aceeași listă, casete de bifat pentru vot și o bară de progres pentru fiecare opțiune.
 
 - Erorile de instalare și actualizare WPPConnect apar acum într-un câmp de text doar pentru citire, cu detalii care pot fi citite și copiate. Actualizările pregătite separat afișează un singur raport de eroare, fără notificări duplicate.
 

@@ -30,6 +30,7 @@ import * as GroupController from '../controller/groupController';
 import * as LabelsController from '../controller/labelsController';
 import * as MessageController from '../controller/messageController';
 import * as PinnedMessagesController from '../controller/pinnedMessagesController';
+import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
@@ -204,6 +205,18 @@ routes.post(
   verifyToken,
   statusConnection,
   PinnedMessagesController.readPinnedMessages
+);
+routes.post(
+  '/api/:session/poll-votes',
+  verifyToken,
+  statusConnection,
+  PollController.readPollVotesRoute
+);
+routes.post(
+  '/api/:session/vote-poll',
+  verifyToken,
+  statusConnection,
+  PollController.votePollRoute
 );
 routes.post(
   '/api/:session/mark-played',

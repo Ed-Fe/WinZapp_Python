@@ -105,7 +105,7 @@ class TestNormalizer:
         assert result["messageType"] == "pollCreationMessage"
         assert result["message"]["pollCreationMessage"] == {
             "name": "Pizza ou sushi?",
-            "options": [{"name": "Pizza"}, {"name": "Sushi"}],
+            "options": [{"name": "Pizza", "localId": 0}, {"name": "Sushi", "localId": 1}],
             "selectableOptionsCount": 1,
         }
 
@@ -281,3 +281,65 @@ class TestVoteBars:
     def test_unknown_votes_have_no_percent(self):
         unknown = [{"name": "a", "votes": None}]
         assert polls.vote_percent(unknown[0], unknown) is None
+
+
+class TestVotes:
+    POLL = {"name": "Q?", "options": [{"name": "a", "localId": 0}, {"name": "b", "localId": 1}]}
+    RESULT = {"voters": 2, "options": [
+        {"name": "a", "localId": 0, "votes": 2, "mine": False},
+        {"name": "b", "localId": 1, "votes": 0, "mine": True},
+    ]}
+
+    def test_applied_votes_become_known_counts(self):
+        poll = {"name": "Q?", "options": [dict(o) for o in self.POLL["options"]]}
+        assert polls.apply_vote_result(poll, self.RESULT) is True
+        assert [(o["name"], o["votes"], o["mine"]) for o in polls.poll_options(poll)] == [
+            ("a", 2, False), ("b", 0, True)]
+        assert polls.apply_vote_result(poll, self.RESULT) is False  # nothing new
+
+    def test_a_result_for_other_options_is_ignored(self):
+        poll = {"name": "Q?", "options": [{"name": "x"}, {"name": "y"}]}
+        assert polls.apply_vote_result(poll, self.RESULT) is False
+        assert polls.poll_options(poll)[0]["votes"] is None
+
+    def test_checked_names_become_local_ids(self):
+        options = polls.poll_options(self.POLL)
+        assert polls.vote_poll_ids(options, ["b"]) == [1]
+        assert polls.vote_poll_ids(options, []) == []
+
+    def test_options_without_a_local_id_are_numbered_in_order(self):
+        assert [o["localId"] for o in polls.poll_options({"options": [{"name": "a"}, {"name": "b"}]})] == [0, 1]
+
+
+class _VoteSender(_Sender):
+    fetch_poll_votes = MainWindow.fetch_poll_votes
+    send_poll_vote = MainWindow.send_poll_vote
+
+    def _serialize_msg_id(self, jid, key, msg=None):
+        return f"false_{jid}_{key['id']}"
+
+
+MSG = {"key": {"id": "3EB0POLL", "remoteJid": PHONE}}
+
+
+class TestVoteRequests:
+    def test_votes_come_back_keyed_by_the_plain_message_id(self, monkeypatch):
+        calls = _post(monkeypatch, _Response(200, {"status": "success", "response": {
+            f"false_{PHONE}_3EB0POLL": {"voters": 1, "options": []}}}))
+        assert _VoteSender().fetch_poll_votes([MSG]) == {"3EB0POLL": {"voters": 1, "options": []}}
+        assert calls[0][0].endswith("/poll-votes")
+        assert calls[0][1] == {"messageIds": [f"false_{PHONE}_3EB0POLL"]}
+
+    def test_an_unavailable_runtime_reads_as_no_votes_not_zero(self, monkeypatch):
+        _post(monkeypatch, _Response(503, {"status": "error"}))
+        assert _VoteSender().fetch_poll_votes([MSG]) == {}
+
+    def test_a_vote_posts_the_chosen_local_ids(self, monkeypatch):
+        calls = _post(monkeypatch, _Response(200, {"status": "success"}))
+        assert _VoteSender().send_poll_vote(MSG, [1]) is True
+        assert calls[0][0].endswith("/vote-poll")
+        assert calls[0][1] == {"messageId": f"false_{PHONE}_3EB0POLL", "localIds": [1]}
+
+    def test_a_refused_vote_is_a_failure(self, monkeypatch):
+        _post(monkeypatch, _Response(503, {"status": "error"}))
+        assert _VoteSender().send_poll_vote(MSG, [1]) is False

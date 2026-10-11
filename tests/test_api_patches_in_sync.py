@@ -63,6 +63,8 @@ MIRRORED_FILES = [
     "src/util/callMediaBridge.ts",
     "src/util/chatListsRuntime.ts",
     "src/util/pinnedMessagesRuntime.ts",
+    "src/util/pollRuntime.ts",
+    "src/controller/pollController.ts",
     "src/util/communityCommentsRuntime.ts",
     "src/controller/communityCommentsController.ts",
     "src/tests/controller/communityCommentsController.test.ts",

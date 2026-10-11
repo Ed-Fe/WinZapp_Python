@@ -6206,6 +6206,26 @@ msgctxt "poll_row_question"
 msgid "Poll: {name}"
 msgstr "Ankieta: {name}"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_vote_button"
+msgid "&Vote"
+msgstr "&Głosuj"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_vote_failed"
+msgid "Could not send your vote"
+msgstr "Nie udało się wysłać głosu"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_vote_sending"
+msgid "Sending your vote…"
+msgstr "Wysyłanie głosu…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_vote_sent"
+msgid "Vote sent"
+msgstr "Głos wysłany"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
 msgctxt "preparing_to_sync"

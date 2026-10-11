@@ -4,7 +4,7 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
-- Sondagens: escolha Sondagem, o último item do menu de anexo, para enviar uma sondagem com pergunta, até 12 opções e a escolha de permitir várias respostas. As sondagens recebidas deixam de aparecer como mensagem incompatível: a linha lê primeiro a pergunta e depois cada opção (com os seus votos quando o WinZapp os recebe), e Enter abre uma janela com a mesma lista.
+- Sondagens: escolha Sondagem, o último item do menu de anexo, para enviar uma sondagem com pergunta, até 12 opções e a escolha de permitir várias respostas. As sondagens recebidas deixam de aparecer como mensagem incompatível: a linha lê primeiro a pergunta e depois cada opção (com os seus votos quando o WinZapp os recebe), e Enter abre uma janela com a mesma lista, caixas de seleção para votar e uma barra de progresso por opção.
 
 - Os erros de instalação e atualização da WPPConnect passam a aparecer num campo de texto só de leitura, com detalhes para ler e copiar. As atualizações preparadas separadamente mostram um único relatório de erro, sem avisos duplicados.
 
