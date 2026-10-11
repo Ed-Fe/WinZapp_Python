@@ -4,6 +4,7 @@ No window opens: the background thread runs inline, wx.CallAfter calls
 straight through and wx.MessageBox / ProfilePictureDialog are replaced.
 """
 
+import pytest
 import wx
 
 from ui.dialogs import profile_picture_dialog as ppd
@@ -164,3 +165,26 @@ def test_the_data_dialog_button_hands_over_its_chat(monkeypatch):
     stub._profile_picture_btn = _Button()
     stub._on_profile_picture(None)
     assert seen == [(stub, stub._mw, "a@s.whatsapp.net", "Ana", stub._profile_picture_btn)]
+
+
+class TestOpenInDefaultApp:
+    def _startfile(self, monkeypatch, fail_times):
+        calls = []
+
+        def fake(*args):
+            calls.append(args)
+            if len(calls) <= fail_times:
+                raise OSError("no association")
+        monkeypatch.setattr(ppd.sys, "platform", "win32")
+        monkeypatch.setattr(ppd.os, "startfile", fake, raising=False)
+        return calls
+
+    def test_no_program_for_the_type_asks_windows_which_one(self, monkeypatch):
+        calls = self._startfile(monkeypatch, fail_times=1)
+        ppd.open_in_default_app("C:/p.jpg")
+        assert calls == [("C:/p.jpg",), ("C:/p.jpg", "openas")]
+
+    def test_when_open_with_fails_too_the_caller_hears_of_it(self, monkeypatch):
+        self._startfile(monkeypatch, fail_times=2)
+        with pytest.raises(OSError):
+            ppd.open_in_default_app("C:/p.jpg")
