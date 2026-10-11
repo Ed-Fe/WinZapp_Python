@@ -4,7 +4,7 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
-- B??dy instalacji i aktualizacji WPPConnect s? teraz wy?wietlane w polu tekstowym tylko do odczytu, ze szczeg??ami do przeczytania i skopiowania. Aktualizacje przygotowane osobno wy?wietlaj? jeden raport b??du zamiast powielonych komunikat?w.
+- Błędy instalacji i aktualizacji WPPConnect są teraz wyświetlane w polu tekstowym tylko do odczytu, ze szczegółami do przeczytania i skopiowania. Aktualizacje przygotowane osobno wyświetlają jeden raport błędu zamiast powielonych komunikatów.
 
 - Wyczyszczenie lub usunięcie czatów może przestać wymagać potwierdzenia: oba okna mają teraz pole wyboru "Nie pokazuj ponownie", które działa tylko razem z odpowiedzią Tak. Gdy pytanie jest wyłączone, czyszczenie zachowuje wiadomości z gwiazdką. W Ustawienia > Interfejs użytkownika są dwie odpowiadające opcje, które przywracają pytanie.
 

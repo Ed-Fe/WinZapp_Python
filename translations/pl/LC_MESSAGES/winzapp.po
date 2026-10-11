@@ -3603,7 +3603,7 @@ msgstr "Szczegóły błędu:"
 #: client/ui/dialogs/error_details.py
 msgctxt "error_details_label"
 msgid "Error details"
-msgstr "Szczeg??y b??du"
+msgstr "Szczegóły błędu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/message_events.py
@@ -12976,8 +12976,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wpp_update_health_failed"
 msgid "The updated API did not pass the health and process identity checks."
-msgstr ""
-"Zaktualizowane API nie przesz?o kontroli dzia?ania i to?samo?ci procesu."
+msgstr "Zaktualizowane API nie przeszło kontroli działania i tożsamości procesu."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/updates.py
 msgctxt "wpp_update_in_progress"
@@ -13007,12 +13006,12 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wpp_update_restore_failed"
 msgid "The previous API could not be restored or restarted."
-msgstr "Nie uda?o si? przywr?ci? lub ponownie uruchomi? poprzedniego API."
+msgstr "Nie udało się przywrócić lub ponownie uruchomić poprzedniego API."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wpp_update_start_failed"
 msgid "The updated API did not finish starting."
-msgstr "Zaktualizowane API nie zako?czy?o uruchamiania."
+msgstr "Zaktualizowane API nie zakończyło uruchamiania."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/wpp_server.py
 msgctxt "wpp_version_unpinned_warning"

@@ -83,3 +83,18 @@ def test_newest_section_starts_with_one_intro_and_then_the_news_list(loc):
         f"{loc}: expected one introduction and the news heading before the first item; "
         "new features belong in the list, not in extra introduction paragraphs"
     )
+
+
+def test_no_translated_text_lost_its_accents_to_question_marks():
+    """A tool that re-saved the files in a legacy code page turned every
+    accented letter into '?' ("B??dy instalacji"), which a screen reader
+    reads aloud as garbage. A literal '??' never occurs in the catalogs."""
+    files = list(CLIENT.glob("changelog_*.txt")) + list(
+        (ROOT / "translations").glob("*/LC_MESSAGES/winzapp.po")
+    )
+    broken = [
+        f.relative_to(ROOT).as_posix()
+        for f in files
+        if "??" in f.read_text(encoding="utf-8")
+    ]
+    assert broken == []

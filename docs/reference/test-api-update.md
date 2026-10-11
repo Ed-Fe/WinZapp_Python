@@ -59,8 +59,8 @@ o instalador, sem incluir reinício e reconexão.
 
 Os subprocessos npm recebem `npm_config_timing=true` e preservam até 50 logs.
 O npm grava os detalhes em arquivos `*-timing.json` no diretório
-`data/global/npm/cache/_logs` da instalação (`client/data/global/npm/cache/_logs`
-no checkout). O cache e os logs ficam isolados do npm pessoal do usuário.
+`data/global/npm/cache/_logs` da instalação (a pasta `data` ao lado do
+código, no checkout). O cache e os logs ficam isolados do npm pessoal do usuário.
 Os comandos internos `build:types` e `build:js`
 também geram arquivos próprios, permitindo separar TypeScript e Babel.
 Guarde esses arquivos junto ao `log.log` antes de repetir muitas instalações.

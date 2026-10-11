@@ -12833,9 +12833,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wpp_update_health_failed"
 msgid "The updated API did not pass the health and process identity checks."
-msgstr ""
-"API-ul actualizat nu a trecut verific?rile de func?ionare ?i de identitate a"
-" procesului."
+msgstr "API-ul actualizat nu a trecut verificările de funcționare și de identitate a procesului."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/updates.py
 msgctxt "wpp_update_in_progress"
