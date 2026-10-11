@@ -4607,6 +4607,31 @@ msgctxt "mac_not_yet_available"
 msgid "not yet available on Mac"
 msgstr "încă indisponibil pe Mac"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_available_reminder"
+msgid ""
+"A new version of WinZapp is available (v{new_version}). To install it, "
+"choose Help > Check for updates, or switch to WinZapp."
+msgstr "Este disponibilă o nouă versiune de WinZapp (v{new_version}). Pentru a o instala, alegeți Ajutor > Verificați actualizările sau comutați la WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_ready_to_install"
+msgid ""
+"WinZapp update v{new_version} has been downloaded and is ready to install. "
+"Choose Install and Relaunch in the Software Update window."
+msgstr "Actualizarea WinZapp v{new_version} a fost descărcată și este gata de instalare. Alegeți Instalează și Redeschide în fereastra Actualizarea aplicației."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_reopened_other_accounts"
+msgid ""
+"The update was not installed. The other WinZapp accounts that were closed "
+"for it have been opened again."
+msgstr ""
+"Actualizarea nu a fost instalată. Celelalte conturi WinZapp închise pentru "
+"ea au fost redeschise."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/shortcuts.py
 #: client/ui/dialogs/shortcuts_dialog.py client/ui/navigation.py
 msgctxt "main_nav"
