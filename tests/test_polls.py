@@ -27,7 +27,8 @@ GROUP = "120363000000000001@g.us"
 class _I18n:
     def __init__(self, strings=None):
         self._strings = strings or {
-            "poll_option_votes": "{name}, votes: {count}",
+            "poll_option_votes": "{name}, {count} votes",
+            "poll_option_vote_one": "{name}, {count} vote",
             "poll_row_question": "Poll: {name}",
             "poll_row_options": "{question}. Options: {options}",
             "notif_poll_no_name": "Poll",
@@ -131,8 +132,13 @@ class TestRow:
 
     def test_question_first_then_options_most_voted_first(self):
         assert polls.poll_row_text(_I18n(), self.POLL) == (
-            "Poll: Q?. Options: b, votes: 3; a, votes: 0"
+            "Poll: Q?. Options: b, 3 votes; a, 0 votes"
         )
+
+    def test_only_exactly_one_vote_is_singular(self):
+        i18n = _I18n()
+        label = lambda n: polls.option_label(i18n, {"name": "a", "votes": n})
+        assert [label(0), label(1), label(2)] == ["a, 0 votes", "a, 1 vote", "a, 2 votes"]
 
     def test_unknown_votes_are_never_spoken_as_zero(self):
         poll = {"name": "Q?", "options": [{"name": "a"}, {"name": "b"}]}
@@ -152,7 +158,7 @@ class TestRow:
             "messageType": "pollCreationMessage",
             "message": {"pollCreationMessage": self.POLL},
         }
-        assert stub._get_message_content(msg) == "Poll: Q?. Options: b, votes: 3; a, votes: 0"
+        assert stub._get_message_content(msg) == "Poll: Q?. Options: b, 3 votes; a, 0 votes"
 
 
 class TestQueue:
@@ -256,7 +262,7 @@ def test_every_locale_has_the_poll_strings(locale):
     strings = load_strings(locale)
     for key in (
         "attachment_poll", "new_poll_title", "poll_option_votes", "poll_row_question",
-        "poll_row_options", "poll_dialog_title", "poll_error_duplicate_option",
+        "poll_option_vote_one", "poll_row_options", "poll_dialog_title", "poll_error_duplicate_option",
     ):
         assert strings.get(key), (locale, key)
     assert "{count}" in strings["poll_option_votes"] and "{name}" in strings["poll_option_votes"]

@@ -123,12 +123,14 @@ def options_by_votes(options: list[dict]) -> list[dict]:
 
 
 def option_label(i18n, option: dict) -> str:
-    """One option as spoken: its name, then its votes when they are known."""
+    """One option as spoken: its name, then its votes when they are known.
+
+    Only exactly 1 is singular: "0 votes", "1 vote", "2 votes".
+    """
     if option["votes"] is None:
         return option["name"]
-    return i18n.t("poll_option_votes").format(
-        name=option["name"], count=option["votes"]
-    )
+    key = "poll_option_vote_one" if option["votes"] == 1 else "poll_option_votes"
+    return i18n.t(key).format(name=option["name"], count=option["votes"])
 
 
 def poll_row_text(i18n, poll: dict) -> str:

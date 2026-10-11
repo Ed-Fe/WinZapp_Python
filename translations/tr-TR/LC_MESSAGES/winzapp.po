@@ -6112,11 +6112,17 @@ msgctxt "poll_option_percent"
 msgid "{name}: {percent}%"
 msgstr "{name}: {percent}%"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_vote_one"
+msgid "{name}, {count} vote"
+msgstr "{name}, {count} oy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "poll_option_votes"
-msgid "{name}, votes: {count}"
-msgstr "{name}, oy: {count}"
+msgid "{name}, {count} votes"
+msgstr "{name}, {count} oy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 #, python-brace-format
