@@ -6,6 +6,8 @@ NOVIDADES
 
 - Mensagens fixadas: um botão em cada conversa lista as mensagens fixadas no WhatsApp, incluindo mensagens antigas. Pressione Enter para ir até uma delas no histórico. Ao abrir a conversa, a quantidade de fixadas é anunciada sem mudar o foco; cada mensagem fixada também tem uma indicação em texto.
 
+- Botão "Foto do perfil" (Alt+F) na aba Visão geral de "Dados da conversa" e de "Dados do grupo". Ele mostra a foto de perfil da conversa ou a imagem do grupo, e o botão "Abrir em visualizador externo" (Alt+A) abre a foto no programa padrão do Windows para imagens. Quando não há foto ou a pessoa não permite que você a veja, uma mensagem avisa que o acesso a esta foto de perfil está indisponível.
+
 - O submenu de contexto "Ortografia" do campo de mensagem oferece sugestões do dicionário do Windows. O editor mantém a navegação padrão do leitor de tela e o som de erro ortográfico do WinZapp.
 
 - "Manter a ordem das conversas fixadas" na aba Interface do usuário das Configurações. Quando ativado, novas mensagens não mudam a posição das conversas fixadas, e a ordem é mantida ao reiniciar. Começa desligado; conversas não fixadas continuam subindo com novas mensagens.

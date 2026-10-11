@@ -2650,8 +2650,9 @@ msgstr "Vaciar conversaciones seleccionadas"
 #: client/main.py client/main_window/window_chrome.py client/status_panel.py
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_menu.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/new_conversation.py
+#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
@@ -4417,6 +4418,7 @@ msgid "list selection"
 msgstr "selección de lista"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
+#: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Cargando..."
@@ -6038,6 +6040,34 @@ msgstr ""
 "El perfil del navegador que se usa para conectar con WhatsApp está dañado y "
 "no hay ninguna copia guardada para restaurar. Tendrás que desconectar la "
 "sesión y vincular de nuevo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_btn"
+msgid "Pro&file picture"
+msgstr "&Foto de perfil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_open_external"
+msgid "Open in extern&al viewer"
+msgstr "&Abrir en visor externo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_open_failed"
+msgid "Could not open the picture in the external viewer."
+msgstr "No se pudo abrir la foto en el visor externo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_title"
+msgid "Profile picture"
+msgstr "Foto de perfil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_unavailable"
+msgid "Access to this profile picture is unavailable."
+msgstr "El acceso a esta foto de perfil no está disponible."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/session_lifecycle.py

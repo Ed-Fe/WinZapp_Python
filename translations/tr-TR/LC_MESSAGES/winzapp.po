@@ -2632,8 +2632,9 @@ msgstr "Seçili sohbetleri temizle"
 #: client/main.py client/main_window/window_chrome.py client/status_panel.py
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_menu.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/new_conversation.py
+#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
@@ -4387,6 +4388,7 @@ msgid "list selection"
 msgstr "liste seçimi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
+#: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Yükleniyor..."
@@ -5981,6 +5983,34 @@ msgstr ""
 "WhatsApp'a bağlanmak için kullanılan tarayıcı profili hasarlı ve geri "
 "yüklenebilecek kayıtlı bir kopya yok. Oturum bağlantısını kesip tekrar "
 "eşlemeniz gerekecektir."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_btn"
+msgid "Pro&file picture"
+msgstr "Pro&fil fotoğrafı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_open_external"
+msgid "Open in extern&al viewer"
+msgstr "H&arici görüntüleyicide aç"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_open_failed"
+msgid "Could not open the picture in the external viewer."
+msgstr "Fotoğraf harici görüntüleyicide açılamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_title"
+msgid "Profile picture"
+msgstr "Profil fotoğrafı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_unavailable"
+msgid "Access to this profile picture is unavailable."
+msgstr "Bu profil fotoğrafına erişim kullanılamıyor."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/session_lifecycle.py

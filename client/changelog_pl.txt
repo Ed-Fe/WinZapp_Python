@@ -6,6 +6,8 @@ NOWOŚCI
 
 - Przypięte wiadomości: przycisk w każdym czacie wyświetla wiadomości przypięte w WhatsApp, również te starsze. Naciśnij Enter, aby przejść do wybranej wiadomości w historii. Po otwarciu czatu ogłaszana jest liczba przypiętych wiadomości bez zmiany fokusu; każda przypięta wiadomość ma też oznaczenie tekstowe.
 
+- Przycisk „Zdjęcie profilowe” (Alt+F) na karcie Przegląd w oknach „Informacje o czacie” i „Informacje o grupie”. Pokazuje zdjęcie profilowe czatu lub obraz grupy, a przycisk „Otwórz w zewnętrznej przeglądarce” (Alt+A) otwiera zdjęcie w domyślnym programie Windows do obrazów. Gdy zdjęcia nie ma lub dana osoba nie pozwala Ci go zobaczyć, komunikat informuje, że dostęp do tego zdjęcia profilowego jest niedostępny.
+
 - Podmenu kontekstowe „Pisownia” w polu wiadomości oferuje sugestie ze słownika Windows. Edytor zachowuje standardową nawigację czytnika ekranu i dźwięk błędu pisowni WinZapp.
 
 - Opcja "Zachowuj kolejność przypiętych czatów" na karcie Interfejs użytkownika w Ustawieniach. Po jej włączeniu nowe wiadomości nie zmieniają pozycji przypiętych czatów, a kolejność jest zachowywana po ponownym uruchomieniu. Domyślnie jest wyłączona; nieprzypięte czaty nadal przesuwają się w górę po otrzymaniu nowych wiadomości.

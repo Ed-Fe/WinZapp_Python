@@ -296,6 +296,7 @@ class ConversationDataDialog(wx.Dialog):
         ov_sizer.Add(
             self._info_ctrl, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8
         )
+        self._add_profile_picture_button(overview_page, ov_sizer)
 
         # "Add contact local" / "Edit contact" + "Delete contact" — shown for
         # non-group chats only. Which pair depends on whether a local
@@ -332,6 +333,20 @@ class ConversationDataDialog(wx.Dialog):
         self._build_media_tab()
 
         outer.Add(self._notebook, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+    def _add_profile_picture_button(self, page, sizer):
+        """"Profile picture" (Alt+F), right after the Overview text."""
+        self._profile_picture_btn = wx.Button(
+            page, label=self._i18n.t("profile_picture_btn")
+        )
+        self._profile_picture_btn.Bind(wx.EVT_BUTTON, self._on_profile_picture)
+        sizer.Add(self._profile_picture_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+    def _on_profile_picture(self, event):
+        from ui.dialogs.profile_picture_dialog import show_profile_picture
+        show_profile_picture(
+            self, self._mw, self._jid, self._name, self._profile_picture_btn
+        )
 
     def _build_sound_picker(self, panel, sizer):
         """Per-conversation notification sound override: a combobox (Default
@@ -474,6 +489,7 @@ class ConversationDataDialog(wx.Dialog):
             style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
         )
         ov_sizer.Add(self._overview_ctrl, 1, wx.EXPAND | wx.ALL, 8)
+        self._add_profile_picture_button(overview_page, ov_sizer)
         # Admin-only group-editing buttons — hidden entirely (not just
         # disabled) until we confirm the current user is a group admin.
         self._edit_name_btn = wx.Button(overview_page, label=self._i18n.t("edit_group_name"))
