@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- In Settings > Local transcription, the option "Automatically transcribe received voice messages and put the text in the message line", off by default, transcribes each voice message that arrives with local transcription and shows the text in the message's line, like the inline transcription you make by hand. Transcriptions run one at a time, only for freshly arrived messages (up to 10 minutes of audio) and outside locked chats. No windows or announcements per message; if local transcription is not ready, WinZapp says so once and pauses.
+
 - In Settings > Local transcription, the group "Reuse downloads from another folder" lets you point WinZapp at the folder of CUDA libraries (cublas64_12.dll and cublasLt64_12.dll) and at the folder of whisper.cpp programs it already downloaded (the one holding the cpu and cuda folders), instead of downloading everything again. The folder is only read: nothing in it is copied, changed or deleted. The CUDA libraries must load, and the whisper.cpp programs go through the same checks as the ones WinZapp downloads.
 
 - In Settings > Local transcription, the option "Keep the model loaded in memory (faster-whisper)", off by default, spares you the wait for the model to load after each pause between transcriptions. Without it, the loaded model is released from memory 5 minutes after the last transcription, giving the computer's (or the graphics card's) memory back to other programs. whisper.cpp starts a new process for every transcription, so the option changes nothing for it.

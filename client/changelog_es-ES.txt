@@ -4,6 +4,8 @@ Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, 
 
 NOVEDADES
 
+- En Configuración > Transcripción local, la opción "Transcribir automáticamente los mensajes de voz recibidos y poner el texto en la línea del mensaje", desactivada por defecto, transcribe cada mensaje de voz que llega con la transcripción local y muestra el texto en la línea del mensaje, como la transcripción en la línea hecha a mano. Las transcripciones se hacen una a una, solo para mensajes recién llegados (hasta 10 minutos de audio) y fuera de los chats bloqueados. Sin ventanas ni anuncios por mensaje; si la transcripción local no está lista, WinZapp lo avisa una vez y hace una pausa.
+
 - En Configuración > Transcripción local, el grupo "Reutilizar descargas de otra carpeta" permite apuntar a la carpeta de las bibliotecas CUDA (cublas64_12.dll y cublasLt64_12.dll) y a la carpeta de los programas whisper.cpp que WinZapp ya descargó (la que contiene las carpetas cpu y cuda), en lugar de descargarlo todo otra vez. La carpeta solo se lee: nada en ella se copia, cambia ni borra. Las bibliotecas CUDA deben cargar, y los programas whisper.cpp pasan las mismas comprobaciones que los que descarga WinZapp.
 
 - En Configuración > Transcripción local, la opción "Mantener el modelo cargado en memoria (faster-whisper)", desactivada por defecto, evita esperar a que el modelo se cargue tras cada pausa entre transcripciones. Sin ella, el modelo cargado se libera de la memoria 5 minutos después de la última transcripción, devolviendo la memoria del ordenador (o de la tarjeta gráfica) a otros programas. whisper.cpp abre un proceso nuevo en cada transcripción, así que la opción no cambia nada para él.

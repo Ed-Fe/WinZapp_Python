@@ -699,3 +699,24 @@ install-wide keys of `app.json`: `transcription_cuda_extra_dir`,
   own folder, so the Remove button never acts on someone else's files.
 - `configure_from(app_settings)` runs at the end of `load_settings()` (before the first
   device decision) and on Apply; it never raises.
+
+## Automatic transcription of received voice messages (`auto_queue.py`)
+
+`transcription.auto_transcribe_received` (Settings > Local transcription, **off by
+default**) transcribes each incoming voice message as it arrives and keeps the text
+as an **inline** transcription (same record as Alt+Shift+N, so the row shows it).
+
+- Hook: `on_new_message()` calls `_maybe_auto_transcribe()` right after the media
+  download is submitted, for non-own messages only. Everything else is in
+  `main_window/auto_transcription.py` (glue) and `core/transcription/auto_queue.py` (rules).
+- Eligible: incoming `audioMessage`, no stored decision yet, younger than 5 min
+  (backlogs and history syncs are never transcribed unasked), at most 10 min long.
+  **Locked chats are skipped** (vault or phone lock).
+- One run at a time (a serial queue of at most 10; the rest of a burst is dropped).
+  A failure that means "not set up" (`SETUP_FAILURES`: no model, no program, corrupted…)
+  pauses the queue 15 min and speaks `transcription_auto_paused` **once**; any other
+  failure is silent and logged by code only.
+- Never a window, sound or speech per message. The run waits up to 45 s for the
+  download the auto-download is already doing before fetching the audio itself.
+- When the result arrives, the stored decision wins if the user acted meanwhile
+  (a manual run or a deletion): the automatic text is dropped.

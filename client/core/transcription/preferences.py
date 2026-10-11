@@ -97,6 +97,9 @@ SETTING_AUTO_DETECT_LANGUAGE = "auto_detect_language"
 #: Whether the loaded model stays in memory between transcriptions, however
 #: long the pause (core/transcription/residency.py). A plain bool, off by default.
 SETTING_KEEP_MODEL_LOADED = "keep_model_loaded"
+#: Whether received voice messages are transcribed on arrival and the text put
+#: in the message's line (core/transcription/auto_queue.py). Off by default.
+SETTING_AUTO_TRANSCRIBE_RECEIVED = "auto_transcribe_received"
 
 #: The section as a fresh install gets it. `core/utils.py`'s DEFAULT_SETTINGS
 #: and `client/data/settings_default.json` both carry a copy — see the module
@@ -112,6 +115,7 @@ DEFAULTS = {
     SETTING_LANGUAGE: LANGUAGE_INTERFACE,
     SETTING_AUTO_DETECT_LANGUAGE: True,
     SETTING_KEEP_MODEL_LOADED: False,
+    SETTING_AUTO_TRANSCRIBE_RECEIVED: False,
 }
 
 #: The install-wide key holding the models folder, in `app_settings.py`'s own
@@ -588,7 +592,8 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
         section[key] = DEFAULTS[key]
         changed = True
 
-    for flag in (SETTING_AUTO_DETECT_LANGUAGE, SETTING_KEEP_MODEL_LOADED):
+    for flag in (SETTING_AUTO_DETECT_LANGUAGE, SETTING_KEEP_MODEL_LOADED,
+                 SETTING_AUTO_TRANSCRIBE_RECEIVED):
         if flag in section and not isinstance(section[flag], bool):
             section[flag] = DEFAULTS[flag]
             changed = True

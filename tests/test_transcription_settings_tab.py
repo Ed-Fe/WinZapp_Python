@@ -769,6 +769,7 @@ class TestEverySettingIsReadBackAndWritten:
             "language": "fr",
             "auto_detect_language": False,
             "keep_model_loaded": False,
+            "auto_transcribe_received": False,
         }
         tab.main_window.settings["transcription"] = dict(stored)
         tab._load_transcription_values()
@@ -786,6 +787,13 @@ class TestEverySettingIsReadBackAndWritten:
             assert residency.residency.keep_loaded is True
         finally:
             residency.residency.configure(False)
+
+    def test_automatic_transcription_starts_off_and_round_trips(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_auto_check.GetValue() is False
+        tab._transcription_auto_check.SetValue(True)
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["auto_transcribe_received"] is True
 
     def test_the_backend_is_offered_and_written_back(self, tab):
         """Two backends since part 9b: the picker is there, a stored choice is
@@ -1663,6 +1671,7 @@ class TestTheMnemonicsOnThisTab:
         "transcription_clear_cache_btn",
         # The two on/off options of the language block.
         "transcription_keep_loaded_check",
+        "transcription_auto_transcribe_check",
         "ok",
         "cancel",
         "apply",

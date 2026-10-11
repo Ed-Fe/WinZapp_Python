@@ -128,7 +128,8 @@
         "compute_type": "auto",
         "language": "interface",
         "auto_detect_language": true,
-        "keep_model_loaded": false
+        "keep_model_loaded": false,
+        "auto_transcribe_received": false
     },
     "files": {
         "save_dialog_folder_mode": "last",

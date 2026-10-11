@@ -14,7 +14,7 @@ from core.transcription import residency
 
 
 class TranscriptionOptionsMixin:
-    """`keep_model_loaded` for `SettingsDialog`."""
+    """`keep_model_loaded` and `auto_transcribe_received` for `SettingsDialog`."""
 
     def _build_transcription_options(self, page, sizer) -> None:
         i18n = self.main_window.i18n
@@ -22,16 +22,24 @@ class TranscriptionOptionsMixin:
             page, label=i18n.t("transcription_keep_loaded_check")
         )
         sizer.Add(self._transcription_keep_loaded_check, 0, wx.ALL, 8)
+        self._transcription_auto_check = wx.CheckBox(
+            page, label=i18n.t("transcription_auto_transcribe_check")
+        )
+        sizer.Add(self._transcription_auto_check, 0, wx.ALL, 8)
 
     def _load_transcription_options(self) -> None:
         section = self.main_window.settings.get("transcription", {})
         self._transcription_keep_loaded_check.SetValue(
             bool(section.get("keep_model_loaded", False))
         )
+        self._transcription_auto_check.SetValue(
+            bool(section.get("auto_transcribe_received", False))
+        )
 
     def _apply_transcription_options(self) -> None:
         section = self.main_window.settings.setdefault("transcription", {})
         section["keep_model_loaded"] = self._transcription_keep_loaded_check.GetValue()
+        section["auto_transcribe_received"] = self._transcription_auto_check.GetValue()
         # Takes effect now, not at the next launch: turning it on cancels the
         # pending release, turning it off starts the idle clock.
         residency.residency.configure(residency.keep_loaded_from_settings(
@@ -42,4 +50,7 @@ class TranscriptionOptionsMixin:
         i18n = self.main_window.i18n
         self._transcription_keep_loaded_check.SetLabel(
             i18n.t("transcription_keep_loaded_check")
+        )
+        self._transcription_auto_check.SetLabel(
+            i18n.t("transcription_auto_transcribe_check")
         )

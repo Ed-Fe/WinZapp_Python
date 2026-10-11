@@ -1105,6 +1105,9 @@ class MessageEventsMixin:
                        "documentMessage", "stickerMessage"}
         if msg.get("messageType") in media_types:
             self._msg_bg_executor.submit(self.sync_if_media, msg)
+            if not from_me:
+                # Off unless Settings > Local transcription asks for it.
+                self._maybe_auto_transcribe(remote_jid, msg)
 
         # ── Send notification ─────────────────────────────────────────────────
         if from_me:
