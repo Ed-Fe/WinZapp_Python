@@ -1063,7 +1063,7 @@ index 5dac93b..b7d297c 100644
          run: |
            set +e -uo pipefail
            # build_app checks the tag against the official repository through
-@@ -260,3 +273,221 @@ jobs:
+@@ -260,3 +273,223 @@ jobs:
            # an official commit; the Mac updater refuses a release without it.
            gh release create "$TAG" WinZapp-macOS-*.zip SHA256SUMS.txt $(ls WinZapp-macOS-provenance-*.json 2>/dev/null) \
              --repo "$GITHUB_REPOSITORY" --title "$name" --notes-file notes.md "${flags[@]}"
@@ -1101,7 +1101,7 @@ index 5dac93b..b7d297c 100644
 +
 +          def gh(*args, ok=False):
 +              r = subprocess.run(["gh", *args], capture_output=True, text=True)
-+              if r.returncode and not ok:
++              if r.returncode and not (ok and "404" in r.stderr):
 +                  raise SystemExit(r.stderr)
 +              return r.returncode == 0, r.stdout
 +
@@ -1252,12 +1252,14 @@ index 5dac93b..b7d297c 100644
 +
 +      - name: Keep the appcast's state on its branch
 +        working-directory: site
++        env:
++          TAGS: ${{ needs.appcast-plan.outputs.tags }}
 +        run: |
 +          set -euo pipefail
 +          git add -A
 +          if git diff --cached --quiet; then echo "appcast unchanged"; exit 0; fi
 +          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-+            commit --quiet -m "appcast: ${{ needs.appcast-plan.outputs.tags }}"
++            commit --quiet -m "appcast: $TAGS"
 +          git push origin appcast
 +
 +      # A push made with GITHUB_TOKEN does not trigger a Pages build ("Commits

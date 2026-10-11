@@ -886,3 +886,20 @@ def test_a_sparkle_that_cannot_start_falls_back_to_winzapps_updater(monkeypatch)
     updates.UpdatesMixin._on_force_update(object(), None)
     updates.UpdatesMixin._start_update_checker(object(), True)
     assert called == ["old", ("old start", True)]
+
+
+def test_other_accounts_use_the_strict_liveness_rule_of_the_slot_claim(monkeypatch):
+    """A leaked lease the slot claim calls dead must not make the update wait
+    for an account that is no longer running."""
+    import node_coord
+    from winzapp_mac import coord_mac
+    seen = {}
+
+    def live_node_leases(gd, is_alive):
+        seen["is_alive"] = is_alive
+        return [{"account_id": "acc1"}, {"account_id": "acc2"},
+                {"account_id": "acc3", "_corrupt": True}]
+    monkeypatch.setattr(node_coord, "live_node_leases", live_node_leases)
+    mw = type("MW", (), {"global_dir": "gd", "account_id": "acc1"})()
+    assert sm._other_accounts(mw) == ["acc2"]
+    assert seen["is_alive"] is coord_mac.lease_alive

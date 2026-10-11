@@ -195,9 +195,10 @@ def _other_accounts(mw):
         return []
     try:
         import node_coord
-        import update_coord
+        # The slot claim's liveness rule: an account that rule calls gone is
+        # not waited for (request_quit blocks up to 85 s per account).
         others = [l.get("account_id") for l in node_coord.live_node_leases(
-            gd, is_alive=update_coord.lease_alive) if not l.get("_corrupt")]
+            gd, is_alive=coord_mac.lease_alive) if not l.get("_corrupt")]
         return sorted({a for a in others if a and a != acc_id})
     except Exception:
         logging.exception("[sparkle_mac] enumerating other accounts failed (non-fatal)")
