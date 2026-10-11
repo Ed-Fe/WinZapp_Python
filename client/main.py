@@ -293,6 +293,7 @@ from main_window.backfill import BackfillMixin
 from main_window.conversation_sync import ConversationSyncMixin
 from main_window.media import MediaMixin
 from main_window.transcription_store import TranscriptionStoreMixin
+from main_window.transcription_background import TranscriptionBackgroundMixin
 from main_window.chat_events import ChatEventsMixin
 from main_window.contact_presence import ContactPresenceMixin
 from main_window.history import HistoryMixin
@@ -346,6 +347,7 @@ class MainWindow(
     ConversationSyncMixin,
     MediaMixin,
     TranscriptionStoreMixin,
+    TranscriptionBackgroundMixin,
     ChatEventsMixin,
     ContactPresenceMixin,
     HistoryMixin,

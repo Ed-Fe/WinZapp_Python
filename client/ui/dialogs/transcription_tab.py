@@ -29,12 +29,14 @@ from core.transcription import (
     external_models,
     external_view,
     management as transcription_management,
+    management_text,
     management_whisper_cpp,
     model_catalog,
     model_names,
     model_store,
     preferences as transcription_preferences,
 )
+from ui.dialogs.transcription_result_field import VERIFY_ACTIONS
 from ui.dialogs.transcription_progress import (
     TranscriptionProgressDialog,
     progress_status_text,
@@ -251,32 +253,10 @@ def _transcription_unknown_dirs_notice(i18n, names) -> str:
     return i18n.t("transcription_unknown_dirs").format(folders=", ".join(names))
 
 
-def _whisper_cpp_build_name(i18n, build_id) -> str:
-    """A whisper.cpp build as it is said ("the processor version"), or ""."""
-    key = management_whisper_cpp.WHISPER_CPP_BUILD_I18N_KEYS.get(build_id)
-    return i18n.t(key) if key else ""
-
-
-def _transcription_announcement_text(i18n, announcement) -> str:
-    """The sentence of a finished action, with its values said as names.
-
-    A management Announcement carries ids — a model id, a whisper.cpp build's
-    i18n key — because it is built where no translation is at hand; this is
-    where they become what the picker calls them ("small, 5 bits"), so the
-    sentence and the list the user just read agree.
-    """
-    values = dict(announcement.values)
-    if values.get("model"):
-        values["model"] = model_names.display_name(i18n, values["model"]) or values["model"]
-    # A move's lists of ids, said one name at a time.
-    for key in ("models", "moved", "remaining"):
-        if values.get(key):
-            values[key] = model_names.display_list(
-                i18n, values[key].split(transcription_management.LIST_SEPARATOR)
-            )
-    if "build" in values:
-        values["build"] = i18n.t(values["build"]) if values["build"] else ""
-    return i18n.t(announcement.i18n_key).format(**values)
+# Where the wording of an action's outcome lives, shared with the main window
+# (a download that finished in the background is said from there).
+_whisper_cpp_build_name = management_text.build_name
+_transcription_announcement_text = management_text.announcement_text
 
 
 def _format_transcription_size(i18n, size_bytes) -> str:
@@ -631,6 +611,8 @@ class TranscriptionTabMixin:
         # the other download that is not a model.
         self._build_whisper_cpp_section(page, sizer)
         self._sync_transcription_action_buttons()
+        # A download the window is running in the background is this tab's too.
+        self._watch_transcription_background()
 
         page.SetSizer(sizer)
         return page
@@ -1101,6 +1083,7 @@ class TranscriptionTabMixin:
         """Another model, another set of buttons that can act on it — and
         perhaps an English-only one, which has something to say about the
         language."""
+        self._forget_transcription_outcome()
         self._sync_transcription_action_buttons()
         self._show_transcription_hardware_notices()
         # Skip() or the dialog-level EVT_COMBOBOX never runs and the Apply
@@ -1137,8 +1120,7 @@ class TranscriptionTabMixin:
         if action in _TRANSCRIPTION_REMOVE_ACTIONS and not self._ask_transcription_removal(
                 action, model_id):
             return
-        job, result, error = self._run_transcription_job(action, model_id=model_id)
-        self._report_transcription_job(action, model_id, job, result, error)
+        self._start_transcription_job(action, model_id=model_id)
 
     def _transcription_models_dir_applied(self) -> bool:
         """Refuse to touch the models while the folder is only *chosen*.
@@ -1224,8 +1206,7 @@ class TranscriptionTabMixin:
             return
         if not self._ask_transcription_download(summary, repair):
             return
-        job, result, error = self._run_transcription_job(action, model_id=model_id)
-        self._report_transcription_job(action, model_id, job, result, error)
+        self._start_transcription_job(action, model_id=model_id)
 
     def _ask_transcription_download(self, summary, repair) -> bool:
         i18n = self.main_window.i18n
@@ -1258,14 +1239,14 @@ class TranscriptionTabMixin:
             wx.YES_NO | wx.ICON_QUESTION, self,
         ) == wx.YES
 
-    def _run_transcription_job(self, action, model_id=None, models_root=None,
-                               new_models_root=None, build_id=None,
-                               compute_capability=None):
-        """Run one action behind the progress dialog. Returns what it answered.
+    def _transcription_job_factory(self, action, model_id=None, models_root=None,
+                                   new_models_root=None, build_id=None,
+                                   compute_capability=None):
+        """`make_job(on_progress, on_finished)` for one management action.
 
-        Deliberately does not report: the models-folder move has to decide
-        which folder the setting names *before* anything is said, so that the
-        sentence and the setting cannot disagree.
+        The one place that decides what a job is built with, so that the
+        progress dialog and the main window's background runner (see
+        TranscriptionBackgroundTabMixin) build the same job.
         """
         if models_root is None:
             # The folder that is actually in force, never the one the tab is
@@ -1293,16 +1274,35 @@ class TranscriptionTabMixin:
                 **job_kwargs,
             )
 
+        return _make_job
+
+    def _transcription_status_text(self, action, model_id=None, build_id=None):
+        """The sentence saying which action is running."""
+        i18n = self.main_window.i18n
+        return progress_status_text(
+            i18n, action, model_names.display_name(i18n, model_id),
+            build=_whisper_cpp_build_name(i18n, build_id),
+        )
+
+    def _run_transcription_job(self, action, model_id=None, models_root=None,
+                               new_models_root=None, build_id=None,
+                               compute_capability=None):
+        """Run one action behind the progress dialog. Returns what it answered.
+
+        Deliberately does not report: the models-folder move has to decide
+        which folder the setting names *before* anything is said, so that the
+        sentence and the setting cannot disagree.
+        """
         dialog = TranscriptionProgressDialog(
             self,
             self.main_window.i18n,
             self.main_window.speak_output,
-            _make_job,
-            progress_status_text(
-                self.main_window.i18n, action,
-                model_names.display_name(self.main_window.i18n, model_id),
-                build=_whisper_cpp_build_name(self.main_window.i18n, build_id),
+            self._transcription_job_factory(
+                action, model_id=model_id, models_root=models_root,
+                new_models_root=new_models_root, build_id=build_id,
+                compute_capability=compute_capability,
             ),
+            self._transcription_status_text(action, model_id, build_id),
         )
         self._set_transcription_job_running(True)
         try:
@@ -1313,12 +1313,18 @@ class TranscriptionTabMixin:
             self._set_transcription_job_running(False)
 
     def _report_transcription_job(self, action, model_id, job, result, error,
-                                  extra_keys=()):
-        """Say what happened, remember it, and redraw what it changed."""
+                                  extra_keys=(), restore_focus=True):
+        """Say what happened, remember it, and redraw what it changed.
+
+        `restore_focus` is False for a job that ended in the background: the
+        user is somewhere else by then, and a focus pulled onto a button of
+        Settings would be the surprise the background option exists to avoid.
+        """
         self._note_transcription_outcome(action, model_id, error)
         self._announce_transcription_result(job, result, error, extra_keys)
         self._refresh_after_transcription_action(action)
-        self._restore_transcription_focus(action)
+        if restore_focus:
+            self._restore_transcription_focus(action)
 
     def _restore_transcription_focus(self, action):
         """Never leave the focus on a button the action just switched off.
@@ -1331,6 +1337,8 @@ class TranscriptionTabMixin:
         button on the same row, and failing that the control the row belongs
         to.
         """
+        if action in VERIFY_ACTIONS and self._focus_transcription_result():
+            return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():
             # No button at all for the models-folder move, and nothing to do

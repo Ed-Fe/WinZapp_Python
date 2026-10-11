@@ -538,3 +538,43 @@ window applies the change only once it is inactive. The window's own `I18n`
 reads the settings only until it has read them once (`client/core/i18n.py`).
 Read it the same way. Reading `settings["general"]["language"]` directly would
 force a run into a language the window does not show yet.
+
+## Downloads in the background
+
+Settings > General "download updates in the background"
+(`general.background_update_downloads`, install-wide, off by default) is read
+by three downloads: the WinZapp update, the WPPConnect Server update, and the
+Transcription tab's model, CUDA libraries and whisper.cpp program
+(`core/transcription/background.py` lists the six actions: download/install and
+repair; verify, remove and the models-folder move always keep their dialog).
+
+- **The window owns the job, not the dialog.** Settings is modal and the user
+  leaves it, so the job runs from `main_window/transcription_background.py`
+  and the tab only asks to be told (`watch_transcription_background()`). A
+  listener returns True when it said the outcome; otherwise the window says
+  it. Never move the job into the dialog: closing Settings would lose it or
+  finish into a destroyed window.
+- **One at a time.** A second press is refused while one runs, and a Settings
+  opened meanwhile adopts the running job with its buttons off.
+- **A job that ends in the background never moves the focus.**
+  `_report_transcription_job(restore_focus=False)`.
+- The confirmation (size, disk, device) is still asked first. Only the
+  progress dialog goes away.
+
+## The tab's result field
+
+One read-only field carries everything the tab says (outcome first, notices
+after). Verifying (`VERIFY_ACTIONS`, plus the check of a folder in "other
+folders") moves the focus to it; choosing another model, backend, build or
+folder drops the old outcome, which hides the field again when nothing else
+is in it (`transcription_result_field.py`).
+
+## Alt keys on the action buttons
+
+The tab has more controls than any language has free letters, so the
+seventeen action buttons **share** letters: the same word has the same letter
+on every row (Alt+F is "Verificar" everywhere), and a shared letter only moves
+the focus. They never take the letter of OK, Cancel or Apply, and the existing
+letters of the labelled controls were not changed. Adding a button: pick a
+letter its word already uses, or the least-contested one, and extend
+`ACTION_BUTTONS` in `tests/test_transcription_settings_tab.py`.

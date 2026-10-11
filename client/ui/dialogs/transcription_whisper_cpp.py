@@ -120,6 +120,7 @@ class WhisperCppMixin:
         picker falls back to "automatic" by itself (`_select_id()`), which is
         also what the run would do with it.
         """
+        self._forget_transcription_outcome()
         self._populate_transcription_model_choices()
         self._show_transcription_hardware_notices()
         # Skip(): the dialog-level handler is what shows Apply.
@@ -235,6 +236,7 @@ class WhisperCppMixin:
         """Another build, another set of buttons. Not Skip()ped: choosing
         which build to act on changes no setting, and the dialog-level
         handler would offer Apply for it."""
+        self._forget_transcription_outcome()
         self._sync_transcription_action_buttons()
 
     # ── The four actions ─────────────────────────────────────────────────────
@@ -301,13 +303,18 @@ class WhisperCppMixin:
         ) == wx.YES
 
     def _run_whisper_cpp_job(self, action, build_id, probe):
-        """Run it behind the progress dialog, then say it and redraw."""
-        job, result, error = self._run_transcription_job(
+        """Run it behind the progress dialog (or in the background), then say
+        it and redraw."""
+        self._start_transcription_job(
             action, build_id=build_id,
             # The install refuses the graphics build without the capability
             # it was offered for.
             compute_capability=getattr(probe, "compute_capability", None),
         )
+
+    def _finish_whisper_cpp_job(self, action, build_id, job, result, error,
+                                restore_focus=True):
+        """What the tab does once a whisper.cpp action has ended."""
         code = getattr(error, "code", None)
         if code == transcription_errors.WHISPER_CPP_CORRUPTED:
             self._whisper_cpp_corrupted.add(build_id)
@@ -317,11 +324,15 @@ class WhisperCppMixin:
         self._show_whisper_cpp_status()
         # The graphics build installed or gone changes what the card can do.
         self._show_transcription_hardware_notices()
-        self._restore_whisper_cpp_focus(action)
+        if restore_focus:
+            self._restore_whisper_cpp_focus(action)
 
     def _restore_whisper_cpp_focus(self, action):
         """Never leave the focus on a button the action just switched off —
         the rule of _restore_transcription_focus(), for this row."""
+        if (action == transcription_management.ACTION_VERIFY_WHISPER_CPP
+                and self._focus_transcription_result()):
+            return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():
             return

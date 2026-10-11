@@ -87,6 +87,8 @@ from ui.dialogs import transcription_external, transcription_tab, transcription_
 from ui.dialogs.settings_dialog import SettingsDialog
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
+from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
+from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 from tests.conftest import destroy_now, hidden_frame
@@ -210,12 +212,30 @@ class _MainWindow:
         self.speak_output = _SpeakOutput()
         self.error_sound = _Sound()
         self.saves = 0
+        #: The main window's half of a download that runs without a window.
+        self.background_running = False
+        self.background_started = []
+        self.background_listeners = []
 
     def save_settings(self):
         self.saves += 1
 
+    def transcription_background_running(self):
+        return self.background_running
 
-class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin):
+    def start_transcription_background_job(self, make_job, status_text):
+        if self.background_running:
+            return False
+        self.background_running = True
+        self.background_started.append((make_job, status_text))
+        return True
+
+    def watch_transcription_background(self, listener):
+        self.background_listeners.append(listener)
+
+
+class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin,
+                TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
     The section for models in other folders, the whisper.cpp section and the
@@ -310,6 +330,8 @@ class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixi
     _confirm_transcription_download = SettingsDialog._confirm_transcription_download
     _ask_transcription_download = SettingsDialog._ask_transcription_download
     _run_transcription_job = SettingsDialog._run_transcription_job
+    _transcription_job_factory = SettingsDialog._transcription_job_factory
+    _transcription_status_text = SettingsDialog._transcription_status_text
     _report_transcription_job = SettingsDialog._report_transcription_job
     _note_transcription_outcome = SettingsDialog._note_transcription_outcome
     _announce_transcription_result = SettingsDialog._announce_transcription_result
@@ -1608,15 +1630,14 @@ class TestTheMnemonicsOnThisTab:
         "apply",
     )
 
-    #: The eight action buttons, which may collide with nothing and are not
-    #: owed an Alt key of their own. Deliberately, and measured rather than
-    #: assumed: once each label became one word inside a named group, the
-    #: letters left over after the twelve above cover four of the eight in
-    #: pt-BR, pt-PT and en-US and five in es-ES and pl — "Reparar" and
-    #: "Remover" appear twice each on the tab and cannot share a letter. A
-    #: label is read out in full every time focus lands on it, several times a
-    #: session; Alt+letter is rarely used and is not announced at all, so a
-    #: longer label is the more expensive half of that trade.
+    #: The seventeen action buttons. Each is owed an Alt key, but the tab has
+    #: more controls than any language has free letters (the fifteen above
+    #: already take fifteen), so the letters are shared on purpose: the same
+    #: word always has the same letter ("Verificar" is Alt+F on all four rows),
+    #: and a letter shared by several controls only moves the focus to the next
+    #: one instead of pressing anything. What may never happen is a button
+    #: taking the letter of OK, Cancel or Apply, which would turn Alt+letter
+    #: into a way to close the dialog.
     ACTION_BUTTONS = (
         "transcription_model_download_btn",
         "transcription_model_verify_btn",
@@ -1659,16 +1680,47 @@ class TestTheMnemonicsOnThisTab:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_they_do_not_collide(self, locale):
         """Two controls sharing an Alt key means one of them can never be
-        reached with it — and which one is undefined. The buttons are in here
-        even though they are not owed a letter: the ones that *have* one must
-        still not take somebody else's."""
+        reached with it. The labelled controls and the dialog's buttons keep
+        their letters to themselves; the action buttons share (see
+        ACTION_BUTTONS)."""
         table = load_strings(locale)
         used = [
             self._mnemonic(table[key])
-            for key in self.LABELLED + self.ACTION_BUTTONS
+            for key in self.LABELLED
             if self._mnemonic(table[key]) is not None
         ]
         assert len(used) == len(set(used)), f"{locale}: repeated mnemonics in {used}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_every_action_button_has_an_alt_key(self, locale):
+        table = load_strings(locale)
+        without = [
+            key for key in self.ACTION_BUTTONS if self._mnemonic(table[key]) is None
+        ]
+        assert without == [], f"{locale}: no Alt key for {without}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_the_same_word_has_the_same_letter_on_every_row(self, locale):
+        """Alt+F means "Verificar" wherever the focus is; two letters for one
+        word would make the shortcut depend on the row."""
+        table = load_strings(locale)
+        letters = {}
+        for key in self.ACTION_BUTTONS:
+            word = table[key].replace("&", "")
+            letters.setdefault(word, set()).add(self._mnemonic(table[key]))
+        assert all(len(found) == 1 for found in letters.values()), (
+            f"{locale}: {letters}"
+        )
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_no_button_takes_the_letter_of_ok_cancel_or_apply(self, locale):
+        table = load_strings(locale)
+        dialog = {self._mnemonic(table[key]) for key in ("ok", "cancel", "apply")}
+        taken = [
+            key for key in self.ACTION_BUTTONS
+            if self._mnemonic(table[key]) in dialog
+        ]
+        assert taken == [], f"{locale}: {taken}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_group_names_spend_no_letter(self, locale):
@@ -2855,6 +2907,171 @@ class TestTheFocusNeverStaysOnADisabledButton:
         taken = self._watch(tab)
         tab._restore_transcription_focus(management.ACTION_MOVE_MODELS)
         assert taken == []
+
+
+class TestVerifyingLandsOnTheResultField:
+    """A check is a question and its answer is the field: the focus goes there
+    instead of staying on the button, or (for a folder in another section)
+    jumping to the list."""
+
+    @staticmethod
+    def _watch(tab):
+        taken = []
+        tab._transcription_substituted_field.SetFocus = lambda: taken.append("result")
+        for action, button in tab._transcription_action_buttons.items():
+            button.SetFocus = lambda action=action: taken.append(action)
+        return taken
+
+    @staticmethod
+    def _say(tab, text="Resultado"):
+        tab._transcription_last_outcome = management.Announcement(
+            management.MODEL_VERIFIED_I18N_KEY, management.OUTCOME_DONE, {"model": "small"}
+        )
+        tab._transcription_substituted_field.Show()
+        tab._transcription_substituted_field.ChangeValue(text)
+
+    @pytest.mark.parametrize("action", [
+        management.ACTION_VERIFY_MODEL,
+        management.ACTION_VERIFY_CUDA_RUNTIME,
+    ])
+    def test_the_verification_moves_the_focus_to_the_field(self, tab, action):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(action)
+        assert taken == ["result"]
+
+    def test_with_nothing_to_show_the_old_rule_still_applies(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        tab._transcription_substituted_field.Hide()
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_VERIFY_MODEL)
+        assert taken == [management.ACTION_DOWNLOAD_MODEL]
+
+    def test_the_other_actions_do_not_take_the_focus_to_it(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_DOWNLOAD_MODEL)
+        assert taken == []
+
+    def test_choosing_another_model_empties_and_hides_the_field(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._transcription_hardware_keys = []
+        tab._transcription_substitution_keys = []
+        self._say(tab)
+        tab._on_transcription_model_change(_Event())
+        assert tab._transcription_last_outcome is None
+        assert tab._transcription_substituted_field.GetValue() == ""
+        assert not tab._transcription_substituted_field.IsShown()
+
+
+class TestDownloadsFollowTheBackgroundSetting:
+    """Settings > General "download in the background" decides whether a model,
+    the CUDA libraries or whisper.cpp hold the user in a progress dialog."""
+
+    @staticmethod
+    def _enable(tab, value=True):
+        tab.main_window.settings["general"] = {"background_update_downloads": value}
+
+    def test_off_it_is_the_progress_dialog_as_always(self, tab, monkeypatch):
+        made = _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert len(made) == 1
+        assert tab.main_window.background_started == []
+
+    def test_on_a_download_runs_in_the_window_and_not_in_a_dialog(
+        self, tab, monkeypatch
+    ):
+        made = _install_fake_progress(monkeypatch)
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert made == []
+        assert len(tab.main_window.background_started) == 1
+        assert tab._transcription_job_running
+        assert len(tab.main_window.background_listeners) == 1
+
+    def test_the_job_it_hands_over_is_the_same_one_the_dialog_would_run(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        make_job, status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        assert job.action == management.ACTION_DOWNLOAD_MODEL
+        assert job.model_id == "small"
+        assert status
+
+    @pytest.mark.parametrize("action", [
+        management.ACTION_VERIFY_MODEL, management.ACTION_REMOVE_MODEL,
+        management.ACTION_VERIFY_CUDA_RUNTIME, management.ACTION_REMOVE_CUDA_RUNTIME,
+    ])
+    def test_what_is_not_a_download_keeps_its_dialog(self, tab, monkeypatch, action):
+        made = _install_fake_progress(monkeypatch)
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(action, model_id="small")
+        assert len(made) == 1
+        assert tab.main_window.background_started == []
+
+    def test_a_press_while_another_download_runs_changes_nothing(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab.main_window.background_running = True
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert tab.main_window.background_started == []
+        assert not tab._transcription_job_running
+
+    def test_when_it_ends_the_tab_says_it_and_frees_the_buttons(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        spoken = tab.main_window.speak_output.spoken
+        before = len(spoken)
+        taken = []
+        for button in tab._transcription_action_buttons.values():
+            button.SetFocus = lambda: taken.append("focus")
+        tab._transcription_model_combo.SetFocus = lambda: taken.append("focus")
+
+        said = tab.main_window.background_listeners[0](job, None, None)
+
+        assert said is True
+        assert not tab._transcription_job_running
+        assert len(spoken) == before + 1
+        # The user is elsewhere by now: nothing may pull the focus here.
+        assert taken == []
+
+    def test_a_whisper_cpp_download_is_finished_by_its_own_family(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(
+            management.ACTION_INSTALL_WHISPER_CPP,
+            build_id=whisper_cpp_builds.BUILD_CPU.id,
+        )
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        assert job.build_id == whisper_cpp_builds.BUILD_CPU.id
+        assert tab.main_window.background_listeners[0](job, None, None) is True
+
+    def test_a_tab_opened_meanwhile_adopts_the_running_download(self, tab):
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        assert tab._transcription_job_running
+        assert len(tab.main_window.background_listeners) == 1
+
+    def test_a_tab_opened_with_nothing_running_adopts_nothing(self, tab):
+        tab._watch_transcription_background()
+        assert not tab._transcription_job_running
+        assert tab.main_window.background_listeners == []
 
 
 # ── Part 10b: models the user already has in other folders ───────────────────

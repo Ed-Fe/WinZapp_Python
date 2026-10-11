@@ -35,6 +35,7 @@ Where to look (and where new code goes):
     message_pins        read the linked device pinned-message overview
     media               media download, failed ids, base64 fetch, durations
     transcription_store saved voice-message transcriptions: store, delete
+    transcription_background  model, CUDA and whisper.cpp downloads without a window
     read_state          mark read/unread, local-read anchor
     chat_actions        block, mute, archive, delete, clear, typing, pin
     chat_list           computing and rendering the chat list and previews

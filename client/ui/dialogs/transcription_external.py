@@ -215,6 +215,8 @@ class ExternalModelsMixin:
         reference was just forgotten), the first button that can still be
         pressed.
         """
+        if pressed == "check" and self._focus_transcription_result():
+            return
         button = self._transcription_external_buttons.get(pressed)
         if button is None or button.IsEnabled():
             return
@@ -228,6 +230,7 @@ class ExternalModelsMixin:
                 return
 
     def _on_external_selection(self, event):
+        self._forget_transcription_outcome()
         self._sync_external_buttons()
         event.Skip()
 

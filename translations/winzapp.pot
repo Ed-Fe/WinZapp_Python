@@ -1668,8 +1668,9 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "background_updates_label"
 msgid ""
-"Download updates in the background, without the progress window (WinZapp "
-"tells you before installing)"
+"Download updates and transcription downloads in the background, without the "
+"progress window (WinZapp tells you before installing an update and when a "
+"download finishes)"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -8878,6 +8879,12 @@ msgid "whisper.cpp"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_background_started"
+msgid "It continues in the background. You will be told when it finishes."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"
 msgid "Install the CUDA libraries?"
 msgstr ""
@@ -9043,12 +9050,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_remove_btn"
-msgid "Remove"
+msgid "Remo&ve"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_repair_btn"
-msgid "Repair"
+msgid "Repa&ir"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9406,7 +9413,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_add_btn"
-msgid "Add..."
+msgid "A&dd..."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9451,7 +9458,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_check_btn"
-msgid "Verify"
+msgid "Verif&y"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9526,7 +9533,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_find_btn"
-msgid "Find..."
+msgid "Fi&nd..."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9547,7 +9554,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_forget_btn"
-msgid "Forget"
+msgid "&Forget"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9801,7 +9808,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_use_btn"
-msgid "Use"
+msgid "&Use"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -10101,12 +10108,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
-msgid "Remove"
+msgid "Remo&ve"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
-msgid "Repair"
+msgid "Repa&ir"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -10118,7 +10125,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_verify_btn"
-msgid "&Verify"
+msgid "Verif&y"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -10700,7 +10707,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_install_btn"
-msgid "Install"
+msgid "&Install"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -10711,17 +10718,17 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_remove_btn"
-msgid "Remove"
+msgid "Remo&ve"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_repair_btn"
-msgid "Repair"
+msgid "Repa&ir"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_verify_btn"
-msgid "Verify"
+msgid "Verif&y"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

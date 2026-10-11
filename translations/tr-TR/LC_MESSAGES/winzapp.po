@@ -1816,11 +1816,13 @@ msgstr "Geri"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "background_updates_label"
 msgid ""
-"Download updates in the background, without the progress window (WinZapp "
-"tells you before installing)"
+"Download updates and transcription downloads in the background, without the "
+"progress window (WinZapp tells you before installing an update and when a "
+"download finishes)"
 msgstr ""
-"Güncellemeleri ilerleme penceresi olmadan arka planda indir (WinZapp "
-"yüklemeden önce haber verir)"
+"Güncellemeleri ve transkripsiyon indirmelerini ilerleme penceresi olmadan "
+"arka planda indir (WinZapp bir güncellemeyi yüklemeden önce ve bir indirme "
+"bittiğinde haber verir)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -4583,7 +4585,9 @@ msgctxt "mac_update_available_reminder"
 msgid ""
 "A new version of WinZapp is available (v{new_version}). To install it, "
 "choose Help > Check for updates, or switch to WinZapp."
-msgstr "WinZapp'in yeni bir sürümü mevcut (v{new_version}). Yüklemek için Yardım > Güncellemeleri denetle'yi seçin veya WinZapp'e geçin."
+msgstr ""
+"WinZapp'in yeni bir sürümü mevcut (v{new_version}). Yüklemek için Yardım > "
+"Güncellemeleri denetle'yi seçin veya WinZapp'e geçin."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -4591,7 +4595,9 @@ msgctxt "mac_update_ready_to_install"
 msgid ""
 "WinZapp update v{new_version} has been downloaded and is ready to install. "
 "Choose Install and Relaunch in the Software Update window."
-msgstr "WinZapp v{new_version} güncellemesi indirildi ve yüklemeye hazır. Yazılım Güncelleme penceresinde Yükle ve Yeniden Başlat'ı seçin."
+msgstr ""
+"WinZapp v{new_version} güncellemesi indirildi ve yüklemeye hazır. Yazılım "
+"Güncelleme penceresinde Yükle ve Yeniden Başlat'ı seçin."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "mac_update_reopened_other_accounts"
@@ -9370,6 +9376,12 @@ msgid "whisper.cpp"
 msgstr "whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_background_started"
+msgid "It continues in the background. You will be told when it finishes."
+msgstr "Arka planda devam ediyor. Bittiğinde size haber verilecek."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"
 msgid "Install the CUDA libraries?"
 msgstr "CUDA kütüphaneleri yüklensin mi?"
@@ -9559,13 +9571,13 @@ msgstr "Yükl&e"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_remove_btn"
-msgid "Remove"
-msgstr "Kaldır"
+msgid "Remo&ve"
+msgstr "&Kaldır"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_repair_btn"
-msgid "Repair"
-msgstr "Onar"
+msgid "Repa&ir"
+msgstr "O&nar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -9604,7 +9616,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_verify_btn"
 msgid "Verif&y"
-msgstr "Doğrula"
+msgstr "&Doğrula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -9974,8 +9986,8 @@ msgstr "Diğer klasörlerdeki modeller"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_add_btn"
-msgid "Add..."
-msgstr "Ekle..."
+msgid "A&dd..."
+msgstr "&Ekle..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10025,8 +10037,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_check_btn"
-msgid "Verify"
-msgstr "Doğrula"
+msgid "Verif&y"
+msgstr "&Doğrula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10114,8 +10126,8 @@ msgstr "whisper.cpp modelleri (*.bin)|*.bin|Tüm dosyalar (*.*)|*.*"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_find_btn"
-msgid "Find..."
-msgstr "Ara..."
+msgid "Fi&nd..."
+msgstr "&Ara..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10135,8 +10147,8 @@ msgstr "Hugging Face önbelleğinde aranıyor..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_forget_btn"
-msgid "Forget"
-msgstr "Unut"
+msgid "&Forget"
+msgstr "U&nut"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10419,8 +10431,8 @@ msgstr "doğrulanmamış"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_use_btn"
-msgid "Use"
-msgstr "Kullan"
+msgid "&Use"
+msgstr "Kulla&n"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10698,7 +10710,7 @@ msgstr "{name}: {size_class}, diskte {size}, yüklü"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_download_btn"
 msgid "Dow&nload"
-msgstr "İ&ndir"
+msgstr "İnd&ir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -10750,13 +10762,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
-msgid "Remove"
-msgstr "Kaldır"
+msgid "Remo&ve"
+msgstr "&Kaldır"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
-msgid "Repair"
-msgstr "Onar"
+msgid "Repa&ir"
+msgstr "O&nar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_unavailable_auto"
@@ -10769,8 +10781,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_verify_btn"
-msgid "&Verify"
-msgstr "Doğrula"
+msgid "Verif&y"
+msgstr "&Doğrula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -11393,8 +11405,8 @@ msgstr "{build}, yüklü"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_install_btn"
-msgid "Install"
-msgstr "Yükle"
+msgid "&Install"
+msgstr "Yükl&e"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_whisper_cpp.py
@@ -11404,18 +11416,18 @@ msgstr "whisper.cpp pro&gramı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_remove_btn"
-msgid "Remove"
-msgstr "Kaldır"
+msgid "Remo&ve"
+msgstr "&Kaldır"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_repair_btn"
-msgid "Repair"
-msgstr "Onar"
+msgid "Repa&ir"
+msgstr "O&nar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_verify_btn"
-msgid "Verify"
-msgstr "Doğrula"
+msgid "Verif&y"
+msgstr "&Doğrula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/api_start_behind_window.py
