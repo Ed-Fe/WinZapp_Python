@@ -639,9 +639,12 @@ class MessageEventsMixin:
         # _is_message_forwarded() already checks for other purposes.
         if (from_me and participant_raw.endswith("@lid") and not getattr(self, "my_lid", "")
                 and my_lid != participant_raw and not is_message_forwarded(msg)):
-            self.my_lid = my_lid = participant_raw
+            # The participant can carry the companion-device suffix
+            # ("<id>:56@lid"); a self LID kept with it is rejected by the
+            # send endpoint (HTTP 500) and breaks messages to oneself.
+            self.my_lid = my_lid = self._normalize_jid(participant_raw)
             if my_jid:
-                self.register_jid_mapping(participant_raw, my_jid)
+                self.register_jid_mapping(my_lid, my_jid)
 
         remote_jid, from_me = self._redirect_self_chat_artifact(remote_jid, key, from_me)
 

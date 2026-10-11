@@ -752,10 +752,11 @@ class ChatActionsMixin:
         normalized = jid.replace("@c.us", "@s.whatsapp.net")
         lid = getattr(self, "_phone_to_lid", {}).get(normalized, "")
         if lid:
-            return lid.replace("@s.whatsapp.net", "@lid")
-            
+            return self._normalize_jid(lid.replace("@s.whatsapp.net", "@lid"))
+
         if jid.endswith("@lid"):
-            return jid
+            # Drop a companion-device suffix kept by an older install.
+            return self._normalize_jid(jid)
             
         return jid.replace("@s.whatsapp.net", "@c.us")
 

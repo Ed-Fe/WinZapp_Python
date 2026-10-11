@@ -54,6 +54,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Enviar uma mensagem para si mesmo não falha mais com "não foi possível confirmar o envio" em contas cujo próprio endereço vinha com sufixo de dispositivo.
+
 - Ao abrir ou ler uma conversa dentro do WinZapp, a notificação da mensagem nova dela é removida da área de notificações em vez de ficar lá.
 
 - Depois que o computador volta da suspensão, as mensagens novas são buscadas de forma confiável: a conversa aberta e as conversas recentes são verificadas de novo mesmo quando a lista de conversas do WhatsApp parece inalterada, e as atualizações de conversas ligadas por um ID de dispositivo vinculado deixam de ser ignoradas

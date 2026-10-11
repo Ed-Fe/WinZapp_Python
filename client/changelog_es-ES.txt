@@ -54,6 +54,8 @@ NOVEDADES
 
 CORRECCIONES
 
+- Enviarte un mensaje a ti mismo ya no falla con "no se pudo confirmar el envío" en cuentas cuya propia dirección incluía un sufijo de dispositivo.
+
 - Al abrir o leer un chat dentro de WinZapp, la notificación de su mensaje nuevo se quita del área de notificaciones en lugar de quedarse allí.
 
 - Tras reactivar el equipo de la suspensión, los mensajes nuevos se reciben de forma fiable: la conversación abierta y los chats recientes se vuelven a comprobar aunque la lista de chats de WhatsApp parezca sin cambios, y las actualizaciones de chats vinculados por un ID de dispositivo vinculado ya no se ignoran

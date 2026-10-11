@@ -1165,6 +1165,10 @@ class IdentityMixin:
         """
         if not lid_jid or not phone_jid:
             return
+        # Never keep a companion-device suffix ("<id>:56@lid"): the cached LID
+        # is the send destination, and WhatsApp Web refuses a device address.
+        lid_jid = self._normalize_jid(lid_jid)
+        phone_jid = self._normalize_jid(phone_jid)
         if not lid_jid.endswith("@lid") or not phone_jid.endswith("@s.whatsapp.net"):
             return
             
