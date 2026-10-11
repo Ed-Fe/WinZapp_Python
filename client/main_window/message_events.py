@@ -607,7 +607,9 @@ class MessageEventsMixin:
         # Opportunistically learn my_lid from case (a) first, so later
         # messages resolve immediately via _is_self_jid() without waiting on
         # resolve_self_lid()'s async API round-trip.
-        participant_raw = key.get("participant") or ""
+        # The participant can carry the companion-device suffix ("<id>:56@lid");
+        # a self LID kept with it is refused by the send endpoint (HTTP 500).
+        participant_raw = strip_device_suffix(key.get("participant") or "")
         # Normalize before using as a redirect target below — my_jid can be
         # in raw "@c.us" form early in a session (set directly from the
         # host-device API response, before resolve_self_lid() gets a chance
@@ -640,12 +642,9 @@ class MessageEventsMixin:
         # _is_message_forwarded() already checks for other purposes.
         if (from_me and participant_raw.endswith("@lid") and not getattr(self, "my_lid", "")
                 and my_lid != participant_raw and not is_message_forwarded(msg)):
-            # The participant can carry the companion-device suffix
-            # ("<id>:56@lid"); a self LID kept with it is rejected by the
-            # send endpoint (HTTP 500) and breaks messages to oneself.
-            self.my_lid = my_lid = strip_device_suffix(participant_raw)
+            self.my_lid = my_lid = participant_raw
             if my_jid:
-                self.register_jid_mapping(my_lid, my_jid)
+                self.register_jid_mapping(participant_raw, my_jid)
 
         remote_jid, from_me = self._redirect_self_chat_artifact(remote_jid, key, from_me)
 
