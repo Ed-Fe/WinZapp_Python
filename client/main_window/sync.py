@@ -26,7 +26,7 @@ from core.incremental_sync import (
     classify_chat_sync as _classify_chat_sync,
     select_stale_rechecks as _select_stale_rechecks,
 )
-from core.api_client import api_post
+from core.api_client import api_post, sync_throttled
 from core.resume_message_sync import promote_resume_rechecks
 from ui.dialogs.checkbox_confirm import confirm_with_checkbox
 from app_paths import data_path
@@ -2575,13 +2575,13 @@ class SyncMixin:
             # line. Only the few already fetching finish their write.
             if incremental:
                 futures = {
-                    pool.submit(self.sync_chat_messages, chat, expected_run_id, "incremental",
+                    pool.submit(sync_throttled(self.sync_chat_messages), chat, expected_run_id, "incremental",
                                 **({"expected_context": expected_context} if expected_context is not None else {})): chat
                     for chat in valid_chats
                 }
             else:
                 futures = {
-                    pool.submit(self.sync_chat_messages, chat, expected_run_id,
+                    pool.submit(sync_throttled(self.sync_chat_messages), chat, expected_run_id,
                                 **({"expected_context": expected_context} if expected_context is not None else {})): chat
                     for chat in valid_chats
                 }

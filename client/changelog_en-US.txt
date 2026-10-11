@@ -54,6 +54,8 @@ WHAT'S NEW
 
 FIXES
 
+- Syncing and backfilling chat history now ask WhatsApp Web for at most two chats' messages at a time instead of up to six, which keeps the processor and memory use low on small computers and servers during the first sync, without making it noticeably slower. Opening a chat, scrolling up and resyncing a conversation are not slowed down.
+
 - The updater now cleans up after itself: when an update has been installed it deletes the folder it extracted into your temporary folder, and the next time WinZapp starts it also removes what earlier updates, failed installs and interrupted downloads left there, which could add up to a full copy of each version you ever installed.
 
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.

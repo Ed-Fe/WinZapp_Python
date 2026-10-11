@@ -54,6 +54,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Sohbet geçmişinin eşitlenmesi ve tamamlanması artık WhatsApp Web'den en fazla altı yerine aynı anda en fazla iki sohbetin mesajlarını ister; bu, ilk eşitleme sırasında küçük bilgisayarlarda ve sunucularda işlemci ve bellek kullanımını düşük tutar ve eşitlemeyi belirgin biçimde yavaşlatmaz. Bir sohbeti açmak, yukarı kaydırmak ve bir görüşmeyi yeniden eşitlemek yavaşlamaz.
+
 - Güncelleyici artık arkasını topluyor: bir güncelleme kurulduğunda geçici klasörde açtığı klasörü siler, WinZapp bir sonraki açılışında da önceki güncellemelerin, başarısız kurulumların ve yarım kalan indirmelerin orada bıraktıklarını kaldırır; bu, kurulmuş her sürümün tam bir kopyası kadar yer tutabiliyordu.
 
 - WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.

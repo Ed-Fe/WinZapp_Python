@@ -54,6 +54,8 @@ NOVEDADES
 
 CORRECCIONES
 
+- La sincronización y la carga del historial de los chats ahora piden a WhatsApp Web los mensajes de como máximo dos chats a la vez, en lugar de hasta seis, lo que mantiene bajo el uso de procesador y de memoria en ordenadores pequeños y servidores durante la primera sincronización, sin hacerla notablemente más lenta. Abrir un chat, desplazarse hacia arriba y resincronizar una conversación no se ralentizan.
+
 - El actualizador ahora limpia lo que deja atrás: al terminar de instalar una actualización borra la carpeta en la que la extrajo, dentro de la carpeta temporal, y la próxima vez que se abra WinZapp también elimina lo que dejaron allí actualizaciones anteriores, instalaciones fallidas y descargas interrumpidas, que podía sumar una copia completa de cada versión instalada.
 
 - Al abrir o leer un chat dentro de WinZapp, la notificación de su mensaje nuevo se quita del área de notificaciones en lugar de quedarse allí.

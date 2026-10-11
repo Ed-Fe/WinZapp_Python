@@ -17,6 +17,7 @@ from concurrent.futures import (
 from core.api_client import (
     api_get,
     api_post,
+    sync_throttled,
 )
 from core.utils import auto_download_enabled
 from main_window import history_boundary
@@ -1043,7 +1044,7 @@ class BackfillMixin:
                 if targets:
                     with ThreadPoolExecutor(max_workers=self._BACKFILL_WORKERS) as pool:
                         futs = [pool.submit(
-                            self.sync_chat_messages, c, my_run,
+                            sync_throttled(self.sync_chat_messages), c, my_run,
                             expected_context=context) for c in targets]
                         for fut in as_completed(futs):
                             try:

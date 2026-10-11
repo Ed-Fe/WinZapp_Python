@@ -54,6 +54,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- Sincronizarea și completarea istoricului conversațiilor cer acum de la WhatsApp Web mesajele a cel mult două conversații odată, în loc de până la șase, ceea ce menține scăzută utilizarea procesorului și a memoriei pe calculatoarele mici și pe servere în timpul primei sincronizări, fără a o încetini vizibil. Deschiderea unei conversații, derularea în sus și resincronizarea unei conversații nu sunt încetinite.
+
 - Programul de actualizare curăță acum după el: la terminarea instalării unei actualizări șterge dosarul în care a extras-o, din dosarul temporar, iar la următoarea pornire WinZapp elimină și ce au lăsat acolo actualizările anterioare, instalările eșuate și descărcările întrerupte, ceea ce putea însuma o copie completă a fiecărei versiuni instalate.
 
 - Când deschizi sau citești o conversație în WinZapp, notificarea mesajului ei nou este eliminată din zona de notificări în loc să rămână acolo.

@@ -89,3 +89,31 @@ both aliases, then run the ordinary merge. Preserve cached records and the
 activity floor; keep the clear/read guards and the group-participant filter.
 Leave the raw snapshot's `remoteJid` intact for the later metadata passes.
 The same measured snapshot now selects an incremental activity refresh.
+
+## get-messages is throttled to two at a time in the pools (issue #379)
+
+Every get-messages is evaluated in the single WhatsApp Web page Puppeteer drives
+over one CDP connection, so firing it from six sync threads (plus the backfill's
+three) buys no speed and costs CPU and memory: a 616-chat account measured 143%
+CPU and 2.98 GB of Chromium over 3,085 calls in an hour. The requests of those
+two pools — and only those — pass through one shared gate
+(`core/api_client.py`: `SYNC_FETCH_CONCURRENCY = 2`, `sync_throttled()`), which
+is the first experiment the maintainers and the reporter agreed on, with the
+launch flags and the V8 heap cap **left out on purpose** (a 350 MB cap was once
+removed because it made the renderer run out of memory during heavy history
+loads) and no forced garbage collection.
+
+- **The pools are unchanged**: same workers, order, run-id checks, retries. A
+  worker waits at the gate for its turn and holds nothing while it waits, and
+  the holder of the gate is inside one HTTP call, so the gate cannot deadlock.
+- **Only `sync_throttled(self.sync_chat_messages)` is throttled** (the sync pool's
+  two submits and the backfill's). Opening a chat, scrolling up, the resync
+  command and the open conversation's reconciliation call `api_get` outside that
+  mark and never queue behind a background sweep. A test fails if any other code
+  submits the chat sync unwrapped.
+- **Waiting is not a fault.** A request's own `timeout` still measures its HTTP
+  call only, so a queue cannot turn into entries in `message_failures` — the one
+  mistake that holds the whole account "not synced". The wait itself is bounded
+  (`SYNC_GATE_MAX_WAIT_SECONDS`): past it the request goes out unthrottled, which
+  is what it did before.
+- To try another number, change the constant; nothing else depends on it.
