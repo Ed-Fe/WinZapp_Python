@@ -41,7 +41,9 @@ class PollDialog(wx.Dialog):
             title=i18n.t("poll_dialog_title"),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
-        self._multiple = allows_multiple(poll) is not False
+        multiple = allows_multiple(poll)
+        self._multiple = multiple is not False
+        self._loading = True
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -53,7 +55,6 @@ class PollDialog(wx.Dialog):
                   0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(question, 0, wx.EXPAND | wx.ALL, 8)
 
-        multiple = allows_multiple(poll)
         if multiple is not None:
             hint = i18n.t("poll_allows_several" if multiple else "poll_allows_one")
             sizer.Add(wx.StaticText(panel, label=hint), 0, wx.LEFT | wx.RIGHT, 8)
@@ -97,6 +98,7 @@ class PollDialog(wx.Dialog):
 
         self._checked_once = False
         self._reload(initial=True)
+        self._loading = False
         self.SetMinSize((380, 360))
         self.Fit()
         self.CentreOnParent()
@@ -126,21 +128,27 @@ class PollDialog(wx.Dialog):
         i18n = self._mw.i18n
         options = self._options()
         by_name = {opt["name"]: opt for opt in options}
-        for index, name in enumerate(self._order):
-            option = by_name.get(name)
-            if option is None:
-                continue
-            text = option_label(i18n, option)
-            if self._list.GetItemText(index) != text:
-                self._list.SetItemText(index, text)
-            percent = vote_percent(option, options)
-            self._gauges[name].SetValue(percent or 0)
-            self._gauges[name].SetName(
-                i18n.t("poll_option_percent").format(name=name, percent=percent or 0)
-                if percent is not None else name
-            )
-            if initial or (not self._checked_once and option["mine"]):
-                self._list.CheckItem(index, option["mine"])
+        self._loading = True
+        self._list.Freeze()
+        try:
+            for index, name in enumerate(self._order):
+                option = by_name.get(name)
+                if option is None:
+                    continue
+                text = option_label(i18n, option)
+                if self._list.GetItemText(index) != text:
+                    self._list.SetItemText(index, text)
+                percent = vote_percent(option, options)
+                self._gauges[name].SetValue(percent or 0)
+                self._gauges[name].SetName(
+                    i18n.t("poll_option_percent").format(name=name, percent=percent or 0)
+                    if percent is not None else name
+                )
+                if initial or (not self._checked_once and option["mine"]):
+                    self._list.CheckItem(index, option["mine"])
+        finally:
+            self._list.Thaw()
+            self._loading = False
 
     def _checked_names(self) -> list[str]:
         return [
@@ -151,6 +159,9 @@ class PollDialog(wx.Dialog):
     # ── Events ──────────────────────────────────────────────────────────────
 
     def _on_checked(self, event):
+        if self._loading:
+            event.Skip()
+            return
         self._checked_once = True
         index = event.GetIndex()
         if not self._multiple:

@@ -33,7 +33,13 @@ const modules = {
 const wpp = {loader:{loadModule:n=>modules[n]},
   chat:{getMessageById:async id=>id==='poll-id'?poll:(id==='other-id'?{id:'x',type:'chat'}:undefined)}};
 const ctx = vm.createContext({WPP:wpp});
-vm.runInContext(fs.readFileSync(process.argv[1],'utf8').replaceAll('export ',''),ctx);
+// Serialize like Puppeteer: only each function's own text reaches the page.
+const source = fs.readFileSync(process.argv[1],'utf8').replaceAll('export ','');
+vm.runInContext(source, vm.createContext({}));
+for (const name of ['readPollVotes', 'writePollVote']) {
+  const fn = new vm.Script('(' + (() => { const c = vm.createContext({}); vm.runInContext(source, c); return c[name].toString(); })() + ')').runInContext(ctx);
+  ctx[name] = fn;
+}
 (async()=>{
 """ + body + r"""
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,4 +1,5 @@
-// Self-contained: Puppeteer serializes these functions into the WhatsApp page.
+// Each exported function must be fully self-contained: Puppeteer serializes
+// only the function's own text into the WhatsApp page.
 // JavaScript syntax also lets Node tests run the exact browser functions.
 //
 // Read from WhatsApp Web's own source over CDP (WinZapp's HeadlessChrome,
@@ -12,21 +13,19 @@
 //    changes the current user's vote; an empty Set clears it.
 // Only counts and option names leave the page, never voter identities.
 
-function loadModule(name) {
-  const wpp = globalThis['WPP'];
-  const loader = wpp?.loader;
-  if (typeof loader?.loadModule === 'function') return loader.loadModule(name);
-  if (typeof loader?.moduleRequire === 'function') return loader.moduleRequire(name);
-  return undefined;
-}
-
-async function pollMessage(messageId) {
-  const wpp = globalThis['WPP'];
-  const msg = await wpp?.chat?.getMessageById?.(messageId);
-  return msg && msg.type === 'poll_creation' ? msg : undefined;
-}
-
 export async function readPollVotes({ messageIds }) {
+  // Puppeteer sends only this function's own text to the page, so the helpers
+  // live inside it (a module-level helper would be undefined there).
+  const loadModule = (name) => {
+    const loader = globalThis['WPP']?.loader;
+    if (typeof loader?.loadModule === 'function') return loader.loadModule(name);
+    if (typeof loader?.moduleRequire === 'function') return loader.moduleRequire(name);
+    return undefined;
+  };
+  const pollMessage = async (id) => {
+    const msg = await globalThis['WPP']?.chat?.getMessageById?.(id);
+    return msg && msg.type === 'poll_creation' ? msg : undefined;
+  };
   const collection = loadModule('WAWebPollsPollVoteCollection')?.PollVoteCollection;
   if (typeof collection?.getForParentAddressingModeInsensitive !== 'function') {
     throw new Error('poll_votes_unavailable');
@@ -71,6 +70,18 @@ export async function readPollVotes({ messageIds }) {
 }
 
 export async function writePollVote({ messageId, localIds }) {
+  // Puppeteer sends only this function's own text to the page, so the helpers
+  // live inside it (a module-level helper would be undefined there).
+  const loadModule = (name) => {
+    const loader = globalThis['WPP']?.loader;
+    if (typeof loader?.loadModule === 'function') return loader.loadModule(name);
+    if (typeof loader?.moduleRequire === 'function') return loader.moduleRequire(name);
+    return undefined;
+  };
+  const pollMessage = async (id) => {
+    const msg = await globalThis['WPP']?.chat?.getMessageById?.(id);
+    return msg && msg.type === 'poll_creation' ? msg : undefined;
+  };
   try {
     if (typeof messageId !== 'string' || !messageId || !Array.isArray(localIds)
         || !localIds.every((id) => Number.isInteger(id) && id >= 0)) {
