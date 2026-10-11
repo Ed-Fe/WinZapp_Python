@@ -78,7 +78,7 @@ import objc
 import wx
 from Foundation import NSBundle, NSDate, NSDefaultRunLoopMode, NSError, NSObject, NSRunLoop, NSSet, NSURL
 
-from . import coord_mac, provenance, sparkle_policy as policy, updater_mac
+from . import coord_mac, provenance, sparkle_policy as policy, update_accounts as accounts, updater_mac
 
 ARCH = updater_mac.ARCH
 FRAMEWORK = "Sparkle.framework"
@@ -197,28 +197,18 @@ def _other_accounts(mw):
         import node_coord
         # The slot claim's liveness rule: an account that rule calls gone is
         # not waited for (request_quit blocks up to 85 s per account).
-        others = [l.get("account_id") for l in node_coord.live_node_leases(
-            gd, is_alive=coord_mac.lease_alive) if not l.get("_corrupt")]
-        return sorted({a for a in others if a and a != acc_id})
+        return accounts.other_accounts(
+            acc_id, node_coord.live_node_leases(gd, is_alive=coord_mac.lease_alive))
     except Exception:
         logging.exception("[sparkle_mac] enumerating other accounts failed (non-fatal)")
         return []
 
 
 def _quit_other_accounts(mw, others):
-    """The peer walk of MainWindow.quit_all_accounts(), without exiting:
-    each account closes its WhatsApp session and confirms before the next."""
     gd = getattr(mw, "global_dir", None)
     try:
         import ipc
-        for other in others:
-            try:
-                logging.info("[sparkle_mac] asking account %s to quit before the update", other)
-                ipc.request_quit(gd, other)
-            except Exception:
-                logging.exception("[sparkle_mac] request_quit failed for %s", other)
-        if others:
-            logging.info("[sparkle_mac] other accounts asked to quit: %d", len(others))
+        accounts.quit_accounts(others, lambda other: ipc.request_quit(gd, other))
     except Exception:
         logging.exception("[sparkle_mac] quitting the other accounts failed")
 
@@ -227,53 +217,45 @@ def _claim_update_slot(mw):
     """update_coord's update slot, or None while another account still runs.
     Held, nothing else can start an account process (main.py) until it is
     released (_release_update_slot) or this process ends (a dead owner is
-    recovered). The quitting accounts drop their leases as they exit, so a
-    few attempts are allowed. Without a global dir there is no other account:
-    a placeholder slot."""
+    recovered). Without a global dir there is no other account: a placeholder
+    slot."""
     gd = getattr(mw, "global_dir", None)
     if not gd:
         return {}
     import update_coord
-    for attempt in range(SLOT_ATTEMPTS):
-        try:
-            # coord_mac's strict rule: a leaked 0.0 lease, or one whose pid is
-            # now some other program, is not an account that is still open.
-            token = update_coord.try_begin_update(gd, is_alive=coord_mac.lease_alive)
-        except Exception:
-            logging.exception("[sparkle_mac] try_begin_update failed — not updating")
-            return None
-        if token is not None:
-            return token
-        time.sleep(SLOT_WAIT)
-    return None
+    # coord_mac's strict rule: a leaked 0.0 lease, or one whose pid is now
+    # some other program, is not an account that is still open.
+    return accounts.claim_slot(
+        lambda: update_coord.try_begin_update(gd, is_alive=coord_mac.lease_alive),
+        SLOT_ATTEMPTS, SLOT_WAIT)
 
 
 def _release_update_slot():
     token, _state["slot"] = _state["slot"], None
     gd = getattr(_state["mw"], "global_dir", None)
-    if not (gd and token):
+    if not gd:
         return
     try:
         import update_coord
-        update_coord.end_update(gd, token)
+        accounts.release_slot(token, lambda t: update_coord.end_update(gd, t))
     except Exception:
         logging.exception("[sparkle_mac] end_update failed")
 
 
-def _reopen_accounts(accounts):
+def _reopen_accounts(accounts_to_open):
     """Start again, in the background, the accounts closed for an update that
     did not install (the way account_launcher starts an account)."""
-    if not accounts:
+    if not accounts_to_open:
         return
     try:
         import account_launcher
         frozen = bool(getattr(sys, "frozen", False))
-        for account in accounts:
-            logging.info("[sparkle_mac] reopening account %s", account)
-            subprocess.Popen(account_launcher.build_launch_command(
+        accounts.reopen_accounts(
+            accounts_to_open,
+            lambda account: subprocess.Popen(account_launcher.build_launch_command(
                 sys.argv[0], sys.executable, account, frozen,
-                startup_source="user", background=True))
-        _say(lambda t: t("mac_update_reopened_other_accounts"))
+                startup_source="user", background=True)),
+            lambda: _say(lambda t: t("mac_update_reopened_other_accounts")))
     except Exception:
         logging.exception("[sparkle_mac] reopening the other accounts failed")
 
@@ -286,11 +268,10 @@ def _update_abandoned():
     accounts must not start then."""
     _state["installing"] = False
     _release_update_slot()
-    accounts, _state["closed_accounts"] = _state["closed_accounts"], []
-    if _state["quitting"] or not accounts:
+    closed, _state["closed_accounts"] = _state["closed_accounts"], []
+    if _state["quitting"] or not closed:
         return
-    running = set(_other_accounts(_state["mw"]))
-    _reopen_accounts([a for a in accounts if a not in running])
+    _reopen_accounts(accounts.accounts_to_reopen(closed, _other_accounts(_state["mw"])))
 
 
 def _item(item):
@@ -346,10 +327,7 @@ def _call(reply, choice):
 # -- 1. before Sparkle shows a release --------------------------------------------
 
 def _pop_verdict(tag):
-    entry = _verdicts.pop(tag, None)
-    if entry is None or time.monotonic() - entry[0] > VERDICT_TTL:
-        return None
-    return entry[1]
+    return accounts.pop_verdict(_verdicts, tag, time.monotonic(), VERDICT_TTL)
 
 
 def _check_offer(tag, check):

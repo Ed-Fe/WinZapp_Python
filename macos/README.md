@@ -33,7 +33,7 @@ and adapts WinZapp's UI to how Mac apps and VoiceOver behave:
 | `focus_mac.py` | WinZapp's quiet-hours gate follows macOS Focus (Developer ID builds with the Communication Notifications entitlement). |
 | `coord_mac.py` | Which recorded account process is still alive: the app ships psutil (real creation times), and a lease whose pid is now another program counts as gone, so leases left by past quits no longer block updates or start-up. |
 | `updater_mac.py` | Signed release builds update from the macOS release feed named in their Info.plist; without one the updater is off. |
-| `sparkle_mac.py`, `sparkle_policy.py` | Release builds with a Sparkle key update through Sparkle 2's standard windows; the official tag is checked before Sparkle offers a release and again just before it installs (see "Updates through Sparkle"). |
+| `sparkle_mac.py`, `sparkle_policy.py`, `update_accounts.py` | Release builds with a Sparkle key update through Sparkle 2's standard windows; the official tag is checked before Sparkle offers a release and again just before it installs (see "Updates through Sparkle"). `sparkle_policy.py` and `update_accounts.py` (the other accounts, the update slot, the stored verdicts) are pure Python, tested on every platform. |
 | `version_mac.py` | A release build runs as its Info.plist release tag (About, update checks), not the unstamped `client/version.py`. |
 
 ## Building
