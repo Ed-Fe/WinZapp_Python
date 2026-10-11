@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 255 ayrı düzenlenebilir yerel atama ve bunların 273 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 265 ayrı düzenlenebilir yerel atama ve bunların 283 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -126,6 +126,16 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | seçili mesajları sabitle | Kontrol+Alt+Shift+X | messages.ID_BULK_PIN |
 | Sohbet içi | seçili mesajları kaydet | Kontrol+Alt+Shift+S | messages.ID_BULK_SAVE |
 | Sohbet içi | seçili sohbetleri sil | Kontrol+Shift+Sil | messages.ID_BULK_DELETE |
+| Sohbet içi | son mesajlardan 1. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[1] |
+| Sohbet içi | son mesajlardan 2. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[2] |
+| Sohbet içi | son mesajlardan 3. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[3] |
+| Sohbet içi | son mesajlardan 4. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[4] |
+| Sohbet içi | son mesajlardan 5. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[5] |
+| Sohbet içi | son mesajlardan 6. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[6] |
+| Sohbet içi | son mesajlardan 7. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[7] |
+| Sohbet içi | son mesajlardan 8. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[8] |
+| Sohbet içi | son mesajlardan 9. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[9] |
+| Sohbet içi | son mesajlardan onuncusunu oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[0] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (0) | Kontrol+0 | messages.ID_BOOKMARK[0] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (1) | Kontrol+1 | messages.ID_BOOKMARK[1] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (2) | Kontrol+2 | messages.ID_BOOKMARK[2] |

@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Son mesajları konumuna göre gözden geçirme: Ayarlar > Kısayollar içinde, en yeni mesajdan (1) onuncuya (0) kadar her konum için bir tane olmak üzere on yeni komut, o mesajı odağı taşımadan sesli okur; aynı tuşa hızlıca iki kez basmak mesajı kopyalar. Alt+1 ile Alt+9 ana pencereye ait olduğundan atanmış bir tuşla gelmezler: o sekmede bunları serbest bırakın ya da başka tuşlar seçin.
+
 - WPPConnect kurulum ve güncelleme hataları artık ayrıntıları okunabilen ve kopyalanabilen salt okunur bir metin alanında gösteriliyor. Ayrı olarak hazırlanan güncellemelerde yinelenen bildirimler yerine tek bir hata raporu gösteriliyor.
 
 - Topluluk duyurusu yanıtları: yanıtları okumak ve göndermek için mesaj menüsünü açıp "Topluluk duyurusunun yanıtları" seçeneğini seçin. Pencerede yanıtları yenileyebilirsiniz; gönderim doğrulanmazsa metniniz korunur. Duyurular bilinen yanıt sayısını belirtir. Yazarlar kayıtlı veya profil adlarıyla gösterilir; kendi yanıtlarınızda kendinize hitap etme ayarınız kullanılır.

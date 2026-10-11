@@ -4,6 +4,8 @@ Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, 
 
 NOVEDADES
 
+- Revisar los mensajes recientes por posición: diez nuevos comandos en Configuración > Atajos, uno por cada posición desde el mensaje más nuevo (1) hasta el décimo (0), leen ese mensaje en voz alta sin mover el foco, y pulsar la misma tecla dos veces seguidas lo copia. Vienen sin tecla asignada, ya que Alt+1 a Alt+9 pertenecen a la ventana principal: libera esas o elige otras teclas en esa pestaña.
+
 - Los errores de instalación y actualización de WPPConnect ahora aparecen en un campo de texto de solo lectura, con detalles que se pueden leer y copiar. Las actualizaciones preparadas por separado muestran un único informe de error, sin avisos duplicados.
 
 - Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. La ventana permite actualizar las respuestas y conserva tu texto si el envío no se confirma. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.

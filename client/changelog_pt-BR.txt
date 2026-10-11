@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Revisar as mensagens recentes por posição: dez novos comandos em Configurações > Atalhos, um para cada posição da mensagem mais nova (1) até a décima (0), leem aquela mensagem em voz alta sem mover o foco, e apertar a mesma tecla duas vezes rapidamente a copia. Vêm sem tecla definida, já que Alt+1 a Alt+9 pertencem à janela principal: libere essas ou escolha outras teclas nessa aba.
+
 - Erros de instalação e atualização da WPPConnect agora aparecem em um campo de texto somente leitura, com detalhes para ler e copiar. Atualizações preparadas separadamente mostram um único relatório de erro, sem avisos duplicados.
 
 - Respostas aos avisos de comunidades: abra o menu de uma mensagem e escolha "Respostas ao aviso da comunidade" para ler e enviar respostas. A janela permite atualizar as respostas e conserva o texto quando o envio não é confirmado. Os avisos anunciam a contagem conhecida de respostas. Os autores usam nomes salvos ou de perfil, e respostas próprias respeitam a configuração de como se referir a você.

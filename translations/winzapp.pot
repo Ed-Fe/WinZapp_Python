@@ -6305,6 +6305,12 @@ msgid "Only a missed call can be returned."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_accels.py
+msgctxt "review_no_message"
+msgid "There is no message at that position."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/media_files.py
 #: client/ui/conversation_panel/message_menu.py client/ui/conversations.py
 #: client/ui/dialogs/conversation_data_dialog.py client/ui/media_viewer.py
@@ -7560,6 +7566,14 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_reset_all"
 msgid "Restore all defaults"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_review_message_label"
+msgid ""
+"Read a recent message by position, counting back from the newest (1 is the "
+"newest, 0 is the tenth); pressed twice quickly it copies the message, "
+"position"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

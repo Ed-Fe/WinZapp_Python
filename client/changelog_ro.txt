@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Revizuirea mesajelor recente după poziție: zece comenzi noi în Setări > Comenzi rapide, câte una pentru fiecare poziție de la cel mai nou mesaj (1) până la al zecelea (0), citesc acel mesaj cu voce tare fără a muta focalizarea, iar apăsarea aceleiași taste de două ori repede îl copiază. Vin fără tastă atribuită, deoarece Alt+1 până la Alt+9 aparțin ferestrei principale: eliberați-le sau alegeți alte taste în acea filă.
+
 - Erorile de instalare și actualizare WPPConnect apar acum într-un câmp de text doar pentru citire, cu detalii care pot fi citite și copiate. Actualizările pregătite separat afișează un singur raport de eroare, fără notificări duplicate.
 
 - Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Fereastra poate actualiza răspunsurile și păstrează textul când trimiterea nu este confirmată. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.

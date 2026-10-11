@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Review recent messages by position: ten new commands in Settings > Shortcuts, one per position from the newest message (1) to the tenth (0), read that message aloud without moving the focus, and pressing the same key twice quickly copies it. They come with no key assigned, since Alt+1 to Alt+9 belong to the main window: free those, or pick any other keys, in that tab.
+
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 
 - Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.

@@ -5,10 +5,13 @@ the ConversationsPanel instance, so every attribute set in
 ConversationsPanel.__init__/init_UI is available here.
 """
 
+import time
+
 import pyperclip
 import wx
 from core.utils import format_number
 from main_window.message_rules import quote_is_of_my_message
+from core.message_review import is_repeated_review, recent_message_index
 
 
 def jump_to_older_message(panel, indices, found_key):
@@ -334,6 +337,34 @@ class MessageAccelsMixin:
         # and one with a stored transcription opens it instead of running —
         # the flow checks both, so the shortcut and the menu cannot disagree.
         open_or_transcribe(self, msg)
+
+    # ── Review a recent message by position (issue #462) ─────────────────────
+    # Ten commands with no default key (the Shortcuts tab gives them one): the
+    # digit is the position counting back from the newest, 1 the newest and 0
+    # the tenth. The key reads that message aloud without moving the focus;
+    # the same key again, quickly, copies it.
+
+    def _on_accel_review_message(self, digit):
+        if not self.conversation:
+            return
+        position = 10 if digit == 0 else digit
+        index = recent_message_index(self._sorted_messages, position, self._is_separator)
+        if index < 0:
+            self.main_window.output(self.main_window.i18n.t("review_no_message"), interrupt=True)
+            return
+        msg = self._sorted_messages[index]
+        msg_id = (msg.get("key") or {}).get("id", "")
+        now = time.monotonic()
+        if is_repeated_review(getattr(self, "_review_last_press", None), digit, msg_id, now):
+            self._review_last_press = None
+            self._on_menu_copy_message(msg)
+            return
+        self._review_last_press = (digit, now, msg_id)
+        self.main_window.output(
+            self._render_message_line(
+                msg, index=index, total=len(self._sorted_messages)),
+            interrupt=True,
+        )
 
     # ── Alt+Shift+N: the other half of "Enter transcribes" ──────────────────
     # One key that always does the action Enter and Space do not: with the

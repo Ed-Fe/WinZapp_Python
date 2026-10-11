@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Przeglądanie ostatnich wiadomości według pozycji: dziesięć nowych poleceń w Ustawienia > Skróty, po jednym dla każdej pozycji od najnowszej wiadomości (1) do dziesiątej (0), czyta tę wiadomość na głos bez przenoszenia fokusu, a dwukrotne szybkie naciśnięcie tego samego klawisza ją kopiuje. Nie mają przypisanego klawisza, bo Alt+1 do Alt+9 należą do okna głównego: zwolnij je albo wybierz inne klawisze na tej karcie.
+
 - Błędy instalacji i aktualizacji WPPConnect są teraz wyświetlane w polu tekstowym tylko do odczytu, ze szczegółami do przeczytania i skopiowania. Aktualizacje przygotowane osobno wyświetlają jeden raport błędu zamiast powielonych komunikatów.
 
 - Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Okno umożliwia odświeżanie odpowiedzi i zachowuje tekst, gdy wysłanie nie zostanie potwierdzone. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
