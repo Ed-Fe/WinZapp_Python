@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Erorile de instalare și actualizare WPPConnect apar acum într-un câmp de text doar pentru citire, cu detalii care pot fi citite și copiate. Actualizările pregătite separat afișează un singur raport de eroare, fără notificări duplicate.
+
 - Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Fereastra poate actualiza răspunsurile și păstrează textul când trimiterea nu este confirmată. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.
 
 - Ștergerea conținutului sau a conversațiilor poate înceta să mai ceară confirmare: ambele dialoguri au acum caseta "Nu mai afișa", care are efect doar împreună cu Da. Cu întrebarea oprită, golirea păstrează mesajele cu stea. În Setări > Interfața utilizator există cele două opțiuni corespunzătoare pentru a reactiva confirmarea.

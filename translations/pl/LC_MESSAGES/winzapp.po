@@ -2676,7 +2676,7 @@ msgstr "Wyczyść zaznaczone czaty"
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
-#: client/ui/dialogs/community_comments.py
+#: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
 #: client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
@@ -3706,6 +3706,12 @@ msgstr "Tekst błędu skopiowany."
 msgctxt "error_details"
 msgid "Error details:"
 msgstr "Szczegóły błędu:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/error_details.py
+msgctxt "error_details_label"
+msgid "Error details"
+msgstr "Szczegóły błędu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/message_events.py
@@ -13076,6 +13082,11 @@ msgstr ""
 "Nie udało się sprawdzić najnowszej wersji WPPConnect. Sprawdź połączenie z "
 "internetem i spróbuj ponownie."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_health_failed"
+msgid "The updated API did not pass the health and process identity checks."
+msgstr "Zaktualizowane API nie przeszło kontroli działania i tożsamości procesu."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/updates.py
 msgctxt "wpp_update_in_progress"
 msgid "Updating WPPConnect. Please wait."
@@ -13100,6 +13111,16 @@ msgid ""
 msgstr ""
 "Inne konto WinZapp nadal korzysta z WPPConnect Server. Zamknij pozostałe "
 "konta i spróbuj ponownie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_restore_failed"
+msgid "The previous API could not be restored or restarted."
+msgstr "Nie udało się przywrócić lub ponownie uruchomić poprzedniego API."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_start_failed"
+msgid "The updated API did not finish starting."
+msgstr "Zaktualizowane API nie zakończyło uruchamiania."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/wpp_server.py
 msgctxt "wpp_version_unpinned_warning"

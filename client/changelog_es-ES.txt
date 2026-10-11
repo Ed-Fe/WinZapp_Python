@@ -4,6 +4,8 @@ Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, 
 
 NOVEDADES
 
+- Los errores de instalación y actualización de WPPConnect ahora aparecen en un campo de texto de solo lectura, con detalles que se pueden leer y copiar. Las actualizaciones preparadas por separado muestran un único informe de error, sin avisos duplicados.
+
 - Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. La ventana permite actualizar las respuestas y conserva tu texto si el envío no se confirma. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.
 
 - Vaciar o eliminar chats puede dejar de pedir confirmación: los dos diálogos tienen ahora la casilla "No mostrar de nuevo", que solo surte efecto junto con Sí. Con la pregunta desactivada, vaciar conserva los mensajes destacados. En Configuración > Interfaz de usuario están las dos opciones correspondientes para volver a pedir confirmación.
