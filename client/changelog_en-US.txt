@@ -54,6 +54,8 @@ WHAT'S NEW
 
 FIXES
 
+- Sending a message to yourself no longer fails with "could not confirm the send" on accounts whose own address carried a device suffix.
+
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.
 
 - After the computer wakes from sleep, new messages are fetched reliably: the open conversation and recent chats are checked again even when WhatsApp's chat list looks unchanged, and updates for chats linked by a linked-device ID are no longer ignored

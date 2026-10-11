@@ -54,6 +54,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Wysyłanie wiadomości do samego siebie nie kończy się już błędem "nie udało się potwierdzić wysłania" na kontach, których własny adres zawierał sufiks urządzenia.
+
 - Gdy otworzysz lub przeczytasz czat w WinZapp, powiadomienie o jego nowej wiadomości jest usuwane z obszaru powiadomień zamiast w nim pozostawać.
 
 - Po wybudzeniu komputera z uśpienia nowe wiadomości są pobierane niezawodnie: otwarta rozmowa i ostatnie czaty są sprawdzane ponownie, nawet gdy lista czatów WhatsApp wygląda na niezmienioną, a aktualizacje czatów powiązanych przez identyfikator połączonego urządzenia nie są już pomijane

@@ -54,6 +54,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Kendinize mesaj göndermek, kendi adresi cihaz soneki taşıyan hesaplarda artık "gönderim doğrulanamadı" hatasıyla başarısız olmuyor.
+
 - WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.
 
 - Bilgisayar uykudan uyandığında yeni iletiler güvenilir biçimde alınır: WhatsApp sohbet listesi değişmemiş görünse bile açık sohbet ve son sohbetler yeniden denetlenir, bağlı cihaz kimliğiyle bağlanan sohbetlerin güncellemeleri artık yok sayılmaz

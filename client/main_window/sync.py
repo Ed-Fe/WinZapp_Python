@@ -10,6 +10,7 @@ import os
 import threading
 import time
 import wx
+from core.jid_device import strip_device_suffix
 from core.sync_lifecycle import capture_sync_context, sync_context_is_current, schedule_backfill
 from core.database_bridge import DatabaseBridge
 from core.remote_reconcile import (
@@ -514,7 +515,7 @@ class SyncMixin:
         # successful online sync relabeled it. Restoring the last known
         # values here makes the label correct immediately, offline included.
         self.my_jid = self.db.get_metadata("my_jid") or ""
-        self.my_lid = self.db.get_metadata("my_lid") or ""
+        self.my_lid = strip_device_suffix(self.db.get_metadata("my_lid") or "")
 
         # 8. locally_read_at — {jid: chat["t"] at the moment WE marked it read}.
         # mark_conversation_as_read() records it so on_chat_unread_update() and
