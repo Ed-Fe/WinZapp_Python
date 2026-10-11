@@ -587,6 +587,8 @@ class TranscriptionTabMixin:
         self._transcription_language_combo.Bind(
             wx.EVT_COMBOBOX, self._on_transcription_language_change
         )
+        # The on/off options (TranscriptionOptionsMixin).
+        self._build_transcription_options(page, sizer)
 
 
         self._transcription_models_dir_label = wx.StaticText(
@@ -1624,6 +1626,7 @@ class TranscriptionTabMixin:
             section[transcription_preferences.SETTING_LANGUAGE]
         )
         self._sync_transcription_language_controls()
+        self._load_transcription_options()
 
         self._show_transcription_cuda_status()
         self._show_whisper_cpp_status()
@@ -1766,6 +1769,7 @@ class TranscriptionTabMixin:
         section[transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE] = (
             self._transcription_detect_language_check.GetValue()
         )
+        self._apply_transcription_options()
         # Written even while detection is on: it is the language the user would
         # rather hear, which preferred_language() answers for part 6 whatever
         # the checkbox says, and losing it every time detection is ticked would
@@ -1859,6 +1863,7 @@ class TranscriptionTabMixin:
             i18n.t("transcription_models_dir_browse_btn")
         )
         self._refresh_external_labels()
+        self._refresh_transcription_options_labels()
         self._refresh_transcription_clear_cache_label()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))

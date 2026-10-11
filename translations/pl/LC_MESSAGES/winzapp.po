@@ -9557,6 +9557,7 @@ msgid "It continues in the background. You will be told when it finishes."
 msgstr "Trwa w tle. Otrzymasz powiadomienie, gdy się zakończy."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_cache_btn"
 msgid "Clear t&his model's saved transcriptions"
 msgstr "Wyczyść zapisane trans&krypcje tego modelu"
@@ -10792,6 +10793,12 @@ msgid ""
 msgstr ""
 "Sejf zablokowanych czatów został zamknięty i transkrypcja nie została "
 "wstawiona do wiadomości."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_options.py
+msgctxt "transcription_keep_loaded_check"
+msgid "&Keep the model loaded in memory (faster-whisper)"
+msgstr "&Utrzymuj model załadowany w pamięci (faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #| msgctxt "ai_provider_enabled_checkbox"

@@ -657,3 +657,23 @@ other models sit inside it under `by_model`, keyed by `backend:model`
   chat. The remaining newest result is re-dated *after* the one it replaces
   (`next_decision_time`), so a stale copy still holding the dropped text loses
   to it. Nothing left → a tombstone. Disk first, memory after, like deleting.
+
+## How long the loaded model stays (`residency.py`)
+
+faster-whisper caches the model it loaded in the backend singleton. That cache
+used to have no end: one transcription held GBs of RAM/VRAM for the rest of
+the session. `core/transcription/residency.py` now lets it go
+`IDLE_RELEASE_SECONDS` (5 min) after the last run *ended*, unless the setting
+`transcription.keep_model_loaded` (Settings > Local transcription, off by
+default) is on.
+
+- `TranscriptionJob._decode()` wraps load + transcribe in
+  `residency.using(backend)`; the clock starts when that block ends, success or
+  not, and a run that begins cancels it. The timer releases **under the manager's
+  lock**, so a run beginning can never slip between the check and the release.
+- The flag is `residency.configure(...)`d at the end of `load_settings()` and on
+  Apply (`TranscriptionOptionsMixin._apply_transcription_options`). Nothing else
+  reads the setting — the job does not.
+- whisper.cpp runs one process per transcription, so there is nothing to keep:
+  the checkbox's label says "(faster-whisper)" and the setting does nothing for it.
+- Never log anything but the fact that a model was released.

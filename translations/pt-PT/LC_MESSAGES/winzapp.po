@@ -9548,6 +9548,7 @@ msgid "It continues in the background. You will be told when it finishes."
 msgstr "Continua em segundo plano. Será avisado quando terminar."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_cache_btn"
 msgid "Clear t&his model's saved transcriptions"
 msgstr "Apagar tran&scrições guardadas deste modelo"
@@ -10737,6 +10738,12 @@ msgid ""
 msgstr ""
 "O cofre de conversas trancadas foi fechado, e a transcrição não foi inserida"
 " na mensagem."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_options.py
+msgctxt "transcription_keep_loaded_check"
+msgid "&Keep the model loaded in memory (faster-whisper)"
+msgstr "Manter o modelo carregado na memória (&faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_language_detect"

@@ -1215,7 +1215,10 @@ DEFAULT_SETTINGS = {
         # "whatever language WinZapp itself is in", kept as a sentinel so it
         # follows a later change of the interface language.
         "language": "interface",
-        "auto_detect_language": True
+        "auto_detect_language": True,
+        # Keep the loaded model in memory for good (off: released after a
+        # few idle minutes). See core/transcription/residency.py.
+        "keep_model_loaded": False
     },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old

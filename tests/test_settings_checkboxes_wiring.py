@@ -44,6 +44,7 @@ SETTINGS_DIALOG = (
 )
 
 TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
+TRANSCRIPTION_OPTIONS = SETTINGS_DIALOG.with_name("transcription_options.py")
 
 
 def _dialog_class():
@@ -56,7 +57,12 @@ def _dialog_class():
     mixin = next(
         n for n in tab.body if isinstance(n, ast.ClassDef) and n.name == "TranscriptionTabMixin"
     )
-    cls.body = cls.body + mixin.body
+    options = ast.parse(TRANSCRIPTION_OPTIONS.read_text(encoding="utf-8"))
+    options_mixin = next(
+        n for n in options.body
+        if isinstance(n, ast.ClassDef) and n.name == "TranscriptionOptionsMixin"
+    )
+    cls.body = cls.body + mixin.body + options_mixin.body
     return cls
 
 

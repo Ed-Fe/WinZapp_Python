@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- W Ustawieniach > Transkrypcja lokalna opcja "Utrzymuj model załadowany w pamięci (faster-whisper)", domyślnie wyłączona, oszczędza czekania na załadowanie modelu po każdej przerwie między transkrypcjami. Bez niej załadowany model jest zwalniany z pamięci 5 minut po ostatniej transkrypcji, oddając pamięć komputera (lub karty graficznej) innym programom. whisper.cpp uruchamia nowy proces przy każdej transkrypcji, więc opcja niczego dla niego nie zmienia.
+
 - Lokalna transkrypcja zapisana przy wiadomości jest teraz przechowywana osobno dla każdego modelu: po zmianie modelu (lub programu) w Ustawieniach wiadomość jest transkrybowana ponownie wybranym modelem, a tekst poprzedniego modelu pozostaje zapisany na wypadek powrotu do niego. W Ustawieniach > Transkrypcja lokalna przycisk "Wyczyść zapisane transkrypcje tego modelu" usuwa we wszystkich rozmowach tylko to, co przepisał wybrany model.
 
 - Przeglądanie ostatnich wiadomości według pozycji: dziesięć nowych poleceń w Ustawienia > Skróty, po jednym dla każdej pozycji od najnowszej wiadomości (1) do dziesiątej (0), czyta tę wiadomość na głos bez przenoszenia fokusu, a dwukrotne szybkie naciśnięcie tego samego klawisza ją kopiuje. Nie mają przypisanego klawisza, bo Alt+1 do Alt+9 należą do okna głównego: zwolnij je albo wybierz inne klawisze na tej karcie.

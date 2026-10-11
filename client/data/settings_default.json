@@ -127,7 +127,8 @@
         "device": "auto",
         "compute_type": "auto",
         "language": "interface",
-        "auto_detect_language": true
+        "auto_detect_language": true,
+        "keep_model_loaded": false
     },
     "files": {
         "save_dialog_folder_mode": "last",

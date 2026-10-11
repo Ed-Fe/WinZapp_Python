@@ -85,7 +85,9 @@ from core.transcription import precision, preferences
 from core.transcription import whisper_cpp_runtime
 from ui.dialogs import transcription_external, transcription_tab, transcription_whisper_cpp
 from ui.dialogs.settings_dialog import SettingsDialog
+from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
+from ui.dialogs.transcription_options import TranscriptionOptionsMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
 from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
@@ -245,7 +247,8 @@ class _MainWindow:
 
 class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin,
                 TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin,
-                TranscriptionModelMarksMixin, TranscriptionQueueMixin):
+                TranscriptionModelMarksMixin, TranscriptionQueueMixin,
+                TranscriptionCacheMixin, TranscriptionOptionsMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
     The section for models in other folders, the whisper.cpp section and the
@@ -763,11 +766,24 @@ class TestEverySettingIsReadBackAndWritten:
             "compute_type": device.COMPUTE_INT8_FLOAT16,
             "language": "fr",
             "auto_detect_language": False,
+            "keep_model_loaded": False,
         }
         tab.main_window.settings["transcription"] = dict(stored)
         tab._load_transcription_values()
         tab._apply_transcription_values()
         assert tab.main_window.settings["transcription"] == stored
+
+    def test_keeping_the_model_loaded_starts_off_and_round_trips(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_keep_loaded_check.GetValue() is False
+        tab._transcription_keep_loaded_check.SetValue(True)
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["keep_model_loaded"] is True
+        from core.transcription import residency
+        try:
+            assert residency.residency.keep_loaded is True
+        finally:
+            residency.residency.configure(False)
 
     def test_the_backend_is_offered_and_written_back(self, tab):
         """Two backends since part 9b: the picker is there, a stored choice is
@@ -1643,6 +1659,8 @@ class TestTheMnemonicsOnThisTab:
         # transcriptions: a whole sentence, so it is not one of the one-word
         # action buttons, and it keeps its letter to itself.
         "transcription_clear_cache_btn",
+        # The two on/off options of the language block.
+        "transcription_keep_loaded_check",
         "ok",
         "cancel",
         "apply",

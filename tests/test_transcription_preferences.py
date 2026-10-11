@@ -116,8 +116,14 @@ class TestTheDefaultsAreOneThing:
             if isinstance(value, str)
         ]
         assert sorted(stored_automatics) == sorted(
-            set(preferences.DEFAULTS) - {preferences.SETTING_AUTO_DETECT_LANGUAGE}
-        ), "a second setting became an exception without saying why"
+            set(preferences.DEFAULTS) - {preferences.SETTING_AUTO_DETECT_LANGUAGE,
+                                         preferences.SETTING_KEEP_MODEL_LOADED}
+        ), "a third setting became an exception without saying why"
+
+    def test_keeping_the_model_loaded_is_a_bool_and_starts_off(self):
+        """The other checkbox of the section: off by default, so a model nobody
+        asked to pin is let go after idle time (core/transcription/residency)."""
+        assert preferences.DEFAULTS[preferences.SETTING_KEEP_MODEL_LOADED] is False
 
 
 class TestEveryAutomaticResolves:
@@ -507,7 +513,7 @@ class TestSanitizingWhatIsOnDisk:
     def test_a_value_that_is_not_even_a_string_is_rewritten_too(self):
         settings = _settings(model=["tiny"], device={"a": 1}, language=3,
                              backend=None, auto_detect_language="yes please",
-                             compute_type=["int8"])
+                             compute_type=["int8"], keep_model_loaded="yes")
         assert preferences.sanitize_section(settings) is True
         assert settings[preferences.SECTION] == preferences.DEFAULTS
 

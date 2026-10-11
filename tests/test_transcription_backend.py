@@ -2254,3 +2254,44 @@ def test_the_requirements_pin_the_backend():
     for line in ("faster-whisper==", "ctranslate2==", "av==", "onnxruntime==",
                  "tokenizers==", "truststore=="):
         assert line in requirements
+
+
+class _ResidencySpy:
+    def __init__(self):
+        self.events = []
+
+    def using(self, backend):
+        spy = self
+
+        class _Use:
+            def __enter__(self_inner):
+                spy.events.append("begin")
+
+            def __exit__(self_inner, *exc_info):
+                spy.events.append("end")
+                return False
+
+        return _Use()
+
+
+class TestTheJobTellsTheResidencyManager:
+    """The idle clock of a loaded model (core/transcription/residency.py)
+    starts when the run ends, whatever way it ends."""
+
+    def test_load_and_transcribe_are_inside_one_use(self, tmp_path, own_temp_dir, monkeypatch):
+        spy = _ResidencySpy()
+        monkeypatch.setattr(job_module.residency_module, "residency", spy)
+        backend = _FakeBackend(
+            result=_result(),
+            on_load=lambda request: spy.events.append("load"),
+            on_transcribe=lambda request: spy.events.append("transcribe"),
+        )
+        _run_job(tmp_path, backend)
+        assert spy.events == ["begin", "load", "transcribe", "end"]
+
+    def test_a_failed_run_ends_the_use_too(self, tmp_path, own_temp_dir, monkeypatch):
+        spy = _ResidencySpy()
+        monkeypatch.setattr(job_module.residency_module, "residency", spy)
+        backend = _FakeBackend(error=errors.TranscriptionError(errors.BACKEND_ERROR, "x"))
+        _run_job(tmp_path, backend)
+        assert spy.events == ["begin", "end"]

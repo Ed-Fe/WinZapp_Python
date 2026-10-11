@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Em Definições > Transcrição local, a opção "Manter o modelo carregado na memória (faster-whisper)", desativada por predefinição, evita esperar pelo carregamento do modelo a cada pausa entre transcrições. Sem ela, o modelo carregado é libertado da memória 5 minutos depois da última transcrição, devolvendo a memória do computador (ou da placa gráfica) a outros programas. O whisper.cpp abre um processo novo a cada transcrição, por isso a opção não muda nada para ele.
+
 - A transcrição local guardada em cada mensagem passa a ser por modelo: ao trocar de modelo (ou de programa) nas Definições, a mensagem é transcrita de novo com o modelo escolhido, e o texto do modelo anterior continua guardado para quando voltar a ele. Em Definições > Transcrição local, o botão "Apagar transcrições guardadas deste modelo" remove, em todas as conversas, apenas o que o modelo selecionado transcreveu.
 
 - Rever as mensagens recentes por posição: dez novos comandos em Definições > Atalhos, um para cada posição da mensagem mais recente (1) até à décima (0), leem essa mensagem em voz alta sem mover o foco, e premir a mesma tecla duas vezes rapidamente copia-a. Vêm sem tecla atribuída, já que Alt+1 a Alt+9 pertencem à janela principal: liberte essas ou escolha outras teclas nesse separador.

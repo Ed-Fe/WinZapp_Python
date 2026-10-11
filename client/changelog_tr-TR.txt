@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Ayarlar > Yerel yazıya döküm bölümündeki, varsayılan olarak kapalı "Modeli bellekte yüklü tut (faster-whisper)" seçeneği, yazıya dökümler arasındaki her aradan sonra modelin yüklenmesini beklemenizi önler. Seçenek kapalıyken yüklü model, son yazıya dökümden 5 dakika sonra bellekten bırakılır ve bilgisayarın (veya ekran kartının) belleği diğer programlara geri verilir. whisper.cpp her yazıya dökümde yeni bir işlem başlattığı için seçenek onun için hiçbir şeyi değiştirmez.
+
 - Her mesajla birlikte kaydedilen yerel döküm artık modele göre tutuluyor: Ayarlar'da modeli (veya programı) değiştirdiğinizde mesaj seçtiğiniz modelle yeniden yazıya dökülür, önceki modelin metni ise ona geri döndüğünüzde kullanılmak üzere saklı kalır. Ayarlar > Yerel yazıya döküm bölümündeki "Bu modelin kayıtlı dökümlerini sil" düğmesi, tüm sohbetlerde yalnızca seçili modelin yazdığı dökümleri siler.
 
 - Son mesajları konumuna göre gözden geçirme: Ayarlar > Kısayollar içinde, en yeni mesajdan (1) onuncuya (0) kadar her konum için bir tane olmak üzere on yeni komut, o mesajı odağı taşımadan sesli okur; aynı tuşa hızlıca iki kez basmak mesajı kopyalar. Alt+1 ile Alt+9 ana pencereye ait olduğundan atanmış bir tuşla gelmezler: o sekmede bunları serbest bırakın ya da başka tuşlar seçin.

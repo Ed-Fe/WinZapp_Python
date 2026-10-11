@@ -9540,6 +9540,7 @@ msgid "It continues in the background. You will be told when it finishes."
 msgstr "Continuă în fundal. Veți fi anunțat când se termină."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_cache_btn"
 msgid "Clear t&his model's saved transcriptions"
 msgstr "Ștergeți &transcrierile salvate ale acestui model"
@@ -10731,6 +10732,12 @@ msgid ""
 msgstr ""
 "Seiful conversațiilor blocate a fost închis, iar transcrierea nu a fost "
 "inserată în mesaj."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_options.py
+msgctxt "transcription_keep_loaded_check"
+msgid "&Keep the model loaded in memory (faster-whisper)"
+msgstr "Pă&strați modelul încărcat în memorie (faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_language_detect"

@@ -486,6 +486,10 @@ class SettingsMixin:
         ):
             self.save_settings()
         self._apply_global_settings()
+        # How long a loaded transcription model stays in memory
+        # (core/transcription/residency.py); the Settings dialog re-applies it.
+        from core.transcription import residency
+        residency.residency.configure(residency.keep_loaded_from_settings(self.settings))
 
     def _apply_global_settings(self):
         """Overlay install-wide settings from global/app.json onto self.settings
