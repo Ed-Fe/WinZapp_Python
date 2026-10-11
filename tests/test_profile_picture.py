@@ -159,3 +159,17 @@ class TestSavePicture:
         a = pp.save_picture(str(tmp_path), "x@g.us", JPEG)
         b = pp.save_picture(str(tmp_path), "x@g.us", JPEG)
         assert a == b
+
+    def test_a_copy_held_open_elsewhere_gets_a_new_name(self, tmp_path, monkeypatch):
+        held = pp.save_picture(str(tmp_path), "x@g.us", JPEG)
+        real_open = open
+
+        def fake_open(path, mode="r", *a, **k):
+            if path == held and "w" in mode:
+                raise PermissionError("locked by the viewer")
+            return real_open(path, mode, *a, **k)
+        monkeypatch.setattr("builtins.open", fake_open)
+        other = pp.save_picture(str(tmp_path), "x@g.us", PNG)
+        assert other != held
+        with real_open(other, "rb") as fh:
+            assert fh.read() == PNG

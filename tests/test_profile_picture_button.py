@@ -120,6 +120,19 @@ def test_a_known_lid_is_asked_by_its_phone(monkeypatch, tmp_path):
     assert calls["fetch"] == [("http://127.0.0.1:6300", "tok", "5511999990000@s.whatsapp.net")]
 
 
+def test_a_lid_chat_falls_back_to_the_url_stored_under_its_phone(monkeypatch, tmp_path):
+    calls = _patch(monkeypatch, None, tmp_path)
+    fallbacks = []
+    monkeypatch.setattr(
+        ppd.profile_picture, "fetch_profile_picture",
+        lambda base, token, jid, api_get, http_get, fallback="": fallbacks.append(fallback))
+    mw = _MainWindow()
+    mw.contacts = {"5511999990000@s.whatsapp.net": {"profilePicUrl": "https://cdn/p"}}
+    ppd.show_profile_picture(_Parent(), mw, "9@lid", "Ana")
+    _drain()
+    assert fallbacks == ["https://cdn/p"]
+
+
 def test_a_second_press_while_loading_is_ignored(monkeypatch, tmp_path):
     calls = _patch(monkeypatch, None, tmp_path)
     parent, mw = _Parent(), _MainWindow()

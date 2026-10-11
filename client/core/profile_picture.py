@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 from urllib.parse import quote
 
 # The record's keys in the order they are worth trying: the full-size picture
@@ -135,6 +136,13 @@ def save_picture(folder: str, jid: str, data: bytes) -> str:
     """Write the picture under `folder` and return its path."""
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, picture_file_name(jid, picture_extension(data)))
-    with open(path, "wb") as fh:
-        fh.write(data)
+    try:
+        with open(path, "wb") as fh:
+            fh.write(data)
+    except PermissionError:
+        # An external viewer still holds the previous copy open.
+        root, ext = os.path.splitext(path)
+        path = f"{root}_{time.time_ns()}{ext}"
+        with open(path, "wb") as fh:
+            fh.write(data)
     return path

@@ -26,7 +26,11 @@ _MAX_SHOWN = 480
 def open_in_default_app(path: str) -> None:
     """Open `path` in the program Windows associates with its type."""
     if sys.platform == "win32":
-        os.startfile(path)
+        try:
+            os.startfile(path)
+        except OSError:
+            # No program is set for this type: let Windows ask which one.
+            os.startfile(path, "openas")
     elif sys.platform == "darwin":
         subprocess.Popen(["open", path])
     else:
@@ -50,8 +54,10 @@ def show_profile_picture(parent, main_window, jid: str, name: str, button=None) 
     token = main_window.token
     query_jid = profile_picture.query_jid(
         jid, getattr(main_window, "_lid_to_phone", None))
-    fallback = profile_picture.stored_picture_url(
-        getattr(main_window, "contacts", None), jid)
+    contacts = getattr(main_window, "contacts", None)
+    # An @lid chat's contact entry may be keyed by its phone instead.
+    fallback = (profile_picture.stored_picture_url(contacts, jid)
+                or profile_picture.stored_picture_url(contacts, query_jid))
 
     def _work():
         path = ""
@@ -107,7 +113,10 @@ class ProfilePictureDialog(wx.Dialog):
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        image = wx.Image(path)
+        # LogNull: a file wx cannot decode would otherwise pop up wx's own
+        # error box before this dialog; IsOk() below already covers it.
+        with wx.LogNull():
+            image = wx.Image(path)
         if image.IsOk():
             w, h = image.GetWidth(), image.GetHeight()
             ratio = min(1.0, _MAX_SHOWN / max(w, h, 1))
