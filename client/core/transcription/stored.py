@@ -178,17 +178,227 @@ def next_decision_time(now, *previous):
     return at
 
 
-def saved_transcription(msg):
-    """The transcription stored on `msg`, or None — a tombstone is None too."""
+# ── One transcription per model ──────────────────────────────────────────────
+#
+# The text a model produced is that model's, not the message's: after a change
+# of model the stored one answers a question nobody is asking any more. So a
+# record belongs to the model that made it (`model_id` + `backend`), and what a
+# message offers is the record of the model the user has selected *now*.
+#
+# Results of the models that are not current are kept inside the same record,
+# under BY_MODEL_KEY, one per model — so that going back to a model brings its
+# text back without another run, and so that the whole thing is still ONE value
+# under TRANSCRIPTION_KEY with ONE decision time: every rule above (which copy
+# wins, tombstones, merges, the database write) keeps working unchanged. The
+# outer fields are always the newest result.
+#
+# "auto" (the default) does not name a model, so under it nothing changes: the
+# newest result is the one offered, exactly as before.
+
+#: The results of the models that are not the outer record's, by model key.
+BY_MODEL_KEY = "by_model"
+#: When the text was made, once `at` has become the time of a later decision
+#: (clearing another model's cache promotes a record that is older than that).
+MADE_AT_KEY = "made_at"
+_AUTO = "auto"
+
+
+def selection_from_settings(settings):
+    """(backend, model) the user has selected, "auto" where they chose none.
+
+    From `settings["transcription"]`, tolerant of anything: a settings file
+    from before the feature, or a section that is not a dict, reads as
+    ("auto", "auto") — the selection under which every stored text is offered.
+    """
+    section = settings.get("transcription") if isinstance(settings, dict) else None
+    if not isinstance(section, dict):
+        return (_AUTO, _AUTO)
+
+    def pick(name):
+        value = section.get(name, _AUTO)
+        return value if isinstance(value, str) and value else _AUTO
+
+    return (pick("backend"), pick("model"))
+
+
+def model_key(backend, model_id) -> str:
+    """The key a result is kept under: "backend:model", or "" when unknown."""
+    if not model_id:
+        return ""
+    return f"{backend or ''}:{model_id}"
+
+
+def record_model_key(record) -> str:
+    if not isinstance(record, dict):
+        return ""
+    return model_key(record.get("backend"), record.get("model_id"))
+
+
+def _has_text(record) -> bool:
+    text = record.get("text") if isinstance(record, dict) else None
+    return isinstance(text, str) and bool(text.strip())
+
+
+def _core(value) -> dict:
+    """The outer record without the other models' results."""
+    return {k: v for k, v in value.items() if k != BY_MODEL_KEY}
+
+
+def results_of(value) -> list:
+    """Every result held under a stored transcription, the outer one first.
+
+    Each is a plain record (no nesting) with its own `at`. Blank texts and
+    junk are left out; a tombstone or a non-record has none.
+    """
+    if decision_time(value) is None or value.get("deleted"):
+        return []
+    found = []
+    if _has_text(value):
+        found.append(_core(value))
+    others = value.get(BY_MODEL_KEY)
+    if isinstance(others, dict):
+        for record in others.values():
+            if isinstance(record, dict) and _has_text(record):
+                found.append(record)
+    return found
+
+
+def matches_selection(record, selection) -> bool:
+    """Whether `record` was made by the selected backend and model.
+
+    "auto" on either side matches anything: it names no model to differ from.
+    """
+    backend, model = selection if selection else (_AUTO, _AUTO)
+    if model != _AUTO and record.get("model_id") != model:
+        return False
+    if backend != _AUTO and record.get("backend") != backend:
+        return False
+    return True
+
+
+def saved_transcription(msg, selection=None):
+    """The transcription stored on `msg` that the selection allows, or None.
+
+    Without a selection (or under "auto" for both) that is the newest result —
+    the outer record — as it always was. With a model selected it is that
+    model's result, wherever it is held, and None when only other models have
+    one: the message then has nothing stored as far as this model is concerned.
+    A tombstone is None too.
+    """
     if not isinstance(msg, dict):
         return None
     value = msg.get(TRANSCRIPTION_KEY)
     if decision_time(value) is None or value.get("deleted"):
         return None
-    text = value.get("text")
-    if not isinstance(text, str) or not text.strip():
+    if selection is None or tuple(selection) == (_AUTO, _AUTO):
+        return value if _has_text(value) else None
+    # The newest first, and as the outer record itself (not a copy) so that a
+    # caller that keeps the value it was handed keeps the other models' results.
+    if _has_text(value) and matches_selection(value, selection):
+        return value
+    others = value.get(BY_MODEL_KEY)
+    if isinstance(others, dict):
+        for record in others.values():
+            if _has_text(record) and matches_selection(record, selection):
+                return record
+    return None
+
+
+def with_result(previous, record) -> dict:
+    """`record` as the new outer result, keeping `previous` models' results.
+
+    What a new transcription is stored as: it becomes the newest, and the
+    result that was the newest — together with the ones it held — stays under
+    BY_MODEL_KEY unless `record` is from the same model, which replaces it.
+    """
+    record = _core(record)
+    mine = record_model_key(record)
+    kept = {}
+    for old in results_of(previous):
+        key = record_model_key(old)
+        if key and key != mine:
+            kept[key] = old
+    if kept:
+        record[BY_MODEL_KEY] = kept
+    return record
+
+
+def drop_model(value, model_id, backend_id, decided_at):
+    """`value` without the results of one model: (new value, how many dropped).
+
+    `backend_id` None drops that model id under every backend. The newest of
+    what is left becomes the outer record, dated `decided_at` — a decision later
+    than the one it replaces, which is what lets it beat a stale copy still
+    holding the dropped text — with `made_at` keeping the date its text was
+    made. When nothing is left the value is a tombstone at `decided_at`. A
+    value with nothing of that model comes back unchanged (count 0).
+    """
+    results = results_of(value)
+
+    def is_dropped(record):
+        return (record.get("model_id") == model_id
+                and (backend_id is None or record.get("backend") == backend_id))
+
+    dropped = sum(1 for record in results if is_dropped(record))
+    if not dropped:
+        return value, 0
+    remaining = [record for record in results if not is_dropped(record)]
+    if not remaining:
+        return tombstone(decided_at), dropped
+    newest = max(remaining, key=lambda record: decision_time(record) or 0.0)
+    kept = {record_model_key(record): record for record in remaining
+            if record is not newest and record_model_key(record)}
+    promoted = dict(newest, at=float(decided_at))
+    promoted.setdefault(MADE_AT_KEY, newest.get("at"))
+    if kept:
+        promoted[BY_MODEL_KEY] = kept
+    return promoted, dropped
+
+
+def drop_model_on_copies(copies, model_id, backend_id, decided_at):
+    """`drop_model()` on every record of `copies` holding a transcription.
+
+    Returns the ids of the messages that changed, in first-seen order. Each
+    distinct dict is visited once; copies of one message end up agreeing
+    because they start from the same stored value and share `decided_at`.
+    """
+    changed, seen_dicts = [], set()
+    for record in copies or ():
+        if not isinstance(record, dict) or id(record) in seen_dicts:
+            continue
+        seen_dicts.add(id(record))
+        value = record.get(TRANSCRIPTION_KEY)
+        if not isinstance(value, dict):
+            continue
+        # Dated like the database dates it (clear_model_transcriptions()):
+        # after this copy's own decision, whatever the clock says.
+        new_value, dropped = drop_model(
+            value, model_id, backend_id, next_decision_time(decided_at, value))
+        if not dropped:
+            continue
+        record[TRANSCRIPTION_KEY] = new_value
+        msg_id = (record.get("key") or {}).get("id", "")
+        if msg_id and msg_id not in changed:
+            changed.append(msg_id)
+    return changed
+
+
+def clear_cache_message_key(count) -> str:
+    """The i18n key saying how clearing a model's saved transcriptions ended:
+    `count` is how many results went, None when the database failed."""
+    if count is None:
+        return "transcription_clear_cache_failed"
+    return "transcription_clear_cache_done" if count else "transcription_clear_cache_none"
+
+
+def made_time(value):
+    """When the text of `value` was made — not when it was last decided about."""
+    if not isinstance(value, dict):
         return None
-    return value
+    made = value.get(MADE_AT_KEY)
+    if isinstance(made, (int, float)) and not isinstance(made, bool):
+        return float(made)
+    return decision_time(value)
 
 
 def is_inline(value) -> bool:
@@ -196,7 +406,7 @@ def is_inline(value) -> bool:
     return isinstance(value, dict) and value.get("inline") is True
 
 
-def inline_row_text(msg) -> str:
+def inline_row_text(msg, selection=None) -> str:
     """The text the message's row carries after its duration, or "".
 
     One line: a row of the list has no line breaks, and a transcription has
@@ -204,7 +414,7 @@ def inline_row_text(msg) -> str:
     shows here — one opened in the result window leaves the row as short as it
     was, which is the long-standing choice for rows that are read on every pass.
     """
-    value = saved_transcription(msg)
+    value = saved_transcription(msg, selection)
     if value is None or not is_inline(value):
         return ""
     return " ".join(value["text"].split())

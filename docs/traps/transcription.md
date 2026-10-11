@@ -633,3 +633,27 @@ which one the key does *today* (`transcribe_inline_menu` / `play_voice_message_m
   and Alt+L ("Ler mais") reads the rest — `_update_read_more_button()` includes
   voice notes that carry an inline transcription.
 - The voice-filter warning is spoken after the text, as for the window.
+
+## One stored transcription per model
+
+A saved transcription belongs to the model that made it: the stored value is
+still **one** dict under `_transcription` with **one** decision time (every rule
+under *Persistence* — newer decision wins, tombstones, the two defences — is
+unchanged), but the outer fields are the newest result and the results of the
+other models sit inside it under `by_model`, keyed by `backend:model`
+(`stored.with_result`, `results_of`).
+
+- What a message offers is the result of the model selected **now**
+  (`stored.selection_from_settings`, `saved_transcription(msg, selection)`);
+  another model's text is not shown, so a change of model asks for a new run,
+  and going back to the first brings its text back with no run. `auto`
+  (the default) names no model and keeps the old behaviour: the newest result.
+- Never read `_transcription["text"]` directly: go through `saved_transcription`
+  / `inline_row_text` with the selection, or the row shows the wrong model's text.
+- **Clearing a model** (Settings > Local transcription, the button under the
+  model group) is `DatabaseManager.clear_model_transcriptions` — a chunked
+  scan that takes `_write_lock` once per chunk, never for the whole database —
+  followed by `stored.drop_model_on_copies` on every in-memory copy of every
+  chat. The remaining newest result is re-dated *after* the one it replaces
+  (`next_decision_time`), so a stale copy still holding the dropped text loses
+  to it. Nothing left → a tombstone. Disk first, memory after, like deleting.

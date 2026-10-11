@@ -6723,7 +6723,9 @@ msgid "ctrl+comma"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr ""
@@ -8936,6 +8938,36 @@ msgstr ""
 #: client/main_window/transcription_background.py
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_btn"
+msgid "Clear t&his model's saved transcriptions"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+#, python-brace-format
+msgctxt "transcription_clear_cache_confirm"
+msgid ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_clear_cache_done"
+msgid "Saved transcriptions deleted: {count}."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_failed"
+msgid "The saved transcriptions could not be deleted."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_none"
+msgid "No saved transcription from this model was found."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

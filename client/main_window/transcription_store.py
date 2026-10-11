@@ -250,3 +250,63 @@ class TranscriptionStoreMixin:
             wx.CallAfter(_finish, ok)
 
         self._transcription_write_queue.submit(_bg_delete)
+
+    def _all_transcription_copies(self) -> list:
+        """Every in-memory dict that may hold a stored transcription, in any chat."""
+        copies = []
+        for chat in list((getattr(self, "chats", None) or {}).values()):
+            if not isinstance(chat, dict):
+                continue
+            copies.extend(((chat.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.append(chat.get("lastMessage"))
+        cp = getattr(self, "conversations_panel", None)
+        conversation = getattr(cp, "conversation", None)
+        if isinstance(conversation, dict):
+            copies.extend(((conversation.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.extend(getattr(cp, "_all_sorted_messages", None) or [])
+            copies.extend(getattr(cp, "_sorted_messages", None) or [])
+        return copies
+
+    def clear_model_transcriptions(self, model_id: str, backend_id, on_done) -> None:
+        """Delete every saved transcription made by one model, in every chat;
+        call *on_done(count)* on the UI thread once the database has answered
+        (count is None when it failed).
+
+        The database first and memory after, like delete_message_transcription():
+        "cleared" must be true of the disk. Queued behind any save still waiting
+        for the database, on the same single-thread queue. Memory is then
+        updated on every copy of every chat, and the open conversation repaints
+        the rows that changed.
+        """
+        db = getattr(self, "db", None)
+        decided_at = time.time()
+
+        def _finish(count):
+            if count is None:
+                on_done(None)
+                return
+            changed = stored_transcription.drop_model_on_copies(
+                self._all_transcription_copies(), model_id, backend_id, decided_at)
+            if changed:
+                # No save: the database already holds the cleared state.
+                cp = getattr(self, "conversations_panel", None)
+                repaint = getattr(cp, "_repaint_or_repopulate", None)
+                if callable(repaint) and getattr(cp, "conversation", None):
+                    try:
+                        repaint(changed)
+                    except Exception as exc:
+                        logging.warning("[transcription] repainting after clearing a model failed: %s",
+                                        type(exc).__name__)
+            on_done(count)
+
+        def _bg_clear():
+            count = None
+            if db is not None:
+                try:
+                    count = db.clear_model_transcriptions(model_id, backend_id, decided_at)
+                except Exception as exc:
+                    logging.warning("[transcription] clearing a model's transcriptions failed: %s",
+                                    type(exc).__name__)
+            wx.CallAfter(_finish, count)
+
+        self._transcription_write_queue.submit(_bg_clear)

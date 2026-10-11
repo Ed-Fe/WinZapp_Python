@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- A transcrição local guardada em cada mensagem agora é por modelo: ao trocar de modelo (ou de programa) nas Configurações, a mensagem é transcrita de novo com o modelo escolhido, e o texto do modelo anterior continua guardado para quando você voltar a ele. Em Configurações > Transcrição local, o botão "Apagar transcrições salvas deste modelo" remove, em todas as conversas, só o que o modelo selecionado transcreveu.
+
 - Revisar as mensagens recentes por posição: dez novos comandos em Configurações > Atalhos, um para cada posição da mensagem mais nova (1) até a décima (0), leem aquela mensagem em voz alta sem mover o foco, e apertar a mesma tecla duas vezes rapidamente a copia. Vêm sem tecla definida, já que Alt+1 a Alt+9 pertencem à janela principal: libere essas ou escolha outras teclas nessa aba.
 
 - Erros de instalação e atualização da WPPConnect agora aparecem em um campo de texto somente leitura, com detalhes para ler e copiar. Atualizações preparadas separadamente mostram um único relatório de erro, sem avisos duplicados.

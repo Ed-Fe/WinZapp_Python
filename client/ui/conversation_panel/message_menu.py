@@ -403,7 +403,9 @@ class MessageMenuMixin:
                 lambda e, m=msg: self._on_menu_toggle_voice_action(m),
                 toggle_item,
             )
-            if stored_transcription.saved_transcription(msg) is not None:
+            if stored_transcription.saved_transcription(
+                    msg, stored_transcription.selection_from_settings(
+                        self.main_window.settings)) is not None:
                 view_item = menu.Append(
                     wx.ID_ANY, f"{i18n.t('transcription_view')}\tAlt+Shift+T"
                 )

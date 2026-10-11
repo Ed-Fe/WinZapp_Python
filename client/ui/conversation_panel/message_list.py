@@ -563,7 +563,9 @@ class MessageListMixin:
                 # was put in its line (stored_transcription.inline_row_text).
                 if msg_type in ("conversation", "extendedTextMessage", "") or (
                         msg_type == "audioMessage"
-                        and stored_transcription.inline_row_text(msg)):
+                        and stored_transcription.inline_row_text(
+                            msg, stored_transcription.selection_from_settings(
+                                getattr(self.main_window, "settings", None)))):
                     rendered = self._render_message_line(msg)
                     if len(rendered) > self._LIST_CTRL_TEXT_LIMIT:
                         self._read_more_remainder = rendered[self._LIST_CTRL_TEXT_LIMIT:]

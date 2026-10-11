@@ -406,7 +406,9 @@ def saved_announcement(i18n, value, external_references=()) -> management.Announ
     date is not a warning — putting it there would make that pointer fire on
     every reopening and teach the user to ignore it.
     """
-    when = saved_when(i18n, stored_transcription.decision_time(value))
+    # When the text was made, not when it was last decided about (clearing
+    # another model's results promotes this one at a later decision time).
+    when = saved_when(i18n, stored_transcription.made_time(value))
     # A custom model is named by its folder, and by nothing once its
     # reference was forgotten: the raw `external:<id>` is not a name.
     model = model_names.display_name(
@@ -462,6 +464,10 @@ class MessageTranscriptionFlow:
 
     def __init__(self, panel, msg, inline=False):
         self._panel = panel
+        #: (backend, model) selected now: a stored transcription counts only if
+        #: that model made it (stored.saved_transcription()).
+        self._selection = stored_transcription.selection_from_settings(
+            getattr(panel.main_window, "settings", None))
         #: Whether the text goes into the message's own line of the list
         #: instead of a result window (Alt+Shift+N, or Enter set to transcribe).
         self._inline = bool(inline)
@@ -804,17 +810,17 @@ class MessageTranscriptionFlow:
         still be the later decision (`stored_transcription.next_decision_time`).
         """
         previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY) if isinstance(self._msg, dict) else None
-        value = stored_transcription.record_from_result(
+        value = stored_transcription.with_result(previous, stored_transcription.record_from_result(
             result, stored_transcription.next_decision_time(time.time(), previous),
             # A message that already shows its text in the line keeps showing
             # it when the window runs the transcription again.
             inline=self._inline or stored_transcription.is_inline(previous),
-        )
+        ))
         return self._main_window.store_message_transcription(self._jid, self._msg_id, value)
 
     def show_saved(self):
         """Open the stored transcription — no model, no wait, same window."""
-        value = stored_transcription.saved_transcription(self._msg)
+        value = stored_transcription.saved_transcription(self._msg, self._selection)
         if value is None:
             # Nothing stored after all (deleted from another copy between the
             # menu opening and the click): the ordinary path, which is what the
@@ -953,14 +959,16 @@ class MessageTranscriptionFlow:
         aloud, exactly as a fresh one would be; the model, the date and the
         caveats stay in the window (Alt+Shift+T), as before.
         """
-        value = stored_transcription.saved_transcription(self._msg)
+        value = stored_transcription.saved_transcription(self._msg, self._selection)
         if value is None:
             self.start()
             return
         if not stored_transcription.is_inline(value):
-            previous = value
-            marked = dict(value, inline=True, at=stored_transcription.next_decision_time(
+            previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY)
+            chosen = dict(value, inline=True, at=stored_transcription.next_decision_time(
                 time.time(), previous))
+            # The chosen model's result becomes the newest, the others stay.
+            marked = stored_transcription.with_result(previous, chosen)
             if self._main_window.store_message_transcription(
                     self._jid, self._msg_id, marked) != stored_transcription.SAVE_STORED:
                 # Nowhere to keep the mark: open the window, where the text can
@@ -1077,7 +1085,7 @@ def open_or_transcribe(panel, msg):
     of work to produce what is already there — and a run otherwise.
     """
     flow = MessageTranscriptionFlow(panel, msg)
-    if stored_transcription.saved_transcription(msg) is not None:
+    if stored_transcription.saved_transcription(msg, flow._selection) is not None:
         flow.show_saved()
     else:
         flow.start()
@@ -1090,7 +1098,7 @@ def transcribe_inline(panel, msg):
     window opens. A transcription already stored is used instead of a run.
     """
     flow = MessageTranscriptionFlow(panel, msg, inline=True)
-    if stored_transcription.saved_transcription(msg) is not None:
+    if stored_transcription.saved_transcription(msg, flow._selection) is not None:
         flow.inline_saved()
     else:
         flow.start()

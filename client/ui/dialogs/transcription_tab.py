@@ -534,6 +534,7 @@ class TranscriptionTabMixin:
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
             _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
         )
+        self._build_transcription_clear_cache_button(page, sizer)
         # Models the user already has in other folders: right after the ways
         # to get one into the picker, and before the device it will run on.
         self._build_external_models_group(page, sizer)
@@ -1099,6 +1100,7 @@ class TranscriptionTabMixin:
         if (download is not None and not self._transcription_job_running
                 and self._transcription_queue_to_download()):
             download.Enable(True)
+        self._sync_transcription_clear_cache_button()
         self._sync_whisper_cpp_buttons()
 
     def _set_transcription_job_running(self, running):
@@ -1857,6 +1859,7 @@ class TranscriptionTabMixin:
             i18n.t("transcription_models_dir_browse_btn")
         )
         self._refresh_external_labels()
+        self._refresh_transcription_clear_cache_label()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()

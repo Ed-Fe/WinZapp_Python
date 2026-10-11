@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- The local transcription saved with each message is now kept per model: when you change the model (or the program) in Settings, the message is transcribed again with the one you chose, and the earlier model's text stays saved for when you go back to it. In Settings > Local transcription, the button "Clear this model's saved transcriptions" removes, in every chat, only what the selected model transcribed.
+
 - Review recent messages by position: ten new commands in Settings > Shortcuts, one per position from the newest message (1) to the tenth (0), read that message aloud without moving the focus, and pressing the same key twice quickly copies it. They come with no key assigned, since Alt+1 to Alt+9 belong to the main window: free those, or pick any other keys, in that tab.
 
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.

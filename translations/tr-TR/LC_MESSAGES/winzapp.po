@@ -7122,7 +7122,9 @@ msgid "ctrl+comma"
 msgstr "ctrl+virgül"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Ayarlar"
@@ -8013,7 +8015,9 @@ msgid ""
 "Read a recent message by position, counting back from the newest (1 is the "
 "newest, 0 is the tenth); pressed twice quickly it copies the message, "
 "position"
-msgstr "Yakın zamanlı bir mesajı konumuna göre oku, en yeniden geriye sayarak (1 en yeni, 0 onuncu); hızlıca iki kez basılırsa mesajı kopyalar, konum"
+msgstr ""
+"Yakın zamanlı bir mesajı konumuna göre oku, en yeniden geriye sayarak (1 en "
+"yeni, 0 onuncu); hızlıca iki kez basılırsa mesajı kopyalar, konum"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_scope_global"
@@ -9438,6 +9442,38 @@ msgstr "Arka &plan indirmesini iptal et"
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
 msgstr "Arka planda devam ediyor. Bittiğinde size haber verilecek."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_btn"
+msgid "Clear t&his model's saved transcriptions"
+msgstr "Bu mod&elin kayıtlı dökümlerini sil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+#, python-brace-format
+msgctxt "transcription_clear_cache_confirm"
+msgid ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+msgstr ""
+"{model} modelinin yaptığı tüm kayıtlı dökümler, tüm sohbetlerde silinsin mi?"
+" Diğer modellerin dökümleri korunur ve bu işlem geri alınamaz."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_clear_cache_done"
+msgid "Saved transcriptions deleted: {count}."
+msgstr "Silinen kayıtlı dökümler: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_failed"
+msgid "The saved transcriptions could not be deleted."
+msgstr "Kayıtlı dökümler silinemedi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_none"
+msgid "No saved transcription from this model was found."
+msgstr "Bu modele ait kayıtlı döküm bulunamadı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"

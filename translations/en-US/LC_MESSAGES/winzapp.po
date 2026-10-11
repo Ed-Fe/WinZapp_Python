@@ -7105,7 +7105,9 @@ msgid "ctrl+comma"
 msgstr "ctrl+comma"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Settings"
@@ -9420,6 +9422,38 @@ msgstr "Ca&ncel download in the background"
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
 msgstr "It continues in the background. You will be told when it finishes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_btn"
+msgid "Clear t&his model's saved transcriptions"
+msgstr "Clear t&his model's saved transcriptions"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+#, python-brace-format
+msgctxt "transcription_clear_cache_confirm"
+msgid ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+msgstr ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_clear_cache_done"
+msgid "Saved transcriptions deleted: {count}."
+msgstr "Saved transcriptions deleted: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_failed"
+msgid "The saved transcriptions could not be deleted."
+msgstr "The saved transcriptions could not be deleted."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_none"
+msgid "No saved transcription from this model was found."
+msgstr "No saved transcription from this model was found."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"

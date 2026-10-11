@@ -1639,6 +1639,10 @@ class TestTheMnemonicsOnThisTab:
         # button is off, so it may share a letter with those; it may not take
         # a labelled control's.
         "transcription_background_cancel_btn",
+        # The button under the model's group that deletes its saved
+        # transcriptions: a whole sentence, so it is not one of the one-word
+        # action buttons, and it keeps its letter to itself.
+        "transcription_clear_cache_btn",
         "ok",
         "cancel",
         "apply",

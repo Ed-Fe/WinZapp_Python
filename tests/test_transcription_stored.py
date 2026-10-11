@@ -1028,6 +1028,8 @@ class _RecordingDb:
         self.values = []
         self.fail = False
         self.fail_insert = False
+        #: What clear_model_transcriptions() answers.
+        self.cleared = 0
         #: The (jid, id) rows that exist; None means every row does.
         self.rows = None
 
@@ -1044,6 +1046,12 @@ class _RecordingDb:
         if self.fail:
             raise TimeoutError("busy")
         return any(self.has_row(jid, msg_id) for jid in jids)
+
+    def clear_model_transcriptions(self, model_id, backend_id, decided_at):
+        self.calls.append(("clear", model_id, backend_id))
+        if self.fail:
+            raise TimeoutError("busy")
+        return self.cleared
 
     def insert_message(self, jid, msg):
         self.calls.append(("insert", jid, (msg.get("key") or {}).get("id")))
@@ -1095,6 +1103,8 @@ class _Window:
     _say_transcription_not_stored = MainWindow._say_transcription_not_stored
     store_message_transcription = MainWindow.store_message_transcription
     delete_message_transcription = MainWindow.delete_message_transcription
+    _all_transcription_copies = MainWindow._all_transcription_copies
+    clear_model_transcriptions = MainWindow.clear_model_transcriptions
 
     def _schedule_save(self, dirty_jid=None, contacts_dirty=False):
         self.saves.append(dirty_jid)
@@ -1625,3 +1635,51 @@ async def test_the_merge_logs_neither_the_text_nor_the_id(in_memory_db, caplog):
     assert any("kept local fields of 1 duplicate(s)" in line for line in lines), lines
     for line in lines:
         assert "cofre" not in line and _ID not in line, line
+
+
+class TestClearingAModelFromMainWindow:
+    @staticmethod
+    def _two_models():
+        return _audio(**{TRANSCRIPTION_KEY: stored.with_result(
+            {"text": "a", "model_id": "base", "backend": "faster_whisper", "at": 10.0},
+            {"text": "b", "model_id": "small", "backend": "faster_whisper", "at": 20.0},
+        )})
+
+    def test_memory_is_cleared_after_the_database_answers(self, inline_call_after):
+        record = self._two_models()
+        window = _Window([record])
+        window.db.cleared = 1
+        answers = []
+
+        window.clear_model_transcriptions("small", "faster_whisper", answers.append)
+
+        assert window.db.calls == [("clear", "small", "faster_whisper")]
+        assert answers == [1]
+        assert record[TRANSCRIPTION_KEY]["model_id"] == "base"
+
+    def test_a_database_failure_leaves_memory_alone_and_says_so(self, inline_call_after):
+        record = self._two_models()
+        window = _Window([record])
+        window.db.fail = True
+        answers = []
+
+        window.clear_model_transcriptions("small", None, answers.append)
+
+        assert answers == [None]
+        assert record[TRANSCRIPTION_KEY]["model_id"] == "small"
+
+    def test_every_copy_of_every_chat_is_cleared(self, inline_call_after):
+        in_chat, panel_copy = self._two_models(), self._two_models()
+        other = self._two_models()
+        window = _Window([in_chat])
+        window.chats["outro@s.whatsapp.net"] = {
+            "remoteJid": "outro@s.whatsapp.net",
+            "messages": {"messages": {"records": [other]}},
+        }
+        window.conversations_panel = _Panel(
+            {"remoteJid": _JID, "messages": {"messages": {"records": [panel_copy]}}})
+
+        window.clear_model_transcriptions("small", None, lambda count: None)
+
+        for copy in (in_chat, panel_copy, other):
+            assert copy[TRANSCRIPTION_KEY]["model_id"] == "base"

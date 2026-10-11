@@ -7204,7 +7204,9 @@ msgid "ctrl+comma"
 msgstr "ctrl+vírgula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Definições"
@@ -8102,7 +8104,10 @@ msgid ""
 "Read a recent message by position, counting back from the newest (1 is the "
 "newest, 0 is the tenth); pressed twice quickly it copies the message, "
 "position"
-msgstr "Ler uma mensagem recente pela posição, a contar da mais recente (1 é a mais recente, 0 é a décima); premida duas vezes rapidamente, copia a mensagem, posição"
+msgstr ""
+"Ler uma mensagem recente pela posição, a contar da mais recente (1 é a mais "
+"recente, 0 é a décima); premida duas vezes rapidamente, copia a mensagem, "
+"posição"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_scope_global"
@@ -9541,6 +9546,39 @@ msgstr "Canc&elar transferência em segundo plano"
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
 msgstr "Continua em segundo plano. Será avisado quando terminar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_btn"
+msgid "Clear t&his model's saved transcriptions"
+msgstr "Apagar tran&scrições guardadas deste modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+#, python-brace-format
+msgctxt "transcription_clear_cache_confirm"
+msgid ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+msgstr ""
+"Apagar todas as transcrições guardadas feitas pelo modelo {model}, em todas "
+"as conversas? As transcrições de outros modelos são mantidas, e isto não "
+"pode ser desfeito."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_clear_cache_done"
+msgid "Saved transcriptions deleted: {count}."
+msgstr "Transcrições guardadas apagadas: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_failed"
+msgid "The saved transcriptions could not be deleted."
+msgstr "Não foi possível apagar as transcrições guardadas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_none"
+msgid "No saved transcription from this model was found."
+msgstr "Nenhuma transcrição guardada deste modelo foi encontrada."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"

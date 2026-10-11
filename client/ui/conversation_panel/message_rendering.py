@@ -204,7 +204,9 @@ class MessageRenderingMixin:
             # A transcription the user asked to have in the line (Alt+Shift+N,
             # or Enter when it is set to transcribe): "…, duração: 0:12,
             # transcrição: texto".
-            written = stored_transcription.inline_row_text(msg)
+            written = stored_transcription.inline_row_text(
+                msg, stored_transcription.selection_from_settings(
+                    getattr(self.main_window, "settings", None)))
             if written:
                 line = f"{line}, {i18n.t('transcription_row_label')}: {written}"
             return line
