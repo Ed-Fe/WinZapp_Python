@@ -1031,7 +1031,7 @@ index 0000000..ff68987
 +        return CHOICE_INSTALL
 +    return CHOICE_SKIP
 diff --git a/.github/workflows/mac-release.yml b/.github/workflows/mac-release.yml
-index 5dac93b..b7d297c 100644
+index d2e5460..2c65d59 100644
 --- a/.github/workflows/mac-release.yml
 +++ b/.github/workflows/mac-release.yml
 @@ -10,7 +10,17 @@ name: macOS releases
@@ -1053,17 +1053,17 @@ index 5dac93b..b7d297c 100644
  
  on:
    schedule:
-@@ -190,6 +200,9 @@ jobs:
-           WINZAPP_MAC_RELEASES_REPO: ${{ github.repository }}
+@@ -191,6 +201,9 @@ jobs:
            # The checkout has no tags; build_app checks HEAD is this tag's commit.
            WINZAPP_RELEASE_TAG: ${{ matrix.tag }}
+           WINZAPP_CI_GITHUB_TOKEN: ${{ github.token }}
 +          # Read only by a tag whose build_app knows Sparkle; older tags ignore them.
 +          WINZAPP_SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
 +          WINZAPP_SPARKLE_FEED_BASE: ${{ vars.SPARKLE_FEED_BASE }}
          run: |
            set +e -uo pipefail
-           # build_app checks the tag against the official repository through
-@@ -260,3 +273,223 @@ jobs:
+           # build_app's provenance check asks api.github.com unauthenticated, and
+@@ -279,3 +292,223 @@ jobs:
            # an official commit; the Mac updater refuses a release without it.
            gh release create "$TAG" WinZapp-macOS-*.zip SHA256SUMS.txt $(ls WinZapp-macOS-provenance-*.json 2>/dev/null) \
              --repo "$GITHUB_REPOSITORY" --title "$name" --notes-file notes.md "${flags[@]}"

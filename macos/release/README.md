@@ -4,7 +4,7 @@ The macOS releases are built and published by the releases repository
 (`rocco-labs/WinZapp_Python`, `.github/workflows/mac-release.yml` on its
 `mac-releases` branch). This folder holds what that workflow runs for Sparkle,
 and the change it needs: `mac-release-sparkle.patch` (against
-`mac-releases` at 3d35cb4a; `git apply` it there). How the app uses Sparkle,
+`mac-releases` at 011b923; `git apply` it there). How the app uses Sparkle,
 and what it checks, is in `../README.md`, "Updates through Sparkle".
 
 ## What the workflow change does
