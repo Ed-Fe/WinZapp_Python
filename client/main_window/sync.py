@@ -514,7 +514,7 @@ class SyncMixin:
         # successful online sync relabeled it. Restoring the last known
         # values here makes the label correct immediately, offline included.
         self.my_jid = self.db.get_metadata("my_jid") or ""
-        self.my_lid = self.db.get_metadata("my_lid") or ""
+        self.my_lid = self._normalize_jid(self.db.get_metadata("my_lid") or "")
 
         # 8. locally_read_at — {jid: chat["t"] at the moment WE marked it read}.
         # mark_conversation_as_read() records it so on_chat_unread_update() and

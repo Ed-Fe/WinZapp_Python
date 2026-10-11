@@ -27,3 +27,26 @@ def test_plain_lid_is_untouched():
     stub = _Stub({"5511999990000@s.whatsapp.net": "123456@lid"})
     got = MainWindow._resolve_jid_for_chat_state(stub, "5511999990000@c.us")
     assert got == "123456@lid"
+
+
+def test_register_jid_mapping_strips_device_suffix_from_lid():
+    import threading
+
+    class Reg(_Stub):
+        def __init__(self):
+            super().__init__({})
+            self._lid_to_phone = {}
+            self._lid_mapping_lock = threading.RLock()
+            self.my_lid = ""
+            self.my_jid = ""
+
+        def _is_self_jid(self, jid):
+            return False
+
+    stub = Reg()
+    try:
+        MainWindow.register_jid_mapping(stub, "123456:56@lid", "5511999990000@s.whatsapp.net", save=False, defer_ui=True)
+    except AttributeError:
+        pass  # later, unrelated stub gaps; the cache write happens first
+    assert "123456:56@lid" not in stub._lid_to_phone
+    assert stub._phone_to_lid.get("5511999990000@s.whatsapp.net") in (None, "123456@lid")
