@@ -6,8 +6,6 @@ from main import MainWindow
 
 
 class _Stub:
-    _normalize_jid = staticmethod(MainWindow._normalize_jid)
-
     def __init__(self, phone_to_lid):
         self._phone_to_lid = phone_to_lid
 
@@ -33,6 +31,8 @@ def test_register_jid_mapping_strips_device_suffix_from_lid():
     import threading
 
     class Reg(_Stub):
+        _normalize_jid = staticmethod(MainWindow._normalize_jid)
+
         def __init__(self):
             super().__init__({})
             self._lid_to_phone = {}

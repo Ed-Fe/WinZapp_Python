@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import wx
+from core.jid_device import strip_device_suffix
 from core.pinned_chat_order import sync_pinned_order
 from core.sync_lifecycle import capture_sync_context, sync_context_is_current
 from core.utils import (
@@ -752,12 +753,12 @@ class ChatActionsMixin:
         normalized = jid.replace("@c.us", "@s.whatsapp.net")
         lid = getattr(self, "_phone_to_lid", {}).get(normalized, "")
         if lid:
-            return self._normalize_jid(lid.replace("@s.whatsapp.net", "@lid"))
+            return strip_device_suffix(lid.replace("@s.whatsapp.net", "@lid"))
 
         if jid.endswith("@lid"):
             # Drop a companion-device suffix kept by an older install.
-            return self._normalize_jid(jid)
-            
+            return strip_device_suffix(jid)
+
         return jid.replace("@s.whatsapp.net", "@c.us")
 
     def send_typing_status(self, jid: str, value: bool, is_group: bool = False):
