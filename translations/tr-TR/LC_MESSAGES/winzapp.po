@@ -1248,6 +1248,13 @@ msgid "and"
 msgstr "ve"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_data.py
+#, python-brace-format
+msgctxt "and_n_more_suffix"
+msgid "and {n} more"
+msgstr "ve {n} kişi daha"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "announce_sync_events_label"
 msgid "Announce sync, media downloads and automatic &offline mode"
@@ -2188,7 +2195,8 @@ msgstr "Görüntülü arama ayarları"
 #: client/ui/dialogs/attach_contact_dialog.py
 #: client/ui/dialogs/emoji_picker.py client/ui/dialogs/meta_ai_terms.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
-#: client/ui/dialogs/settings_dialog.py client/updater.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
 msgstr "İpta&l"
@@ -2631,11 +2639,13 @@ msgstr "Seçili sohbetleri temizle"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main.py client/main_window/window_chrome.py client/status_panel.py
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
+#: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
-#: client/ui/dialogs/new_conversation.py
-#: client/ui/dialogs/profile_picture_dialog.py
-#: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
+#: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
+#: client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
+#: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Kapat"
@@ -2645,6 +2655,129 @@ msgstr "&Kapat"
 msgctxt "close_conversation"
 msgid "&Close chat"
 msgstr "Sohbeti &kapat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_none"
+msgid "No groups in common found"
+msgstr "Ortak grup bulunamadı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "common_groups_tab"
+msgid "Groups in common"
+msgstr "Ortak gruplar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/common_groups_tab.py
+msgctxt "common_groups_unavailable"
+msgid "Could not get the groups in common"
+msgstr "Ortak gruplar alınamadı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/community_comments.py
+#, python-brace-format
+msgctxt "community_comments_count"
+msgid "Replies: {count}"
+msgstr "Yanıtlar: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_deleted"
+msgid "Deleted reply"
+msgstr "Silinen yanıt"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_empty"
+msgid ""
+"No replies are synchronized on this device. Replies available only on the "
+"phone may be missing."
+msgstr ""
+"Bu cihazda eşitlenmiş yanıt yok. Yalnızca telefonda bulunan yanıtlar eksik "
+"olabilir."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_encrypted"
+msgid "Reply not yet decrypted"
+msgstr "Yanıtın şifresi henüz çözülmedi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_failed"
+msgid ""
+"Could not load the replies. Check the connection and update the WinZapp API."
+msgstr ""
+"Yanıtlar yüklenemedi. Bağlantıyı kontrol edin ve WinZapp API’sini "
+"güncelleyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_list"
+msgid "&Replies"
+msgstr "&Yanıtlar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_not_announcement"
+msgid "This message is not in a community announcement group."
+msgstr "Bu mesaj bir topluluğun duyuru grubunda değil."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_refresh"
+msgid "&Refresh replies"
+msgstr "Yanıtları ye&nile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_send"
+msgid "&Send reply"
+msgstr "Yanıt &gönder"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_sending"
+msgid "Sending reply..."
+msgstr "Yanıt gönderiliyor..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_sent"
+msgid "Reply sent."
+msgstr "Yanıt gönderildi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/community_comments.py
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "community_comments_title"
+msgid "Community announcement replies..."
+msgstr "Topluluk duyurusunun yanıtları..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+msgctxt "community_comments_unconfirmed"
+msgid ""
+"Sending was not confirmed. Refresh and check the replies before trying "
+"again. Your text was kept."
+msgstr ""
+"Gönderim doğrulanamadı. Tekrar denemeden önce yanıtları yenileyip kontrol "
+"edin. Metniniz korundu."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+#, python-brace-format
+msgctxt "community_comments_window"
+msgid "Announcement replies - {name}"
+msgstr "Duyuru yanıtları - {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/community_comments.py
+#| msgid "Write a &reply"
+msgctxt "community_comments_write"
+msgid "Write a r&eply"
+msgstr "Bir yanıt ya&zın"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "connect_dialog_cancel"
@@ -2718,6 +2851,11 @@ msgctxt "connection_ws_server_label"
 msgid "WebSocket Address (WS/WSS):"
 msgstr "WebSocket Adresi (WS/WSS):"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_business_account"
+msgid "Business account"
+msgstr "İşletme hesabı"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "contact_copy_number"
@@ -2772,6 +2910,11 @@ msgctxt "contact_pick_number"
 msgid "This contact has more than one number. Choose one:"
 msgstr "Bu kişinin birden fazla numarası var. Birini seçin:"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_profile_name_label"
+msgid "Profile name"
+msgstr "Profil adı"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
 msgctxt "contact_retrieval_failed"
 msgid "Failed to retrieve the contact list."
@@ -2781,6 +2924,11 @@ msgstr "Kişi listesi alınamadı."
 msgctxt "contact_surname"
 msgid "&Surname"
 msgstr "&Soyad"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
+msgctxt "contact_verified_name_label"
+msgid "Verified name"
+msgstr "Doğrulanmış ad"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -2996,6 +3144,7 @@ msgstr "%d.%m.%Y"
 #: client/main_window/chat_list.py
 #: client/ui/conversation_panel/bulk_messages.py
 #: client/ui/conversation_panel/formatting.py
+#: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/conversation_data_dialog.py
 #: client/ui/transcription_flow.py
 msgctxt "datetime_fmt"
@@ -3293,11 +3442,18 @@ msgid "downloading media"
 msgstr "medya indiriliyor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/message_rendering.py
+#: client/ui/conversation_panel/formatting.py
 #, python-brace-format
 msgctxt "downloading_progress"
 msgid "downloading, {pct}% done"
 msgstr "indiriliyor, {pct}% tamamlandı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/formatting.py
+#, python-brace-format
+msgctxt "downloading_progress_size"
+msgid "downloading, {pct}% ({done} of {total})"
+msgstr "indiriliyor, {pct}% ({done} / {total})"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_log.py
 #: client/ui/conversation_panel/message_rendering.py
@@ -3516,6 +3672,12 @@ msgstr "Hata metni kopyalandı."
 msgctxt "error_details"
 msgid "Error details:"
 msgstr "Hata ayrıntıları:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/error_details.py
+msgctxt "error_details_label"
+msgid "Error details"
+msgstr "Hata ayrıntıları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/message_events.py
@@ -4388,6 +4550,7 @@ msgid "list selection"
 msgstr "liste seçimi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
+#: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."
@@ -4416,6 +4579,31 @@ msgctxt "mac_not_yet_available"
 msgid "not yet available on Mac"
 msgstr "Mac'te henüz kullanılamıyor"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_available_reminder"
+msgid ""
+"A new version of WinZapp is available (v{new_version}). To install it, "
+"choose Help > Check for updates, or switch to WinZapp."
+msgstr "WinZapp'in yeni bir sürümü mevcut (v{new_version}). Yüklemek için Yardım > Güncellemeleri denetle'yi seçin veya WinZapp'e geçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_ready_to_install"
+msgid ""
+"WinZapp update v{new_version} has been downloaded and is ready to install. "
+"Choose Install and Relaunch in the Software Update window."
+msgstr "WinZapp v{new_version} güncellemesi indirildi ve yüklemeye hazır. Yazılım Güncelleme penceresinde Yükle ve Yeniden Başlat'ı seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_reopened_other_accounts"
+msgid ""
+"The update was not installed. The other WinZapp accounts that were closed "
+"for it have been opened again."
+msgstr ""
+"Güncelleme yüklenmedi. Bunun için kapatılan diğer WinZapp hesapları yeniden "
+"açıldı."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/shortcuts.py
 #: client/ui/dialogs/shortcuts_dialog.py client/ui/navigation.py
 msgctxt "main_nav"
@@ -4432,6 +4620,9 @@ msgstr ""
 "Okunmamış sohbet sayısı: {count}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/archived_panel.py
+#: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/conversation_panel/chat_menu.py
 msgctxt "mark_all_read_dont_show_again"
 msgid "Don't show again"
 msgstr "Tekrar gösterme"
@@ -4804,13 +4995,20 @@ msgid "Waiting for this message. This may take a while."
 msgstr "Bu mesaj bekleniyor. Bu biraz zaman alabilir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "message_data"
 msgid "Message info"
 msgstr "Mesaj bilgisi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/message_menu.py
+#: client/ui/conversation_panel/message_data.py
+msgctxt "message_data_loading"
+msgid "Getting the message data from WhatsApp..."
+msgstr "Mesaj verileri WhatsApp'tan alınıyor..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_data.py
 msgctxt "message_data_status_label"
 msgid "Status"
 msgstr "Durum"
@@ -5578,7 +5776,7 @@ msgstr "Çevrimdışı mod etkinleştirildi. Bazı özellikler kullanılamayabil
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
 msgctxt "ok"
 msgid "&OK"
 msgstr "&Tamam"
@@ -5835,7 +6033,7 @@ msgstr "Çevrimiçi"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 msgctxt "presence_unavailable"
 msgid "No presence information available"
-msgstr "Kullanılabilir durum bilgisi yok"
+msgstr "Şu anda durum bilgisi yok"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/sound_system.py
 msgctxt "preview_sound_error"
@@ -6928,6 +7126,7 @@ msgid "An error occurred while saving the settings:"
 msgstr "Ayarlar kaydedilirken bir hata oluştu:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/navigation.py
+#: client/ui/shortcut_bindings.py
 msgctxt "settings_shortcut"
 msgid "ctrl+comma"
 msgstr "ctrl+virgül"
@@ -7034,6 +7233,12 @@ msgstr "Alt+Shift+C: telefon numarasını kopyala"
 msgctxt "shortcut_alt_shift_d_label"
 msgid "Alt+Shift+D: message data"
 msgstr "Alt+Shift+D: mesaj bilgisi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_f_filter_label"
+msgid "Alt+Shift+F: go to the chat filters"
+msgstr "Alt+Shift+F: sohbet filtrelerine git"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7250,6 +7455,62 @@ msgstr "Enter: aramanın sohbetini aç"
 msgctxt "shortcut_calls_f5_label"
 msgid "F5: refresh the calls list"
 msgstr "F5: arama listesini yenile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcut_capture.py
+msgctxt "shortcut_capture_hint"
+msgid ""
+"Tab and Shift+Tab move focus. Press Enter or Escape in this field to capture"
+" those keys. Tab to OK to confirm, or Cancel to discard."
+msgstr ""
+"Tab ve Shift+Tab odağı taşır. Bu alanda Enter veya Escape tuşuna basarsanız "
+"o tuş kaydedilir. Onaylamak için Tab ile Tamam’a, vazgeçmek için İptal’e "
+"geçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_capture_modifier_required"
+msgid "Use Control or Alt with a letter or digit."
+msgstr "Harf veya rakamla birlikte Kontrol ya da Alt kullanın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcut_capture.py
+msgctxt "shortcut_capture_prompt"
+msgid "Press the new key combination"
+msgstr "Yeni tuş birleşimine basın"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_capture_reserved"
+msgid "This key combination is reserved by the operating system."
+msgstr "Bu tuş birleşimi işletim sistemi tarafından kullanılıyor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_capture_wait"
+msgid "Press another key while holding the modifiers."
+msgstr "Değiştirici tuşları basılı tutarken başka bir tuşa basın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_change"
+msgid "Change"
+msgstr "Değiştir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcut_capture.py client/ui/dialogs/shortcuts_tab.py
+msgctxt "shortcut_change_title"
+msgid "Change keyboard shortcut"
+msgstr "Klavye kısayolunu değiştir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+#, python-brace-format
+msgctxt "shortcut_conflict"
+msgid ""
+"This shortcut is already used in an overlapping screen by:\n"
+"{actions}\n"
+"Remove or change that assignment first."
+msgstr ""
+"Bu kısayol aynı anda etkin olabilen bir ekranda şu komutlara atanmış:\n"
+"{actions}\n"
+"Önce ilgili atamayı kaldırın veya değiştirin."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7551,6 +7812,203 @@ msgstr "F5: tüm sohbetleri yeniden eşitle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_all_label"
+msgid "Alt+Shift+A: show all chats"
+msgstr "Alt+Shift+A: tüm sohbetleri göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_groups_label"
+msgid "Alt+Shift+G: show group chats"
+msgstr "Alt+Shift+G: grupları göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_individual_label"
+msgid "Alt+Shift+I: show individual chats"
+msgstr "Alt+Shift+I: bireysel sohbetleri göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_filter_unread_label"
+msgid "Alt+Shift+U: show unread chats"
+msgstr "Alt+Shift+U: okunmamış sohbetleri göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_insert_mention"
+msgid "Insert the selected mention"
+msgstr "Seçilen bahsetmeyi ekle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_alt"
+msgid "Alt"
+msgstr "Alt"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_backspace"
+msgid "Backspace"
+msgstr "Geri sil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_control"
+msgid "Ctrl"
+msgstr "Kontrol"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_delete"
+msgid "Delete"
+msgstr "Sil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_down"
+msgid "Down"
+msgstr "Aşağı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_end"
+msgid "End"
+msgstr "Son"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_enter"
+msgid "Enter"
+msgstr "Enter"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_escape"
+msgid "Escape"
+msgstr "Escape"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_home"
+msgid "Home"
+msgstr "Başlangıç"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_insert"
+msgid "Insert"
+msgstr "Insert"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_left"
+msgid "Left"
+msgstr "Sol"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_pagedown"
+msgid "Page Down"
+msgstr "Sayfa aşağı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_pageup"
+msgid "Page Up"
+msgstr "Sayfa yukarı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_right"
+msgid "Right"
+msgstr "Sağ"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_shift"
+msgid "Shift"
+msgstr "Shift"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_space"
+msgid "Space"
+msgstr "Boşluk"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_tab"
+msgid "Tab"
+msgstr "Tab"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_key_up"
+msgid "Up"
+msgstr "Yukarı"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_newline"
+msgid "Insert a new line"
+msgstr "Yeni satır ekle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_next_tone"
+msgid "Next emoji skin tone"
+msgstr "Sonraki emoji ten rengi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_open_status"
+msgid "Open or play the focused status"
+msgstr "Odaklanan durumu aç veya oynat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_paste"
+msgid "Paste into the message editor from the message list"
+msgstr "Mesaj listesinden yazma alanına yapıştır"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_pick_device"
+msgid "Choose numbered audio device"
+msgstr "Numaralı ses aygıtını seç"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_pick_selected_device"
+msgid "Choose the selected audio device"
+msgstr "Seçilen ses aygıtını kullan"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_pin_preview"
+msgid ""
+"Pin or unpin the chat; play or stop the preview while recording is paused"
+msgstr ""
+"Sohbeti sabitle veya sabitlemeyi kaldır; kayıt duraklatıldığında önizlemeyi "
+"oynat veya durdur"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_previous_filter"
+msgid "Previous call-list filter"
+msgstr "Önceki arama listesi filtresi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_previous_tone"
+msgid "Previous emoji skin tone"
+msgstr "Önceki emoji ten rengi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_remove"
+msgid "Remove shortcut"
+msgstr "Kısayolu kaldır"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_reset"
+msgid "Restore default"
+msgstr "Varsayılana dön"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_reset_all"
+msgid "Restore all defaults"
+msgstr "Tümünü varsayılana döndür"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_scope_global"
+msgid "System-wide"
+msgstr "Sistem genelinde"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_scope_links"
+msgid "Links"
+msgstr "Bağlantılar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_scope_mentions"
+msgid "Mentions"
+msgstr "Bahsetmeler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_search_enter_label"
 msgid ""
 "Enter: next search result (alternative, only works in the search field)"
@@ -7578,6 +8036,45 @@ msgstr ""
 msgctxt "shortcut_search_shift_f3_label"
 msgid "Shift+F3: previous search result, in the whole open conversation"
 msgstr "Shift+F3: önceki arama sonucu, açık sohbetin her yerinde"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_select_active"
+msgid "Toggle the focused row while selection mode is active"
+msgstr "Seçim modu açıkken odaklanan satırı seç veya bırak"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_select_end"
+msgid "Extend selection to the last row"
+msgstr "Seçimi son satıra genişlet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_select_previous"
+msgid "Extend selection to the previous row"
+msgstr "Seçimi önceki satıra genişlet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_select_start"
+msgid "Extend selection to the first row"
+msgstr "Seçimi ilk satıra genişlet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+msgctxt "shortcut_settings_hint"
+msgid ""
+"Select a command, press Tab to Change, then press the new keys. Confirm with"
+" OK. Changes take effect when you apply or save Settings. The same key can "
+"serve different screens; a new conflicting assignment is refused."
+msgstr ""
+"Bir komut seçin, Tab ile Değiştir düğmesine geçin ve yeni tuşlara basın. "
+"Tamam ile onaylayın. Değişiklikler Ayarlar’da Uygula veya Tamam düğmesine "
+"bastığınızda etkinleşir. Aynı tuş farklı ekranlarda kullanılabilir; yeni bir"
+" çakışan atama kabul edilmez."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+msgctxt "shortcut_settings_list"
+msgid "Commands and keyboard shortcuts"
+msgstr "Komutlar ve klavye kısayolları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7646,6 +8143,11 @@ msgstr ""
 "Boşluk: odaklanılan ses veya videoyu oynat/duraklat. Ayarlar > Kullanıcı "
 "Arayüzü bölümünde seçenek etkinse, önceden bir seçim varsa bunun yerine "
 "odaklanılan sohbeti veya mesajı seçer/seçimini kaldırır"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/shortcut_names.py
+msgctxt "shortcut_unassigned"
+msgid "Not assigned"
+msgstr "Atanmamış"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcuts_bulk_section"
@@ -8455,6 +8957,7 @@ msgid "&Post status"
 msgstr "Durumu &paylaş"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "status_sent"
 msgid "Sent"
@@ -8722,6 +9225,12 @@ msgstr "Profil yedekleme"
 msgctxt "tab_reactions"
 msgid "Reactions"
 msgstr "Tepkiler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+msgctxt "tab_shortcuts"
+msgid "Keyboard shortcuts"
+msgstr "Kısayollar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -10938,7 +11447,8 @@ msgctxt "transcription_whisper_cpp_verify_btn"
 msgid "Verify"
 msgstr "Doğrula"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/api_start_behind_window.py
 #: client/main_window/connection.py
 msgctxt "tray_connecting"
 msgid "connecting..."
@@ -10970,6 +11480,13 @@ msgstr "Aç"
 msgctxt "tray_show_icon"
 msgid "Show icon and unread message count in the system tray"
 msgstr "Sistem tepsisinde simgeyi ve okunmamış mesaj sayısını göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/api_start_behind_window.py
+#: client/main_window/connection.py
+msgctxt "tray_starting_wppconnect"
+msgid "starting WPPConnect..."
+msgstr "WPPConnect başlatılıyor..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/tray_manager.py
 #, python-brace-format
@@ -11027,6 +11544,18 @@ msgstr "Sesler sırayla çalınırken odağı otomatik olarak sonraki sese taş�
 msgctxt "ui_bulk_action_shortcuts"
 msgid "Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr "Sohbet ve mesaj seçerken kısayolları toplu işlemlerle değiştir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_clear_chat"
+msgid "Ask for confirmation before clearing chats"
+msgstr "Sohbetleri temizlemeden önce onay iste"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_confirm_delete_chat"
+msgid "Ask for confirmation before deleting chats"
+msgstr "Sohbetleri silmeden önce onay iste"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -11106,6 +11635,26 @@ msgstr ""
 msgctxt "ui_hide_own_sender_in_message_list"
 msgid "Hide the sender on my own messages in the messages list"
 msgstr "Mesaj listesinde kendi mesajlarımda göndereni gizle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_unnamed_sender_numbers"
+msgid "Hide phone numbers of unnamed senders in messages"
+msgstr "Mesajlarda isimsiz gönderenlerin telefon numaralarını gizle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_hide_unnamed_sender_numbers_help"
+msgid ""
+"In message rows and open-chat announcements, omit the sender prefix when no "
+"name is available. Applies to private and group chats, including reply "
+"prefixes. Names, message content, chat titles and other notifications stay "
+"unchanged. Off by default."
+msgstr ""
+"Adı olmayan gönderenlerin önekini mesaj satırlarında ve açık sohbet "
+"duyurularında kaldırır. Yanıt önekleri dahil bireysel ve grup sohbetlerinde "
+"geçerlidir. Adlar, mesaj içeriği, sohbet başlıkları ve diğer bildirimler "
+"değişmez. Varsayılan olarak kapalıdır."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -11372,6 +11921,7 @@ msgstr "Adsız kişi"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/calls.py
 #: client/main_window/chat_list.py client/main_window/chats_store.py
+#: client/ui/dialogs/common_groups_tab.py
 #: client/ui/dialogs/conversation_data_dialog.py
 msgctxt "unknown_group"
 msgid "Unnamed group"
@@ -11403,9 +11953,9 @@ msgstr ""
 "Bu sohbetin bildirimleri yeniden etkinleştirilemedi. Lütfen birazdan tekrar "
 "deneyin."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/chat_list.py
-#: client/main_window/identity.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/community_comments.py
+#: client/core/message_sender_labels.py client/core/notification_manager.py
+#: client/main_window/chat_list.py client/main_window/identity.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "unnamed_participant"
 msgid "Unnamed participant"
@@ -12269,6 +12819,11 @@ msgstr ""
 "En son WPPConnect sürümü denetlenemedi. İnternet bağlantınızı kontrol edip "
 "tekrar deneyin."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_health_failed"
+msgid "The updated API did not pass the health and process identity checks."
+msgstr "Güncellenen API, çalışma ve işlem kimliği denetimlerini geçemedi."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/updates.py
 msgctxt "wpp_update_in_progress"
 msgid "Updating WPPConnect. Please wait."
@@ -12292,6 +12847,16 @@ msgid ""
 msgstr ""
 "Başka bir WinZapp hesabı hâlâ WPPConnect Server'ı kullanıyor. Diğer "
 "hesapları kapatıp tekrar deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_restore_failed"
+msgid "The previous API could not be restored or restarted."
+msgstr "Önceki API geri yüklenemedi veya yeniden başlatılamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "wpp_update_start_failed"
+msgid "The updated API did not finish starting."
+msgstr "Güncellenen API başlatılamadı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/wpp_server.py
 msgctxt "wpp_version_unpinned_warning"

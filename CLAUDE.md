@@ -62,7 +62,7 @@ Socket.IO. One account per process, each with its own Node, port and window.
 uv sync; uv run setup-api              # fresh checkout; setup-api clones and builds client/api/
 uv run winzapp                         # run the app
 uv run pytest tests/test_database.py   # the test files for what you touched — the normal loop
-uv run pytest -n auto                  # whole suite in parallel (~1 min); CI itself runs it serially
+uv run pytest                         # serial full suite, only for cross-cutting changes
 uv run build-installer                 # WinZappInstaller.exe + WinZapp.zip
 uv run build-onefile                   # single-file WinZapp.exe
 uv run translations-update              # merge source messages into each PO
@@ -152,6 +152,25 @@ The `mattpocock-skills` plugin provides `/grill-with-docs` → `/to-spec` →
   then mark it ready for review or merge it. This applies to every developer
   and every Claude session, so nobody merges a PR while its review is still
   running.
+- **Changelog entries missing from a PR you are merging: open a second PR.**
+  When a PR is otherwise approved but its changelog entry is absent or wrong
+  (outside the unreleased version's list, or not in every locale), recommend
+  merging it as is and adding the entry in a separate follow-up PR from
+  `main`, so a fork's branch is not edited. The entry goes in the unreleased
+  version, as an item of the list, in every `client/changelog_<locale>.txt`.
+- **A PR from a fork needs changes: never push to the author's fork.** Pushes
+  to a fork are refused in agent sessions, so the thread stalls until the
+  maintainer steps in. Instead: fetch the PR (`git fetch origin
+  pull/<n>/head`), create a branch in this repository from it so the
+  author's commits and authorship are kept, add the corrections on top, and
+  open a new draft PR that credits the original author, links the old PR and
+  thanks them. Run the reviewer on it and check its CI. The maintainer has
+  authorised this flow in advance: once the reviewer approves and CI is green,
+  merge the new PR, then close the old one with a comment saying it was moved
+  to the new one. Start as soon as the corrections are ready, without waiting
+  for a push to be authorised. A missing changelog entry is not a reason for
+  this flow; it follows the changelog rule above.
+- **Always check a PR's CI result; never wait on it blindly.** After every push read the check runs on the current head. If a PR has a merge conflict or no checks started, fix that now; if CI failed, read the logs and keep working until it is green. A PR event may never arrive (conflicts and drafts skip CI), so a thread that ends its turn "waiting for CI" must have confirmed first that checks are actually running.
 - **Clean up your own branches when the work ends.** A thread works on its
   own branch (`claude/...`, a worktree branch) and often opens the PR from a
   different one, which leaves two branches for one piece of work. The

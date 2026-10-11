@@ -155,7 +155,7 @@ class _Stub:
     def resolve_lid_jids_via_api(self, jids):
         self.lid_batches.append(len(jids))
 
-    def _backfill_empty_chats(self):
+    def _backfill_empty_chats(self, expected_context=None):
         self.backfill_started = True
 
     # ── collaborators whose return value the loop uses ───────────────

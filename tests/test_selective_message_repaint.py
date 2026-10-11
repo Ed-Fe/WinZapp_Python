@@ -693,6 +693,7 @@ class _RenderPanel(_PanelStub):
     _render_separator = ConversationsPanel._render_separator
     _get_message_content = ConversationsPanel._get_message_content
     _sender_label = ConversationsPanel._sender_label
+    _saved_contact_name = ConversationsPanel._saved_contact_name
     _get_quoted_sender = ConversationsPanel._get_quoted_sender
     _get_quoted_preview = ConversationsPanel._get_quoted_preview
     _resolve_mentions_in_text = ConversationsPanel._resolve_mentions_in_text

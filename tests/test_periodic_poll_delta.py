@@ -89,11 +89,11 @@ class _PollStub:
     def get_remote_contacts(self):
         self.contact_fetches += 1
 
-    def get_block_list(self):
+    def get_block_list(self, expected_context=None):
         pass
 
     def get_remote_chats(self, chats, persist_full=True, notify_errors=True,
-                         prune_stale=None, defer_chat_save=False):
+                         prune_stale=None, defer_chat_save=False, expected_context=None):
         merged = dict(chats)
         for jid, activity in self.server_activity.items():
             chat = dict(merged[jid])
@@ -111,7 +111,8 @@ class _PollStub:
             self._schedule_save()
         return merged
 
-    def sync_remote_chats(self, target_chats=None, incremental=False):
+    def sync_remote_chats(self, target_chats=None, incremental=False,
+                          expected_run_id=None, expected_context=None):
         self.message_rounds.append((
             incremental,
             sorted(c.get("remoteJid") for c in (target_chats or [])),
@@ -126,6 +127,9 @@ class _PollStub:
         self.saves += 1
 
     def _schedule_set_chats(self):
+        pass
+
+    def _maybe_refresh_profile_snapshot_live(self):
         pass
 
     def _reconcile_active_conversation_with_remote(self):
