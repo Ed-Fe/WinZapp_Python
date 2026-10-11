@@ -2680,6 +2680,7 @@ msgstr "Wyczyść zaznaczone czaty"
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
 #: client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
+#: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Zamknij"
@@ -4592,6 +4593,7 @@ msgstr "wybór z listy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
 #: client/ui/dialogs/community_comments.py
+#: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Wczytywanie..."
@@ -6254,6 +6256,34 @@ msgstr ""
 "Profil przeglądarki używany do połączenia z WhatsApp jest uszkodzony i nie "
 "ma zapisanej kopii do przywrócenia. Trzeba będzie rozłączyć sesję i sparować"
 " ponownie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_btn"
+msgid "Pro&file picture"
+msgstr "Zdjęcie pro&filowe"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_open_external"
+msgid "Open in extern&al viewer"
+msgstr "Otwórz w zewnętrznej przegląd&arce"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_picture_open_failed"
+msgid "Could not open the picture in the external viewer."
+msgstr "Nie udało się otworzyć zdjęcia w zewnętrznej przeglądarce."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_title"
+msgid "Profile picture"
+msgstr "Zdjęcie profilowe"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/profile_picture_dialog.py
+msgctxt "profile_picture_unavailable"
+msgid "Access to this profile picture is unavailable."
+msgstr "Dostęp do tego zdjęcia profilowego jest niedostępny."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/session_lifecycle.py

@@ -16,6 +16,8 @@ WHAT'S NEW
 
 - Pinned messages: a button in each chat lists the messages pinned on WhatsApp, including older messages. Press Enter to go to one in the history. Opening a chat announces the number of pinned messages without moving focus; each pinned message also has a readable marker.
 
+- "Profile picture" button (Alt+F) in the Overview tab of "Chat info" and "Group info". It shows the chat's profile picture or the group's image, and "Open in external viewer" (Alt+A) opens the picture in Windows' default program for images. When there is no picture or the person does not let you see it, a message says that access to this profile picture is unavailable.
+
 - The message field's "Spelling" context submenu offers Windows dictionary suggestions. The editor keeps its standard screen-reader navigation and WinZapp's spelling-error sound.
 
 - "Keep pinned chats in a fixed order" in the User Interface tab of Settings. When enabled, new messages do not move pinned chats, and their order is kept after restarting. It starts off; unpinned chats still rise when new messages arrive.
