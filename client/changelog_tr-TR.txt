@@ -52,6 +52,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Güncelleyici artık arkasını topluyor: bir güncelleme kurulduğunda geçici klasörde açtığı klasörü siler, WinZapp bir sonraki açılışında da önceki güncellemelerin, başarısız kurulumların ve yarım kalan indirmelerin orada bıraktıklarını kaldırır; bu, kurulmuş her sürümün tam bir kopyası kadar yer tutabiliyordu.
+
 - WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.
 
 - Bilgisayar uykudan uyandığında yeni iletiler güvenilir biçimde alınır: WhatsApp sohbet listesi değişmemiş görünse bile açık sohbet ve son sohbetler yeniden denetlenir, bağlı cihaz kimliğiyle bağlanan sohbetlerin güncellemeleri artık yok sayılmaz

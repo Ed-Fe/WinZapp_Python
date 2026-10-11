@@ -52,6 +52,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Aktualizator sprząta teraz po sobie: po zainstalowaniu aktualizacji usuwa folder, do którego ją rozpakował w folderze tymczasowym, a przy następnym uruchomieniu WinZapp usuwa też to, co zostawiły tam wcześniejsze aktualizacje, nieudane instalacje i przerwane pobierania; mogło to dawać pełną kopię każdej zainstalowanej wersji.
+
 - Gdy otworzysz lub przeczytasz czat w WinZapp, powiadomienie o jego nowej wiadomości jest usuwane z obszaru powiadomień zamiast w nim pozostawać.
 
 - Po wybudzeniu komputera z uśpienia nowe wiadomości są pobierane niezawodnie: otwarta rozmowa i ostatnie czaty są sprawdzane ponownie, nawet gdy lista czatów WhatsApp wygląda na niezmienioną, a aktualizacje czatów powiązanych przez identyfikator połączonego urządzenia nie są już pomijane

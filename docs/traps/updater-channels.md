@@ -194,3 +194,21 @@ are covered by temporary-directory and stub tests.
 **Known limit: a WinZapp that is already elevated stays elevated.** If WinZapp is running as Administrator when it updates — run that way on purpose, or relaunched elevated by an older build's installer and not restarted since — it can write the install folder, `_needs_admin()` is False, the script runs at WinZapp's level and its plain relaunch inherits it. That is logged (`WinZapp is running elevated, so the update installs and relaunches it elevated`) and deliberately not changed: some people run WinZapp as administrator on purpose, and nothing tells the two apart. An older build's relaunch passes no argument, sets no variable and leaves no file, and the parent process (a cmd.exe that has exited) is not a reliable signal either. The chain ends at the next normal start (a shortcut or autostart starts it non-elevated); until then its npm still keeps out of the user's cache.
 
 Only updates *from* a build with this fix use the new script: the script is written by the running, older WinZapp.
+
+## What an update leaves in %TEMP%
+
+An update is a ZIP (`winzapp_upd_*.zip`) extracted into `winzapp_ext_*` (a full
+copy of the release) and installed by `winzapp_upd_*.bat`. Three places clean up,
+because no single one is enough:
+
+- **The installer script deletes the extracted folder** (`updater.cleanup_lines()`),
+  after `xcopy OK` and the relaunch, before it deletes itself. Never on the
+  failure paths: the folder is the retry's source and, with the script, the
+  evidence. The path it deletes comes from `update_package.extraction_root()`,
+  which answers "" for anything not named `winzapp_ext_*` — it decides what gets
+  removed, so never pass it a path on the strength of where it sits.
+- **`discard_package()`** does the same when an update is fetched and not installed.
+- **`update_temp_sweep.py`**, at startup on a thread of its own, removes what is
+  left: folders and ZIPs older than two days (a package another account staged
+  in the background is younger — `update_background.may_interrupt_now()` can
+  make it wait for a quiet moment), scripts and markers older than a week.

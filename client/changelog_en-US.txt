@@ -52,6 +52,8 @@ WHAT'S NEW
 
 FIXES
 
+- The updater now cleans up after itself: when an update has been installed it deletes the folder it extracted into your temporary folder, and the next time WinZapp starts it also removes what earlier updates, failed installs and interrupted downloads left there, which could add up to a full copy of each version you ever installed.
+
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.
 
 - After the computer wakes from sleep, new messages are fetched reliably: the open conversation and recent chats are checked again even when WhatsApp's chat list looks unchanged, and updates for chats linked by a linked-device ID are no longer ignored

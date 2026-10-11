@@ -32,7 +32,7 @@ from core.dialog_foreground import bring_to_front_if_hidden, message_box, parent
 from core.wpp_runtime import homologated_wpp_tag
 from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
 from update_background import BackgroundDownloadMixin, background_downloads_enabled
-from update_package import discard_package, download_update_package
+from update_package import discard_package, download_update_package, extraction_root
 from ui.modal_utils import end_modal_if_running
 from update_node_kill import node_kill_lines, own_node_pids
 from update_relaunch import (relaunch_environment, relaunch_lines, run_elevated,
@@ -505,11 +505,28 @@ def _console_safe_path(path: str) -> str:
     return path
 
 
+def cleanup_lines(cleanup_dir: str, log_path: str) -> str:
+    """The script lines that delete the extracted update. "" when there is none.
+
+    Best-effort and silent about failure: the update is installed by now, and a
+    folder that cannot be removed (an antivirus still scanning it) is swept at
+    the next start (update_temp_sweep.py). The path is quoted and the command
+    guarded by `if exist`, so a directory that is already gone is not an error.
+    """
+    if not cleanup_dir:
+        return ""
+    return (
+        f'if exist "{cleanup_dir}" rmdir /S /Q "{cleanup_dir}" >> "{log_path}" 2>&1\n'
+        f'>> "{log_path}" echo temporary update folder cleaned up (or left for the next start)\n'
+    )
+
+
 def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
                             log_path: str, marker_path: str, pid: int,
                             api_port: int, extra_pids: "list[int] | tuple" = (),
                             node_pids: "list[int] | tuple" = (),
-                            relaunch_handoff: str = "") -> str:
+                            relaunch_handoff: str = "",
+                            cleanup_dir: str = "") -> str:
     """The batch script text. Pure — every path is already console-safe.
 
     Kept apart from _run_batch_installer() so what the script says can be
@@ -530,6 +547,12 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
     ``relaunch_handoff`` is set only for the elevated install: the marker
     that says a non-elevated waiter will relaunch WinZapp
     (update_relaunch.py). Without it every relaunch is the original line.
+
+    ``cleanup_dir`` is the temporary directory the update was extracted into
+    (update_package.extraction_root()). The script removes it once the copy
+    has succeeded — and only then: nothing else ever did, so every update left
+    a full copy of the release in the user's %TEMP%. A failed copy keeps it
+    (like the script itself, it is evidence, and the retry may want it).
     """
     relaunch = relaunch_lines(exe_path, log_path, relaunch_handoff)
     source_node = os.path.join(source_dir, "node", "node.exe")
@@ -640,6 +663,9 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
         ")\n"
         f'>> "{log_path}" echo xcopy OK\n'
         + relaunch +
+        # After the relaunch, not before: removing a few thousand files takes
+        # seconds and the user is waiting for the app to come back.
+        cleanup_lines(cleanup_dir, log_path) +
         'del "%~f0"\n'
         + (
             "goto :EOF\n"
@@ -762,6 +788,10 @@ def _run_batch_installer(extracted_dir: str, install_dir: str, exe_name: str, pi
 
     exe_path = os.path.join(safe_install, exe_name)
     install_log = os.path.join(safe_log_dir, "update_install.log")
+    # The folder the package was extracted into, which the script deletes once
+    # the copy has worked. Empty (so nothing is deleted) for any directory not
+    # named like one of ours — see update_package.extraction_root().
+    cleanup_dir = _console_safe_path(extraction_root(extracted_dir))
     # Asked now, while this process and its Node are still running: only a
     # process listening on exactly api_port whose executable is WinZapp's own
     # node.exe may be killed by the script (update_node_kill.py). Both
@@ -803,6 +833,7 @@ def _run_batch_installer(extracted_dir: str, install_dir: str, exe_name: str, pi
         extra_pids=extra_pids,
         node_pids=node_pids,
         relaunch_handoff=relaunch_handoff,
+        cleanup_dir=cleanup_dir,
     )
     if not _write_installer_script(bat_path, script):
         return False

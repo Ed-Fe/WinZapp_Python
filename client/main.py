@@ -148,6 +148,7 @@ from core.chat_lock_vault import (
 )
 from core import token_vault
 from core.transcription import cuda_runtime, temp_sweep
+import update_temp_sweep
 from app_paths import resource_path, data_path, accounts_root, global_dir as _global_dir
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -497,6 +498,9 @@ class MainWindow(
         )
         # Decrypted audio a run killed mid-way left in %TEMP% (privacy).
         temp_sweep.sweep_stale_temporaries()
+        # What past updates left in %TEMP% (a full copy of every release
+        # installed so far), off the startup path.
+        update_temp_sweep.start_background_sweep()
 
         #Initialize sound system
         logging.info("MainWindow: Initializing sound system...")

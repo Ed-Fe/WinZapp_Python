@@ -52,6 +52,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- O atualizador passa a limpar o que deixa para trás: ao terminar a instalação de uma atualização apaga a pasta onde a extraiu, na pasta temporária, e na próxima vez que o WinZapp abrir também remove o que atualizações anteriores, instalações falhadas e transferências interrompidas lá deixaram, o que podia somar uma cópia completa de cada versão já instalada.
+
 - Ao abrir ou ler uma conversa dentro do WinZapp, a notificação da mensagem nova dessa conversa é removida da área de notificações em vez de ficar lá.
 
 - Depois de o computador sair da suspensão, as mensagens novas são obtidas de forma fiável: a conversa aberta e as conversas recentes são verificadas de novo mesmo quando a lista de conversas do WhatsApp parece inalterada, e as atualizações de conversas ligadas por um ID de dispositivo associado deixam de ser ignoradas
