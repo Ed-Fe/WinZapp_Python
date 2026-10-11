@@ -771,6 +771,40 @@ def register_cuda_library_directory(path) -> bool:
         return False
 
 
+def unregister_cuda_library_directory(path) -> bool:
+    """Take `path` off the places the CUDA libraries are loaded from.
+
+    The inverse of register_cuda_library_directory(), for a folder the user
+    stopped reusing. Answers whether it had been registered. Idempotent, and
+    never raises. A library already mapped into the process stays mapped (the
+    loader offers no way back), which is why the memoized answer is dropped: the
+    next probe measures against the directories that are left.
+    """
+    try:
+        text = str(path).strip() if path else ""
+        if not text:
+            return False
+        key = os.path.normcase(os.path.abspath(text))
+        with _cuda_library_lock:
+            entry = _extra_cuda_library_dirs.pop(key, None)
+            if entry is not None:
+                _invalidate_cuda_library_answer()
+        if entry is None:
+            return False
+        cookie = entry[1]
+        if cookie is not None:
+            try:
+                cookie.close()
+            except Exception:
+                pass
+        logging.info("[transcription] CUDA library directory unregistered")
+        return True
+    except Exception as exc:
+        logging.warning("[transcription] could not unregister a CUDA library directory: %s",
+                        errors.exception_report(exc))
+        return False
+
+
 def forget_cuda_library_answer() -> None:
     """Forget the memoized probe answer — for a caller that REMOVES libraries.
 

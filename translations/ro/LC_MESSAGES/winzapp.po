@@ -7188,6 +7188,7 @@ msgstr "ctrl+virgulă"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
 #: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
@@ -10392,6 +10393,7 @@ msgid "Searching the Hugging Face cache..."
 msgstr "Se caută în cache-ul Hugging Face..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_external_forget_btn"
 msgid "&Forget"
 msgstr "Ui&tați"
@@ -11057,6 +11059,7 @@ msgid "Verif&y"
 msgstr "V&erificați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_models_dir_browse_btn"
 msgid "&Browse..."
@@ -11485,6 +11488,100 @@ msgid ""
 msgstr ""
 "Memoria plăcii video nu a fost suficientă. Doriți să refaceți transcrierea "
 "folosind procesorul?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_browse_cuda"
+msgid ""
+"Choose the folder that holds the CUDA libraries (cublas64_12.dll and "
+"cublasLt64_12.dll)"
+msgstr ""
+"Alegeți dosarul care conține bibliotecile CUDA (cublas64_12.dll și "
+"cublasLt64_12.dll)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_browse_whisper_cpp"
+msgid ""
+"Choose the folder with the whisper.cpp programs WinZapp downloaded (the one "
+"that holds the cpu and cuda folders)"
+msgstr ""
+"Alegeți dosarul cu programele whisper.cpp descărcate de WinZapp (cel care "
+"conține dosarele cpu și cuda)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_label"
+msgid "CUDA libraries folder"
+msgstr "Dosarul bibliotecilor CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_reuse_cuda_missing"
+msgid "That folder does not hold the CUDA libraries WinZapp needs: {files}."
+msgstr ""
+"Acel dosar nu conține bibliotecile CUDA de care are nevoie WinZapp: {files}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_not_loadable"
+msgid ""
+"The CUDA libraries in that folder could not be loaded, so they were not "
+"chosen."
+msgstr ""
+"Bibliotecile CUDA din acel dosar nu au putut fi încărcate, așa că nu au fost"
+" alese."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_ok"
+msgid ""
+"These CUDA libraries will be used. Press Apply or OK to keep the choice."
+msgstr ""
+"Aceste biblioteci CUDA vor fi folosite. Apăsați Aplicați sau OK pentru a "
+"păstra alegerea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_forgotten"
+msgid "WinZapp will stop reusing that folder once you press Apply or OK."
+msgstr "WinZapp nu va mai folosi acel dosar după ce apăsați Aplicați sau OK."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_group"
+msgid "Reuse downloads from another folder"
+msgstr "Refolosiți descărcările dintr-un alt dosar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_none"
+msgid "None"
+msgstr "Niciunul"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_not_a_folder"
+msgid "That is not a folder."
+msgstr "Acesta nu este un dosar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_whisper_cpp_label"
+msgid "whisper.cpp program folder"
+msgstr "Dosarul programului whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_whisper_cpp_none"
+msgid ""
+"That folder holds no complete whisper.cpp program downloaded by WinZapp. "
+"Choose the folder that contains the cpu or cuda folders."
+msgstr ""
+"Acel dosar nu conține niciun program whisper.cpp complet descărcat de "
+"WinZapp. Alegeți dosarul care conține dosarele cpu sau cuda."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_reuse_whisper_cpp_ok"
+msgid ""
+"These whisper.cpp programs will be used: {builds}. Press Apply or OK to keep"
+" the choice."
+msgstr ""
+"Aceste programe whisper.cpp vor fi folosite: {builds}. Apăsați Aplicați sau "
+"OK pentru a păstra alegerea."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py

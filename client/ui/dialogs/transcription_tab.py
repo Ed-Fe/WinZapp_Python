@@ -631,6 +631,8 @@ class TranscriptionTabMixin:
         # The whisper.cpp program: its builds and their four buttons, last, as
         # the other download that is not a model.
         self._build_whisper_cpp_section(page, sizer)
+        # Folders to reuse CUDA libraries and whisper.cpp programs from.
+        self._build_transcription_reuse(page, sizer)
         self._sync_transcription_action_buttons()
         # A download the window is running in the background is this tab's too.
         self._watch_transcription_background()
@@ -1627,6 +1629,7 @@ class TranscriptionTabMixin:
         )
         self._sync_transcription_language_controls()
         self._load_transcription_options()
+        self._load_transcription_reuse()
 
         self._show_transcription_cuda_status()
         self._show_whisper_cpp_status()
@@ -1770,6 +1773,7 @@ class TranscriptionTabMixin:
             self._transcription_detect_language_check.GetValue()
         )
         self._apply_transcription_options()
+        self._apply_transcription_reuse()
         # Written even while detection is on: it is the language the user would
         # rather hear, which preferred_language() answers for part 6 whatever
         # the checkbox says, and losing it every time detection is ticked would
@@ -1864,6 +1868,7 @@ class TranscriptionTabMixin:
         )
         self._refresh_external_labels()
         self._refresh_transcription_options_labels()
+        self._refresh_transcription_reuse_labels()
         self._refresh_transcription_clear_cache_label()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))

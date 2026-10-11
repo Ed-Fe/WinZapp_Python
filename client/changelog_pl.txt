@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- W Ustawieniach > Transkrypcja lokalna grupa "Użyj ponownie plików pobranych do innego folderu" pozwala wskazać folder z bibliotekami CUDA (cublas64_12.dll i cublasLt64_12.dll) oraz folder z programami whisper.cpp, które WinZapp już pobrał (ten z folderami cpu i cuda), zamiast pobierać wszystko od nowa. Folder jest tylko odczytywany: nic w nim nie jest kopiowane, zmieniane ani usuwane. Biblioteki CUDA muszą się załadować, a programy whisper.cpp przechodzą te same kontrole co te pobierane przez WinZapp.
+
 - W Ustawieniach > Transkrypcja lokalna opcja "Utrzymuj model załadowany w pamięci (faster-whisper)", domyślnie wyłączona, oszczędza czekania na załadowanie modelu po każdej przerwie między transkrypcjami. Bez niej załadowany model jest zwalniany z pamięci 5 minut po ostatniej transkrypcji, oddając pamięć komputera (lub karty graficznej) innym programom. whisper.cpp uruchamia nowy proces przy każdej transkrypcji, więc opcja niczego dla niego nie zmienia.
 
 - Lokalna transkrypcja zapisana przy wiadomości jest teraz przechowywana osobno dla każdego modelu: po zmianie modelu (lub programu) w Ustawieniach wiadomość jest transkrybowana ponownie wybranym modelem, a tekst poprzedniego modelu pozostaje zapisany na wypadek powrotu do niego. W Ustawieniach > Transkrypcja lokalna przycisk "Wyczyść zapisane transkrypcje tego modelu" usuwa we wszystkich rozmowach tylko to, co przepisał wybrany model.

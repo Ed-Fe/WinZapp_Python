@@ -80,6 +80,14 @@ _DEFAULTS: dict[str, Any] = {
     # core.transcription.external_models, whose EXTERNAL_MODELS_SETTING
     # mirrors this key name (pinned by a test).
     "transcription_external_models": [],
+    # Folders of CUDA libraries / whisper.cpp builds downloaded earlier (another
+    # copy of WinZapp's cuda_runtime and whisper_cpp_runtime folders) that
+    # WinZapp reuses instead of downloading them again. Install-wide like the
+    # models: the files belong to the machine. "" means none. Read and written
+    # through core.transcription.reused_runtimes, whose CUDA_SETTING and
+    # WHISPER_CPP_SETTING mirror these names (pinned by a test).
+    "transcription_cuda_extra_dir": "",
+    "transcription_whisper_cpp_extra_dir": "",
 }
 
 # Which legacy general.* keys are global (the rest stay per-account).

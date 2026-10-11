@@ -677,3 +677,25 @@ default) is on.
 - whisper.cpp runs one process per transcription, so there is nothing to keep:
   the checkbox's label says "(faster-whisper)" and the setting does nothing for it.
 - Never log anything but the fact that a model was released.
+
+## CUDA libraries and whisper.cpp programs from another folder (`reused_runtimes.py`)
+
+Settings > Local transcription > "Reuse downloads from another folder" points
+WinZapp at a `cuda_runtime` / `whisper_cpp_runtime` folder it already has (two
+install-wide keys of `app.json`: `transcription_cuda_extra_dir`,
+`transcription_whisper_cpp_extra_dir`). The folder is **only read**.
+
+- CUDA: the folder must hold every library WinZapp installs and they must load
+  (`device.probe_cuda_libraries([folder])`, measured off the wx thread). It is added to
+  the loader's search path next to WinZapp's own (`register_cuda_library_directory`);
+  choosing another or forgetting it calls the new `unregister_cuda_library_directory`.
+  WinZapp's own folder is never unregistered as a "reused" one.
+- whisper.cpp: only a root WinZapp can vouch for (manifest + sizes; and, before every
+  launch, the **pinned digests** in `verify_executable`) is accepted — a folder of
+  whisper.cpp files WinZapp did not write is refused. `whisper_cpp_runtime.usable_root(build)`
+  answers WinZapp's own root first, then the reused one; only the "can it run" paths use it
+  (`WhisperCppBackend._root_for`, `message_run._whisper_cpp_cuda_installed`).
+  `installation_state(build)` with no root, install, repair and remove keep meaning WinZapp's
+  own folder, so the Remove button never acts on someone else's files.
+- `configure_from(app_settings)` runs at the end of `load_settings()` (before the first
+  device decision) and on Apply; it never raises.

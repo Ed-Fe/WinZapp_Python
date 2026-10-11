@@ -88,6 +88,7 @@ from ui.dialogs.settings_dialog import SettingsDialog
 from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_options import TranscriptionOptionsMixin
+from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
 from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
@@ -248,7 +249,8 @@ class _MainWindow:
 class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin,
                 TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin,
                 TranscriptionModelMarksMixin, TranscriptionQueueMixin,
-                TranscriptionCacheMixin, TranscriptionOptionsMixin):
+                TranscriptionCacheMixin, TranscriptionOptionsMixin,
+                TranscriptionReuseMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
     The section for models in other folders, the whisper.cpp section and the

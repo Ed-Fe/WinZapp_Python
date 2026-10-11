@@ -119,6 +119,40 @@ def default_runtime_dir() -> str:
     return global_dir(RUNTIME_DIRNAME)
 
 
+# A folder of another WinZapp's builds the user asked to reuse instead of
+# downloading them again (core/transcription/reused_runtimes.py). Process-wide
+# and set at startup and on Apply. **Read-only**: nothing here installs into,
+# repairs or removes from it — only usable_root() looks at it, and the files
+# are held to the same pinned digests as WinZapp's own (verify_executable()).
+_extra_root = None
+
+
+def set_extra_root(root) -> None:
+    """The folder to reuse builds from, or None/"" for none."""
+    global _extra_root
+    _extra_root = _resolve(root) if root else None
+
+
+def extra_root():
+    return _extra_root
+
+
+def usable_root(build):
+    """The root `build` can be launched from: WinZapp's own when it is
+    installed there, else the reused folder when it holds this build complete,
+    else None. Never raises."""
+    try:
+        own = _resolve(None)
+        if installation_state(build, own).state == STATE_INSTALLED:
+            return own
+        extra = _extra_root
+        if extra and extra != own and installation_state(build, extra).state == STATE_INSTALLED:
+            return extra
+    except Exception:
+        pass
+    return None
+
+
 def build_dir(root, build) -> str:
     return os.path.join(root, build.id)
 

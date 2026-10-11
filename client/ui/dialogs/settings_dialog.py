@@ -32,6 +32,7 @@ from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
 from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_options import TranscriptionOptionsMixin
 from ui.dialogs.transcription_queue import TranscriptionQueueMixin
+from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
@@ -209,7 +210,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                      TranscriptionPrecisionMixin, TranscriptionResultFieldMixin,
                      TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
                      TranscriptionQueueMixin, TranscriptionCacheMixin,
-                     TranscriptionOptionsMixin, wx.Dialog):
+                     TranscriptionOptionsMixin, TranscriptionReuseMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]
