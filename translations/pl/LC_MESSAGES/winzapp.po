@@ -1570,6 +1570,7 @@ msgstr "Nieaktualna wersja WPPConnect"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/conversation_data_dialog.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
+#: client/ui/dialogs/new_poll_dialog.py
 msgctxt "app_name"
 msgid "WinZapp"
 msgstr "WinZapp"
@@ -1653,6 +1654,12 @@ msgstr "Dokument"
 msgctxt "attachment_photos_videos"
 msgid "Photos and videos"
 msgstr "Zdjęcia i wideo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/attachments.py
+msgctxt "attachment_poll"
+msgid "Poll"
+msgstr "Ankieta"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "attachment_sending"
@@ -2229,8 +2236,8 @@ msgstr "Ustawienia wideo połączenia"
 #: client/ui/dialogs/attach_contact_dialog.py
 #: client/ui/dialogs/emoji_picker.py client/ui/dialogs/meta_ai_terms.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
-#: client/updater.py
+#: client/ui/dialogs/new_poll_dialog.py client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/shortcut_capture.py client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
 msgstr "&Anuluj"
@@ -2677,10 +2684,10 @@ msgstr "Wyczyść zaznaczone czaty"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py
-#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
+#: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Zamknij"
@@ -4627,7 +4634,9 @@ msgctxt "mac_update_available_reminder"
 msgid ""
 "A new version of WinZapp is available (v{new_version}). To install it, "
 "choose Help > Check for updates, or switch to WinZapp."
-msgstr "Dostępna jest nowa wersja WinZapp (v{new_version}). Aby ją zainstalować, wybierz Pomoc > Sprawdź aktualizacje lub przełącz się na WinZapp."
+msgstr ""
+"Dostępna jest nowa wersja WinZapp (v{new_version}). Aby ją zainstalować, "
+"wybierz Pomoc > Sprawdź aktualizacje lub przełącz się na WinZapp."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -4635,7 +4644,10 @@ msgctxt "mac_update_ready_to_install"
 msgid ""
 "WinZapp update v{new_version} has been downloaded and is ready to install. "
 "Choose Install and Relaunch in the Software Update window."
-msgstr "Aktualizacja WinZapp v{new_version} została pobrana i jest gotowa do instalacji. Wybierz Zainstaluj i uruchom ponownie w oknie Uaktualnienie oprogramowania."
+msgstr ""
+"Aktualizacja WinZapp v{new_version} została pobrana i jest gotowa do "
+"instalacji. Wybierz Zainstaluj i uruchom ponownie w oknie Uaktualnienie "
+"oprogramowania."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "mac_update_reopened_other_accounts"
@@ -5433,6 +5445,48 @@ msgid "WinZapp | New group"
 msgstr "WinZapp | Nowa grupa"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_add_option"
+msgid "&Add option"
+msgstr "Do&daj opcję"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_allow_multiple"
+msgid "Allow &multiple answers"
+msgstr "Zezwól na &kilka odpowiedzi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_option_label"
+msgid "&Option:"
+msgstr "&Opcja:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_options_list_label"
+msgid "Poll options:"
+msgstr "Opcje ankiety:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_question_label"
+msgid "&Question:"
+msgstr "&Pytanie:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_remove_option"
+msgid "&Remove option"
+msgstr "&Usuń opcję"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_title"
+msgid "New poll"
+msgstr "Nowa ankieta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "no_QRcode_received"
 msgid "Could not connect to {app_name}. No QR code was received."
@@ -5697,14 +5751,14 @@ msgstr "Wzmianka o Tobie"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/chat_list.py
-#: client/ui/conversation_panel/message_rendering.py
 #, python-brace-format
 msgctxt "notif_poll"
 msgid "📊 Poll: {name}"
 msgstr "📊 Ankieta: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/chat_list.py
+#: client/core/notification_manager.py client/core/polls.py
+#: client/main_window/chat_list.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "notif_poll_no_name"
 msgid "📊 Poll"
@@ -6081,6 +6135,64 @@ msgstr "przypięty"
 msgctxt "play_recorded_audio"
 msgid "Play recorded audio"
 msgstr "Odtwórz nagrane audio"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_allows_one"
+msgid "One answer allowed"
+msgstr "Dozwolona jedna odpowiedź"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_allows_several"
+msgid "Several answers allowed"
+msgstr "Dozwolone kilka odpowiedzi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_dialog_question_label"
+msgid "Question:"
+msgstr "Pytanie:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_dialog_title"
+msgid "Poll"
+msgstr "Ankieta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_duplicate_option"
+msgid "Poll options must be different from each other."
+msgstr "Opcje ankiety muszą się od siebie różnić."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_no_question"
+msgid "Type the poll question."
+msgstr "Wpisz pytanie ankiety."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_too_few_options"
+msgid "A poll needs at least 2 options."
+msgstr "Ankieta wymaga co najmniej 2 opcji."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_too_many_options"
+msgid "A poll can have at most 12 options."
+msgstr "Ankieta może mieć najwyżej 12 opcji."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_option_votes"
+msgid "{name}, votes: {count}"
+msgstr "{name}, głosy: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_row_options"
+msgid "{question}. Options: {options}"
+msgstr "{question}. Opcje: {options}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_row_question"
+msgid "Poll: {name}"
+msgstr "Ankieta: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
@@ -7042,6 +7154,7 @@ msgstr "Ja (wiadomości do siebie)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 #: client/ui/dialogs/attach_contact_dialog.py
+#: client/ui/dialogs/new_poll_dialog.py
 msgctxt "send_attachment"
 msgid "Sen&d"
 msgstr "&Wyślij"
@@ -7061,7 +7174,8 @@ msgctxt "send_message"
 msgid "Send message"
 msgstr "Wyślij wiadomość"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/poll_sending.py client/main_window/sending.py
 msgctxt "send_not_confirmed_error"
 msgid ""
 "WhatsApp did not confirm this send — check the chat before sending it again,"
@@ -13140,7 +13254,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wpp_update_health_failed"
 msgid "The updated API did not pass the health and process identity checks."
-msgstr "Zaktualizowane API nie przeszło kontroli działania i tożsamości procesu."
+msgstr ""
+"Zaktualizowane API nie przeszło kontroli działania i tożsamości procesu."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/updates.py
 msgctxt "wpp_update_in_progress"

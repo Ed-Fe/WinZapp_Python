@@ -279,6 +279,7 @@ from main_window.message_events import MessageEventsMixin
 from main_window.wpp_server import WppServerMixin
 from main_window.api_start_behind_window import ApiStartBehindWindowMixin, wait_for_api_start
 from main_window.sending import SendingMixin
+from main_window.poll_sending import PollSendingMixin
 from main_window.session_lifecycle import SessionLifecycleMixin
 from main_window.shortcuts import ShortcutsMixin
 from main_window.settings import SettingsMixin
@@ -332,6 +333,7 @@ class MainWindow(
     WppServerMixin,
     ApiStartBehindWindowMixin,
     SendingMixin,
+    PollSendingMixin,
     SessionLifecycleMixin,
     ShortcutsMixin,
     SettingsMixin,

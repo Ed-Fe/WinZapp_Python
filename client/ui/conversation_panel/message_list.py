@@ -11,6 +11,7 @@ import logging
 import os
 import threading
 import wx
+from core.polls import POLL_MESSAGE_TYPES
 from ui.conversation_panel.media_paths import _SAVEABLE_MESSAGE_TYPES
 from core.call_log import (
     call_log_is_video,
@@ -246,6 +247,9 @@ class MessageListMixin:
             # open_media_message() is _on_action_open()'s message-based half and
             # covers both, including the download-failure reporting.
             self.open_media_message(msg)
+
+        elif msg_type in POLL_MESSAGE_TYPES:
+            self._show_poll_dialog(msg)
 
         elif msg_type == "contactMessage":
             # Enter on a contact message → open a conversation with that

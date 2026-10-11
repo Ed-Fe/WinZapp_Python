@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Anketler: bir soru, en fazla 12 seçenek ve birden çok yanıta izin verme seçeneğiyle anket göndermek için ek menüsünün son öğesi olan Anket'i seçin. Alınan anketler artık desteklenmeyen mesaj olarak gösterilmez: satır önce soruyu, ardından her seçeneği oylarıyla birlikte okur; Enter aynı listeyi içeren bir pencere açar.
+
 - WPPConnect kurulum ve güncelleme hataları artık ayrıntıları okunabilen ve kopyalanabilen salt okunur bir metin alanında gösteriliyor. Ayrı olarak hazırlanan güncellemelerde yinelenen bildirimler yerine tek bir hata raporu gösteriliyor.
 
 - Topluluk duyurusu yanıtları: yanıtları okumak ve göndermek için mesaj menüsünü açıp "Topluluk duyurusunun yanıtları" seçeneğini seçin. Pencerede yanıtları yenileyebilirsiniz; gönderim doğrulanmazsa metniniz korunur. Duyurular bilinen yanıt sayısını belirtir. Yazarlar kayıtlı veya profil adlarıyla gösterilir; kendi yanıtlarınızda kendinize hitap etme ayarınız kullanılır.

@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Polls: choose Poll, the last item of the attachment menu, to send a poll with a question, up to 12 options and the choice of allowing several answers. Received polls are no longer shown as unsupported messages: the row reads the question first, then each option with its votes, and Enter opens a window with the same list.
+
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 
 - Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.

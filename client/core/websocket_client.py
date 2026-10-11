@@ -14,6 +14,7 @@ from core.message_edit import MESSAGE_EDIT, clean_message_id, server_marks_edite
 from core.message_stars import remote_star_state
 from core.reaction_echo import reaction_echo_keys, take_matching_send
 from core.meta_ai import rich_response_text
+from core.polls import poll_message_from_wpp
 from core.sync_contracts import observe_payload
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE, is_view_once_unavailable
 from core.utils import looks_like_binary_blob, looks_like_jid, _slim_quoted_message, parse_bool_flag as _parse_bool_flag
@@ -2938,11 +2939,12 @@ class WebSocketClient:
                     "displayName": wpp_msg.get("displayName") or wpp_msg.get("body") or "Contato",
                 }
             }
-        elif msg_type == "pollCreation":
+        elif msg_type in ("pollCreation", "poll_creation"):
+            # WhatsApp Web's type is "poll_creation" (wa-js sends exactly that);
+            # "pollCreation" is what this branch used to wait for, so a real
+            # poll fell through to the unsupported-message fallback.
             message_content = {
-                "pollCreationMessage": {
-                    "name": wpp_msg.get("pollName") or wpp_msg.get("body") or ""
-                }
+                "pollCreationMessage": poll_message_from_wpp(wpp_msg)
             }
         elif msg_type == "buttons":
             message_content = {
@@ -3052,6 +3054,7 @@ class WebSocketClient:
             "sticker": "stickerMessage",
             "vcard": "contactMessage",
             "pollCreation": "pollCreationMessage",
+            "poll_creation": "pollCreationMessage",
             "buttons": "buttonsMessage",
             "list": "listMessage",
             "template": "templateMessage",
