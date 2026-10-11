@@ -113,7 +113,7 @@ OTHER_KINDS = frozenset((
 # ── What is stored ───────────────────────────────────────────────────────────
 
 
-def record_from_result(result, at) -> dict:
+def record_from_result(result, at, inline=False) -> dict:
     """The stored form of a finished `TranscriptionResult`.
 
     Everything the window needs to say the truth when it is opened again: the
@@ -123,9 +123,14 @@ def record_from_result(result, at) -> dict:
     warning about it on every reopening, since it is the one degradation a
     listener cannot hear. The segments are not kept: nothing reads them yet,
     and they would roughly double the size of every stored transcription.
+
+    `inline` is True for a transcription the user asked to have in the
+    message's own line of the list (`inline_row_text()`); it is the only thing
+    that makes the row carry the text. Left out of the record when False, so a
+    record made by the window is exactly what it always was.
     """
     probability = getattr(result, "language_probability", None)
-    return {
+    record = {
         "text": getattr(result, "text", "") or "",
         "language": getattr(result, "language", None),
         "language_probability": float(probability) if isinstance(probability, (int, float))
@@ -135,6 +140,9 @@ def record_from_result(result, at) -> dict:
         "vad_used": getattr(result, "vad_used", True) is not False,
         "at": float(at),
     }
+    if inline:
+        record["inline"] = True
+    return record
 
 
 def tombstone(at) -> dict:
@@ -181,6 +189,25 @@ def saved_transcription(msg):
     if not isinstance(text, str) or not text.strip():
         return None
     return value
+
+
+def is_inline(value) -> bool:
+    """Whether a stored transcription was asked to show in the message's line."""
+    return isinstance(value, dict) and value.get("inline") is True
+
+
+def inline_row_text(msg) -> str:
+    """The text the message's row carries after its duration, or "".
+
+    One line: a row of the list has no line breaks, and a transcription has
+    them wherever the speaker paused. Only a transcription stored as inline
+    shows here — one opened in the result window leaves the row as short as it
+    was, which is the long-standing choice for rows that are read on every pass.
+    """
+    value = saved_transcription(msg)
+    if value is None or not is_inline(value):
+        return ""
+    return " ".join(value["text"].split())
 
 
 def as_result(value) -> TranscriptionResult:

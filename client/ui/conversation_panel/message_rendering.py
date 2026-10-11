@@ -31,6 +31,7 @@ from core.utils import (
     reaction_targets_status,
     video_seconds,
 )
+from core.transcription import stored as stored_transcription
 from ui.conversation_panel.own_sender import row_lead, should_hide_sender
 
 
@@ -196,13 +197,17 @@ class MessageRenderingMixin:
             is_ptt = is_voice_message(msg)
             vm_mode = (self.main_window.settings.get("user_interface", {}) if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "settings") else {}).get("voice_message_mode", "voice_message")
             lbl = i18n.t("message_type_voice_message") if (vm_mode == "voice_message" and is_ptt) else i18n.t("message_type_audio")
-            if not dur:
-                # Unknown duration (e.g. a non-.wav file sent via the
-                # attachment picker — see _probe_audio_duration()): omit the
-                # clause entirely rather than read "duração: " with nothing
-                # after the colon.
-                return lbl
-            return f"{lbl}, {i18n.t('duration')}: {dur}"
+            # Unknown duration (e.g. a non-.wav file sent via the attachment
+            # picker — see _probe_audio_duration()): omit the clause entirely
+            # rather than read "duração: " with nothing after the colon.
+            line = f"{lbl}, {i18n.t('duration')}: {dur}" if dur else lbl
+            # A transcription the user asked to have in the line (Ctrl+Shift+T,
+            # or Enter when it is set to transcribe): "…, duração: 0:12,
+            # transcrição: texto".
+            written = stored_transcription.inline_row_text(msg)
+            if written:
+                line = f"{line}, {i18n.t('transcription_row_label')}: {written}"
+            return line
 
         # ── Document ─────────────────────────────────────────────────────────
         if msg_type == "documentMessage":

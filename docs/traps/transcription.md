@@ -604,3 +604,32 @@ other lists read, not new ones.
   may be one the action buttons also use.
 - Only catalogue models are markable; "Automatic" and the models in other
   folders have nothing to download.
+
+## The transcription in the message's line (Ctrl+Shift+T)
+
+Alt+Shift+T opens the result window; **Ctrl+Shift+T** puts the text in the
+message's own row (`, duração: 0:12, transcrição: texto`) and reads it aloud.
+It is one key that **alternates** with `user_interface.enter_transcribes_voice_messages`
+(default off):
+
+- off: Enter and Space play the voice message, Ctrl+Shift+T transcribes it into
+  the line;
+- on: Enter and Space transcribe it into the line, Ctrl+Shift+T plays or pauses
+  it.
+
+So each of the two actions always has a key. The menu item and the F1 line say
+which one the key does *today* (`transcribe_inline_menu` / `play_voice_message_menu`).
+
+- **Only an `inline` record shows in the row** (`stored.inline_row_text()`); one
+  made for the window leaves the row short, as it always was. A window run on a
+  message that is already inline keeps it inline. Deleting the transcription
+  (tombstone) takes the text off the row.
+- **Fresh result not kept** (message unsent/missing, or storing raised): the row
+  cannot carry it, so the window opens — it is the only place left to read the
+  text those minutes produced.
+- **A stored transcription is reused**, never re-run: `inline_saved()` marks it
+  inline (a new, later decision) and says it.
+- **Long text**: the row is cut at the list control's limit like a text message,
+  and Alt+L ("Ler mais") reads the rest — `_update_read_more_button()` includes
+  voice notes that carry an inline transcription.
+- The voice-filter warning is spoken after the text, as for the window.

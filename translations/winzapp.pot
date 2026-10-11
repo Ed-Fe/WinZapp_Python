@@ -5686,6 +5686,11 @@ msgid "Play recorded audio"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "play_voice_message_menu"
+msgid "Play or pause the voice message"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
 msgctxt "preparing_to_sync"
 msgid "Preparing to sync..."
@@ -7317,6 +7322,15 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_t_label"
+msgid ""
+"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
+" it locally with Whisper into its line in the list, or play or pause it when"
+" Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_ctrl_shift_t_list_label"
 msgid "Ctrl+Shift+T: lock the selected chat in the list"
 msgstr ""
@@ -8852,6 +8866,11 @@ msgid "total"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcribe_inline_menu"
+msgid "Transcribe locally into the message line with Whisper"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "transcribe_message"
 msgid "Transcribe message locally with Whisper"
@@ -9869,6 +9888,12 @@ msgid ""
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_inline_spoken"
+msgid "Transcription: {text}"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_insert_refused_vault_closed"
 msgid ""
 "The locked-chats vault was closed, and the transcription was not inserted "
@@ -10560,6 +10585,12 @@ msgid ""
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "transcription_row_label"
+msgid "transcription"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "transcription_running_on_cpu"
 msgid "The transcription will use the {model} model and the processor."
@@ -10910,6 +10941,15 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_conversation_video_media_viewer_dialog_label"
 msgid "Show chat videos in a separate player (opens a new dialog)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_enter_transcribes_voice"
+msgid ""
+"Enter and Space on a voice message transcribe it into its line in the list "
+"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
+"play it and Ctrl+Shift+T transcribes it into its line"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

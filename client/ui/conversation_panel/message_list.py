@@ -17,6 +17,38 @@ from core.call_log import (
     is_returnable_missed_call,
 )
 from app_paths import data_path
+from core.transcription import stored as stored_transcription
+
+
+def enter_transcribes_voice(panel) -> bool:
+    """Settings > User Interface > "Enter and Space on a voice message
+    transcribe it into its line instead of playing it" (default off). Only an
+    explicit True counts; a panel with no settings (a stub, a dialog's host)
+    answers False."""
+    settings = getattr(getattr(panel, "main_window", None), "settings", None)
+    if not isinstance(settings, dict):
+        return False
+    return settings.get("user_interface", {}).get(
+        "enter_transcribes_voice_messages", False
+    ) is True
+
+
+def activate_audio_message(panel, msg: dict) -> None:
+    """What Enter and plain Space do on an audioMessage: play/pause it, or —
+    when the setting above is on — transcribe it into its line. Ctrl+Shift+T
+    (`_on_accel_transcribe_inline`) does the other one, so each of the two
+    actions always has a key whichever way the setting points.
+
+    A function and not a method so the panels that only borrow the activation
+    code (the data dialogs' Media tab) need nothing more than they had.
+    """
+    if enter_transcribes_voice(panel):
+        from core.transcription import message_audio
+
+        if message_audio.is_transcribable(msg):
+            panel._on_menu_transcribe_inline(msg)
+            return
+    panel._toggle_audio_message_playback(msg)
 
 
 class MessageListMixin:
@@ -223,7 +255,7 @@ class MessageListMixin:
             return
 
         if msg_type == "audioMessage":
-            self._toggle_audio_message_playback(msg)
+            activate_audio_message(self, msg)
 
         elif msg_type == "videoMessage" and not self._use_conversation_video_media_viewer_dialog():
             # Classic mode (Settings > Interface do usuário > "Mostrar vídeos
@@ -254,6 +286,10 @@ class MessageListMixin:
             contact = msg_obj.get("contactMessage") or {}
             jid = self._jid_from_vcard(contact.get("vcard", ""))
             self._on_contact_converse(None, jid=jid)
+
+    def _enter_transcribes_voice(self) -> bool:
+        """See enter_transcribes_voice()."""
+        return enter_transcribes_voice(self)
 
     def _toggle_audio_message_playback(self, msg: dict) -> None:
         """Start/pause playback of an audioMessage row. Split out of
@@ -290,7 +326,7 @@ class MessageListMixin:
             return False
         msg_type = msg.get("messageType", "")
         if msg_type == "audioMessage":
-            self._toggle_audio_message_playback(msg)
+            activate_audio_message(self, msg)
             return True
         if msg_type == "videoMessage" and not self._use_conversation_video_media_viewer_dialog():
             video = (msg.get("message") or {}).get("videoMessage") or {}
@@ -523,7 +559,11 @@ class MessageListMixin:
             msg = self._sorted_messages[idx]
             if not self._is_separator(msg):
                 msg_type = msg.get("messageType", "")
-                if msg_type in ("conversation", "extendedTextMessage", ""):
+                # A voice note carries a long text only when its transcription
+                # was put in its line (stored_transcription.inline_row_text).
+                if msg_type in ("conversation", "extendedTextMessage", "") or (
+                        msg_type == "audioMessage"
+                        and stored_transcription.inline_row_text(msg)):
                     rendered = self._render_message_line(msg)
                     if len(rendered) > self._LIST_CTRL_TEXT_LIMIT:
                         self._read_more_remainder = rendered[self._LIST_CTRL_TEXT_LIMIT:]

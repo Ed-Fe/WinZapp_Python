@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 252 ayrı düzenlenebilir yerel atama ve bunların 270 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 253 ayrı düzenlenebilir yerel atama ve bunların 271 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -113,6 +113,7 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | alıntılanan mesaja git | Alt+Shift+Q | messages.ID_ALT_SHIFT_Q |
 | Sohbet içi | sohbeti sessize alma menüsünü aç / sesi aç | Alt+Shift+S | messages.ID_ALT_SHIFT_S |
 | Sohbet içi | sesli mesajı veya ses kaydını Whisper ile bu bilgisayarda yazıya dök ya da kayıtlı dökümü aç | Alt+Shift+T | messages.ID_ALT_SHIFT_T |
+| Sohbet içi | sesli mesajda Enter ve Boşluk'un yapmadığını yapar: Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır veya duraklatır | Ctrl+Shift+T | messages.ID_CTRL_SHIFT_T |
 | Sohbet içi | mesajı yıldızla | Kontrol+Shift+O | messages.ID_CTRL_SHIFT_O |
 | Sohbet içi | oynatma hızını azalt | Alt+, | messages.ID_ALT_COMMA |
 | Sohbet içi | oynatma hızını artır | Alt+. | messages.ID_ALT_PERIOD |

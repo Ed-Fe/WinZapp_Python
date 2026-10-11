@@ -29,7 +29,10 @@ MARKERS = {
     "ro": (("local",), ("ai online",)),
 }
 
-LOCAL_KEYS = ("tab_transcription", "transcribe_message", "shortcut_alt_shift_t_label")
+LOCAL_KEYS = (
+    "tab_transcription", "transcribe_message", "shortcut_alt_shift_t_label",
+    "transcribe_inline_menu", "shortcut_ctrl_shift_t_label",
+)
 ONLINE_KEYS = (
     "tab_ai_accessibility", "ai_transcribe_audio_menu", "shortcut_ctrl_shift_i_label",
     "ai_result_transcription_title",

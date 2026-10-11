@@ -1139,6 +1139,10 @@ DEFAULT_SETTINGS = {
         # Opening a conversation keeps the chat search, so Esc returns to the
         # results. Off: the long-standing behaviour, so no migration.
         "keep_search_after_open": False,
+        # Enter and Space on a voice message transcribe it into its line of the
+        # list instead of playing it; Ctrl+Shift+T then plays it (and, with this
+        # off, is what transcribes it). Off: Enter plays, as it always has.
+        "enter_transcribes_voice_messages": False,
         "auto_focus_next_audio": True,
         "selected_announcement_position": "end",
         "show_yesterday_label": True,

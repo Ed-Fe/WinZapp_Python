@@ -94,6 +94,7 @@ SHORTCUTS = (
     Shortcut('messages.ID_ALT_SHIFT_Q', 'messages', 'ID_ALT_SHIFT_Q', 'shortcut_alt_shift_q_label', 5, 81, 0),
     Shortcut('messages.ID_ALT_SHIFT_S', 'messages', 'ID_ALT_SHIFT_S', 'shortcut_alt_shift_s_label', 5, 83, 0),
     Shortcut('messages.ID_ALT_SHIFT_T', 'messages', 'ID_ALT_SHIFT_T', 'shortcut_alt_shift_t_label', 5, 84, 0),
+    Shortcut('messages.ID_CTRL_SHIFT_T', 'messages', 'ID_CTRL_SHIFT_T', 'shortcut_ctrl_shift_t_label', 6, 84, 0),
     Shortcut('messages.ID_CTRL_SHIFT_O', 'messages', 'ID_CTRL_SHIFT_O', 'shortcut_ctrl_shift_o_label', 6, 79, 0),
     Shortcut('messages.ID_ALT_COMMA', 'messages', 'ID_ALT_COMMA', 'shortcut_alt_comma_label', 1, 44, 0),
     Shortcut('messages.ID_ALT_PERIOD', 'messages', 'ID_ALT_PERIOD', 'shortcut_alt_period_label', 1, 46, 0),

@@ -162,6 +162,9 @@ SAVED_OPENED_NO_MODEL_I18N_KEY = "transcription_saved_opened_no_model"
 SAVED_OPENED_BACKEND_I18N_KEY = "transcription_saved_opened_backend"
 SAVED_OPENED_NO_MODEL_BACKEND_I18N_KEY = "transcription_saved_opened_no_model_backend"
 
+#: Said when a transcription is put in the message's line: the text itself.
+INLINE_SPOKEN_I18N_KEY = "transcription_inline_spoken"
+
 #: The note for a fresh result that was not kept, by what storing answered.
 NOT_SAVED_I18N_KEYS = {
     stored_transcription.SAVE_UNSENT: "transcription_not_saved_unsent",
@@ -195,6 +198,7 @@ FLOW_I18N_KEYS = (
         AUTO_MODEL_UNAVAILABLE_I18N_KEY,
         HAS_NOTES_I18N_KEY,
         "transcription_no_audio",
+        INLINE_SPOKEN_I18N_KEY,
         "transcription_starting",
         "transcription_open_settings_question",
         "transcription_result_title",
@@ -286,6 +290,15 @@ def result_speech(i18n, announcement, notes, window):
     parts.extend(i18n.t(n.i18n_key).format(**n.values) for n in spoken)
     if window and len(shown) > len(spoken):
         parts.append(i18n.t(HAS_NOTES_I18N_KEY))
+    return " ".join(parts)
+
+
+def inline_speech(i18n, text, spoken_notes):
+    """What is said when a transcription lands in the message's line: the text,
+    then the voice-filter warning when there is one (it may never wait to be
+    found — see the module docstring)."""
+    parts = [i18n.t(INLINE_SPOKEN_I18N_KEY).format(text=" ".join((text or "").split()))]
+    parts.extend(i18n.t(n.i18n_key).format(**n.values) for n in spoken_notes)
     return " ".join(parts)
 
 
@@ -447,8 +460,11 @@ class MessageTranscriptionFlow:
     `wx.CallAfter` (pinned by a test).
     """
 
-    def __init__(self, panel, msg):
+    def __init__(self, panel, msg, inline=False):
         self._panel = panel
+        #: Whether the text goes into the message's own line of the list
+        #: instead of a result window (Ctrl+Shift+T, or Enter set to transcribe).
+        self._inline = bool(inline)
         self._main_window = panel.main_window
         self._i18n = self._main_window.i18n
         self._msg = msg
@@ -720,6 +736,11 @@ class MessageTranscriptionFlow:
             # Said in the window, among the notes, because it changes what the
             # user can expect: this text will not be there to reopen.
             notes = tuple(notes) + (narration.Note(not_saved),)
+        if self._inline and answer == stored_transcription.SAVE_STORED:
+            self._present_inline(result, announcement, notes)
+            return
+        # Not kept, so the row cannot carry it: the window is the one place
+        # left where the text those minutes produced can be read.
         self._open_result_window(result, announcement, notes)
 
     def _withdrawn_now(self):
@@ -784,7 +805,10 @@ class MessageTranscriptionFlow:
         """
         previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY) if isinstance(self._msg, dict) else None
         value = stored_transcription.record_from_result(
-            result, stored_transcription.next_decision_time(time.time(), previous)
+            result, stored_transcription.next_decision_time(time.time(), previous),
+            # A message that already shows its text in the line keeps showing
+            # it when the window runs the transcription again.
+            inline=self._inline or stored_transcription.is_inline(previous),
         )
         return self._main_window.store_message_transcription(self._jid, self._msg_id, value)
 
@@ -906,6 +930,56 @@ class MessageTranscriptionFlow:
         else:
             self._focus_message()
 
+    def _present_inline(self, result, announcement, notes):
+        """The text is in the message's line now: redraw it, say it, stay put."""
+        if self._hidden_by_vault():
+            return
+        self._repaint_row()
+        self._focus_message()
+        spoken, _shown = split_result_notes(announcement, notes)
+        # After the focus move, as every sentence here (see the module docstring).
+        wx.CallAfter(self._main_window.output, inline_speech(self._i18n, result.text, spoken))
+
+    def _repaint_row(self):
+        """Redraw the message's row, which carries the stored text from now on."""
+        repaint = getattr(self._panel, "_repaint_or_repopulate", None)
+        if repaint is not None and self._msg_id:
+            repaint([self._msg_id])
+
+    def inline_saved(self):
+        """Ctrl+Shift+T on a message that already has a transcription: no run.
+
+        Put in the line (marking the stored one as wanted there) and read
+        aloud, exactly as a fresh one would be; the model, the date and the
+        caveats stay in the window (Alt+Shift+T), as before.
+        """
+        value = stored_transcription.saved_transcription(self._msg)
+        if value is None:
+            self.start()
+            return
+        if not stored_transcription.is_inline(value):
+            previous = value
+            marked = dict(value, inline=True, at=stored_transcription.next_decision_time(
+                time.time(), previous))
+            if self._main_window.store_message_transcription(
+                    self._jid, self._msg_id, marked) != stored_transcription.SAVE_STORED:
+                # Nowhere to keep the mark: open the window, where the text can
+                # still be read.
+                self._inline = False
+                self.show_saved()
+                return
+        result = stored_transcription.as_result(value)
+        notes = narration.result_notes(
+            result,
+            preferences.preferred_language(
+                self._main_window.settings, getattr(self._i18n, "language", "")
+            ),
+        )
+        spoken = tuple(n for n in notes if n.i18n_key == narration.VAD_UNAVAILABLE_I18N_KEY)
+        self._repaint_row()
+        self._focus_message()
+        wx.CallAfter(self._main_window.output, inline_speech(self._i18n, result.text, spoken))
+
     def _offer_settings(self, sentence):
         """Say what is missing, and offer to open the tab that fixes it."""
         i18n = self._i18n
@@ -1005,6 +1079,19 @@ def open_or_transcribe(panel, msg):
     flow = MessageTranscriptionFlow(panel, msg)
     if stored_transcription.saved_transcription(msg) is not None:
         flow.show_saved()
+    else:
+        flow.start()
+
+
+def transcribe_inline(panel, msg):
+    """Entry point for Ctrl+Shift+T (and Enter when it is set to transcribe).
+
+    The text goes into the message's line of the list and is read aloud; no
+    window opens. A transcription already stored is used instead of a run.
+    """
+    flow = MessageTranscriptionFlow(panel, msg, inline=True)
+    if stored_transcription.saved_transcription(msg) is not None:
+        flow.inline_saved()
     else:
         flow.start()
 

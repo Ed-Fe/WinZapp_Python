@@ -6087,6 +6087,11 @@ msgid "Play recorded audio"
 msgstr "Odtwórz nagrane audio"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "play_voice_message_menu"
+msgid "Play or pause the voice message"
+msgstr "Odtwórz lub wstrzymaj wiadomość głosową"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
 msgctxt "preparing_to_sync"
 msgid "Preparing to sync..."
@@ -7832,6 +7837,15 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_t_label"
+msgid ""
+"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
+" it locally with Whisper into its line in the list, or play or pause it when"
+" Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr "Ctrl+Shift+T: na wiadomości głosowej robi to, czego nie robią Enter i Spacja: transkrybuje ją lokalnie za pomocą Whispera w jej wierszu na liście albo odtwarza lub wstrzymuje, gdy Enter i Spacja są ustawione na transkrypcję (Ustawienia > Interfejs użytkownika)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_ctrl_shift_t_list_label"
 msgid "Ctrl+Shift+T: lock the selected chat in the list"
 msgstr "Ctrl+Shift+T: zablokuj zaznaczony czat na liście"
@@ -9457,6 +9471,11 @@ msgid "total"
 msgstr "łącznie"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcribe_inline_menu"
+msgid "Transcribe locally into the message line with Whisper"
+msgstr "Transkrybuj lokalnie w wierszu wiadomości za pomocą Whispera"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "transcribe_message"
 msgid "Transcribe message locally with Whisper"
@@ -9614,7 +9633,9 @@ msgctxt "transcription_confirm_queue_does_not_fit"
 msgid ""
 "Warning: these models do not fit in that device's memory, and transcription "
 "may fail for lack of memory: {models}."
-msgstr "Uwaga: te modele nie mieszczą się w pamięci tego urządzenia i transkrypcja może się nie udać z powodu braku pamięci: {models}."
+msgstr ""
+"Uwaga: te modele nie mieszczą się w pamięci tego urządzenia i transkrypcja "
+"może się nie udać z powodu braku pamięci: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -10690,6 +10711,12 @@ msgstr ""
 "zamknięty i transkrypcja nie została zapisana."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_inline_spoken"
+msgid "Transcription: {text}"
+msgstr "Transkrypcja: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_insert_refused_vault_closed"
 msgid ""
 "The locked-chats vault was closed, and the transcription was not inserted "
@@ -11518,6 +11545,12 @@ msgstr ""
 "transkrypcję ponownie, używając procesora?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "transcription_row_label"
+msgid "transcription"
+msgstr "transkrypcja"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "transcription_running_on_cpu"
 msgid "The transcription will use the {model} model and the processor."
@@ -11915,6 +11948,15 @@ msgctxt "ui_conversation_video_media_viewer_dialog_label"
 msgid "Show chat videos in a separate player (opens a new dialog)"
 msgstr ""
 "Pokaż wideo z czatów w osobnym odtwarzaczu (otwiera nowe okno dialogowe)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_enter_transcribes_voice"
+msgid ""
+"Enter and Space on a voice message transcribe it into its line in the list "
+"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
+"play it and Ctrl+Shift+T transcribes it into its line"
+msgstr "Enter i Spacja na wiadomości głosowej transkrybują ją w jej wierszu na liście zamiast ją odtwarzać (Ctrl+Shift+T ją odtwarza); po wyłączeniu Enter i Spacja ją odtwarzają, a Ctrl+Shift+T transkrybuje ją w wierszu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

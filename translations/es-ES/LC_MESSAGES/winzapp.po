@@ -6070,6 +6070,11 @@ msgid "Play recorded audio"
 msgstr "Reproducir audio grabado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "play_voice_message_menu"
+msgid "Play or pause the voice message"
+msgstr "Reproducir o pausar el mensaje de voz"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
 msgctxt "preparing_to_sync"
 msgid "Preparing to sync..."
@@ -7821,6 +7826,15 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_t_label"
+msgid ""
+"Ctrl+Shift+T: on a voice message, do what Enter and Space do not: transcribe"
+" it locally with Whisper into its line in the list, or play or pause it when"
+" Enter and Space are set to transcribe (Settings > User Interface)"
+msgstr "Ctrl+Shift+T: en un mensaje de voz, hace lo que Enter y Espacio no hacen: transcribirlo localmente con Whisper en su línea de la lista, o reproducirlo o pausarlo cuando Enter y Espacio estén configurados para transcribir (Configuración > Interfaz de usuario)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_ctrl_shift_t_list_label"
 msgid "Ctrl+Shift+T: lock the selected chat in the list"
 msgstr "Ctrl+Shift+T: bloquear el chat seleccionado en la lista"
@@ -9439,6 +9453,11 @@ msgid "total"
 msgstr "en total"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcribe_inline_menu"
+msgid "Transcribe locally into the message line with Whisper"
+msgstr "Transcribir localmente en la línea del mensaje con Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "transcribe_message"
 msgid "Transcribe message locally with Whisper"
@@ -9593,7 +9612,9 @@ msgctxt "transcription_confirm_queue_does_not_fit"
 msgid ""
 "Warning: these models do not fit in that device's memory, and transcription "
 "may fail for lack of memory: {models}."
-msgstr "Aviso: estos modelos no caben en la memoria de ese dispositivo y la transcripción puede fallar por falta de memoria: {models}."
+msgstr ""
+"Aviso: estos modelos no caben en la memoria de ese dispositivo y la "
+"transcripción puede fallar por falta de memoria: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -10628,6 +10649,12 @@ msgstr ""
 " la transcripción no se guardó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_inline_spoken"
+msgid "Transcription: {text}"
+msgstr "Transcripción: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_insert_refused_vault_closed"
 msgid ""
 "The locked-chats vault was closed, and the transcription was not inserted "
@@ -11389,6 +11416,12 @@ msgstr ""
 "nuevo usando el procesador?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "transcription_row_label"
+msgid "transcription"
+msgstr "transcripción"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "transcription_running_on_cpu"
 msgid "The transcription will use the {model} model and the processor."
@@ -11761,6 +11794,15 @@ msgid "Show chat videos in a separate player (opens a new dialog)"
 msgstr ""
 "Mostrar los vídeos de las conversaciones en un reproductor separado (abre un"
 " nuevo diálogo)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_enter_transcribes_voice"
+msgid ""
+"Enter and Space on a voice message transcribe it into its line in the list "
+"instead of playing it (Ctrl+Shift+T plays it); turned off, Enter and Space "
+"play it and Ctrl+Shift+T transcribes it into its line"
+msgstr "Enter y Espacio en un mensaje de voz lo transcriben en su línea de la lista en lugar de reproducirlo (Ctrl+Shift+T lo reproduce); desactivado, Enter y Espacio lo reproducen y Ctrl+Shift+T lo transcribe en su línea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

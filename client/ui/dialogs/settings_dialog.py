@@ -786,6 +786,16 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         ui_sizer.Add(voice_msg_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Off: Enter and Space play a voice message and Ctrl+Shift+T transcribes
+        # it into its line. On: the two swap. The label says both halves, since
+        # it is the only place the setting is explained.
+        self._enter_transcribes_voice_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_enter_transcribes_voice")
+        )
+        ui_sizer.Add(
+            self._enter_transcribes_voice_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
         self._group_media_types_label = wx.StaticText(
             self._ui_page, label=i18n.t("ui_group_media_default_types_label")
         )
@@ -2111,6 +2121,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             self._voice_msg_mode_voice_rb.SetValue(True)
         else:
             self._voice_msg_mode_audio_rb.SetValue(True)
+        self._enter_transcribes_voice_cb.SetValue(bool(
+            self.main_window.settings.get("user_interface", {}).get(
+                "enter_transcribes_voice_messages", False
+            )
+        ))
 
         self._load_group_media_types(
             self.main_window.settings.get("user_interface", {}).get(
@@ -3426,6 +3441,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("user_interface", {})[
             "voice_message_mode"
         ] = voice_message_mode
+        self.main_window.settings.setdefault("user_interface", {})[
+            "enter_transcribes_voice_messages"
+        ] = self._enter_transcribes_voice_cb.GetValue()
 
         self.main_window.settings.setdefault("user_interface", {})[
             "group_media_default_types"
@@ -3924,6 +3942,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._voice_msg_mode_box.SetLabel(i18n.t("ui_voice_message_mode_label"))
         self._voice_msg_mode_audio_rb.SetLabel(i18n.t("ui_voice_message_mode_audio"))
         self._voice_msg_mode_voice_rb.SetLabel(i18n.t("ui_voice_message_mode_voice_message"))
+        self._enter_transcribes_voice_cb.SetLabel(i18n.t("ui_enter_transcribes_voice"))
         self._preserve_typed_caption_cb.SetLabel(i18n.t("ui_preserve_typed_text_as_caption"))
         self._bulk_action_shortcuts_cb.SetLabel(i18n.t("ui_bulk_action_shortcuts"))
         self._confirm_mark_all_read_cb.SetLabel(i18n.t("ui_confirm_mark_all_read"))
