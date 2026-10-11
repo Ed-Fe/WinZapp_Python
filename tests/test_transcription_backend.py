@@ -51,6 +51,7 @@ import sys
 import tempfile
 import threading
 import time
+import wave
 
 import pytest
 
@@ -683,7 +684,47 @@ class TestErrorClassification:
 # ── Transcribing ─────────────────────────────────────────────────────────────
 
 
+def _write_wav(path, frames=b"\x00\x40" * 1600, rate=16000, channels=1, width=2):
+    handle = wave.open(str(path), "wb")
+    handle.setnchannels(channels)
+    handle.setsampwidth(width)
+    handle.setframerate(rate)
+    handle.writeframes(frames)
+    handle.close()
+    return str(path)
+
+
 class TestTranscribe:
+    def test_the_prepared_audio_is_decoded_here_not_by_pyav(
+        self, tmp_path, monkeypatch
+    ):
+        """A path makes faster-whisper open the file with PyAV, which fails
+        on an old `av` ('metadata_errors') after the model loaded; the
+        prepared WAV is ours, so the samples go in instead."""
+        numpy = pytest.importorskip("numpy")
+        _ready_model_dir(monkeypatch, tmp_path)
+        factory = _Factory(segments=[_Segment(0.0, 0.1, "oi")], info=_Info())
+        backend = faster_whisper_backend.FasterWhisperBackend(model_factory=factory)
+        wav = _write_wav(tmp_path / "prepared.wav")
+
+        backend.transcribe(_request(tmp_path, audio_path=wav))
+
+        audio = factory.transcribe_calls[0]["audio"]
+        assert isinstance(audio, numpy.ndarray)
+        assert audio.dtype == numpy.float32
+
+    def test_an_unreadable_prepared_file_still_goes_by_path(
+        self, tmp_path, monkeypatch
+    ):
+        _ready_model_dir(monkeypatch, tmp_path)
+        factory = _Factory(segments=[_Segment(0.0, 0.1, "oi")], info=_Info())
+        backend = faster_whisper_backend.FasterWhisperBackend(model_factory=factory)
+        request = _request(tmp_path)
+
+        backend.transcribe(request)
+
+        assert factory.transcribe_calls[0]["audio"] == request.audio_path
+
     def test_the_result_carries_the_text_the_language_and_the_times(
         self, tmp_path, monkeypatch
     ):
@@ -864,6 +905,31 @@ class TestTranscribe:
 
 
 # ── Preparing the audio ──────────────────────────────────────────────────────
+
+
+class TestReadWaveform:
+    def test_samples_are_scaled_to_minus_one_to_one(self, tmp_path):
+        numpy = pytest.importorskip("numpy")
+        wav = _write_wav(tmp_path / "a.wav", frames=b"\x00\x40\x00\xc0")
+
+        samples = audio_prep.read_waveform(wav)
+
+        assert samples.dtype == numpy.float32
+        assert list(samples) == [0.5, -0.5]
+
+    @pytest.mark.parametrize(
+        "overrides", [{"rate": 44100}, {"channels": 2}, {"width": 1}]
+    )
+    def test_a_file_that_is_not_16k_mono_pcm16_is_left_to_the_backend(
+        self, tmp_path, overrides
+    ):
+        pytest.importorskip("numpy")
+        wav = _write_wav(tmp_path / "a.wav", frames=b"\x00" * 8, **overrides)
+
+        assert audio_prep.read_waveform(wav) is None
+
+    def test_a_missing_file_is_none_rather_than_an_error(self, tmp_path):
+        assert audio_prep.read_waveform(str(tmp_path / "gone.wav")) is None
 
 
 class TestAudioPreparation:

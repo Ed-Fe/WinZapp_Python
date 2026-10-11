@@ -49,7 +49,7 @@ import os
 import threading
 import time
 
-from core.transcription import errors, external_models
+from core.transcription import audio_prep, errors, external_models
 from core.transcription._fileops import check_cancel as _check_cancel
 from core.transcription.backend import (
     BACKEND_FASTER_WHISPER,
@@ -404,9 +404,12 @@ class FasterWhisperBackend(TranscriptionBackend):
         a real one — so the result has to be able to say that its own tail is
         less trustworthy, and part 6 has to be able to say it out loud.
         """
+        audio = audio_prep.read_waveform(request.audio_path)
+        if audio is None:
+            audio = request.audio_path
         try:
             segments, info = model.transcribe(
-                request.audio_path,
+                audio,
                 language=request.language,
                 vad_filter=request.vad_filter,
             )
@@ -423,7 +426,7 @@ class FasterWhisperBackend(TranscriptionBackend):
             )
         try:
             segments, info = model.transcribe(
-                request.audio_path, language=request.language, vad_filter=False
+                audio, language=request.language, vad_filter=False
             )
             return segments, info, False
         except Exception as exc:

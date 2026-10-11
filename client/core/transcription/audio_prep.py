@@ -270,6 +270,34 @@ def _wav_duration(path) -> float:
         ) from exc
 
 
+def read_waveform(path):
+    """The prepared WAV as the float32 signal Whisper consumes, or None.
+
+    faster-whisper given a *path* decodes it with PyAV, and a PyAV older than
+    the one it was written against fails with "open() got an unexpected
+    keyword argument 'metadata_errors'" — after the model loaded, so the user
+    heard only "an internal error". The file is ours (PCM s16le, 16 kHz, mono,
+    see `_run_ffmpeg()`), so reading it here takes PyAV out of the path
+    entirely. None means "could not, let the backend try the path itself":
+    this is an optimisation of the hand-over, never a new way to fail.
+    """
+    try:
+        import numpy
+
+        with contextlib.closing(wave.open(path, "rb")) as handle:
+            if (
+                handle.getsampwidth() != 2
+                or handle.getnchannels() != TARGET_CHANNELS
+                or handle.getframerate() != TARGET_SAMPLE_RATE
+            ):
+                return None
+            frames = handle.readframes(handle.getnframes())
+        samples = numpy.frombuffer(frames, dtype="<i2")
+        return samples.astype(numpy.float32) / 32768.0
+    except Exception:
+        return None
+
+
 def _scrub(text, *paths) -> str:
     """ffmpeg's log with our own file names taken out of it.
 
