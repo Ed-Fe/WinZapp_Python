@@ -48,6 +48,8 @@ WHAT'S NEW
 
 - WinZapp opens faster. When your account is already connected, the main window and your chats appear right away, while WPPConnect starts and WhatsApp connects in the background, instead of after the "Starting WPPConnect, please wait..." window. Messages you send in the meantime wait and go out once WhatsApp is connected. The first start, and an account that still has to be paired, show that window as before. The window title says "starting WPPConnect..." until it is ready. The same goes for WPPConnect updates and forced reinstalls: no window gets in your way.
 
+- macOS: release builds now update through Sparkle 2's standard windows, which VoiceOver reads well. "Check for updates", the automatic check every 3 hours and "Check for alpha updates" open Sparkle. Before a release is offered, when you choose Install and once more at "Ready to Install", WinZapp checks that the release's tag exists in the official repository, points at its declared commit and is newer than the version you are running; if any of that fails, or GitHub cannot be reached, the update is cancelled and the reason is shown. When you choose Install, your other accounts close and no account can start until the update ends; if the update does not install, they open again. An update found in the background is announced by speech and by a notification, and "Ready to Install" is announced too. Account locks left behind by past quits no longer block updates or start-up on the Mac.
+
 FIXES
 
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.

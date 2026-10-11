@@ -48,6 +48,8 @@ NOWOŚCI
 
 - WinZapp otwiera się szybciej. Gdy konto jest już połączone, okno główne i czaty pojawiają się od razu, a WPPConnect uruchamia się i WhatsApp łączy się w tle, zamiast dopiero po oknie "Uruchamianie WPPConnect, proszę czekać...". Wiadomości wysłane w tym czasie czekają i zostaną wysłane, gdy WhatsApp się połączy. Pierwsze uruchomienie oraz konto, które trzeba jeszcze sparować, pokazują to okno tak jak dotąd. Tytuł okna pokazuje „uruchamianie WPPConnect...” do czasu, aż będzie gotowy. To samo dotyczy aktualizacji WPPConnect i wymuszonej ponownej instalacji: żadne okno nie przeszkadza.
 
+- macOS: wersje wydania aktualizują się teraz przez standardowe okna Sparkle 2, które VoiceOver czyta dobrze. „Sprawdź aktualizacje”, automatyczne sprawdzanie co 3 godziny i „Sprawdzaj aktualizacje alfa” otwierają Sparkle. Zanim wersja zostanie zaproponowana, po wybraniu Zainstaluj i jeszcze raz przy „Gotowe do instalacji” WinZapp sprawdza, czy tag wersji istnieje w oficjalnym repozytorium, wskazuje zadeklarowany commit i jest nowszy od używanej wersji; jeśli cokolwiek z tego zawiedzie albo GitHub jest nieosiągalny, aktualizacja jest anulowana, a przyczyna wyświetlona. Po wybraniu Zainstaluj pozostałe konta są zamykane i żadne konto nie może się uruchomić do końca aktualizacji; jeśli aktualizacja nie zostanie zainstalowana, konta są otwierane ponownie. Aktualizacja znaleziona w tle jest zapowiadana głosowo i powiadomieniem, a „Gotowe do instalacji” również jest zapowiadane. Blokady kont pozostawione po wcześniejszych zamknięciach nie blokują już aktualizacji ani uruchamiania na Macu.
+
 POPRAWKI
 
 - Gdy otworzysz lub przeczytasz czat w WinZapp, powiadomienie o jego nowej wiadomości jest usuwane z obszaru powiadomień zamiast w nim pozostawać.

@@ -14,7 +14,9 @@ Steps
   5. The server runtime (api/ + node/) into Contents/Resources/runtime with a
      STAMP; the app installs it into Application Support at launch
      (winzapp_mac/paths_mac.py).
-  6. Info.plist keys (mic/camera prompts), ad-hoc signature.
+  6. Sparkle.framework (pinned below, SHA-256 checked) into Contents/Frameworks;
+     Info.plist keys (mic/camera prompts; the Sparkle feed and key when
+     WINZAPP_SPARKLE_PUBLIC_KEY is set), ad-hoc signature.
   7. --zip: macos/dist/WinZapp-macOS-<arch>.zip for a release, and next to it
      WinZapp-macOS-provenance-<arch>.json when HEAD is the commit our
      repository's release tag points at (winzapp_mac/provenance.py; the
@@ -60,10 +62,32 @@ FFMPEG = {
                "7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4"),
 }
 
+# Sparkle 2 (winzapp_mac/sparkle_mac.py), the official release archive with
+# the SHA-256 GitHub publishes for it. 2.10 needs macOS 12, as the bundled
+# Chrome already does.
+SPARKLE = ("2.10.0",
+           "https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz",
+           "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c")
+SPARKLE_DIR = os.path.join(NODE_CACHE, f"sparkle-{SPARKLE[0]}")
+FRAMEWORKS = os.path.join(APP, "Contents", "Frameworks")
+
 WINDOWS_ONLY = re.compile(r"^(pywin32|pywin32-ctypes|comtypes|Windows-Toasts|winrt-|pefile)", re.I)
 MAC_EXTRA = ["pyobjc-framework-Cocoa", "pyobjc-framework-ApplicationServices",
-             "pyobjc-framework-UserNotifications", "pyobjc-framework-Intents"]
+             "pyobjc-framework-UserNotifications", "pyobjc-framework-Intents",
+             # update_coord's process liveness off Windows (real creation times,
+             # executable names); without it every lease records 0.0 and a
+             # leaked one stays "alive" once its pid is reused (coord_mac.py).
+             "psutil==7.2.2"]
 BUNDLE_ID = os.environ.get("WINZAPP_BUNDLE_ID", "com.winzapp.macos")
+
+
+def load_sparkle_policy():
+    """winzapp_mac/sparkle_policy.py: pure standard library like provenance.py
+    (winzapp_mac/__init__.py imports nothing until install() runs)."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    from winzapp_mac import sparkle_policy
+    return sparkle_policy
 
 
 def load_provenance():
@@ -216,11 +240,30 @@ def python_deps():
     if probe.returncode != 0:
         run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "--force-reinstall",
              "--no-deps", "--upgrade", "--no-binary", "PyAudio", "--target", PYDEPS, "PyAudio"], env=env)
+    check_psutil()
     # sound_lib ships Intel-only/old macOS BASS builds; use the universal ones.
     sl = os.path.join(PYDEPS, "sound_lib", "lib", "x64")
     for f in os.listdir(os.path.join(HERE, "lib")):
         if f.endswith(".dylib"):
             shutil.copy2(os.path.join(HERE, "lib", f), os.path.join(sl, f))
+
+
+def check_psutil():
+    """psutil must import and measure a creation time with the build's own
+    Python, from a native module built for this Mac: without it every
+    account lease records 0.0 and leaked ones read as live accounts
+    (winzapp_mac/coord_mac.py). Stops the build otherwise."""
+    probe = subprocess.run(
+        [sys.executable, "-s", "-S", "-c",
+         "import psutil, psutil._psutil_osx as m; assert psutil.Process().create_time() > 0; print(m.__file__)"],
+        env=env_with_pydeps(), capture_output=True, text=True)
+    if probe.returncode != 0:
+        sys.exit("psutil does not work in .pydeps: " + (probe.stderr or "").strip()[-300:])
+    native = probe.stdout.strip().splitlines()[-1]
+    archs = subprocess.run(["lipo", "-archs", native], capture_output=True, text=True).stdout.split()
+    if ARCH not in archs:
+        sys.exit(f"psutil's native module is {archs or 'unreadable'}, not {ARCH}: {native}")
+    print(f"   psutil OK ({ARCH})")
 
 
 # 2 ------------------------------------------------------------------------
@@ -271,6 +314,75 @@ def fetch_ffmpeg():
     os.remove(zpath)
     with open(stamp, "w") as fh:
         fh.write(want)
+
+
+def fetch_sparkle():
+    """The pinned Sparkle release, unpacked once into macos/cache (also what
+    macos/release/appcast.py takes sign_update from). Returns its folder."""
+    version, url, want = SPARKLE
+    stamp = os.path.join(SPARKLE_DIR, ".sha256")
+    if os.path.isfile(stamp) and open(stamp).read().strip() == want:
+        return SPARKLE_DIR
+    step(f"Sparkle {version}")
+    if os.path.exists(SPARKLE_DIR):
+        shutil.rmtree(SPARKLE_DIR)
+    os.makedirs(NODE_CACHE, exist_ok=True)
+    archive = os.path.join(NODE_CACHE, f"Sparkle-{version}.tar.xz")
+    download(url, archive)
+    got = hashlib.sha256(open(archive, "rb").read()).hexdigest()
+    if got != want:
+        os.remove(archive)
+        sys.exit(f"Sparkle checksum mismatch: {got} != {want}")
+    # "data": the framework's own relative symlinks stay, nothing may point
+    # outside the folder.
+    with tarfile.open(archive) as tf:
+        tf.extractall(SPARKLE_DIR, filter="data")
+    os.remove(archive)
+    with open(stamp, "w") as fh:
+        fh.write(want)
+    return SPARKLE_DIR
+
+
+def embed_sparkle(sparkle_dir):
+    """Sparkle.framework into Contents/Frameworks, without its XPC services:
+    they exist for sandboxed apps (WinZapp is not; entitlements/app.plist),
+    are off unless Info.plist enables them, and Sparkle's documentation offers
+    removing them ("Removing XPC Services",
+    sparkle-project.org/documentation/sandboxing). Fewer helpers to sign and
+    notarize."""
+    step("Sparkle.framework -> Contents/Frameworks")
+    dest = os.path.join(FRAMEWORKS, "Sparkle.framework")
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    os.makedirs(FRAMEWORKS, exist_ok=True)
+    run(["ditto", os.path.join(sparkle_dir, "Sparkle.framework"), dest])
+    for rel in ("XPCServices", os.path.join("Versions", "B", "XPCServices")):
+        path = os.path.join(dest, rel)
+        if os.path.islink(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+    return dest
+
+
+def sparkle_plist(source, arch=ARCH):
+    """The Info.plist keys that turn Sparkle on (sparkle_policy.plist_keys),
+    from WINZAPP_SPARKLE_PUBLIC_KEY and WINZAPP_SPARKLE_FEED_BASE; {} when no
+    key is set, so the build updates as before (updater_mac). A key on a
+    build without a release tag stops the build: Sparkle could not tell a
+    downgrade from an update, any more than updater_mac can."""
+    key = os.environ.get("WINZAPP_SPARKLE_PUBLIC_KEY", "").strip()
+    if not key:
+        return {}
+    if source is None:
+        sys.exit("Sparkle: WINZAPP_SPARKLE_PUBLIC_KEY is set but this build has no release tag")
+    with open(os.path.join(CLIENT, "languages", "language_map.json"), encoding="utf-8") as fh:
+        locales = list(json.load(fh))
+    try:
+        return load_sparkle_policy().plist_keys(
+            key, os.environ.get("WINZAPP_SPARKLE_FEED_BASE", "").strip(), arch, locales)
+    except ValueError as exc:
+        sys.exit(f"Sparkle: {exc} (WINZAPP_SPARKLE_PUBLIC_KEY / WINZAPP_SPARKLE_FEED_BASE)")
 
 
 # 3 ------------------------------------------------------------------------
@@ -366,7 +478,7 @@ def pyinstaller():
                 "account_migration", "account_bootstrap", "account_launcher", "account_ui",
                 "session_store", "window_title"):
         cmd += ["--hidden-import", mod]
-    cmd += ["--hidden-import", "winzapp_mac"]
+    cmd += ["--hidden-import", "winzapp_mac", "--hidden-import", "psutil"]
     for f in sorted(os.listdir(os.path.join(HERE, "winzapp_mac"))):
         if f.endswith(".py") and f != "__init__.py":
             cmd += ["--hidden-import", "winzapp_mac." + f[:-3]]
@@ -475,6 +587,10 @@ def finish_bundle(source=None):
     plist.pop("WinZappReleaseTag", None)
     if source:
         plist["WinZappReleaseTag"], plist["WinZappSourceCommit"] = source
+        # What Sparkle compares, ordered exactly like the tags
+        # (provenance.bundle_version).
+        plist["CFBundleVersion"] = load_provenance().bundle_version(source[0])
+    plist.update(sparkle_plist(source))
     with open(plist_path, "wb") as fh:
         plistlib.dump(plist, fh)
     identity = os.environ.get("WINZAPP_SIGN_IDENTITY")
@@ -512,8 +628,11 @@ def sign_developer_id(identity, profile=None):
     step(f"Developer ID signature ({identity})")
     ent = os.path.join(HERE, "entitlements")
     main_exe = os.path.join(APP, "Contents", "MacOS", "WinZapp")
+    sparkle = os.path.join(FRAMEWORKS, "Sparkle.framework")
     binaries = []
     for root, dirs, files in os.walk(APP):
+        if root == sparkle or root.startswith(sparkle + os.sep):
+            continue            # signed as bundles below, the way Sparkle documents
         for f in files:
             p = os.path.join(root, f)
             if os.path.islink(p) or p == main_exe or not _is_macho(p):
@@ -529,6 +648,8 @@ def sign_developer_id(identity, profile=None):
         if os.path.basename(p) in runtime_exes and os.access(p, os.X_OK):
             cmd += ["--entitlements", os.path.join(ent, "runtime.plist")]
         run_apple(cmd + [p], quiet=True)
+    for p in sparkle_signing_order(sparkle):
+        run_apple(base + [p], quiet=True)
     app_ent = os.path.join(BUILD, "app-entitlements.plist")
     with open(os.path.join(ent, "app.plist"), "rb") as fh:
         ents = plistlib.load(fh)
@@ -543,6 +664,17 @@ def sign_developer_id(identity, profile=None):
     with open(app_ent, "wb") as fh:
         plistlib.dump(ents, fh)
     run(base + ["--entitlements", app_ent, APP])
+
+
+def sparkle_signing_order(framework):
+    """Sparkle's helpers, then the framework, as sparkle-project.org/
+    documentation/sandboxing ("Code Signing") re-signs them for distribution:
+    each on its own with the hardened runtime, never --deep. Its XPC services
+    are not embedded (embed_sparkle), so their lines do not apply."""
+    if not os.path.isdir(framework):
+        return []
+    version = os.path.join(framework, "Versions", "B")
+    return [os.path.join(version, "Autoupdate"), os.path.join(version, "Updater.app"), framework]
 
 
 def notarize():
@@ -644,14 +776,17 @@ def main():
         return
     # First, before minutes of work: a tag that does not hold stops here.
     source = release_source() if a.zip or os.environ.get("WINZAPP_MAC_RELEASES_REPO") else None
+    sparkle_plist(source)       # a bad Sparkle key or feed stops here too, not at the end
     if not a.no_deps:
         python_deps()
     node_dir = node_runtime()
     fetch_ffmpeg()
     if not a.no_api:
         build_api(node_dir)
+    sparkle_dir = fetch_sparkle()
     pyinstaller()
     bundle_runtime(node_dir)
+    embed_sparkle(sparkle_dir)
     finish_bundle(source)
     notarize()
     if a.zip:
