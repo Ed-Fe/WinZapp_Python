@@ -9,7 +9,7 @@ the screen reader says "name, votes: N" and nothing else.
 
 import wx
 
-from core.polls import allows_multiple, option_label, options_by_votes, poll_options
+from core.polls import allows_multiple, option_label, options_by_votes, poll_options, vote_percent
 
 
 class PollDialog(wx.Dialog):
@@ -40,7 +40,8 @@ class PollDialog(wx.Dialog):
         self._list.InsertColumn(0, "", width=340)
         self._list.Freeze()
         try:
-            for option in options_by_votes(poll_options(poll)):
+            ordered = options_by_votes(poll_options(poll))
+            for option in ordered:
                 self._list.InsertItem(self._list.GetItemCount(), option_label(i18n, option))
         finally:
             self._list.Thaw()
@@ -48,6 +49,16 @@ class PollDialog(wx.Dialog):
             self._list.Focus(0)
             self._list.Select(0)
         sizer.Add(self._list, 1, wx.EXPAND | wx.ALL, 8)
+
+        # One progress bar per option, in the same order as the list: its share
+        # of the votes. Named after the option so a screen reader says which.
+        for option in ordered:
+            percent = vote_percent(option, ordered)
+            gauge = wx.Gauge(panel, range=100)
+            gauge.SetValue(percent)
+            gauge.SetName(i18n.t("poll_option_percent").format(
+                name=option["name"], percent=percent))
+            sizer.Add(gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         sizer.Add(wx.Button(panel, wx.ID_CANCEL, label=i18n.t("close")),
                   0, wx.ALIGN_CENTER | wx.BOTTOM, 8)

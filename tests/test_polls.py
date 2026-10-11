@@ -249,3 +249,14 @@ def test_every_locale_has_the_poll_strings(locale):
     ):
         assert strings.get(key), (locale, key)
     assert "{count}" in strings["poll_option_votes"] and "{name}" in strings["poll_option_votes"]
+
+
+class TestVoteBars:
+    OPTIONS = [{"name": "a", "votes": 3}, {"name": "b", "votes": 1}, {"name": "c", "votes": 0}]
+
+    def test_percent_is_the_share_of_all_votes(self):
+        assert [polls.vote_percent(o, self.OPTIONS) for o in self.OPTIONS] == [75, 25, 0]
+
+    def test_no_votes_is_zero_everywhere(self):
+        empty = [{"name": "a", "votes": 0}]
+        assert polls.vote_percent(empty[0], empty) == 0

@@ -148,3 +148,9 @@ def poll_send_payload(phone: str, poll: dict, *, is_group: bool, is_lid: bool) -
         "choices": list(poll["options"]),
         "options": {"selectableCount": poll.get("selectableCount", 1)},
     }
+
+
+def vote_percent(option: dict, options: list[dict]) -> int:
+    """The option's share of all votes, 0-100 (0 when nobody has voted)."""
+    total = sum(opt["votes"] for opt in options)
+    return round(100 * option["votes"] / total) if total else 0

@@ -5775,6 +5775,12 @@ msgctxt "poll_error_too_many_options"
 msgid "A poll can have at most 12 options."
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+#, python-brace-format
+msgctxt "poll_option_percent"
+msgid "{name}: {percent}%"
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 #, python-brace-format
 msgctxt "poll_option_votes"
