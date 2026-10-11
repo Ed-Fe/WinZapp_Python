@@ -50,3 +50,11 @@ def test_register_jid_mapping_strips_device_suffix_from_lid():
         pass  # later, unrelated stub gaps; the cache write happens first
     assert "123456:56@lid" not in stub._lid_to_phone
     assert stub._phone_to_lid.get("5511999990000@s.whatsapp.net") in (None, "123456@lid")
+
+
+def test_strip_device_suffix_helper():
+    from core.jid_device import strip_device_suffix
+
+    assert strip_device_suffix("123:56@lid") == "123@lid"
+    assert strip_device_suffix("123@lid") == "123@lid"
+    assert strip_device_suffix("") == ""

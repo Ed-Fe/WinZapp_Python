@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import wx
+from core.jid_device import strip_device_suffix
 from core.message_stars import apply_remote_star, merge_star_state
 from core.conversation_view import (
     archived_chat_stays_silent, archived_panel_is_shown, conversation_in_view,
@@ -642,7 +643,7 @@ class MessageEventsMixin:
             # The participant can carry the companion-device suffix
             # ("<id>:56@lid"); a self LID kept with it is rejected by the
             # send endpoint (HTTP 500) and breaks messages to oneself.
-            self.my_lid = my_lid = self._normalize_jid(participant_raw)
+            self.my_lid = my_lid = strip_device_suffix(participant_raw)
             if my_jid:
                 self.register_jid_mapping(my_lid, my_jid)
 
