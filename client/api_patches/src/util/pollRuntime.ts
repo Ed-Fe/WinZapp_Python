@@ -43,11 +43,11 @@ export async function readPollVotes({ messageIds }) {
     }
     const group = collection.getForParentAddressingModeInsensitive([msg.id])?.[0];
     const votes = group?.toArray?.() ?? [];
-    let mine = [];
+    let mine = new Set();
     try {
       const me = meUser?.getMeLidUserOrThrow?.();
       const mineVote = me ? group?.getVoteFromSenderAddressingModeInsensitive?.(me) : undefined;
-      mine = mineVote?.selectedOptionLocalIds ?? [];
+      mine = new Set(mineVote?.selectedOptionLocalIds ?? []);
     } catch { /* not knowing my vote must not hide the counts */ }
     const counts = new Map();
     let voters = 0;
@@ -63,7 +63,7 @@ export async function readPollVotes({ messageIds }) {
         name: option.name,
         localId: option.localId,
         votes: counts.get(option.localId) ?? 0,
-        mine: mine.includes(option.localId),
+        mine: mine.has(option.localId),
       })),
     };
   }
