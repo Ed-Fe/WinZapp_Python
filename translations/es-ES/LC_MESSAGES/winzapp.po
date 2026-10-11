@@ -6982,18 +6982,21 @@ msgstr "Seleccionado"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_list.py
 #: client/ui/chat_lock.py client/ui/conversation_panel/forwarding.py
 #: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selected_suffix"
 msgid "selected"
 msgstr "seleccionado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_off"
 msgid "Selection mode disabled"
 msgstr "Modo de selección desactivado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_on"
 msgid "Selection mode enabled"
 msgstr "Modo de selección activado"
@@ -9468,6 +9471,12 @@ msgid "whisper.cpp"
 msgstr "whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_background_cancel_btn"
+msgid "Ca&ncel download in the background"
+msgstr "Canc&elar descarga en segundo plano"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
@@ -9488,6 +9497,7 @@ msgstr ""
 "carpeta se eliminan antes."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_destination"
@@ -9515,6 +9525,7 @@ msgstr ""
 "transcripción puede fallar por falta de memoria."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_download_size"
@@ -9522,6 +9533,7 @@ msgid "Download size: {size}."
 msgstr "Tamaño de la descarga: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_free_space"
@@ -9556,6 +9568,7 @@ msgstr ""
 "conexión, habrá que descargarlo todo otra vez desde el principio."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_not_enough_space"
@@ -9565,6 +9578,22 @@ msgid ""
 msgstr ""
 "No hay espacio suficiente: hacen falta {required} y hay {free} libres. "
 "Libera espacio o elige otra carpeta para los modelos."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue"
+msgid "Download {count} models in sequence: {models}?"
+msgstr "¿Descargar {count} modelos en secuencia: {models}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue_does_not_fit"
+msgid ""
+"Warning: these models do not fit in that device's memory, and transcription "
+"may fail for lack of memory: {models}."
+msgstr "Aviso: estos modelos no caben en la memoria de ese dispositivo y la transcripción puede fallar por falta de memoria: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -9613,6 +9642,7 @@ msgstr ""
 "que se instale de nuevo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_required_space"
@@ -9620,6 +9650,7 @@ msgid "Disk space needed: {size}."
 msgstr "Espacio necesario en el disco: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_confirm_space_unknown"
 msgid "The free space on that disk could not be measured."
@@ -9826,6 +9857,7 @@ msgstr ""
 "transcripción se descartó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_download_confirm_title"
 msgid "Confirm download"
@@ -11159,6 +11191,7 @@ msgid "Calcula&tion precision (faster-whisper only)"
 msgstr "Precisión de cálc&ulo (solo en faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_background.py
 msgctxt "transcription_progress_cancelling"
 msgid "Cancelling..."
 msgstr "Cancelando..."
@@ -11248,6 +11281,20 @@ msgstr "Verificando el modelo {model}..."
 msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "Verificando el programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_queue_done"
+msgid "{count} models downloaded."
+msgstr "{count} modelos descargados."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_queue_stopped"
+msgid "The rest of the queue was not downloaded."
+msgstr "El resto de la cola no se descargó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_external.py

@@ -28,6 +28,8 @@ from ui.dialogs.transcription_tab import TranscriptionTabMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
+from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
+from ui.dialogs.transcription_queue import TranscriptionQueueMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
@@ -203,7 +205,8 @@ def chat_lock_tab_visible(main_window) -> bool:
 
 class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
                      TranscriptionPrecisionMixin, TranscriptionResultFieldMixin,
-                     TranscriptionBackgroundTabMixin, wx.Dialog):
+                     TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
+                     TranscriptionQueueMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]

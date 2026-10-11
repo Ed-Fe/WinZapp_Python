@@ -28,14 +28,17 @@ from update_background import background_downloads_enabled
 class TranscriptionBackgroundTabMixin:
     """Starts and finishes the tab's actions, in a dialog or in the background."""
 
-    def _start_transcription_job(self, action, model_id=None, build_id=None,
-                                 compute_capability=None):
-        """Run one action, then say it. In the background when the user asked."""
-        background = transcription_background.runs_in_background(
+    def _transcription_background_wanted(self, action) -> bool:
+        """Whether `action` goes to the main window instead of the dialog."""
+        return transcription_background.runs_in_background(
             action,
             background_downloads_enabled(getattr(self.main_window, "settings", None)),
         )
-        if background:
+
+    def _start_transcription_job(self, action, model_id=None, build_id=None,
+                                 compute_capability=None):
+        """Run one action, then say it. In the background when the user asked."""
+        if self._transcription_background_wanted(action):
             self._start_transcription_in_background(
                 action, model_id, build_id, compute_capability
             )
@@ -60,21 +63,33 @@ class TranscriptionBackgroundTabMixin:
             # one is, so this is a press that got through, and it changes
             # nothing.
             return
+        self._enter_transcription_background_run()
+
+    def _enter_transcription_background_run(self) -> None:
+        """The tab goes quiet and offers Cancel while the window runs the job."""
         self._set_transcription_job_running(True)
+        self._show_transcription_cancel(True)
         self.main_window.watch_transcription_background(
             self._transcription_background_ended
         )
 
-    def _transcription_background_ended(self, job, result, error) -> bool:
-        """The window's call when the background job is over. True: said here."""
+    def _transcription_background_ended(self, job, result, error, last=True) -> bool:
+        """The window's call when a job of the background run is over.
+
+        True: said here. `last` is False between the jobs of a queue, when the
+        tab stays busy and Cancel stays offered.
+        """
         if not self:
             # Settings was closed meanwhile; the window says it.
             return False
-        self._set_transcription_job_running(False)
+        if last:
+            self._set_transcription_job_running(False)
+            self._show_transcription_cancel(False)
         self._after_transcription_job(job, result, error, restore_focus=False)
         return True
 
-    def _after_transcription_job(self, job, result, error, restore_focus=True):
+    def _after_transcription_job(self, job, result, error, restore_focus=True,
+                                 extra_keys=()):
         """Report a finished job by whichever family its action belongs to."""
         if job.action in transcription_management.WHISPER_CPP_ACTIONS:
             self._finish_whisper_cpp_job(
@@ -82,9 +97,12 @@ class TranscriptionBackgroundTabMixin:
                 restore_focus=restore_focus,
             )
             return
+        if error is None and job.action == transcription_management.ACTION_DOWNLOAD_MODEL:
+            # It arrived: it is no longer waiting in the queue.
+            self._transcription_model_marks.discard(job.model_id)
         self._report_transcription_job(
             job.action, job.model_id, job, result, error,
-            restore_focus=restore_focus,
+            extra_keys=extra_keys, restore_focus=restore_focus,
         )
 
     def _watch_transcription_background(self) -> None:
@@ -92,7 +110,29 @@ class TranscriptionBackgroundTabMixin:
         running = getattr(self.main_window, "transcription_background_running", None)
         if not callable(running) or not running():
             return
-        self._set_transcription_job_running(True)
-        self.main_window.watch_transcription_background(
-            self._transcription_background_ended
+        self._enter_transcription_background_run()
+
+    # ── Cancel ───────────────────────────────────────────────────────────────
+
+    def _show_transcription_cancel(self, shown) -> None:
+        """Offer Cancel only while there is something to cancel.
+
+        Hidden rather than disabled: it is a stop in the tab order that answers
+        nothing the rest of the time. Re-enabled whenever it is shown again,
+        since pressing it disables it until the run is over.
+        """
+        button = getattr(self, "_transcription_cancel_btn", None)
+        if button is None:
+            return
+        button.Enable(True)
+        button.Show(bool(shown))
+        button.GetParent().Layout()
+
+    def _on_transcription_cancel_background(self, event) -> None:
+        """Stop the running download and whatever was queued behind it."""
+        if not self.main_window.cancel_transcription_background():
+            return
+        self._transcription_cancel_btn.Disable()
+        self.main_window.speak_output.output(
+            self.main_window.i18n.t("transcription_progress_cancelling")
         )

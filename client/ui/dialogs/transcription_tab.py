@@ -455,6 +455,17 @@ class TranscriptionTabMixin:
         sizer.Add(self._transcription_substituted_field, 0, wx.EXPAND | wx.ALL, 8)
         self._transcription_substituted_label.Hide()
         self._transcription_substituted_field.Hide()
+        # Stops a download that runs in the background (and what is queued
+        # behind it). Shown only while one does: see
+        # TranscriptionBackgroundTabMixin._show_transcription_cancel().
+        self._transcription_cancel_btn = wx.Button(
+            page, label=i18n.t("transcription_background_cancel_btn")
+        )
+        self._transcription_cancel_btn.Bind(
+            wx.EVT_BUTTON, self._on_transcription_cancel_background
+        )
+        sizer.Add(self._transcription_cancel_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self._transcription_cancel_btn.Hide()
         self._transcription_substitution_keys = []
         #: The same field also carries what the *machine* has to say about the
         #: current choices — kept apart from the substitutions because the two
@@ -493,12 +504,19 @@ class TranscriptionTabMixin:
             page, label=i18n.t("transcription_model_label")
         )
         sizer.Add(self._transcription_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
-        self._transcription_model_combo = wx.ComboBox(page, style=wx.CB_READONLY)
-        # Same multi-character type-ahead as the language combo on the General
-        # tab — a read-only wx.ComboBox otherwise only matches the first letter.
-        bind_incremental_search(self._transcription_model_combo)
-        sizer.Add(self._transcription_model_combo, 0, wx.EXPAND | wx.ALL, 8)
-        #: Parallel to the combobox items: index -> the value stored in
+        # A list rather than a drop-down: the models can be marked for download
+        # (Ctrl+Space, as in the lists of chats and messages — see
+        # TranscriptionModelMarksMixin), and a closed combo box has no place
+        # to read "selected" from and no Space that is not its own. The row
+        # the list is on is still the chosen model; the marks are the queue.
+        self._transcription_model_list = wx.ListBox(
+            page, style=wx.LB_SINGLE,
+            size=(-1, page.GetTextExtent("Xg").GetHeight() * 7),
+        )
+        sizer.Add(self._transcription_model_list, 0, wx.EXPAND | wx.ALL, 8)
+        # Before the first populate: the rows are drawn with their marks.
+        self._init_transcription_model_marks()
+        #: Parallel to the list items: index -> the value stored in
         #: settings.json. The item text is a whole sentence, so it cannot be
         #: mapped back to an id by reading it.
         self._transcription_model_ids = []
@@ -509,8 +527,8 @@ class TranscriptionTabMixin:
         self._populate_transcription_model_choices()
         # Which buttons below make sense depends on the model selected, and
         # SetSelection() fires nothing — only the user's own choice does.
-        self._transcription_model_combo.Bind(
-            wx.EVT_COMBOBOX, self._on_transcription_model_change
+        self._transcription_model_list.Bind(
+            wx.EVT_LISTBOX, self._on_transcription_model_change
         )
         self._build_transcription_action_row(
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
@@ -736,6 +754,11 @@ class TranscriptionTabMixin:
             labels.append(label)
             model_ids.append(choice)
 
+        # What the queue can still mean: marks of models this list no longer
+        # offers (the other backend's) are forgotten, and the rest are drawn.
+        self._transcription_model_base_labels = labels
+        labels = self._marked_model_labels(labels, model_ids)
+
         if labels != self._transcription_model_labels or (
                 model_ids != self._transcription_model_ids):
             selected = self._selected_transcription_model()
@@ -743,7 +766,7 @@ class TranscriptionTabMixin:
             # Freeze()/Thaw() to batch here — that pair is for the row-by-row
             # mutation of a list control, where it saves the screen reader a
             # flood of one event per row.
-            self._transcription_model_combo.Set(labels)
+            self._transcription_model_list.Set(labels)
             self._transcription_model_ids = model_ids
             self._transcription_model_labels = labels
             self._select_transcription_model(selected)
@@ -787,7 +810,7 @@ class TranscriptionTabMixin:
 
     def _selected_transcription_model(self):
         return self._selected_id(
-            self._transcription_model_combo, self._transcription_model_ids
+            self._transcription_model_list, self._transcription_model_ids
         )
 
     def _selected_transcription_language(self):
@@ -817,7 +840,7 @@ class TranscriptionTabMixin:
 
     def _select_transcription_model(self, model_id):
         self._select_id(
-            self._transcription_model_combo, self._transcription_model_ids, model_id
+            self._transcription_model_list, self._transcription_model_ids, model_id
         )
 
     def _select_transcription_language(self, code):
@@ -1069,6 +1092,13 @@ class TranscriptionTabMixin:
                 # helpers run before the row they belong to exists.
                 if button is not None:
                     button.Enable(allowed[state_key])
+        # Marked models make Download available whatever the list is on.
+        download = self._transcription_action_buttons.get(
+            transcription_management.ACTION_DOWNLOAD_MODEL
+        )
+        if (download is not None and not self._transcription_job_running
+                and self._transcription_queue_to_download()):
+            download.Enable(True)
         self._sync_whisper_cpp_buttons()
 
     def _set_transcription_job_running(self, running):
@@ -1086,8 +1116,10 @@ class TranscriptionTabMixin:
         self._forget_transcription_outcome()
         self._sync_transcription_action_buttons()
         self._show_transcription_hardware_notices()
-        # Skip() or the dialog-level EVT_COMBOBOX never runs and the Apply
-        # button stays hidden — see _mark_dirty()'s docstring.
+        # A list box fires EVT_LISTBOX, which the dialog does not route to
+        # _mark_dirty the way it does EVT_COMBOBOX (it has other list boxes
+        # that are not settings), so this one says so itself.
+        self._mark_dirty(event)
         event.Skip()
 
     def _on_transcription_action(self, event):
@@ -1108,6 +1140,11 @@ class TranscriptionTabMixin:
         model_id = None
         if action in transcription_management.MODEL_ACTIONS:
             if not self._transcription_models_dir_applied():
+                return
+            # Marked models turn Download into a queue; every other action is
+            # about the model the list is on.
+            if (action == transcription_management.ACTION_DOWNLOAD_MODEL
+                    and self._start_transcription_queue()):
                 return
             model_id = self._selected_transcription_model()
             if model_id is None or model_id == transcription_preferences.AUTO:
@@ -1346,7 +1383,7 @@ class TranscriptionTabMixin:
             return
         if action in transcription_management.MODEL_ACTIONS:
             row, fallback = (_TRANSCRIPTION_MODEL_ACTION_BUTTONS,
-                             self._transcription_model_combo)
+                             self._transcription_model_list)
         else:
             row, fallback = (_TRANSCRIPTION_CUDA_ACTION_BUTTONS,
                              self._transcription_cuda_field)
@@ -1785,6 +1822,9 @@ class TranscriptionTabMixin:
         i18n = self.main_window.i18n
         self._transcription_substituted_label.SetLabel(
             i18n.t("transcription_substituted_label")
+        )
+        self._transcription_cancel_btn.SetLabel(
+            i18n.t("transcription_background_cancel_btn")
         )
         self._render_transcription_substitutions()
         self._transcription_model_label.SetLabel(i18n.t("transcription_model_label"))

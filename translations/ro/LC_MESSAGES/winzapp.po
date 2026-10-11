@@ -6979,18 +6979,21 @@ msgstr "Selectat"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_list.py
 #: client/ui/chat_lock.py client/ui/conversation_panel/forwarding.py
 #: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selected_suffix"
 msgid "selected"
 msgstr "selectat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_off"
 msgid "Selection mode disabled"
 msgstr "Mod de selecție dezactivat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_on"
 msgid "Selection mode enabled"
 msgstr "Mod de selecție activat"
@@ -9471,6 +9474,12 @@ msgid "whisper.cpp"
 msgstr "whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_background_cancel_btn"
+msgid "Ca&ncel download in the background"
+msgstr "A&nulați descărcarea în fundal"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
@@ -9491,6 +9500,7 @@ msgstr ""
 "șterse mai întâi."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_destination"
@@ -9518,6 +9528,7 @@ msgstr ""
 "transcrierea poate eșua din lipsă de memorie."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_download_size"
@@ -9525,6 +9536,7 @@ msgid "Download size: {size}."
 msgstr "Dimensiunea descărcării: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_free_space"
@@ -9559,6 +9571,7 @@ msgstr ""
 "conexiunea se întrerupe, totul va trebui descărcat din nou de la început."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_not_enough_space"
@@ -9568,6 +9581,22 @@ msgid ""
 msgstr ""
 "Nu există suficient spațiu: este nevoie de {required}, iar spațiul liber "
 "este de {free}. Eliberați spațiu sau alegeți alt folder pentru modele."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue"
+msgid "Download {count} models in sequence: {models}?"
+msgstr "Descărcați {count} modele pe rând: {models}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue_does_not_fit"
+msgid ""
+"Warning: these models do not fit in that device's memory, and transcription "
+"may fail for lack of memory: {models}."
+msgstr "Atenție: aceste modele nu încap în memoria acestui dispozitiv, iar transcrierea poate eșua din lipsă de memorie: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -9617,6 +9646,7 @@ msgstr ""
 " până nu este instalat din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_required_space"
@@ -9624,6 +9654,7 @@ msgid "Disk space needed: {size}."
 msgstr "Spațiu necesar pe disc: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_confirm_space_unknown"
 msgid "The free space on that disk could not be measured."
@@ -9828,6 +9859,7 @@ msgstr ""
 " renunțat la transcriere."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_download_confirm_title"
 msgid "Confirm download"
@@ -11155,6 +11187,7 @@ msgid "Calcula&tion precision (faster-whisper only)"
 msgstr "&Precizia calculelor (doar faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_background.py
 msgctxt "transcription_progress_cancelling"
 msgid "Cancelling..."
 msgstr "Se anulează..."
@@ -11244,6 +11277,20 @@ msgstr "Se verifică modelul {model}..."
 msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "Se verifică programul whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_queue_done"
+msgid "{count} models downloaded."
+msgstr "{count} modele descărcate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_queue_stopped"
+msgid "The rest of the queue was not downloaded."
+msgstr "Restul cozii nu a fost descărcat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_external.py

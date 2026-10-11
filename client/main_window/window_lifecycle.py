@@ -549,6 +549,12 @@ class WindowLifecycleMixin:
             cancel_wpp_build = getattr(self, "cancel_wpp_background_update", None)
             if cancel_wpp_build is not None:
                 cancel_wpp_build()
+            # A model, CUDA or whisper.cpp download running in the background
+            # stops at its next check instead of writing on into a closed app.
+            cancel_transcription = getattr(
+                self, "cancel_transcription_background", None)
+            if cancel_transcription is not None:
+                cancel_transcription()
             self._stop_wpp_server()
             self._flush_pending_debounced_saves()
             if hasattr(self, "db") and self.db is not None:

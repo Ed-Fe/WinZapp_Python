@@ -41,15 +41,19 @@ class TestWhichActionsRunInTheBackground:
 
 class _FakeJob:
     action = management.ACTION_DOWNLOAD_MODEL
-    model_id = "small"
     build_id = None
 
-    def __init__(self, on_finished):
+    def __init__(self, on_finished, model_id="small"):
         self.on_finished = on_finished
+        self.model_id = model_id
         self.started = False
+        self.cancelled = False
 
     def start(self):
         self.started = True
+
+    def cancel(self):
+        self.cancelled = True
 
     def announcement(self, result, error):
         return management.announcement(
@@ -127,7 +131,7 @@ class TestTheWindowRunsTheJob:
         window.said.clear()
         calls = []
         window.watch_transcription_background(
-            lambda job, result, error: calls.append(job) or True
+            lambda job, result, error, last: calls.append(job) or True
         )
         window.jobs[0].on_finished("ok", None)
         assert calls == [window.jobs[0]]
@@ -136,7 +140,7 @@ class TestTheWindowRunsTheJob:
     def test_a_listener_that_did_not_say_it_does_not_silence_the_window(self, window):
         window.start_transcription_background_job(window.make_job, "x")
         window.said.clear()
-        window.watch_transcription_background(lambda job, result, error: False)
+        window.watch_transcription_background(lambda job, result, error, last: False)
         window.jobs[0].on_finished("ok", None)
         assert len(window.said) == 1
 
@@ -144,7 +148,7 @@ class TestTheWindowRunsTheJob:
         window.start_transcription_background_job(window.make_job, "x")
         window.said.clear()
 
-        def broken(job, result, error):
+        def broken(job, result, error, last):
             raise RuntimeError("dialog gone")
 
         window.watch_transcription_background(broken)
@@ -170,3 +174,98 @@ class TestTheWindowRunsTheJob:
         assert not window.start_transcription_background_job(broken, "x")
         assert not window.transcription_background_running()
         assert window.said == []
+
+
+def _items(window, *model_ids):
+    def factory(model_id):
+        def make_job(on_progress, on_finished):
+            assert on_progress is None
+            job = _FakeJob(on_finished, model_id)
+            window.jobs.append(job)
+            return job
+        return make_job
+    return [(factory(model_id), f"baixando {model_id}") for model_id in model_ids]
+
+
+class TestARunOfSeveralJobs:
+    def test_they_go_one_after_the_other_never_together(self, window):
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        assert [job.model_id for job in window.jobs] == ["tiny"]
+        window.jobs[0].on_finished("ok", None)
+        assert [job.model_id for job in window.jobs] == ["tiny", "base"]
+        assert window.transcription_background_running()
+
+    def test_the_note_is_said_once_and_each_job_says_what_it_is_doing(self, window):
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        assert window.said == ["baixando tiny transcription_background_started"]
+        window.said.clear()
+        window.jobs[0].on_finished("ok", None)
+        assert "baixando base" in window.said
+        assert "baixando base transcription_background_started" not in window.said
+
+    def test_the_listener_hears_every_job_and_which_is_the_last(self, window):
+        heard = []
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        window.watch_transcription_background(
+            lambda job, result, error, last: heard.append((job.model_id, last)) or True
+        )
+        window.jobs[0].on_finished("ok", None)
+        window.jobs[1].on_finished("ok", None)
+        assert heard == [("tiny", False), ("base", True)]
+        assert not window.transcription_background_running()
+
+    def test_the_end_of_a_queue_says_how_many_arrived(self, window):
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        window.jobs[0].on_finished("ok", None)
+        window.said.clear()
+        window.jobs[1].on_finished("ok", None)
+        assert window.said[-1] == "transcription_queue_done"
+
+    def test_a_single_job_does_not_announce_a_queue(self, window):
+        window.start_transcription_background_jobs(_items(window, "tiny"))
+        window.said.clear()
+        window.jobs[0].on_finished("ok", None)
+        assert "transcription_queue_done" not in window.said
+
+    def test_the_first_failure_drops_what_was_behind_it(self, window):
+        from core.transcription import errors
+
+        window.start_transcription_background_jobs(_items(window, "tiny", "base", "small"))
+        window.said.clear()
+        window.jobs[0].on_finished(None, errors.TranscriptionError(errors.NO_DISK_SPACE, "d"))
+        assert len(window.jobs) == 1
+        assert not window.transcription_background_running()
+        assert "transcription_queue_stopped" in window.said
+
+    def test_a_stop_by_the_last_job_does_not_claim_a_rest(self, window):
+        from core.transcription import errors
+
+        window.start_transcription_background_jobs(_items(window, "tiny"))
+        window.said.clear()
+        window.jobs[0].on_finished(None, errors.TranscriptionError(errors.NO_DISK_SPACE, "d"))
+        assert "transcription_queue_stopped" not in window.said
+
+
+class TestCancelling:
+    def test_nothing_running_is_nothing_to_cancel(self, window):
+        assert window.cancel_transcription_background() is False
+
+    def test_it_stops_the_job_and_drops_the_queue(self, window):
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        assert window.cancel_transcription_background() is True
+        assert window.jobs[0].cancelled
+        # The job reports CANCELLED through the usual path, and nothing starts.
+        from core.transcription import errors
+
+        window.jobs[0].on_finished(None, errors.TranscriptionError(errors.CANCELLED, "x"))
+        assert len(window.jobs) == 1
+        assert not window.transcription_background_running()
+
+    def test_a_cancelled_queue_does_not_claim_a_rest_it_was_told_to_drop(self, window):
+        from core.transcription import errors
+
+        window.start_transcription_background_jobs(_items(window, "tiny", "base"))
+        window.cancel_transcription_background()
+        window.said.clear()
+        window.jobs[0].on_finished(None, errors.TranscriptionError(errors.CANCELLED, "x"))
+        assert "transcription_queue_stopped" not in window.said

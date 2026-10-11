@@ -6916,18 +6916,21 @@ msgstr "Seçildi"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_list.py
 #: client/ui/chat_lock.py client/ui/conversation_panel/forwarding.py
 #: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selected_suffix"
 msgid "selected"
 msgstr "seçildi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_off"
 msgid "Selection mode disabled"
 msgstr "Seçim modu devre dışı bırakıldı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_on"
 msgid "Selection mode enabled"
 msgstr "Seçim modu etkinleştirildi"
@@ -9376,6 +9379,12 @@ msgid "whisper.cpp"
 msgstr "whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_background_cancel_btn"
+msgid "Ca&ncel download in the background"
+msgstr "Arka &plan indirmesini iptal et"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
 msgctxt "transcription_background_started"
 msgid "It continues in the background. You will be told when it finishes."
@@ -9396,6 +9405,7 @@ msgstr ""
 "önce silinir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_destination"
@@ -9423,6 +9433,7 @@ msgstr ""
 "yetersizliğinden başarısız olabilir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_download_size"
@@ -9430,6 +9441,7 @@ msgid "Download size: {size}."
 msgstr "İndirme boyutu: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_free_space"
@@ -9464,6 +9476,7 @@ msgstr ""
 "edilir veya bağlantı kesilirse her şeyin baştan yeniden indirilmesi gerekir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_not_enough_space"
@@ -9473,6 +9486,22 @@ msgid ""
 msgstr ""
 "Yeterli alan yok. Gereken alan: {required}. Boş alan: {free}. Yer açın veya "
 "modeller için başka bir klasör seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue"
+msgid "Download {count} models in sequence: {models}?"
+msgstr "{count} model sırayla indirilsin mi: {models}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue_does_not_fit"
+msgid ""
+"Warning: these models do not fit in that device's memory, and transcription "
+"may fail for lack of memory: {models}."
+msgstr "Dikkat: Bu modeller o cihazın belleğine sığmıyor ve yazıya döküm bellek yetersizliğinden başarısız olabilir: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -9521,6 +9550,7 @@ msgstr ""
 "yapamaz."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_required_space"
@@ -9528,6 +9558,7 @@ msgid "Disk space needed: {size}."
 msgstr "Gereken disk alanı: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_confirm_space_unknown"
 msgid "The free space on that disk could not be measured."
@@ -9723,6 +9754,7 @@ msgid ""
 msgstr "Mesaj yazıya dökülürken herkesten silindi, bu yüzden döküm atıldı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_download_confirm_title"
 msgid "Confirm download"
@@ -11015,6 +11047,7 @@ msgid "Calcula&tion precision (faster-whisper only)"
 msgstr "&Hesaplama hassasiyeti (yalnızca faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_background.py
 msgctxt "transcription_progress_cancelling"
 msgid "Cancelling..."
 msgstr "İptal ediliyor..."
@@ -11104,6 +11137,20 @@ msgstr "{model} modeli doğrulanıyor..."
 msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "whisper.cpp programı ({build}) doğrulanıyor..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_queue_done"
+msgid "{count} models downloaded."
+msgstr "{count} model indirildi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_queue_stopped"
+msgid "The rest of the queue was not downloaded."
+msgstr "Kuyruğun geri kalanı indirilmedi."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_external.py

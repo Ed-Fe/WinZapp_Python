@@ -578,3 +578,29 @@ the focus. They never take the letter of OK, Cancel or Apply, and the existing
 letters of the labelled controls were not changed. Adding a button: pick a
 letter its word already uses, or the least-contested one, and extend
 `ACTION_BUTTONS` in `tests/test_transcription_settings_tab.py`.
+
+## Marked models and the download queue
+
+The model list is a `wx.ListBox` (it was a drop-down; a closed combo has no
+place for a "selected" mark and no Space of its own). The row the list is on is
+still the chosen model. On top of that, the selection mode of the chat and
+message lists (`transcription_model_marks.py`): Ctrl+Space marks, Space marks
+while something is marked (`space_selects_in_selection_mode`), Ctrl+Shift+Space
+marks all, Esc unmarks (`escape_clears_selection`; a char hook on the list, the
+only way to keep Esc from closing the dialog). Both settings are the ones the
+other lists read, not new ones.
+
+- **Marked = queue.** Download with marks fetches every marked model that is not
+  complete (`core/transcription/model_queue.py`), after one question sized as
+  the sum. Repair, verify and remove never take the queue: they are about the
+  model the list is on (repair deletes before it fetches).
+- **The first failure or cancellation ends the run** and says the rest was not
+  downloaded; what did not arrive stays marked, so Download resumes the queue.
+- **In the background** the whole queue is one run of the main window
+  (`start_transcription_background_jobs`); a listener hears every job with
+  `last=False` until the final one. The cancel button of the tab exists only
+  during such a run (`cancel_transcription_background()`, also called when the
+  app quits). While it is shown every action button is off, so its Alt letter
+  may be one the action buttons also use.
+- Only catalogue models are markable; "Automatic" and the models in other
+  folders have nothing to download.
