@@ -131,6 +131,8 @@ class TestWorkerHandoff:
         assert worker.discarded == []
         assert not worker.dialog._install_ok
         assert worker.ended == [updater.wx.ID_ABORT]
+        assert worker.dialog._error_msg == (
+            "update_uac_declined" if failure == "declined" else "mock launch failure")
 
     def test_close_after_grant_does_not_undo_a_successful_spawn(self, worker, monkeypatch):
         def launch(*a, **kw):

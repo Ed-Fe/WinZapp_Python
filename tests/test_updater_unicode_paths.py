@@ -269,8 +269,9 @@ class TestInstallerScript:
 
 
 class TestWritingTheScript:
-    def test_write_error_returns_failure_before_any_process_is_launched(self, tmp_path):
-        assert not updater._write_installer_script(str(tmp_path / "missing" / "u.bat"), _script())
+    def test_write_error_preserves_the_actual_cause_for_the_worker(self, tmp_path):
+        with pytest.raises(OSError):
+            updater._write_installer_script(str(tmp_path / "missing" / "u.bat"), _script())
 
     def test_an_ascii_script_is_written_as_ascii(self, tmp_path):
         bat = tmp_path / "u.bat"

@@ -679,7 +679,7 @@ def _write_installer_script(bat_path: str, script: str) -> bool:
     try:
         with open(bat_path, "w", encoding=encoding, errors="strict", newline="\r\n") as f:
             f.write(script)
-    except (UnicodeEncodeError, LookupError, OSError) as exc:
+    except (UnicodeEncodeError, LookupError) as exc:
         logging.error(
             "Auto-updater: installer script cannot be written in %s (%s) — "
             "the install path has characters cmd.exe cannot read back. "

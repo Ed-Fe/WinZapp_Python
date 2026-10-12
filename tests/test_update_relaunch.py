@@ -189,6 +189,7 @@ def install(tmp_path, monkeypatch):
     monkeypatch.setattr(updater.subprocess, "Popen", _popen)
     monkeypatch.setattr(update_relaunch.time, "sleep", lambda s: None)
     elevated = []
+    state["elevated"] = elevated
 
     def run(needs_admin=True, result=(True, 9001), waiter_creates_marker=True):
         state["waiter_creates_marker"] = waiter_creates_marker
@@ -207,6 +208,16 @@ def install(tmp_path, monkeypatch):
 
 
 class TestRunBatchInstaller:
+    def test_installer_script_write_error_never_reaches_uac_or_popen(self, install, monkeypatch):
+        spawned = []
+        def fail(path, script):
+            raise OSError("mock installer disk full")
+        monkeypatch.setattr(updater, "_write_installer_script", fail)
+        monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **kw: spawned.append(a))
+        with pytest.raises(OSError, match="mock installer disk full"):
+            install()
+        assert spawned == [] and install.state["elevated"] == []
+
     def test_waiter_exception_cannot_change_an_already_launched_install(self, install, monkeypatch):
         def fail(*a, **kw):
             raise OSError("mock waiter failure")
