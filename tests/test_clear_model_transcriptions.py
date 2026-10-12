@@ -215,3 +215,44 @@ class TestTheScan:
         await in_memory_db.insert_message(JID, _audio("B", **{TRANSCRIPTION_KEY: _rec("small", "y", 5.0)}))
 
         assert await in_memory_db.clear_model_transcriptions("small", None, 100.0) == 1
+
+
+class TestClearingEveryModel:
+    async def test_every_result_of_every_model_goes_in_every_chat(self, in_memory_db):
+        both = stored.with_result(_rec("base", "um", 5.0), _rec("small", "dois", 6.0))
+        await in_memory_db.insert_message(JID, _audio("A", **{TRANSCRIPTION_KEY: both}))
+        await in_memory_db.insert_message(JID2, _audio("B", jid=JID2, **{TRANSCRIPTION_KEY: _rec("base", "três", 7.0)}))
+        await in_memory_db.insert_message(JID, _audio("C"))
+
+        assert await in_memory_db.clear_all_transcriptions(100.0) == 3
+
+        for mid, jid in (("A", JID), ("B", JID2)):
+            msg = await _record(in_memory_db, mid, jid)
+            assert stored.saved_transcription(msg) is None
+            assert msg[TRANSCRIPTION_KEY]["deleted"] is True
+            assert msg[TRANSCRIPTION_KEY]["at"] >= 100.0
+        assert TRANSCRIPTION_KEY not in await _record(in_memory_db, "C")
+
+    async def test_nothing_stored_is_zero_and_changes_nothing(self, in_memory_db):
+        await in_memory_db.insert_message(JID, _audio("A"))
+        before = tuple(await _raw_row(in_memory_db, "A"))
+        assert await in_memory_db.clear_all_transcriptions(100.0) == 0
+        assert tuple(await _raw_row(in_memory_db, "A")) == before
+
+    async def test_a_second_clear_finds_only_tombstones(self, in_memory_db):
+        await in_memory_db.insert_message(JID, _audio("A", **{TRANSCRIPTION_KEY: _rec("base", "um", 5.0)}))
+        assert await in_memory_db.clear_all_transcriptions(100.0) == 1
+        assert await in_memory_db.clear_all_transcriptions(200.0) == 0
+
+    async def test_a_stale_copy_cannot_bring_the_text_back(self, in_memory_db):
+        await in_memory_db.insert_message(JID, _audio("A", **{TRANSCRIPTION_KEY: _rec("base", "um", 5.0)}))
+        await in_memory_db.clear_all_transcriptions(100.0)
+        await in_memory_db.insert_message(JID, _audio("A", **{TRANSCRIPTION_KEY: _rec("base", "um", 5.0)}))
+        assert stored.saved_transcription(await _record(in_memory_db, "A")) is None
+
+    async def test_more_rows_than_a_chunk_are_all_visited(self, in_memory_db, monkeypatch):
+        monkeypatch.setattr(type(in_memory_db), "_CLEAR_TRANSCRIPTIONS_CHUNK", 3)
+        for index in range(8):
+            await in_memory_db.insert_message(
+                JID, _audio(f"M{index}", **{TRANSCRIPTION_KEY: _rec("base", f"t{index}", 5.0)}))
+        assert await in_memory_db.clear_all_transcriptions(100.0) == 8

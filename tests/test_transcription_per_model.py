@@ -259,3 +259,76 @@ class TestWhatClearingSays:
         assert stored.clear_cache_message_key(None) == "transcription_clear_cache_failed"
         assert stored.clear_cache_message_key(0) == "transcription_clear_cache_none"
         assert stored.clear_cache_message_key(3) == "transcription_clear_cache_done"
+
+
+class TestTheCachePolicy:
+    def _settings(self, **section):
+        return {"transcription": section}
+
+    def test_it_is_on_by_default_everywhere(self):
+        assert stored.cache_enabled_for({}, "base") is True
+        assert stored.cache_enabled_for(None, "base") is True
+        assert stored.cache_enabled_for({"transcription": "junk"}, "base") is True
+        assert stored.cache_enabled_for(self._settings(), "base") is True
+
+    def test_the_general_switch_applies_to_every_model(self):
+        off = self._settings(cache_enabled=False)
+        assert stored.cache_enabled_for(off, "base") is False
+        assert stored.cache_enabled_for(off, "small") is False
+
+    @pytest.mark.parametrize("junk", [None, 0, "no", []])
+    def test_only_a_real_false_turns_the_general_switch_off(self, junk):
+        assert stored.cache_enabled_for(self._settings(cache_enabled=junk), "base") is True
+
+    def test_a_models_own_choice_beats_the_general_switch_both_ways(self):
+        off_for_one = self._settings(cache_enabled=True, cache_by_model={"base": False})
+        assert stored.cache_enabled_for(off_for_one, "base") is False
+        assert stored.cache_enabled_for(off_for_one, "small") is True
+        on_for_one = self._settings(cache_enabled=False, cache_by_model={"base": True})
+        assert stored.cache_enabled_for(on_for_one, "base") is True
+        assert stored.cache_enabled_for(on_for_one, "small") is False
+
+    def test_a_choice_that_is_not_a_bool_is_ignored(self):
+        settings = self._settings(cache_enabled=False, cache_by_model={"base": "yes"})
+        assert stored.cache_enabled_for(settings, "base") is False
+        assert stored.cache_enabled_for(self._settings(cache_by_model="junk"), "base") is True
+
+    def test_a_value_is_judged_by_the_model_that_made_it(self):
+        settings = self._settings(cache_by_model={"base": False})
+        assert stored.may_cache(settings, _rec("base", "x")) is False
+        assert stored.may_cache(settings, _rec("small", "x")) is True
+
+    def test_a_tombstone_or_junk_is_always_allowed(self):
+        off = self._settings(cache_enabled=False)
+        assert stored.may_cache(off, stored.tombstone(5.0)) is True
+        assert stored.may_cache(off, None) is True
+
+    def test_the_defaults_are_not_shared_with_a_caller(self):
+        from core.transcription import preferences
+        section = preferences.read_section({})
+        section["cache_by_model"]["base"] = False
+        assert preferences.DEFAULTS["cache_by_model"] == {}
+        assert preferences.read_section({})["cache_by_model"] == {}
+
+
+class TestClearingEverything:
+    def test_every_result_goes_and_a_tombstone_is_dated_after_the_copy(self):
+        value = stored.with_result(_rec("base", "a", at=100.0), _rec("small", "b", at=120.0))
+        record = {"key": {"id": "M1"}, TRANSCRIPTION_KEY: value}
+        other = {"key": {"id": "M2"}, TRANSCRIPTION_KEY: _rec("base", "c", at=5.0)}
+        none = {"key": {"id": "M3"}}
+        tomb = {"key": {"id": "M4"}, TRANSCRIPTION_KEY: stored.tombstone(7.0)}
+
+        changed = stored.drop_all_on_copies([record, other, none, tomb, record], 50.0)
+
+        assert changed == ["M1", "M2"]
+        assert record[TRANSCRIPTION_KEY].get("deleted") is True
+        assert record[TRANSCRIPTION_KEY]["at"] > 120.0
+        assert other[TRANSCRIPTION_KEY].get("deleted") is True
+        assert tomb[TRANSCRIPTION_KEY] == stored.tombstone(7.0)
+
+    def test_drop_all_counts_what_went(self):
+        value = stored.with_result(_rec("base", "a"), _rec("small", "b", at=20.0))
+        new, count = stored.drop_all(value, 99.0)
+        assert count == 2 and new == stored.tombstone(99.0)
+        assert stored.drop_all(stored.tombstone(1.0), 99.0) == (stored.tombstone(1.0), 0)

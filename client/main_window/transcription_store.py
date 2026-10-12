@@ -85,6 +85,10 @@ class TranscriptionStoreMixin:
             return stored_transcription.SAVE_WITHDRAWN
         if stored_transcription.is_unsent(current):
             return stored_transcription.SAVE_UNSENT
+        # After the three answers above, which outrank it: a withdrawn message
+        # must never have its text shown whatever the cache says.
+        if not stored_transcription.may_cache(self.settings, value):
+            return stored_transcription.SAVE_DISABLED
         real_id = (current.get("key") or {}).get("id", "")
         if real_id != msg_id:
             # Sent while it was being transcribed: the copies now carry the
@@ -278,6 +282,22 @@ class TranscriptionStoreMixin:
         updated on every copy of every chat, and the open conversation repaints
         the rows that changed.
         """
+        self._clear_transcriptions(
+            lambda db, decided_at: db.clear_model_transcriptions(model_id, backend_id, decided_at),
+            lambda copies, decided_at: stored_transcription.drop_model_on_copies(
+                copies, model_id, backend_id, decided_at),
+            on_done,
+        )
+
+    def clear_all_transcriptions(self, on_done) -> None:
+        """clear_model_transcriptions() for every model at once."""
+        self._clear_transcriptions(
+            lambda db, decided_at: db.clear_all_transcriptions(decided_at),
+            stored_transcription.drop_all_on_copies,
+            on_done,
+        )
+
+    def _clear_transcriptions(self, clear_on_disk, clear_in_memory, on_done) -> None:
         db = getattr(self, "db", None)
         decided_at = time.time()
 
@@ -285,8 +305,7 @@ class TranscriptionStoreMixin:
             if count is None:
                 on_done(None)
                 return
-            changed = stored_transcription.drop_model_on_copies(
-                self._all_transcription_copies(), model_id, backend_id, decided_at)
+            changed = clear_in_memory(self._all_transcription_copies(), decided_at)
             if changed:
                 # No save: the database already holds the cleared state.
                 cp = getattr(self, "conversations_panel", None)
@@ -295,7 +314,7 @@ class TranscriptionStoreMixin:
                     try:
                         repaint(changed)
                     except Exception as exc:
-                        logging.warning("[transcription] repainting after clearing a model failed: %s",
+                        logging.warning("[transcription] repainting after clearing failed: %s",
                                         type(exc).__name__)
             on_done(count)
 
@@ -303,9 +322,9 @@ class TranscriptionStoreMixin:
             count = None
             if db is not None:
                 try:
-                    count = db.clear_model_transcriptions(model_id, backend_id, decided_at)
+                    count = clear_on_disk(db, decided_at)
                 except Exception as exc:
-                    logging.warning("[transcription] clearing a model's transcriptions failed: %s",
+                    logging.warning("[transcription] clearing saved transcriptions failed: %s",
                                     type(exc).__name__)
             wx.CallAfter(_finish, count)
 

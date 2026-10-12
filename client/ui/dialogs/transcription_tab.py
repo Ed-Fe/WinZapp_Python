@@ -534,7 +534,7 @@ class TranscriptionTabMixin:
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
             _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
         )
-        self._build_transcription_clear_cache_button(page, sizer)
+        self._build_transcription_cache(page, sizer)
         # Models the user already has in other folders: right after the ways
         # to get one into the picker, and before the device it will run on.
         self._build_external_models_group(page, sizer)
@@ -1629,6 +1629,7 @@ class TranscriptionTabMixin:
         )
         self._sync_transcription_language_controls()
         self._load_transcription_options()
+        self._load_transcription_cache()
         self._load_transcription_reuse()
 
         self._show_transcription_cuda_status()
@@ -1773,6 +1774,7 @@ class TranscriptionTabMixin:
             self._transcription_detect_language_check.GetValue()
         )
         self._apply_transcription_options()
+        self._apply_transcription_cache()
         self._apply_transcription_reuse()
         # Written even while detection is on: it is the language the user would
         # rather hear, which preferred_language() answers for part 6 whatever
@@ -1869,7 +1871,7 @@ class TranscriptionTabMixin:
         self._refresh_external_labels()
         self._refresh_transcription_options_labels()
         self._refresh_transcription_reuse_labels()
-        self._refresh_transcription_clear_cache_label()
+        self._refresh_transcription_cache_labels()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()

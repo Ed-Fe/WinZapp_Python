@@ -383,6 +383,12 @@ class DatabaseBridge:
             timeout=_BULK_CALL_TIMEOUT,
         )
 
+    def clear_all_transcriptions(self, decided_at: float) -> int:
+        return self._call(
+            self._db.clear_all_transcriptions(decided_at),
+            timeout=_BULK_CALL_TIMEOUT,
+        )
+
     def delete_chat(self, jid: str) -> None:
         return self._call(self._db.delete_chat(jid))
 

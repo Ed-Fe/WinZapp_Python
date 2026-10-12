@@ -1047,6 +1047,12 @@ class _RecordingDb:
             raise TimeoutError("busy")
         return any(self.has_row(jid, msg_id) for jid in jids)
 
+    def clear_all_transcriptions(self, decided_at):
+        self.calls.append(("clear_all",))
+        if self.fail:
+            raise TimeoutError("busy")
+        return self.cleared
+
     def clear_model_transcriptions(self, model_id, backend_id, decided_at):
         self.calls.append(("clear", model_id, backend_id))
         if self.fail:
@@ -1088,6 +1094,7 @@ class _Window:
     def __init__(self, records, panel=None):
         self.chats = {_JID: {"remoteJid": _JID, "messages": {"messages": {"records": records}}}}
         self.conversations_panel = panel
+        self.settings = {}
         self.db = _RecordingDb()
         self._transcription_write_queue = _Inline()
         self._phone_to_lid = {}
@@ -1105,6 +1112,8 @@ class _Window:
     delete_message_transcription = MainWindow.delete_message_transcription
     _all_transcription_copies = MainWindow._all_transcription_copies
     clear_model_transcriptions = MainWindow.clear_model_transcriptions
+    clear_all_transcriptions = MainWindow.clear_all_transcriptions
+    _clear_transcriptions = MainWindow._clear_transcriptions
 
     def _schedule_save(self, dirty_jid=None, contacts_dirty=False):
         self.saves.append(dirty_jid)
@@ -1683,3 +1692,67 @@ class TestClearingAModelFromMainWindow:
 
         for copy in (in_chat, panel_copy, other):
             assert copy[TRANSCRIPTION_KEY]["model_id"] == "base"
+
+
+    def test_clearing_everything_leaves_a_tombstone_on_every_copy(self, inline_call_after):
+        in_chat, panel_copy = self._two_models(), self._two_models()
+        window = _Window([in_chat])
+        window.db.cleared = 4
+        window.conversations_panel = _Panel(
+            {"remoteJid": _JID, "messages": {"messages": {"records": [panel_copy]}}})
+        answers = []
+
+        window.clear_all_transcriptions(answers.append)
+
+        assert window.db.calls == [("clear_all",)]
+        assert answers == [4]
+        for copy in (in_chat, panel_copy):
+            assert copy[TRANSCRIPTION_KEY].get("deleted") is True
+
+    def test_clearing_everything_fails_cleanly(self, inline_call_after):
+        record = self._two_models()
+        window = _Window([record])
+        window.db.fail = True
+        answers = []
+        window.clear_all_transcriptions(answers.append)
+        assert answers == [None]
+        assert record[TRANSCRIPTION_KEY]["model_id"] == "small"
+
+
+class TestTheCacheBeingOff:
+    @staticmethod
+    def _value(model="base"):
+        return {"text": _SECRET, "model_id": model, "backend": "faster_whisper",
+                "language": "pt", "vad_used": True, "at": 10.0}
+
+    def test_a_result_of_a_model_with_the_cache_off_is_not_kept(self):
+        record = _audio()
+        window = _Window([record])
+        window.settings = {"transcription": {"cache_by_model": {"base": False}}}
+
+        answer = window.store_message_transcription(_JID, _ID, self._value("base"))
+
+        assert answer == stored.SAVE_DISABLED
+        assert TRANSCRIPTION_KEY not in record
+        assert window.db.calls == [] and window.saves == []
+
+    def test_another_model_is_still_kept(self):
+        record = _audio()
+        window = _Window([record])
+        window.settings = {"transcription": {"cache_by_model": {"base": False}}}
+        assert window.store_message_transcription(_JID, _ID, self._value("small")) == stored.SAVE_STORED
+        assert _text_of(record) == _SECRET
+
+    def test_the_general_switch_off_keeps_nothing_unless_a_model_says_so(self):
+        record = _audio()
+        window = _Window([record])
+        window.settings = {"transcription": {"cache_enabled": False,
+                                             "cache_by_model": {"small": True}}}
+        assert window.store_message_transcription(_JID, _ID, self._value("base")) == stored.SAVE_DISABLED
+        assert window.store_message_transcription(_JID, _ID, self._value("small")) == stored.SAVE_STORED
+
+    def test_a_withdrawn_message_is_still_a_withdrawal_not_a_cache_note(self):
+        record = _audio(messageType="protocolMessage")
+        window = _Window([record])
+        window.settings = {"transcription": {"cache_enabled": False}}
+        assert window.store_message_transcription(_JID, _ID, self._value()) == stored.SAVE_WITHDRAWN

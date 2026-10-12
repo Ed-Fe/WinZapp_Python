@@ -9448,6 +9448,57 @@ msgstr "It continues in the background. You will be told when it finishes."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_check"
+msgid "Save transcriptions with the messages so they are not redone (cache)"
+msgstr "Save transcriptions with the messages so they are not redone (cache)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_follow"
+msgid "Follow the general setting"
+msgstr "Follow the general setting"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_model_label"
+msgid "Cache for this model"
+msgstr "Cache for this model"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_off"
+msgid "Off"
+msgstr "Off"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_on"
+msgid "On"
+msgstr "On"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_clear_all_cache_btn"
+msgid "Clear saved transcriptions of all models"
+msgstr "Clear saved transcriptions of all models"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_clear_all_cache_confirm"
+msgid ""
+"Delete every saved transcription of every model, in all chats? This cannot "
+"be undone."
+msgstr ""
+"Delete every saved transcription of every model, in all chats? This cannot "
+"be undone."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_all_cache_none"
+msgid "No saved transcription was found."
+msgstr "No saved transcription was found."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_cache_btn"
 msgid "Clear t&his model's saved transcriptions"
 msgstr "Clear t&his model's saved transcriptions"
@@ -10980,6 +11031,13 @@ msgstr ""
 msgctxt "transcription_no_audio"
 msgid "This message has no audio to transcribe."
 msgstr "This message has no audio to transcribe."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_cache_off"
+msgid ""
+"This transcription was not saved because the cache is off for this model."
+msgstr ""
+"This transcription was not saved because the cache is off for this model."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_not_saved_missing"

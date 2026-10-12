@@ -129,7 +129,9 @@
         "language": "interface",
         "auto_detect_language": true,
         "keep_model_loaded": false,
-        "auto_transcribe_received": false
+        "auto_transcribe_received": false,
+        "cache_enabled": true,
+        "cache_by_model": {}
     },
     "files": {
         "save_dialog_folder_mode": "last",

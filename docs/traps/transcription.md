@@ -720,3 +720,19 @@ as an **inline** transcription (same record as Alt+Shift+N, so the row shows it)
   download the auto-download is already doing before fetching the audio itself.
 - When the result arrives, the stored decision wins if the user acted meanwhile
   (a manual run or a deletion): the automatic text is dropped.
+
+## Whether results are kept (the cache settings)
+
+`transcription.cache_enabled` (general, **on by default**) and `transcription.cache_by_model`
+(`{model id: bool}`, set per model in Settings) decide whether a new result is saved with
+the message (`stored.cache_enabled_for(settings, model_id)`; only a real `False` turns the
+general switch off, only a real bool is a model's choice). The one place that enforces it is
+`MainWindow.store_message_transcription()`: it answers `SAVE_DISABLED` — **after** the withdrawn,
+unsent and missing answers, which outrank it — and the flow opens the result window with the
+`transcription_not_saved_cache_off` note instead of the row (inline) path. The automatic
+transcription skips a model chosen explicitly whose cache is off (it would run for nothing).
+- Turning the cache off only stops **new** saves: texts already saved stay (rows, "view
+  transcription") until cleared with the two Clear buttons.
+- "Clear all models" is `DatabaseManager.clear_all_transcriptions` → the same chunked scan as the
+  per-model one (`_rewrite_all_transcriptions`), leaving a tombstone on every message that held a result.
+- The new controls have no Alt keys: the tab has no free letter left in several locales.

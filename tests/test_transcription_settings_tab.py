@@ -246,6 +246,11 @@ class _MainWindow:
         self.background_listeners.append(listener)
 
 
+class _FakeEvent:
+    def Skip(self):
+        pass
+
+
 class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin,
                 TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin,
                 TranscriptionModelMarksMixin, TranscriptionQueueMixin,
@@ -770,6 +775,8 @@ class TestEverySettingIsReadBackAndWritten:
             "auto_detect_language": False,
             "keep_model_loaded": False,
             "auto_transcribe_received": False,
+            "cache_enabled": True,
+            "cache_by_model": {},
         }
         tab.main_window.settings["transcription"] = dict(stored)
         tab._load_transcription_values()
@@ -787,6 +794,33 @@ class TestEverySettingIsReadBackAndWritten:
             assert residency.residency.keep_loaded is True
         finally:
             residency.residency.configure(False)
+
+    def test_the_cache_starts_on_and_a_model_can_override_it(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_cache_check.GetValue() is True
+        tab._select_transcription_model("small")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 0
+        tab._transcription_cache_choice.SetSelection(2)
+        tab._on_transcription_cache_choice(_FakeEvent())
+        tab._apply_transcription_values()
+        section = tab.main_window.settings["transcription"]
+        assert section["cache_enabled"] is True
+        assert section["cache_by_model"] == {"small": False}
+        tab._transcription_cache_choice.SetSelection(0)
+        tab._on_transcription_cache_choice(_FakeEvent())
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["cache_by_model"] == {}
+
+    def test_a_models_choice_is_shown_when_it_is_selected(self, tab):
+        tab.main_window.settings["transcription"] = {"cache_by_model": {"small": True, "base": False}}
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 1
+        tab._select_transcription_model("base")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 2
 
     def test_automatic_transcription_starts_off_and_round_trips(self, tab):
         tab._load_transcription_values()

@@ -55,6 +55,12 @@ class AutoTranscriptionMixin:
         try:
             if not auto_queue.eligible(msg) or self.is_chat_locked(remote_jid):
                 return
+            # A model chosen explicitly whose cache is off would run for
+            # nothing: the result could not be kept in the line.
+            _backend, model = stored_transcription.selection_from_settings(self.settings)
+            if model != "auto" and not stored_transcription.cache_enabled_for(
+                    self.settings, model):
+                return
             msg_id = (msg.get("key") or {}).get("id", "")
             self._auto_transcription_queue_get().submit(
                 (remote_jid, msg_id), (remote_jid, msg_id, msg))

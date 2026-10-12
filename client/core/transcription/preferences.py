@@ -100,6 +100,11 @@ SETTING_KEEP_MODEL_LOADED = "keep_model_loaded"
 #: Whether received voice messages are transcribed on arrival and the text put
 #: in the message's line (core/transcription/auto_queue.py). Off by default.
 SETTING_AUTO_TRANSCRIBE_RECEIVED = "auto_transcribe_received"
+#: Whether results are kept with the message so they are not redone (the
+#: "cache"), on by default; and the per-model overrides of it, {model id: bool}.
+#: See stored.cache_enabled_for().
+SETTING_CACHE_ENABLED = "cache_enabled"
+SETTING_CACHE_BY_MODEL = "cache_by_model"
 
 #: The section as a fresh install gets it. `core/utils.py`'s DEFAULT_SETTINGS
 #: and `client/data/settings_default.json` both carry a copy — see the module
@@ -116,6 +121,8 @@ DEFAULTS = {
     SETTING_AUTO_DETECT_LANGUAGE: True,
     SETTING_KEEP_MODEL_LOADED: False,
     SETTING_AUTO_TRANSCRIBE_RECEIVED: False,
+    SETTING_CACHE_ENABLED: True,
+    SETTING_CACHE_BY_MODEL: {},
 }
 
 #: The install-wide key holding the models folder, in `app_settings.py`'s own
@@ -378,7 +385,10 @@ def read_section(settings) -> dict:
     opening, so both read as "all defaults".
     """
     section = settings.get(SECTION) if isinstance(settings, dict) else None
-    resolved = dict(DEFAULTS)
+    # A copy of the mutable default too: a caller that edits the answer must
+    # not edit the defaults of everybody after it.
+    resolved = {key: (dict(value) if isinstance(value, dict) else value)
+                for key, value in DEFAULTS.items()}
     if isinstance(section, dict):
         for key in DEFAULTS:
             if key in section:
@@ -593,9 +603,17 @@ def sanitize_section(settings, custom_model_ids=None) -> bool:
         changed = True
 
     for flag in (SETTING_AUTO_DETECT_LANGUAGE, SETTING_KEEP_MODEL_LOADED,
-                 SETTING_AUTO_TRANSCRIBE_RECEIVED):
+                 SETTING_AUTO_TRANSCRIBE_RECEIVED, SETTING_CACHE_ENABLED):
         if flag in section and not isinstance(section[flag], bool):
             section[flag] = DEFAULTS[flag]
+            changed = True
+    if SETTING_CACHE_BY_MODEL in section:
+        own = section[SETTING_CACHE_BY_MODEL]
+        clean = ({key: value for key, value in own.items()
+                  if isinstance(key, str) and key and isinstance(value, bool)}
+                 if isinstance(own, dict) else {})
+        if clean != own:
+            section[SETTING_CACHE_BY_MODEL] = clean
             changed = True
     return changed
 

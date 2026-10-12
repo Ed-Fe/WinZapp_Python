@@ -169,6 +169,7 @@ INLINE_SPOKEN_I18N_KEY = "transcription_inline_spoken"
 NOT_SAVED_I18N_KEYS = {
     stored_transcription.SAVE_UNSENT: "transcription_not_saved_unsent",
     stored_transcription.SAVE_MISSING: "transcription_not_saved_missing",
+    stored_transcription.SAVE_DISABLED: "transcription_not_saved_cache_off",
 }
 
 #: What is said, instead of opening the result window, when the message was

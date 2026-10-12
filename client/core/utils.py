@@ -1221,7 +1221,11 @@ DEFAULT_SETTINGS = {
         "keep_model_loaded": False,
         # Transcribe received voice messages on arrival and put the text in
         # the message line. See core/transcription/auto_queue.py.
-        "auto_transcribe_received": False
+        "auto_transcribe_received": False,
+        # Keep results with the message so they are not redone (on), and the
+        # per-model overrides {model id: bool}. See stored.cache_enabled_for().
+        "cache_enabled": True,
+        "cache_by_model": {}
     },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old

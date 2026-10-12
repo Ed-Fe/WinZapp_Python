@@ -114,6 +114,20 @@ class TestQueueing:
         window._maybe_auto_transcribe(JID, _msg())
         assert window.queue.submitted == []
 
+    def test_a_model_chosen_with_its_cache_off_is_not_run_for_nothing(self):
+        window = _Window()
+        window.settings["transcription"].update(
+            model="base", cache_by_model={"base": False})
+        window._maybe_auto_transcribe(JID, _msg())
+        assert window.queue.submitted == []
+
+    def test_the_automatic_choice_is_still_queued_when_the_cache_is_off(self):
+        # The model is only known after the run; storing refuses it then.
+        window = _Window()
+        window.settings["transcription"].update(cache_enabled=False)
+        window._maybe_auto_transcribe(JID, _msg())
+        assert len(window.queue.submitted) == 1
+
     def test_a_locked_chat_is_skipped(self):
         window = _Window(locked=True)
         window._maybe_auto_transcribe(JID, _msg())

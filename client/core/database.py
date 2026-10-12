@@ -37,6 +37,7 @@ from core.transcription.stored import (
     TRANSCRIPTION_KEY,
     decision_time,
     fold_transcription,
+    drop_all,
     drop_model,
     may_hold_transcription,
     newer_decision,
@@ -1302,6 +1303,26 @@ class DatabaseManager:
         drop_model()), so a stale copy still holding the dropped text loses to
         it instead of bringing it back. A message left with nothing gets a
         tombstone, like a deletion.
+        """
+        if not model_id:
+            return 0
+        return await self._rewrite_all_transcriptions(
+            lambda value, decided: drop_model(value, model_id, backend_id, decided),
+            decided_at,
+        )
+
+    async def clear_all_transcriptions(self, decided_at: float) -> int:
+        """Drop every stored transcription of every model, in every chat.
+
+        Each message that held any ends with a tombstone dated after its own
+        decision (core.transcription.stored.drop_all()). Returns how many
+        results went.
+        """
+        return await self._rewrite_all_transcriptions(drop_all, decided_at)
+
+    async def _rewrite_all_transcriptions(self, transform, decided_at: float) -> int:
+        """Apply `transform(value, decision time) -> (new value, dropped)` to the
+        transcription of every message that holds one; the count dropped.
 
         The text lives inside the encrypted message_json, so there is no column
         to select on: the rows that can hold a transcription are read, decrypted
@@ -1315,8 +1336,6 @@ class DatabaseManager:
 
         Nothing about a message is logged: counts only.
         """
-        if not model_id:
-            return 0
         marks = ",".join("?" for _ in _TYPES_WITHOUT_LOCAL_FIELDS)
         cleared = 0
         last_id, last_jid = "", ""
@@ -1344,7 +1363,7 @@ class DatabaseManager:
                         if not isinstance(value, dict):
                             continue
                         decided = next_decision_time(decided_at, value)
-                        new_value, dropped = drop_model(value, model_id, backend_id, decided)
+                        new_value, dropped = transform(value, decided)
                         if not dropped:
                             continue
                         stored[TRANSCRIPTION_KEY] = new_value
@@ -1361,7 +1380,7 @@ class DatabaseManager:
                     raise
                 last_id, last_jid = rows[-1]["message_id"], rows[-1]["remote_jid"]
         if cleared:
-            log.info("[messages] cleared %d stored transcription(s) of one model", cleared)
+            log.info("[messages] cleared %d stored transcription(s)", cleared)
         return cleared
 
     async def _scrub_transcription_from_preview(self, conn, remote_jid: str, message_id: str) -> None:

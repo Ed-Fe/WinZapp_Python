@@ -355,6 +355,25 @@ def drop_model(value, model_id, backend_id, decided_at):
     return promoted, dropped
 
 
+def drop_all(value, decided_at):
+    """`value` without any result: (a tombstone at `decided_at`, how many went).
+
+    A value with no result (a tombstone already, junk) comes back unchanged
+    with count 0.
+    """
+    dropped = len(results_of(value))
+    if not dropped:
+        return value, 0
+    return tombstone(decided_at), dropped
+
+
+def drop_all_on_copies(copies, decided_at):
+    """`drop_all()` on every record of `copies`; the ids of the messages that
+    changed, in first-seen order (see drop_model_on_copies())."""
+    return _drop_on_copies(
+        copies, lambda value: drop_all(value, next_decision_time(decided_at, value)))
+
+
 def drop_model_on_copies(copies, model_id, backend_id, decided_at):
     """`drop_model()` on every record of `copies` holding a transcription.
 
@@ -362,6 +381,15 @@ def drop_model_on_copies(copies, model_id, backend_id, decided_at):
     distinct dict is visited once; copies of one message end up agreeing
     because they start from the same stored value and share `decided_at`.
     """
+    # Dated like the database dates it (clear_model_transcriptions()): after
+    # this copy's own decision, whatever the clock says.
+    return _drop_on_copies(
+        copies,
+        lambda value: drop_model(
+            value, model_id, backend_id, next_decision_time(decided_at, value)))
+
+
+def _drop_on_copies(copies, transform):
     changed, seen_dicts = [], set()
     for record in copies or ():
         if not isinstance(record, dict) or id(record) in seen_dicts:
@@ -370,10 +398,7 @@ def drop_model_on_copies(copies, model_id, backend_id, decided_at):
         value = record.get(TRANSCRIPTION_KEY)
         if not isinstance(value, dict):
             continue
-        # Dated like the database dates it (clear_model_transcriptions()):
-        # after this copy's own decision, whatever the clock says.
-        new_value, dropped = drop_model(
-            value, model_id, backend_id, next_decision_time(decided_at, value))
+        new_value, dropped = transform(value)
         if not dropped:
             continue
         record[TRANSCRIPTION_KEY] = new_value
@@ -381,6 +406,40 @@ def drop_model_on_copies(copies, model_id, backend_id, decided_at):
         if msg_id and msg_id not in changed:
             changed.append(msg_id)
     return changed
+
+
+# ── Whether a result is kept at all (the "cache" settings) ───────────────────
+
+#: Keys inside the settings.json "transcription" section.
+CACHE_ENABLED_KEY = "cache_enabled"
+CACHE_BY_MODEL_KEY = "cache_by_model"
+
+
+def cache_enabled_for(settings, model_id) -> bool:
+    """Whether a result of this model is kept with the message.
+
+    The model's own choice (`cache_by_model`, by model id) when the user made
+    one, else the general switch (`cache_enabled`, on by default). Keyed by the
+    model id alone: the two backends' catalogues never share an id, and the tab
+    that sets it knows the model but not always the backend. Tolerant of
+    anything: only a real False turns the general switch off and only a real
+    bool counts as a model's choice.
+    """
+    section = settings.get("transcription") if isinstance(settings, dict) else None
+    if not isinstance(section, dict):
+        return True
+    own = section.get(CACHE_BY_MODEL_KEY)
+    if model_id and isinstance(own, dict) and isinstance(own.get(model_id), bool):
+        return own[model_id]
+    return section.get(CACHE_ENABLED_KEY) is not False
+
+
+def may_cache(settings, value) -> bool:
+    """`cache_enabled_for()` for the newest result held by `value`; a value that
+    names no model (a tombstone) is not a result and is always allowed."""
+    if not isinstance(value, dict) or not value.get("model_id"):
+        return True
+    return cache_enabled_for(settings, value.get("model_id"))
 
 
 def clear_cache_message_key(count) -> str:
@@ -698,3 +757,5 @@ SAVE_STORED = "stored"
 SAVE_UNSENT = "unsent"
 SAVE_MISSING = "missing"
 SAVE_WITHDRAWN = "withdrawn"
+#: The cache is off for the model that made it (Settings > Local transcription).
+SAVE_DISABLED = "disabled"
