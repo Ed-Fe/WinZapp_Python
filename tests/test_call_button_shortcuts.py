@@ -50,13 +50,13 @@ def test_voice_and_video_call_accelerators_bind_to_the_right_handlers():
     # (CS, ord("V"), self.ID_CTRL_SHIFT_V) -> voice call
     assert '(CS,               ord("V"),          self.ID_CTRL_SHIFT_V),' in _CONVERSATIONS_SRC
     assert (
-        "self.Bind(wx.EVT_MENU, self._on_accel_voice_call,          id=self.ID_CTRL_SHIFT_V)"
+        "self.Bind(wx.EVT_MENU, self._on_voice_call,                id=self.ID_CTRL_SHIFT_V)"
         in _CONVERSATIONS_SRC
     )
     # (CAS, ord("V"), self.ID_CTRL_ALT_SHIFT_V) -> video call
     assert '(CAS,              ord("V"),          self.ID_CTRL_ALT_SHIFT_V),' in _CONVERSATIONS_SRC
     assert (
-        "self.Bind(wx.EVT_MENU, self._on_accel_video_call,          id=self.ID_CTRL_ALT_SHIFT_V)"
+        "self.Bind(wx.EVT_MENU, self._on_video_call,                id=self.ID_CTRL_ALT_SHIFT_V)"
         in _CONVERSATIONS_SRC
     )
     # Alt+L, Alt+Shift+L, Ctrl+L and Ctrl+Shift+L are unrelated pre-existing
@@ -171,50 +171,12 @@ def test_active_call_window_button_labels_have_no_mnemonic_in_any_language():
             assert "&" not in entries[key], (locale, key)
 
 
-class _CallAccelStub:
-    """Plain stub: ConversationsPanel is a wx.Panel and cannot be built without
-    a wx.App, so the accelerator handlers are bound onto this instead."""
-
-    def __init__(self, *, focus_in_text_entry):
-        self._focus_in_text_entry = focus_in_text_entry
-        self.voice_calls = 0
-        self.video_calls = 0
-
-    def _focus_is_in_a_text_entry(self):
-        return self._focus_in_text_entry
-
-    def _on_voice_call(self, _event=None):
-        self.voice_calls += 1
-
-    def _on_video_call(self, _event=None):
-        self.video_calls += 1
-
-
-def test_call_accelerators_never_dial_from_inside_the_message_editor():
-    """REGRESSION: the accelerator table lives on the message field's PARENT,
-    so it saw these keys before the TextCtrl. Ctrl+Shift+V is the universal
-    "paste without formatting" chord and Ctrl+Alt+Shift+V is indistinguishable
-    from AltGr+Shift+V on pt-BR/pl layouts -- either one placed a real call to
-    the open contact, with no confirmation, from the message being typed."""
-    stub = _CallAccelStub(focus_in_text_entry=True)
-
-    ConversationsPanel._on_accel_voice_call(stub, None)
-    ConversationsPanel._on_accel_video_call(stub, None)
-
-    assert stub.voice_calls == 0
-    assert stub.video_calls == 0
-
-
-def test_call_accelerators_still_dial_when_the_focus_is_not_a_text_entry():
-    """The other half: from the message list or the chat list the chord is
-    unambiguous and must keep working."""
-    stub = _CallAccelStub(focus_in_text_entry=False)
-
-    ConversationsPanel._on_accel_voice_call(stub, None)
-    ConversationsPanel._on_accel_video_call(stub, None)
-
-    assert stub.voice_calls == 1
-    assert stub.video_calls == 1
+def test_call_accelerators_are_not_guarded_by_the_text_field_focus():
+    """wx has no "paste without formatting", so Ctrl+Shift+V and
+    Ctrl+Alt+Shift+V must place the call even from the message field."""
+    assert "_on_accel_voice_call" not in _CONVERSATIONS_SRC
+    assert "_on_accel_video_call" not in _CONVERSATIONS_SRC
+    assert "_focus_is_in_a_text_entry" not in _CONVERSATIONS_SRC
 
 
 def _mnemonic(label):

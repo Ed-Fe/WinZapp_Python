@@ -64,6 +64,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Ctrl+Shift+V (chamada de voz) e Ctrl+Alt+Shift+V (chamada de vídeo) passam a funcionar também com o campo de mensagem em foco.
+
 - Enviar uma mensagem a si próprio já não falha com "não foi possível confirmar o envio" em contas cujo próprio endereço vinha com sufixo de dispositivo.
 
 - Ao abrir ou ler uma conversa dentro do WinZapp, a notificação da mensagem nova dessa conversa é removida da área de notificações em vez de ficar lá.

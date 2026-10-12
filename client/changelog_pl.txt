@@ -64,6 +64,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Ctrl+Shift+V (połączenie głosowe) i Ctrl+Alt+Shift+V (połączenie wideo) działają teraz także, gdy pole wiadomości ma fokus.
+
 - Wysyłanie wiadomości do samego siebie nie kończy się już błędem "nie udało się potwierdzić wysłania" na kontach, których własny adres zawierał sufiks urządzenia.
 
 - Gdy otworzysz lub przeczytasz czat w WinZapp, powiadomienie o jego nowej wiadomości jest usuwane z obszaru powiadomień zamiast w nim pozostawać.
