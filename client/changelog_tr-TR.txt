@@ -8,6 +8,8 @@ YENİLİKLER
 
 - Anket oyları: tek yanıtlı bir ankette mesajdan Tab ile seçeneklere geçilir ve birini işaretlemek hemen oy verir. Her seçenek artık oyların yüzdesini de gösterir; anket penceresindeki Oyları göster düğmesi (Alt+G) kimin neye oy verdiğini listeler.
 
+- Anket seçenekleri listesi: artık öncesinde "Seçenekler" etiketi bulunur ve oy verdikten sonra işaretlediğiniz seçeneğin oy sayısı hemen güncellenir.
+
 - WPPConnect kurulum ve güncelleme hataları artık ayrıntıları okunabilen ve kopyalanabilen salt okunur bir metin alanında gösteriliyor. Ayrı olarak hazırlanan güncellemelerde yinelenen bildirimler yerine tek bir hata raporu gösteriliyor.
 
 - Topluluk duyurusu yanıtları: yanıtları okumak ve göndermek için mesaj menüsünü açıp "Topluluk duyurusunun yanıtları" seçeneğini seçin. Pencerede yanıtları yenileyebilirsiniz; gönderim doğrulanmazsa metniniz korunur. Duyurular bilinen yanıt sayısını belirtir. Yazarlar kayıtlı veya profil adlarıyla gösterilir; kendi yanıtlarınızda kendinize hitap etme ayarınız kullanılır.

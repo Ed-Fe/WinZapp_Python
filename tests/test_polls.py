@@ -473,6 +473,47 @@ class TestInlinePollVote:
         assert spoken == ["poll_vote_sent"]
 
 
+class _TextList:
+    def __init__(self, texts):
+        self.texts = list(texts)
+        self.writes = []
+
+    def Freeze(self):
+        pass
+
+    def Thaw(self):
+        pass
+
+    def GetItemText(self, index):
+        return self.texts[index]
+
+    def SetItemText(self, index, text):
+        self.writes.append(index)
+        self.texts[index] = text
+
+
+class TestInlineReload:
+    def test_the_voted_row_shows_its_new_count_and_only_changed_rows_are_written(self):
+        from ui.conversation_panel.poll_inline import PollInlineMixin
+
+        msg = {"key": {"id": "P"}, "message": {"pollCreationMessage": {
+            "name": "Q", "selectableOptionsCount": 1,
+            "options": [{"name": "A", "localId": 0, "votes": 1},
+                        {"name": "B", "localId": 1, "votes": 1}]}}}
+        panel = types.SimpleNamespace(
+            _poll_inline_list=_TextList(["A, 1 vote (50%)", "B, 1 vote (50%)"]),
+            _poll_inline_msg=msg, _poll_inline_order=["A", "B"], _poll_inline_loading=False,
+            main_window=types.SimpleNamespace(i18n=_I18n()),
+        )
+        msg["message"]["pollCreationMessage"]["options"][1]["votes"] = 2
+        PollInlineMixin._reload_inline_poll(panel)
+        assert panel._poll_inline_list.texts == ["A, 1 vote (33%)", "B, 2 votes (67%)"]
+        assert panel._poll_inline_list.writes == [0, 1]
+        PollInlineMixin._reload_inline_poll(panel)
+        assert panel._poll_inline_list.writes == [0, 1]   # unchanged: nothing rewritten
+        assert panel._poll_inline_loading is False
+
+
 class TestPollInMessages:
     def test_same_id_same_conversation(self):
         from ui.conversation_panel.poll_inline import poll_in_messages
