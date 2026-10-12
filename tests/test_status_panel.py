@@ -217,6 +217,7 @@ class _FakeKeyEvent:
 
 
 class _Stub:
+    _update_status_describe_button = lambda self: None  # the AI Describe button has its own tests
     _show_current_status         = StatusPanel._show_current_status
     _on_status_contact_selected  = StatusPanel._on_status_contact_selected
     _on_status_contact_activated = StatusPanel._on_status_contact_activated

@@ -173,7 +173,7 @@ class AccessibleDescribeButton(wx.Accessible):
     """Reports Ctrl+Shift+I as the shortcut for the AI action button."""
 
     def GetKeyboardShortcut(self, childId):
-        return (wx.ACC_OK, accessible_shortcut(self, "Ctrl+Shift+I", ('messages.ID_AI_ACTION',)))
+        return (wx.ACC_OK, accessible_shortcut(self, "Ctrl+Shift+I", ('messages.ID_AI_ACTION', 'status.ID_CTRL_SHIFT_I', 'media.ID_CTRL_SHIFT_I')))
 
 
 class AccessibleShowInFolder(wx.Accessible):

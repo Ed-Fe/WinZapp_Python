@@ -29,6 +29,10 @@ class _I18n:
         self._strings = strings or {
             "poll_option_votes": "{name}, {count} votes",
             "poll_option_vote_one": "{name}, {count} vote",
+            "poll_option_votes_percent": "{name}, {count} votes ({percent}%)",
+            "poll_option_vote_one_percent": "{name}, {count} vote ({percent}%)",
+            "poll_voter_row": "{name}: {options}",
+            "sender_you": "You",
             "poll_row_question": "Poll: {name}",
             "poll_row_options": "{question}. Options: {options}",
             "notif_poll_no_name": "Poll",
@@ -313,6 +317,7 @@ class TestVotes:
 
 class _VoteSender(_Sender):
     fetch_poll_votes = MainWindow.fetch_poll_votes
+    fetch_poll_voters = MainWindow.fetch_poll_voters
     send_poll_vote = MainWindow.send_poll_vote
 
     def _serialize_msg_id(self, jid, key, msg=None):
@@ -468,6 +473,47 @@ class TestInlinePollVote:
         assert spoken == ["poll_vote_sent"]
 
 
+class _TextList:
+    def __init__(self, texts):
+        self.texts = list(texts)
+        self.writes = []
+
+    def Freeze(self):
+        pass
+
+    def Thaw(self):
+        pass
+
+    def GetItemText(self, index):
+        return self.texts[index]
+
+    def SetItemText(self, index, text):
+        self.writes.append(index)
+        self.texts[index] = text
+
+
+class TestInlineReload:
+    def test_the_voted_row_shows_its_new_count_and_only_changed_rows_are_written(self):
+        from ui.conversation_panel.poll_inline import PollInlineMixin
+
+        msg = {"key": {"id": "P"}, "message": {"pollCreationMessage": {
+            "name": "Q", "selectableOptionsCount": 1,
+            "options": [{"name": "A", "localId": 0, "votes": 1},
+                        {"name": "B", "localId": 1, "votes": 1}]}}}
+        panel = types.SimpleNamespace(
+            _poll_inline_list=_TextList(["A, 1 vote (50%)", "B, 1 vote (50%)"]),
+            _poll_inline_msg=msg, _poll_inline_order=["A", "B"], _poll_inline_loading=False,
+            main_window=types.SimpleNamespace(i18n=_I18n()),
+        )
+        msg["message"]["pollCreationMessage"]["options"][1]["votes"] = 2
+        PollInlineMixin._reload_inline_poll(panel)
+        assert panel._poll_inline_list.texts == ["A, 1 vote (33%)", "B, 2 votes (67%)"]
+        assert panel._poll_inline_list.writes == [0, 1]
+        PollInlineMixin._reload_inline_poll(panel)
+        assert panel._poll_inline_list.writes == [0, 1]   # unchanged: nothing rewritten
+        assert panel._poll_inline_loading is False
+
+
 class TestPollInMessages:
     def test_same_id_same_conversation(self):
         from ui.conversation_panel.poll_inline import poll_in_messages
@@ -477,3 +523,57 @@ class TestPollInMessages:
         assert not poll_in_messages(msg, [{"key": {"id": "X"}}], PHONE, PHONE)
         assert not poll_in_messages(msg, [{"key": {"id": "P"}}], GROUP, PHONE)
         assert not poll_in_messages({}, [{"key": {"id": "P"}}], PHONE, PHONE)
+
+
+class TestOptionPercent:
+    def test_the_share_is_in_the_label_and_only_one_is_singular(self):
+        i18n = _I18n()
+        assert polls.option_label(i18n, {"name": "A", "votes": 0}, 0) == "A, 0 votes (0%)"
+        assert polls.option_label(i18n, {"name": "A", "votes": 1}, 25) == "A, 1 vote (25%)"
+        assert polls.option_label(i18n, {"name": "A", "votes": 3}, 75) == "A, 3 votes (75%)"
+
+    def test_unknown_votes_never_get_a_percent(self):
+        assert polls.option_label(_I18n(), {"name": "A", "votes": None}, None) == "A"
+
+
+class TestVoterRows:
+    OPTIONS = [{"name": "Sim", "localId": 0}, {"name": "Não", "localId": 1}]
+
+    def test_one_row_per_voter_ordered_by_name_with_the_user_as_you(self):
+        voters = [
+            {"sender": "g", "mine": False, "localIds": [0]},
+            {"sender": "me", "mine": True, "localIds": [1]},
+            {"sender": "a", "mine": False, "localIds": [0, 1]},
+        ]
+        rows = polls.voter_rows(_I18n(), voters, self.OPTIONS, {"g": "gustavo", "a": "Ana"}.get)
+        assert rows == ["Ana: Sim, Não", "gustavo: Sim", "You: Não"]
+
+    def test_a_voter_the_client_cannot_name_gets_the_name_the_page_knows(self):
+        voters = [{"sender": "x@lid", "mine": False, "name": "Ana P", "localIds": [0]},
+                  {"sender": "y@lid", "mine": False, "name": "", "localIds": [1]}]
+        rows = polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: "")
+        assert rows == ["Ana P: Sim", "unknown_contact: Não"]
+
+    def test_the_clients_own_name_wins_over_the_pages(self):
+        voters = [{"sender": "x@lid", "mine": False, "name": "Ana P", "localIds": [0]}]
+        assert polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: "Ana") == ["Ana: Sim"]
+
+    def test_voters_without_a_known_option_are_dropped(self):
+        voters = [{"sender": "a", "mine": False, "localIds": [9]}, {"sender": "b", "localIds": []}]
+        assert polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: s) == []
+
+
+class TestFetchVoters:
+    def test_the_voters_come_back_for_one_poll(self, monkeypatch):
+        calls = _post(monkeypatch, _Response(200, {"status": "success", "response": {
+            "ok": True, "options": [], "voters": [{"sender": "x", "mine": False, "localIds": [0]}]}}))
+        sender = _VoteSender()
+        data = sender.fetch_poll_voters(MSG)
+        assert data["voters"][0]["localIds"] == [0]
+        assert calls[0][0].endswith("/poll-voters")
+        assert calls[0][1] == {"messageId": f"false_{PHONE}_3EB0POLL"}
+
+    def test_an_unavailable_runtime_gives_nothing(self, monkeypatch):
+        _post(monkeypatch, _Response(503, {"status": "error"}))
+        sender = _VoteSender()
+        assert sender.fetch_poll_voters(MSG) == {}

@@ -557,7 +557,7 @@ def test_only_providers_with_a_key_and_the_kind_are_tried_in_the_persons_order(d
     dialog.kind = "video"
     dialog.session = MediaSession("a", "c", "m", "video")
     dialog._start("Describe this.", regenerate=True)
-    assert chains == [["gemini"]]  # only Gemini takes video; OpenAI is switched off
+    assert chains == [["groq", "claude", "gemini"]]  # a video is described from a picture; OpenAI is off
 
 
 def test_no_usable_provider_is_a_clear_error_before_any_consent_or_job(dialog, monkeypatch):
@@ -1236,7 +1236,7 @@ def test_the_menu_offers_nothing_when_no_provider_has_a_key(tmp_path, monkeypatc
 @pytest.mark.parametrize("kind,msg_type,fetcher,limit", [
     ("image", "imageMessage", "handle_media_message", 20 * 1024 * 1024),
     ("sticker", "stickerMessage", "handle_media_message", 20 * 1024 * 1024),
-    ("video", "videoMessage", "handle_media_message", 14 * 1024 * 1024),
+    ("video", "videoMessage", "handle_media_message", 64 * 1024 * 1024),
     ("pdf", "documentMessage", "handle_media_message", 14 * 1024 * 1024),
     ("audio", "audioMessage", "handle_audio_message", 14 * 1024 * 1024),
 ])
@@ -1384,10 +1384,13 @@ def test_loading_media_leaves_no_plain_copy_anywhere_on_disk(tmp_path):
 def test_consent_text_names_providers_and_warns_about_metadata_only_where_it_is_not_stripped():
     from ui.dialogs.ai_result_dialog import consent_text
     i18n = SimpleNamespace(t=lambda key: key + " {providers}" if key == "ai_consent" else key)
-    for kind in ("video", "audio", "pdf"):
+    for kind in ("audio", "pdf"):
         assert "ai_metadata_notice" in consent_text(i18n, ["openai"], kind, False)
-    for kind in ("image", "sticker"):
+    for kind in ("video", "image", "sticker"):
         assert "ai_metadata_notice" not in consent_text(i18n, ["openai"], kind, False)
+    # A video goes out as one picture without its sound: the consent says so.
+    assert "ai_video_frame_notice" in consent_text(i18n, ["openai"], "video", False)
+    assert "ai_video_frame_notice" not in consent_text(i18n, ["openai"], "image", False)
     text = consent_text(i18n, ["gemini", "groq"], "image", True)
     assert "Google Gemini, Groq" in text and "ai_gemini_notice" in text and "ai_locked_consent" in text
     assert "ai_gemini_notice" not in consent_text(i18n, ["groq"], "image", False)

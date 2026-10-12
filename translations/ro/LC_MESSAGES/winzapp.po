@@ -402,7 +402,7 @@ msgctxt "add_member_contacts_list_label"
 msgid "Contact list"
 msgstr "Lista de contacte"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/groups.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "add_member_could_not_add"
 msgid "{names} could not be added to the group."
@@ -444,7 +444,7 @@ msgctxt "add_member_phone_number_label"
 msgid "Type a phone number"
 msgstr "Introdu un număr de telefon"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/groups.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "add_member_privacy_invite_sent"
 msgid ""
@@ -617,8 +617,9 @@ msgctxt "ai_demo_title"
 msgid "WinZapp — manual photo demo (no WhatsApp)"
 msgstr "WinZapp — test manual de fotografii (fără WhatsApp)"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
-#: client/ui/conversations.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
+#: client/ui/ai_media_demo.py client/ui/conversations.py
+#: client/ui/media_viewer.py
 msgctxt "ai_describe_image_menu"
 msgid "Describe"
 msgstr "Descrieți"
@@ -653,7 +654,7 @@ msgctxt "ai_detailed"
 msgid "Detailed"
 msgstr "Detaliat"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_launch.py
 #: client/ui/conversation_panel/ai_actions.py
 msgctxt "ai_disabled"
 msgid ""
@@ -916,11 +917,11 @@ msgstr ""
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_metadata_notice"
 msgid ""
-"Videos, voice messages and PDFs are sent exactly as they are, including any "
+"Voice messages and PDFs are sent exactly as they are, including any "
 "information stored inside the file, such as author or location."
 msgstr ""
-"Videoclipurile, mesajele vocale și PDF-urile sunt trimise exact cum sunt, "
-"inclusiv orice informație păstrată în fișier, precum autorul sau locația."
+"Mesajele vocale și PDF-urile sunt trimise exact cum sunt, inclusiv orice "
+"informație păstrată în fișier, precum autorul sau locația."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
@@ -1172,6 +1173,16 @@ msgstr "&Transcrieți mesajele vocale"
 msgctxt "ai_transcribe_audio_menu"
 msgid "Transcribe with online AI"
 msgstr "Transcrieți cu AI online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+msgctxt "ai_video_frame_notice"
+msgid ""
+"Only one still picture taken from the video is sent, without its sound and "
+"with its information removed."
+msgstr ""
+"Se trimite doar o imagine statică extrasă din videoclip, fără sunet și fără "
+"informațiile păstrate în fișier."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -2776,6 +2787,7 @@ msgstr "Goliți conversațiile selectate"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
+#: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 #: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
@@ -4002,6 +4014,24 @@ msgctxt "group_contacts_label"
 msgid "&Participants"
 msgstr "&Participanți"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/new_group.py
+msgctxt "group_create_members_unconfirmed"
+msgid ""
+"The group was created, but membership was not confirmed for every selected "
+"contact. Check the participant list."
+msgstr ""
+"Grupul a fost creat, dar participarea tuturor contactelor selectate nu a "
+"fost confirmată. Verifică lista participanților."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/groups.py
+msgctxt "group_create_unconfirmed"
+msgid ""
+"Group creation was not confirmed. Check your group list before trying again "
+"to avoid creating a duplicate."
+msgstr ""
+"Crearea grupului nu a fost confirmată. Verifică lista de grupuri înainte de "
+"a încerca din nou, pentru a evita duplicatele."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
 #: client/ui/conversation_panel/chat_menu.py
@@ -4020,6 +4050,190 @@ msgstr "Descrierea grupului"
 msgctxt "group_extra_number_label"
 msgid "E&xtra number (not in contacts):"
 msgstr "&Număr suplimentar (nu în contacte):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_copied"
+msgid "Invitation link copied."
+msgstr "Linkul de invitație a fost copiat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_link"
+msgid "Invitation link"
+msgstr "Link de invitație"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_png"
+msgid "PNG images (*.png)|*.png"
+msgstr "Imagini PNG (*.png)|*.png"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_qr"
+msgid "QR code for the invitation link"
+msgstr "Cod QR pentru linkul de invitație"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_ready"
+msgid ""
+"Invitation link and QR code are ready. Sharing them may let others join or "
+"request approval."
+msgstr ""
+"Linkul de invitație și codul QR sunt gata. Distribuirea lor poate permite "
+"altora să se alăture sau să solicite aprobarea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_refresh"
+msgid "Refresh"
+msgstr "Reîmprospătează"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_reset"
+msgid "Reset invitation link..."
+msgstr "Resetează linkul de invitație..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_reset_confirm"
+msgid ""
+"Reset the invitation link? All previously shared invitation links and QR "
+"codes for this group will stop working."
+msgstr ""
+"Resetezi linkul de invitație? Toate linkurile de invitație și codurile QR "
+"distribuite anterior pentru acest grup nu vor mai funcționa."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_reset_unconfirmed"
+msgid ""
+"Reset was not confirmed. The old link and QR code may already be invalid. "
+"Refresh to retrieve the current invitation."
+msgstr ""
+"Resetarea nu a fost confirmată. Linkul și codul QR vechi pot fi deja "
+"nevalide. Reîmprospătează pentru a obține invitația actuală."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_save_failed"
+msgid "The QR code could not be saved."
+msgstr "Codul QR nu a putut fi salvat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_save_qr"
+msgid "Save QR code..."
+msgstr "Salvează codul QR..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_status"
+msgid "Invitation status"
+msgstr "Starea invitației"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_title"
+msgid "Group invitation"
+msgstr "Invitație în grup"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_invitation_unavailable"
+msgid ""
+"The invitation link and QR code could not be loaded. Check your connection "
+"and group permissions."
+msgstr ""
+"Linkul de invitație și codul QR nu au putut fi încărcate. Verifică "
+"conexiunea și permisiunile grupului."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_action"
+msgid "Join group or request approval"
+msgstr "Alătură-te grupului sau solicită aprobarea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_approval_not_required"
+msgid ""
+"This preview does not indicate approval is required. Requirements may change"
+" before joining."
+msgstr ""
+"Această previzualizare nu indică necesitatea aprobării. Cerințele se pot "
+"schimba înainte de alăturare."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_approval_required"
+msgid "Administrator approval is required. Joining will request approval."
+msgstr ""
+"Este necesară aprobarea unui administrator. Alăturarea va trimite o cerere "
+"de aprobare."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_approval_unknown"
+msgid ""
+"Approval requirements are unavailable. Your request may require "
+"administrator approval."
+msgstr ""
+"Cerințele de aprobare nu sunt disponibile. Cererea ta poate necesita "
+"aprobarea unui administrator."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_invalid_link"
+msgid "Paste a valid HTTPS WhatsApp group invitation link."
+msgstr "Lipește un link HTTPS valid de invitație la un grup WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "group_join_member_count"
+msgid "{count} members"
+msgstr "{count} participanți"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_pending"
+msgid ""
+"Your request is awaiting administrator approval. You have not joined yet."
+msgstr ""
+"Cererea ta așteaptă aprobarea unui administrator. Încă nu te-ai alăturat "
+"grupului."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_preview"
+msgid "Preview group"
+msgstr "Previzualizare grup"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_preview_failed"
+msgid ""
+"The group preview could not be loaded. The link may be invalid or expired, "
+"or the connection unavailable."
+msgstr ""
+"Previzualizarea grupului nu a putut fi încărcată. Linkul poate fi nevalid "
+"sau expirat, ori conexiunea indisponibilă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_preview_ready"
+msgid "Group preview is ready. Review the details before joining."
+msgstr ""
+"Previzualizarea grupului este gata. Verifică detaliile înainte de alăturare."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_success"
+msgid "You joined the group."
+msgstr "Te-ai alăturat grupului."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_conversation.py
+msgctxt "group_join_title"
+msgid "Join group by link"
+msgstr "Alăturare la grup prin link"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "group_join_unconfirmed"
+msgid ""
+"Joining was not confirmed. Check your group list or ask an administrator "
+"before trying again."
+msgstr ""
+"Alăturarea nu a fost confirmată. Verifică lista grupurilor sau întreabă un "
+"administrator înainte de a încerca din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/groups.py
+msgctxt "group_leave_unconfirmed"
+msgid ""
+"Leaving the group was not confirmed. The chat remains available. Check group"
+" membership before trying again."
+msgstr ""
+"Părăsirea grupului nu a fost confirmată. Conversația rămâne disponibilă. "
+"Verifică dacă mai ești membru înainte de a încerca din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -4107,6 +4321,34 @@ msgstr "Mesaje vocale"
 msgctxt "group_media_types_label"
 msgid "Media types shown"
 msgstr "Tipuri media afișate"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "group_members_invitable"
+msgid ""
+"Could not add {names} directly. An invitation code was returned, but "
+"invitation delivery was not confirmed."
+msgstr ""
+"Nu s-au putut adăuga direct: {names}. A fost primit un cod de invitație, dar"
+" trimiterea nu a fost confirmată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "group_members_pending"
+msgid "Awaiting admin approval: {names}. They are not confirmed members yet."
+msgstr ""
+"Așteaptă aprobarea unui administrator: {names}. Calitatea de membru nu este "
+"încă confirmată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "group_members_unconfirmed"
+msgid ""
+"Could not confirm the result for {names}. Check the participant list before "
+"trying again."
+msgstr ""
+"Nu s-a putut confirma rezultatul pentru {names}. Verifică lista "
+"participanților înainte de a încerca din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/new_group.py
 msgctxt "group_name"
@@ -4315,6 +4557,15 @@ msgstr "Participanți"
 msgctxt "group_presence_indicator"
 msgid "{name}: {action}"
 msgstr "{name}: {action}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/groups.py
+msgctxt "group_result_unconfirmed"
+msgid ""
+"The result was not confirmed. Check the participant list before trying "
+"again."
+msgstr ""
+"Rezultatul nu a fost confirmat. Verifică lista participanților înainte de a "
+"încerca din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/contact_list_picker.py client/ui/dialogs/new_group.py
@@ -4661,7 +4912,7 @@ msgstr "Văzut ultima dată ieri la {time}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
-#: client/ui/conversation_panel/chat_menu.py
+#: client/ui/conversation_panel/chat_menu.py client/ui/group_actions.py
 msgctxt "leave_group"
 msgid "Leave group"
 msgstr "Părăsiți grupul"
@@ -6281,6 +6532,12 @@ msgctxt "poll_error_too_many_options"
 msgid "A poll can have at most 12 options."
 msgstr "Un sondaj poate avea cel mult 12 opțiuni."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/poll_inline.py
+msgctxt "poll_inline_options_label"
+msgid "Options"
+msgstr "Opțiuni"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
 #, python-brace-format
 msgctxt "poll_option_percent"
@@ -6291,13 +6548,25 @@ msgstr "{name}: {percent}%"
 #, python-brace-format
 msgctxt "poll_option_vote_one"
 msgid "{name}, {count} vote"
-msgstr "{name}, {count} vot"
+msgstr "{name}, voturi: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_vote_one_percent"
+msgid "{name}, {count} vote ({percent}%)"
+msgstr "{name}, voturi: {count} ({percent}%)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "poll_option_votes"
 msgid "{name}, {count} votes"
-msgstr "{name}, {count} voturi"
+msgstr "{name}, voturi: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_votes_percent"
+msgid "{name}, {count} votes ({percent}%)"
+msgstr "{name}, voturi: {count} ({percent}%)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 #, python-brace-format
@@ -6313,8 +6582,8 @@ msgstr "Sondaj: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
 msgctxt "poll_vote_button"
-msgid "&Vote"
-msgstr "&Votează"
+msgid "Vo&te"
+msgstr "V&otează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "poll_vote_failed"
@@ -6330,6 +6599,47 @@ msgstr "Se trimite votul…"
 msgctxt "poll_vote_sent"
 msgid "Vote sent"
 msgstr "Vot trimis"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_voter_row"
+msgid "{name}: {options}"
+msgstr "{name}: {options}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_voters_button"
+msgid "&View votes"
+msgstr "&Vezi voturile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_empty"
+msgid "No votes yet."
+msgstr "Nu există încă voturi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_failed"
+msgid "Could not load the votes."
+msgstr "Voturile nu au putut fi încărcate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_list_label"
+msgid "Votes:"
+msgstr "Voturi:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_loading"
+msgid "Loading votes..."
+msgstr "Se încarcă voturile..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_title"
+msgid "Poll votes"
+msgstr "Voturile sondajului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
@@ -7342,7 +7652,7 @@ msgctxt "send_voice_message"
 msgid "Send voice message"
 msgstr "Trimiteți mesaj vocal"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 msgctxt "sender_you"
 msgid "You"
 msgstr "Dvs."
@@ -12737,8 +13047,9 @@ msgstr ""
 "operațiunea."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/calls.py
-#: client/main_window/chat_list.py client/main_window/chats_store.py
+#: client/core/notification_manager.py client/core/polls.py
+#: client/main_window/calls.py client/main_window/chat_list.py
+#: client/main_window/chats_store.py client/main_window/groups.py
 #: client/main_window/shortcuts.py client/status_tab/status_rules.py
 #: client/ui/conversation_panel/contact_messages.py
 #: client/ui/conversation_panel/message_menu.py
@@ -12752,6 +13063,7 @@ msgstr "Contact fără nume"
 #: client/main_window/chat_list.py client/main_window/chats_store.py
 #: client/ui/dialogs/common_groups_tab.py
 #: client/ui/dialogs/conversation_data_dialog.py
+#: client/ui/dialogs/group_join_dialog.py
 msgctxt "unknown_group"
 msgid "Unnamed group"
 msgstr "Grup fără nume"

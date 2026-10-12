@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 267 ayrı düzenlenebilir yerel atama ve bunların 285 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 269 ayrı düzenlenebilir yerel atama ve bunların 287 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -208,12 +208,14 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Durum paneli | Sesli mesajı sil | Kontrol+Shift+D | status.ID_CTRL_SHIFT_D |
 | Durum paneli | Emoji seç | Kontrol+. | status.ID_CTRL_PERIOD |
 | Durum paneli | medyayı kaydet/indir | Kontrol+Shift+S | status.ID_CTRL_SHIFT_S |
+| Durum paneli | Betimle | Kontrol+Shift+I | status.ID_CTRL_SHIFT_I |
 | Aramalar paneli | arama listesine git | Alt+L | calls.ID_ALT_L |
 | Aramalar paneli | cevapsız bir aramayı geri ara | Kontrol+Shift+R | calls.ID_CTRL_SHIFT_R |
 | Aramalar paneli | arama listesini yenile | F5 | calls.ID_F5 |
 | Medya görüntüleyici | önceki durum | Kontrol+Sol | media.ID_CTRL_LEFT |
 | Medya görüntüleyici | sonraki durum | Kontrol+Sağ | media.ID_CTRL_RIGHT |
 | Medya görüntüleyici | medyayı kaydet/indir | Kontrol+Shift+S | media.ID_CTRL_SHIFT_S |
+| Medya görüntüleyici | Betimle | Kontrol+Shift+I | media.ID_CTRL_SHIFT_I |
 | Medya görüntüleyici | 10 saniye geri | Alt+V | media.ID_ALT_V |
 | Medya görüntüleyici | 10 saniye ileri | Alt+A | media.ID_ALT_A |
 | Arama penceresi | aramayı sonlandır | Kontrol+Shift+Q | call.ID_CALL_END |

@@ -16,6 +16,7 @@ from core.polls import (
     options_by_votes,
     poll_content,
     poll_options,
+    vote_percent,
     vote_poll_ids,
 )
 
@@ -47,6 +48,10 @@ class PollInlineMixin:
         self._poll_inline_loading = False
         self._poll_inline_jid = ""
         self._poll_inline_seq = 0
+        label = wx.StaticText(parent, label=self.main_window.i18n.t("poll_inline_options_label"))
+        sizer.Add(label, 0, wx.LEFT | wx.RIGHT, 5)
+        label.Hide()
+        self._poll_inline_label = label
         lst = wx.ListCtrl(parent, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
         lst.EnableCheckBoxes(True)
         lst.InsertColumn(0, "", width=360)
@@ -78,6 +83,7 @@ class PollInlineMixin:
         else:
             self._reload_inline_poll()
         if not lst.IsShown():
+            self._poll_inline_label.Show()
             lst.Show()
             self.conversation_panel.Layout()
 
@@ -90,6 +96,7 @@ class PollInlineMixin:
         self._poll_inline_msg = None
         self._poll_inline_seq += 1
         if lst.IsShown():
+            self._poll_inline_label.Hide()
             lst.Hide()
             self.conversation_panel.Layout()
 
@@ -102,7 +109,10 @@ class PollInlineMixin:
         try:
             lst.DeleteAllItems()
             for opt in options:
-                index = lst.InsertItem(lst.GetItemCount(), option_label(self.main_window.i18n, opt))
+                index = lst.InsertItem(
+                    lst.GetItemCount(),
+                    option_label(self.main_window.i18n, opt, vote_percent(opt, options)),
+                )
                 lst.CheckItem(index, opt["mine"])
         finally:
             lst.Thaw()
@@ -129,11 +139,14 @@ class PollInlineMixin:
             self._poll_inline_loading = False
 
     def _reload_inline_poll(self) -> None:
-        """New vote counts for the shown poll, without touching the ticks."""
+        """New vote counts for the shown poll, without touching the ticks. Only rows
+        whose text changed are rewritten, so the focused list stays quiet unless
+        a count moved (the row just voted on must show its new count)."""
         msg, lst = self._poll_inline_msg, self._poll_inline_list
-        if msg is None or wx.Window.FindFocus() is lst:
-            return   # rewriting a row under the cursor makes the reader re-announce it
-        by_name = {o["name"]: o for o in poll_options(poll_content(msg.get("message") or {}))}
+        if msg is None:
+            return
+        options = poll_options(poll_content(msg.get("message") or {}))
+        by_name = {o["name"]: o for o in options}
         self._poll_inline_loading = True
         lst.Freeze()
         try:
@@ -141,7 +154,7 @@ class PollInlineMixin:
                 option = by_name.get(name)
                 if option is None:
                     continue
-                text = option_label(self.main_window.i18n, option)
+                text = option_label(self.main_window.i18n, option, vote_percent(option, options))
                 if lst.GetItemText(index) != text:
                     lst.SetItemText(index, text)
         finally:

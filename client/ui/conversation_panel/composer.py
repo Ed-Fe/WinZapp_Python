@@ -420,35 +420,6 @@ class ComposerMixin:
         name = self.conversation_name or self.conversation.get("name") or ""
         self.main_window.start_video_call(jid, name)
 
-    def _focus_is_in_a_text_entry(self) -> bool:
-        """Whether the keyboard focus is somewhere the user is typing.
-
-        Same test `_should_redirect_char_to_message()` already uses above.
-        """
-        focus = wx.Window.FindFocus()
-        return focus is self.message_field or isinstance(focus, wx.TextCtrl)
-
-    # The accelerator table lives on `conversation_panel`, the message field's
-    # PARENT, so it sees these keys before the TextCtrl does -- that is how
-    # Ctrl+Shift+A/E work from inside the editor. For the call keys that is a
-    # trap rather than a feature: Ctrl+Shift+V is the universal "paste without
-    # formatting" chord, and Ctrl+Alt+Shift+V is indistinguishable from
-    # AltGr+Shift+V on pt-BR/pl layouts. Either one placed a REAL call to the
-    # open contact, with no confirmation, straight from the message the user
-    # was typing. A plain wx.TextCtrl binds neither chord to anything, so
-    # ignoring them while typing restores exactly what every other app does
-    # with them: nothing. Pressing the on-screen button still calls, because
-    # that is unambiguous -- these guards are only on the accelerator path.
-    def _on_accel_voice_call(self, event=None):
-        if self._focus_is_in_a_text_entry():
-            return
-        self._on_voice_call(event)
-
-    def _on_accel_video_call(self, event=None):
-        if self._focus_is_in_a_text_entry():
-            return
-        self._on_video_call(event)
-
     def _on_message_field_key_down(self, event):
         """↓ moves focus to the mention list when suggestions are visible.
         Shift+Enter inserts a newline instead of sending — TE_PROCESS_ENTER
