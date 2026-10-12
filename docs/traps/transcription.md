@@ -758,3 +758,25 @@ in the row (`message_rendering` video branch), Alt+Shift+N, "Enter and Space tra
   sniffed as `.mov`.
 - A stored record that names no model (from before per-model results) matches any
   selection, so old texts stay offered.
+
+## Bulk transcription of selected messages (issue #469)
+
+`ui/conversation_panel/bulk_transcription.py` (glue) + `core/transcription/bulk.py` (plan,
+tally, combined text). Two forms, like the single keys:
+
+- **Ctrl+Alt+Shift+T** — Alt+Shift+T's form: results kept (not inline, unless already inline)
+  and, at the end, all of them in the result window (`TranscriptionResultDialog`).
+- **Ctrl+Alt+Shift+N** — Alt+Shift+N's form: every result into its message's line; already
+  transcribed ones are marked inline without a run.
+
+With "Substituir atalhos por ações em massa" on and messages selected, Alt+Shift+T and
+Alt+Shift+N (only while it transcribes, i.e. Enter plays) run the bulk forms. Both are in the
+"Ações em massa" submenu and in the shortcut catalogue (customisable).
+
+- Plan first (confirm dialog): runs, already transcribed for the selected model (reused), skipped.
+- One worker thread, oldest first, "message i of n" spoken at each start. A failure is counted
+  and the queue goes on, except `auto_queue.SETUP_FAILURES`, which stop it with their sentence.
+- Cancel: the same shortcut or the context menu while it runs; the running message is cancelled.
+- If the vault hides the chat mid-run the queue stops and **only** says it stopped — nothing
+  about the messages, and its texts are dropped from the window.
+- The context menu offers the last run's texts together (for that conversation) once it ended.

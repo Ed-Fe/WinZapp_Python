@@ -317,7 +317,11 @@ class MessageAccelsMixin:
     # slow part core/transcription/message_run.py.
 
     def _on_accel_transcribe(self, event):
-        """Alt+Shift+T on the focused message."""
+        """Alt+Shift+T on the focused message — or, with messages selected and
+        "Substituir atalhos por ações em massa" on, on every selected one."""
+        if self._bulk_shortcuts_enabled() and self.selected_messages:
+            self._on_mass_transcribe_messages(event)
+            return
         index = self.messages_list.GetFirstSelected()
         if index < 0 or index >= len(self._sorted_messages):
             return
@@ -372,7 +376,13 @@ class MessageAccelsMixin:
     # of the list; with it on (Enter transcribes) it plays or pauses it.
 
     def _on_accel_transcribe_inline(self, event):
-        """Alt+Shift+N on the focused message."""
+        """Alt+Shift+N on the focused message — or, while it transcribes (Enter
+        plays), with messages selected and "Substituir atalhos por ações em
+        massa" on, on every selected one."""
+        if (self._bulk_shortcuts_enabled() and self.selected_messages
+                and not self._enter_transcribes_voice()):
+            self._on_mass_transcribe_inline_messages(event)
+            return
         index = self.messages_list.GetFirstSelected()
         if index < 0 or index >= len(self._sorted_messages):
             return

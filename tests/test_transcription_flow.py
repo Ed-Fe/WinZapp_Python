@@ -1356,6 +1356,11 @@ class TestAltShiftTIsOurs:
             _is_separator = ConversationsPanel._is_separator
             _on_menu_transcribe = ConversationsPanel._on_menu_transcribe
             _on_accel_transcribe = ConversationsPanel._on_accel_transcribe
+            # Nothing selected: the bulk form (issue #469) is not in play.
+            selected_messages = set()
+
+            def _bulk_shortcuts_enabled(self):
+                return True
 
         _Stub()._on_accel_transcribe(None)
         assert [m["key"]["id"] for m in seen] == ["B"]

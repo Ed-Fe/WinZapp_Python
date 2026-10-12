@@ -64,6 +64,11 @@ class _Stub:
         self.transcribed = []
         self._sorted_messages = []
         self.messages_list = types.SimpleNamespace(GetFirstSelected=lambda: 0)
+        # Nothing selected: the bulk form (issue #469) is not in play.
+        self.selected_messages = set()
+
+    def _bulk_shortcuts_enabled(self):
+        return True
 
     def _toggle_audio_message_playback(self, msg):
         self.played.append(msg["key"]["id"])

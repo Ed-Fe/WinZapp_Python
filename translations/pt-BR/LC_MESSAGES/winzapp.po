@@ -1973,10 +1973,98 @@ msgid "No chats selected."
 msgstr "Nenhuma conversa selecionada."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
 #: client/ui/conversation_panel/message_accels.py
 msgctxt "bulk_no_message_selection"
 msgid "No messages selected."
 msgstr "Nenhuma mensagem selecionada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_cancel_confirm"
+msgid ""
+"A bulk transcription is running (message {index} of {total}). Cancel it?"
+msgstr ""
+"Uma transcrição em massa está em andamento (mensagem {index} de {total}). "
+"Cancelar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "bulk_transcription_cancel_menu"
+msgid "Cancel the bulk transcription"
+msgstr "Cancelar a transcrição em massa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "bulk_transcription_cancelled"
+msgid ""
+"Bulk transcription cancelled: {done} transcribed, {skipped} skipped, "
+"{failed} with errors."
+msgstr ""
+"Transcrição em massa cancelada: {done} transcritas, {skipped} ignoradas, "
+"{failed} com erro."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_confirm"
+msgid ""
+"Messages to transcribe, one after another: {count}. Already transcribed: "
+"{already}. Skipped because they have nothing to transcribe: {skipped}. "
+"Start?"
+msgstr ""
+"Mensagens a transcrever, uma após a outra: {count}. Já transcritas: "
+"{already}. Ignoradas por não terem o que transcrever: {skipped}. Começar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "bulk_transcription_done"
+msgid ""
+"Bulk transcription finished: {done} transcribed, {skipped} skipped, {failed}"
+" with errors."
+msgstr ""
+"Transcrição em massa concluída: {done} transcritas, {skipped} ignoradas, "
+"{failed} com erro."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_none"
+msgid ""
+"None of the selected messages is a voice message, audio or video that can be"
+" transcribed."
+msgstr ""
+"Nenhuma das mensagens selecionadas é uma mensagem de voz, áudio ou vídeo que"
+" possa ser transcrito."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_progress"
+msgid "Transcribing message {index} of {total}."
+msgstr "Transcrevendo mensagem {index} de {total}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "bulk_transcription_show_menu"
+msgid "Show the transcriptions of the selected messages together"
+msgstr "Mostrar juntas as transcrições das mensagens selecionadas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_stopped_locked"
+msgid "The bulk transcription stopped because the chat was locked."
+msgstr "A transcrição em massa parou porque a conversa foi trancada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_title"
+msgid "Transcribe selected messages"
+msgstr "Transcrever mensagens selecionadas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_window_title"
+msgid "Bulk transcription"
+msgstr "Transcrição em massa"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "button_no"
@@ -3159,6 +3247,7 @@ msgstr "%d/%m/%Y"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 #: client/main_window/chat_list.py
 #: client/ui/conversation_panel/bulk_messages.py
+#: client/ui/conversation_panel/bulk_transcription.py
 #: client/ui/conversation_panel/formatting.py
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -7458,6 +7547,24 @@ msgid "Ctrl+Alt+Shift+F: star the selected messages"
 msgstr "Ctrl+Alt+Shift+F: favoritar as mensagens selecionadas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_bulk_transcribe_inline_label"
+msgid ""
+"Ctrl+Alt+Shift+N: transcribe the selected messages locally with Whisper into"
+" their lines"
+msgstr ""
+"Ctrl+Alt+Shift+N: transcrever localmente com o Whisper as mensagens "
+"selecionadas nas linhas delas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_bulk_transcribe_label"
+msgid ""
+"Ctrl+Alt+Shift+T: transcribe the selected messages locally with Whisper and "
+"show them together"
+msgstr ""
+"Ctrl+Alt+Shift+T: transcrever localmente com o Whisper as mensagens "
+"selecionadas e mostrá-las juntas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_bulk_unread_chats_label"
 msgid "Ctrl+Alt+Shift+U: mark the selected chats as unread"
@@ -9476,6 +9583,18 @@ msgstr "Transcrever localmente na linha da mensagem com Whisper"
 msgctxt "transcribe_message"
 msgid "Transcribe message locally with Whisper"
 msgstr "Transcrever mensagem localmente com Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_selected"
+msgid "Transcribe the selected messages and show them together"
+msgstr "Transcrever as mensagens selecionadas e mostrá-las juntas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_selected_inline"
+msgid "Transcribe the selected messages into their lines"
+msgstr "Transcrever as mensagens selecionadas nas linhas delas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py

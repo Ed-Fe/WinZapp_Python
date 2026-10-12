@@ -106,6 +106,8 @@ SHORTCUTS = (
     Shortcut('messages.ID_BULK_STAR', 'messages', 'ID_BULK_STAR', 'shortcut_bulk_star_label', 7, 70, 0),
     Shortcut('messages.ID_BULK_PIN', 'messages', 'ID_BULK_PIN', 'shortcut_bulk_pin_label', 7, 88, 0),
     Shortcut('messages.ID_BULK_SAVE', 'messages', 'ID_BULK_SAVE', 'shortcut_bulk_save_label', 7, 83, 0),
+    Shortcut('messages.ID_BULK_TRANSCRIBE', 'messages', 'ID_BULK_TRANSCRIBE', 'shortcut_bulk_transcribe_label', 7, 84, 0),
+    Shortcut('messages.ID_BULK_TRANSCRIBE_INLINE', 'messages', 'ID_BULK_TRANSCRIBE_INLINE', 'shortcut_bulk_transcribe_inline_label', 7, 78, 0),
     Shortcut('messages.ID_BULK_DELETE', 'messages', 'ID_BULK_DELETE', 'shortcut_bulk_delete_chats_label', 6, 127, 0),
     # Review the Nth newest message (issue #462). No default key on purpose: Alt+1..Alt+9
     # belong to the main window, and the family is there for whoever frees them or

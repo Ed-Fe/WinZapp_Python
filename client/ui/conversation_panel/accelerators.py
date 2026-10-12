@@ -230,6 +230,8 @@ class AcceleratorsMixin:
         self.ID_BULK_STAR       = wx.NewIdRef()  # star selected           (Ctrl+Alt+Shift+F)
         self.ID_BULK_PIN        = wx.NewIdRef()  # pin selected            (Ctrl+Alt+Shift+X)
         self.ID_BULK_SAVE       = wx.NewIdRef()  # save selected           (Ctrl+Alt+Shift+S)
+        self.ID_BULK_TRANSCRIBE = wx.NewIdRef()  # transcribe selected, window (Ctrl+Alt+Shift+T)
+        self.ID_BULK_TRANSCRIBE_INLINE = wx.NewIdRef()  # ... into their lines (Ctrl+Alt+Shift+N)
         self.ID_BULK_DELETE     = wx.NewIdRef()  # delete selected         (Ctrl+Shift+Delete)
         # ── Audio speed ──────────────────────────────────────────────────────
         self.ID_ALT_COMMA       = wx.NewIdRef()  # decrease audio speed    (Alt+,)
@@ -328,6 +330,8 @@ class AcceleratorsMixin:
             (CAS,              ord("F"),           self.ID_BULK_STAR),
             (CAS,              ord("X"),           self.ID_BULK_PIN),
             (CAS,              ord("S"),           self.ID_BULK_SAVE),
+            (CAS,              ord("T"),           self.ID_BULK_TRANSCRIBE),
+            (CAS,              ord("N"),           self.ID_BULK_TRANSCRIBE_INLINE),
             (CS,               wx.WXK_DELETE,      self.ID_BULK_DELETE),
         ] + [
             # No default key (mod 0, key 0): the entry only ties the command to
@@ -404,6 +408,8 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_star,            id=self.ID_BULK_STAR)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_pin,             id=self.ID_BULK_PIN)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_save,            id=self.ID_BULK_SAVE)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe,      id=self.ID_BULK_TRANSCRIBE)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe_inline, id=self.ID_BULK_TRANSCRIBE_INLINE)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete,          id=self.ID_BULK_DELETE)
         for _d in range(10):
             self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_accel_review_message(d), id=self.ID_REVIEW[_d])

@@ -111,11 +111,34 @@ class MessageMenuMixin:
                 wx.ID_ANY, f"{i18n.t('save_selected')}\tCtrl+Alt+Shift+S")
             self.Bind(wx.EVT_MENU, self._on_mass_save_messages, save_item)
 
+            # The bulk forms of Alt+Shift+T and Alt+Shift+N (issue #469). While
+            # a run is under way they offer to cancel it instead.
+            transcribe_item = mass_menu.Append(
+                wx.ID_ANY, f"{i18n.t('transcribe_selected')}\tCtrl+Alt+Shift+T")
+            self.Bind(wx.EVT_MENU, self._on_mass_transcribe_messages, transcribe_item)
+            inline_item = mass_menu.Append(
+                wx.ID_ANY, f"{i18n.t('transcribe_selected_inline')}\tCtrl+Alt+Shift+N")
+            self.Bind(wx.EVT_MENU, self._on_mass_transcribe_inline_messages, inline_item)
+
             delete_item = mass_menu.Append(
                 wx.ID_ANY, f"{i18n.t('delete_selected')}\tCtrl+Shift+Delete")
             self.Bind(wx.EVT_MENU, self._on_mass_delete_messages, delete_item)
 
             menu.AppendSubMenu(mass_menu, i18n.t("mass_actions"))
+            menu.AppendSeparator()
+
+        # A bulk transcription: stop the one running, or read the last one's
+        # texts together (they outlive the selection that started it).
+        bulk_item_key = self._bulk_transcription_menu_key()
+        if bulk_item_key:
+            bulk_item = menu.Append(wx.ID_ANY, i18n.t(bulk_item_key))
+            self.Bind(
+                wx.EVT_MENU,
+                (lambda e: self._ask_cancel_bulk_transcription())
+                if bulk_item_key == "bulk_transcription_cancel_menu"
+                else self._on_show_bulk_transcriptions,
+                bulk_item,
+            )
             menu.AppendSeparator()
 
         # ── "Ir para a mensagem citada" (only for reply messages) ─────────────

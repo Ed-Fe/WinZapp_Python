@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 265 ayrı düzenlenebilir yerel atama ve bunların 283 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 267 ayrı düzenlenebilir yerel atama ve bunların 285 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -125,6 +125,8 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | seçili mesajları yıldızla | Kontrol+Alt+Shift+F | messages.ID_BULK_STAR |
 | Sohbet içi | seçili mesajları sabitle | Kontrol+Alt+Shift+X | messages.ID_BULK_PIN |
 | Sohbet içi | seçili mesajları kaydet | Kontrol+Alt+Shift+S | messages.ID_BULK_SAVE |
+| Sohbet içi | seçili mesajları Whisper ile bu bilgisayarda yazıya dök ve birlikte göster | Kontrol+Alt+Shift+T | messages.ID_BULK_TRANSCRIBE |
+| Sohbet içi | seçili mesajları Whisper ile bu bilgisayarda kendi satırlarına yazıya dök | Kontrol+Alt+Shift+N | messages.ID_BULK_TRANSCRIBE_INLINE |
 | Sohbet içi | seçili sohbetleri sil | Kontrol+Shift+Sil | messages.ID_BULK_DELETE |
 | Sohbet içi | son mesajlardan 1. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[1] |
 | Sohbet içi | son mesajlardan 2. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[2] |
