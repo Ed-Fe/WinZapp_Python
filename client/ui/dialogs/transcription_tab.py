@@ -29,12 +29,15 @@ from core.transcription import (
     external_models,
     external_view,
     management as transcription_management,
+    management_text,
     management_whisper_cpp,
     model_catalog,
     model_names,
     model_store,
     preferences as transcription_preferences,
+    reused_runtimes,
 )
+from ui.dialogs.transcription_result_field import VERIFY_ACTIONS
 from ui.dialogs.transcription_progress import (
     TranscriptionProgressDialog,
     progress_status_text,
@@ -251,32 +254,10 @@ def _transcription_unknown_dirs_notice(i18n, names) -> str:
     return i18n.t("transcription_unknown_dirs").format(folders=", ".join(names))
 
 
-def _whisper_cpp_build_name(i18n, build_id) -> str:
-    """A whisper.cpp build as it is said ("the processor version"), or ""."""
-    key = management_whisper_cpp.WHISPER_CPP_BUILD_I18N_KEYS.get(build_id)
-    return i18n.t(key) if key else ""
-
-
-def _transcription_announcement_text(i18n, announcement) -> str:
-    """The sentence of a finished action, with its values said as names.
-
-    A management Announcement carries ids — a model id, a whisper.cpp build's
-    i18n key — because it is built where no translation is at hand; this is
-    where they become what the picker calls them ("small, 5 bits"), so the
-    sentence and the list the user just read agree.
-    """
-    values = dict(announcement.values)
-    if values.get("model"):
-        values["model"] = model_names.display_name(i18n, values["model"]) or values["model"]
-    # A move's lists of ids, said one name at a time.
-    for key in ("models", "moved", "remaining"):
-        if values.get(key):
-            values[key] = model_names.display_list(
-                i18n, values[key].split(transcription_management.LIST_SEPARATOR)
-            )
-    if "build" in values:
-        values["build"] = i18n.t(values["build"]) if values["build"] else ""
-    return i18n.t(announcement.i18n_key).format(**values)
+# Where the wording of an action's outcome lives, shared with the main window
+# (a download that finished in the background is said from there).
+_whisper_cpp_build_name = management_text.build_name
+_transcription_announcement_text = management_text.announcement_text
 
 
 def _format_transcription_size(i18n, size_bytes) -> str:
@@ -475,6 +456,17 @@ class TranscriptionTabMixin:
         sizer.Add(self._transcription_substituted_field, 0, wx.EXPAND | wx.ALL, 8)
         self._transcription_substituted_label.Hide()
         self._transcription_substituted_field.Hide()
+        # Stops a download that runs in the background (and what is queued
+        # behind it). Shown only while one does: see
+        # TranscriptionBackgroundTabMixin._show_transcription_cancel().
+        self._transcription_cancel_btn = wx.Button(
+            page, label=i18n.t("transcription_background_cancel_btn")
+        )
+        self._transcription_cancel_btn.Bind(
+            wx.EVT_BUTTON, self._on_transcription_cancel_background
+        )
+        sizer.Add(self._transcription_cancel_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self._transcription_cancel_btn.Hide()
         self._transcription_substitution_keys = []
         #: The same field also carries what the *machine* has to say about the
         #: current choices — kept apart from the substitutions because the two
@@ -513,12 +505,19 @@ class TranscriptionTabMixin:
             page, label=i18n.t("transcription_model_label")
         )
         sizer.Add(self._transcription_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
-        self._transcription_model_combo = wx.ComboBox(page, style=wx.CB_READONLY)
-        # Same multi-character type-ahead as the language combo on the General
-        # tab — a read-only wx.ComboBox otherwise only matches the first letter.
-        bind_incremental_search(self._transcription_model_combo)
-        sizer.Add(self._transcription_model_combo, 0, wx.EXPAND | wx.ALL, 8)
-        #: Parallel to the combobox items: index -> the value stored in
+        # A list rather than a drop-down: the models can be marked for download
+        # (Ctrl+Space, as in the lists of chats and messages — see
+        # TranscriptionModelMarksMixin), and a closed combo box has no place
+        # to read "selected" from and no Space that is not its own. The row
+        # the list is on is still the chosen model; the marks are the queue.
+        self._transcription_model_list = wx.ListBox(
+            page, style=wx.LB_SINGLE,
+            size=(-1, page.GetTextExtent("Xg").GetHeight() * 7),
+        )
+        sizer.Add(self._transcription_model_list, 0, wx.EXPAND | wx.ALL, 8)
+        # Before the first populate: the rows are drawn with their marks.
+        self._init_transcription_model_marks()
+        #: Parallel to the list items: index -> the value stored in
         #: settings.json. The item text is a whole sentence, so it cannot be
         #: mapped back to an id by reading it.
         self._transcription_model_ids = []
@@ -529,13 +528,14 @@ class TranscriptionTabMixin:
         self._populate_transcription_model_choices()
         # Which buttons below make sense depends on the model selected, and
         # SetSelection() fires nothing — only the user's own choice does.
-        self._transcription_model_combo.Bind(
-            wx.EVT_COMBOBOX, self._on_transcription_model_change
+        self._transcription_model_list.Bind(
+            wx.EVT_LISTBOX, self._on_transcription_model_change
         )
         self._build_transcription_action_row(
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
             _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
         )
+        self._build_transcription_cache(page, sizer)
         # Models the user already has in other folders: right after the ways
         # to get one into the picker, and before the device it will run on.
         self._build_external_models_group(page, sizer)
@@ -588,6 +588,8 @@ class TranscriptionTabMixin:
         self._transcription_language_combo.Bind(
             wx.EVT_COMBOBOX, self._on_transcription_language_change
         )
+        # The on/off options (TranscriptionOptionsMixin).
+        self._build_transcription_options(page, sizer)
 
 
         self._transcription_models_dir_label = wx.StaticText(
@@ -630,7 +632,11 @@ class TranscriptionTabMixin:
         # The whisper.cpp program: its builds and their four buttons, last, as
         # the other download that is not a model.
         self._build_whisper_cpp_section(page, sizer)
+        # Folders to reuse CUDA libraries and whisper.cpp programs from.
+        self._build_transcription_reuse(page, sizer)
         self._sync_transcription_action_buttons()
+        # A download the window is running in the background is this tab's too.
+        self._watch_transcription_background()
 
         page.SetSizer(sizer)
         return page
@@ -754,6 +760,11 @@ class TranscriptionTabMixin:
             labels.append(label)
             model_ids.append(choice)
 
+        # What the queue can still mean: marks of models this list no longer
+        # offers (the other backend's) are forgotten, and the rest are drawn.
+        self._transcription_model_base_labels = labels
+        labels = self._marked_model_labels(labels, model_ids)
+
         if labels != self._transcription_model_labels or (
                 model_ids != self._transcription_model_ids):
             selected = self._selected_transcription_model()
@@ -761,7 +772,7 @@ class TranscriptionTabMixin:
             # Freeze()/Thaw() to batch here — that pair is for the row-by-row
             # mutation of a list control, where it saves the screen reader a
             # flood of one event per row.
-            self._transcription_model_combo.Set(labels)
+            self._transcription_model_list.Set(labels)
             self._transcription_model_ids = model_ids
             self._transcription_model_labels = labels
             self._select_transcription_model(selected)
@@ -805,7 +816,7 @@ class TranscriptionTabMixin:
 
     def _selected_transcription_model(self):
         return self._selected_id(
-            self._transcription_model_combo, self._transcription_model_ids
+            self._transcription_model_list, self._transcription_model_ids
         )
 
     def _selected_transcription_language(self):
@@ -835,7 +846,7 @@ class TranscriptionTabMixin:
 
     def _select_transcription_model(self, model_id):
         self._select_id(
-            self._transcription_model_combo, self._transcription_model_ids, model_id
+            self._transcription_model_list, self._transcription_model_ids, model_id
         )
 
     def _select_transcription_language(self, code):
@@ -1048,10 +1059,14 @@ class TranscriptionTabMixin:
         """Put the one line about the CUDA libraries into its own field."""
         state = cuda_runtime.installation_state()
         self._transcription_cuda_state = state.state
+        text = _transcription_cuda_status_text(self.main_window.i18n, state)
+        if (state.state != cuda_runtime.STATE_INSTALLED
+                and reused_runtimes.registered_cuda_dir()):
+            # The libraries come from the folder the user chose to reuse: said,
+            # or the line would offer the very download the folder replaces.
+            text = f"{text} {self.main_window.i18n.t('transcription_reuse_in_use_note')}"
         # ChangeValue for the same reason as the warning field above.
-        self._transcription_cuda_field.ChangeValue(
-            _transcription_cuda_status_text(self.main_window.i18n, state)
-        )
+        self._transcription_cuda_field.ChangeValue(text)
         self._sync_transcription_action_buttons()
 
     # ── The eight actions ────────────────────────────────────────────────────
@@ -1087,12 +1102,25 @@ class TranscriptionTabMixin:
                 # helpers run before the row they belong to exists.
                 if button is not None:
                     button.Enable(allowed[state_key])
+        # Marked models make Download available whatever the list is on.
+        download = self._transcription_action_buttons.get(
+            transcription_management.ACTION_DOWNLOAD_MODEL
+        )
+        if (download is not None and not self._transcription_job_running
+                and self._transcription_queue_to_download()):
+            download.Enable(True)
+        self._sync_transcription_clear_cache_button()
         self._sync_whisper_cpp_buttons()
 
     def _set_transcription_job_running(self, running):
         """One action at a time, and every other button says so."""
         self._transcription_job_running = bool(running)
         self._sync_transcription_action_buttons()
+        # Choosing another models folder moves the models on OK, under the
+        # same lock a running download holds: not offered while one runs.
+        browse = getattr(self, "_transcription_models_dir_browse_btn", None)
+        if browse is not None:
+            browse.Enable(not self._transcription_job_running)
         # The buttons of the section for models in other folders wait for the
         # same job: two at once would serialize behind a bar that does not move.
         self._sync_external_buttons()
@@ -1101,10 +1129,13 @@ class TranscriptionTabMixin:
         """Another model, another set of buttons that can act on it — and
         perhaps an English-only one, which has something to say about the
         language."""
+        self._forget_transcription_outcome()
         self._sync_transcription_action_buttons()
         self._show_transcription_hardware_notices()
-        # Skip() or the dialog-level EVT_COMBOBOX never runs and the Apply
-        # button stays hidden — see _mark_dirty()'s docstring.
+        # A list box fires EVT_LISTBOX, which the dialog does not route to
+        # _mark_dirty the way it does EVT_COMBOBOX (it has other list boxes
+        # that are not settings), so this one says so itself.
+        self._mark_dirty(event)
         event.Skip()
 
     def _on_transcription_action(self, event):
@@ -1126,6 +1157,11 @@ class TranscriptionTabMixin:
         if action in transcription_management.MODEL_ACTIONS:
             if not self._transcription_models_dir_applied():
                 return
+            # Marked models turn Download into a queue; every other action is
+            # about the model the list is on.
+            if (action == transcription_management.ACTION_DOWNLOAD_MODEL
+                    and self._start_transcription_queue()):
+                return
             model_id = self._selected_transcription_model()
             if model_id is None or model_id == transcription_preferences.AUTO:
                 # "Automático" names no model. The buttons are already off in
@@ -1137,8 +1173,7 @@ class TranscriptionTabMixin:
         if action in _TRANSCRIPTION_REMOVE_ACTIONS and not self._ask_transcription_removal(
                 action, model_id):
             return
-        job, result, error = self._run_transcription_job(action, model_id=model_id)
-        self._report_transcription_job(action, model_id, job, result, error)
+        self._start_transcription_job(action, model_id=model_id)
 
     def _transcription_models_dir_applied(self) -> bool:
         """Refuse to touch the models while the folder is only *chosen*.
@@ -1224,8 +1259,7 @@ class TranscriptionTabMixin:
             return
         if not self._ask_transcription_download(summary, repair):
             return
-        job, result, error = self._run_transcription_job(action, model_id=model_id)
-        self._report_transcription_job(action, model_id, job, result, error)
+        self._start_transcription_job(action, model_id=model_id)
 
     def _ask_transcription_download(self, summary, repair) -> bool:
         i18n = self.main_window.i18n
@@ -1258,14 +1292,14 @@ class TranscriptionTabMixin:
             wx.YES_NO | wx.ICON_QUESTION, self,
         ) == wx.YES
 
-    def _run_transcription_job(self, action, model_id=None, models_root=None,
-                               new_models_root=None, build_id=None,
-                               compute_capability=None):
-        """Run one action behind the progress dialog. Returns what it answered.
+    def _transcription_job_factory(self, action, model_id=None, models_root=None,
+                                   new_models_root=None, build_id=None,
+                                   compute_capability=None):
+        """`make_job(on_progress, on_finished)` for one management action.
 
-        Deliberately does not report: the models-folder move has to decide
-        which folder the setting names *before* anything is said, so that the
-        sentence and the setting cannot disagree.
+        The one place that decides what a job is built with, so that the
+        progress dialog and the main window's background runner (see
+        TranscriptionBackgroundTabMixin) build the same job.
         """
         if models_root is None:
             # The folder that is actually in force, never the one the tab is
@@ -1293,16 +1327,35 @@ class TranscriptionTabMixin:
                 **job_kwargs,
             )
 
+        return _make_job
+
+    def _transcription_status_text(self, action, model_id=None, build_id=None):
+        """The sentence saying which action is running."""
+        i18n = self.main_window.i18n
+        return progress_status_text(
+            i18n, action, model_names.display_name(i18n, model_id),
+            build=_whisper_cpp_build_name(i18n, build_id),
+        )
+
+    def _run_transcription_job(self, action, model_id=None, models_root=None,
+                               new_models_root=None, build_id=None,
+                               compute_capability=None):
+        """Run one action behind the progress dialog. Returns what it answered.
+
+        Deliberately does not report: the models-folder move has to decide
+        which folder the setting names *before* anything is said, so that the
+        sentence and the setting cannot disagree.
+        """
         dialog = TranscriptionProgressDialog(
             self,
             self.main_window.i18n,
             self.main_window.speak_output,
-            _make_job,
-            progress_status_text(
-                self.main_window.i18n, action,
-                model_names.display_name(self.main_window.i18n, model_id),
-                build=_whisper_cpp_build_name(self.main_window.i18n, build_id),
+            self._transcription_job_factory(
+                action, model_id=model_id, models_root=models_root,
+                new_models_root=new_models_root, build_id=build_id,
+                compute_capability=compute_capability,
             ),
+            self._transcription_status_text(action, model_id, build_id),
         )
         self._set_transcription_job_running(True)
         try:
@@ -1313,12 +1366,18 @@ class TranscriptionTabMixin:
             self._set_transcription_job_running(False)
 
     def _report_transcription_job(self, action, model_id, job, result, error,
-                                  extra_keys=()):
-        """Say what happened, remember it, and redraw what it changed."""
+                                  extra_keys=(), restore_focus=True):
+        """Say what happened, remember it, and redraw what it changed.
+
+        `restore_focus` is False for a job that ended in the background: the
+        user is somewhere else by then, and a focus pulled onto a button of
+        Settings would be the surprise the background option exists to avoid.
+        """
         self._note_transcription_outcome(action, model_id, error)
         self._announce_transcription_result(job, result, error, extra_keys)
         self._refresh_after_transcription_action(action)
-        self._restore_transcription_focus(action)
+        if restore_focus:
+            self._restore_transcription_focus(action)
 
     def _restore_transcription_focus(self, action):
         """Never leave the focus on a button the action just switched off.
@@ -1331,6 +1390,8 @@ class TranscriptionTabMixin:
         button on the same row, and failing that the control the row belongs
         to.
         """
+        if action in VERIFY_ACTIONS and self._focus_transcription_result():
+            return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():
             # No button at all for the models-folder move, and nothing to do
@@ -1338,7 +1399,7 @@ class TranscriptionTabMixin:
             return
         if action in transcription_management.MODEL_ACTIONS:
             row, fallback = (_TRANSCRIPTION_MODEL_ACTION_BUTTONS,
-                             self._transcription_model_combo)
+                             self._transcription_model_list)
         else:
             row, fallback = (_TRANSCRIPTION_CUDA_ACTION_BUTTONS,
                              self._transcription_cuda_field)
@@ -1577,6 +1638,9 @@ class TranscriptionTabMixin:
             section[transcription_preferences.SETTING_LANGUAGE]
         )
         self._sync_transcription_language_controls()
+        self._load_transcription_options()
+        self._load_transcription_cache()
+        self._load_transcription_reuse()
 
         self._show_transcription_cuda_status()
         self._show_whisper_cpp_status()
@@ -1719,6 +1783,9 @@ class TranscriptionTabMixin:
         section[transcription_preferences.SETTING_AUTO_DETECT_LANGUAGE] = (
             self._transcription_detect_language_check.GetValue()
         )
+        self._apply_transcription_options()
+        self._apply_transcription_cache()
+        self._apply_transcription_reuse()
         # Written even while detection is on: it is the language the user would
         # rather hear, which preferred_language() answers for part 6 whatever
         # the checkbox says, and losing it every time detection is ticked would
@@ -1739,6 +1806,19 @@ class TranscriptionTabMixin:
         # into this account's settings.json — app_settings.set() raises KeyError
         # for anything that is not global, which is what keeps it that way.
         app_settings = self._install_wide_settings()
+        background_running = getattr(self.main_window, "transcription_background_running", None)
+        if (app_settings is not None
+                and self._transcription_models_dir != self._stored_transcription_models_dir()
+                and callable(background_running) and background_running()):
+            # The move waits on the models lock the download holds — up to
+            # hours, behind a modal window. Refused instead; the choice stays
+            # shown for an Apply once the download is over.
+            wx.MessageBox(
+                self.main_window.i18n.t("transcription_models_dir_busy"),
+                self.main_window.i18n.t("settings_title"),
+                wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
         if (app_settings is not None
                 and self._transcription_models_dir != self._stored_transcription_models_dir()):
             # Checked again here and not only in Procurar: a folder of the
@@ -1778,6 +1858,9 @@ class TranscriptionTabMixin:
         self._transcription_substituted_label.SetLabel(
             i18n.t("transcription_substituted_label")
         )
+        self._transcription_cancel_btn.SetLabel(
+            i18n.t("transcription_background_cancel_btn")
+        )
         self._render_transcription_substitutions()
         self._transcription_model_label.SetLabel(i18n.t("transcription_model_label"))
         self._populate_transcription_model_choices()
@@ -1809,6 +1892,9 @@ class TranscriptionTabMixin:
             i18n.t("transcription_models_dir_browse_btn")
         )
         self._refresh_external_labels()
+        self._refresh_transcription_options_labels()
+        self._refresh_transcription_reuse_labels()
+        self._refresh_transcription_cache_labels()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()

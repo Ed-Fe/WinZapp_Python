@@ -58,6 +58,7 @@ import threading
 import time
 
 from core.transcription import audio_prep, backend as backend_module, device, errors, precision
+from core.transcription import residency as residency_module
 
 # Announced before the wait each one names, so the UI is never silent during
 # one. No i18n keys here on purpose: part 6 owns the wording, and these are the
@@ -307,15 +308,19 @@ class TranscriptionJob:
         # immediately, "cancelled".
         self._check_cancel()
         self._enter(PHASE_LOADING_MODEL)
-        backend.load_model(request, should_cancel=self._should_cancel)
+        # The model is let go after a while with nobody using it, unless the
+        # user asked to keep it loaded (core/transcription/residency.py): the
+        # clock starts when this block ends, whatever way it ends.
+        with residency_module.residency.using(backend):
+            backend.load_model(request, should_cancel=self._should_cancel)
 
-        self._check_cancel()
-        self._enter(PHASE_TRANSCRIBING)
-        return backend.transcribe(
-            request,
-            progress=self._report_progress,
-            should_cancel=self._should_cancel,
-        )
+            self._check_cancel()
+            self._enter(PHASE_TRANSCRIBING)
+            return backend.transcribe(
+                request,
+                progress=self._report_progress,
+                should_cancel=self._should_cancel,
+            )
 
     def _finish(self, result, error, started):
         elapsed = time.monotonic() - started

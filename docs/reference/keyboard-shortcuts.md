@@ -1,6 +1,6 @@
 # WinZapp kısayol düzenleme envanteri
 
-Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 254 ayrı düzenlenebilir yerel atama ve bunların 272 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
+Bu belge uygulamanın merkezi komut kataloğunu açıklar. Katalogda 269 ayrı düzenlenebilir yerel atama ve bunların 287 bağlam kaydı bulunur. Sistem genelinde WinZapp'ı gösterme ataması bunlara ek olarak listelenir. Aynı komutun ana pencere ve alt panellerdeki kayıtları tek ayarı paylaşır. Rakamlı ailelerin her rakamı ve alternatif tuş birleşimleri ayrı düzenlenebilir.
 
 ## Kullanım
 
@@ -106,6 +106,8 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | Son tepkiler: | Alt+Shift+E | messages.ID_ALT_SHIFT_E |
 | Sohbet içi | sizden bahseden önceki mesaja git | Alt+Shift+M | messages.ID_ALT_SHIFT_M |
 | Sohbet içi | size yanıt veren önceki mesaja git | Alt+Shift+P | messages.ID_ALT_SHIFT_P |
+| Sohbet içi | sizden bahseden sonraki mesaja git | Alt+Shift+J | messages.ID_ALT_SHIFT_J |
+| Sohbet içi | size yanıt veren sonraki mesaja git | Alt+Shift+O | messages.ID_ALT_SHIFT_O |
 | Sohbet içi | telefon numarasını kopyala | Alt+Shift+C | messages.ID_ALT_SHIFT_C |
 | Sohbet içi | katılımcıyla sohbet et (gruplar) | Alt+Shift+V | messages.ID_ALT_SHIFT_V |
 | Sohbet içi | Sesli ara | Kontrol+Shift+V | messages.ID_CTRL_SHIFT_V |
@@ -113,6 +115,7 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | alıntılanan mesaja git | Alt+Shift+Q | messages.ID_ALT_SHIFT_Q |
 | Sohbet içi | sohbeti sessize alma menüsünü aç / sesi aç | Alt+Shift+S | messages.ID_ALT_SHIFT_S |
 | Sohbet içi | sesli mesajı veya ses kaydını Whisper ile bu bilgisayarda yazıya dök ya da kayıtlı dökümü aç | Alt+Shift+T | messages.ID_ALT_SHIFT_T |
+| Sohbet içi | sesli mesajda veya videoda Enter ve Boşluk'un yapmadığını yapar: onu Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır, duraklatır veya açar | Alt+Shift+N | messages.ID_ALT_SHIFT_N |
 | Sohbet içi | mesajı yıldızla | Kontrol+Shift+O | messages.ID_CTRL_SHIFT_O |
 | Sohbet içi | oynatma hızını azalt | Alt+, | messages.ID_ALT_COMMA |
 | Sohbet içi | oynatma hızını artır | Alt+. | messages.ID_ALT_PERIOD |
@@ -122,7 +125,19 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | seçili mesajları yıldızla | Kontrol+Alt+Shift+F | messages.ID_BULK_STAR |
 | Sohbet içi | seçili mesajları sabitle | Kontrol+Alt+Shift+X | messages.ID_BULK_PIN |
 | Sohbet içi | seçili mesajları kaydet | Kontrol+Alt+Shift+S | messages.ID_BULK_SAVE |
+| Sohbet içi | seçili mesajları Whisper ile bu bilgisayarda yazıya dök ve birlikte göster | Kontrol+Alt+Shift+T | messages.ID_BULK_TRANSCRIBE |
+| Sohbet içi | seçili mesajları Whisper ile bu bilgisayarda kendi satırlarına yazıya dök | Kontrol+Alt+Shift+N | messages.ID_BULK_TRANSCRIBE_INLINE |
 | Sohbet içi | seçili sohbetleri sil | Kontrol+Shift+Sil | messages.ID_BULK_DELETE |
+| Sohbet içi | son mesajlardan 1. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[1] |
+| Sohbet içi | son mesajlardan 2. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[2] |
+| Sohbet içi | son mesajlardan 3. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[3] |
+| Sohbet içi | son mesajlardan 4. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[4] |
+| Sohbet içi | son mesajlardan 5. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[5] |
+| Sohbet içi | son mesajlardan 6. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[6] |
+| Sohbet içi | son mesajlardan 7. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[7] |
+| Sohbet içi | son mesajlardan 8. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[8] |
+| Sohbet içi | son mesajlardan 9. mesajı (en yeniden sayarak) oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[9] |
+| Sohbet içi | son mesajlardan onuncusunu oku; aynı tuşa hızlıca iki kez basınca kopyala | atanmamış | messages.ID_REVIEW[0] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (0) | Kontrol+0 | messages.ID_BOOKMARK[0] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (1) | Kontrol+1 | messages.ID_BOOKMARK[1] |
 | Sohbet içi, Ana gezinti | odaklanılan mesaja yer işareti koy veya mevcut yer işaretine git (2) | Kontrol+2 | messages.ID_BOOKMARK[2] |

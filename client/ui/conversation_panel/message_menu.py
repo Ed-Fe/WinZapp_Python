@@ -42,6 +42,18 @@ from core.wrapped_text import (
 )
 
 
+def inline_toggle_menu_key(msg, enter_transcribes) -> str:
+    """The label of the Alt+Shift+N item: whatever Enter and Space do not do on
+    *msg* — transcribe into the line, or (when they transcribe) play the voice
+    message or play/open the video."""
+    if enter_transcribes:
+        if msg.get("messageType") == "audioMessage":
+            return "play_voice_message_menu"
+        if msg.get("messageType") == "videoMessage":
+            return "open_video_menu"
+    return "transcribe_inline_menu"
+
+
 class MessageMenuMixin:
     """The message context menu and its read-only actions: data, copy, reply, go
     to quoted, text popup.
@@ -99,11 +111,34 @@ class MessageMenuMixin:
                 wx.ID_ANY, f"{i18n.t('save_selected')}\tCtrl+Alt+Shift+S")
             self.Bind(wx.EVT_MENU, self._on_mass_save_messages, save_item)
 
+            # The bulk forms of Alt+Shift+T and Alt+Shift+N (issue #469). While
+            # a run is under way they offer to cancel it instead.
+            transcribe_item = mass_menu.Append(
+                wx.ID_ANY, f"{i18n.t('transcribe_selected')}\tCtrl+Alt+Shift+T")
+            self.Bind(wx.EVT_MENU, self._on_mass_transcribe_messages, transcribe_item)
+            inline_item = mass_menu.Append(
+                wx.ID_ANY, f"{i18n.t('transcribe_selected_inline')}\tCtrl+Alt+Shift+N")
+            self.Bind(wx.EVT_MENU, self._on_mass_transcribe_inline_messages, inline_item)
+
             delete_item = mass_menu.Append(
                 wx.ID_ANY, f"{i18n.t('delete_selected')}\tCtrl+Shift+Delete")
             self.Bind(wx.EVT_MENU, self._on_mass_delete_messages, delete_item)
 
             menu.AppendSubMenu(mass_menu, i18n.t("mass_actions"))
+            menu.AppendSeparator()
+
+        # A bulk transcription: stop the one running, or read the last one's
+        # texts together (they outlive the selection that started it).
+        bulk_item_key = self._bulk_transcription_menu_key()
+        if bulk_item_key:
+            bulk_item = menu.Append(wx.ID_ANY, i18n.t(bulk_item_key))
+            self.Bind(
+                wx.EVT_MENU,
+                (lambda e: self._ask_cancel_bulk_transcription())
+                if bulk_item_key == "bulk_transcription_cancel_menu"
+                else self._on_show_bulk_transcriptions,
+                bulk_item,
+            )
             menu.AppendSeparator()
 
         # ── "Ir para a mensagem citada" (only for reply messages) ─────────────
@@ -379,7 +414,8 @@ class MessageMenuMixin:
 
         # Transcribe (Alt+Shift+T) — next to the audio's own Save As, for the
         # same messages message_audio.is_transcribable() accepts: voice notes,
-        # audio files, and documents whose mimetype is audio/*.
+        # audio files, videos with sound, and documents whose mimetype is
+        # audio/* or video/*.
         # A message whose transcription is stored offers it instead of the
         # wait: Alt+Shift+T moves to `transcription_view` (the shortcut opens the
         # stored one too), and running it again or deleting it are items of
@@ -388,7 +424,21 @@ class MessageMenuMixin:
         # and the one action it would inform — Alt+Shift+T — already does the
         # right thing either way, opening the stored text or starting a run.
         if message_audio.is_transcribable(msg):
-            if stored_transcription.saved_transcription(msg) is not None:
+            # Alt+Shift+N: the action Enter and Space do NOT do on a voice
+            # message, so the item names whichever that is today — "Play" when
+            # the setting makes Enter transcribe, "Transcribe into the line"
+            # when Enter plays. It is the only place the menu says which way
+            # the setting points.
+            toggle_key = inline_toggle_menu_key(msg, self._enter_transcribes_voice())
+            toggle_item = menu.Append(wx.ID_ANY, f"{i18n.t(toggle_key)}\tAlt+Shift+N")
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, m=msg: self._on_menu_toggle_voice_action(m),
+                toggle_item,
+            )
+            if stored_transcription.saved_transcription(
+                    msg, stored_transcription.selection_from_settings(
+                        self.main_window.settings)) is not None:
                 view_item = menu.Append(
                     wx.ID_ANY, f"{i18n.t('transcription_view')}\tAlt+Shift+T"
                 )

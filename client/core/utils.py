@@ -1139,6 +1139,10 @@ DEFAULT_SETTINGS = {
         # Opening a conversation keeps the chat search, so Esc returns to the
         # results. Off: the long-standing behaviour, so no migration.
         "keep_search_after_open": False,
+        # Enter and Space on a voice message transcribe it into its line of the
+        # list instead of playing it; Alt+Shift+N then plays it (and, with this
+        # off, is what transcribes it). Off: Enter plays, as it always has.
+        "enter_transcribes_voice_messages": False,
         "auto_focus_next_audio": True,
         "selected_announcement_position": "end",
         "show_yesterday_label": True,
@@ -1211,7 +1215,17 @@ DEFAULT_SETTINGS = {
         # "whatever language WinZapp itself is in", kept as a sentinel so it
         # follows a later change of the interface language.
         "language": "interface",
-        "auto_detect_language": True
+        "auto_detect_language": True,
+        # Keep the loaded model in memory for good (off: released after a
+        # few idle minutes). See core/transcription/residency.py.
+        "keep_model_loaded": False,
+        # Transcribe received voice messages on arrival and put the text in
+        # the message line. See core/transcription/auto_queue.py.
+        "auto_transcribe_received": False,
+        # Keep results with the message so they are not redone (on), and the
+        # per-model overrides {model id: bool}. See stored.cache_enabled_for().
+        "cache_enabled": True,
+        "cache_by_model": {}
     },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old

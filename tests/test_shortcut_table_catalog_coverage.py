@@ -34,8 +34,10 @@ class Owner:
             raise AttributeError(name)
         if name not in self.ids:
             number = 1000 + len(self.ids) * 10
+            # The numbered families are lists indexed by digit: the bookmarks
+            # and the ten review-by-position commands (ID_REVIEW[d]).
             self.ids[name] = ([number + digit for digit in range(10)]
-                              if 'BOOKMARK' in name else number)
+                              if 'BOOKMARK' in name or name == 'ID_REVIEW' else number)
         return self.ids[name]
 
 
@@ -60,3 +62,35 @@ def test_actual_table_is_fully_configurable(path, scope, monkeypatch):
     # None must remove every entry, including aliases and parent-shared IDs.
     owner.settings[SECTION] = {s.id: None for s, _ in owner._configured_shortcut_rows}
     assert keys._table(owner._configured_shortcut_rows, owner) == ()
+
+
+def _messages_table(monkeypatch, overrides=None):
+    """The real `messages` table, evaluated as above: (owner, entries)."""
+    path = 'ui/conversation_panel/accelerators.py'
+    tree = ast.parse((ROOT / path).read_text(encoding='utf-8-sig'))
+    [call] = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+              and isinstance(n.func, ast.Name) and n.func.id == 'make_shortcut_table'
+              and isinstance(n.args[1], ast.Constant) and n.args[1].value == 'messages']
+    owner = Owner()
+    owner.settings[SECTION] = dict(overrides or {})
+    env = dict(wx=wx, self=owner, ord=ord, range=range, str=str,
+               CS=6, AS=5, CAS=7, nav_letter='N', focus_field_letter='P',
+               focus_list_letter='M', messages_letter='M',
+               mnemonic_letter=lambda text, default: text[text.index('&') + 1].upper(),
+               i18n=owner.i18n)
+    entries = eval(compile(ast.Expression(call.args[2]), path, 'eval'), {'__builtins__': {}}, env)
+    monkeypatch.setattr(wx, 'AcceleratorTable', lambda rows: tuple(rows))
+    return owner, keys.make_shortcut_table(owner, 'messages', entries)
+
+
+def test_alt_shift_j_and_o_go_forward_in_the_messages_table(monkeypatch):
+    owner, table = _messages_table(monkeypatch)
+    assert (5, ord('J'), owner.ID_ALT_SHIFT_J) in table
+    assert (5, ord('O'), owner.ID_ALT_SHIFT_O) in table
+
+
+def test_the_review_positions_have_no_key_until_one_is_chosen(monkeypatch):
+    owner, table = _messages_table(monkeypatch)
+    assert not any(entry[2] in owner.ID_REVIEW for entry in table)
+    owner, table = _messages_table(monkeypatch, {'messages.ID_REVIEW[1]': [5, ord('W')]})
+    assert (5, ord('W'), owner.ID_REVIEW[1]) in table

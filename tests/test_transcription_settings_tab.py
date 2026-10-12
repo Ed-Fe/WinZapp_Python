@@ -85,8 +85,15 @@ from core.transcription import precision, preferences
 from core.transcription import whisper_cpp_runtime
 from ui.dialogs import transcription_external, transcription_tab, transcription_whisper_cpp
 from ui.dialogs.settings_dialog import SettingsDialog
+from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
+from ui.dialogs.transcription_options import TranscriptionOptionsMixin
+from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
+from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
+from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
+from ui.dialogs.transcription_queue import TranscriptionQueueMixin
+from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
 
 from tests.conftest import destroy_now, hidden_frame
@@ -210,12 +217,45 @@ class _MainWindow:
         self.speak_output = _SpeakOutput()
         self.error_sound = _Sound()
         self.saves = 0
+        #: The main window's half of a download that runs without a window.
+        self.background_running = False
+        self.background_started = []
+        self.background_listeners = []
 
     def save_settings(self):
         self.saves += 1
 
+    def transcription_background_running(self):
+        return self.background_running
 
-class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin):
+    def start_transcription_background_job(self, make_job, status_text):
+        return self.start_transcription_background_jobs([(make_job, status_text)])
+
+    def start_transcription_background_jobs(self, items):
+        if self.background_running:
+            return False
+        self.background_running = True
+        self.background_started.extend(items)
+        return True
+
+    def cancel_transcription_background(self):
+        self.background_cancels = getattr(self, "background_cancels", 0) + 1
+        return self.background_running
+
+    def watch_transcription_background(self, listener):
+        self.background_listeners.append(listener)
+
+
+class _FakeEvent:
+    def Skip(self):
+        pass
+
+
+class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixin,
+                TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin,
+                TranscriptionModelMarksMixin, TranscriptionQueueMixin,
+                TranscriptionCacheMixin, TranscriptionOptionsMixin,
+                TranscriptionReuseMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
     The section for models in other folders, the whisper.cpp section and the
@@ -310,6 +350,8 @@ class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixi
     _confirm_transcription_download = SettingsDialog._confirm_transcription_download
     _ask_transcription_download = SettingsDialog._ask_transcription_download
     _run_transcription_job = SettingsDialog._run_transcription_job
+    _transcription_job_factory = SettingsDialog._transcription_job_factory
+    _transcription_status_text = SettingsDialog._transcription_status_text
     _report_transcription_job = SettingsDialog._report_transcription_job
     _note_transcription_outcome = SettingsDialog._note_transcription_outcome
     _announce_transcription_result = SettingsDialog._announce_transcription_result
@@ -601,7 +643,7 @@ class TestTheModelChoicesReadAsOneSentence:
             == "1.5 GB"
 
     def test_the_combobox_offers_automatic_first_and_then_the_catalogue(self, tab):
-        combo = tab._transcription_model_combo
+        combo = tab._transcription_model_list
         assert combo.GetString(0) == tab.main_window.i18n.t("transcription_option_auto")
         assert tab._transcription_model_ids == [preferences.AUTO] + [
             model.id for model in model_catalog.list_models()
@@ -625,8 +667,8 @@ class TestTheModelChoicesReadAsOneSentence:
         )
         tab._populate_transcription_model_choices()
         index = tab._transcription_model_ids.index("small")
-        assert "instalado" in tab._transcription_model_combo.GetString(index)
-        assert "não instalado" not in tab._transcription_model_combo.GetString(index)
+        assert "instalado" in tab._transcription_model_list.GetString(index)
+        assert "não instalado" not in tab._transcription_model_list.GetString(index)
 
     def test_rebuilding_the_list_keeps_the_selection(self, tab):
         tab._select_transcription_model("large-v3")
@@ -731,11 +773,61 @@ class TestEverySettingIsReadBackAndWritten:
             "compute_type": device.COMPUTE_INT8_FLOAT16,
             "language": "fr",
             "auto_detect_language": False,
+            "keep_model_loaded": False,
+            "auto_transcribe_received": False,
+            "cache_enabled": True,
+            "cache_by_model": {},
         }
         tab.main_window.settings["transcription"] = dict(stored)
         tab._load_transcription_values()
         tab._apply_transcription_values()
         assert tab.main_window.settings["transcription"] == stored
+
+    def test_keeping_the_model_loaded_starts_off_and_round_trips(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_keep_loaded_check.GetValue() is False
+        tab._transcription_keep_loaded_check.SetValue(True)
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["keep_model_loaded"] is True
+        from core.transcription import residency
+        try:
+            assert residency.residency.keep_loaded is True
+        finally:
+            residency.residency.configure(False)
+
+    def test_the_cache_starts_on_and_a_model_can_override_it(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_cache_check.GetValue() is True
+        tab._select_transcription_model("small")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 0
+        tab._transcription_cache_choice.SetSelection(2)
+        tab._on_transcription_cache_choice(_FakeEvent())
+        tab._apply_transcription_values()
+        section = tab.main_window.settings["transcription"]
+        assert section["cache_enabled"] is True
+        assert section["cache_by_model"] == {"small": False}
+        tab._transcription_cache_choice.SetSelection(0)
+        tab._on_transcription_cache_choice(_FakeEvent())
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["cache_by_model"] == {}
+
+    def test_a_models_choice_is_shown_when_it_is_selected(self, tab):
+        tab.main_window.settings["transcription"] = {"cache_by_model": {"small": True, "base": False}}
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 1
+        tab._select_transcription_model("base")
+        tab._sync_transcription_clear_cache_button()
+        assert tab._transcription_cache_choice.GetSelection() == 2
+
+    def test_automatic_transcription_starts_off_and_round_trips(self, tab):
+        tab._load_transcription_values()
+        assert tab._transcription_auto_check.GetValue() is False
+        tab._transcription_auto_check.SetValue(True)
+        tab._apply_transcription_values()
+        assert tab.main_window.settings["transcription"]["auto_transcribe_received"] is True
 
     def test_the_backend_is_offered_and_written_back(self, tab):
         """Two backends since part 9b: the picker is there, a stored choice is
@@ -1603,20 +1695,30 @@ class TestTheMnemonicsOnThisTab:
         "transcription_cuda_runtime_label",
         "transcription_external_label",
         "transcription_whisper_cpp_label",
+        # Shown only while a download runs in the background, when every action
+        # button is off, so it may share a letter with those; it may not take
+        # a labelled control's.
+        "transcription_background_cancel_btn",
+        # The button under the model's group that deletes its saved
+        # transcriptions: a whole sentence, so it is not one of the one-word
+        # action buttons, and it keeps its letter to itself.
+        "transcription_clear_cache_btn",
+        # The two on/off options of the language block.
+        "transcription_keep_loaded_check",
+        "transcription_auto_transcribe_check",
         "ok",
         "cancel",
         "apply",
     )
 
-    #: The eight action buttons, which may collide with nothing and are not
-    #: owed an Alt key of their own. Deliberately, and measured rather than
-    #: assumed: once each label became one word inside a named group, the
-    #: letters left over after the twelve above cover four of the eight in
-    #: pt-BR, pt-PT and en-US and five in es-ES and pl — "Reparar" and
-    #: "Remover" appear twice each on the tab and cannot share a letter. A
-    #: label is read out in full every time focus lands on it, several times a
-    #: session; Alt+letter is rarely used and is not announced at all, so a
-    #: longer label is the more expensive half of that trade.
+    #: The seventeen action buttons. Each is owed an Alt key, but the tab has
+    #: more controls than any language has free letters (the fifteen above
+    #: already take fifteen), so the letters are shared on purpose: the same
+    #: word always has the same letter ("Verificar" is Alt+F on all four rows),
+    #: and a letter shared by several controls only moves the focus to the next
+    #: one instead of pressing anything. What may never happen is a button
+    #: taking the letter of OK, Cancel or Apply, which would turn Alt+letter
+    #: into a way to close the dialog.
     ACTION_BUTTONS = (
         "transcription_model_download_btn",
         "transcription_model_verify_btn",
@@ -1659,16 +1761,47 @@ class TestTheMnemonicsOnThisTab:
     @pytest.mark.parametrize("locale", LOCALES)
     def test_they_do_not_collide(self, locale):
         """Two controls sharing an Alt key means one of them can never be
-        reached with it — and which one is undefined. The buttons are in here
-        even though they are not owed a letter: the ones that *have* one must
-        still not take somebody else's."""
+        reached with it. The labelled controls and the dialog's buttons keep
+        their letters to themselves; the action buttons share (see
+        ACTION_BUTTONS)."""
         table = load_strings(locale)
         used = [
             self._mnemonic(table[key])
-            for key in self.LABELLED + self.ACTION_BUTTONS
+            for key in self.LABELLED
             if self._mnemonic(table[key]) is not None
         ]
         assert len(used) == len(set(used)), f"{locale}: repeated mnemonics in {used}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_every_action_button_has_an_alt_key(self, locale):
+        table = load_strings(locale)
+        without = [
+            key for key in self.ACTION_BUTTONS if self._mnemonic(table[key]) is None
+        ]
+        assert without == [], f"{locale}: no Alt key for {without}"
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_the_same_word_has_the_same_letter_on_every_row(self, locale):
+        """Alt+F means "Verificar" wherever the focus is; two letters for one
+        word would make the shortcut depend on the row."""
+        table = load_strings(locale)
+        letters = {}
+        for key in self.ACTION_BUTTONS:
+            word = table[key].replace("&", "")
+            letters.setdefault(word, set()).add(self._mnemonic(table[key]))
+        assert all(len(found) == 1 for found in letters.values()), (
+            f"{locale}: {letters}"
+        )
+
+    @pytest.mark.parametrize("locale", LOCALES)
+    def test_no_button_takes_the_letter_of_ok_cancel_or_apply(self, locale):
+        table = load_strings(locale)
+        dialog = {self._mnemonic(table[key]) for key in ("ok", "cancel", "apply")}
+        taken = [
+            key for key in self.ACTION_BUTTONS
+            if self._mnemonic(table[key]) in dialog
+        ]
+        assert taken == [], f"{locale}: {taken}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_group_names_spend_no_letter(self, locale):
@@ -2499,6 +2632,31 @@ class TestTheModelsMoveOnlyAfterOk:
             preferences.MODELS_DIR_SETTING
         ) == str(tmp_path / "elsewhere")
 
+    def test_no_move_while_a_download_runs_in_the_background(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """The move would wait on the models lock the download holds, behind a
+        modal window: refused with a sentence, nothing stored, nothing moved."""
+        made = _install_fake_progress(monkeypatch)
+        said = []
+        monkeypatch.setattr(transcription_tab.wx, "MessageBox",
+                            lambda text, *a, **k: said.append(text))
+        tab.main_window.background_running = True
+        tab._load_transcription_values()
+        before = tab.main_window._app_settings.get(preferences.MODELS_DIR_SETTING)
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+        assert made == []
+        assert said == [tab.main_window.i18n.t("transcription_models_dir_busy")]
+        assert tab.main_window._app_settings.get(preferences.MODELS_DIR_SETTING) == before
+
+    def test_browse_is_not_offered_while_a_job_runs(self, tab):
+        tab._load_transcription_values()
+        tab._set_transcription_job_running(True)
+        assert not tab._transcription_models_dir_browse_btn.IsEnabled()
+        tab._set_transcription_job_running(False)
+        assert tab._transcription_models_dir_browse_btn.IsEnabled()
+
     def test_a_folder_with_models_in_it_is_moved_and_the_new_one_stored(
         self, tab, monkeypatch, tmp_path
     ):
@@ -2821,7 +2979,7 @@ class TestTheFocusNeverStaysOnADisabledButton:
         taken = []
         for action, button in tab._transcription_action_buttons.items():
             button.SetFocus = lambda action=action: taken.append(action)
-        tab._transcription_model_combo.SetFocus = lambda: taken.append("model combo")
+        tab._transcription_model_list.SetFocus = lambda: taken.append("model combo")
         tab._transcription_cuda_field.SetFocus = lambda: taken.append("cuda field")
         return taken
 
@@ -2855,6 +3013,491 @@ class TestTheFocusNeverStaysOnADisabledButton:
         taken = self._watch(tab)
         tab._restore_transcription_focus(management.ACTION_MOVE_MODELS)
         assert taken == []
+
+
+class TestVerifyingLandsOnTheResultField:
+    """A check is a question and its answer is the field: the focus goes there
+    instead of staying on the button, or (for a folder in another section)
+    jumping to the list."""
+
+    @staticmethod
+    def _watch(tab):
+        taken = []
+        tab._transcription_substituted_field.SetFocus = lambda: taken.append("result")
+        for action, button in tab._transcription_action_buttons.items():
+            button.SetFocus = lambda action=action: taken.append(action)
+        return taken
+
+    @staticmethod
+    def _say(tab, text="Resultado"):
+        tab._transcription_last_outcome = management.Announcement(
+            management.MODEL_VERIFIED_I18N_KEY, management.OUTCOME_DONE, {"model": "small"}
+        )
+        tab._transcription_substituted_field.Show()
+        tab._transcription_substituted_field.ChangeValue(text)
+
+    @pytest.mark.parametrize("action", [
+        management.ACTION_VERIFY_MODEL,
+        management.ACTION_VERIFY_CUDA_RUNTIME,
+    ])
+    def test_the_verification_moves_the_focus_to_the_field(self, tab, action):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(action)
+        assert taken == ["result"]
+
+    def test_with_nothing_to_show_the_old_rule_still_applies(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        tab._transcription_substituted_field.Hide()
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_VERIFY_MODEL)
+        assert taken == [management.ACTION_DOWNLOAD_MODEL]
+
+    def test_the_other_actions_do_not_take_the_focus_to_it(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._sync_transcription_action_buttons()
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_DOWNLOAD_MODEL)
+        assert taken == []
+
+    def test_choosing_another_model_empties_and_hides_the_field(self, tab):
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        tab._transcription_hardware_keys = []
+        tab._transcription_substitution_keys = []
+        self._say(tab)
+        tab._on_transcription_model_change(_Event())
+        assert tab._transcription_last_outcome is None
+        assert tab._transcription_substituted_field.GetValue() == ""
+        assert not tab._transcription_substituted_field.IsShown()
+
+
+class TestDownloadsFollowTheBackgroundSetting:
+    """Settings > General "download in the background" decides whether a model,
+    the CUDA libraries or whisper.cpp hold the user in a progress dialog."""
+
+    @staticmethod
+    def _enable(tab, value=True):
+        tab.main_window.settings["general"] = {"background_update_downloads": value}
+
+    def test_off_it_is_the_progress_dialog_as_always(self, tab, monkeypatch):
+        made = _install_fake_progress(monkeypatch)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert len(made) == 1
+        assert tab.main_window.background_started == []
+
+    def test_on_a_download_runs_in_the_window_and_not_in_a_dialog(
+        self, tab, monkeypatch
+    ):
+        made = _install_fake_progress(monkeypatch)
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert made == []
+        assert len(tab.main_window.background_started) == 1
+        assert tab._transcription_job_running
+        assert len(tab.main_window.background_listeners) == 1
+
+    def test_the_job_it_hands_over_is_the_same_one_the_dialog_would_run(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        make_job, status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        assert job.action == management.ACTION_DOWNLOAD_MODEL
+        assert job.model_id == "small"
+        assert status
+
+    @pytest.mark.parametrize("action", [
+        management.ACTION_VERIFY_MODEL, management.ACTION_REMOVE_MODEL,
+        management.ACTION_VERIFY_CUDA_RUNTIME, management.ACTION_REMOVE_CUDA_RUNTIME,
+    ])
+    def test_what_is_not_a_download_keeps_its_dialog(self, tab, monkeypatch, action):
+        made = _install_fake_progress(monkeypatch)
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(action, model_id="small")
+        assert len(made) == 1
+        assert tab.main_window.background_started == []
+
+    def test_a_press_while_another_download_runs_changes_nothing(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab.main_window.background_running = True
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert tab.main_window.background_started == []
+        assert not tab._transcription_job_running
+
+    def test_when_it_ends_the_tab_says_it_and_frees_the_buttons(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        spoken = tab.main_window.speak_output.spoken
+        before = len(spoken)
+        taken = []
+        for button in tab._transcription_action_buttons.values():
+            button.SetFocus = lambda: taken.append("focus")
+        tab._transcription_model_list.SetFocus = lambda: taken.append("focus")
+
+        said = tab.main_window.background_listeners[0](job, None, None)
+
+        assert said is True
+        assert not tab._transcription_job_running
+        assert len(spoken) == before + 1
+        # The user is elsewhere by now: nothing may pull the focus here.
+        assert taken == []
+
+    def test_a_whisper_cpp_download_is_finished_by_its_own_family(self, tab):
+        self._enable(tab)
+        tab._load_transcription_values()
+        tab._start_transcription_job(
+            management.ACTION_INSTALL_WHISPER_CPP,
+            build_id=whisper_cpp_builds.BUILD_CPU.id,
+        )
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        assert job.build_id == whisper_cpp_builds.BUILD_CPU.id
+        assert tab.main_window.background_listeners[0](job, None, None) is True
+
+    def test_a_tab_opened_meanwhile_adopts_the_running_download(self, tab):
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        assert tab._transcription_job_running
+        assert len(tab.main_window.background_listeners) == 1
+
+    def test_a_tab_opened_with_nothing_running_adopts_nothing(self, tab):
+        tab._watch_transcription_background()
+        assert not tab._transcription_job_running
+        assert tab.main_window.background_listeners == []
+
+
+class _Key:
+    """The one key event the Esc hook reads: records whether it was passed on."""
+
+    def __init__(self, code):
+        self.code = code
+        self.skipped = False
+
+    def GetKeyCode(self):
+        return self.code
+
+    def Skip(self):
+        self.skipped = True
+
+
+class TestMarkingModels:
+    """The list of models has the selection mode of the chat and message lists:
+    Ctrl+Space marks, Space marks while something is, Esc unmarks. What is
+    marked is the download queue."""
+
+    SPACE = wx.WXK_SPACE
+
+    @staticmethod
+    def _focus(tab, model_id):
+        tab._select_transcription_model(model_id)
+
+    @staticmethod
+    def _said(tab):
+        return tab.main_window.speak_output.spoken
+
+    def _i18n(self, tab, key):
+        return tab.main_window.i18n.t(key)
+
+    def test_ctrl_space_marks_the_model_the_list_is_on(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        assert tab._handle_model_mark_key(self.SPACE, True, False)
+        assert tab._transcription_model_marks == {"small"}
+        row = tab._transcription_model_list.GetString(
+            tab._transcription_model_ids.index("small")
+        )
+        assert self._i18n(tab, "selected_suffix") in row
+
+    def test_it_says_selected_and_that_the_mode_turned_on(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        assert self._said(tab)[-1] == (
+            f"{self._i18n(tab, 'selected')}. {self._i18n(tab, 'selection_mode_on')}"
+        )
+
+    def test_unmarking_the_last_one_says_the_mode_turned_off(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        assert tab._transcription_model_marks == set()
+        assert self._said(tab)[-1] == (
+            f"{self._i18n(tab, 'unselected')}. {self._i18n(tab, 'selection_mode_off')}"
+        )
+
+    def test_automatic_has_nothing_to_mark_and_the_key_is_still_swallowed(self, tab):
+        tab._load_transcription_values()
+        assert tab._selected_transcription_model() == preferences.AUTO
+        assert tab._handle_model_mark_key(self.SPACE, True, False) is True
+        assert tab._transcription_model_marks == set()
+
+    def test_plain_space_is_the_lists_own_until_something_is_marked(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        assert tab._handle_model_mark_key(self.SPACE, False, False) is False
+        assert tab._transcription_model_marks == set()
+
+    def test_plain_space_marks_while_something_is(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        self._focus(tab, "base")
+        assert tab._handle_model_mark_key(self.SPACE, False, False) is True
+        assert tab._transcription_model_marks == {"small", "base"}
+
+    def test_the_setting_turns_that_off(self, tab):
+        tab.main_window.settings["user_interface"] = {
+            "space_selects_in_selection_mode": False
+        }
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        self._focus(tab, "base")
+        assert tab._handle_model_mark_key(self.SPACE, False, False) is False
+        assert tab._transcription_model_marks == {"small"}
+        # And the mode is not announced either.
+        assert self._i18n(tab, "selection_mode_on") not in self._said(tab)[-1]
+
+    def test_ctrl_shift_space_marks_every_model_then_unmarks_them(self, tab):
+        tab._load_transcription_values()
+        tab._handle_model_mark_key(self.SPACE, True, True)
+        catalogue = {
+            model_id for model_id in tab._transcription_model_ids
+            if model_id in tab._transcription_model_states
+        }
+        assert tab._transcription_model_marks == catalogue
+        tab._handle_model_mark_key(self.SPACE, True, True)
+        assert tab._transcription_model_marks == set()
+
+    def test_esc_unmarks_everything_and_is_not_passed_to_the_dialog(self, tab):
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        event = _Key(wx.WXK_ESCAPE)
+        tab._on_transcription_model_char_hook(event)
+        assert tab._transcription_model_marks == set()
+        assert not event.skipped
+        assert self._said(tab)[-1] == (
+            f"{self._i18n(tab, 'all_unselected')}. {self._i18n(tab, 'selection_mode_off')}"
+        )
+
+    def test_esc_is_the_dialogs_when_nothing_is_marked(self, tab):
+        tab._load_transcription_values()
+        event = _Key(wx.WXK_ESCAPE)
+        tab._on_transcription_model_char_hook(event)
+        assert event.skipped
+
+    def test_esc_is_the_dialogs_when_the_setting_is_off(self, tab):
+        tab.main_window.settings["user_interface"] = {"escape_clears_selection": False}
+        tab._load_transcription_values()
+        self._focus(tab, "small")
+        tab._handle_model_mark_key(self.SPACE, True, False)
+        event = _Key(wx.WXK_ESCAPE)
+        tab._on_transcription_model_char_hook(event)
+        assert event.skipped
+        assert tab._transcription_model_marks == {"small"}
+
+    def test_another_key_is_nobodys_business_here(self, tab):
+        tab._load_transcription_values()
+        event = _Key(ord("A"))
+        tab._on_transcription_model_char_hook(event)
+        assert event.skipped
+
+    def test_marks_of_models_the_list_no_longer_offers_are_forgotten(self, tab):
+        tab._load_transcription_values()
+        tab._transcription_model_marks.add("not-in-this-list")
+        tab._populate_transcription_model_choices()
+        assert "not-in-this-list" not in tab._transcription_model_marks
+
+    def test_marked_models_make_download_available_even_on_automatic(self, tab):
+        tab._load_transcription_values()
+        download = tab._transcription_action_buttons[management.ACTION_DOWNLOAD_MODEL]
+        assert tab._selected_transcription_model() == preferences.AUTO
+        assert not download.IsEnabled()
+        tab._transcription_model_marks.add("small")
+        tab._sync_transcription_action_buttons()
+        assert download.IsEnabled()
+
+    def test_only_what_is_missing_is_queued(self, tab):
+        tab._load_transcription_values()
+        tab._transcription_model_marks.update({"small", "base"})
+        tab._transcription_model_states["base"] = model_store.STATE_INSTALLED
+        assert tab._transcription_queue_to_download() == ["small"]
+
+
+class TestDownloadingTheMarkedModels:
+    """Download with models marked fetches them in sequence, after one question."""
+
+    @staticmethod
+    def _mark(tab, *ids):
+        tab._load_transcription_values()
+        tab._transcription_model_marks.update(ids)
+        tab._sync_transcription_action_buttons()
+
+    def test_the_press_measures_first_and_changes_nothing_until_answered(
+        self, tab, no_background_probe, monkeypatch
+    ):
+        made = _install_fake_progress(monkeypatch)
+        self._mark(tab, "tiny", "base")
+        tab._start_transcription_action(management.ACTION_DOWNLOAD_MODEL)
+        assert len(no_background_probe) == 1
+        assert made == []
+        assert tab._transcription_job_running
+
+    def test_one_question_names_every_model_and_the_total(self, tab):
+        from ui.dialogs.transcription_queue import queue_confirmation_text
+        from core.transcription import model_queue
+
+        summary = model_queue.queue_download_summary(
+            ["tiny", "base"], "C:/models", _CPU_ONLY, 40 * 1024 ** 3,
+            device.PREFERENCE_AUTO,
+        )
+        text = queue_confirmation_text(tab.main_window.i18n, summary)
+        assert "2" in text
+        assert "C:/models" in text
+        for model_id in ("tiny", "base"):
+            assert model_names.display_name(tab.main_window.i18n, model_id) in text
+
+    def test_a_no_downloads_nothing(self, tab, monkeypatch):
+        made = _install_fake_progress(monkeypatch)
+        monkeypatch.setattr(
+            transcription_tab.wx, "MessageBox", lambda *args, **kwargs: wx.NO
+        )
+        self._mark(tab, "tiny", "base")
+        tab._confirm_transcription_queue(["tiny", "base"], _CPU_ONLY, 40 * 1024 ** 3)
+        assert made == []
+        assert tab._transcription_model_marks == {"tiny", "base"}
+
+    def test_a_yes_runs_each_in_the_order_listed_behind_the_dialog(
+        self, tab, monkeypatch
+    ):
+        made = _install_fake_progress(monkeypatch)
+        self._mark(tab, "tiny", "base")
+        tab._run_transcription_queue(["tiny", "base"])
+        assert [dialog.job.model_id for dialog in made] == ["tiny", "base"]
+
+    def test_what_arrived_is_unmarked(self, tab, monkeypatch):
+        _install_fake_progress(monkeypatch)
+        self._mark(tab, "tiny", "base")
+        tab._run_transcription_queue(["tiny", "base"])
+        assert tab._transcription_model_marks == set()
+
+    def test_the_end_of_the_queue_says_how_many(self, tab, monkeypatch):
+        _install_fake_progress(monkeypatch)
+        self._mark(tab, "tiny", "base")
+        tab._run_transcription_queue(["tiny", "base"])
+        assert tab.main_window.speak_output.spoken[-1] == (
+            tab.main_window.i18n.t("transcription_queue_done").format(count=2)
+        )
+
+    def test_the_first_failure_stops_the_rest_and_keeps_them_marked(
+        self, tab, monkeypatch
+    ):
+        failure = errors.TranscriptionError(
+            errors.NO_DISK_SPACE, "full"
+        )
+        made = _install_fake_progress(monkeypatch, answers=[(None, failure, ())])
+        self._mark(tab, "tiny", "base", "small")
+        tab._run_transcription_queue(["tiny", "base", "small"])
+        assert len(made) == 1
+        assert tab._transcription_model_marks == {"tiny", "base", "small"}
+        assert tab.main_window.i18n.t("transcription_queue_stopped") in (
+            tab.main_window.speak_output.spoken[-1]
+        )
+
+    def test_in_the_background_the_whole_queue_goes_to_the_window(
+        self, tab, monkeypatch
+    ):
+        made = _install_fake_progress(monkeypatch)
+        tab.main_window.settings["general"] = {"background_update_downloads": True}
+        self._mark(tab, "tiny", "base")
+        tab._run_transcription_queue(["tiny", "base"])
+        assert made == []
+        assert len(tab.main_window.background_started) == 2
+        assert tab._transcription_job_running
+        assert tab._transcription_cancel_btn.IsShown()
+
+    def test_between_the_jobs_of_a_background_queue_the_tab_stays_busy(
+        self, tab
+    ):
+        tab.main_window.settings["general"] = {"background_update_downloads": True}
+        self._mark(tab, "tiny", "base")
+        tab._run_transcription_queue(["tiny", "base"])
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        tab.main_window.background_listeners[0](job, None, None, False)
+        assert tab._transcription_job_running
+        assert tab._transcription_cancel_btn.IsShown()
+        assert "tiny" not in tab._transcription_model_marks
+        assert "base" in tab._transcription_model_marks
+
+    def test_the_last_job_frees_the_tab_and_hides_cancel(self, tab):
+        tab.main_window.settings["general"] = {"background_update_downloads": True}
+        self._mark(tab, "tiny")
+        tab._run_transcription_queue(["tiny"])
+        make_job, _status = tab.main_window.background_started[0]
+        job = make_job(None, lambda result, error: None)
+        tab.main_window.background_listeners[0](job, None, None, True)
+        assert not tab._transcription_job_running
+        assert not tab._transcription_cancel_btn.IsShown()
+
+
+class TestCancellingABackgroundDownload:
+    def test_the_button_is_not_there_until_a_download_runs_in_the_background(
+        self, tab
+    ):
+        assert not tab._transcription_cancel_btn.IsShown()
+
+    def test_it_appears_with_the_download(self, tab):
+        tab.main_window.settings["general"] = {"background_update_downloads": True}
+        tab._load_transcription_values()
+        tab._start_transcription_job(management.ACTION_DOWNLOAD_MODEL, model_id="small")
+        assert tab._transcription_cancel_btn.IsShown()
+
+    def test_a_tab_opened_meanwhile_offers_it_too(self, tab):
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        assert tab._transcription_cancel_btn.IsShown()
+
+    def test_pressing_it_cancels_through_the_window_and_says_so(self, tab):
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        tab._on_transcription_cancel_background(_Event())
+        assert tab.main_window.background_cancels == 1
+        # Still enabled: it may hold the focus, and a disabled control says
+        # nothing. A second press only repeats the sentence.
+        assert tab._transcription_cancel_btn.IsEnabled()
+        tab._on_transcription_cancel_background(_Event())
+        assert tab.main_window.background_cancels == 1
+        assert tab.main_window.speak_output.spoken[-2:] == [
+            tab.main_window.i18n.t("transcription_progress_cancelling")] * 2
+
+    def test_a_run_that_ends_without_a_job_brings_the_tab_back(self, tab):
+        """The window's "the next queued job could not start" (job None)."""
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        assert tab._transcription_background_ended(None, None, None, True) is True
+        assert not tab._transcription_cancel_btn.IsShown()
+        assert tab._transcription_job_running is False
+
+    def test_a_press_with_nothing_running_does_nothing(self, tab):
+        tab._on_transcription_cancel_background(_Event())
+        assert tab.main_window.speak_output.spoken == []
 
 
 # ── Part 10b: models the user already has in other folders ───────────────────
@@ -3219,10 +3862,10 @@ class TestTheModelPickerCountsWhatLivesElsewhere:
         i18n = tab.main_window.i18n
         model = model_catalog.get_model("small")
         index = tab._transcription_model_ids.index("small")
-        before = tab._transcription_model_combo.GetString(index)
+        before = tab._transcription_model_list.GetString(index)
         tab._transcription_external_states = {"r1": external_models.REF_READY}
         tab._populate_transcription_model_choices()
-        after = tab._transcription_model_combo.GetString(index)
+        after = tab._transcription_model_list.GetString(index)
         assert after == transcription_tab._transcription_model_choice_label(
             i18n, model, None, external=True
         )
@@ -3233,12 +3876,12 @@ class TestTheModelPickerCountsWhatLivesElsewhere:
     ):
         tab = tab_with(_reference(tmp_path, "r1", "small"))
         index = tab._transcription_model_ids.index("small")
-        before = tab._transcription_model_combo.GetString(index)
+        before = tab._transcription_model_list.GetString(index)
         tab._transcription_external_states = {
             "r1": external_models.REF_FOLDER_MISSING
         }
         tab._populate_transcription_model_choices()
-        assert tab._transcription_model_combo.GetString(index) == before
+        assert tab._transcription_model_list.GetString(index) == before
 
     def test_the_stored_custom_choice_is_selected_when_the_tab_opens(
         self, tab_with, tmp_path

@@ -1356,6 +1356,11 @@ class TestAltShiftTIsOurs:
             _is_separator = ConversationsPanel._is_separator
             _on_menu_transcribe = ConversationsPanel._on_menu_transcribe
             _on_accel_transcribe = ConversationsPanel._on_accel_transcribe
+            # Nothing selected: the bulk form (issue #469) is not in play.
+            selected_messages = set()
+
+            def _bulk_shortcuts_enabled(self):
+                return True
 
         _Stub()._on_accel_transcribe(None)
         assert [m["key"]["id"] for m in seen] == ["B"]
@@ -1507,7 +1512,7 @@ class TestOpeningTheSettingsTab:
 # in tests/test_transcription_stored.py.
 
 
-def _saved_value(text="o texto guardado", vad_used=True, model_id="medium", at=1_700_000_000.0):
+def _saved_value(text="o texto guardado", vad_used=True, model_id="small", at=1_700_000_000.0):
     return {"text": text, "language": "pt", "language_probability": 0.97,
             "model_id": model_id, "backend": "faster_whisper", "vad_used": vad_used, "at": at}
 
@@ -1751,7 +1756,7 @@ class TestOpeningAStoredTranscription:
         assert _CONTACT in dialog.title
         # The value records its backend, so the headline names it.
         headline = _t("transcription_saved_opened_backend",
-                      when=transcription_flow.saved_when(I18N, 1_700_000_000.0), model="medium",
+                      when=transcription_flow.saved_when(I18N, 1_700_000_000.0), model="small",
                       backend=_t("transcription_backend_faster_whisper"))
         assert dialog.spoken.startswith(headline)
         assert _row_focus(world.panel) == [("Focus", 1)]
@@ -1818,6 +1823,39 @@ class TestDeletingAStoredTranscription:
         transcription_flow.open_or_transcribe(world.panel, world.target)
         assert len(world.jobs) == 1
 
+    def test_yes_redraws_the_row_so_its_line_drops_the_text(self, world):
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == [[world.target["key"]["id"]]]
+
+    def test_an_answer_after_the_user_moved_on_redraws_nothing(self, world):
+        # _repaint_or_repopulate() would rebuild the conversation now open.
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        db_delete = world.main_window.delete_message_transcription
+
+        def moved_on(jid, msg_id, on_done):
+            world.panel.conversation = {"remoteJid": "other@s.whatsapp.net"}
+            db_delete(jid, msg_id, on_done)
+
+        world.main_window.delete_message_transcription = moved_on
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == []
+
+    def test_a_failed_delete_redraws_nothing(self, world):
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        world.main_window.db.fail = True
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == []
+
     def test_a_failed_delete_keeps_it_and_says_so_with_the_error_sound(self, world):
         _saved(world)
         _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
@@ -1869,8 +1907,10 @@ class TestTheMenuOffersWhatIsStored:
 
     def test_a_stored_one_offers_view_again_and_delete(self):
         inner = self._branch()
-        assert ast.unparse(inner.test) == \
-            "stored_transcription.saved_transcription(msg) is not None"
+        assert ast.unparse(inner.test) == (
+            "stored_transcription.saved_transcription(msg, "
+            "stored_transcription.selection_from_settings(self.main_window.settings)) "
+            "is not None")
         assert self._items(inner.body) == [
             ("transcription_view", True, "_on_menu_transcribe"),
             ("transcription_transcribe_again", False, "_on_menu_transcribe_again"),
@@ -1881,6 +1921,16 @@ class TestTheMenuOffersWhatIsStored:
         assert self._items(self._branch().orelse) == [
             ("transcribe_message", True, "_on_menu_transcribe"),
         ]
+
+    def test_the_alt_shift_n_item_names_what_enter_does_not(self):
+        from ui.conversation_panel.message_menu import inline_toggle_menu_key
+        voice, video = {"messageType": "audioMessage"}, {"messageType": "videoMessage"}
+        assert inline_toggle_menu_key(voice, False) == "transcribe_inline_menu"
+        assert inline_toggle_menu_key(video, False) == "transcribe_inline_menu"
+        assert inline_toggle_menu_key(voice, True) == "play_voice_message_menu"
+        assert inline_toggle_menu_key(video, True) == "open_video_menu"
+        assert inline_toggle_menu_key({"messageType": "documentMessage"}, True) == (
+            "transcribe_inline_menu")
 
     @pytest.mark.parametrize("handler, entry", [
         ("_on_menu_transcribe", "open_or_transcribe"),

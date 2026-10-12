@@ -47,7 +47,8 @@ class TranscriptionStoreMixin:
             copies.extend(getattr(cp, "_sorted_messages", None) or [])
         return copies
 
-    def store_message_transcription(self, jid: str, msg_id: str, value: dict) -> str:
+    def store_message_transcription(self, jid: str, msg_id: str, value: dict,
+                                    existing: bool = False) -> str:
         """Keep *value* as the transcription of message *msg_id* (UI thread).
 
         Returns one of stored_transcription's SAVE_* answers, which the flow
@@ -85,6 +86,12 @@ class TranscriptionStoreMixin:
             return stored_transcription.SAVE_WITHDRAWN
         if stored_transcription.is_unsent(current):
             return stored_transcription.SAVE_UNSENT
+        # After the three answers above, which outrank it: a withdrawn message
+        # must never have its text shown whatever the cache says. `existing`:
+        # a text already kept and only marked again (into the line) — the
+        # cache switches decide about keeping new ones.
+        if not existing and not stored_transcription.may_cache(self.settings, value):
+            return stored_transcription.SAVE_DISABLED
         real_id = (current.get("key") or {}).get("id", "")
         if real_id != msg_id:
             # Sent while it was being transcribed: the copies now carry the
@@ -250,3 +257,81 @@ class TranscriptionStoreMixin:
             wx.CallAfter(_finish, ok)
 
         self._transcription_write_queue.submit(_bg_delete)
+
+    def _all_transcription_copies(self) -> list:
+        """Every in-memory dict that may hold a stored transcription, in any chat."""
+        copies = []
+        for chat in list((getattr(self, "chats", None) or {}).values()):
+            if not isinstance(chat, dict):
+                continue
+            copies.extend(((chat.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.append(chat.get("lastMessage"))
+        cp = getattr(self, "conversations_panel", None)
+        conversation = getattr(cp, "conversation", None)
+        if isinstance(conversation, dict):
+            copies.extend(((conversation.get("messages") or {}).get("messages") or {}).get("records") or [])
+            copies.extend(getattr(cp, "_all_sorted_messages", None) or [])
+            copies.extend(getattr(cp, "_sorted_messages", None) or [])
+        return copies
+
+    def clear_model_transcriptions(self, model_id: str, backend_id, on_done) -> None:
+        """Delete every saved transcription made by one model, in every chat;
+        call *on_done(count)* on the UI thread once the database has answered
+        (count is None when it failed).
+
+        The database first and memory after, like delete_message_transcription():
+        "cleared" must be true of the disk. Queued behind any save still waiting
+        for the database, on the same single-thread queue. Memory is then
+        updated on every copy of every chat, and the open conversation repaints
+        the rows that changed.
+        """
+        self._clear_transcriptions(
+            lambda db, decided_at: db.clear_model_transcriptions(model_id, backend_id, decided_at),
+            lambda copies, decided_at, present: stored_transcription.drop_model_on_copies(
+                copies, model_id, backend_id, decided_at, present),
+            on_done,
+        )
+
+    def clear_all_transcriptions(self, on_done) -> None:
+        """clear_model_transcriptions() for every model at once."""
+        self._clear_transcriptions(
+            lambda db, decided_at: db.clear_all_transcriptions(decided_at),
+            stored_transcription.drop_all_on_copies,
+            on_done,
+        )
+
+    def _clear_transcriptions(self, clear_on_disk, clear_in_memory, on_done) -> None:
+        db = getattr(self, "db", None)
+        decided_at = time.time()
+        # What memory holds now: a result stored while the clear waits in the
+        # queue is saved after it, and must not be cleared in memory either.
+        present = stored_transcription.values_on(self._all_transcription_copies())
+
+        def _finish(count):
+            if count is None:
+                on_done(None)
+                return
+            changed = clear_in_memory(self._all_transcription_copies(), decided_at, present)
+            if changed:
+                # No save: the database already holds the cleared state.
+                cp = getattr(self, "conversations_panel", None)
+                repaint = getattr(cp, "_repaint_or_repopulate", None)
+                if callable(repaint) and getattr(cp, "conversation", None):
+                    try:
+                        repaint(changed)
+                    except Exception as exc:
+                        logging.warning("[transcription] repainting after clearing failed: %s",
+                                        type(exc).__name__)
+            on_done(count)
+
+        def _bg_clear():
+            count = None
+            if db is not None:
+                try:
+                    count = clear_on_disk(db, decided_at)
+                except Exception as exc:
+                    logging.warning("[transcription] clearing saved transcriptions failed: %s",
+                                    type(exc).__name__)
+            wx.CallAfter(_finish, count)
+
+        self._transcription_write_queue.submit(_bg_clear)

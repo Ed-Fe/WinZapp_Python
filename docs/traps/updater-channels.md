@@ -214,7 +214,7 @@ are covered by temporary-directory and stub tests.
 
 **Fix (`client/core/update_keeps_server.py`, called from `_run_batch_installer`).** Before the script is written, when the installed `package.json` version is strictly newer than the release's, the extracted release's `api/package.json` is replaced with the installed one, with the `_PATCHED_DEPENDENCY_KEYS` pins taken from the release, plus every release dependency the installed file lacks. The running build's key list is older than the release, and a runtime dependency the release adds (prom-client, zod, qrcode and ffmpeg each arrived that way) is required by its `dist/`; dropping it would leave a server that does not start. The version stays, so nothing re-offers the update. The dependency ranges stay too, and they match the `node_modules/` that is actually installed. A pin the new build moved still trips `library_drifts()`. Anything that cannot be read or compared leaves the release's file as it was.
 
-**`dist/` still comes from the release, on purpose.** It is the only way WinZapp's own patched controllers (`api_patches/src/`) reach an install, and the WinZapp being installed may call routes only its own `dist/` serves. Skipping it would leave the newer server running the previous build's patches. The cost is that upstream source changes between the bundled tag and the installed one run as the bundled tag's until the next server update. Every upstream release from 2.10.27 to 2.10.37 changed dependencies only (they live in `node_modules/`), so today that cost is nothing. If upstream starts shipping source changes WinZapp does not override, the follow-up is to rebuild `dist/` for the installed tag after a WinZapp update (the background-update machinery can do it), not to stop copying `dist/`.
+**`dist/` still comes from the release, on purpose.** It is the only way WinZapp's own patched controllers (`api_patches/src/`) reach an install, and the WinZapp being installed may call routes only its own `dist/` serves. Skipping it would leave the newer server running the previous build's patches. The cost is that upstream source changes between the bundled tag and the installed one run as the bundled tag's until the next server update. Every upstream release from 2.10.27 to 2.10.48 changed dependencies only (they live in `node_modules/`), so today that cost is nothing. If upstream starts shipping source changes WinZapp does not override, the follow-up is to rebuild `dist/` for the installed tag after a WinZapp update (the background-update machinery can do it), not to stop copying `dist/`.
 
 **Still open.** When a release moves a pin, the reinstall `library_drifts()` offers rebuilds at the bundled tag (`ensure_wpp_version`), so accepting it moves a newer server back to the bundled version, and the periodic check offers the newer one again. That path is rarer, and it is not a regression, because before this fix the xcopy had already downgraded those users. Fixing it means rebuilding at `max(installed, minimum)`.
 
@@ -232,3 +232,21 @@ are covered by temporary-directory and stub tests.
 **Known limit: a WinZapp that is already elevated stays elevated.** If WinZapp is running as Administrator when it updates — run that way on purpose, or relaunched elevated by an older build's installer and not restarted since — it can write the install folder, `_needs_admin()` is False, the script runs at WinZapp's level and its plain relaunch inherits it. That is logged (`WinZapp is running elevated, so the update installs and relaunches it elevated`) and deliberately not changed: some people run WinZapp as administrator on purpose, and nothing tells the two apart. An older build's relaunch passes no argument, sets no variable and leaves no file, and the parent process (a cmd.exe that has exited) is not a reliable signal either. The chain ends at the next normal start (a shortcut or autostart starts it non-elevated); until then its npm still keeps out of the user's cache.
 
 Only updates *from* a build with this fix use the new script: the script is written by the running, older WinZapp.
+
+## What an update leaves in %TEMP%
+
+An update is a ZIP (`winzapp_upd_*.zip`) extracted into `winzapp_ext_*` (a full
+copy of the release) and installed by `winzapp_upd_*.bat`. Three places clean up,
+because no single one is enough:
+
+- **The installer script deletes the extracted folder** (`updater.cleanup_lines()`),
+  after `xcopy OK` and the relaunch, before it deletes itself. Never on the
+  failure paths: the folder is the retry's source and, with the script, the
+  evidence. The path it deletes comes from `update_package.extraction_root()`,
+  which answers "" for anything not named `winzapp_ext_*` — it decides what gets
+  removed, so never pass it a path on the strength of where it sits.
+- **`discard_package()`** does the same when an update is fetched and not installed.
+- **`update_temp_sweep.py`**, at startup on a thread of its own, removes what is
+  left: folders and ZIPs older than two days (a package another account staged
+  in the background is younger — `update_background.may_interrupt_now()` can
+  make it wait for a quiet moment), scripts and markers older than a week.

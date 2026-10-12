@@ -67,20 +67,26 @@ _BUILD_CHOICE_I18N_KEYS = {
 }
 
 
-def whisper_cpp_build_label(i18n, build, state) -> str:
+def whisper_cpp_build_label(i18n, build, state, reused=False) -> str:
     """One line of the builds combobox, written as a sentence.
 
     Which build, whether it is here, and the download it costs — the whole of
     what the user chooses on, since a combobox item is read whole and nothing
     else is. An unknown state reads as "not installed", as on the model list.
+    `reused`: not installed in WinZapp's own folder, but in use from the folder
+    the user asked to reuse (transcription_reuse.py) — said, or the line would
+    offer to download what is already being used.
     """
     key = _BUILD_CHOICE_I18N_KEYS.get(
         state, _BUILD_CHOICE_I18N_KEYS[whisper_cpp_runtime.STATE_ABSENT]
     )
-    return i18n.t(key).format(
+    text = i18n.t(key).format(
         build=_whisper_cpp_build_name(i18n, build.id),
         size=_format_transcription_size(i18n, build.archive_bytes),
     )
+    if reused and state != whisper_cpp_runtime.STATE_INSTALLED:
+        text = f"{text} {i18n.t('transcription_reuse_in_use_note')}"
+    return text
 
 
 def listed_builds(compute_capability, states) -> tuple:
@@ -120,6 +126,7 @@ class WhisperCppMixin:
         picker falls back to "automatic" by itself (`_select_id()`), which is
         also what the run would do with it.
         """
+        self._forget_transcription_outcome()
         self._populate_transcription_model_choices()
         self._show_transcription_hardware_notices()
         # Skip(): the dialog-level handler is what shows Apply.
@@ -171,6 +178,12 @@ class WhisperCppMixin:
             build.id: whisper_cpp_runtime.installation_state(build).state
             for build in whisper_cpp_builds.BUILDS
         }
+        # Builds WinZapp's own folder lacks but the reused folder serves.
+        self._whisper_cpp_reused = {
+            build.id for build in whisper_cpp_builds.BUILDS
+            if self._whisper_cpp_states[build.id] != whisper_cpp_runtime.STATE_INSTALLED
+            and whisper_cpp_runtime.usable_root(build) is not None
+        }
         self._populate_whisper_cpp_builds()
 
     def _populate_whisper_cpp_builds(self):
@@ -181,8 +194,10 @@ class WhisperCppMixin:
             self._whisper_cpp_states,
         )
         ids = [build.id for build in builds]
+        reused = getattr(self, "_whisper_cpp_reused", set())
         labels = [
-            whisper_cpp_build_label(i18n, build, self._whisper_cpp_states.get(build.id))
+            whisper_cpp_build_label(i18n, build, self._whisper_cpp_states.get(build.id),
+                                    reused=build.id in reused)
             for build in builds
         ]
         if ids != self._whisper_cpp_build_ids or labels != self._whisper_cpp_build_labels:
@@ -203,7 +218,9 @@ class WhisperCppMixin:
         first measurement: the device a run would pick is then the processor,
         which is what the notices must not contradict."""
         return (self._whisper_cpp_states.get(whisper_cpp_builds.BUILD_CUDA.id)
-                == whisper_cpp_runtime.STATE_INSTALLED)
+                == whisper_cpp_runtime.STATE_INSTALLED
+                # Served from the reused folder: what a run will use too.
+                or whisper_cpp_builds.BUILD_CUDA.id in getattr(self, "_whisper_cpp_reused", set()))
 
     def _whisper_cpp_button_state(self):
         build_id = self._selected_whisper_cpp_build()
@@ -235,6 +252,7 @@ class WhisperCppMixin:
         """Another build, another set of buttons. Not Skip()ped: choosing
         which build to act on changes no setting, and the dialog-level
         handler would offer Apply for it."""
+        self._forget_transcription_outcome()
         self._sync_transcription_action_buttons()
 
     # ── The four actions ─────────────────────────────────────────────────────
@@ -301,13 +319,18 @@ class WhisperCppMixin:
         ) == wx.YES
 
     def _run_whisper_cpp_job(self, action, build_id, probe):
-        """Run it behind the progress dialog, then say it and redraw."""
-        job, result, error = self._run_transcription_job(
+        """Run it behind the progress dialog (or in the background), then say
+        it and redraw."""
+        self._start_transcription_job(
             action, build_id=build_id,
             # The install refuses the graphics build without the capability
             # it was offered for.
             compute_capability=getattr(probe, "compute_capability", None),
         )
+
+    def _finish_whisper_cpp_job(self, action, build_id, job, result, error,
+                                restore_focus=True):
+        """What the tab does once a whisper.cpp action has ended."""
         code = getattr(error, "code", None)
         if code == transcription_errors.WHISPER_CPP_CORRUPTED:
             self._whisper_cpp_corrupted.add(build_id)
@@ -317,11 +340,15 @@ class WhisperCppMixin:
         self._show_whisper_cpp_status()
         # The graphics build installed or gone changes what the card can do.
         self._show_transcription_hardware_notices()
-        self._restore_whisper_cpp_focus(action)
+        if restore_focus:
+            self._restore_whisper_cpp_focus(action)
 
     def _restore_whisper_cpp_focus(self, action):
         """Never leave the focus on a button the action just switched off —
         the rule of _restore_transcription_focus(), for this row."""
+        if (action == transcription_management.ACTION_VERIFY_WHISPER_CPP
+                and self._focus_transcription_result()):
+            return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():
             return

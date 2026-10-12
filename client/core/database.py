@@ -37,11 +37,14 @@ from core.transcription.stored import (
     TRANSCRIPTION_KEY,
     decision_time,
     fold_transcription,
+    drop_all,
+    drop_model,
     may_hold_transcription,
     newer_decision,
     next_decision_time,
     tombstone,
     with_known_transcription,
+    with_missing_results,
 )
 from core.utils import MEASURED_SECONDS_KEY
 
@@ -1024,11 +1027,10 @@ class DatabaseManager:
         if not isinstance(stored_video, dict) or MEASURED_SECONDS_KEY not in stored_video:
             return msg
         known = stored_video[MEASURED_SECONDS_KEY]
-        # The id stays: this line is only ever reached for a videoMessage, and
-        # a video is never transcribed (is_transcribable() takes audio only),
-        # so the transcription's no-id rule has nothing to protect here — and
-        # the id is what ties this line to _apply_probed_video_duration()'s own
-        # when a video's length "goes back to 0 seconds" again.
+        # The id stays: this line is about the video's duration, never its
+        # transcription (which is not logged anywhere), and the id is what ties
+        # it to _apply_probed_video_duration()'s own when a video's length
+        # "goes back to 0 seconds" again.
         log.info(
             "[messages] %s: keeping the measured %ss duration; the incoming copy carries none",
             message_id, known,
@@ -1263,6 +1265,10 @@ class DatabaseManager:
                     elif newer_decision(value, current) is not value:
                         refused_older = True
                         continue
+                    else:
+                        # Other models' results the row holds and the value,
+                        # built from a copy in memory, may not.
+                        row_value = with_missing_results(value, current)
                     stored[TRANSCRIPTION_KEY] = row_value
                     await conn.execute(
                         "UPDATE messages SET message_json=? WHERE remote_jid=? AND message_id=?",
@@ -1286,6 +1292,100 @@ class DatabaseManager:
         elif refused_older:
             log.info("[messages] transcription not written: the row holds a later decision")
         return found
+
+    #: Rows read and rewritten per hold of _write_lock by clear_model_transcriptions().
+    _CLEAR_TRANSCRIPTIONS_CHUNK = 400
+
+    async def clear_model_transcriptions(
+        self, model_id: str, backend_id, decided_at: float
+    ) -> int:
+        """Drop every stored transcription made by one model, in every chat.
+
+        Returns how many results went. Only that model's results go: the other
+        models' stay, the newest of them becoming the message's current one at
+        a decision time after the one it replaces (core.transcription.stored.
+        drop_model()), so a stale copy still holding the dropped text loses to
+        it instead of bringing it back. A message left with nothing gets a
+        tombstone, like a deletion.
+        """
+        if not model_id:
+            return 0
+        return await self._rewrite_all_transcriptions(
+            lambda value, decided: drop_model(value, model_id, backend_id, decided),
+            decided_at,
+        )
+
+    async def clear_all_transcriptions(self, decided_at: float) -> int:
+        """Drop every stored transcription of every model, in every chat.
+
+        Each message that held any ends with a tombstone dated after its own
+        decision (core.transcription.stored.drop_all()). Returns how many
+        results went.
+        """
+        return await self._rewrite_all_transcriptions(drop_all, decided_at)
+
+    async def _rewrite_all_transcriptions(self, transform, decided_at: float) -> int:
+        """Apply `transform(value, decision time) -> (new value, dropped)` to the
+        transcription of every message that holds one; the count dropped.
+
+        The text lives inside the encrypted message_json, so there is no column
+        to select on: the rows that can hold a transcription are read, decrypted
+        and rewritten in chunks. The lock is taken once per chunk and not for
+        the whole scan, so a sync writing meanwhile waits for one chunk and not
+        for every message in the database. Rows are visited in primary-key
+        order, so a row rewritten by another writer in between is neither
+        skipped nor visited twice. Only message_json changes, in an UPDATE of
+        that column alone — never a rebuild from a copy (see
+        _rewrite_transcription()).
+
+        Nothing about a message is logged: counts only.
+        """
+        marks = ",".join("?" for _ in _TYPES_WITHOUT_LOCAL_FIELDS)
+        cleared = 0
+        last_id, last_jid = "", ""
+        while True:
+            async with self._write_lock:
+                conn = await self._ensure_conn()
+                cursor = await conn.execute(
+                    "SELECT message_id, remote_jid, message_json FROM messages "
+                    f"WHERE message_type NOT IN ({marks}) "
+                    "AND (message_id > ? OR (message_id = ? AND remote_jid > ?)) "
+                    "ORDER BY message_id, remote_jid LIMIT ?",
+                    (*_TYPES_WITHOUT_LOCAL_FIELDS, last_id, last_id, last_jid,
+                     self._CLEAR_TRANSCRIPTIONS_CHUNK),
+                )
+                rows = await cursor.fetchall()
+                if not rows:
+                    break
+                changed = False
+                try:
+                    for row in rows:
+                        stored = self._decrypt_json(row["message_json"])
+                        if not isinstance(stored, dict):
+                            continue
+                        value = stored.get(TRANSCRIPTION_KEY)
+                        if not isinstance(value, dict):
+                            continue
+                        decided = next_decision_time(decided_at, value)
+                        new_value, dropped = transform(value, decided)
+                        if not dropped:
+                            continue
+                        stored[TRANSCRIPTION_KEY] = new_value
+                        await conn.execute(
+                            "UPDATE messages SET message_json=? WHERE remote_jid=? AND message_id=?",
+                            (self._encrypt_json(stored), row["remote_jid"], row["message_id"]),
+                        )
+                        cleared += dropped
+                        changed = True
+                    if changed:
+                        await conn.commit()
+                except Exception:
+                    await conn.rollback()
+                    raise
+                last_id, last_jid = rows[-1]["message_id"], rows[-1]["remote_jid"]
+        if cleared:
+            log.info("[messages] cleared %d stored transcription(s)", cleared)
+        return cleared
 
     async def _scrub_transcription_from_preview(self, conn, remote_jid: str, message_id: str) -> None:
         """Drop the key from the chat preview of *remote_jid* if it holds this

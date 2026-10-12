@@ -592,9 +592,8 @@ def _whisper_cpp_cuda_installed() -> bool:
     """Whether whisper.cpp's graphics-card build is installed — a manifest read
     and a stat per file, on this run's worker. Never raises."""
     try:
-        return (
-            whisper_cpp_runtime.installation_state(whisper_cpp_builds.BUILD_CUDA).state
-            == whisper_cpp_runtime.STATE_INSTALLED
-        )
+        # Wherever it can be launched from: WinZapp's own folder or the one
+        # the user asked to reuse.
+        return whisper_cpp_runtime.usable_root(whisper_cpp_builds.BUILD_CUDA) is not None
     except Exception:
         return False

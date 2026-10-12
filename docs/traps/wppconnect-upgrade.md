@@ -41,3 +41,7 @@ The server tag (2.10.30) did not move; only the two pinned libraries did. The au
 **4. The drift gate only saw wppconnect.** `wppconnect_library_drift()` compared `@wppconnect-team/wppconnect` alone, so a bump of wa-js on its own (the same wppconnect, a different bundle in the page) would have forced no reinstall. `core/wpp_runtime.library_drifts()` now compares both packages, exact pins only, and the prompt names the drifted library and versions. This upgrade changes both, so the prompt is shown to everyone who updates either way; the extension protects the next wa-js-only release.
 
 **5. Verify on a real tree.** One isolated `setup_api.py`: all four `node_modules` patches report the same lines as before (their anchors live in the byte-identical wppconnect `dist/`), `npm run build` exits 0, node_modules holds 2.3.4 and 4.6.1.
+
+## 2.10.37 → 2.10.48 (2026-10-12)
+
+Audited with `audit_wpp_upgrade.audit()` over a local clone of upstream (no `gh` in that session): 22 commits, all dependency or release commits; only `CHANGELOG.md`, `package.json` and `yarn.lock` changed, so nothing WinZapp overrides moved. The one flag was upstream moving `@wppconnect-team/wppconnect` from `^2.3.3` to `^2.3.4` — the exact pin WinZapp already ships, so the two now agree and nothing was re-homologated. `@wppconnect/wa-js` (4.6.1) and `engines.node` (22.22.2, matching `NODE_VERSION`) did not move. The only runtime range bump was `express-rate-limit` (`^8.7.0` → `^8.7.1`); the rest were devDependencies.

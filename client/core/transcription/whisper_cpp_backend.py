@@ -256,10 +256,20 @@ class WhisperCppBackend(TranscriptionBackend):
 
     # ── Internals ────────────────────────────────────────────────────────────
 
+    def _root_for(self, build):
+        """Where `build` is launched from: the root this backend was built with
+        (the tests'), else wherever it is installed — WinZapp's own folder or
+        the one the user asked to reuse (whisper_cpp_runtime.usable_root())."""
+        if self._runtime_root:
+            return self._runtime_root
+        return whisper_cpp_runtime.usable_root(build)
+
     def _installed(self, build) -> bool:
+        # None (installed nowhere we know of) reads WinZapp's own folder, as it
+        # always did, and answers "not installed" from there.
         try:
             return (
-                whisper_cpp_runtime.installation_state(build, self._runtime_root).state
+                whisper_cpp_runtime.installation_state(build, self._root_for(build)).state
                 == whisper_cpp_runtime.STATE_INSTALLED
             )
         except Exception:
@@ -281,10 +291,11 @@ class WhisperCppBackend(TranscriptionBackend):
                 f"the CUDA build of whisper.cpp does not run on compute capability "
                 f"{compute_capability}",
             )
-        executable = whisper_cpp_runtime.executable_path(build, self._runtime_root)
+        root = self._root_for(build)
+        executable = whisper_cpp_runtime.executable_path(build, root)
         if executable is not None:
             # Before every launch, not only at install: see verify_executable.
-            whisper_cpp_runtime.verify_executable(build, self._runtime_root)
+            whisper_cpp_runtime.verify_executable(build, root)
             return executable
         if build.uses_cuda:
             # The code that carries the offer to run on the processor instead.

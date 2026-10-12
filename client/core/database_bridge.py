@@ -375,6 +375,20 @@ class DatabaseBridge:
             self._db.delete_message_transcription(remote_jids, message_id, deleted_at)
         )
 
+    def clear_model_transcriptions(
+        self, model_id: str, backend_id, decided_at: float
+    ) -> int:
+        return self._call(
+            self._db.clear_model_transcriptions(model_id, backend_id, decided_at),
+            timeout=_BULK_CALL_TIMEOUT,
+        )
+
+    def clear_all_transcriptions(self, decided_at: float) -> int:
+        return self._call(
+            self._db.clear_all_transcriptions(decided_at),
+            timeout=_BULK_CALL_TIMEOUT,
+        )
+
     def delete_chat(self, jid: str) -> None:
         return self._call(self._db.delete_chat(jid))
 

@@ -180,6 +180,9 @@ class AcceleratorsMixin:
         self.ID_ALT_U           = wx.NewIdRef()  # jump to unread sep      (Alt+U)
         # ── Message bookmarks ────────────────────────────────────────────────
         self.ID_BOOKMARK        = [wx.NewIdRef() for _ in range(10)]  # set/jump (Ctrl+0..9)
+        # Review the Nth newest message (issue #462): 1 is the newest, 0 the tenth.
+        # Unassigned by default; the Shortcuts tab gives them keys.
+        self.ID_REVIEW          = [wx.NewIdRef() for _ in range(10)]
         self.ID_BOOKMARK_REMOVE = [wx.NewIdRef() for _ in range(10)]  # remove   (Ctrl+Shift+0..9)
         # ── Temporary (this-conversation-only) bookmarks ─────────────────────
         self.ID_TEMP_BOOKMARK        = [wx.NewIdRef() for _ in range(10)]  # set/jump (Alt+Shift+0..9)
@@ -189,6 +192,9 @@ class AcceleratorsMixin:
         self.ID_ALT_SHIFT_E     = wx.NewIdRef()  # recent reactions        (Alt+Shift+E)
         self.ID_ALT_SHIFT_M     = wx.NewIdRef()  # mentions                (Alt+Shift+M)
         self.ID_ALT_SHIFT_P     = wx.NewIdRef()  # replies to me           (Alt+Shift+P)
+        # The forward halves of the two above: next mention, next reply.
+        self.ID_ALT_SHIFT_J     = wx.NewIdRef()  # next mention           (Alt+Shift+J)
+        self.ID_ALT_SHIFT_O     = wx.NewIdRef()  # next reply to me        (Alt+Shift+O)
         self.ID_ALT_SHIFT_C     = wx.NewIdRef()  # copy phone number       (Alt+Shift+C)
         self.ID_ALT_SHIFT_V     = wx.NewIdRef()  # converse with           (Alt+Shift+V)
         self.ID_CTRL_SHIFT_V    = wx.NewIdRef()  # voice call              (Ctrl+Shift+V)
@@ -199,6 +205,9 @@ class AcceleratorsMixin:
         # Not Alt+T: that one announces the conversation's presence (seen /
         # online / typing) and lives in MainWindow's own table, not this one.
         self.ID_ALT_SHIFT_T     = wx.NewIdRef()  # transcribe with Whisper (Alt+Shift+T)
+        # The other half of "Enter transcribes" (Alt+Shift+N): transcribes into
+        # the message's line, or plays it when Enter is set to transcribe.
+        self.ID_ALT_SHIFT_N    = wx.NewIdRef()
         # ── Message star ─────────────────────────────────────────────────────
         self.ID_CTRL_SHIFT_O    = wx.NewIdRef()  # star message            (Ctrl+Shift+O)
         # ── Mass actions (only act while messages are selected) ──────────────
@@ -221,6 +230,8 @@ class AcceleratorsMixin:
         self.ID_BULK_STAR       = wx.NewIdRef()  # star selected           (Ctrl+Alt+Shift+F)
         self.ID_BULK_PIN        = wx.NewIdRef()  # pin selected            (Ctrl+Alt+Shift+X)
         self.ID_BULK_SAVE       = wx.NewIdRef()  # save selected           (Ctrl+Alt+Shift+S)
+        self.ID_BULK_TRANSCRIBE = wx.NewIdRef()  # transcribe selected, window (Ctrl+Alt+Shift+T)
+        self.ID_BULK_TRANSCRIBE_INLINE = wx.NewIdRef()  # ... into their lines (Ctrl+Alt+Shift+N)
         self.ID_BULK_DELETE     = wx.NewIdRef()  # delete selected         (Ctrl+Shift+Delete)
         # ── Audio speed ──────────────────────────────────────────────────────
         self.ID_ALT_COMMA       = wx.NewIdRef()  # decrease audio speed    (Alt+,)
@@ -300,6 +311,8 @@ class AcceleratorsMixin:
             (AS,               ord("E"),          self.ID_ALT_SHIFT_E),
             (AS,               ord("M"),          self.ID_ALT_SHIFT_M),
             (AS,               ord("P"),          self.ID_ALT_SHIFT_P),
+            (AS,               ord("J"),          self.ID_ALT_SHIFT_J),
+            (AS,               ord("O"),          self.ID_ALT_SHIFT_O),
             (AS,               ord("C"),          self.ID_ALT_SHIFT_C),
             (AS,               ord("V"),          self.ID_ALT_SHIFT_V),
             (CS,               ord("V"),          self.ID_CTRL_SHIFT_V),
@@ -307,6 +320,7 @@ class AcceleratorsMixin:
             (AS,               ord("Q"),          self.ID_ALT_SHIFT_Q),
             (AS,               ord("S"),          self.ID_ALT_SHIFT_S),
             (AS,               ord("T"),          self.ID_ALT_SHIFT_T),
+            (AS,               ord("N"),          self.ID_ALT_SHIFT_N),
             (CS,               ord("O"),           self.ID_CTRL_SHIFT_O),
             (wx.ACCEL_ALT,     ord(","),           self.ID_ALT_COMMA),
             (wx.ACCEL_ALT,     ord("."),           self.ID_ALT_PERIOD),
@@ -316,7 +330,13 @@ class AcceleratorsMixin:
             (CAS,              ord("F"),           self.ID_BULK_STAR),
             (CAS,              ord("X"),           self.ID_BULK_PIN),
             (CAS,              ord("S"),           self.ID_BULK_SAVE),
+            (CAS,              ord("T"),           self.ID_BULK_TRANSCRIBE),
+            (CAS,              ord("N"),           self.ID_BULK_TRANSCRIBE_INLINE),
             (CS,               wx.WXK_DELETE,      self.ID_BULK_DELETE),
+        ] + [
+            # No default key (mod 0, key 0): the entry only ties the command to
+            # its catalogue row; the user's own binding is what registers.
+            (0, 0, self.ID_REVIEW[d]) for d in range(10)
         ] + [
             (wx.ACCEL_CTRL, ord(str(d)), self.ID_BOOKMARK[d]) for d in range(10)
         ] + [
@@ -369,6 +389,8 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_recent_reactions,    id=self.ID_ALT_SHIFT_E)
         self.Bind(wx.EVT_MENU, self._on_accel_mentions,            id=self.ID_ALT_SHIFT_M)
         self.Bind(wx.EVT_MENU, self._on_accel_replies,             id=self.ID_ALT_SHIFT_P)
+        self.Bind(wx.EVT_MENU, self._on_accel_mentions_next,       id=self.ID_ALT_SHIFT_J)
+        self.Bind(wx.EVT_MENU, self._on_accel_replies_next,        id=self.ID_ALT_SHIFT_O)
         self.Bind(wx.EVT_MENU, self._on_accel_copy_number_speak,   id=self.ID_ALT_SHIFT_C)
         self.Bind(wx.EVT_MENU, self._on_accel_alt_shift_v,         id=self.ID_ALT_SHIFT_V)
         self.Bind(wx.EVT_MENU, self._on_voice_call,                id=self.ID_CTRL_SHIFT_V)
@@ -376,6 +398,7 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_goto_quoted,         id=self.ID_ALT_SHIFT_Q)
         self.Bind(wx.EVT_MENU, self._on_accel_mute,                id=self.ID_ALT_SHIFT_S)
         self.Bind(wx.EVT_MENU, self._on_accel_transcribe,          id=self.ID_ALT_SHIFT_T)
+        self.Bind(wx.EVT_MENU, self._on_accel_transcribe_inline,   id=self.ID_ALT_SHIFT_N)
         self.Bind(wx.EVT_MENU, self._on_accel_star,                 id=self.ID_CTRL_SHIFT_O)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_decrease,      id=self.ID_ALT_COMMA)
         self.Bind(wx.EVT_MENU, self._on_audio_speed_increase,      id=self.ID_ALT_PERIOD)
@@ -385,8 +408,11 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_star,            id=self.ID_BULK_STAR)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_pin,             id=self.ID_BULK_PIN)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_save,            id=self.ID_BULK_SAVE)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe,      id=self.ID_BULK_TRANSCRIBE)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe_inline, id=self.ID_BULK_TRANSCRIBE_INLINE)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete,          id=self.ID_BULK_DELETE)
         for _d in range(10):
+            self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_accel_review_message(d), id=self.ID_REVIEW[_d])
             self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_bookmark_set_or_jump(d), id=self.ID_BOOKMARK[_d])
             self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_bookmark_remove(d),      id=self.ID_BOOKMARK_REMOVE[_d])
             self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_temp_bookmark_set_or_jump(d), id=self.ID_TEMP_BOOKMARK[_d])

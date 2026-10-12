@@ -119,6 +119,40 @@ def default_runtime_dir() -> str:
     return global_dir(RUNTIME_DIRNAME)
 
 
+# A folder of another WinZapp's builds the user asked to reuse instead of
+# downloading them again (core/transcription/reused_runtimes.py). Process-wide
+# and set at startup and on Apply. **Read-only**: nothing here installs into,
+# repairs or removes from it — only usable_root() looks at it, and the files
+# are held to the same pinned digests as WinZapp's own (verify_executable()).
+_extra_root = None
+
+
+def set_extra_root(root) -> None:
+    """The folder to reuse builds from, or None/"" for none."""
+    global _extra_root
+    _extra_root = _resolve(root) if root else None
+
+
+def extra_root():
+    return _extra_root
+
+
+def usable_root(build):
+    """The root `build` can be launched from: WinZapp's own when it is
+    installed there, else the reused folder when it holds this build complete,
+    else None. Never raises."""
+    try:
+        own = _resolve(None)
+        if installation_state(build, own).state == STATE_INSTALLED:
+            return own
+        extra = _extra_root
+        if extra and extra != own and installation_state(build, extra).state == STATE_INSTALLED:
+            return extra
+    except Exception:
+        pass
+    return None
+
+
 def build_dir(root, build) -> str:
     return os.path.join(root, build.id)
 
@@ -163,6 +197,25 @@ def executable_path(build, root=None):
     return os.path.join(build_dir(root, build), *manifest["executable"].split("/"))
 
 
+#: What counts as code a launch could load: refused when the manifest omits it.
+_CODE_SUFFIXES = (".dll", ".exe")
+
+
+def unlisted_code_files(directory, listed) -> list:
+    """The `.dll`/`.exe` files under `directory` that `listed` (relative paths
+    with "/") does not name, compared without case as Windows does."""
+    known = {relative.replace("\\", "/").casefold() for relative in listed}
+    found = []
+    for folder, _dirs, files in os.walk(directory):
+        for name in files:
+            if not name.casefold().endswith(_CODE_SUFFIXES):
+                continue
+            relative = os.path.relpath(os.path.join(folder, name), directory)
+            if relative.replace(os.sep, "/").casefold() not in known:
+                found.append(relative)
+    return sorted(found)
+
+
 # What verify_executable() has already hashed: (path, size, mtime_ns, digest).
 # Every file of the build is read once per change of that file, not once per
 # transcription — on the CUDA build that is over a gigabyte.
@@ -181,6 +234,14 @@ def verify_executable(build, root=None) -> None:
     exes of the zip, never launched) is held to the manifest. A swap that keeps
     size and mtime_ns (os.utime can) is not seen again once a file has passed:
     the accepted limit of a cache that costs one pass per process.
+
+    **Nothing the manifest does not list may sit in the folder as code.** ggml
+    picks its CPU backend by scanning the executable's own folder for
+    `ggml-cpu-*.dll`, and Windows looks in the application folder first for any
+    DLL loaded by name, so an extra `.dll` (or `.exe`) planted beside the
+    verified ones would run with the user's audio unseen. A folder the user
+    chose to reuse may be anywhere, writable by other accounts too; WinZapp's
+    own is held to the same rule.
     """
     root = _resolve(root)
     directory = build_dir(root, build)
@@ -190,6 +251,13 @@ def verify_executable(build, root=None) -> None:
             errors.WHISPER_CPP_CORRUPTED, f"{build.id}: no manifest"
         )
     listed = {relative: digest for relative, _s, digest in manifest["files"]}
+    unlisted = unlisted_code_files(directory, listed)
+    if unlisted:
+        # The basename only: the folder may name the Windows user.
+        raise errors.TranscriptionError(
+            errors.WHISPER_CPP_CORRUPTED,
+            f"{os.path.basename(unlisted[0])}: code file not in the manifest",
+        )
     pinned = dict(build.pinned_files)
     for relative, digest in pinned.items():
         if listed.get(relative) != digest:

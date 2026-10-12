@@ -40,6 +40,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -248,9 +249,23 @@ def _classify_ffmpeg_failure(returncode, stderr_text):
         return errors.TranscriptionError(errors.TEMP_NO_DISK_SPACE, f"rc={returncode}: {tail}")
     if any(marker in message for marker in _TRUNCATED_MARKERS):
         return errors.TranscriptionError(errors.AUDIO_INCOMPLETE, tail)
+    if has_picture_but_no_sound(message):
+        return errors.TranscriptionError(errors.NO_AUDIO_TRACK, tail)
     if any(marker in message for marker in _UNRECOGNISED_MARKERS):
         return errors.TranscriptionError(errors.UNSUPPORTED_AUDIO_FORMAT, tail)
     return errors.TranscriptionError(errors.FFMPEG_FAILED, f"rc={returncode}: {tail}")
+
+
+_STREAM_LINE = re.compile(r"stream #\d+:\d+[^\n]*?: (video|audio):")
+
+
+def has_picture_but_no_sound(stderr_text) -> bool:
+    """Whether ffmpeg's log describes an input with a video stream and no audio
+    stream — a silent video. ffmpeg then fails with "does not contain any
+    stream" (the picture was dropped by -vn and nothing was left), which would
+    otherwise read as an unrecognised format."""
+    kinds = set(_STREAM_LINE.findall((stderr_text or "").lower()))
+    return "video" in kinds and "audio" not in kinds
 
 
 def _wav_duration(path) -> float:
@@ -268,6 +283,36 @@ def _wav_duration(path) -> float:
         raise errors.TranscriptionError(
             errors.FFMPEG_FAILED, f"unreadable output: {type(exc).__name__}: {exc}"
         ) from exc
+
+
+def read_waveform(path):
+    """The prepared WAV as the float32 signal Whisper consumes, or None.
+
+    faster-whisper given a *path* decodes it with PyAV, and a PyAV older than
+    the one it was written against fails with "open() got an unexpected
+    keyword argument 'metadata_errors'" — after the model loaded, so the user
+    heard only "an internal error". The file is ours (PCM s16le, 16 kHz, mono,
+    see `_run_ffmpeg()`), so reading it here takes PyAV out of the path
+    entirely. None means "could not, let the backend try the path itself":
+    this is an optimisation of the hand-over, never a new way to fail.
+    """
+    try:
+        import numpy
+
+        with contextlib.closing(wave.open(path, "rb")) as handle:
+            if (
+                handle.getsampwidth() != 2
+                or handle.getnchannels() != TARGET_CHANNELS
+                or handle.getframerate() != TARGET_SAMPLE_RATE
+            ):
+                return None
+            frames = handle.readframes(handle.getnframes())
+        samples = numpy.frombuffer(frames, dtype="<i2").astype(numpy.float32)
+        # In place: one float32 copy, not two (a video's sound track is long).
+        samples /= 32768.0
+        return samples
+    except Exception:
+        return None
 
 
 def _scrub(text, *paths) -> str:

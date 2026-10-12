@@ -147,7 +147,12 @@ def logical_key(scope, chord, overrides, catalog, translate):
     choices = [s for s in catalog if s.scope == scope]
     for shortcut in choices:
         if shortcut.id in overrides and binding_for(shortcut, overrides, translate) == chord:
-            return default_binding(shortcut, translate)
+            # A command with no shipped key (a review position, a mnemonic the
+            # locale's label lacks) has no legacy gesture to translate to: the
+            # chord goes on as pressed, and a handler that knows nothing of it
+            # skips it.
+            default = default_binding(shortcut, translate)
+            return chord if default is None else default
     for shortcut in choices:
         if shortcut.id in overrides and default_binding(shortcut, translate) == chord:
             if binding_for(shortcut, overrides, translate) != chord:

@@ -74,22 +74,20 @@ from core.utils import decrypt_bytes
 
 # Message types a transcription will accept.
 #
-# `audioMessage` covers both halves of what the issue asks for: a voice note
-# and an audio file arrive under the same type, and the ptt flag only separates
-# them for the UI's own purposes — both are speech worth transcribing.
+# `audioMessage` covers both a voice note and an audio file: they arrive under
+# the same type, and the ptt flag only separates them for the UI's own purposes
+# — both are speech worth transcribing.
 #
-# `documentMessage` is accepted only when its mimetype is audio/*: sending an
-# mp3 as a document instead of as audio is an ordinary thing to do, and the
-# resulting message is the same recording under a different wrapper.
+# `videoMessage` is accepted too: the speech is the video's sound track, and
+# audio_prep's ffmpeg command drops the picture (`-vn`) and converts that track
+# exactly as it converts a voice note. A GIF (`gifPlayback`) is refused: it is
+# a silent loop with nothing to hear.
 #
-# **Video is deliberately out.** Not because the audio could not be extracted —
-# ffmpeg would do it — but because it is a different feature with a different
-# promise: a video message opens in the player, where a transcription would
-# have to be offered as subtitles against a timeline rather than as a block of
-# text, and the expectation "transcribe this voice message" says nothing about
-# what should happen to a two-minute clip. Adding it later is adding a type
-# here; shipping it now would be answering a question nobody asked.
-TRANSCRIBABLE_TYPES = ("audioMessage", "documentMessage")
+# `documentMessage` is accepted only when its mimetype is audio/* or video/*:
+# sending an mp3 or an mp4 as a document instead of as media is an ordinary
+# thing to do, and the resulting message is the same recording under a
+# different wrapper.
+TRANSCRIBABLE_TYPES = ("audioMessage", "videoMessage", "documentMessage")
 
 # Only the leading bytes are examined for a container signature, and 32 is
 # what the `ftyp` test needs (an MP4 box can sit past the first few bytes). A
@@ -154,9 +152,44 @@ def is_transcribable(msg) -> bool:
     msg_type = msg.get("messageType") or ""
     if msg_type == "audioMessage":
         return True
+    if msg_type == "videoMessage":
+        return not is_gif(msg)
     if msg_type != "documentMessage":
         return False
-    return _message_mimetype(msg).startswith("audio/")
+    return _message_mimetype(msg).startswith(("audio/", "video/"))
+
+
+def is_video(msg) -> bool:
+    """Whether the speech of this message is a video's sound track: a video
+    message, or a document whose mimetype is video/*."""
+    if not isinstance(msg, dict):
+        return False
+    msg_type = msg.get("messageType") or ""
+    if msg_type == "videoMessage":
+        return True
+    return msg_type == "documentMessage" and _message_mimetype(msg).startswith("video/")
+
+
+def is_gif(msg) -> bool:
+    """A video message WhatsApp plays as a silent, looping GIF."""
+    payload = msg.get("message") if isinstance(msg, dict) else None
+    video = payload.get("videoMessage") if isinstance(payload, dict) else None
+    return isinstance(video, dict) and bool(video.get("gifPlayback"))
+
+
+def media_seconds(msg) -> int:
+    """The recording's length as WhatsApp states it (audio or video), 0 when it
+    does not."""
+    payload = msg.get("message") if isinstance(msg, dict) else None
+    if not isinstance(payload, dict):
+        return 0
+    inner = payload.get(msg.get("messageType") or "")
+    if not isinstance(inner, dict):
+        return 0
+    try:
+        return max(0, int(inner.get("seconds") or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _message_mimetype(msg) -> str:
@@ -319,6 +352,11 @@ def sniff_extension(header):
         return ".wma"
     if b"ftyp" in head:
         return ".m4a"
+    if head[4:8] in (b"moov", b"mdat", b"wide", b"free", b"skip"):
+        # A QuickTime/MP4 file that does not open with an `ftyp` box — older
+        # .mov files from phones and cameras start straight with one of these.
+        # The same ffmpeg demuxer reads it; only the video ones arrive here.
+        return ".mov"
     return None
 
 

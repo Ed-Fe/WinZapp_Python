@@ -169,6 +169,7 @@ from ui.conversation_panel.poll_inline import PollInlineMixin
 from ui.conversation_panel.poll_messages import PollMessagesMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
 from ui.conversation_panel.bulk_messages import BulkMessagesMixin
+from ui.conversation_panel.bulk_transcription import BulkTranscriptionMixin
 from ui.conversation_panel.message_data import MessageDataMixin
 from ui.conversation_panel.panel_visibility import ConversationPanelVisibilityMixin
 from ui.conversation_panel.ai_actions import AIActionsMixin
@@ -215,6 +216,7 @@ class ConversationsPanel(
     PollInlineMixin,
     ContactMessagesMixin,
     BulkMessagesMixin,
+    BulkTranscriptionMixin,
     AIActionsMixin,
     MessageDataMixin,
     wx.Panel,

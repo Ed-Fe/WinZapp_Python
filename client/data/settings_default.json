@@ -85,6 +85,7 @@
         "space_selects_in_selection_mode": true,
         "escape_clears_selection": true,
         "keep_search_after_open": false,
+        "enter_transcribes_voice_messages": false,
         "auto_focus_next_audio": true,
         "selected_announcement_position": "end",
         "show_yesterday_label": true,
@@ -126,7 +127,11 @@
         "device": "auto",
         "compute_type": "auto",
         "language": "interface",
-        "auto_detect_language": true
+        "auto_detect_language": true,
+        "keep_model_loaded": false,
+        "auto_transcribe_received": false,
+        "cache_enabled": true,
+        "cache_by_model": {}
     },
     "files": {
         "save_dialog_folder_mode": "last",

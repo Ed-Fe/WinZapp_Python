@@ -508,6 +508,13 @@ transcription would cost far more than it protects, so they are checked at
 download and by the explicit verify. Accepted limit: a swap that restores size
 and mtime after a file has passed is not seen again in that process.
 
+**Nor may the folder hold code the manifest does not list.** ggml loads its CPU
+backend by scanning the program's folder for `ggml-cpu-*.dll`, and Windows
+looks in the application folder first for any DLL loaded by name: an extra
+`.dll`/`.exe` anywhere under the build folder is refused
+(`unlisted_code_files()`), for WinZapp's own folder and — the reason it exists —
+for a folder the user chose to reuse, which may be writable by other accounts.
+
 ## Coexistence with online AI transcription
 
 The online AI (`client/core/ai_media/`,
@@ -538,3 +545,263 @@ window applies the change only once it is inactive. The window's own `I18n`
 reads the settings only until it has read them once (`client/core/i18n.py`).
 Read it the same way. Reading `settings["general"]["language"]` directly would
 force a run into a language the window does not show yet.
+
+## Downloads in the background
+
+Settings > General "download updates in the background"
+(`general.background_update_downloads`, install-wide, off by default) is read
+by three downloads: the WinZapp update, the WPPConnect Server update, and the
+Transcription tab's model, CUDA libraries and whisper.cpp program
+(`core/transcription/background.py` lists the six actions: download/install and
+repair; verify, remove and the models-folder move always keep their dialog).
+
+- **The window owns the job, not the dialog.** Settings is modal and the user
+  leaves it, so the job runs from `main_window/transcription_background.py`
+  and the tab only asks to be told (`watch_transcription_background()`). A
+  listener returns True when it said the outcome; otherwise the window says
+  it. Never move the job into the dialog: closing Settings would lose it or
+  finish into a destroyed window.
+- **One at a time.** A second press is refused while one runs, and a Settings
+  opened meanwhile adopts the running job with its buttons off.
+- **A job that ends in the background never moves the focus.**
+  `_report_transcription_job(restore_focus=False)`.
+- The confirmation (size, disk, device) is still asked first. Only the
+  progress dialog goes away.
+
+## The tab's result field
+
+One read-only field carries everything the tab says (outcome first, notices
+after). Verifying (`VERIFY_ACTIONS`, plus the check of a folder in "other
+folders") moves the focus to it; choosing another model, backend, build or
+folder drops the old outcome, which hides the field again when nothing else
+is in it (`transcription_result_field.py`).
+
+## Alt keys on the action buttons
+
+The tab has more controls than any language has free letters, so the
+seventeen action buttons **share** letters: the same word has the same letter
+on every row (Alt+F is "Verificar" everywhere), and a shared letter only moves
+the focus. They never take the letter of OK, Cancel or Apply, and the existing
+letters of the labelled controls were not changed. Adding a button: pick a
+letter its word already uses, or the least-contested one, and extend
+`ACTION_BUTTONS` in `tests/test_transcription_settings_tab.py`.
+
+## Marked models and the download queue
+
+The model list is a `wx.ListBox` (it was a drop-down; a closed combo has no
+place for a "selected" mark and no Space of its own). The row the list is on is
+still the chosen model. On top of that, the selection mode of the chat and
+message lists (`transcription_model_marks.py`): Ctrl+Space marks, Space marks
+while something is marked (`space_selects_in_selection_mode`), Ctrl+Shift+Space
+marks all, Esc unmarks (`escape_clears_selection`; a char hook on the list, the
+only way to keep Esc from closing the dialog). Both settings are the ones the
+other lists read, not new ones.
+
+- **Marked = queue.** Download with marks fetches every marked model that is not
+  complete (`core/transcription/model_queue.py`), after one question sized as
+  the sum. Repair, verify and remove never take the queue: they are about the
+  model the list is on (repair deletes before it fetches).
+- **The first failure or cancellation ends the run** and says the rest was not
+  downloaded; what did not arrive stays marked, so Download resumes the queue.
+- **In the background** the whole queue is one run of the main window
+  (`start_transcription_background_jobs`); a listener hears every job with
+  `last=False` until the final one. The cancel button of the tab exists only
+  during such a run (`cancel_transcription_background()`, also called when the
+  app quits). While it is shown every action button is off, so its Alt letter
+  may be one the action buttons also use.
+- Only catalogue models are markable; "Automatic" and the models in other
+  folders have nothing to download.
+
+## The transcription in the message's line (Alt+Shift+N)
+
+Alt+Shift+T opens the result window; **Alt+Shift+N** puts the text in the
+message's own row (`, duração: 0:12, transcrição: texto`) and reads it aloud.
+It is one key that **alternates** with `user_interface.enter_transcribes_voice_messages`
+(default off):
+
+- off: Enter and Space play the voice message, Alt+Shift+N transcribes it into
+  the line;
+- on: Enter and Space transcribe it into the line, Alt+Shift+N plays or pauses
+  it.
+
+So each of the two actions always has a key. The menu item and the F1 line say
+which one the key does *today* (`transcribe_inline_menu` / `play_voice_message_menu`).
+
+- **Only an `inline` record shows in the row** (`stored.inline_row_text()`); one
+  made for the window leaves the row short, as it always was. A window run on a
+  message that is already inline keeps it inline. Deleting the transcription
+  (tombstone) takes the text off the row.
+- **Fresh result not kept** (message unsent/missing, or storing raised): the row
+  cannot carry it, so the window opens — it is the only place left to read the
+  text those minutes produced.
+- **A stored transcription is reused**, never re-run: `inline_saved()` marks it
+  inline (a new, later decision) and says it.
+- **Long text**: the row is cut at the list control's limit like a text message,
+  and Alt+L ("Ler mais") reads the rest — `_update_read_more_button()` includes
+  voice notes that carry an inline transcription.
+- The voice-filter warning is spoken after the text, as for the window.
+
+## One stored transcription per model
+
+A saved transcription belongs to the model that made it: the stored value is
+still **one** dict under `_transcription` with **one** decision time (every rule
+under *Persistence* — newer decision wins, tombstones, the two defences — is
+unchanged), but the outer fields are the newest result and the results of the
+other models sit inside it under `by_model`, keyed by `backend:model`
+(`stored.with_result`, `results_of`).
+
+- What a message offers is the result of the model selected **now**
+  (`stored.selection_from_settings`, `saved_transcription(msg, selection)`);
+  another model's text is not shown, so a change of model asks for a new run,
+  and going back to the first brings its text back with no run. `auto`
+  (the default) names no model and keeps the old behaviour: the newest result.
+- Never read `_transcription["text"]` directly: go through `saved_transcription`
+  / `inline_row_text` with the selection, or the row shows the wrong model's text.
+- **Clearing a model** (Settings > Local transcription, the button under the
+  model group) is `DatabaseManager.clear_model_transcriptions` — a chunked
+  scan that takes `_write_lock` once per chunk, never for the whole database —
+  followed by `stored.drop_model_on_copies` on every in-memory copy of every
+  chat. The remaining newest result is re-dated *after* the one it replaces
+  (`next_decision_time`), so a stale copy still holding the dropped text loses
+  to it. Nothing left → a tombstone. Disk first, memory after, like deleting.
+  A result stored while the clear waits in the write queue reaches the disk
+  *after* it, so memory keeps it too: `stored.values_on()` is taken when the
+  clear is asked for, and a value not among them and dated after `decided_at`
+  is skipped. A value that was there is cleared whatever its date (a clock that
+  ran behind), as the database clears it. Without this the next sync carried
+  the in-memory tombstone over the new text on disk.
+- **A write keeps the row's other models** (`stored.with_missing_results`, in
+  `DatabaseManager._rewrite_transcription`): the value is built from the copy
+  in memory, which may lack the key (a message from `on_historical_message`).
+
+## How long the loaded model stays (`residency.py`)
+
+faster-whisper caches the model it loaded in the backend singleton. That cache
+used to have no end: one transcription held GBs of RAM/VRAM for the rest of
+the session. `core/transcription/residency.py` now lets it go
+`IDLE_RELEASE_SECONDS` (5 min) after the last run *ended*, unless the setting
+`transcription.keep_model_loaded` (Settings > Local transcription, off by
+default) is on.
+
+- `TranscriptionJob._decode()` wraps load + transcribe in
+  `residency.using(backend)`; the clock starts when that block ends, success or
+  not, and a run that begins cancels it. The timer releases **under the manager's
+  lock**, so a run beginning can never slip between the check and the release.
+- The flag is `residency.configure(...)`d at the end of `load_settings()` and on
+  Apply (`TranscriptionOptionsMixin._apply_transcription_options`). Nothing else
+  reads the setting — the job does not.
+- whisper.cpp runs one process per transcription, so there is nothing to keep:
+  the checkbox's label says "(faster-whisper)" and the setting does nothing for it.
+- Never log anything but the fact that a model was released.
+
+## CUDA libraries and whisper.cpp programs from another folder (`reused_runtimes.py`)
+
+Settings > Local transcription > "Reuse downloads from another folder" points
+WinZapp at a `cuda_runtime` / `whisper_cpp_runtime` folder it already has (two
+install-wide keys of `app.json`: `transcription_cuda_extra_dir`,
+`transcription_whisper_cpp_extra_dir`). The folder is **only read**.
+
+- CUDA: the folder must hold every library WinZapp installs and they must load
+  (`device.probe_cuda_libraries([folder])`, measured off the wx thread). It is added to
+  the loader's search path next to WinZapp's own (`register_cuda_library_directory`);
+  choosing another or forgetting it calls the new `unregister_cuda_library_directory`.
+  WinZapp's own folder is never unregistered as a "reused" one.
+- whisper.cpp: only a root WinZapp can vouch for (manifest + sizes; and, before every
+  launch, the **pinned digests** in `verify_executable`) is accepted — a folder of
+  whisper.cpp files WinZapp did not write is refused. `whisper_cpp_runtime.usable_root(build)`
+  answers WinZapp's own root first, then the reused one; only the "can it run" paths use it
+  (`WhisperCppBackend._root_for`, `message_run._whisper_cpp_cuda_installed`).
+  `installation_state(build)` with no root, install, repair and remove keep meaning WinZapp's
+  own folder, so the Remove button never acts on someone else's files.
+- `configure_from(app_settings)` runs at the end of `load_settings()` (before the first
+  device decision) and on Apply; it never raises.
+
+## Automatic transcription of received voice messages (`auto_queue.py`)
+
+`transcription.auto_transcribe_received` (Settings > Local transcription, **off by
+default**) transcribes each incoming voice message as it arrives and keeps the text
+as an **inline** transcription (same record as Alt+Shift+N, so the row shows it).
+
+- Hook: `on_new_message()` calls `_maybe_auto_transcribe()` right after the media
+  download is submitted, for non-own messages only. Everything else is in
+  `main_window/auto_transcription.py` (glue) and `core/transcription/auto_queue.py` (rules).
+- Eligible: incoming `audioMessage`, no stored decision yet, younger than 5 min
+  (backlogs and history syncs are never transcribed unasked), at most 10 min long.
+  **Locked chats are skipped** (vault or phone lock).
+- One run at a time (a serial queue of at most 10; the rest of a burst is dropped).
+  A failure that means "not set up" (`SETUP_FAILURES`: no model, no program, corrupted…)
+  pauses the queue 15 min and speaks `transcription_auto_paused` **once**; any other
+  failure is silent and logged by code only.
+- Never a window, sound or speech per message. The run waits up to 45 s for the
+  download the auto-download is already doing before fetching the audio itself.
+- When the result arrives, the stored decision wins if the user acted meanwhile
+  (a manual run or a deletion): the automatic text is dropped.
+
+## Whether results are kept (the cache settings)
+
+`transcription.cache_enabled` (general, **on by default**) and `transcription.cache_by_model`
+(`{model id: bool}`, set per model in Settings) decide whether a new result is saved with
+the message (`stored.cache_enabled_for(settings, model_id)`; only a real `False` turns the
+general switch off, only a real bool is a model's choice). The one place that enforces it is
+`MainWindow.store_message_transcription()`: it answers `SAVE_DISABLED` — **after** the withdrawn,
+unsent and missing answers, which outrank it — and the flow opens the result window with the
+`transcription_not_saved_cache_off` note instead of the row (inline) path. The automatic
+transcription skips a model chosen explicitly whose cache is off (it would run for nothing).
+- Turning the cache off only stops **new** saves: texts already saved stay (rows, "view
+  transcription") until cleared with the two Clear buttons.
+- "Clear all models" is `DatabaseManager.clear_all_transcriptions` → the same chunked scan as the
+  per-model one (`_rewrite_all_transcriptions`), leaving a tombstone on every message that held a result.
+- The new controls have no Alt keys: the tab has no free letter left in several locales.
+
+## Videos
+
+A video is transcribed from its sound track, through exactly the voice-note path:
+`message_audio.is_transcribable()` accepts `videoMessage` (never a GIF, `gifPlayback`) and
+documents whose mimetype is `video/*`; the media is `media/<id>.wzmedia`, fetched by
+`handle_media_message`; `audio_prep`'s ffmpeg already drops the picture (`-vn`). Every
+option applies unchanged: per-model results, the cache switches, clearing, inline text
+in the row (`message_rendering` video branch), Alt+Shift+N, "Enter and Space transcribe"
+(on a video, Alt+Shift+N then plays it in place or opens the viewer —
+`_video_default_action()`), and automatic transcription of received videos
+(`auto_queue.AUTO_TYPES`, the same 10-minute cap from the video's stated `seconds`).
+
+- `videoMessage` is a **carrying type** (`stored.CARRYING_TYPES`), so writing a video reads its
+  stored row to keep the transcription — removing it from there loses the text on the next sync.
+- A video with no sound fails in ffmpeg with "does not contain any stream"; `audio_prep.
+  has_picture_but_no_sound()` reads the stream lines of ffmpeg's log and answers
+  `NO_AUDIO_TRACK` ("this video has no sound") instead of an unrecognised format.
+- QuickTime files that do not open with `ftyp` (`moov`/`mdat`/`wide`/`free`/`skip` first) are
+  sniffed as `.mov`.
+- A stored record that names no model (from before per-model results) matches any
+  selection, so old texts stay offered.
+
+## Bulk transcription of selected messages (issue #469)
+
+`ui/conversation_panel/bulk_transcription.py` (glue) + `core/transcription/bulk.py` (plan,
+tally, combined text). Two forms, like the single keys:
+
+- **Ctrl+Alt+Shift+T** — Alt+Shift+T's form: results kept (not inline, unless already inline)
+  and, at the end, all of them in the result window (`TranscriptionResultDialog`).
+- **Ctrl+Alt+Shift+N** — Alt+Shift+N's form: every result into its message's line; already
+  transcribed ones are marked inline without a run.
+
+With "Substituir atalhos por ações em massa" on and messages selected, Alt+Shift+T and
+Alt+Shift+N (only while it transcribes, i.e. Enter plays) run the bulk forms. Both are in the
+"Ações em massa" submenu and in the shortcut catalogue (customisable).
+
+- Plan first (confirm dialog): runs, already transcribed for the selected model (reused), skipped.
+- One worker thread, oldest first, "message i of n" spoken at each start. A failure is counted
+  and the queue goes on, except `auto_queue.SETUP_FAILURES`, which stop it with their sentence.
+- Cancel: the same shortcut or the context menu while it runs; the running message is cancelled.
+- If the vault hides the chat mid-run the queue stops and **only** says it stopped — nothing
+  about the messages, and its texts are dropped from the window.
+- The context menu offers the last run's texts together (for that conversation) once it ended.
+- **The window reads the texts again when it opens** (`bulk.shown_entries`): a message withdrawn
+  mid-run (`SAVE_WITHDRAWN`), or whose text was deleted or cleared since, is left out. A text the
+  model's cache did not keep (`SAVE_DISABLED`) is the run's own, and the tally says it was not kept.
+- Ctrl+Alt+Shift+T opens the window at the end only if the user is still in that conversation with
+  WinZapp active; the tally is then the window's `spoken`, after its own announcement. Elsewhere
+  the tally ends with how to open it from the context menu.
+- **Quitting stops automatic and bulk runs** (`MainWindow.stop_transcription_runs`, from
+  `_perform_shutdown`): the queue stops, the running transcription is cancelled (its ffmpeg or
+  whisper-cli child killed, the decrypted audio deleted) and waited for up to 2 s.

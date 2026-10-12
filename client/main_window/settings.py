@@ -486,6 +486,11 @@ class SettingsMixin:
         ):
             self.save_settings()
         self._apply_global_settings()
+        # The transcription settings that act on the process (the model kept
+        # in memory, the reused CUDA/whisper.cpp folders): before the first
+        # device decision, which main.py makes right after this.
+        from core.transcription import runtime_settings
+        runtime_settings.apply(self.settings, getattr(self, "_app_settings", None))
 
     def _apply_global_settings(self):
         """Overlay install-wide settings from global/app.json onto self.settings

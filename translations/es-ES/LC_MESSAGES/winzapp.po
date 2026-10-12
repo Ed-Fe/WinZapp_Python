@@ -1849,11 +1849,13 @@ msgstr "Volver"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "background_updates_label"
 msgid ""
-"Download updates in the background, without the progress window (WinZapp "
-"tells you before installing)"
+"Download updates and transcription downloads in the background, without the "
+"progress window (WinZapp tells you before installing an update and when a "
+"download finishes)"
 msgstr ""
-"Descargar las actualizaciones en segundo plano, sin la ventana de progreso "
-"(WinZapp avisa antes de instalar)"
+"Descargar las actualizaciones y las descargas de la transcripción en segundo"
+" plano, sin la ventana de progreso (WinZapp avisa antes de instalar una "
+"actualización y cuando termina una descarga)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -1990,10 +1992,125 @@ msgid "No chats selected."
 msgstr "Ninguna conversación seleccionada."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
 #: client/ui/conversation_panel/message_accels.py
 msgctxt "bulk_no_message_selection"
 msgid "No messages selected."
 msgstr "Ningún mensaje seleccionado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_cancel_confirm"
+msgid ""
+"A bulk transcription is running (message {index} of {total}). Cancel it?"
+msgstr ""
+"Hay una transcripción en masa en curso (mensaje {index} de {total}). "
+"¿Cancelarla?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "bulk_transcription_cancel_menu"
+msgid "Cancel the bulk transcription"
+msgstr "Cancelar la transcripción en masa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "bulk_transcription_cancelled"
+msgid ""
+"Bulk transcription cancelled: {done} transcribed, {skipped} skipped, "
+"{failed} with errors."
+msgstr ""
+"Transcripción en masa cancelada: {done} transcritos, {skipped} omitidos, "
+"{failed} con errores."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_confirm"
+msgid ""
+"Messages to transcribe, one after another: {count}. Already transcribed: "
+"{already}. Skipped because they have nothing to transcribe: {skipped}. "
+"Start?"
+msgstr ""
+"Mensajes por transcribir, uno tras otro: {count}. Ya transcritos: {already}."
+" Omitidos por no tener nada que transcribir: {skipped}. ¿Empezar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "bulk_transcription_done"
+msgid ""
+"Bulk transcription finished: {done} transcribed, {skipped} skipped, {failed}"
+" with errors."
+msgstr ""
+"Transcripción en masa terminada: {done} transcritos, {skipped} omitidos, "
+"{failed} con errores."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_none"
+msgid ""
+"None of the selected messages is a voice message, audio or video that can be"
+" transcribed."
+msgstr ""
+"Ninguno de los mensajes seleccionados es un mensaje de voz, audio o vídeo "
+"que se pueda transcribir."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_not_kept"
+msgid ""
+"The cache is off for this model, so these transcriptions were not kept."
+msgstr ""
+"La caché está desactivada para este modelo, así que estas transcripciones no"
+" se guardaron."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_nothing_to_show"
+msgid "None of these transcriptions is kept any more."
+msgstr "Ya no se conserva ninguna de estas transcripciones."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_open_hint"
+msgid ""
+"To read them together, open this conversation and choose \"Show the "
+"transcriptions of the selected messages together\" in a message's context "
+"menu."
+msgstr ""
+"Para leerlas juntas, abre esta conversación y elige \"Mostrar juntas las "
+"transcripciones de los mensajes seleccionados\" en el menú contextual de un "
+"mensaje."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+#, python-brace-format
+msgctxt "bulk_transcription_progress"
+msgid "Transcribing message {index} of {total}."
+msgstr "Transcribiendo el mensaje {index} de {total}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "bulk_transcription_show_menu"
+msgid "Show the transcriptions of the selected messages together"
+msgstr "Mostrar juntas las transcripciones de los mensajes seleccionados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_stopped_locked"
+msgid "The bulk transcription stopped because the chat was locked."
+msgstr "La transcripción en masa se detuvo porque el chat se bloqueó."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_title"
+msgid "Transcribe selected messages"
+msgstr "Transcribir mensajes seleccionados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_window_title"
+msgid "Bulk transcription"
+msgstr "Transcripción en masa"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "button_no"
@@ -3180,6 +3297,7 @@ msgstr "%d/%m/%Y"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
 #: client/main_window/chat_list.py
 #: client/ui/conversation_panel/bulk_messages.py
+#: client/ui/conversation_panel/bulk_transcription.py
 #: client/ui/conversation_panel/formatting.py
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -6174,6 +6292,11 @@ msgid "Open location"
 msgstr "Abrir ubicación"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "open_video_menu"
+msgid "Play or open the video"
+msgstr "Reproducir o abrir el vídeo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "options"
 msgid "options"
@@ -6368,6 +6491,11 @@ msgstr "fijado"
 msgctxt "play_recorded_audio"
 msgid "Play recorded audio"
 msgstr "Reproducir audio grabado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "play_voice_message_menu"
+msgid "Play or pause the voice message"
+msgstr "Reproducir o pausar el mensaje de voz"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "poll_allows_one"
@@ -7213,6 +7341,12 @@ msgid "Only a missed call can be returned."
 msgstr "Solo se puede devolver una llamada perdida."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_accels.py
+msgctxt "review_no_message"
+msgid "There is no message at that position."
+msgstr "No hay ningún mensaje en esa posición."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/media_files.py
 #: client/ui/conversation_panel/message_menu.py client/ui/conversations.py
 #: client/ui/dialogs/conversation_data_dialog.py client/ui/media_viewer.py
@@ -7459,18 +7593,21 @@ msgstr "Seleccionado"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_list.py
 #: client/ui/chat_lock.py client/ui/conversation_panel/forwarding.py
 #: client/ui/conversation_panel/message_rendering.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selected_suffix"
 msgid "selected"
 msgstr "seleccionado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_off"
 msgid "Selection mode disabled"
 msgstr "Modo de selección desactivado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/chat_list_selection.py
+#: client/ui/dialogs/transcription_model_marks.py
 msgctxt "selection_mode_on"
 msgid "Selection mode enabled"
 msgstr "Modo de selección activado"
@@ -7654,7 +7791,10 @@ msgid "ctrl+comma"
 msgstr "ctrl+coma"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/transcription_cache.py
+#: client/ui/dialogs/transcription_reuse.py
+#: client/ui/dialogs/transcription_tab.py
 msgctxt "settings_title"
 msgid "WinZapp | Settings"
 msgstr "WinZapp | Configuración"
@@ -7764,6 +7904,12 @@ msgstr "Alt+Shift+F: ir a los filtros de conversaciones"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_j_label"
+msgid "Alt+Shift+J: jump to the next message that mentions you"
+msgstr "Alt+Shift+J: ir al mensaje siguiente que te menciona"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_k_label"
 msgid "Alt+Shift+K: announce the focused message's date and time"
 msgstr "Alt+Shift+K: anunciar la fecha y hora del mensaje enfocado"
@@ -7782,6 +7928,20 @@ msgstr "Alt+Shift+M: ir al mensaje anterior que te menciona"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_n_label"
+msgid ""
+"Alt+Shift+N: on a voice message or video, do what Enter and Space do not: "
+"transcribe it locally with Whisper into its line in the list, or play, pause"
+" or open it when Enter and Space are set to transcribe (Settings > User "
+"Interface)"
+msgstr ""
+"Alt+Shift+N: en un mensaje de voz o un vídeo, hace lo que Enter y Espacio no"
+" hacen: transcribirlo localmente con Whisper en su línea de la lista, o "
+"reproducirlo, pausarlo o abrirlo cuando Enter y Espacio estén configurados "
+"para transcribir (Configuración > Interfaz de usuario)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_num_label"
 msgid ""
 "Alt+Shift+0 to Alt+Shift+9: temporarily bookmark the focused message, or "
@@ -7789,6 +7949,12 @@ msgid ""
 msgstr ""
 "Alt+Shift+0 a Alt+Shift+9: marcar temporalmente el mensaje enfocado, o ir a "
 "un marcador temporal ya creado (se borran al salir de la conversación)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_alt_shift_o_label"
+msgid "Alt+Shift+O: jump to the next message that replies to you"
+msgstr "Alt+Shift+O: ir al mensaje siguiente que te responde"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -7910,6 +8076,24 @@ msgstr "Ctrl+Alt+Shift+S: guardar los mensajes seleccionados"
 msgctxt "shortcut_bulk_star_label"
 msgid "Ctrl+Alt+Shift+F: star the selected messages"
 msgstr "Ctrl+Alt+Shift+F: destacar los mensajes seleccionados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_bulk_transcribe_inline_label"
+msgid ""
+"Ctrl+Alt+Shift+N: transcribe the selected messages locally with Whisper into"
+" their lines"
+msgstr ""
+"Ctrl+Alt+Shift+N: transcribir localmente con Whisper los mensajes "
+"seleccionados en sus líneas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_bulk_transcribe_label"
+msgid ""
+"Ctrl+Alt+Shift+T: transcribe the selected messages locally with Whisper and "
+"show them together"
+msgstr ""
+"Ctrl+Alt+Shift+T: transcribir localmente con Whisper los mensajes "
+"seleccionados y mostrarlos juntos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -8522,6 +8706,17 @@ msgstr "Restaurar valor predeterminado"
 msgctxt "shortcut_reset_all"
 msgid "Restore all defaults"
 msgstr "Restaurar todos los valores predeterminados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_review_message_label"
+msgid ""
+"Read a recent message by position, counting back from the newest (1 is the "
+"newest, 0 is the tenth); pressed twice quickly it copies the message, "
+"position"
+msgstr ""
+"Leer un mensaje reciente por su posición, contando desde el más nuevo (1 es "
+"el más nuevo, 0 es el décimo); pulsada dos veces seguidas, copia el mensaje,"
+" posición"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_scope_global"
@@ -9915,10 +10110,27 @@ msgid "total"
 msgstr "en total"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcribe_inline_menu"
+msgid "Transcribe locally into the message line with Whisper"
+msgstr "Transcribir localmente en la línea del mensaje con Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "transcribe_message"
 msgid "Transcribe message locally with Whisper"
 msgstr "Transcribir mensaje localmente con Whisper"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_selected"
+msgid "Transcribe the selected messages and show them together"
+msgstr "Transcribir los mensajes seleccionados y mostrarlos juntos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "transcribe_selected_inline"
+msgid "Transcribe the selected messages into their lines"
+msgstr "Transcribir los mensajes seleccionados en sus líneas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -9929,6 +10141,28 @@ msgid ""
 msgstr ""
 "Aplica la nueva carpeta de los modelos antes de descargar, reparar, "
 "verificar o eliminar un modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_transcription.py
+msgctxt "transcription_auto_paused"
+msgid ""
+"Automatic transcription of received voice messages was paused for a while "
+"because local transcription is not ready. Check Settings > Local "
+"transcription."
+msgstr ""
+"Se pausó un tiempo la transcripción automática de los mensajes de voz "
+"recibidos porque la transcripción local no está lista. Revisa Configuración "
+"> Transcripción local."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_options.py
+msgctxt "transcription_auto_transcribe_check"
+msgid ""
+"Automatically transcribe received &voice messages and videos and put the "
+"text in the message line"
+msgstr ""
+"Transcribir automáticamente los mensajes de voz y los vídeos recibidos &y "
+"poner el texto en la línea del mensaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_backend_faster_whisper"
@@ -9947,6 +10181,104 @@ msgid "whisper.cpp"
 msgstr "whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_background_cancel_btn"
+msgid "Ca&ncel download in the background"
+msgstr "Canc&elar descarga en segundo plano"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_background_started"
+msgid "It continues in the background. You will be told when it finishes."
+msgstr "Continúa en segundo plano. Se te avisará cuando termine."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_check"
+msgid "Save transcriptions with the messages so they are not redone (cache)"
+msgstr ""
+"Guardar las transcripciones con los mensajes para no rehacerlas (caché)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_follow"
+msgid "Follow the general setting"
+msgstr "Seguir el ajuste general"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_model_label"
+msgid "Cache for this model"
+msgstr "Caché de este modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_off"
+msgid "Off"
+msgstr "Desactivada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_cache_on"
+msgid "On"
+msgstr "Activada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_clear_all_cache_btn"
+msgid "Clear saved transcriptions of all models"
+msgstr "Borrar las transcripciones guardadas de todos los modelos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_clear_all_cache_confirm"
+msgid ""
+"Delete every saved transcription of every model, in all chats? This cannot "
+"be undone."
+msgstr ""
+"¿Borrar todas las transcripciones guardadas de todos los modelos, en todas "
+"las conversaciones? No se puede deshacer."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_all_cache_none"
+msgid "No saved transcription was found."
+msgstr "No se encontró ninguna transcripción guardada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+msgctxt "transcription_clear_cache_btn"
+msgid "Clear t&his model's saved transcriptions"
+msgstr "Borrar &las transcripciones guardadas de este modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_cache.py
+#, python-brace-format
+msgctxt "transcription_clear_cache_confirm"
+msgid ""
+"Delete every saved transcription made by the {model} model, in all chats? "
+"Transcriptions made by other models are kept, and this cannot be undone."
+msgstr ""
+"¿Borrar todas las transcripciones guardadas hechas por el modelo {model}, en"
+" todas las conversaciones? Las de otros modelos se conservan y no se puede "
+"deshacer."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_clear_cache_done"
+msgid "Saved transcriptions deleted: {count}."
+msgstr "Transcripciones guardadas borradas: {count}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_failed"
+msgid "The saved transcriptions could not be deleted."
+msgstr "No se pudieron borrar las transcripciones guardadas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_clear_cache_none"
+msgid "No saved transcription from this model was found."
+msgstr "No se encontró ninguna transcripción guardada de este modelo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_confirm_cuda"
 msgid "Install the CUDA libraries?"
 msgstr "¿Instalar las bibliotecas CUDA?"
@@ -9961,6 +10293,7 @@ msgstr ""
 "carpeta se eliminan antes."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_destination"
@@ -9988,6 +10321,7 @@ msgstr ""
 "transcripción puede fallar por falta de memoria."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_download_size"
@@ -9995,6 +10329,7 @@ msgid "Download size: {size}."
 msgstr "Tamaño de la descarga: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_free_space"
@@ -10029,6 +10364,7 @@ msgstr ""
 "conexión, habrá que descargarlo todo otra vez desde el principio."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_not_enough_space"
@@ -10038,6 +10374,24 @@ msgid ""
 msgstr ""
 "No hay espacio suficiente: hacen falta {required} y hay {free} libres. "
 "Libera espacio o elige otra carpeta para los modelos."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue"
+msgid "Download {count} models in sequence: {models}?"
+msgstr "¿Descargar {count} modelos en secuencia: {models}?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_confirm_queue_does_not_fit"
+msgid ""
+"Warning: these models do not fit in that device's memory, and transcription "
+"may fail for lack of memory: {models}."
+msgstr ""
+"Aviso: estos modelos no caben en la memoria de ese dispositivo y la "
+"transcripción puede fallar por falta de memoria: {models}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -10086,6 +10440,7 @@ msgstr ""
 "que se instale de nuevo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 #, python-brace-format
 msgctxt "transcription_confirm_required_space"
@@ -10093,6 +10448,7 @@ msgid "Disk space needed: {size}."
 msgstr "Espacio necesario en el disco: {size}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_confirm_space_unknown"
 msgid "The free space on that disk could not be measured."
@@ -10132,17 +10488,17 @@ msgstr "Bibliotecas CUDA"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_install_btn"
 msgid "&Install"
-msgstr "In&stalar"
+msgstr "Insta&lar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_remove_btn"
-msgid "Remove"
-msgstr "Eliminar"
+msgid "Remo&ve"
+msgstr "&Eliminar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_repair_btn"
-msgid "Repair"
-msgstr "Reparar"
+msgid "Repa&ir"
+msgstr "Re&parar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -10181,7 +10537,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_verify_btn"
 msgid "Verif&y"
-msgstr "Verificar"
+msgstr "Veri&ficar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -10299,6 +10655,7 @@ msgstr ""
 "transcripción se descartó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_queue.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_download_confirm_title"
 msgid "Confirm download"
@@ -10484,6 +10841,11 @@ msgstr ""
 "termine e inténtalo de nuevo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_audio_track"
+msgid "This video has no sound, so there is nothing to transcribe."
+msgstr "Este vídeo no tiene sonido, así que no hay nada que transcribir."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_error_no_disk_space"
 msgid "There is not enough disk space for this download."
 msgstr "No hay suficiente espacio en disco para esta descarga."
@@ -10571,8 +10933,8 @@ msgstr "Modelos guardados en otras carpetas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_add_btn"
-msgid "Add..."
-msgstr "Añadir..."
+msgid "A&dd..."
+msgstr "Aña&dir..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10623,8 +10985,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_check_btn"
-msgid "Verify"
-msgstr "Verificar"
+msgid "Verif&y"
+msgstr "Veri&ficar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10718,8 +11080,8 @@ msgstr "Modelos de whisper.cpp (*.bin)|*.bin|Todos los archivos (*.*)|*.*"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_find_btn"
-msgid "Find..."
-msgstr "Buscar..."
+msgid "Fi&nd..."
+msgstr "Bu&scar..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -10739,9 +11101,10 @@ msgid "Searching the Hugging Face cache..."
 msgstr "Buscando en la caché de Hugging Face..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_external_forget_btn"
-msgid "Forget"
-msgstr "Olvidar"
+msgid "&Forget"
+msgstr "O&lvidar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -11034,8 +11397,8 @@ msgstr "sin verificar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_use_btn"
-msgid "Use"
-msgstr "Usar"
+msgid "&Use"
+msgstr "U&sar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -11069,6 +11432,12 @@ msgstr ""
 " la transcripción no se guardó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_inline_spoken"
+msgid "Transcription: {text}"
+msgstr "Transcripción: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_insert_refused_vault_closed"
 msgid ""
 "The locked-chats vault was closed, and the transcription was not inserted "
@@ -11076,6 +11445,12 @@ msgid ""
 msgstr ""
 "La caja fuerte de chats bloqueados se cerró y la transcripción no se insertó"
 " en el mensaje."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_options.py
+msgctxt "transcription_keep_loaded_check"
+msgid "&Keep the model loaded in memory (faster-whisper)"
+msgstr "Mantener el modelo cargado en memoria (&faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_language_detect"
@@ -11372,12 +11747,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
-msgid "Remove"
-msgstr "E&liminar"
+msgid "Remo&ve"
+msgstr "&Eliminar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
-msgid "Repair"
+msgid "Repa&ir"
 msgstr "Re&parar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -11391,10 +11766,11 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_verify_btn"
-msgid "&Verify"
+msgid "Verif&y"
 msgstr "Veri&ficar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_models_dir_browse_btn"
 msgid "&Browse..."
@@ -11405,6 +11781,16 @@ msgstr "E&xaminar..."
 msgctxt "transcription_models_dir_browse_dialog_title"
 msgid "Choose the folder for the transcription models"
 msgstr "Elige la carpeta de los modelos de transcripción"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_busy"
+msgid ""
+"A download is running in the background. The models folder can be moved once"
+" it finishes; until then the current folder stays."
+msgstr ""
+"Hay una descarga en curso en segundo plano. La carpeta de los modelos se "
+"podrá mover cuando termine; hasta entonces se mantiene la carpeta actual."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_models_dir_kept_previous"
@@ -11434,6 +11820,14 @@ msgstr ""
 msgctxt "transcription_no_audio"
 msgid "This message has no audio to transcribe."
 msgstr "Este mensaje no tiene audio para transcribir."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_not_saved_cache_off"
+msgid ""
+"This transcription was not saved because the cache is off for this model."
+msgstr ""
+"Esta transcripción no se guardó porque la caché está desactivada para este "
+"modelo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_not_saved_missing"
@@ -11632,6 +12026,7 @@ msgid "Calcula&tion precision (faster-whisper only)"
 msgstr "Precisión de cálc&ulo (solo en faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_background.py
 msgctxt "transcription_progress_cancelling"
 msgid "Cancelling..."
 msgstr "Cancelando..."
@@ -11721,6 +12116,20 @@ msgstr "Verificando el modelo {model}..."
 msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "Verificando el programa whisper.cpp ({build})..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+#: client/ui/dialogs/transcription_queue.py
+#, python-brace-format
+msgctxt "transcription_queue_done"
+msgid "{count} models downloaded."
+msgstr "{count} modelos descargados."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/transcription_background.py
+msgctxt "transcription_queue_stopped"
+msgid "The rest of the queue was not downloaded."
+msgstr "El resto de la cola no se descargó."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_external.py
@@ -11813,6 +12222,113 @@ msgid ""
 msgstr ""
 "La tarjeta gráfica no tenía memoria suficiente. ¿Quieres transcribir de "
 "nuevo usando el procesador?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_browse_cuda"
+msgid ""
+"Choose the folder that holds the CUDA libraries (cublas64_12.dll and "
+"cublasLt64_12.dll)"
+msgstr ""
+"Elige la carpeta que contiene las bibliotecas CUDA (cublas64_12.dll y "
+"cublasLt64_12.dll)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_browse_whisper_cpp"
+msgid ""
+"Choose the folder with the whisper.cpp programs WinZapp downloaded "
+"(whisper_cpp_runtime, which holds one folder per build)"
+msgstr ""
+"Elige la carpeta con los programas whisper.cpp que descargó WinZapp "
+"(whisper_cpp_runtime, que tiene una carpeta por versión)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_label"
+msgid "CUDA libraries folder"
+msgstr "Carpeta de las bibliotecas CUDA"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_reuse_cuda_missing"
+msgid "That folder does not hold the CUDA libraries WinZapp needs: {files}."
+msgstr ""
+"Esa carpeta no contiene las bibliotecas CUDA que WinZapp necesita: {files}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_not_loadable"
+msgid ""
+"The CUDA libraries in that folder could not be loaded, so they were not "
+"chosen."
+msgstr ""
+"No se pudieron cargar las bibliotecas CUDA de esa carpeta, así que no se "
+"eligieron."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_cuda_ok"
+msgid ""
+"These CUDA libraries will be used. Press Apply or OK to keep the choice."
+msgstr ""
+"Se usarán estas bibliotecas CUDA. Pulsa Aplicar o OK para conservar la "
+"elección."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_forgotten"
+msgid "WinZapp will stop reusing that folder once you press Apply or OK."
+msgstr "WinZapp dejará de reutilizar esa carpeta cuando pulses Aplicar o OK."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_group"
+msgid "Reuse downloads from another folder"
+msgstr "Reutilizar descargas de otra carpeta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_reuse_in_use_note"
+msgid "(in use from the folder chosen for reuse)"
+msgstr "(en uso desde la carpeta elegida para reutilizar)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_reuse.py
+msgctxt "transcription_reuse_none"
+msgid "None"
+msgstr "Ninguna"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_not_a_folder"
+msgid "That is not a folder."
+msgstr "Eso no es una carpeta."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_whisper_cpp_label"
+msgid "whisper.cpp program folder"
+msgstr "Carpeta del programa whisper.cpp"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_reuse_whisper_cpp_none"
+msgid ""
+"That folder holds no complete whisper.cpp program downloaded by WinZapp. "
+"Choose the folder that contains the cpu or cuda folders."
+msgstr ""
+"Esa carpeta no contiene ningún programa whisper.cpp completo descargado por "
+"WinZapp. Elige la carpeta que contiene las carpetas cpu o cuda."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "transcription_reuse_whisper_cpp_ok"
+msgid ""
+"These whisper.cpp programs will be used: {builds}. Press Apply or OK to keep"
+" the choice."
+msgstr ""
+"Se usarán estos programas whisper.cpp: {builds}. Pulsa Aplicar o OK para "
+"conservar la elección."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_rendering.py
+msgctxt "transcription_row_label"
+msgid "transcription"
+msgstr "transcripción"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -12024,8 +12540,8 @@ msgstr "{build}, instalada"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_install_btn"
-msgid "Install"
-msgstr "Instalar"
+msgid "&Install"
+msgstr "Insta&lar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_whisper_cpp.py
@@ -12035,18 +12551,18 @@ msgstr "Programa &whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_remove_btn"
-msgid "Remove"
-msgstr "Eliminar"
+msgid "Remo&ve"
+msgstr "&Eliminar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_repair_btn"
-msgid "Repair"
-msgstr "Reparar"
+msgid "Repa&ir"
+msgstr "Re&parar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_verify_btn"
-msgid "Verify"
-msgstr "Verificar"
+msgid "Verif&y"
+msgstr "Veri&ficar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/api_start_behind_window.py
@@ -12187,6 +12703,19 @@ msgid "Show chat videos in a separate player (opens a new dialog)"
 msgstr ""
 "Mostrar los vídeos de las conversaciones en un reproductor separado (abre un"
 " nuevo diálogo)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_enter_transcribes_voice"
+msgid ""
+"Enter and Space on a voice message or video transcribe it into its line in "
+"the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
+"Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
+msgstr ""
+"Enter y Espacio en un mensaje de voz o un vídeo lo transcriben en su línea "
+"de la lista en lugar de reproducirlo (Alt+Shift+N lo reproduce o lo abre); "
+"desactivado, Enter y Espacio lo reproducen o lo abren y Alt+Shift+N lo "
+"transcribe en su línea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

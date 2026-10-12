@@ -27,6 +27,13 @@ from ui.dialogs.ai_settings_page import AISettingsPage
 from ui.dialogs.transcription_tab import TranscriptionTabMixin
 from ui.dialogs.transcription_external import ExternalModelsMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
+from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
+from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
+from ui.dialogs.transcription_cache import TranscriptionCacheMixin
+from ui.dialogs.transcription_options import TranscriptionOptionsMixin
+from ui.dialogs.transcription_queue import TranscriptionQueueMixin
+from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
+from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
 
@@ -200,7 +207,10 @@ def chat_lock_tab_visible(main_window) -> bool:
 
 
 class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMixin, WhisperCppMixin,
-                     TranscriptionPrecisionMixin, wx.Dialog):
+                     TranscriptionPrecisionMixin, TranscriptionResultFieldMixin,
+                     TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
+                     TranscriptionQueueMixin, TranscriptionCacheMixin,
+                     TranscriptionOptionsMixin, TranscriptionReuseMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]
@@ -779,6 +789,16 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         voice_msg_sizer.Add(self._voice_msg_mode_voice_rb, 0, wx.LEFT | wx.TOP | wx.BOTTOM, 5)
 
         ui_sizer.Add(voice_msg_sizer, 0, wx.EXPAND | wx.ALL, 8)
+
+        # Off: Enter and Space play a voice message and Alt+Shift+N transcribes
+        # it into its line. On: the two swap. The label says both halves, since
+        # it is the only place the setting is explained.
+        self._enter_transcribes_voice_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_enter_transcribes_voice")
+        )
+        ui_sizer.Add(
+            self._enter_transcribes_voice_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
 
         self._group_media_types_label = wx.StaticText(
             self._ui_page, label=i18n.t("ui_group_media_default_types_label")
@@ -2105,6 +2125,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             self._voice_msg_mode_voice_rb.SetValue(True)
         else:
             self._voice_msg_mode_audio_rb.SetValue(True)
+        self._enter_transcribes_voice_cb.SetValue(bool(
+            self.main_window.settings.get("user_interface", {}).get(
+                "enter_transcribes_voice_messages", False
+            )
+        ))
 
         self._load_group_media_types(
             self.main_window.settings.get("user_interface", {}).get(
@@ -3420,6 +3445,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("user_interface", {})[
             "voice_message_mode"
         ] = voice_message_mode
+        self.main_window.settings.setdefault("user_interface", {})[
+            "enter_transcribes_voice_messages"
+        ] = self._enter_transcribes_voice_cb.GetValue()
 
         self.main_window.settings.setdefault("user_interface", {})[
             "group_media_default_types"
@@ -3918,6 +3946,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._voice_msg_mode_box.SetLabel(i18n.t("ui_voice_message_mode_label"))
         self._voice_msg_mode_audio_rb.SetLabel(i18n.t("ui_voice_message_mode_audio"))
         self._voice_msg_mode_voice_rb.SetLabel(i18n.t("ui_voice_message_mode_voice_message"))
+        self._enter_transcribes_voice_cb.SetLabel(i18n.t("ui_enter_transcribes_voice"))
         self._preserve_typed_caption_cb.SetLabel(i18n.t("ui_preserve_typed_text_as_caption"))
         self._bulk_action_shortcuts_cb.SetLabel(i18n.t("ui_bulk_action_shortcuts"))
         self._confirm_mark_all_read_cb.SetLabel(i18n.t("ui_confirm_mark_all_read"))

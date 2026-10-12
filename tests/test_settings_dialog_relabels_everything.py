@@ -34,6 +34,9 @@ TRANSCRIPTION_TAB = SETTINGS_DIALOG.with_name("transcription_tab.py")
 TRANSCRIPTION_EXTERNAL = SETTINGS_DIALOG.with_name("transcription_external.py")
 TRANSCRIPTION_WHISPER_CPP = SETTINGS_DIALOG.with_name("transcription_whisper_cpp.py")
 TRANSCRIPTION_PRECISION = SETTINGS_DIALOG.with_name("transcription_precision.py")
+TRANSCRIPTION_CACHE = SETTINGS_DIALOG.with_name("transcription_cache.py")
+TRANSCRIPTION_OPTIONS = SETTINGS_DIALOG.with_name("transcription_options.py")
+TRANSCRIPTION_REUSE = SETTINGS_DIALOG.with_name("transcription_reuse.py")
 
 LABELLED_CONTROLS = {"StaticText", "CheckBox", "RadioButton", "StaticBox", "Button", "RadioBox"}
 
@@ -91,8 +94,24 @@ def _dialog_class():
         n for n in precision.body
         if isinstance(n, ast.ClassDef) and n.name == "TranscriptionPrecisionMixin"
     )
+    cache = ast.parse(TRANSCRIPTION_CACHE.read_text(encoding="utf-8"))
+    cache_mixin = next(
+        n for n in cache.body
+        if isinstance(n, ast.ClassDef) and n.name == "TranscriptionCacheMixin"
+    )
+    options = ast.parse(TRANSCRIPTION_OPTIONS.read_text(encoding="utf-8"))
+    options_mixin = next(
+        n for n in options.body
+        if isinstance(n, ast.ClassDef) and n.name == "TranscriptionOptionsMixin"
+    )
+    reuse = ast.parse(TRANSCRIPTION_REUSE.read_text(encoding="utf-8"))
+    reuse_mixin = next(
+        n for n in reuse.body
+        if isinstance(n, ast.ClassDef) and n.name == "TranscriptionReuseMixin"
+    )
     cls.body = (cls.body + mixin.body + external_mixin.body + whisper_cpp_mixin.body
-                + precision_mixin.body)
+                + precision_mixin.body + cache_mixin.body + options_mixin.body
+                + reuse_mixin.body)
     return cls
 
 
