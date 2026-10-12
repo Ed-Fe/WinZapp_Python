@@ -555,6 +555,15 @@ class WindowLifecycleMixin:
                 self, "cancel_transcription_background", None)
             if cancel_transcription is not None:
                 cancel_transcription()
+            # So do automatic and bulk transcriptions, killing their child
+            # process and deleting the decrypted audio they made.
+            stop_runs = getattr(self, "stop_transcription_runs", None)
+            if stop_runs is not None:
+                try:
+                    stop_runs()
+                except Exception as exc:
+                    logging.warning("[shutdown] stopping transcriptions failed: %s",
+                                    type(exc).__name__)
             self._stop_wpp_server()
             self._flush_pending_debounced_saves()
             if hasattr(self, "db") and self.db is not None:

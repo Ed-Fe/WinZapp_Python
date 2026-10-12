@@ -30,8 +30,9 @@ measured duration a transcription can be *deleted*:
   loses to it instead of bringing the transcription back. Removing the key
   would have turned every one of those copies into "a copy with the key wins".
 
-* **Only a message that can hold speech carries one.** `audioMessage` and
-  `documentMessage` — by type, not by mimetype, because a message's type never
+* **Only a message that can hold speech carries one.** `audioMessage`,
+  `videoMessage` and `documentMessage` (`CARRYING_TYPES`) — by type, not by
+  mimetype, because a message's type never
   changes while one copy of a document may lack the mimetype another had, and
   dropping a transcription because of that would be a silent loss.
 
@@ -328,6 +329,32 @@ def with_result(previous, record) -> dict:
     return record
 
 
+def with_missing_results(value, current):
+    """`value`, also holding the other models' results `current` has and it lacks.
+
+    For the database's write of a new text: the value was built from the
+    in-memory copy (with_result(previous, …)), and a message that reached
+    memory without the key (on_historical_message) built it without the other
+    models' results the row holds. Writing it whole would lose them. Only
+    results of models `value` names nowhere are added; `value`'s own stay as
+    they are. A tombstone, or a `current` with nothing, leaves `value` as is.
+    """
+    if decision_time(value) is None or value.get("deleted"):
+        return value
+    present = {record_model_key(record) for record in results_of(value)}
+    missing = {}
+    for record in results_of(current):
+        key = record_model_key(record)
+        if key and key not in present:
+            missing[key] = record
+    if not missing:
+        return value
+    own = value.get(BY_MODEL_KEY)
+    merged = dict(value)
+    merged[BY_MODEL_KEY] = {**missing, **(own if isinstance(own, dict) else {})}
+    return merged
+
+
 def drop_model(value, model_id, backend_id, decided_at):
     """`value` without the results of one model: (new value, how many dropped).
 
@@ -372,29 +399,51 @@ def drop_all(value, decided_at):
     return tombstone(decided_at), dropped
 
 
-def drop_all_on_copies(copies, decided_at):
+def drop_all_on_copies(copies, decided_at, present=None):
     """`drop_all()` on every record of `copies`; the ids of the messages that
     changed, in first-seen order (see drop_model_on_copies())."""
     return _drop_on_copies(
-        copies, lambda value: drop_all(value, next_decision_time(decided_at, value)))
+        copies, decided_at, present,
+        lambda value: drop_all(value, next_decision_time(decided_at, value)))
 
 
-def drop_model_on_copies(copies, model_id, backend_id, decided_at):
+def drop_model_on_copies(copies, model_id, backend_id, decided_at, present=None):
     """`drop_model()` on every record of `copies` holding a transcription.
 
     Returns the ids of the messages that changed, in first-seen order. Each
     distinct dict is visited once; copies of one message end up agreeing
     because they start from the same stored value and share `decided_at`.
+
+    `present` is `values_on(copies)` taken when the clear was asked for. A
+    value that is not among them and is dated after `decided_at` was stored
+    while the clear waited in the queue — and reached the disk after it — so
+    it is left alone: clearing it here would date a tombstone after it, and the
+    next sync would carry that tombstone to the disk too. A value that was
+    there is cleared whatever its date (a clock that ran behind), as the
+    database clears it.
     """
     # Dated like the database dates it (clear_model_transcriptions()): after
     # this copy's own decision, whatever the clock says.
     return _drop_on_copies(
         copies,
+        decided_at,
+        present,
         lambda value: drop_model(
             value, model_id, backend_id, next_decision_time(decided_at, value)))
 
 
-def _drop_on_copies(copies, transform):
+def values_on(copies) -> list:
+    """The stored values `copies` hold now, for drop_*_on_copies(`present`).
+
+    A list of the values themselves, not their ids: holding them keeps an id
+    from being reused by a value stored later.
+    """
+    return [record.get(TRANSCRIPTION_KEY) for record in copies or ()
+            if isinstance(record, dict) and isinstance(record.get(TRANSCRIPTION_KEY), dict)]
+
+
+def _drop_on_copies(copies, decided_at, present, transform):
+    known = None if present is None else {id(value) for value in present}
     changed, seen_dicts = [], set()
     for record in copies or ():
         if not isinstance(record, dict) or id(record) in seen_dicts:
@@ -403,6 +452,11 @@ def _drop_on_copies(copies, transform):
         value = record.get(TRANSCRIPTION_KEY)
         if not isinstance(value, dict):
             continue
+        if known is not None and id(value) not in known:
+            at = decision_time(value)
+            if at is not None and at > float(decided_at):
+                # Stored after the clear was asked for (drop_model_on_copies()).
+                continue
         new_value, dropped = transform(value)
         if not dropped:
             continue
@@ -463,6 +517,21 @@ def made_time(value):
     if isinstance(made, (int, float)) and not isinstance(made, bool):
         return float(made)
     return decision_time(value)
+
+
+def marked_inline(value, previous, now):
+    """`previous` with `value` (one of its results) marked to show in the line.
+
+    A new decision — dated after `previous`, whatever the clock says — about an
+    old text: the text keeps the date it was made (MADE_AT_KEY), or "transcribed
+    on" would be announced as today. The chosen model's result becomes the
+    newest; the others stay.
+    """
+    chosen = dict(value, inline=True, at=next_decision_time(now, previous))
+    made = made_time(value)
+    if made is not None:
+        chosen.setdefault(MADE_AT_KEY, made)
+    return with_result(previous, chosen)
 
 
 def is_inline(value) -> bool:

@@ -20,6 +20,7 @@ MainWindow: the arrival hook, building the run, and storing the result.
 
 import logging
 import os
+import threading
 import time
 
 import wx
@@ -39,6 +40,8 @@ from core.utils import auto_download_allows, auto_download_enabled
 #: How long a run waits for the download already under way before fetching itself.
 _DOWNLOAD_WAIT_SECONDS = 45.0
 _DOWNLOAD_POLL_SECONDS = 1.0
+#: How long quitting waits for the runs it cancelled to clean up after themselves.
+_SHUTDOWN_JOIN_SECONDS = 2.0
 
 
 class AutoTranscriptionMixin:
@@ -83,6 +86,13 @@ class AutoTranscriptionMixin:
         remote_jid, msg_id, msg = item
         if not auto_queue.enabled(self.settings):
             return
+        try:
+            # Checked again here: the queue holds several runs of minutes each,
+            # and the chat may have been locked since this one was queued.
+            if self.is_chat_locked(remote_jid):
+                return
+        except Exception:
+            return
         outcome = {}
 
         def _finished(result, error):
@@ -104,8 +114,18 @@ class AutoTranscriptionMixin:
             fetch_media=self._auto_fetch_media,
             on_finished=_finished,
         )
-        run.start()
-        run.join()
+        with self._auto_transcription_lock_get():
+            self._auto_transcription_current = run
+        queue = getattr(self, "_auto_transcription_queue", None)
+        if queue is not None and queue.stopped:
+            # Quitting got here first: its cancel missed this run.
+            run.cancel()
+        try:
+            run.start()
+            run.join()
+        finally:
+            with self._auto_transcription_lock_get():
+                self._auto_transcription_current = None
         error = outcome.get("error")
         result = outcome.get("result")
         if error is not None:
@@ -114,6 +134,45 @@ class AutoTranscriptionMixin:
         if result is None or result.is_empty:
             return
         wx.CallAfter(self._store_auto_transcription, remote_jid, msg_id, result)
+
+    def _auto_transcription_lock_get(self):
+        lock = getattr(self, "_auto_transcription_lock", None)
+        if lock is None:
+            lock = self._auto_transcription_lock = threading.Lock()
+        return lock
+
+    def stop_transcription_runs(self, timeout=_SHUTDOWN_JOIN_SECONDS) -> None:
+        """At shutdown: stop the automatic queue and a bulk run, and cancel the
+        transcription each one is running.
+
+        A cancelled run kills its ffmpeg or whisper-cli child and deletes the
+        decrypted copy of the audio it made; the process exits right after
+        teardown, so without this the child is orphaned and the plaintext
+        stays in %TEMP% until a later launch sweeps it. Waits at most
+        `timeout` seconds in all.
+        """
+        running = []
+        queue = getattr(self, "_auto_transcription_queue", None)
+        if queue is not None:
+            queue.stop()
+            with self._auto_transcription_lock_get():
+                current = getattr(self, "_auto_transcription_current", None)
+            if current is not None:
+                current.cancel()
+                running.append(current)
+        panel = getattr(self, "conversations_panel", None)
+        cancel_bulk = getattr(panel, "_cancel_bulk_transcription_now", None)
+        if callable(cancel_bulk):
+            current = cancel_bulk()
+            if current is not None:
+                running.append(current)
+        deadline = time.monotonic() + float(timeout)
+        for run in running:
+            try:
+                run.join(max(0.0, deadline - time.monotonic()))
+            except Exception as exc:
+                logging.info("[transcription] waiting for a cancelled run failed: %s",
+                             type(exc).__name__)
 
     def _auto_install_wide_models(self):
         """(stored models folder, external references or None), as the manual

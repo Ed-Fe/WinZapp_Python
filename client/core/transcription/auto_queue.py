@@ -169,6 +169,11 @@ class AutoTranscriptionQueue:
             self._stopped = True
         self._queue.put(None)
 
+    @property
+    def stopped(self) -> bool:
+        with self._lock:
+            return self._stopped
+
     # ── Worker ───────────────────────────────────────────────────────────────
 
     def _work(self):

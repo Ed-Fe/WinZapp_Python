@@ -664,6 +664,15 @@ other models sit inside it under `by_model`, keyed by `backend:model`
   chat. The remaining newest result is re-dated *after* the one it replaces
   (`next_decision_time`), so a stale copy still holding the dropped text loses
   to it. Nothing left → a tombstone. Disk first, memory after, like deleting.
+  A result stored while the clear waits in the write queue reaches the disk
+  *after* it, so memory keeps it too: `stored.values_on()` is taken when the
+  clear is asked for, and a value not among them and dated after `decided_at`
+  is skipped. A value that was there is cleared whatever its date (a clock that
+  ran behind), as the database clears it. Without this the next sync carried
+  the in-memory tombstone over the new text on disk.
+- **A write keeps the row's other models** (`stored.with_missing_results`, in
+  `DatabaseManager._rewrite_transcription`): the value is built from the copy
+  in memory, which may lack the key (a message from `on_historical_message`).
 
 ## How long the loaded model stays (`residency.py`)
 
@@ -787,3 +796,12 @@ Alt+Shift+N (only while it transcribes, i.e. Enter plays) run the bulk forms. Bo
 - If the vault hides the chat mid-run the queue stops and **only** says it stopped — nothing
   about the messages, and its texts are dropped from the window.
 - The context menu offers the last run's texts together (for that conversation) once it ended.
+- **The window reads the texts again when it opens** (`bulk.shown_entries`): a message withdrawn
+  mid-run (`SAVE_WITHDRAWN`), or whose text was deleted or cleared since, is left out. A text the
+  model's cache did not keep (`SAVE_DISABLED`) is the run's own, and the tally says it was not kept.
+- Ctrl+Alt+Shift+T opens the window at the end only if the user is still in that conversation with
+  WinZapp active; the tally is then the window's `spoken`, after its own announcement. Elsewhere
+  the tally ends with how to open it from the context menu.
+- **Quitting stops automatic and bulk runs** (`MainWindow.stop_transcription_runs`, from
+  `_perform_shutdown`): the queue stops, the running transcription is cancelled (its ffmpeg or
+  whisper-cli child killed, the decrypted audio deleted) and waited for up to 2 s.

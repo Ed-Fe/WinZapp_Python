@@ -2045,6 +2045,33 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_not_kept"
+msgid ""
+"The cache is off for this model, so these transcriptions were not kept."
+msgstr ""
+"O cache está desativado para este modelo, então estas transcrições não foram"
+" guardadas."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_nothing_to_show"
+msgid "None of these transcriptions is kept any more."
+msgstr "Nenhuma dessas transcrições está mais guardada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
+msgctxt "bulk_transcription_open_hint"
+msgid ""
+"To read them together, open this conversation and choose \"Show the "
+"transcriptions of the selected messages together\" in a message's context "
+"menu."
+msgstr ""
+"Para lê-las juntas, abra esta conversa e escolha \"Mostrar juntas as "
+"transcrições das mensagens selecionadas\" no menu de contexto de uma "
+"mensagem."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/bulk_transcription.py
 #, python-brace-format
 msgctxt "bulk_transcription_progress"
 msgid "Transcribing message {index} of {total}."

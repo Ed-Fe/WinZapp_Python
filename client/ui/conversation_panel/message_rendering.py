@@ -229,6 +229,13 @@ class MessageRenderingMixin:
             caption = (doc.get("caption") or "").strip()
             if caption:
                 parts.append(caption)
+            # An audio or video file sent as a document is transcribed like one
+            # (stored_transcription.is_transcribable): its line carries the text too.
+            written = stored_transcription.inline_row_text(
+                msg, stored_transcription.selection_from_settings(
+                    getattr(self.main_window, "settings", None)))
+            if written:
+                parts.append(f"{i18n.t('transcription_row_label')}: {written}")
             return ", ".join(parts)
 
         # ── Image ────────────────────────────────────────────────────────────

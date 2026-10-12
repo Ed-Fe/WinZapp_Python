@@ -1823,6 +1823,23 @@ class TestDeletingAStoredTranscription:
         transcription_flow.open_or_transcribe(world.panel, world.target)
         assert len(world.jobs) == 1
 
+    def test_yes_redraws_the_row_so_its_line_drops_the_text(self, world):
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == [[world.target["key"]["id"]]]
+
+    def test_a_failed_delete_redraws_nothing(self, world):
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        world.main_window.db.fail = True
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == []
+
     def test_a_failed_delete_keeps_it_and_says_so_with_the_error_sound(self, world):
         _saved(world)
         _FakeMessageDialog.answer = transcription_flow.wx.ID_YES

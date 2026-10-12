@@ -47,7 +47,8 @@ class TranscriptionStoreMixin:
             copies.extend(getattr(cp, "_sorted_messages", None) or [])
         return copies
 
-    def store_message_transcription(self, jid: str, msg_id: str, value: dict) -> str:
+    def store_message_transcription(self, jid: str, msg_id: str, value: dict,
+                                    existing: bool = False) -> str:
         """Keep *value* as the transcription of message *msg_id* (UI thread).
 
         Returns one of stored_transcription's SAVE_* answers, which the flow
@@ -86,8 +87,10 @@ class TranscriptionStoreMixin:
         if stored_transcription.is_unsent(current):
             return stored_transcription.SAVE_UNSENT
         # After the three answers above, which outrank it: a withdrawn message
-        # must never have its text shown whatever the cache says.
-        if not stored_transcription.may_cache(self.settings, value):
+        # must never have its text shown whatever the cache says. `existing`:
+        # a text already kept and only marked again (into the line) — the
+        # cache switches decide about keeping new ones.
+        if not existing and not stored_transcription.may_cache(self.settings, value):
             return stored_transcription.SAVE_DISABLED
         real_id = (current.get("key") or {}).get("id", "")
         if real_id != msg_id:
@@ -284,8 +287,8 @@ class TranscriptionStoreMixin:
         """
         self._clear_transcriptions(
             lambda db, decided_at: db.clear_model_transcriptions(model_id, backend_id, decided_at),
-            lambda copies, decided_at: stored_transcription.drop_model_on_copies(
-                copies, model_id, backend_id, decided_at),
+            lambda copies, decided_at, present: stored_transcription.drop_model_on_copies(
+                copies, model_id, backend_id, decided_at, present),
             on_done,
         )
 
@@ -300,12 +303,15 @@ class TranscriptionStoreMixin:
     def _clear_transcriptions(self, clear_on_disk, clear_in_memory, on_done) -> None:
         db = getattr(self, "db", None)
         decided_at = time.time()
+        # What memory holds now: a result stored while the clear waits in the
+        # queue is saved after it, and must not be cleared in memory either.
+        present = stored_transcription.values_on(self._all_transcription_copies())
 
         def _finish(count):
             if count is None:
                 on_done(None)
                 return
-            changed = clear_in_memory(self._all_transcription_copies(), decided_at)
+            changed = clear_in_memory(self._all_transcription_copies(), decided_at, present)
             if changed:
                 # No save: the database already holds the cleared state.
                 cp = getattr(self, "conversations_panel", None)

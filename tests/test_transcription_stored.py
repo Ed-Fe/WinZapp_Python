@@ -1585,9 +1585,10 @@ def test_the_scan_would_see_an_id_in_a_log_line():
 
 async def test_the_video_duration_line_still_names_its_message(in_memory_db, caplog):
     """_with_known_video_duration() is not in _NEW_CODE on purpose: its line is
-    only reached for a videoMessage, a video is never transcribed, and the id
-    is what ties it to _apply_probed_video_duration()'s own line when a
-    video's length "goes back to 0 seconds" (488571e7)."""
+    about a video's duration, never its transcription (whose text, contact and
+    id are logged nowhere), and the id is what ties it to
+    _apply_probed_video_duration()'s own line when a video's length "goes back
+    to 0 seconds" (488571e7)."""
     caplog.set_level(logging.INFO)
     video = {"key": {"id": "V1", "remoteJid": _JID, "fromMe": False},
              "messageType": "videoMessage", "messageTimestamp": 1,

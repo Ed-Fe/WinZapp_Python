@@ -68,7 +68,10 @@ class _BulkRun:
         self.lock = threading.Lock()
         self.current = None
         self.running = True
+        #: bulk.entry() dicts, oldest first.
         self.entries = []
+        #: Results the cache did not keep (the model's cache is off).
+        self.not_kept = 0
 
     def cancel(self):
         self.cancelled.set()
@@ -86,6 +89,16 @@ class BulkTranscriptionMixin:
     def _bulk_transcription_running(self) -> bool:
         run = getattr(self, "_bulk_transcription", None)
         return run is not None and run.running
+
+    def _cancel_bulk_transcription_now(self):
+        """Quitting: cancel a bulk run with no question asked; the transcription
+        it is running (to wait for), or None."""
+        run = getattr(self, "_bulk_transcription", None)
+        if run is None or not run.running:
+            return None
+        run.cancel()
+        with run.lock:
+            return run.current
 
     def _on_accel_bulk_transcribe(self, event):
         """Ctrl+Alt+Shift+T: transcribe the selected messages and show them
@@ -162,11 +175,10 @@ class BulkTranscriptionMixin:
             if value is None or stored_transcription.is_inline(value):
                 continue
             previous = msg.get(stored_transcription.TRANSCRIPTION_KEY)
-            chosen = dict(value, inline=True, at=stored_transcription.next_decision_time(
-                time.time(), previous))
             msg_id = (msg.get("key") or {}).get("id", "")
             if self.main_window.store_message_transcription(
-                    jid, msg_id, stored_transcription.with_result(previous, chosen)
+                    jid, msg_id, stored_transcription.marked_inline(value, previous, time.time()),
+                    existing=True,
             ) == stored_transcription.SAVE_STORED:
                 changed.append(msg_id)
         if changed:
@@ -197,7 +209,7 @@ class BulkTranscriptionMixin:
                          wx.YES_NO | wx.ICON_QUESTION, self) == wx.YES:
             run.cancel()
 
-    def _on_show_bulk_transcriptions(self, event=None):
+    def _on_show_bulk_transcriptions(self, event=None, spoken=""):
         """The context menu's "all the transcriptions together": the same
         result window as a single transcription (copy, save as text, insert)."""
         run = getattr(self, "_bulk_transcription", None)
@@ -207,14 +219,25 @@ class BulkTranscriptionMixin:
         if mw.is_chat_hidden_by_vault(run.jid):
             return
         i18n = mw.i18n
+        selection = stored_transcription.selection_from_settings(mw.settings)
+        shown = bulk.shown_entries(
+            run.entries,
+            lambda msg_id: stored_transcription.find_record(
+                mw._transcription_copies(run.jid, msg_id), msg_id),
+            selection)
+        if not shown:
+            # The tally the window would have said, then why it did not open.
+            nothing = i18n.t("bulk_transcription_nothing_to_show")
+            mw.output(f"{spoken} {nothing}" if spoken else nothing, interrupt=not spoken)
+            return
         text = bulk.combined_text(
-            run.entries, self._sender_label, self._extract_timestamp, i18n.t("datetime_fmt"))
+            shown, self._sender_label, self._extract_timestamp, i18n.t("datetime_fmt"))
         from ui.dialogs.transcription_result import TranscriptionResultDialog, default_file_name
         from ui.transcription_flow import insertion_text
 
         dialog = TranscriptionResultDialog(
             mw, mw, i18n.t("bulk_transcription_window_title"), text,
-            default_file=default_file_name(i18n, ""))
+            spoken=spoken, default_file=default_file_name(i18n, ""))
         try:
             dialog.run()
             insert = dialog.insert_requested
@@ -243,7 +266,7 @@ class BulkTranscriptionMixin:
         try:
             for msg, saved in run.order:
                 if saved:
-                    run.entries.append((msg, saved))
+                    run.entries.append(bulk.entry(msg, saved, bulk.KEPT))
                     continue
                 if run.cancelled.is_set():
                     break
@@ -270,8 +293,10 @@ class BulkTranscriptionMixin:
                     run.tally.skipped += 1
                     continue
                 run.tally.transcribed += 1
-                run.entries.append((msg, result.text))
-                wx.CallAfter(self._store_bulk_transcription, run.jid, msg, result, run.inline)
+                item = bulk.entry(msg, result.text)
+                run.entries.append(item)
+                wx.CallAfter(self._store_bulk_transcription, run.jid, msg, result,
+                             run.inline, item)
         except Exception as exc:
             logging.error("[transcription] the bulk transcription stopped: %s",
                           type(exc).__name__)
@@ -325,7 +350,7 @@ class BulkTranscriptionMixin:
 
     # ── Back on the wx thread ────────────────────────────────────────────────
 
-    def _store_bulk_transcription(self, jid, msg, result, inline_run=False):
+    def _store_bulk_transcription(self, jid, msg, result, inline_run=False, item=None):
         msg_id = (msg.get("key") or {}).get("id", "")
         previous = msg.get(stored_transcription.TRANSCRIPTION_KEY)
         # Into the line for the Alt+Shift+N form; for the Alt+Shift+T form a
@@ -339,7 +364,16 @@ class BulkTranscriptionMixin:
         except Exception as exc:
             logging.warning("[transcription] storing a bulk transcription failed: %s",
                             type(exc).__name__)
-            return
+            answer = None
+        if item is not None:
+            # What the combined window may show of it later (bulk.shown_entries).
+            item["kept"] = (bulk.KEPT if answer == stored_transcription.SAVE_STORED
+                            else bulk.NOT_KEPT if answer == stored_transcription.SAVE_DISABLED
+                            else bulk.REFUSED)
+            if answer == stored_transcription.SAVE_DISABLED:
+                run = getattr(self, "_bulk_transcription", None)
+                if run is not None:
+                    run.not_kept += 1
         if answer != stored_transcription.SAVE_STORED:
             return
         if self.main_window.is_chat_hidden_by_vault(jid):
@@ -368,8 +402,28 @@ class BulkTranscriptionMixin:
         if stop_sentence:
             # The reason first: it is what the user has to act on.
             text = f"{stop_sentence} {text}"
-        self.main_window.output(text)
+        if run.not_kept:
+            # The model's cache is off: the texts were made but not kept.
+            text = f"{text} {i18n.t('bulk_transcription_not_kept')}"
         if not run.inline and run.entries and not run.cancelled.is_set():
-            # Alt+Shift+T's form ends where Alt+Shift+T does: in the window,
-            # after the tally has been said.
-            wx.CallAfter(self._on_show_bulk_transcriptions)
+            # Alt+Shift+T's form ends where Alt+Shift+T does, in the window —
+            # but only where the user still is: the conversation the run was
+            # started in, with WinZapp's window active. The tally is then said
+            # by the window, after its own announcement, rather than cut off
+            # by the focus moving into it. Anywhere else the window would land
+            # on someone typing in another conversation: it is offered instead.
+            if self._bulk_window_may_open(run):
+                wx.CallAfter(self._on_show_bulk_transcriptions, None, text)
+                return
+            text = f"{text} {i18n.t('bulk_transcription_open_hint')}"
+        self.main_window.output(text)
+
+    def _bulk_window_may_open(self, run) -> bool:
+        conversation = self.conversation if isinstance(self.conversation, dict) else {}
+        if conversation.get("remoteJid", "") != run.jid:
+            return False
+        is_active = getattr(self.main_window, "IsActive", None)
+        try:
+            return bool(is_active()) if callable(is_active) else False
+        except Exception:
+            return False

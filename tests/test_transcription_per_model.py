@@ -256,6 +256,85 @@ class TestClearingOnCopies:
         assert record[TRANSCRIPTION_KEY]["text"] == "a"
 
 
+class TestAResultStoredWhileTheClearWaits:
+    """A save queued behind the clear reaches the disk after it; memory must
+    keep it too, or the next sync carries a tombstone over it to the disk."""
+
+    def test_a_new_value_dated_after_the_request_is_kept(self):
+        record = {"key": {"id": "M1"}, TRANSCRIPTION_KEY: _rec("base", "old", at=10.0)}
+        present = stored.values_on([record])
+        record[TRANSCRIPTION_KEY] = _rec("base", "new", at=60.0)
+        assert stored.drop_model_on_copies([record], "base", None, 50.0, present) == []
+        assert record[TRANSCRIPTION_KEY]["text"] == "new"
+        assert stored.drop_all_on_copies([record], 50.0, present) == []
+        assert record[TRANSCRIPTION_KEY]["text"] == "new"
+
+    def test_a_value_that_was_there_goes_even_if_dated_ahead(self):
+        # The clock ran behind: the database clears it, so memory does too.
+        record = {"key": {"id": "M1"}, TRANSCRIPTION_KEY: _rec("base", "a", at=100.0)}
+        present = stored.values_on([record])
+        assert stored.drop_model_on_copies([record], "base", None, 50.0, present) == ["M1"]
+        assert record[TRANSCRIPTION_KEY].get("deleted") is True
+
+    def test_a_new_copy_of_an_older_value_still_goes(self):
+        # A sync that read the disk before the clear brings an older value in
+        # a new dict: it is what the disk no longer holds.
+        record = {"key": {"id": "M1"}, TRANSCRIPTION_KEY: _rec("base", "a", at=10.0)}
+        present = stored.values_on([record])
+        record[TRANSCRIPTION_KEY] = dict(record[TRANSCRIPTION_KEY])
+        assert stored.drop_all_on_copies([record], 50.0, present) == ["M1"]
+
+    def test_values_on_skips_what_holds_nothing(self):
+        holder = {"key": {"id": "M1"}, TRANSCRIPTION_KEY: _rec("base", "a")}
+        assert stored.values_on([holder, {"key": {}}, None, "junk"]) == [holder[TRANSCRIPTION_KEY]]
+
+
+class TestTheWriteKeepsTheRowsOtherModels:
+    def test_a_model_the_value_lacks_is_kept_from_the_row(self):
+        row = stored.with_result(_rec("base", "a", at=1.0), _rec("small", "b", at=2.0))
+        value = _rec("medium", "c", at=3.0)
+        merged = stored.with_missing_results(value, row)
+        assert {r["model_id"]: r["text"] for r in stored.results_of(merged)} == {
+            "medium": "c", "small": "b", "base": "a"}
+        assert merged["text"] == "c"
+
+    def test_the_values_own_result_for_a_model_wins(self):
+        row = _rec("base", "old", at=1.0)
+        value = _rec("base", "new", at=3.0)
+        assert stored.with_missing_results(value, row) is value
+
+    def test_a_tombstone_on_either_side_adds_nothing(self):
+        tomb = stored.tombstone(9.0)
+        assert stored.with_missing_results(tomb, _rec("base", "a")) is tomb
+        value = _rec("base", "a", at=10.0)
+        assert stored.with_missing_results(value, tomb) is value
+        assert stored.with_missing_results(value, None) is value
+
+
+class TestMarkingAnOldTextInline:
+    def test_it_keeps_the_date_the_text_was_made(self):
+        value = _rec("base", "a", at=1000.0)
+        marked = stored.marked_inline(value, value, 5000.0)
+        assert stored.is_inline(marked)
+        assert marked["at"] == 5000.0
+        assert stored.made_time(marked) == 1000.0
+
+    def test_a_text_already_carrying_its_date_keeps_that_one(self):
+        value = _rec("base", "a", at=3000.0, made_at=1000.0)
+        assert stored.made_time(stored.marked_inline(value, value, 5000.0)) == 1000.0
+
+    def test_it_is_dated_after_the_previous_decision_whatever_the_clock(self):
+        value = _rec("base", "a", at=9000.0)
+        assert stored.marked_inline(value, value, 5000.0)["at"] > 9000.0
+
+    def test_the_other_models_results_stay(self):
+        previous = stored.with_result(_rec("small", "b", at=1.0), _rec("base", "a", at=2.0))
+        small = next(r for r in stored.results_of(previous) if r["model_id"] == "small")
+        marked = stored.marked_inline(small, previous, 10.0)
+        assert marked["model_id"] == "small" and stored.is_inline(marked)
+        assert {r["model_id"] for r in stored.results_of(marked)} == {"small", "base"}
+
+
 class TestWhatClearingSays:
     def test_each_outcome_has_its_own_sentence(self):
         assert stored.clear_cache_message_key(None) == "transcription_clear_cache_failed"

@@ -79,3 +79,43 @@ def combined_text(entries, sender_of, timestamp_of, datetime_format) -> str:
         blocks.append(format_copied_message(
             timestamp_of(msg), sender_of(msg), text, datetime_format))
     return "\n\n".join(blocks)
+
+
+#: What became of an entry's text when it was stored (`entry["kept"]`).
+KEPT = "kept"            # stored with the message (or already was)
+NOT_KEPT = "not_kept"    # the cache is off for its model: only the run has it
+REFUSED = "refused"      # withdrawn, unsent or missing: never shown
+
+
+def entry(msg, text, kept=None) -> dict:
+    """One message of a bulk run, as the combined window will read it back."""
+    return {"msg": msg, "id": (msg.get("key") or {}).get("id", ""), "text": text,
+            "kept": kept}
+
+
+def shown_entries(entries, current_of, selection=None) -> list:
+    """(record, text) for the combined window, read again *now*.
+
+    A run takes minutes and the window may be opened long after: a message
+    withdrawn by its sender meanwhile, or whose transcription the user deleted
+    or cleared, must not have its text shown (the SAVE_WITHDRAWN rule of
+    stored.py). `current_of(msg_id)` is the record memory holds now, or None.
+    A kept text is read from the record; one the cache did not keep is the
+    run's own, shown only while the message is still there and not withdrawn.
+    """
+    shown = []
+    for item in entries:
+        current = current_of(item["id"])
+        if current is None or stored_transcription.is_withdrawn(current):
+            continue
+        if item["kept"] == NOT_KEPT:
+            if item["text"]:
+                shown.append((current, item["text"]))
+            continue
+        if item["kept"] != KEPT:
+            continue
+        saved = stored_transcription.saved_transcription(current, selection)
+        text = (saved or {}).get("text")
+        if text:
+            shown.append((current, text))
+    return shown

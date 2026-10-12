@@ -44,6 +44,7 @@ from core.transcription.stored import (
     next_decision_time,
     tombstone,
     with_known_transcription,
+    with_missing_results,
 )
 from core.utils import MEASURED_SECONDS_KEY
 
@@ -1264,6 +1265,10 @@ class DatabaseManager:
                     elif newer_decision(value, current) is not value:
                         refused_older = True
                         continue
+                    else:
+                        # Other models' results the row holds and the value,
+                        # built from a copy in memory, may not.
+                        row_value = with_missing_results(value, current)
                     stored[TRANSCRIPTION_KEY] = row_value
                     await conn.execute(
                         "UPDATE messages SET message_json=? WHERE remote_jid=? AND message_id=?",

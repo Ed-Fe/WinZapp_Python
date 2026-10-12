@@ -874,6 +874,11 @@ class MessageTranscriptionFlow:
     def _after_delete(self, ok):
         """On the wx thread, once the database has answered."""
         if ok:
+            # The row carried the text in its line: redraw it without, so that
+            # arrowing back does not read the deleted text. No focus move: the
+            # focus went back to the message when the question closed.
+            if not self._hidden_by_vault():
+                self._repaint_row()
             self._main_window.output(self._i18n.t("transcription_deleted"))
             return
         self._play_error_sound()
@@ -966,12 +971,12 @@ class MessageTranscriptionFlow:
             return
         if not stored_transcription.is_inline(value):
             previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY)
-            chosen = dict(value, inline=True, at=stored_transcription.next_decision_time(
-                time.time(), previous))
-            # The chosen model's result becomes the newest, the others stay.
-            marked = stored_transcription.with_result(previous, chosen)
+            marked = stored_transcription.marked_inline(value, previous, time.time())
+            # existing=True: a text already kept, only marked — the cache
+            # switches are about keeping new ones.
             if self._main_window.store_message_transcription(
-                    self._jid, self._msg_id, marked) != stored_transcription.SAVE_STORED:
+                    self._jid, self._msg_id, marked, existing=True
+            ) != stored_transcription.SAVE_STORED:
                 # Nowhere to keep the mark: open the window, where the text can
                 # still be read.
                 self._inline = False

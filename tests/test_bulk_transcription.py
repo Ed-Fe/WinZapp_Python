@@ -6,13 +6,14 @@ message runs faked at message_run.MessageTranscription.
 """
 
 import pathlib
+import re
 import types
 
 import pytest
 
 import core.keyboard_shortcuts as keyboard_shortcuts
 from core.shortcut_catalog import SHORTCUTS
-from core.transcription import errors, message_run
+from core.transcription import bulk, errors, message_run
 from core.transcription import stored as stored_transcription
 from core.transcription.backend import TranscriptionResult
 from tests.locales import load_strings, registered_locale_codes
@@ -63,11 +64,13 @@ class TestTheShortcuts:
         assert table[label] and table[label] != label
 
     def test_the_table_and_the_handlers_are_wired(self):
+        # Spacing-tolerant: the table is column-aligned.
         source = (CLIENT / "ui/conversation_panel/accelerators.py").read_text(encoding="utf-8")
-        assert 'ord("T"),           self.ID_BULK_TRANSCRIBE)' in source
-        assert 'ord("N"),           self.ID_BULK_TRANSCRIBE_INLINE)' in source
-        assert "self._on_accel_bulk_transcribe,      id=self.ID_BULK_TRANSCRIBE)" in source
-        assert "self._on_accel_bulk_transcribe_inline, id=self.ID_BULK_TRANSCRIBE_INLINE)" in source
+        assert re.search(r'ord\("T"\),\s*self\.ID_BULK_TRANSCRIBE\)', source)
+        assert re.search(r'ord\("N"\),\s*self\.ID_BULK_TRANSCRIBE_INLINE\)', source)
+        assert re.search(r"self\._on_accel_bulk_transcribe,\s*id=self\.ID_BULK_TRANSCRIBE\)", source)
+        assert re.search(
+            r"self\._on_accel_bulk_transcribe_inline,\s*id=self\.ID_BULK_TRANSCRIBE_INLINE\)", source)
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_every_sentence_exists_and_formats(self, locale):
@@ -106,16 +109,31 @@ class _MainWindow:
         self.said = []
         self.stored = []
         self.hidden = False
+        self.active = True
+        #: msg_id -> what store_message_transcription() answers (STORED otherwise).
+        self.answers = {}
+        #: The messages memory holds, set by _Panel.
+        self.messages = []
 
     def output(self, text, interrupt=False):
         self.said.append(text)
 
+    def IsActive(self):
+        return self.active
+
     def is_chat_hidden_by_vault(self, jid):
         return self.hidden
 
-    def store_message_transcription(self, jid, msg_id, value):
+    def _transcription_copies(self, jid, msg_id):
+        return [m for m in self.messages if (m.get("key") or {}).get("id") == msg_id]
+
+    def store_message_transcription(self, jid, msg_id, value, existing=False):
         self.stored.append((msg_id, value))
-        return stored_transcription.SAVE_STORED
+        answer = self.answers.get(msg_id, stored_transcription.SAVE_STORED)
+        if answer == stored_transcription.SAVE_STORED:
+            for msg in self._transcription_copies(jid, msg_id):
+                msg[KEY] = value
+        return answer
 
     def _find_api_ffmpeg(self):
         return ""
@@ -138,10 +156,13 @@ class _Panel:
     _on_mass_transcribe_messages = ConversationsPanel._on_mass_transcribe_messages
     _on_mass_transcribe_inline_messages = ConversationsPanel._on_mass_transcribe_inline_messages
     _mark_bulk_saved_inline = ConversationsPanel._mark_bulk_saved_inline
+    _bulk_window_may_open = ConversationsPanel._bulk_window_may_open
+    _cancel_bulk_transcription_now = ConversationsPanel._cancel_bulk_transcription_now
 
     def __init__(self, messages=(), selected=(), **kwargs):
         self.main_window = _MainWindow(**kwargs)
         self._sorted_messages = list(messages)
+        self.main_window.messages = self._sorted_messages
         self.selected_messages = set(selected)
         self.conversation = {"remoteJid": JID}
         self.messages_list = types.SimpleNamespace(GetFirstSelected=lambda: 0)
@@ -165,8 +186,9 @@ class _Panel:
     def _download_media_to_disk(self, msg, path):
         return True
 
-    def _on_show_bulk_transcriptions(self, event=None):
+    def _on_show_bulk_transcriptions(self, event=None, spoken=""):
         self.shown += 1
+        self.shown_spoken = spoken
 
 
 @pytest.fixture(autouse=True)
@@ -284,7 +306,7 @@ class TestTheQueue:
         panel = _Panel([_voice("a", **{KEY: saved}), _voice("b")], selected={"a", "b"})
         panel._on_mass_transcribe_inline_messages()
         assert [m.msg["key"]["id"] for m in runs.made] == ["b"]
-        assert [text for _m, text in panel._bulk_transcription.entries] == ["salvo", "novo"]
+        assert [e["text"] for e in panel._bulk_transcription.entries] == ["salvo", "novo"]
         # Put in its line without a run, as Alt+Shift+N does on one message.
         assert [m for m, _v in panel.main_window.stored] == ["a", "b"]
 
@@ -316,6 +338,117 @@ class TestTheQueue:
         panel = _Panel([_voice("a")], selected={"a"})
         panel._on_mass_transcribe_messages()
         assert runs.made == [] and panel.selected_messages == {"a"}
+
+
+class TestTheWindowOpensOnlyWhereTheUserIs:
+    def _run(self, runs, **change):
+        runs.outcomes = [(_result("um"), None)]
+        panel = _Panel([_voice("a")], selected={"a"})
+        for name, value in change.items():
+            setattr(panel.main_window, name, value)
+        return panel
+
+    def test_it_opens_and_says_the_tally_itself(self, runs):
+        panel = self._run(runs)
+        panel._on_mass_transcribe_messages()
+        assert panel.shown == 1
+        assert panel.shown_spoken == panel.main_window.i18n.t("bulk_transcription_done").format(
+            done=1, skipped=0, failed=0)
+        # Said by the window, after its own announcement — not here.
+        assert panel.shown_spoken not in panel.main_window.said
+
+    def test_with_the_app_in_the_background_it_is_offered_instead(self, runs):
+        panel = self._run(runs, active=False)
+        panel._on_mass_transcribe_messages()
+        assert panel.shown == 0
+        i18n = panel.main_window.i18n
+        assert panel.main_window.said[-1].endswith(i18n.t("bulk_transcription_open_hint"))
+
+    def test_in_another_conversation_it_is_offered_instead(self, runs):
+        runs.outcomes = [(_result("um"), None)]
+        panel = _Panel([_voice("a")], selected={"a"})
+        real_worker = panel._bulk_transcription_worker
+
+        def worker(run):
+            # The user opened another conversation while it ran.
+            panel.conversation = {"remoteJid": "other@s.whatsapp.net"}
+            real_worker(run)
+
+        panel._bulk_transcription_worker = worker
+        panel._on_mass_transcribe_messages()
+        assert panel.shown == 0
+        assert panel.main_window.said[-1].endswith(
+            panel.main_window.i18n.t("bulk_transcription_open_hint"))
+
+
+class TestWhatTheWindowMayShow:
+    """The SAVE_WITHDRAWN rule: a withdrawn message's text reaches no window."""
+
+    def test_a_message_withdrawn_mid_run_is_left_out(self, runs):
+        runs.outcomes = [(_result("um"), None), (_result("dois"), None)]
+        panel = _Panel([_voice("a"), _voice("b")], selected={"a", "b"})
+        panel.main_window.answers["a"] = stored_transcription.SAVE_WITHDRAWN
+        panel._on_mass_transcribe_messages()
+        entries = panel._bulk_transcription.entries
+        assert [e["kept"] for e in entries] == [bulk.REFUSED, bulk.KEPT]
+        shown = bulk.shown_entries(
+            entries, lambda mid: stored_transcription.find_record(
+                panel.main_window._transcription_copies(JID, mid), mid))
+        assert [text for _rec, text in shown] == ["dois"]
+
+    def test_a_text_deleted_after_the_run_is_left_out(self, runs):
+        runs.outcomes = [(_result("um"), None)]
+        panel = _Panel([_voice("a")], selected={"a"})
+        panel._on_mass_transcribe_messages()
+        panel._sorted_messages[0][KEY] = stored_transcription.tombstone(9e12)
+        shown = bulk.shown_entries(
+            panel._bulk_transcription.entries,
+            lambda mid: stored_transcription.find_record(
+                panel.main_window._transcription_copies(JID, mid), mid))
+        assert shown == []
+
+    def test_with_the_cache_off_the_runs_text_is_shown_and_the_tally_says_so(self, runs):
+        runs.outcomes = [(_result("um"), None)]
+        panel = _Panel([_voice("a")], selected={"a"})
+        panel.main_window.answers["a"] = stored_transcription.SAVE_DISABLED
+        panel._on_mass_transcribe_inline_messages()
+        [entry] = panel._bulk_transcription.entries
+        assert entry["kept"] == bulk.NOT_KEPT
+        i18n = panel.main_window.i18n
+        assert panel.main_window.said[-1].endswith(i18n.t("bulk_transcription_not_kept"))
+        shown = bulk.shown_entries(
+            [entry], lambda mid: stored_transcription.find_record(
+                panel.main_window._transcription_copies(JID, mid), mid))
+        assert [text for _rec, text in shown] == ["um"]
+
+    def test_nothing_left_to_show_is_said_with_the_tally(self, monkeypatch):
+        panel = _Panel([_voice("a")])
+        run = _BulkRun(JID, [], 0, 0, False)
+        run.running = False
+        run.entries = [bulk.entry(panel._sorted_messages[0], "um", bulk.REFUSED)]
+        panel._bulk_transcription = run
+        ConversationsPanel._on_show_bulk_transcriptions(panel, None, "tally.")
+        assert panel.main_window.said == [
+            "tally. " + panel.main_window.i18n.t("bulk_transcription_nothing_to_show")]
+
+
+class TestQuitting:
+    def test_a_running_bulk_run_is_cancelled_with_no_question(self):
+        panel = _Panel()
+        run = _BulkRun(JID, [], 2, 0, True)
+        current = types.SimpleNamespace(cancelled=False)
+        current.cancel = lambda: setattr(current, "cancelled", True)
+        run.current = current
+        panel._bulk_transcription = run
+        assert panel._cancel_bulk_transcription_now() is current
+        assert run.cancelled.is_set() and current.cancelled
+
+    def test_nothing_running_returns_none(self):
+        panel = _Panel()
+        assert panel._cancel_bulk_transcription_now() is None
+        panel._bulk_transcription = _BulkRun(JID, [], 0, 0, True)
+        panel._bulk_transcription.running = False
+        assert panel._cancel_bulk_transcription_now() is None
 
 
 class TestCancelling:

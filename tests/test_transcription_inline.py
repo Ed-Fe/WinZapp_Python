@@ -9,6 +9,7 @@ a plain stub, and nothing here opens a window.
 
 import ast
 import pathlib
+import re
 import types
 
 import pytest
@@ -132,6 +133,63 @@ class TestVideos:
         assert panel.transcribed == []
 
 
+def _audio_document(inline=True, text=TEXT):
+    msg = {
+        "key": {"id": "D1", "remoteJid": "1@s.whatsapp.net", "fromMe": False},
+        "messageType": "documentMessage",
+        "message": {"documentMessage": {"fileName": "aula.mp3", "mimetype": "audio/mpeg"}},
+    }
+    if text is not None:
+        msg[stored.TRANSCRIPTION_KEY] = {"text": text, "at": 1.0, **({"inline": True} if inline else {})}
+    return msg
+
+
+class TestAudioDocuments:
+    """An mp3 sent as a document is transcribed like a voice note (is_transcribable),
+    so Alt+Shift+N's text has to reach its line too."""
+
+    def _stub(self):
+        stub = _Stub()
+        stub._download_progress = {}
+        stub._format_filesize = lambda size: ""
+        return stub
+
+    def test_the_row_carries_the_inline_text(self):
+        row = self._stub()._get_message_content(_audio_document())
+        assert row.endswith(f"aula.mp3, {_I18n().t('transcription_row_label')}: {TEXT}")
+
+    def test_one_opened_in_the_window_leaves_the_row_short(self):
+        row = self._stub()._get_message_content(_audio_document(inline=False))
+        assert _I18n().t("transcription_row_label") not in row
+
+
+class TestReadMoreOnALongDocumentLine:
+    def test_the_button_offers_the_rest_of_the_line(self):
+        long_text = "palavra " * 200
+        shown = []
+
+        class _Button:
+            def Show(self):
+                shown.append(True)
+
+            def Hide(self):
+                shown.append(False)
+
+        stub = types.SimpleNamespace(
+            _message_list_mode="classic",
+            _sorted_messages=[_audio_document(text=long_text)],
+            _is_separator=lambda msg: False,
+            _render_message_line=lambda msg: "x" * 600,
+            _LIST_CTRL_TEXT_LIMIT=511,
+            _read_more_btn=_Button(),
+            main_window=types.SimpleNamespace(settings={}),
+            conversation_panel=types.SimpleNamespace(Layout=lambda: None),
+        )
+        ConversationsPanel._update_read_more_button(stub, 0)
+        assert shown == [True]
+        assert stub._read_more_remainder == "x" * 89
+
+
 class TestTheRow:
     def test_the_text_follows_the_duration(self):
         row = _Stub()._get_message_content(_voice())
@@ -181,7 +239,7 @@ class TestEnterAndSpace:
         assert panel.played == ["A1"]
 
 
-class TestCtrlShiftT:
+class TestAltShiftN:
     def test_with_enter_playing_it_transcribes_into_the_line(self):
         panel = _Stub()
         panel._on_menu_toggle_voice_action(_voice())
@@ -224,11 +282,13 @@ class TestWhatIsSaid:
 
 class TestTheWiring:
     def test_the_key_is_in_the_messages_table_and_bound(self):
+        # Spacing-tolerant: the table is column-aligned, and a reformat must
+        # not fail this.
         source = (CLIENT / "ui/conversation_panel/accelerators.py").read_text(encoding="utf-8")
-        assert 'ord("N"),          self.ID_ALT_SHIFT_N' in source
-        assert "self._on_accel_transcribe_inline,   id=self.ID_ALT_SHIFT_N" in source
+        assert re.search(r'ord\("N"\),\s*self\.ID_ALT_SHIFT_N', source)
+        assert re.search(r"self\._on_accel_transcribe_inline,\s*id=self\.ID_ALT_SHIFT_N", source)
 
-    def test_it_is_in_the_catalogue_with_ctrl_shift_t(self):
+    def test_it_is_in_the_catalogue_with_alt_shift_n(self):
         from core.shortcut_catalog import SHORTCUTS
 
         row = next(s for s in SHORTCUTS if s.id == "messages.ID_ALT_SHIFT_N")

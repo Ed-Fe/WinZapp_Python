@@ -37,6 +37,10 @@ class _Queue:
     def __init__(self):
         self.submitted = []
         self.paused = []
+        self.stopped = False
+
+    def stop(self):
+        self.stopped = True
 
     def submit(self, key, item):
         self.submitted.append((key, item))
@@ -79,7 +83,7 @@ class _Window(AutoTranscriptionMixin):
     def _transcription_copies(self, jid, msg_id):
         return self.records
 
-    def store_message_transcription(self, jid, msg_id, value):
+    def store_message_transcription(self, jid, msg_id, value, existing=False):
         self.stored.append((jid, msg_id, value))
         return stored_transcription.SAVE_STORED
 
@@ -162,12 +166,17 @@ class _FakeRun:
         self.kwargs = kwargs
         _FakeRun.built.append(self)
 
+    cancelled = False
+
     def start(self):
         result, error = _FakeRun.outcome
         self.kwargs["on_finished"](result, error)
 
-    def join(self):
-        pass
+    def join(self, timeout=None):
+        self.joined = timeout
+
+    def cancel(self):
+        self.cancelled = True
 
 
 @pytest.fixture
@@ -321,3 +330,102 @@ class TestFetchingTheAudio:
         window.handle_audio_message = lambda msg: calls.append(msg)
         assert window._auto_fetch_media(_msg(), str(path)) is False
         assert len(calls) == 1
+
+
+class TestTheLockIsCheckedAgainBeforeARun:
+    def test_a_chat_locked_while_queued_is_not_run(self, fake_run):
+        window = _Window()
+        window._locked = True
+        window._run_auto_transcription((JID, "M1", _msg()))
+        assert fake_run.built == []
+
+    def test_a_lock_check_that_raises_runs_nothing(self, fake_run):
+        window = _Window()
+
+        def boom(jid):
+            raise RuntimeError("vault")
+
+        window.is_chat_locked = boom
+        window._run_auto_transcription((JID, "M1", _msg()))
+        assert fake_run.built == []
+
+
+class _Running:
+    def __init__(self):
+        self.cancelled = False
+        self.joined = None
+
+    def cancel(self):
+        self.cancelled = True
+
+    def join(self, timeout=None):
+        self.joined = timeout
+
+
+class TestQuitting:
+    def test_the_queue_stops_and_its_run_is_cancelled_and_waited_for(self):
+        window = _Window()
+        running = _Running()
+        window._auto_transcription_current = running
+        window.stop_transcription_runs(timeout=1.0)
+        assert window.queue.stopped is True
+        assert running.cancelled is True
+        assert running.joined is not None and running.joined <= 1.0
+
+    def test_a_bulk_run_is_cancelled_too(self):
+        window = _Window()
+        bulk = _Running()
+        window.conversations_panel = type(
+            "P", (), {"_cancel_bulk_transcription_now": lambda self: (bulk.cancel(), bulk)[1]})()
+        window.stop_transcription_runs(timeout=1.0)
+        assert bulk.cancelled is True and bulk.joined is not None
+
+    def test_nothing_running_is_fine(self):
+        window = _Window()
+        window._auto_transcription_queue = None
+        window.stop_transcription_runs(timeout=0.1)
+
+    def test_a_run_starting_after_the_stop_is_cancelled_before_it_starts(self, fake_run):
+        window = _Window()
+        msg = _msg()
+        window.records = [msg]
+        window.queue.stopped = True
+        fake_run.outcome = (None, None)
+        window._run_auto_transcription((JID, "M1", msg))
+        assert fake_run.built[0].cancelled is True
+        assert window._auto_transcription_current is None
+
+
+class TestShutdownCallsIt:
+    """_perform_shutdown() against a minimal stub, as
+    tests/test_perform_shutdown_reentrancy.py runs it."""
+
+    def test_perform_shutdown_stops_the_transcription_runs_before_the_server(self):
+        import threading
+
+        from main_window.window_lifecycle import WindowLifecycleMixin
+
+        order = []
+
+        class _Stub:
+            _perform_shutdown = WindowLifecycleMixin._perform_shutdown
+
+            def __init__(self):
+                self._teardown_started_lock = threading.Lock()
+                self._teardown_complete_event = threading.Event()
+                self._shutting_down = False
+
+            def _stop_voice_call_audio(self, grace_seconds=0.0):
+                pass
+
+            def stop_transcription_runs(self):
+                order.append("transcriptions")
+
+            def _stop_wpp_server(self):
+                order.append("server")
+
+            def _flush_pending_debounced_saves(self):
+                pass
+
+        assert _Stub()._perform_shutdown() is True
+        assert order == ["transcriptions", "server"]
