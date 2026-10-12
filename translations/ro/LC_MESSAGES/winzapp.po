@@ -2660,6 +2660,7 @@ msgstr "Goliți conversațiile selectate"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
+#: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 #: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
@@ -6164,13 +6165,25 @@ msgstr "{name}: {percent}%"
 #, python-brace-format
 msgctxt "poll_option_vote_one"
 msgid "{name}, {count} vote"
-msgstr "{name}, {count} vot"
+msgstr "{name}, voturi: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_vote_one_percent"
+msgid "{name}, {count} vote ({percent}%)"
+msgstr "{name}, voturi: {count} ({percent}%)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "poll_option_votes"
 msgid "{name}, {count} votes"
-msgstr "{name}, {count} voturi"
+msgstr "{name}, voturi: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_votes_percent"
+msgid "{name}, {count} votes ({percent}%)"
+msgstr "{name}, voturi: {count} ({percent}%)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 #, python-brace-format
@@ -6186,8 +6199,8 @@ msgstr "Sondaj: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
 msgctxt "poll_vote_button"
-msgid "&Vote"
-msgstr "&Votează"
+msgid "Vo&te"
+msgstr "V&otează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "poll_vote_failed"
@@ -6203,6 +6216,47 @@ msgstr "Se trimite votul…"
 msgctxt "poll_vote_sent"
 msgid "Vote sent"
 msgstr "Vot trimis"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_voter_row"
+msgid "{name}: {options}"
+msgstr "{name}: {options}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_voters_button"
+msgid "&View votes"
+msgstr "&Vezi voturile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_empty"
+msgid "No votes yet."
+msgstr "Nu există încă voturi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_failed"
+msgid "Could not load the votes."
+msgstr "Voturile nu au putut fi încărcate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_list_label"
+msgid "Votes:"
+msgstr "Voturi:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_loading"
+msgid "Loading votes..."
+msgstr "Se încarcă voturile..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_title"
+msgid "Poll votes"
+msgstr "Voturile sondajului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
@@ -7206,7 +7260,7 @@ msgctxt "send_voice_message"
 msgid "Send voice message"
 msgstr "Trimiteți mesaj vocal"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 msgctxt "sender_you"
 msgid "You"
 msgstr "Dvs."

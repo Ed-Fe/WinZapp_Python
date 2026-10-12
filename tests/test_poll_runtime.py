@@ -22,7 +22,8 @@ const sent = [];
 const options = [{name:'A', localId:0}, {name:'B', localId:1}, {name:'C', localId:2}];
 const poll = {id:'poll-key', type:'poll_creation', pollOptions:options, pollSelectableOptionsCount:1};
 const votes = [
-  {selectedOptionLocalIds:[0]}, {selectedOptionLocalIds:[0, 1]}, {selectedOptionLocalIds:[]},
+  {selectedOptionLocalIds:[0], sender:'ana@lid'}, {selectedOptionLocalIds:[0, 1], sender:{_serialized:'me'}},
+  {selectedOptionLocalIds:[], sender:'gone@lid'},
 ];
 const group = {toArray:()=>votes, getVoteFromSenderAddressingModeInsensitive:()=>({selectedOptionLocalIds:[1]})};
 const modules = {
@@ -36,7 +37,7 @@ const ctx = vm.createContext({WPP:wpp});
 // Serialize like Puppeteer: only each function's own text reaches the page.
 const source = fs.readFileSync(process.argv[1],'utf8').replaceAll('export ','');
 vm.runInContext(source, vm.createContext({}));
-for (const name of ['readPollVotes', 'writePollVote']) {
+for (const name of ['readPollVotes', 'readPollVoters', 'writePollVote']) {
   const fn = new vm.Script('(' + (() => { const c = vm.createContext({}); vm.runInContext(source, c); return c[name].toString(); })() + ')').runInContext(ctx);
   ctx[name] = fn;
 }
@@ -90,4 +91,23 @@ def test_a_throwing_send_reports_failure_without_native_detail():
 modules.WAWebPollsSendVoteMsgAction.sendVote = async () => { throw new Error('secret name'); };
 const r = await ctx.writePollVote({messageId:'poll-id', localIds:[0]});
 assert.strictEqual(JSON.stringify(r), '{"ok":false,"error":"poll_vote_failed"}');
+""")
+
+
+def test_voters_list_who_voted_what_and_mark_mine():
+    _run("""
+const out = await ctx.readPollVoters({messageId:'poll-id'});
+assert.strictEqual(out.ok, true);
+assert.strictEqual(JSON.stringify(out.voters),
+  '[{"sender":"ana@lid","mine":false,"localIds":[0]},{"sender":"me","mine":true,"localIds":[0,1]}]');
+assert.strictEqual(JSON.stringify(out.options.map(o=>o.name)), '["A","B","C"]');
+""")
+
+
+def test_voters_of_a_missing_poll_or_collection_is_an_error_code():
+    _run("""
+assert.strictEqual(JSON.stringify(await ctx.readPollVoters({messageId:'other-id'})),
+  '{"ok":false,"error":"poll_voters_unavailable"}');
+delete modules.WAWebPollsPollVoteCollection;
+assert.strictEqual((await ctx.readPollVoters({messageId:'poll-id'})).error, 'poll_voters_unavailable');
 """)

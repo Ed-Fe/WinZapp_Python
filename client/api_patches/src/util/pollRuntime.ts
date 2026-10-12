@@ -11,7 +11,9 @@
 //    = the voter cleared the vote);
 //  - WAWebPollsSendVoteMsgAction.sendVote(pollMsg, Set<localId>) casts or
 //    changes the current user's vote; an empty Set clears it.
-// Only counts and option names leave the page, never voter identities.
+// readPollVotes returns only counts and option names. readPollVoters is the one
+// that returns who voted what, for the "View votes" window; it is only called
+// when the user asks for it, and only sender ids and option ids leave the page.
 
 export async function readPollVotes({ messageIds }) {
   // Puppeteer sends only this function's own text to the page, so the helpers
@@ -67,6 +69,53 @@ export async function readPollVotes({ messageIds }) {
     };
   }
   return result;
+}
+
+export async function readPollVoters({ messageId }) {
+  // Puppeteer sends only this function's own text to the page, so the helpers
+  // live inside it (a module-level helper would be undefined there).
+  const loadModule = (name) => {
+    const loader = globalThis['WPP']?.loader;
+    if (typeof loader?.loadModule === 'function') return loader.loadModule(name);
+    if (typeof loader?.moduleRequire === 'function') return loader.moduleRequire(name);
+    return undefined;
+  };
+  const idOf = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    return String(value._serialized ?? (typeof value.toString === 'function' ? value.toString() : ''));
+  };
+  try {
+    const msg = await globalThis['WPP']?.chat?.getMessageById?.(messageId);
+    const collection = loadModule('WAWebPollsPollVoteCollection')?.PollVoteCollection;
+    if (!msg || msg.type !== 'poll_creation'
+        || typeof collection?.getForParentAddressingModeInsensitive !== 'function') {
+      return { ok: false, error: 'poll_voters_unavailable' };
+    }
+    const hydrate = loadModule('WAWebAddonHydrationUtils')?.hydrateAddons;
+    const hydrationType = loadModule('WAWebMsgType')?.MSG_TYPE?.POLL_UPDATE;
+    if (typeof hydrate === 'function' && hydrationType !== undefined) {
+      try { await hydrate({ ids: [msg.id], hydrationType }); } catch { /* best effort */ }
+    }
+    let me = '';
+    try { me = idOf(loadModule('WAWebUserPrefsMeUser')?.getMeLidUserOrThrow?.()); } catch { /* unknown */ }
+    const group = collection.getForParentAddressingModeInsensitive([msg.id])?.[0];
+    const voters = new Array();
+    for (const vote of group?.toArray?.() ?? []) {
+      const localIds = (vote?.selectedOptionLocalIds ?? []).filter((id) => Number.isInteger(id));
+      if (!localIds.length) continue;
+      const sender = idOf(vote.sender ?? vote.senderUserJid ?? vote.from);
+      if (!sender) continue;
+      voters.push({ sender, mine: !!me && sender === me, localIds });
+    }
+    return {
+      ok: true,
+      options: (msg.pollOptions ?? []).map((option) => ({ name: option.name, localId: option.localId })),
+      voters,
+    };
+  } catch {
+    return { ok: false, error: 'poll_voters_unavailable' };
+  }
 }
 
 export async function writePollVote({ messageId, localIds }) {

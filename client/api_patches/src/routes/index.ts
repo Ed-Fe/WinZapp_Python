@@ -213,6 +213,12 @@ routes.post(
   PollController.readPollVotesRoute
 );
 routes.post(
+  '/api/:session/poll-voters',
+  verifyToken,
+  statusConnection,
+  PollController.readPollVotersRoute
+);
+routes.post(
   '/api/:session/vote-poll',
   verifyToken,
   statusConnection,

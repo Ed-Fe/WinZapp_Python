@@ -132,15 +132,20 @@ def options_by_votes(options: list[dict]) -> list[dict]:
     return sorted(options, key=lambda opt: -(opt["votes"] or 0))
 
 
-def option_label(i18n, option: dict) -> str:
-    """One option as spoken: its name, then its votes when they are known.
+def option_label(i18n, option: dict, percent: int | None = None) -> str:
+    """One option as spoken: its name, then its votes when they are known and,
+    when *percent* is given, its share of all votes.
 
     Only exactly 1 is singular: "0 votes", "1 vote", "2 votes".
     """
     if option["votes"] is None:
         return option["name"]
-    key = "poll_option_vote_one" if option["votes"] == 1 else "poll_option_votes"
-    return i18n.t(key).format(name=option["name"], count=option["votes"])
+    one = option["votes"] == 1
+    if percent is None:
+        key = "poll_option_vote_one" if one else "poll_option_votes"
+    else:
+        key = "poll_option_vote_one_percent" if one else "poll_option_votes_percent"
+    return i18n.t(key).format(name=option["name"], count=option["votes"], percent=percent)
 
 
 def poll_row_text(i18n, poll: dict) -> str:
@@ -210,3 +215,24 @@ def vote_poll_ids(options: list[dict], checked_names: list[str]) -> list[int]:
     """The ``localId`` of every checked option, for ``/vote-poll``."""
     chosen = set(checked_names)
     return [opt["localId"] for opt in options if opt["name"] in chosen]
+
+
+def voter_rows(i18n, voters: list, options: list, name_of) -> list[str]:
+    """The "View votes" lines, ``"<person>: <option>[, <option>]"``, one per
+    person who has a vote, ordered by name.
+
+    *voters* is ``[{"sender", "mine", "localIds"}]`` as ``/poll-voters``
+    returns it, *options* ``[{"name", "localId"}]``, and *name_of(sender)* gives
+    the name a person is shown under (never a raw JID). The user's own vote
+    reads as "You".
+    """
+    names = {o.get("localId"): str(o.get("name") or "") for o in options or []}
+    rows = []
+    for voter in voters or []:
+        chosen = [names[i] for i in voter.get("localIds") or [] if names.get(i)]
+        if not chosen:
+            continue
+        who = i18n.t("sender_you") if voter.get("mine") else name_of(voter.get("sender", ""))
+        rows.append((who, i18n.t("poll_voter_row").format(name=who, options=", ".join(chosen))))
+    rows.sort(key=lambda pair: pair[0].casefold())
+    return [text for _who, text in rows]

@@ -6,6 +6,8 @@ YENİLİKLER
 
 - Anketler: bir soru, en fazla 12 seçenek ve birden çok yanıta izin verme seçeneğiyle anket göndermek için ek menüsünün son öğesi olan Anket'i seçin. Alınan anketler artık desteklenmeyen mesaj olarak gösterilmez: satır önce soruyu, ardından her seçeneği (WinZapp aldığında oylarıyla birlikte) okur; Enter aynı listeyi, oy vermek için işaret kutularını ve her seçenek için bir ilerleme çubuğunu içeren bir pencere açar.
 
+- Anket oyları: tek yanıtlı bir ankette mesajdan Tab ile seçeneklere geçilir ve birini işaretlemek hemen oy verir. Her seçenek artık oyların yüzdesini de gösterir; anket penceresindeki Oyları göster düğmesi (Alt+G) kimin neye oy verdiğini listeler.
+
 - WPPConnect kurulum ve güncelleme hataları artık ayrıntıları okunabilen ve kopyalanabilen salt okunur bir metin alanında gösteriliyor. Ayrı olarak hazırlanan güncellemelerde yinelenen bildirimler yerine tek bir hata raporu gösteriliyor.
 
 - Topluluk duyurusu yanıtları: yanıtları okumak ve göndermek için mesaj menüsünü açıp "Topluluk duyurusunun yanıtları" seçeneğini seçin. Pencerede yanıtları yenileyebilirsiniz; gönderim doğrulanmazsa metniniz korunur. Duyurular bilinen yanıt sayısını belirtir. Yazarlar kayıtlı veya profil adlarıyla gösterilir; kendi yanıtlarınızda kendinize hitap etme ayarınız kullanılır.
