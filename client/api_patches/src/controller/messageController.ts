@@ -999,7 +999,11 @@ export async function sendPollMessage(req: Request, res: Response) {
 
     for (const contact of phone) {
       results.push(
-        await req.client.sendPollMessage(contact, name, choices, options)
+        auditSendResult(
+          req,
+          await req.client.sendPollMessage(contact, name, choices, options),
+          'send-poll-message'
+        )
       );
     }
 

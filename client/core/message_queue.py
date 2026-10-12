@@ -40,7 +40,8 @@ class PendingMessage:
                  mentioned_jids: list = None,
                  link_preview: dict = None,
                  owns_media_path: bool = False,
-                 custom_filename: str = ""):
+                 custom_filename: str = "",
+                 poll: dict = None):
         # local_id matches the "_local_id" field in the virtual message dict
         # that was already added to the UI.
         self.local_id      = local_id
@@ -60,6 +61,7 @@ class PendingMessage:
         self.caption       = caption or ""  # optional caption for media
         self.progress_callback = progress_callback
         self.contact_info  = contact_info   # dict for contact attachment
+        self.poll          = poll           # {"name", "options", "selectableCount"} for a poll
         self.quoted        = quoted         # quoted/replied-to message dict
         self.mentioned_jids = mentioned_jids or []  # JIDs @mentioned in text
         self.link_preview  = link_preview   # resolved {"title","description","canonicalUrl"} or None
@@ -410,6 +412,10 @@ class MessageQueue:
                             quoted=msg.quoted, upload_id=msg.local_id,
                             progress_callback=_media_progress,
                             custom_filename=msg.custom_filename,
+                        )
+                    elif msg.poll:
+                        real_id = self.main_window.send_poll_message(
+                            msg.jid, msg.poll
                         )
                     elif msg.contact_info:
                         real_id = self.main_window.send_contact_attachment(

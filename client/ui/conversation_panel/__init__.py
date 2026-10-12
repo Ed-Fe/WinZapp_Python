@@ -36,6 +36,8 @@ Where to look (and where new code goes):
     forwarding               forwarding messages
     reactions                sending/applying/backfilling reactions
     attachments              attaching files and contacts
+    poll_messages            attaching a poll and opening a received one
+    poll_inline              options list that follows a focused single-answer poll
     contact_messages         contact (vCard) and location messages
     media_files              opening/saving/downloading media, transfer progress
     message_data             the Message data window (local history, live receipts, group breakdown)

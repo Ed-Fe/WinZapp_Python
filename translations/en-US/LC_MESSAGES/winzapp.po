@@ -1534,6 +1534,7 @@ msgstr "WPPConnect version outdated"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/conversation_data_dialog.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
+#: client/ui/dialogs/new_poll_dialog.py
 msgctxt "app_name"
 msgid "WinZapp"
 msgstr "WinZapp"
@@ -1617,6 +1618,12 @@ msgstr "Document"
 msgctxt "attachment_photos_videos"
 msgid "Photos and videos"
 msgstr "Photos and videos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/attachments.py
+msgctxt "attachment_poll"
+msgid "Poll"
+msgstr "Poll"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "attachment_sending"
@@ -2185,8 +2192,8 @@ msgstr "Call video settings"
 #: client/ui/dialogs/attach_contact_dialog.py
 #: client/ui/dialogs/emoji_picker.py client/ui/dialogs/meta_ai_terms.py
 #: client/ui/dialogs/new_contact.py client/ui/dialogs/new_group.py
-#: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
-#: client/updater.py
+#: client/ui/dialogs/new_poll_dialog.py client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/shortcut_capture.py client/updater.py
 msgctxt "cancel"
 msgid "&Cancel"
 msgstr "&Cancel"
@@ -2629,10 +2636,10 @@ msgstr "Clear selected chats"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/reactions_dialog.py
-#: client/ui/dialogs/shortcuts_dialog.py
-#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
+#: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
+#: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
 msgctxt "close"
 msgid "&Close"
 msgstr "&Close"
@@ -5368,6 +5375,49 @@ msgid "WinZapp | New group"
 msgstr "WinZapp | New group"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_add_option"
+msgid "&Add option"
+msgstr "&Add option"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_allow_multiple"
+msgid "Allow &multiple answers"
+msgstr "Allow &multiple answers"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_option_label"
+msgid "&Option:"
+msgstr "&Option:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/poll_inline.py
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_options_list_label"
+msgid "Poll options:"
+msgstr "Poll options:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_question_label"
+msgid "&Question:"
+msgstr "&Question:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_remove_option"
+msgid "&Remove option"
+msgstr "&Remove option"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_poll_dialog.py
+msgctxt "new_poll_title"
+msgid "New poll"
+msgstr "New poll"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "no_QRcode_received"
 msgid "Could not connect to {app_name}. No QR code was received."
@@ -5631,14 +5681,14 @@ msgstr "Mentioned you"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py client/main_window/chat_list.py
-#: client/ui/conversation_panel/message_rendering.py
 #, python-brace-format
 msgctxt "notif_poll"
 msgid "📊 Poll: {name}"
 msgstr "📊 Poll: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/chat_list.py
+#: client/core/notification_manager.py client/core/polls.py
+#: client/main_window/chat_list.py
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "notif_poll_no_name"
 msgid "📊 Poll"
@@ -6000,6 +6050,96 @@ msgstr "pinned"
 msgctxt "play_recorded_audio"
 msgid "Play recorded audio"
 msgstr "Play recorded audio"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_allows_one"
+msgid "One answer allowed"
+msgstr "One answer allowed"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_allows_several"
+msgid "Several answers allowed"
+msgstr "Several answers allowed"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_dialog_question_label"
+msgid "Question:"
+msgstr "Question:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_dialog_title"
+msgid "Poll"
+msgstr "Poll"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_duplicate_option"
+msgid "Poll options must be different from each other."
+msgstr "Poll options must be different from each other."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_no_question"
+msgid "Type the poll question."
+msgstr "Type the poll question."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_too_few_options"
+msgid "A poll needs at least 2 options."
+msgstr "A poll needs at least 2 options."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_error_too_many_options"
+msgid "A poll can have at most 12 options."
+msgstr "A poll can have at most 12 options."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+#, python-brace-format
+msgctxt "poll_option_percent"
+msgid "{name}: {percent}%"
+msgstr "{name}: {percent}%"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_vote_one"
+msgid "{name}, {count} vote"
+msgstr "{name}, {count} vote"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_votes"
+msgid "{name}, {count} votes"
+msgstr "{name}, {count} votes"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_row_options"
+msgid "{question}. Options: {options}"
+msgstr "{question}. Options: {options}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_row_question"
+msgid "Poll: {name}"
+msgstr "Poll: {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_vote_button"
+msgid "&Vote"
+msgstr "&Vote"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_vote_failed"
+msgid "Could not send your vote"
+msgstr "Could not send your vote"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_vote_sending"
+msgid "Sending your vote…"
+msgstr "Sending your vote…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "poll_vote_sent"
+msgid "Vote sent"
+msgstr "Vote sent"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
@@ -6951,6 +7091,7 @@ msgstr "Me (messages to myself)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 #: client/ui/dialogs/attach_contact_dialog.py
+#: client/ui/dialogs/new_poll_dialog.py
 msgctxt "send_attachment"
 msgid "Sen&d"
 msgstr "Sen&d"
@@ -6969,7 +7110,8 @@ msgctxt "send_message"
 msgid "Send message"
 msgstr "Send message"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/poll_sending.py client/main_window/sending.py
 msgctxt "send_not_confirmed_error"
 msgid ""
 "WhatsApp did not confirm this send — check the chat before sending it again,"
