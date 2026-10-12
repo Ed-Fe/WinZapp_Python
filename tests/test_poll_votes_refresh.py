@@ -68,3 +68,21 @@ class TestRefresh:
         ConversationsPanel._apply_poll_votes(panel, "5511@s.whatsapp.net", [rec], result)
         assert repaints == [1]
         assert rec["message"]["pollCreationMessage"]["options"][0]["votes"] == 1
+
+
+class TestVoterName:
+    def _name(self, remote_jid, sender):
+        seen = []
+        panel = types.SimpleNamespace(
+            conversation={"remoteJid": remote_jid},
+            _sender_label=lambda msg: seen.append(msg["key"]) or "Ana")
+        assert ConversationsPanel._poll_voter_name(panel, sender) == "Ana"
+        return seen[0]
+
+    def test_in_a_group_the_voter_is_the_participant(self):
+        key = self._name("120363000000000001@g.us", "111@lid")
+        assert key["participant"] == "111@lid" and key["fromMe"] is False
+
+    def test_in_a_private_chat_the_voter_is_the_chats_contact(self):
+        key = self._name("5511999999999@s.whatsapp.net", "111@lid")
+        assert key["participant"] == ""

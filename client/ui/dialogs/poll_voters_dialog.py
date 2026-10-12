@@ -16,8 +16,9 @@ from core.polls import poll_options, poll_content, voter_rows
 
 
 class PollVotersDialog(wx.Dialog):
-    def __init__(self, parent, main_window, msg: dict):
+    def __init__(self, parent, main_window, msg: dict, name_of=None):
         self._mw = main_window
+        self._name_of = name_of or main_window.chat_display_name
         self._msg = msg
         i18n = main_window.i18n
         super().__init__(
@@ -63,7 +64,7 @@ class PollVotersDialog(wx.Dialog):
             self._mw.speak_output.output(i18n.t("poll_voters_failed"))
             return
         options = data.get("options") or poll_options(poll_content(self._msg.get("message") or {}))
-        rows = voter_rows(i18n, data.get("voters") or [], options, self._mw.chat_display_name)
+        rows = voter_rows(i18n, data.get("voters") or [], options, self._name_of)
         self._list.Freeze()
         try:
             self._list.DeleteAllItems()

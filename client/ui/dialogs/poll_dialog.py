@@ -30,10 +30,11 @@ _REFRESH_MS = 3000
 class PollDialog(wx.Dialog):
     """*send_vote(msg, local_ids, on_done)* casts the vote in the background."""
 
-    def __init__(self, main_window, msg: dict, send_vote):
+    def __init__(self, main_window, msg: dict, send_vote, name_of=None):
         self._mw = main_window
         self._msg = msg
         self._send_vote = send_vote
+        self._name_of = name_of
         i18n = main_window.i18n
         poll = poll_content(msg.get("message") or {})
         super().__init__(
@@ -177,7 +178,7 @@ class PollDialog(wx.Dialog):
     def _on_view_votes(self, event):
         from ui.dialogs.poll_voters_dialog import PollVotersDialog
 
-        dlg = PollVotersDialog(self, self._mw, self._msg)
+        dlg = PollVotersDialog(self, self._mw, self._msg, self._name_of)
         try:
             dlg.ShowModal()
         finally:
