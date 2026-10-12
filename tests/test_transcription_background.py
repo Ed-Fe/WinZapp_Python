@@ -301,7 +301,9 @@ class TestATabJobThatNeverStarted:
         tab = types.SimpleNamespace(finished=[], reported=[],
                                     _transcription_model_marks={"base"})
         tab._transcription_background_wanted = lambda action: False
-        tab._run_transcription_job = lambda action, **kwargs: (None, None, None)
+        tab.ran = []
+        tab._run_transcription_job = (
+            lambda action, **kwargs: tab.ran.append((action, kwargs)) or (None, None, None))
         tab._finish_whisper_cpp_job = (
             lambda action, build_id, job, result, error, restore_focus=True:
             tab.finished.append((action, build_id, job)))
@@ -314,12 +316,16 @@ class TestATabJobThatNeverStarted:
 
     def test_a_whisper_cpp_action_is_finished_with_its_build(self):
         tab, mixin = self._tab()
-        mixin._start_transcription_job(tab, management.ACTION_VERIFY_WHISPER_CPP, build_id="cpu")
+        mixin._start_transcription_job(tab, management.ACTION_VERIFY_WHISPER_CPP, build_id="cpu",
+                                       compute_capability=(8, 6))
+        assert tab.ran == [(management.ACTION_VERIFY_WHISPER_CPP,
+                            {"build_id": "cpu", "compute_capability": (8, 6)})]
         assert tab.finished == [(management.ACTION_VERIFY_WHISPER_CPP, "cpu", None)]
 
     def test_a_model_action_is_reported_with_its_model(self):
         tab, mixin = self._tab()
         mixin._start_transcription_job(tab, management.ACTION_DOWNLOAD_MODEL, model_id="base")
+        assert tab.ran == [(management.ACTION_DOWNLOAD_MODEL, {"model_id": "base"})]
         assert tab.reported == [(management.ACTION_DOWNLOAD_MODEL, "base", None)]
         # Nothing ran, so nothing arrived: the model stays marked.
         assert tab._transcription_model_marks == {"base"}

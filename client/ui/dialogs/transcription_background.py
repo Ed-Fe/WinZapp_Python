@@ -48,10 +48,14 @@ class TranscriptionBackgroundTabMixin:
                 action, model_id, build_id, compute_capability
             )
             return
-        job, result, error = self._run_transcription_job(
-            action, model_id=model_id, build_id=build_id,
-            compute_capability=compute_capability,
-        )
+        if action in transcription_management.WHISPER_CPP_ACTIONS:
+            # As before the background mode: a program action names its build
+            # (and the card it was offered for), a model action its model.
+            job, result, error = self._run_transcription_job(
+                action, build_id=build_id, compute_capability=compute_capability,
+            )
+        else:
+            job, result, error = self._run_transcription_job(action, model_id=model_id)
         self._after_transcription_job(job, result, error, action=action,
                                       model_id=model_id, build_id=build_id)
 
