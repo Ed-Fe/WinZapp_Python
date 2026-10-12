@@ -66,6 +66,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Ctrl+Shift+V (sesli arama) ve Ctrl+Alt+Shift+V (görüntülü arama) artık mesaj alanı odaktayken de çalışıyor.
+
 - Kendinize mesaj göndermek, kendi adresi cihaz soneki taşıyan hesaplarda artık "gönderim doğrulanamadı" hatasıyla başarısız olmuyor.
 
 - WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.

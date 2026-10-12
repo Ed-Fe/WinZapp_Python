@@ -66,6 +66,8 @@ WHAT'S NEW
 
 FIXES
 
+- Ctrl+Shift+V (voice call) and Ctrl+Alt+Shift+V (video call) now also work while the message field is focused.
+
 - Sending a message to yourself no longer fails with "could not confirm the send" on accounts whose own address carried a device suffix.
 
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.

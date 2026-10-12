@@ -66,6 +66,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- Ctrl+Shift+V (apel vocal) și Ctrl+Alt+Shift+V (apel video) funcționează acum și cu câmpul de mesaj în focus.
+
 - Trimiterea unui mesaj către tine însuți nu mai eșuează cu "nu s-a putut confirma trimiterea" pe conturile a căror adresă proprie avea un sufix de dispozitiv.
 
 - Când deschizi sau citești o conversație în WinZapp, notificarea mesajului ei nou este eliminată din zona de notificări în loc să rămână acolo.
