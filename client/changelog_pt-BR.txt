@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- A transcrição local agora funciona também com vídeos: o som do vídeo é convertido em áudio e enviado ao faster-whisper ou ao whisper.cpp. Todas as opções valem para vídeos: Alt+Shift+T, a transcrição na linha (Alt+Shift+N), Enter e Espaço transcrevendo (com o Alt+Shift+N então reproduzindo ou abrindo o vídeo), a transcrição automática dos recebidos, o cache por modelo e a limpeza do cache. GIFs são ignorados, e um vídeo sem som é avisado como tal.
+
 - Em Configurações > Transcrição local, o cache das transcrições agora tem controles próprios: uma opção geral (ativada por padrão) para salvar as transcrições junto das mensagens e não refazê-las, uma escolha para cada modelo (seguir a configuração geral, ativado ou desativado) e o botão "Apagar transcrições salvas de todos os modelos", que limpa o cache de todos os modelos em todas as conversas. Com o cache desligado para um modelo, as novas transcrições dele não são salvas e aparecem na janela de resultado; as que já estavam salvas continuam até serem apagadas.
 
 - Em Configurações > Transcrição local, a opção "Transcrever automaticamente as mensagens de voz recebidas e colocar o texto na linha da mensagem", desativada por padrão, transcreve cada mensagem de voz que chega com a transcrição local e mostra o texto na linha da mensagem, como a transcrição na linha feita à mão. As transcrições são feitas uma de cada vez, só para mensagens recém-chegadas (até 10 minutos de áudio) e fora das conversas trancadas. Sem janelas nem anúncios por mensagem; se a transcrição local não estiver pronta, o WinZapp avisa uma vez e faz uma pausa.

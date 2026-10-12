@@ -171,13 +171,8 @@ class TestCleanMessageId:
 
 
 class TestIsTranscribable:
-    """Voice notes and audio files, plus documents that are audio. No video.
-
-    Video is excluded as a decision, not an oversight: it opens in the player,
-    where a transcription belongs against a timeline rather than in a block of
-    text. A regression that lets it through would offer a menu item that hands
-    `cached_media_path()` a clip nobody asked to have read out.
-    """
+    """Voice notes, audio files and videos (their sound track), plus documents
+    that are audio or video. Never a GIF: it is a silent loop."""
 
     def test_a_voice_note_is(self):
         assert message_audio.is_transcribable(_msg("audioMessage")) is True
@@ -208,8 +203,34 @@ class TestIsTranscribable:
     def test_a_document_with_no_mimetype_is_not(self):
         assert message_audio.is_transcribable(_msg("documentMessage")) is False
 
+    def test_a_video_is(self):
+        assert message_audio.is_transcribable(_msg("videoMessage", mimetype="video/mp4")) is True
+        assert message_audio.is_video(_msg("videoMessage")) is True
+
+    def test_a_gif_is_not(self):
+        gif = _msg("videoMessage", mimetype="video/mp4")
+        gif["message"]["videoMessage"]["gifPlayback"] = True
+        assert message_audio.is_transcribable(gif) is False
+
+    def test_a_video_document_is(self):
+        doc = _msg("documentMessage", mimetype="video/quicktime")
+        assert message_audio.is_transcribable(doc) is True
+        assert message_audio.is_video(doc) is True
+        assert message_audio.is_video(_msg("documentMessage", mimetype="audio/ogg")) is False
+        assert message_audio.is_video(_msg("audioMessage")) is False
+
+    def test_the_stated_length_is_read_for_audio_and_video(self):
+        audio = _msg("audioMessage")
+        audio["message"]["audioMessage"]["seconds"] = 12
+        video = _msg("videoMessage")
+        video["message"]["videoMessage"]["seconds"] = "40"
+        assert message_audio.media_seconds(audio) == 12
+        assert message_audio.media_seconds(video) == 40
+        assert message_audio.media_seconds(_msg("videoMessage")) == 0
+        assert message_audio.media_seconds(None) == 0
+
     @pytest.mark.parametrize(
-        "msg_type", ["videoMessage", "imageMessage", "stickerMessage", "conversation"]
+        "msg_type", ["imageMessage", "stickerMessage", "conversation"]
     )
     def test_nothing_else_is(self, msg_type):
         assert message_audio.is_transcribable(
@@ -219,6 +240,20 @@ class TestIsTranscribable:
     @pytest.mark.parametrize("value", [None, "", 7, []])
     def test_anything_that_is_not_a_record_is_not(self, value):
         assert message_audio.is_transcribable(value) is False
+
+
+class TestVideoContainers:
+    def test_a_quicktime_file_without_ftyp_is_recognised(self):
+        for atom in (b"moov", b"mdat", b"wide", b"free"):
+            assert message_audio.sniff_extension(b"\x00\x00\x00\x08" + atom + b"\x00" * 24) == ".mov"
+
+    def test_an_mp4_video_is_read_like_an_m4a(self):
+        assert message_audio.sniff_extension(b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 20) == ".m4a"
+
+    def test_a_video_lives_in_media(self, tmp_path):
+        path = message_audio.cached_media_path(
+            _msg("videoMessage"), str(tmp_path / "voice"), str(tmp_path / "media"))
+        assert path == os.path.join(str(tmp_path / "media"), "ABCDEF0123456789.wzmedia")
 
 
 class TestCachedMediaPath:

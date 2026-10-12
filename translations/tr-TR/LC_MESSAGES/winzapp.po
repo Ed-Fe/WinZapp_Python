@@ -5825,6 +5825,11 @@ msgid "Open location"
 msgstr "Konumu aç"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "open_video_menu"
+msgid "Play or open the video"
+msgstr "Videoyu oynat veya aç"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "options"
 msgid "options"
@@ -7261,14 +7266,15 @@ msgstr "Alt+Shift+M: sizden bahseden önceki mesaja git"
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_n_label"
 msgid ""
-"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
-"it locally with Whisper into its line in the list, or play or pause it when "
-"Enter and Space are set to transcribe (Settings > User Interface)"
+"Alt+Shift+N: on a voice message or video, do what Enter and Space do not: "
+"transcribe it locally with Whisper into its line in the list, or play, pause"
+" or open it when Enter and Space are set to transcribe (Settings > User "
+"Interface)"
 msgstr ""
-"Alt+Shift+N: sesli mesajda Enter ve Boşluk'un yapmadığını yapar: mesajı "
-"Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve "
-"Boşluk yazıya dökecek şekilde ayarlıysa oynatır veya duraklatır (Ayarlar > "
-"Kullanıcı Arayüzü)"
+"Alt+Shift+N: sesli mesajda veya videoda Enter ve Boşluk'un yapmadığını "
+"yapar: onu Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da"
+" Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır, duraklatır veya "
+"açar (Ayarlar > Kullanıcı Arayüzü)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -9432,11 +9438,11 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
-"Automatically transcribe received &voice messages and put the text in the "
-"message line"
+"Automatically transcribe received &voice messages and videos and put the "
+"text in the message line"
 msgstr ""
-"Alınan sesli mesajları otomatik olarak yazıya dök &ve metni mesaj satırına "
-"ekle"
+"Alınan sesli mesajları ve videoları otomatik olarak yazıya dök &ve metni "
+"mesaj satırına ekle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_backend_faster_whisper"
@@ -10094,6 +10100,11 @@ msgid ""
 msgstr ""
 "Başka bir WinZapp penceresi modeller klasörünü kullanıyor. İşini bitirmesini"
 " bekleyip tekrar deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_audio_track"
+msgid "This video has no sound, so there is nothing to transcribe."
+msgstr "Bu videoda ses yok, bu yüzden yazıya dökülecek bir şey yok."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_error_no_disk_space"
@@ -11899,13 +11910,13 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
-"Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
-"play it and Alt+Shift+N transcribes it into its line"
+"Enter and Space on a voice message or video transcribe it into its line in "
+"the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
+"Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
 msgstr ""
-"Sesli mesajda Enter ve Boşluk, mesajı oynatmak yerine listedeki satırına "
-"yazıya döker (Alt+Shift+N oynatır); kapalıyken Enter ve Boşluk oynatır, "
-"Alt+Shift+N satıra yazıya döker"
+"Sesli mesajda veya videoda Enter ve Boşluk, onu oynatmak yerine listedeki "
+"satırına yazıya döker (Alt+Shift+N oynatır veya açar); kapalıyken Enter ve "
+"Boşluk oynatır veya açar, Alt+Shift+N satıra yazıya döker"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Transcrierea locală funcționează acum și cu videoclipuri: sunetul videoclipului este convertit în audio și trimis la faster-whisper sau whisper.cpp. Toate opțiunile se aplică videoclipurilor: Alt+Shift+T, transcrierea în rând (Alt+Shift+N), Enter și Spațiu care transcriu (Alt+Shift+N redând sau deschizând atunci videoclipul), transcrierea automată a celor primite, cache-ul pe model și golirea lui. GIF-urile sunt ignorate, iar un videoclip fără sunet este semnalat ca atare.
+
 - În Setări > Transcriere locală, cache-ul transcrierilor are acum comenzi proprii: o opțiune generală (activată implicit) pentru a salva transcrierile împreună cu mesajele ca să nu fie refăcute, o alegere pentru fiecare model (urmați setarea generală, activat sau dezactivat) și butonul "Ștergeți transcrierile salvate ale tuturor modelelor", care golește cache-ul tuturor modelelor în toate conversațiile. Cu cache-ul dezactivat pentru un model, transcrierile lui noi nu se salvează și apar în fereastra de rezultat; cele deja salvate rămân până sunt șterse.
 
 - În Setări > Transcriere locală, opțiunea "Transcrieți automat mesajele vocale primite și puneți textul în rândul mesajului", dezactivată implicit, transcrie cu transcrierea locală fiecare mesaj vocal care sosește și afișează textul în rândul mesajului, ca transcrierea în rând făcută manual. Transcrierile se fac pe rând, doar pentru mesajele proaspăt sosite (până la 10 minute de audio) și în afara conversațiilor blocate. Fără ferestre sau anunțuri la fiecare mesaj; dacă transcrierea locală nu este pregătită, WinZapp spune o singură dată și face o pauză.

@@ -254,7 +254,14 @@ class MessageRenderingMixin:
             # For video, "unknown" includes a stated 0 — see video_seconds().
             base = f"{i18n.t('video')}, {i18n.t('duration')}: {dur}" if dur else i18n.t("video")
             caption = (video.get("caption") or "").strip()
-            return f"{base}, {caption}" if caption else base
+            line = f"{base}, {caption}" if caption else base
+            # Its sound track transcribed into the line, as for a voice message.
+            written = stored_transcription.inline_row_text(
+                msg, stored_transcription.selection_from_settings(
+                    getattr(self.main_window, "settings", None)))
+            if written:
+                line = f"{line}, {i18n.t('transcription_row_label')}: {written}"
+            return line
 
         # ── Interactive buttons ───────────────────────────────────────────────
         if msg_type == "buttonsMessage":

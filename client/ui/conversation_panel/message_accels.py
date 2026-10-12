@@ -383,9 +383,13 @@ class MessageAccelsMixin:
 
     def _on_menu_toggle_voice_action(self, msg: dict):
         """The action the setting leaves for Alt+Shift+N and the menu item."""
-        if self._enter_transcribes_voice() and msg.get("messageType") == "audioMessage":
-            self._toggle_audio_message_playback(msg)
-            return
+        if self._enter_transcribes_voice():
+            if msg.get("messageType") == "audioMessage":
+                self._toggle_audio_message_playback(msg)
+                return
+            if msg.get("messageType") == "videoMessage":
+                self._video_default_action(msg)
+                return
         self._on_menu_transcribe_inline(msg)
 
     def _on_menu_transcribe_inline(self, msg: dict):

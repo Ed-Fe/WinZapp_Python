@@ -42,6 +42,18 @@ from core.wrapped_text import (
 )
 
 
+def inline_toggle_menu_key(msg, enter_transcribes) -> str:
+    """The label of the Alt+Shift+N item: whatever Enter and Space do not do on
+    *msg* — transcribe into the line, or (when they transcribe) play the voice
+    message or play/open the video."""
+    if enter_transcribes:
+        if msg.get("messageType") == "audioMessage":
+            return "play_voice_message_menu"
+        if msg.get("messageType") == "videoMessage":
+            return "open_video_menu"
+    return "transcribe_inline_menu"
+
+
 class MessageMenuMixin:
     """The message context menu and its read-only actions: data, copy, reply, go
     to quoted, text popup.
@@ -379,7 +391,8 @@ class MessageMenuMixin:
 
         # Transcribe (Alt+Shift+T) — next to the audio's own Save As, for the
         # same messages message_audio.is_transcribable() accepts: voice notes,
-        # audio files, and documents whose mimetype is audio/*.
+        # audio files, videos with sound, and documents whose mimetype is
+        # audio/* or video/*.
         # A message whose transcription is stored offers it instead of the
         # wait: Alt+Shift+T moves to `transcription_view` (the shortcut opens the
         # stored one too), and running it again or deleting it are items of
@@ -393,10 +406,7 @@ class MessageMenuMixin:
             # the setting makes Enter transcribe, "Transcribe into the line"
             # when Enter plays. It is the only place the menu says which way
             # the setting points.
-            toggles_to_play = (self._enter_transcribes_voice()
-                               and msg.get("messageType") == "audioMessage")
-            toggle_key = ("play_voice_message_menu" if toggles_to_play
-                          else "transcribe_inline_menu")
+            toggle_key = inline_toggle_menu_key(msg, self._enter_transcribes_voice())
             toggle_item = menu.Append(wx.ID_ANY, f"{i18n.t(toggle_key)}\tAlt+Shift+N")
             self.Bind(
                 wx.EVT_MENU,

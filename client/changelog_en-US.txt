@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Local transcription now works with videos too: the video's sound is converted to audio and handed to faster-whisper or whisper.cpp. Every option applies to videos: Alt+Shift+T, transcription into the line (Alt+Shift+N), Enter and Space transcribing (with Alt+Shift+N then playing or opening the video), automatic transcription of received ones, the per-model cache and clearing it. GIFs are skipped, and a video with no sound is reported as such.
+
 - In Settings > Local transcription, the transcription cache now has controls of its own: a general option (on by default) to save transcriptions with the messages so they are not redone, a choice for each model (follow the general setting, on or off), and the button "Clear saved transcriptions of all models", which clears every model's cache in every chat. With the cache off for a model, its new transcriptions are not saved and appear in the result window; the ones already saved stay until cleared.
 
 - In Settings > Local transcription, the option "Automatically transcribe received voice messages and put the text in the message line", off by default, transcribes each voice message that arrives with local transcription and shows the text in the message's line, like the inline transcription you make by hand. Transcriptions run one at a time, only for freshly arrived messages (up to 10 minutes of audio) and outside locked chats. No windows or announcements per message; if local transcription is not ready, WinZapp says so once and pauses.

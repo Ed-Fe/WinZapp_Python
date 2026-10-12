@@ -1,8 +1,8 @@
 """Transcribing received voice messages on their own: who is eligible, in what order.
 
 The setting `transcription.auto_transcribe_received` (Settings > Local
-transcription, off by default) makes WinZapp transcribe each voice message as
-it arrives and keep the text in the message's line, as if the user had pressed
+transcription, off by default) makes WinZapp transcribe each voice message
+(and each video, from its sound track) as it arrives and keep the text in the message's line, as if the user had pressed
 the inline-transcription key (stored.record_from_result(..., inline=True)).
 
 This module is the part with no wx and no MainWindow: the rule for which
@@ -17,7 +17,7 @@ Rules, each one a way this could otherwise annoy or harm:
 * **Only what just arrived.** A message older than `MAX_AGE_SECONDS` (a replay
   after a reconnect, a history sync) is left alone: transcribing a backlog the
   user did not ask for would keep the machine busy for minutes.
-* **Only incoming audio, only once.** Our own messages and messages that
+* **Only incoming audio and video, only once.** Our own messages and messages that
   already carry a transcription decision (a text, or a deletion) are skipped.
 * **Not the very long ones.** Past `MAX_AUDIO_SECONDS` the user can still ask
   for it by hand; doing it unasked would be an hour of CPU for an audiobook.
@@ -70,13 +70,14 @@ def enabled(settings) -> bool:
     return isinstance(section, dict) and section.get(SETTING_AUTO_TRANSCRIBE) is True
 
 
+#: The message types transcribed on arrival: voice notes and audio files, and
+#: videos (their sound track). A document is left for the user to ask for.
+AUTO_TYPES = ("audioMessage", "videoMessage")
+
+
 def audio_seconds(msg) -> int:
     """The recording's length as WhatsApp states it, 0 when it does not."""
-    inner = ((msg.get("message") or {}).get("audioMessage") or {}) if isinstance(msg, dict) else {}
-    try:
-        return max(0, int(inner.get("seconds") or 0))
-    except (TypeError, ValueError):
-        return 0
+    return message_audio.media_seconds(msg)
 
 
 def eligible(msg, now=None) -> bool:
@@ -86,7 +87,7 @@ def eligible(msg, now=None) -> bool:
     key = msg.get("key") or {}
     if key.get("fromMe") or not key.get("id"):
         return False
-    if msg.get("messageType") != "audioMessage" or not message_audio.is_transcribable(msg):
+    if msg.get("messageType") not in AUTO_TYPES or not message_audio.is_transcribable(msg):
         return False
     if TRANSCRIPTION_KEY in msg:
         return False

@@ -91,7 +91,7 @@ TRANSCRIPTION_KEY = "_transcription"
 
 #: The types a transcription can be attached to — see the module docstring for
 #: why by type and not by message_audio.is_transcribable()'s mimetype check.
-CARRYING_TYPES = ("audioMessage", "documentMessage")
+CARRYING_TYPES = ("audioMessage", "videoMessage", "documentMessage")
 
 #: What a message deleted for everyone becomes — the only copy that drops the
 #: key.
@@ -103,7 +103,7 @@ WITHDRAWN_TYPE = "protocolMessage"
 #: stored row. Anything outside this set and CARRYING_TYPES — a type passed
 #: through unmapped — may be.
 OTHER_KINDS = frozenset((
-    "conversation", "extendedTextMessage", "imageMessage", "videoMessage",
+    "conversation", "extendedTextMessage", "imageMessage",
     "stickerMessage", "contactMessage", "locationMessage", "liveLocationMessage",
     "pollCreationMessage", "buttonsMessage", "listMessage", "templateMessage",
     "groupNotification", "reactionMessage",
@@ -267,7 +267,12 @@ def matches_selection(record, selection) -> bool:
     """Whether `record` was made by the selected backend and model.
 
     "auto" on either side matches anything: it names no model to differ from.
+    So does a record that names no model (stored before results were kept per
+    model): there is no model to tell it apart by, and dropping it would throw
+    away a text the user already waited for.
     """
+    if not record.get("model_id"):
+        return True
     backend, model = selection if selection else (_AUTO, _AUTO)
     if model != _AUTO and record.get("model_id") != model:
         return False

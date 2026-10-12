@@ -1026,11 +1026,10 @@ class DatabaseManager:
         if not isinstance(stored_video, dict) or MEASURED_SECONDS_KEY not in stored_video:
             return msg
         known = stored_video[MEASURED_SECONDS_KEY]
-        # The id stays: this line is only ever reached for a videoMessage, and
-        # a video is never transcribed (is_transcribable() takes audio only),
-        # so the transcription's no-id rule has nothing to protect here — and
-        # the id is what ties this line to _apply_probed_video_duration()'s own
-        # when a video's length "goes back to 0 seconds" again.
+        # The id stays: this line is about the video's duration, never its
+        # transcription (which is not logged anywhere), and the id is what ties
+        # it to _apply_probed_video_duration()'s own when a video's length
+        # "goes back to 0 seconds" again.
         log.info(
             "[messages] %s: keeping the measured %ss duration; the incoming copy carries none",
             message_id, known,

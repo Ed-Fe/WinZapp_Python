@@ -1,7 +1,7 @@
 """AutoTranscriptionMixin — part of MainWindow (see main_window/__init__.py).
 
-Transcribes received voice messages on arrival and keeps the text in the
-message's line, when Settings > Local transcription > "Automatically transcribe
+Transcribes received voice messages and videos on arrival and keeps the text
+in the message's line, when Settings > Local transcription > "Automatically transcribe
 received voice messages" is on (off by default). Which messages qualify and the
 serial queue are core/transcription/auto_queue.py; this is the glue to
 MainWindow: the arrival hook, building the run, and storing the result.
@@ -140,7 +140,10 @@ class AutoTranscriptionMixin:
                     break
                 time.sleep(_DOWNLOAD_POLL_SECONDS)
         try:
-            self.handle_audio_message(msg)
+            if msg.get("messageType") == "audioMessage":
+                self.handle_audio_message(msg)
+            else:
+                self.handle_media_message(msg)
         except Exception as exc:
             logging.info("[transcription] an automatic download raised: %s",
                          type(exc).__name__)

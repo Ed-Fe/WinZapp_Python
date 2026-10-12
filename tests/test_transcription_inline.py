@@ -53,6 +53,7 @@ class _Stub:
     _is_separator = ConversationsPanel._is_separator
     _on_menu_toggle_voice_action = ConversationsPanel._on_menu_toggle_voice_action
     _on_accel_transcribe_inline = ConversationsPanel._on_accel_transcribe_inline
+    _video_default_action = ConversationsPanel._video_default_action
 
     def __init__(self, enter_transcribes=False, locale="pt-BR"):
         ui = {"enter_transcribes_voice_messages": True} if enter_transcribes else {}
@@ -72,6 +73,58 @@ class _Stub:
 
     def _use_conversation_video_media_viewer_dialog(self):
         return True
+
+    def open_media_viewer_for_message(self, msg, restore_index=None):
+        self.played.append("viewer:" + msg["key"]["id"])
+
+    def _play_toggle_video_message(self, msg):
+        self.played.append("inplace:" + msg["key"]["id"])
+
+
+def _video(text=TEXT, inline=True, gif=False, msg_id="V1"):
+    msg = {
+        "key": {"id": msg_id, "remoteJid": "1@s.whatsapp.net", "fromMe": False},
+        "messageType": "videoMessage",
+        "message": {"videoMessage": {"seconds": 30, "mimetype": "video/mp4",
+                                     **({"gifPlayback": True} if gif else {})}},
+    }
+    if text is not None:
+        msg[stored.TRANSCRIPTION_KEY] = {"text": text, "at": 1.0, **({"inline": True} if inline else {})}
+    return msg
+
+
+class TestVideos:
+    def test_the_row_carries_the_inline_text(self):
+        row = _Stub()._get_message_content(_video())
+        assert row.endswith(f"{_I18n().t('transcription_row_label')}: {TEXT}")
+
+    def test_by_default_enter_opens_it_and_the_key_transcribes(self):
+        panel = _Stub()
+        panel.activate_message(_video(text=None))
+        panel._on_menu_toggle_voice_action(_video(text=None))
+        assert panel.played == ["viewer:V1"] and panel.transcribed == ["V1"]
+
+    def test_set_to_transcribe_enter_transcribes_and_the_key_opens_it(self):
+        panel = _Stub(enter_transcribes=True)
+        panel.activate_message(_video(text=None))
+        panel._on_menu_toggle_voice_action(_video(text=None))
+        assert panel.transcribed == ["V1"] and panel.played == ["viewer:V1"]
+
+    def test_space_transcribes_when_set_to(self):
+        panel = _Stub(enter_transcribes=True)
+        assert panel._space_toggles_playback(_video(text=None)) is True
+        assert panel.transcribed == ["V1"]
+
+    def test_classic_mode_plays_it_in_place(self):
+        panel = _Stub(enter_transcribes=True)
+        panel._use_conversation_video_media_viewer_dialog = lambda: False
+        panel._on_menu_toggle_voice_action(_video(text=None))
+        assert panel.played == ["inplace:V1"]
+
+    def test_a_gif_is_never_transcribed_by_enter(self):
+        panel = _Stub(enter_transcribes=True)
+        panel.activate_message(_video(text=None, gif=True))
+        assert panel.transcribed == []
 
 
 class TestTheRow:

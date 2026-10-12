@@ -77,10 +77,12 @@ class TestWhatAMessageOffers:
         assert stored.saved_transcription({}, ("auto", "small")) is None
         assert stored.saved_transcription(None, ("auto", "small")) is None
 
-    def test_a_record_without_a_model_matches_only_auto(self):
+    def test_a_record_without_a_model_matches_any_selection(self):
+        """Stored before results were kept per model: nothing to tell it
+        apart by (see TestARecordFromBeforePerModel)."""
         msg = _msg({"text": "x", "at": 1.0})
         assert stored.saved_transcription(msg, AUTO) is not None
-        assert stored.saved_transcription(msg, ("auto", "small")) is None
+        assert stored.saved_transcription(msg, ("auto", "small")) is not None
 
 
 class TestAddingAResult:
@@ -332,3 +334,27 @@ class TestClearingEverything:
         new, count = stored.drop_all(value, 99.0)
         assert count == 2 and new == stored.tombstone(99.0)
         assert stored.drop_all(stored.tombstone(1.0), 99.0) == (stored.tombstone(1.0), 0)
+
+
+class TestAVideoCarriesItsTranscription:
+    def test_the_database_rule_keeps_a_videos_transcription(self):
+        stored_value = _rec("base", "olá", at=50.0)
+        video = {"key": {"id": "V"}, "messageType": "videoMessage",
+                 "message": {"videoMessage": {"seconds": 9}}}
+        assert stored.can_carry_transcription(video)
+        assert stored.may_hold_transcription(video)
+        merged = stored.with_known_transcription(video, dict(video, **{TRANSCRIPTION_KEY: stored_value}))
+        assert merged[TRANSCRIPTION_KEY] == stored_value
+
+    def test_a_video_shows_its_inline_text(self):
+        video = {"messageType": "videoMessage",
+                 TRANSCRIPTION_KEY: _rec("base", "olá", inline=True)}
+        assert stored.inline_row_text(video) == "olá"
+
+
+class TestARecordFromBeforePerModel:
+    def test_one_that_names_no_model_is_offered_under_any_selection(self):
+        legacy = {"text": "antigo", "at": 5.0, "language": "pt"}
+        msg = _msg(legacy)
+        assert stored.saved_transcription(msg, ("faster_whisper", "small"))["text"] == "antigo"
+        assert stored.saved_transcription(msg, AUTO)["text"] == "antigo"

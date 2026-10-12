@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Yerel yazıya döküm artık videolarla da çalışıyor: videonun sesi sese dönüştürülüp faster-whisper'a veya whisper.cpp'ye verilir. Tüm seçenekler videolar için de geçerli: Alt+Shift+T, satıra yazıya döküm (Alt+Shift+N), yazıya döken Enter ve Boşluk (bu durumda Alt+Shift+N videoyu oynatır veya açar), alınanların otomatik yazıya dökümü, model başına önbellek ve temizlenmesi. GIF'ler atlanır, sesi olmayan bir video için bu durum bildirilir.
+
 - Ayarlar > Yerel yazıya döküm bölümünde, yazıya döküm önbelleğinin artık kendi denetimleri var: dökümlerin tekrar yapılmaması için mesajlarla birlikte kaydedilmesini sağlayan genel bir seçenek (varsayılan olarak açık), her model için bir seçim (genel ayarı izle, açık veya kapalı) ve tüm sohbetlerde tüm modellerin önbelleğini temizleyen "Tüm modellerin kayıtlı dökümlerini sil" düğmesi. Bir model için önbellek kapalıyken o modelin yeni dökümleri kaydedilmez ve sonuç penceresinde görünür; daha önce kaydedilmiş olanlar silinene kadar kalır.
 
 - Ayarlar > Yerel yazıya döküm bölümündeki, varsayılan olarak kapalı "Alınan sesli mesajları otomatik olarak yazıya dök ve metni mesaj satırına ekle" seçeneği, gelen her sesli mesajı yerel yazıya dökümle yazıya döker ve metni elle yapılan satır içi yazıya döküm gibi mesajın satırında gösterir. Yazıya dökümler tek tek, yalnızca yeni gelen mesajlar için (10 dakikaya kadar ses) ve kilitli sohbetler dışında yapılır. Mesaj başına pencere veya duyuru yoktur; yerel yazıya döküm hazır değilse WinZapp bunu bir kez söyler ve ara verir.

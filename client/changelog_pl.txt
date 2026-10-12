@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Transkrypcja lokalna działa teraz także z wideo: dźwięk wideo jest zamieniany na audio i przekazywany do faster-whisper lub whisper.cpp. Wszystkie opcje obejmują wideo: Alt+Shift+T, transkrypcja w wierszu (Alt+Shift+N), Enter i Spacja transkrybujące (Alt+Shift+N wtedy odtwarza lub otwiera wideo), automatyczna transkrypcja odebranych, pamięć podręczna dla każdego modelu i jej czyszczenie. GIF-y są pomijane, a o wideo bez dźwięku WinZapp informuje wprost.
+
 - W Ustawieniach > Transkrypcja lokalna pamięć podręczna transkrypcji ma teraz własne elementy: opcję ogólną (domyślnie włączoną) zapisywania transkrypcji przy wiadomościach, aby nie robić ich ponownie, wybór dla każdego modelu (zgodnie z ustawieniem ogólnym, włączona lub wyłączona) oraz przycisk "Wyczyść zapisane transkrypcje wszystkich modeli", który czyści pamięć podręczną wszystkich modeli we wszystkich rozmowach. Gdy pamięć podręczna jest wyłączona dla modelu, jego nowe transkrypcje nie są zapisywane i pojawiają się w oknie wyniku; te już zapisane pozostają do czasu ich usunięcia.
 
 - W Ustawieniach > Transkrypcja lokalna opcja "Automatycznie transkrybuj odebrane wiadomości głosowe i umieszczaj tekst w wierszu wiadomości", domyślnie wyłączona, transkrybuje lokalnie każdą nadchodzącą wiadomość głosową i pokazuje tekst w wierszu wiadomości, tak jak ręcznie wykonana transkrypcja w wierszu. Transkrypcje są wykonywane po jednej, tylko dla świeżo odebranych wiadomości (do 10 minut nagrania) i poza zablokowanymi rozmowami. Bez okien i komunikatów przy każdej wiadomości; jeśli transkrypcja lokalna nie jest gotowa, WinZapp powie o tym raz i zrobi przerwę.

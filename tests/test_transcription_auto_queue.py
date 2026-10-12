@@ -42,9 +42,24 @@ class TestWhoQualifies:
         msg["key"]["fromMe"] = True
         assert not auto_queue.eligible(msg, now=NOW)
 
-    @pytest.mark.parametrize("message_type", ["conversation", "imageMessage", "videoMessage",
+    def test_a_fresh_incoming_video_does(self):
+        video = _msg(messageType="videoMessage",
+                     message={"videoMessage": {"seconds": 30, "mimetype": "video/mp4"}})
+        assert auto_queue.eligible(video, now=NOW)
+
+    def test_a_gif_does_not(self):
+        gif = _msg(messageType="videoMessage",
+                   message={"videoMessage": {"seconds": 3, "gifPlayback": True}})
+        assert not auto_queue.eligible(gif, now=NOW)
+
+    def test_a_very_long_video_does_not(self):
+        long = _msg(messageType="videoMessage",
+                    message={"videoMessage": {"seconds": auto_queue.MAX_AUDIO_SECONDS + 1}})
+        assert not auto_queue.eligible(long, now=NOW)
+
+    @pytest.mark.parametrize("message_type", ["conversation", "imageMessage",
                                               "documentMessage", "stickerMessage"])
-    def test_only_audio_does(self, message_type):
+    def test_only_audio_and_video_do(self, message_type):
         assert not auto_queue.eligible(_msg(messageType=message_type), now=NOW)
 
     def test_a_message_without_an_id_does_not(self):

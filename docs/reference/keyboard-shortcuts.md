@@ -115,7 +115,7 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Sohbet içi | alıntılanan mesaja git | Alt+Shift+Q | messages.ID_ALT_SHIFT_Q |
 | Sohbet içi | sohbeti sessize alma menüsünü aç / sesi aç | Alt+Shift+S | messages.ID_ALT_SHIFT_S |
 | Sohbet içi | sesli mesajı veya ses kaydını Whisper ile bu bilgisayarda yazıya dök ya da kayıtlı dökümü aç | Alt+Shift+T | messages.ID_ALT_SHIFT_T |
-| Sohbet içi | sesli mesajda Enter ve Boşluk'un yapmadığını yapar: Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır veya duraklatır | Alt+Shift+N | messages.ID_ALT_SHIFT_N |
+| Sohbet içi | sesli mesajda veya videoda Enter ve Boşluk'un yapmadığını yapar: onu Whisper ile bu bilgisayarda listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökecek şekilde ayarlıysa oynatır, duraklatır veya açar | Alt+Shift+N | messages.ID_ALT_SHIFT_N |
 | Sohbet içi | mesajı yıldızla | Kontrol+Shift+O | messages.ID_CTRL_SHIFT_O |
 | Sohbet içi | oynatma hızını azalt | Alt+, | messages.ID_ALT_COMMA |
 | Sohbet içi | oynatma hızını artır | Alt+. | messages.ID_ALT_PERIOD |

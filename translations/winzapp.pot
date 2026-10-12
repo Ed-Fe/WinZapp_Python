@@ -5505,6 +5505,11 @@ msgid "Open location"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "open_video_menu"
+msgid "Play or open the video"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "options"
 msgid "options"
@@ -6862,9 +6867,10 @@ msgstr ""
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_n_label"
 msgid ""
-"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
-"it locally with Whisper into its line in the list, or play or pause it when "
-"Enter and Space are set to transcribe (Settings > User Interface)"
+"Alt+Shift+N: on a voice message or video, do what Enter and Space do not: "
+"transcribe it locally with Whisper into its line in the list, or play, pause"
+" or open it when Enter and Space are set to transcribe (Settings > User "
+"Interface)"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -8926,8 +8932,8 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
-"Automatically transcribe received &voice messages and put the text in the "
-"message line"
+"Automatically transcribe received &voice messages and videos and put the "
+"text in the message line"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9516,6 +9522,11 @@ msgctxt "transcription_error_models_busy"
 msgid ""
 "Another WinZapp window is using the models folder. Wait for it to finish and"
 " try again."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_audio_track"
+msgid "This video has no sound, so there is nothing to transcribe."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -11168,9 +11179,9 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
-"Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
-"play it and Alt+Shift+N transcribes it into its line"
+"Enter and Space on a voice message or video transcribe it into its line in "
+"the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
+"Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

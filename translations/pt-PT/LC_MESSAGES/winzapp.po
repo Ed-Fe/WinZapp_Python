@@ -5893,6 +5893,11 @@ msgid "Open location"
 msgstr "Abrir localização"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "open_video_menu"
+msgid "Play or open the video"
+msgstr "Reproduzir ou abrir o vídeo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "options"
 msgid "options"
@@ -7343,14 +7348,15 @@ msgstr "Alt+Shift+M: ir para a mensagem anterior que te menciona"
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_n_label"
 msgid ""
-"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
-"it locally with Whisper into its line in the list, or play or pause it when "
-"Enter and Space are set to transcribe (Settings > User Interface)"
+"Alt+Shift+N: on a voice message or video, do what Enter and Space do not: "
+"transcribe it locally with Whisper into its line in the list, or play, pause"
+" or open it when Enter and Space are set to transcribe (Settings > User "
+"Interface)"
 msgstr ""
-"Alt+Shift+N: numa mensagem de voz, faz o que Enter e Espaço não fazem: "
-"transcrever localmente com o Whisper na linha dela na lista, ou reproduzir "
-"ou pausar quando Enter e Espaço estiverem definidos para transcrever "
-"(Definições > Interface do utilizador)"
+"Alt+Shift+N: numa mensagem de voz ou vídeo, faz o que Enter e Espaço não "
+"fazem: transcrever localmente com o Whisper na linha dela na lista, ou "
+"reproduzir, pausar ou abrir quando Enter e Espaço estiverem definidos para "
+"transcrever (Definições > Interface do utilizador)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -9536,11 +9542,11 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
-"Automatically transcribe received &voice messages and put the text in the "
-"message line"
+"Automatically transcribe received &voice messages and videos and put the "
+"text in the message line"
 msgstr ""
-"Transcrever automaticamente as mensagens de vo&z recebidas e colocar o texto"
-" na linha da mensagem"
+"Transcrever automaticamente as mensagens de vo&z e os vídeos recebidos e "
+"colocar o texto na linha da mensagem"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_backend_faster_whisper"
@@ -10217,6 +10223,11 @@ msgid ""
 msgstr ""
 "Outra janela do WinZapp está a usar a pasta dos modelos. Aguarde que termine"
 " e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_audio_track"
+msgid "This video has no sound, so there is nothing to transcribe."
+msgstr "Este vídeo não tem som, por isso não há nada para transcrever."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_error_no_disk_space"
@@ -12057,13 +12068,13 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
-"Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
-"play it and Alt+Shift+N transcribes it into its line"
+"Enter and Space on a voice message or video transcribe it into its line in "
+"the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
+"Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
 msgstr ""
-"Enter e Espaço numa mensagem de voz transcrevem-na na linha dela na lista em"
-" vez de a reproduzir (Alt+Shift+N reproduz); desmarcado, Enter e Espaço "
-"reproduzem-na e Alt+Shift+N transcreve-a na linha"
+"Enter e Espaço numa mensagem de voz ou vídeo transcrevem-na na linha dela na"
+" lista em vez de a reproduzir (Alt+Shift+N reproduz ou abre); desmarcado, "
+"Enter e Espaço reproduzem-na ou abrem-na e Alt+Shift+N transcreve-a na linha"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -42,6 +42,10 @@ CUDA_UNAVAILABLE = "cuda_unavailable"
 INSUFFICIENT_VRAM = "insufficient_vram"
 INSUFFICIENT_RAM = "insufficient_ram"
 UNSUPPORTED_AUDIO_FORMAT = "unsupported_audio_format"
+# A video with no sound track at all: ffmpeg read it fine and found only the
+# picture. Its own code so the sentence says "this video has no sound" instead
+# of blaming a format that was recognised.
+NO_AUDIO_TRACK = "no_audio_track"
 FFMPEG_FAILED = "ffmpeg_failed"
 # The file is there but truncated: a send that died mid-upload, or a media
 # file WinZapp wrote while the app was closed.
@@ -150,6 +154,7 @@ ERROR_CODES = (
     INSUFFICIENT_VRAM,
     INSUFFICIENT_RAM,
     UNSUPPORTED_AUDIO_FORMAT,
+    NO_AUDIO_TRACK,
     FFMPEG_FAILED,
     AUDIO_INCOMPLETE,
     MEDIA_NOT_DOWNLOADED,

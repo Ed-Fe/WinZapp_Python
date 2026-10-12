@@ -736,3 +736,25 @@ transcription skips a model chosen explicitly whose cache is off (it would run f
 - "Clear all models" is `DatabaseManager.clear_all_transcriptions` → the same chunked scan as the
   per-model one (`_rewrite_all_transcriptions`), leaving a tombstone on every message that held a result.
 - The new controls have no Alt keys: the tab has no free letter left in several locales.
+
+## Videos
+
+A video is transcribed from its sound track, through exactly the voice-note path:
+`message_audio.is_transcribable()` accepts `videoMessage` (never a GIF, `gifPlayback`) and
+documents whose mimetype is `video/*`; the media is `media/<id>.wzmedia`, fetched by
+`handle_media_message`; `audio_prep`'s ffmpeg already drops the picture (`-vn`). Every
+option applies unchanged: per-model results, the cache switches, clearing, inline text
+in the row (`message_rendering` video branch), Alt+Shift+N, "Enter and Space transcribe"
+(on a video, Alt+Shift+N then plays it in place or opens the viewer —
+`_video_default_action()`), and automatic transcription of received videos
+(`auto_queue.AUTO_TYPES`, the same 10-minute cap from the video's stated `seconds`).
+
+- `videoMessage` is a **carrying type** (`stored.CARRYING_TYPES`), so writing a video reads its
+  stored row to keep the transcription — removing it from there loses the text on the next sync.
+- A video with no sound fails in ffmpeg with "does not contain any stream"; `audio_prep.
+  has_picture_but_no_sound()` reads the stream lines of ffmpeg's log and answers
+  `NO_AUDIO_TRACK` ("this video has no sound") instead of an unrecognised format.
+- QuickTime files that do not open with `ftyp` (`moov`/`mdat`/`wide`/`free`/`skip` first) are
+  sniffed as `.mov`.
+- A stored record that names no model (from before per-model results) matches any
+  selection, so old texts stay offered.

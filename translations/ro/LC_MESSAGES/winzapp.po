@@ -5868,6 +5868,11 @@ msgid "Open location"
 msgstr "Deschideți locația"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "open_video_menu"
+msgid "Play or open the video"
+msgstr "Redați sau deschideți videoclipul"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "options"
 msgid "options"
@@ -7325,14 +7330,15 @@ msgstr "Alt+Shift+M: accesați mesajul anterior care vă menționează"
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_alt_shift_n_label"
 msgid ""
-"Alt+Shift+N: on a voice message, do what Enter and Space do not: transcribe "
-"it locally with Whisper into its line in the list, or play or pause it when "
-"Enter and Space are set to transcribe (Settings > User Interface)"
+"Alt+Shift+N: on a voice message or video, do what Enter and Space do not: "
+"transcribe it locally with Whisper into its line in the list, or play, pause"
+" or open it when Enter and Space are set to transcribe (Settings > User "
+"Interface)"
 msgstr ""
-"Alt+Shift+N: pe un mesaj vocal face ceea ce nu fac Enter și Spațiu: îl "
-"transcrie local cu Whisper în linia lui din listă sau îl redă ori îl pune pe"
-" pauză când Enter și Spațiu sunt setate să transcrie (Setări > Interfață "
-"utilizator)"
+"Alt+Shift+N: pe un mesaj vocal sau video face ceea ce nu fac Enter și "
+"Spațiu: îl transcrie local cu Whisper în linia lui din listă sau îl redă, îl"
+" pune pe pauză ori îl deschide când Enter și Spațiu sunt setate să transcrie"
+" (Setări > Interfață utilizator)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -9528,11 +9534,11 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
-"Automatically transcribe received &voice messages and put the text in the "
-"message line"
+"Automatically transcribe received &voice messages and videos and put the "
+"text in the message line"
 msgstr ""
-"Transcr&ieți automat mesajele vocale primite și puneți textul în rândul "
-"mesajului"
+"Transcr&ieți automat mesajele vocale și videoclipurile primite și puneți "
+"textul în rândul mesajului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_backend_faster_whisper"
@@ -10207,6 +10213,11 @@ msgid ""
 msgstr ""
 "O altă fereastră WinZapp folosește folderul modelelor. Așteptați să termine "
 "și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_error_no_audio_track"
+msgid "This video has no sound, so there is nothing to transcribe."
+msgstr "Acest videoclip nu are sunet, deci nu este nimic de transcris."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_error_no_disk_space"
@@ -12049,13 +12060,14 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
-"Enter and Space on a voice message transcribe it into its line in the list "
-"instead of playing it (Alt+Shift+N plays it); turned off, Enter and Space "
-"play it and Alt+Shift+N transcribes it into its line"
+"Enter and Space on a voice message or video transcribe it into its line in "
+"the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
+"Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
 msgstr ""
-"Enter și Spațiu pe un mesaj vocal îl transcriu în linia lui din listă în loc"
-" să îl redea (Alt+Shift+N îl redă); dezactivat, Enter și Spațiu îl redau, "
-"iar Alt+Shift+N îl transcrie în linie"
+"Enter și Spațiu pe un mesaj vocal sau video îl transcriu în linia lui din "
+"listă în loc să îl redea (Alt+Shift+N îl redă sau îl deschide); dezactivat, "
+"Enter și Spațiu îl redau sau îl deschid, iar Alt+Shift+N îl transcrie în "
+"linie"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
