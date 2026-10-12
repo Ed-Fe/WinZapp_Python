@@ -23,7 +23,9 @@ automatically for an incoming message.
 | The window's state, immune to late callbacks | `core/ai_media/session.py` |
 | The waiting sound | `core/ai_media/feedback.py` |
 | The API keys (install-wide, encrypted) | `client/core/ai_credentials.py` |
+| One still frame out of a video (the audio is never opened) | `core/ai_media/video_frame.py` |
 | Menu item, Describe button, Ctrl+Shift+I, the bounded download, the window's lifecycle | `client/ui/conversation_panel/ai_actions.py` |
+| Describe button of the media viewer and of the Status tab (inline player and viewer) | `client/ui/ai_media_launch.py`, `client/status_tab/status_ai.py`, `client/ui/media_viewer.py` |
 | Result window and consent | `client/ui/dialogs/ai_result_dialog.py` |
 | Settings page and the provider window | `client/ui/dialogs/ai_settings_page.py`, `ai_provider_models.py` |
 | Manual demo without WhatsApp | `client/ai_media_demo.py`, `client/ui/ai_media_demo.py` |
@@ -39,13 +41,21 @@ shipped (the three SDKs would have added seventeen pinned packages for what is
 one POST per request). The table in `config.PROVIDERS` is the single source of what each
 accepts today:
 
-| Provider | Photos, stickers | Voice messages | Video | PDF |
-|---|---|---|---|---|
-| Gemini | yes | yes | yes | yes |
-| OpenAI | yes | yes (dedicated transcription model) | no | yes |
-| Claude | yes | no | no | yes |
-| Groq | yes | yes (Whisper) | no | no |
-| OpenRouter | yes | no | no | yes |
+| Provider | Photos, stickers, video frames | Voice messages | PDF |
+|---|---|---|---|
+| Gemini | yes | yes | yes |
+| OpenAI | yes | yes (dedicated transcription model) | yes |
+| Claude | yes | no | yes |
+| Groq | yes | yes (Whisper) | no |
+| OpenRouter | yes | no | yes |
+
+A video is never sent as a video: `payload.prepare_media` decodes one frame
+locally (about one second in, or the middle of a shorter clip; only the video
+stream is opened, so the sound is never read), shapes it like a photo and sends
+it as an image. So every provider that takes pictures describes videos, the
+original may be up to 64 MiB (it never travels), and `providers.build_request`
+refuses a `video` payload outright. Only that frame can be described: the
+prompt tells the model it cannot know what happens before or after it.
 
 The person orders the providers and switches each on or off; the order is the
 order they are tried in. A provider is only tried for a kind it accepts and
@@ -99,9 +109,15 @@ when it holds a saved key.
 - Resetting all keys also revokes every remembered provider consent on Apply/OK,
   even if a replacement key is entered before applying. Cancel keeps the saved
   keys and consents unchanged.
-- Photos and stickers are re-encoded (metadata removed); video, voice messages and
-  PDFs go out exactly as they are, and the consent text says so.
-- View-once media, documents that are not PDFs and statuses are never offered.
+- Photos, stickers and the frame taken from a video are re-encoded (metadata
+  removed); voice messages and PDFs go out exactly as they are, and the consent
+  text says so (a video's consent says that only one picture, without sound, goes).
+- View-once media and documents that are not PDFs are never offered. Photo and
+  video statuses are offered in the Status tab (Alt+5), in the inline player
+  and in the separate viewer, under the same rule as the message menu; a status
+  is not a chat, so its window's identity uses `status@broadcast`, it is never
+  locked, and its original comes from `get_base64_from_media` (not the encrypted
+  cache), checked against the same size limit.
 - Chat names, JIDs and captions are never sent. Answers and the question
   history live in memory only.
 - The media is decrypted from the encrypted cache **in memory**; no plain copy
@@ -113,6 +129,11 @@ when it holds a saved key.
 
 ## Accessibility contract
 
+- The Describe button sits right after Save as everywhere: in the message
+  actions, in the media viewer's bottom row and in the Status tab's inline
+  viewer. The viewer and the Status tab bind Ctrl+Shift+I too, so the shortcut
+  `AccessibleDescribeButton` reports is true. The result window opens over the
+  viewer (its parent), not over the panel behind it, and focus returns to it.
 - Plain wx controls only: a read-only multiline text for the result, a plain
   `ListBox` whose rows say "name, state, key" for the providers (not a
   `CheckListBox`, whose state NVDA does not reliably announce).

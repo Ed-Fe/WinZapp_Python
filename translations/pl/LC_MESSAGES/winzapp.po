@@ -629,8 +629,9 @@ msgctxt "ai_demo_title"
 msgid "WinZapp — manual photo demo (no WhatsApp)"
 msgstr "WinZapp — ręczny test zdjęć (bez WhatsApp)"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
-#: client/ui/conversations.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
+#: client/ui/ai_media_demo.py client/ui/conversations.py
+#: client/ui/media_viewer.py
 msgctxt "ai_describe_image_menu"
 msgid "Describe"
 msgstr "Opisz"
@@ -665,7 +666,7 @@ msgctxt "ai_detailed"
 msgid "Detailed"
 msgstr "Szczegółowy"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_launch.py
 #: client/ui/conversation_panel/ai_actions.py
 #| msgctxt "ai_disabled"
 #| msgid ""
@@ -936,12 +937,11 @@ msgstr ""
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_metadata_notice"
 msgid ""
-"Videos, voice messages and PDFs are sent exactly as they are, including any "
+"Voice messages and PDFs are sent exactly as they are, including any "
 "information stored inside the file, such as author or location."
 msgstr ""
-"Pliki wideo, wiadomości głosowe i pliki PDF są wysyłane w niezmienionej "
-"postaci, razem z informacjami zapisanymi w pliku, takimi jak autor czy "
-"lokalizacja."
+"Wiadomości głosowe i pliki PDF są wysyłane w niezmienionej postaci, razem z "
+"informacjami zapisanymi w pliku, takimi jak autor czy lokalizacja."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
@@ -1194,6 +1194,16 @@ msgstr "&Transkrybuj wiadomości głosowe"
 msgctxt "ai_transcribe_audio_menu"
 msgid "Transcribe with online AI"
 msgstr "Transkrybuj za pomocą AI online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+msgctxt "ai_video_frame_notice"
+msgid ""
+"Only one still picture taken from the video is sent, without its sound and "
+"with its information removed."
+msgstr ""
+"Wysyłany jest tylko jeden obraz nieruchomy z filmu, bez dźwięku i bez "
+"informacji zapisanych w pliku."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -6319,12 +6329,6 @@ msgstr ""
 "historii."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/poll_inline.py
-msgctxt "poll_inline_options_label"
-msgid "Options"
-msgstr "Opcje"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/pinned_messages.py
 #, python-brace-format
 #| msgctxt "tray_no_unread"
@@ -6420,6 +6424,12 @@ msgstr "Ankieta wymaga co najmniej 2 opcji."
 msgctxt "poll_error_too_many_options"
 msgid "A poll can have at most 12 options."
 msgstr "Ankieta może mieć najwyżej 12 opcji."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/poll_inline.py
+msgctxt "poll_inline_options_label"
+msgid "Options"
+msgstr "Opcje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
 #, python-brace-format
