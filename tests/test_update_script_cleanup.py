@@ -87,6 +87,9 @@ class TestWhatTheInstallerPassesIt:
         monkeypatch.setattr(updater, "own_node_pids", lambda *a: [])
         monkeypatch.setattr(updater, "log_path", lambda: str(tmp_path / "logs"))
         monkeypatch.setattr(updater, "_console_safe_path", lambda path: path)
+        # _needs_admin() probes the real install folder by writing a file.
+        monkeypatch.setattr(updater, "_needs_admin", lambda: False)
+        monkeypatch.setattr(updater, "_is_elevated", lambda: False)
         monkeypatch.setattr(updater.tempfile, "mkstemp", mkstemp)
         assert updater._run_batch_installer(str(extracted), str(tmp_path / "install"),
                                             "WinZapp.exe", 4242) is False
