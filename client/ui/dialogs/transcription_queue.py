@@ -129,7 +129,8 @@ class TranscriptionQueueMixin:
             job, result, error = self._run_transcription_job(action, model_id=model_id)
             remaining = len(model_ids) - position - 1
             extra = ("transcription_queue_stopped",) if error is not None and remaining else ()
-            self._after_transcription_job(job, result, error, extra_keys=extra)
+            self._after_transcription_job(job, result, error, extra_keys=extra,
+                                          action=action, model_id=model_id)
             if error is not None:
                 return
             done += 1

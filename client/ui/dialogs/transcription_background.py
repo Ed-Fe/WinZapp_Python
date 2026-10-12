@@ -52,7 +52,8 @@ class TranscriptionBackgroundTabMixin:
             action, model_id=model_id, build_id=build_id,
             compute_capability=compute_capability,
         )
-        self._after_transcription_job(job, result, error)
+        self._after_transcription_job(job, result, error, action=action,
+                                      model_id=model_id, build_id=build_id)
 
     def _start_transcription_in_background(self, action, model_id, build_id,
                                            compute_capability):
@@ -140,19 +141,33 @@ class TranscriptionBackgroundTabMixin:
             self._restore_transcription_focus(action)
 
     def _after_transcription_job(self, job, result, error, restore_focus=True,
-                                 extra_keys=()):
-        """Report a finished job by whichever family its action belongs to."""
-        if job.action in transcription_management.WHISPER_CPP_ACTIONS:
+                                 extra_keys=(), action=None, model_id=None,
+                                 build_id=None):
+        """Report a finished job by whichever family its action belongs to.
+
+        `action`, `model_id` and `build_id` are what the caller asked for. They
+        are given where it knows them, because the progress dialog can answer
+        with no job at all (one that never started), and the report still has
+        to name the action, as it did before the background mode existed.
+        """
+        action = action if action is not None else getattr(job, "action", None)
+        if model_id is None:
+            model_id = getattr(job, "model_id", None)
+        if build_id is None:
+            build_id = getattr(job, "build_id", None)
+        if action in transcription_management.WHISPER_CPP_ACTIONS:
             self._finish_whisper_cpp_job(
-                job.action, job.build_id, job, result, error,
+                action, build_id, job, result, error,
                 restore_focus=restore_focus,
             )
             return
-        if error is None and job.action == transcription_management.ACTION_DOWNLOAD_MODEL:
-            # It arrived: it is no longer waiting in the queue.
-            self._transcription_model_marks.discard(job.model_id)
+        if (error is None and job is not None
+                and action == transcription_management.ACTION_DOWNLOAD_MODEL):
+            # It arrived: it is no longer waiting in the queue. (No job: nothing
+            # ran, so nothing arrived.)
+            self._transcription_model_marks.discard(model_id)
         self._report_transcription_job(
-            job.action, job.model_id, job, result, error,
+            action, model_id, job, result, error,
             extra_keys=extra_keys, restore_focus=restore_focus,
         )
 

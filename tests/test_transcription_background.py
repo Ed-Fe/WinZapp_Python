@@ -288,3 +288,38 @@ class TestCancelling:
         window.said.clear()
         window.jobs[0].on_finished(None, errors.TranscriptionError(errors.CANCELLED, "x"))
         assert "transcription_queue_stopped" not in window.said
+
+
+class TestATabJobThatNeverStarted:
+    """The progress dialog can answer with no job (one that never started):
+    the tab still reports the action it was asked for, by the caller's own
+    action, model and build, as it did before the background mode."""
+
+    def _tab(self):
+        from ui.dialogs.transcription_background import TranscriptionBackgroundTabMixin
+
+        tab = types.SimpleNamespace(finished=[], reported=[],
+                                    _transcription_model_marks={"base"})
+        tab._transcription_background_wanted = lambda action: False
+        tab._run_transcription_job = lambda action, **kwargs: (None, None, None)
+        tab._finish_whisper_cpp_job = (
+            lambda action, build_id, job, result, error, restore_focus=True:
+            tab.finished.append((action, build_id, job)))
+        tab._report_transcription_job = (
+            lambda action, model_id, job, result, error, extra_keys=(), restore_focus=True:
+            tab.reported.append((action, model_id, job)))
+        tab._after_transcription_job = (
+            lambda *a, **k: TranscriptionBackgroundTabMixin._after_transcription_job(tab, *a, **k))
+        return tab, TranscriptionBackgroundTabMixin
+
+    def test_a_whisper_cpp_action_is_finished_with_its_build(self):
+        tab, mixin = self._tab()
+        mixin._start_transcription_job(tab, management.ACTION_VERIFY_WHISPER_CPP, build_id="cpu")
+        assert tab.finished == [(management.ACTION_VERIFY_WHISPER_CPP, "cpu", None)]
+
+    def test_a_model_action_is_reported_with_its_model(self):
+        tab, mixin = self._tab()
+        mixin._start_transcription_job(tab, management.ACTION_DOWNLOAD_MODEL, model_id="base")
+        assert tab.reported == [(management.ACTION_DOWNLOAD_MODEL, "base", None)]
+        # Nothing ran, so nothing arrived: the model stays marked.
+        assert tab._transcription_model_marks == {"base"}
