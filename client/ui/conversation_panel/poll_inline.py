@@ -16,6 +16,7 @@ from core.polls import (
     options_by_votes,
     poll_content,
     poll_options,
+    vote_percent,
     vote_poll_ids,
 )
 
@@ -102,7 +103,10 @@ class PollInlineMixin:
         try:
             lst.DeleteAllItems()
             for opt in options:
-                index = lst.InsertItem(lst.GetItemCount(), option_label(self.main_window.i18n, opt))
+                index = lst.InsertItem(
+                    lst.GetItemCount(),
+                    option_label(self.main_window.i18n, opt, vote_percent(opt, options)),
+                )
                 lst.CheckItem(index, opt["mine"])
         finally:
             lst.Thaw()
@@ -133,7 +137,8 @@ class PollInlineMixin:
         msg, lst = self._poll_inline_msg, self._poll_inline_list
         if msg is None or wx.Window.FindFocus() is lst:
             return   # rewriting a row under the cursor makes the reader re-announce it
-        by_name = {o["name"]: o for o in poll_options(poll_content(msg.get("message") or {}))}
+        options = poll_options(poll_content(msg.get("message") or {}))
+        by_name = {o["name"]: o for o in options}
         self._poll_inline_loading = True
         lst.Freeze()
         try:
@@ -141,7 +146,7 @@ class PollInlineMixin:
                 option = by_name.get(name)
                 if option is None:
                     continue
-                text = option_label(self.main_window.i18n, option)
+                text = option_label(self.main_window.i18n, option, vote_percent(option, options))
                 if lst.GetItemText(index) != text:
                     lst.SetItemText(index, text)
         finally:

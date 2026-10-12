@@ -96,6 +96,24 @@ class PollSendingMixin:
             return {}
         return {ids[serialized]: data for serialized, data in response.items() if serialized in ids}
 
+    def fetch_poll_voters(self, msg: dict) -> dict:
+        """``{"options": [{name, localId}], "voters": [{sender, mine, localIds}]}``
+        for one poll, or {} when WhatsApp Web cannot say."""
+        key = msg.get("key") or {}
+        serialized = self._serialize_msg_id(key.get("remoteJid", ""), key, msg)
+        if not serialized:
+            return {}
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/poll-voters"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"messageId": serialized}, headers=headers, timeout=15)
+            if r.status_code != 200:
+                return {}
+            return (r.json() or {}).get("response") or {}
+        except Exception as exc:
+            logging.warning("[fetch_poll_voters] %s", type(exc).__name__)
+            return {}
+
     def send_poll_vote(self, msg: dict, local_ids: list) -> bool:
         """Cast (or, with no ids, clear) the user's vote on poll *msg*."""
         key = msg.get("key") or {}

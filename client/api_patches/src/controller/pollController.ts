@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { readPollVotes, writePollVote } from '../util/pollRuntime';
+import { readPollVoters, readPollVotes, writePollVote } from '../util/pollRuntime';
 
 const MESSAGE_ID = /^(true|false)_[\w.:-]+@[\w.]+_[\w]+(_[\w.:-]+@[\w.]+)?$/;
 
@@ -42,5 +42,23 @@ export async function votePollRoute(req: Request, res: Response) {
     return res.status(200).json({ status: 'success' });
   } catch (_) {
     return res.status(503).json({ status: 'error', code: 'poll_vote_failed' });
+  }
+}
+
+export async function readPollVotersRoute(req: Request, res: Response) {
+  const { messageId } = req.body || {};
+  if (typeof messageId !== 'string' || !MESSAGE_ID.test(messageId)) {
+    return res.status(400).json({ status: 'error', code: 'invalid_message_id' });
+  }
+  const page = pageOf(req);
+  if (!page) return res.status(503).json({ status: 'error', code: 'poll_voters_unavailable' });
+  try {
+    const outcome = await page.evaluate(readPollVoters, { messageId });
+    if (!outcome?.ok) {
+      return res.status(503).json({ status: 'error', code: 'poll_voters_unavailable' });
+    }
+    return res.status(200).json({ status: 'success', response: outcome });
+  } catch (_) {
+    return res.status(503).json({ status: 'error', code: 'poll_voters_unavailable' });
   }
 }

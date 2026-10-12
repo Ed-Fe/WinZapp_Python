@@ -2650,6 +2650,7 @@ msgstr "Seçili sohbetleri temizle"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
+#: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 #: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
 #: client/ui/dialogs/transcription_result.py client/ui/media_viewer.py
@@ -6121,9 +6122,21 @@ msgstr "{name}, {count} oy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
+msgctxt "poll_option_vote_one_percent"
+msgid "{name}, {count} vote ({percent}%)"
+msgstr "{name}, {count} oy ({percent}%)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
 msgctxt "poll_option_votes"
 msgid "{name}, {count} votes"
 msgstr "{name}, {count} oy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "poll_option_votes_percent"
+msgid "{name}, {count} votes ({percent}%)"
+msgstr "{name}, {count} oy ({percent}%)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 #, python-brace-format
@@ -6139,7 +6152,7 @@ msgstr "Anket: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
 msgctxt "poll_vote_button"
-msgid "&Vote"
+msgid "Vo&te"
 msgstr "&Oy ver"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -6156,6 +6169,47 @@ msgstr "Oyunuz gönderiliyor…"
 msgctxt "poll_vote_sent"
 msgid "Vote sent"
 msgstr "Oy gönderildi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
+#, python-brace-format
+msgctxt "poll_voter_row"
+msgid "{name}: {options}"
+msgstr "{name}: {options}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/poll_dialog.py
+msgctxt "poll_voters_button"
+msgid "&View votes"
+msgstr "Oyları &göster"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_empty"
+msgid "No votes yet."
+msgstr "Henüz oy yok."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_failed"
+msgid "Could not load the votes."
+msgstr "Oylar yüklenemedi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_list_label"
+msgid "Votes:"
+msgstr "Oylar:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_loading"
+msgid "Loading votes..."
+msgstr "Oylar yükleniyor..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/poll_voters_dialog.py
+msgctxt "poll_voters_title"
+msgid "Poll votes"
+msgstr "Anket oyları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
@@ -7142,7 +7196,7 @@ msgctxt "send_voice_message"
 msgid "Send voice message"
 msgstr "Sesli mesajı gönder"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/polls.py
 msgctxt "sender_you"
 msgid "You"
 msgstr "Siz"
@@ -12054,9 +12108,10 @@ msgstr ""
 "{app_name} beklenmeyen bir hatayla karşılaştı ve işlemi tamamlayamadı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/calls.py
-#: client/main_window/chat_list.py client/main_window/chats_store.py
-#: client/main_window/shortcuts.py client/status_tab/status_rules.py
+#: client/core/notification_manager.py client/core/polls.py
+#: client/main_window/calls.py client/main_window/chat_list.py
+#: client/main_window/chats_store.py client/main_window/shortcuts.py
+#: client/status_tab/status_rules.py
 #: client/ui/conversation_panel/contact_messages.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/conversation_panel/message_rendering.py

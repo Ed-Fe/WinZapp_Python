@@ -30,10 +30,11 @@ _REFRESH_MS = 3000
 class PollDialog(wx.Dialog):
     """*send_vote(msg, local_ids, on_done)* casts the vote in the background."""
 
-    def __init__(self, main_window, msg: dict, send_vote):
+    def __init__(self, main_window, msg: dict, send_vote, name_of=None):
         self._mw = main_window
         self._msg = msg
         self._send_vote = send_vote
+        self._name_of = name_of
         i18n = main_window.i18n
         poll = poll_content(msg.get("message") or {})
         super().__init__(
@@ -88,6 +89,9 @@ class PollDialog(wx.Dialog):
         self._vote_btn = wx.Button(panel, label=i18n.t("poll_vote_button"))
         self._vote_btn.Bind(wx.EVT_BUTTON, self._on_vote)
         btns.Add(self._vote_btn, 0, wx.ALL, 5)
+        voters_btn = wx.Button(panel, label=i18n.t("poll_voters_button"))
+        voters_btn.Bind(wx.EVT_BUTTON, self._on_view_votes)
+        btns.Add(voters_btn, 0, wx.ALL, 5)
         btns.Add(wx.Button(panel, wx.ID_CANCEL, label=i18n.t("close")), 0, wx.ALL, 5)
         sizer.Add(btns, 0, wx.ALIGN_CENTER | wx.BOTTOM, 8)
 
@@ -135,10 +139,10 @@ class PollDialog(wx.Dialog):
                 option = by_name.get(name)
                 if option is None:
                     continue
-                text = option_label(i18n, option)
+                percent = vote_percent(option, options)
+                text = option_label(i18n, option, percent)
                 if self._list.GetItemText(index) != text:
                     self._list.SetItemText(index, text)
-                percent = vote_percent(option, options)
                 self._gauges[name].SetValue(percent or 0)
                 self._gauges[name].SetName(
                     i18n.t("poll_option_percent").format(name=name, percent=percent or 0)
@@ -170,6 +174,15 @@ class PollDialog(wx.Dialog):
                 if other != index and self._list.IsItemChecked(other):
                     self._list.CheckItem(other, False)
         event.Skip()
+
+    def _on_view_votes(self, event):
+        from ui.dialogs.poll_voters_dialog import PollVotersDialog
+
+        dlg = PollVotersDialog(self, self._mw, self._msg, self._name_of)
+        try:
+            dlg.ShowModal()
+        finally:
+            dlg.Destroy()
 
     def _on_vote(self, event):
         i18n = self._mw.i18n

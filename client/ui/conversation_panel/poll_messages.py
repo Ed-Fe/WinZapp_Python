@@ -70,11 +70,25 @@ class PollMessagesMixin:
         from ui.dialogs.poll_dialog import PollDialog
 
         self.refresh_poll_votes(force=True)
-        dlg = PollDialog(self.main_window, msg, self._send_poll_vote)
+        dlg = PollDialog(self.main_window, msg, self._send_poll_vote, self._poll_voter_name)
         try:
             dlg.ShowModal()
         finally:
             dlg.Destroy()
+
+    def _poll_voter_name(self, sender: str) -> str:
+        """The name a voter is shown under: the same resolution as the sender
+        of a message in this conversation (contact, @lid bridge, push name,
+        formatted number), never a raw id. In a private chat the only other
+        person is the chat's contact."""
+        remote_jid = (self.conversation or {}).get("remoteJid", "")
+        in_group = remote_jid.endswith("@g.us")
+        return self._sender_label({
+            "key": {
+                "fromMe": False, "remoteJid": remote_jid,
+                "participant": sender if in_group else "",
+            },
+        })
 
     # ── Votes ───────────────────────────────────────────────────────────────
 
