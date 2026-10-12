@@ -12108,9 +12108,10 @@ msgstr ""
 "{app_name} beklenmeyen bir hatayla karşılaştı ve işlemi tamamlayamadı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/calls.py
-#: client/main_window/chat_list.py client/main_window/chats_store.py
-#: client/main_window/shortcuts.py client/status_tab/status_rules.py
+#: client/core/notification_manager.py client/core/polls.py
+#: client/main_window/calls.py client/main_window/chat_list.py
+#: client/main_window/chats_store.py client/main_window/shortcuts.py
+#: client/status_tab/status_rules.py
 #: client/ui/conversation_panel/contact_messages.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/conversation_panel/message_rendering.py
