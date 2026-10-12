@@ -28,6 +28,15 @@ def inline_poll_applies(msg: dict) -> bool:
     return bool(poll) and allows_multiple(poll) is False and bool(poll_options(poll))
 
 
+def poll_in_messages(msg: dict, messages, remote_jid: str, shown_jid: str) -> bool:
+    """Whether the poll the list was filled for is still part of the open
+    conversation. The panel rebuilds its message dicts, so the id is compared."""
+    msg_id = ((msg or {}).get("key") or {}).get("id", "")
+    return bool(msg_id) and remote_jid == shown_jid and any(
+        isinstance(m, dict) and (m.get("key") or {}).get("id") == msg_id for m in messages
+    )
+
+
 class PollInlineMixin:
     """The options list that follows a focused single-answer poll."""
 
@@ -36,6 +45,8 @@ class PollInlineMixin:
         self._poll_inline_msg = None
         self._poll_inline_order = []
         self._poll_inline_loading = False
+        self._poll_inline_jid = ""
+        self._poll_inline_seq = 0
         lst = wx.ListCtrl(parent, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
         lst.EnableCheckBoxes(True)
         lst.InsertColumn(0, "", width=360)
@@ -58,18 +69,28 @@ class PollInlineMixin:
             if not self._is_separator(candidate) and inline_poll_applies(candidate):
                 msg = candidate
         if msg is None:
-            if lst.IsShown():
-                lst.Hide()
-                self.conversation_panel.Layout()
-            self._poll_inline_msg = None
+            self._hide_inline_poll()
             return
         if msg is not self._poll_inline_msg:
             self._poll_inline_msg = msg
+            self._poll_inline_jid = (self.conversation or {}).get("remoteJid", "")
             self._fill_inline_poll(msg)
         else:
             self._reload_inline_poll()
         if not lst.IsShown():
             lst.Show()
+            self.conversation_panel.Layout()
+
+    def _hide_inline_poll(self) -> None:
+        """Hide the options list and forget its poll (a ticked box in a list the
+        user has left must never cast a vote)."""
+        lst = getattr(self, "_poll_inline_list", None)
+        if lst is None:
+            return
+        self._poll_inline_msg = None
+        self._poll_inline_seq += 1
+        if lst.IsShown():
+            lst.Hide()
             self.conversation_panel.Layout()
 
     def _fill_inline_poll(self, msg: dict) -> None:
@@ -86,13 +107,32 @@ class PollInlineMixin:
         finally:
             lst.Thaw()
             self._poll_inline_loading = False
-        lst.SetMinSize((-1, min(len(options), 6) * 24 + 8))
+        # Item 0 (or the voted one) is the focused item, so a screen reader
+        # that Tabs in reads a row instead of an empty list; no SetFocus here.
+        mine = [i for i, opt in enumerate(options) if opt["mine"]]
+        first = mine[0] if mine else 0
+        if options:
+            lst.Focus(first)
+            lst.Select(first)
+        row = lst.GetItemRect(0).height if options else 0
+        lst.SetMinSize((-1, min(len(options), 6) * (row or 24) + 8))
+
+    def _restore_inline_ticks(self, msg: dict) -> None:
+        """Put the ticks back to the recorded vote after a vote that failed."""
+        lst = self._poll_inline_list
+        mine = {o["name"]: o["mine"] for o in poll_options(poll_content(msg.get("message") or {}))}
+        self._poll_inline_loading = True
+        try:
+            for index, name in enumerate(self._poll_inline_order):
+                lst.CheckItem(index, mine.get(name, False))
+        finally:
+            self._poll_inline_loading = False
 
     def _reload_inline_poll(self) -> None:
         """New vote counts for the shown poll, without touching the ticks."""
         msg, lst = self._poll_inline_msg, self._poll_inline_list
-        if msg is None:
-            return
+        if msg is None or wx.Window.FindFocus() is lst:
+            return   # rewriting a row under the cursor makes the reader re-announce it
         by_name = {o["name"]: o for o in poll_options(poll_content(msg.get("message") or {}))}
         self._poll_inline_loading = True
         lst.Freeze()
@@ -112,6 +152,13 @@ class PollInlineMixin:
         event.Skip()
         if self._poll_inline_loading or self._poll_inline_msg is None:
             return
+        msg = self._poll_inline_msg
+        if not poll_in_messages(
+            msg, self._sorted_messages,
+            (self.conversation or {}).get("remoteJid", ""), self._poll_inline_jid,
+        ):
+            self._hide_inline_poll()
+            return
         lst, index = self._poll_inline_list, event.GetIndex()
         checked = lst.IsItemChecked(index)
         # Single answer: choosing one option replaces the previous choice.
@@ -124,13 +171,19 @@ class PollInlineMixin:
             finally:
                 self._poll_inline_loading = False
         names = [self._poll_inline_order[index]] if checked else []
-        msg = self._poll_inline_msg
         ids = vote_poll_ids(poll_options(poll_content(msg.get("message") or {})), names)
         i18n = self.main_window.i18n
 
+        self._poll_inline_seq += 1
+        seq = self._poll_inline_seq
+
         def done(ok: bool):
+            if seq != self._poll_inline_seq:
+                return   # a newer tick (or leaving the poll) superseded this vote
             self.main_window.speak_output.output(
                 i18n.t("poll_vote_sent" if ok else "poll_vote_failed")
             )
+            if not ok and self._poll_inline_msg is msg:
+                self._restore_inline_ticks(msg)   # show what is actually voted
 
         self._send_poll_vote(msg, ids, done)

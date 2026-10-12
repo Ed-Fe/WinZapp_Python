@@ -379,6 +379,10 @@ def _inline_panel(checked, sent):
     panel = types.SimpleNamespace(
         _poll_inline_list=_FakeList(checked), _poll_inline_msg=msg,
         _poll_inline_order=["A", "B"], _poll_inline_loading=False,
+        _poll_inline_jid=PHONE, _poll_inline_seq=0,
+        conversation={"remoteJid": PHONE}, _sorted_messages=[msg],
+        _hide_inline_poll=lambda: setattr(panel, "_poll_inline_msg", None),
+        _restore_inline_ticks=lambda m: PollInlineMixin._restore_inline_ticks(panel, m),
         main_window=types.SimpleNamespace(
             i18n=_I18n(), speak_output=types.SimpleNamespace(output=lambda _t: None)),
         _send_poll_vote=lambda m, ids, done: sent.append(ids),
@@ -420,3 +424,56 @@ class TestInlinePollVote:
         panel._poll_inline_loading = True
         handler(panel, _Event(0))
         assert sent == []
+
+    def test_a_poll_the_user_has_left_never_votes(self):
+        sent = []
+        panel, handler = _inline_panel([True, False], sent)
+        panel._sorted_messages = []
+        handler(panel, _Event(0))
+        assert sent == []
+        assert panel._poll_inline_msg is None
+
+    def test_a_poll_of_another_conversation_never_votes(self):
+        sent = []
+        panel, handler = _inline_panel([True, False], sent)
+        panel.conversation = {"remoteJid": GROUP}
+        handler(panel, _Event(0))
+        assert sent == []
+
+    def test_a_failed_vote_restores_the_recorded_ticks(self):
+        from ui.conversation_panel.poll_inline import PollInlineMixin
+
+        done_calls = []
+        panel, handler = _inline_panel([False, True], [])
+        panel._send_poll_vote = lambda m, ids, done: done_calls.append(done)
+        spoken = []
+        panel.main_window.speak_output.output = spoken.append
+        handler(panel, _Event(1))
+        done_calls[0](False)
+        assert spoken == ["poll_vote_failed"]
+        assert panel._poll_inline_list.checked == [False, False]   # nothing recorded as mine
+
+    def test_an_older_vote_result_is_ignored_once_a_newer_tick_started(self):
+        done_calls = []
+        spoken = []
+        panel, handler = _inline_panel([True, False], [])
+        panel._send_poll_vote = lambda m, ids, done: done_calls.append(done)
+        panel.main_window.speak_output.output = spoken.append
+        handler(panel, _Event(0))
+        panel._poll_inline_list.checked = [False, True]
+        handler(panel, _Event(1))
+        done_calls[0](True)
+        assert spoken == []
+        done_calls[1](True)
+        assert spoken == ["poll_vote_sent"]
+
+
+class TestPollInMessages:
+    def test_same_id_same_conversation(self):
+        from ui.conversation_panel.poll_inline import poll_in_messages
+
+        msg = {"key": {"id": "P"}}
+        assert poll_in_messages(msg, [{"key": {"id": "P"}}], PHONE, PHONE)
+        assert not poll_in_messages(msg, [{"key": {"id": "X"}}], PHONE, PHONE)
+        assert not poll_in_messages(msg, [{"key": {"id": "P"}}], GROUP, PHONE)
+        assert not poll_in_messages({}, [{"key": {"id": "P"}}], PHONE, PHONE)

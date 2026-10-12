@@ -1193,6 +1193,7 @@ class ConversationsPanel(
 
         old_list.Hide()
         new_list.Show()
+        self._hide_inline_poll()
         self.conversation_panel.Layout()
 
         if total and focused >= 0:
