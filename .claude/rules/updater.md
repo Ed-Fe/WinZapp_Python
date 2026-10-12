@@ -4,6 +4,8 @@ paths:
   - "client/update_coord.py"
   - "client/update_background.py"
   - "client/update_package.py"
+  - "client/update_progress.py"
+  - "client/core/update_handoff.py"
   - "client/update_relaunch.py"
   - "client/update_node_kill.py"
   - "client/core/npm_environment.py"

@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Updates: cancelling or closing the progress window before installation starts now stops the update safely. If installation has already started, WinZapp closes to let it finish. Installers no longer wait indefinitely for WinZapp to exit, and an update already in progress is no longer reported as another open account.
+
 - Group invitations: New chat now offers Join group by link, with a preview before joining and separate pending-approval and unconfirmed results.
 
 - Groups: invitation links and QR codes can now be viewed, copied, saved and reset with confirmation. Member approval and unconfirmed results are reported accurately; group creation, leaving and editing permissions are handled correctly.

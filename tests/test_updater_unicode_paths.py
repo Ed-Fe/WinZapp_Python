@@ -112,6 +112,21 @@ def _script(install=r"C:\WinZapp", source=r"C:\tmp\ext"):
 
 
 class TestInstallerScript:
+    def test_parent_wait_is_bounded_and_timeout_never_copies_kills_or_relaunches(self):
+        s = _script()
+        loop = s.split(":WAIT\n", 1)[1].split("xcopy", 1)[0]
+        assert "if !PARENT_WAIT_SECONDS! GEQ 300 goto PARENT_TIMEOUT" in loop
+        abort = s.split(":PARENT_TIMEOUT\n", 1)[1]
+        assert "WinZapp did not exit" in abort and "exit /b 1" in abort
+        assert not any(cmd in abort for cmd in ("xcopy", "taskkill", 'start ""'))
+
+    def test_parent_timeout_signals_the_elevated_waiter_to_abort(self):
+        s = updater._build_installer_script("source", "install", "exe", "log", "failed",
+                                             pid=42, api_port=6300, relaunch_handoff="handoff")
+        abort = s.split(":PARENT_TIMEOUT\n", 1)[1]
+        assert 'echo aborted> "handoff.abort"' in abort
+        assert "echo done" not in abort and 'start ""' not in abort
+
     def test_it_copies_from_the_source_to_the_install_dir(self):
         s = _script()
         assert r'xcopy /E /Y /I /H "C:\tmp\ext\*" "C:\WinZapp\"' in s
@@ -249,10 +264,14 @@ class TestInstallerScript:
     def test_a_successful_copy_relaunches_and_cleans_up(self):
         s = _script()
         assert r'if exist "C:\WinZapp\WinZapp.exe" start "" "C:\WinZapp\WinZapp.exe"' in s
-        assert s.rstrip().endswith('del "%~f0"')
+        success = s.split(":PARENT_TIMEOUT\n", 1)[0]
+        assert success.rstrip().endswith('del "%~f0"\ngoto :EOF')
 
 
 class TestWritingTheScript:
+    def test_write_error_returns_failure_before_any_process_is_launched(self, tmp_path):
+        assert not updater._write_installer_script(str(tmp_path / "missing" / "u.bat"), _script())
+
     def test_an_ascii_script_is_written_as_ascii(self, tmp_path):
         bat = tmp_path / "u.bat"
         assert updater._write_installer_script(str(bat), _script()) is True

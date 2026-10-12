@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Actualizări: anularea sau închiderea ferestrei de progres înainte de începerea instalării oprește acum actualizarea în siguranță. Dacă instalarea a început deja, WinZapp se închide pentru a permite finalizarea. Programul de instalare nu mai așteaptă la nesfârșit închiderea WinZapp, iar o actualizare în curs nu mai este raportată ca un alt cont deschis.
+
 - Invitații la grup: Conversație nouă oferă acum Alăturare la grup prin link, cu previzualizare înainte de alăturare și rezultate separate pentru aprobare în așteptare și alăturare neconfirmată.
 
 - Grupuri: linkurile de invitație și codurile QR pot fi afișate, copiate, salvate și resetate cu confirmare. Aprobarea în așteptare și rezultatele neconfirmate sunt raportate corect; au fost corectate crearea, părăsirea și permisiunile de editare.

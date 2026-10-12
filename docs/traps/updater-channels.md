@@ -1,5 +1,43 @@
 # Auto-updater: two channels, the alpha version scheme, one prompt per machine
 
+## Progress cancellation and installer ownership (2026-10-12)
+
+A reported update cancelled as its download finished: the worker started a
+batch installer, the modal returned CANCEL, and `_do_install()` kept WinZapp
+open. The batch waited indefinitely for its parent, and a second attempt in
+the same process was reported as another open account. This report was traced
+in source and synthetic tests; the installed app and its logs were not read.
+
+`core/update_handoff.py` serializes cancellation and the UI's install grant.
+`update_progress.py` starts the retained worker inside the modal loop and
+routes Cancel, Escape and close through that grant. Only the UI queries modal
+state. Once granted, cancellation cannot revoke a potential spawn. If the
+modal returns early, retain its object and package until the worker settles;
+poll on the UI loop, never join a worker which may be awaiting that loop.
+`_install_ok` after settlement, regardless of modal return code, decides
+whether to call `real_exit()`. Keep `_install_pending` until completion to
+block reentrant install/check/prompt paths without releasing the active claim.
+
+The worker's finally releases only its own token on a prelaunch abort; a
+spawned install retains its package and token. A live same-process token is
+never automatically overwritten: an older batch can still be waiting. Refusal
+reasons come from the same locked decision in `try_begin_update(explain=True)`;
+its default dict/None API stays compatible. Unknown/corrupt state fails closed.
+
+The primary batch wait has 300 checks, longer than normal shutdown's 150-second
+hard deadline; checks are not a wall-clock guarantee. Parent timeout records
+failure and exits before any Node kill, copy or relaunch. It also writes an
+abort marker for the elevated relaunch waiter, which checks it before done/PID
+completion. Before every relaunch the waiter checks that the original parent
+is gone, covering an unwritable abort marker too. A reused parent PID may
+suppress a relaunch conservatively. Successful UAC spawn remains successful
+through PID/handle metadata or waiter failures; those cannot release its slot.
+
+Tests use plain stubs, synthetic state and generated batch text. Native wx
+key behavior, UAC, actual batch execution and packaged NVDA acceptance remain
+unverified. A new source patch does not change an older already-running batch
+or authorize deleting its live state. Recovery of such an instance is separate.
+
 ## Browser cache during WPPConnect updates
 
 The in-place API clean step preserves `.cache`; a background build copies
