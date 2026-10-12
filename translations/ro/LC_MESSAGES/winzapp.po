@@ -5447,6 +5447,7 @@ msgid "&Option:"
 msgstr "&Opțiune:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/poll_inline.py
 #: client/ui/dialogs/new_poll_dialog.py
 msgctxt "new_poll_options_list_label"
 msgid "Poll options:"
