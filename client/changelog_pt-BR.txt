@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Atualizações: cancelar ou fechar a janela de progresso antes do início da instalação agora interrompe a atualização com segurança. Se a instalação já começou, o WinZapp fecha para permitir sua conclusão. O instalador não espera mais indefinidamente pelo encerramento do WinZapp, e uma atualização em andamento não é mais informada como outra conta aberta.
+
 - Convites de grupo: Nova conversa agora oferece Entrar no grupo por link, com prévia antes de entrar e resultados separados para aprovação pendente e entrada não confirmada.
 
 - Grupos: links de convite e códigos QR podem ser visualizados, copiados, salvos e redefinidos com confirmação. A aprovação pendente e os resultados não confirmados são informados corretamente; a criação, saída e permissões de edição foram corrigidas.

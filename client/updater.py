@@ -33,6 +33,8 @@ from core.wpp_runtime import homologated_wpp_tag
 from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
 from update_background import BackgroundDownloadMixin, background_downloads_enabled
 from update_package import discard_package, download_update_package
+from core.update_handoff import InstallHandoff
+from update_progress import UpdateProgressLifecycle, update_control_if_alive
 from ui.modal_utils import end_modal_if_running
 from update_node_kill import node_kill_lines, own_node_pids
 from update_relaunch import (relaunch_environment, relaunch_lines, run_elevated,
@@ -569,9 +571,12 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
         f'>> "{log_path}" chcp\n'
         f'>> "{log_path}" echo source: {source_dir}\n'
         f'>> "{log_path}" echo target: {install_dir}\n'
+        "set /a PARENT_WAIT_SECONDS=0\n"
         ":WAIT\n"
         f'tasklist /FI "PID eq {pid}" 2>NUL | find "{pid}" >NUL\n'
         "if not errorlevel 1 (\n"
+        "    set /a PARENT_WAIT_SECONDS+=1\n"
+        "    if !PARENT_WAIT_SECONDS! GEQ 300 goto PARENT_TIMEOUT\n"
         "    timeout /t 1 /nobreak >NUL\n"
         "    goto WAIT\n"
         ")\n"
@@ -641,8 +646,8 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
         f'>> "{log_path}" echo xcopy OK\n'
         + relaunch +
         'del "%~f0"\n'
+        "goto :EOF\n"
         + (
-            "goto :EOF\n"
             ":OTHER_ACCOUNT_TIMEOUT\n"
             f'>> "{log_path}" echo timed out waiting for another WinZapp account to exit\n'
             f'echo update failed: another WinZapp account did not exit > "{marker_path}"\n'
@@ -650,6 +655,13 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
             "exit /b 1\n"
             if extra_pids else ""
         )
+        + ":PARENT_TIMEOUT\n"
+        + f'>> "{log_path}" echo ERROR: PID {pid} did not exit after 300 checks; aborting update\n'
+        + f'echo update failed: WinZapp did not exit > "{marker_path}"\n'
+        # Unlike copy/peer failures, the parent is still running: neither this
+        # script nor the elevated path's waiter may relaunch a second copy.
+        + (f'echo aborted> "{relaunch_handoff}.abort"\n' if relaunch_handoff else "")
+        + "exit /b 1\n"
     )
 
 
@@ -819,8 +831,14 @@ def _run_batch_installer(extracted_dir: str, install_dir: str, exe_name: str, pi
             if not launched:
                 return False
             if relaunch_handoff:
-                start_relaunch_waiter(bat_path, installer_pid, exe_path, install_log,
-                                      relaunch_handoff, _write_installer_script)
+                try:
+                    start_relaunch_waiter(bat_path, installer_pid, exe_path, install_log,
+                                          relaunch_handoff, _write_installer_script,
+                                          parent_pid=pid)
+                except Exception:
+                    # The installer ALREADY exists. An auxiliary waiter failure
+                    # must never release its slot or tell the caller to stay open.
+                    logging.exception("Auto-updater: relaunch waiter failed after installer launch")
         else:
             # DETACHED_PROCESS is deliberately NOT used here: it gives the child no
             # console at all, and a console-less cmd.exe decodes the batch
@@ -893,7 +911,7 @@ class WhatsNewDialog(wx.Dialog):
 
 # ── UpdateProgressDialog ──────────────────────────────────────────────────────
 
-class UpdateProgressDialog(wx.Dialog):
+class UpdateProgressDialog(UpdateProgressLifecycle, wx.Dialog):
     """
     Shows download + install progress.
     Runs the download in a background thread, updates gauge via CallAfter.
@@ -919,6 +937,12 @@ class UpdateProgressDialog(wx.Dialog):
         self._cancelled      = False
         self._install_ok     = False
         self._error_msg      = ""
+        self._handoff        = InstallHandoff()
+        self._thread         = None
+        self.Bind(wx.EVT_CLOSE, self._on_close)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
+        self.Bind(wx.EVT_BUTTON, self._on_cancel, id=wx.ID_CANCEL)
+        self.SetEscapeId(wx.ID_CANCEL)
         self._build(i18n)
         self.SetMinSize((400, -1))
         self.Fit()
@@ -936,56 +960,46 @@ class UpdateProgressDialog(wx.Dialog):
         sizer.Add(self._gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
         self._cancel_btn = wx.Button(self, wx.ID_CANCEL, label=i18n.t("cancel"))
-        self._cancel_btn.Bind(wx.EVT_BUTTON, self._on_cancel)
         sizer.Add(self._cancel_btn, 0, wx.ALIGN_CENTER | wx.BOTTOM, 12)
 
         self.SetSizer(sizer)
-
-    def _on_cancel(self, event):
-        self._cancelled = True
-        end_modal_if_running(self, wx.ID_CANCEL)
-
-    def run(self):
-        """Start the download thread and show the dialog modally."""
-        t = threading.Thread(target=self._worker, daemon=True)
-        t.start()
-        return self.ShowModal()
 
     def _worker(self):
         """Download, extract, and launch installer — all in a background thread."""
         update_token = None
         installer_handed_off = False
+        extract_dir = getattr(self, "_extracted_dir", "")
+        result = wx.ID_CANCEL
         try:
             # ── Download, verify, extract ─────────────────────────────────────
             # Skipped when a background download already did it. The steps
             # themselves are update_package.download_update_package(), shared
             # with that path so both install exactly the same verified bytes.
-            extract_dir = getattr(self, "_extracted_dir", "")
             if not extract_dir:
                 package = download_update_package(
                     self._zip_url, self._sha256sums_url, self._signature_url,
                     self._new_version, self._is_alpha, self._main_window.i18n,
-                    on_progress=lambda pct: wx.CallAfter(self._gauge.SetValue, pct),
-                    is_cancelled=lambda: self._cancelled,
+                    on_progress=lambda pct: wx.CallAfter(update_control_if_alive, self._gauge.SetValue, pct),
+                    is_cancelled=self._handoff.cancelled.is_set,
                 )
                 if package.cancelled:
                     return
                 if package.error:
                     self._error_msg = package.error
-                    wx.CallAfter(end_modal_if_running, self, wx.ID_ABORT)
+                    result = wx.ID_ABORT
                     return
                 extract_dir = package.extract_dir
 
-            if self._cancelled:
+            if self._handoff.cancelled.is_set():
                 logging.info("Auto-updater: Cancelled by user before installing.")
                 return
 
             # ── Install ───────────────────────────────────────────────────────
             wx.CallAfter(
-                self._status_label.SetLabel,
+                update_control_if_alive, self._status_label.SetLabel,
                 self._main_window.i18n.t("update_installing"),
             )
-            wx.CallAfter(self._gauge.SetValue, 100)
+            wx.CallAfter(update_control_if_alive, self._gauge.SetValue, 100)
 
             if not _is_frozen():
                 logging.info("Auto-updater: Dev mode detected. Skipping real installation.")
@@ -1000,7 +1014,7 @@ class UpdateProgressDialog(wx.Dialog):
                 # Same lie the declined-UAC path used to tell; see the
                 # run_elevated() call in _run_batch_installer().
                 self._install_ok = False
-                wx.CallAfter(end_modal_if_running, self, wx.ID_OK)
+                result = wx.ID_OK
                 return
 
             install_dir = _outer_exe_dir()
@@ -1015,10 +1029,14 @@ class UpdateProgressDialog(wx.Dialog):
             # Exit menu's quit_all_accounts()), then claim the install slot,
             # which refuses while any of them is still alive.
             other_pids = self._quit_other_accounts()
+            if self._handoff.cancelled.is_set():
+                return
             update_token = self._claim_install_slot()
             if update_token is None:
-                self._error_msg = self._main_window.i18n.t("update_other_accounts_running")
-                wx.CallAfter(end_modal_if_running, self, wx.ID_ABORT)
+                self._error_msg = self._claim_error
+                result = wx.ID_ABORT
+                return
+            if not self._request_install_handoff():
                 return
 
             logging.info("Auto-updater: Launching batch installer from %s (PID %d, also waiting on %s)",
@@ -1027,20 +1045,30 @@ class UpdateProgressDialog(wx.Dialog):
                                             api_port=getattr(self._main_window, "wpp_port", 6300),
                                             extra_pids=other_pids)
             if not launched:
-                self._end_install_slot(update_token)
                 self._error_msg = self._main_window.i18n.t("update_uac_declined")
-                wx.CallAfter(end_modal_if_running, self, wx.ID_ABORT)
+                result = wx.ID_ABORT
                 return
             self._install_ok = True
             installer_handed_off = True
-            wx.CallAfter(end_modal_if_running, self, wx.ID_OK)
+            result = wx.ID_OK
 
         except Exception as exc:
             logging.exception("Auto-updater: Exception during update installation")
-            if update_token and not installer_handed_off:
-                self._end_install_slot(update_token)
             self._error_msg = str(exc)
-            wx.CallAfter(end_modal_if_running, self, wx.ID_ABORT)
+            result = wx.ID_ABORT
+        finally:
+            try:
+                if not installer_handed_off:
+                    try:
+                        if update_token is not None:
+                            self._end_install_slot(update_token)
+                    finally:
+                        # A pre-fetched package belongs to the caller (it may retry).
+                        if not getattr(self, "_extracted_dir", ""):
+                            discard_package(extract_dir)
+            finally:
+                self._handoff.settled.set()
+                wx.CallAfter(end_modal_if_running, self, result)
 
 
     # ── Multi-account coordination ───────────────────────────────────────────
@@ -1079,10 +1107,12 @@ class UpdateProgressDialog(wx.Dialog):
             others = [a for a in others if a and a != acc_id]
             if others:
                 wx.CallAfter(
-                    self._status_label.SetLabel,
+                    update_control_if_alive, self._status_label.SetLabel,
                     self._main_window.i18n.t("update_closing_other_accounts"),
                 )
             for other in others:
+                if self._handoff.cancelled.is_set():
+                    break
                 try:
                     logging.info("Auto-updater: asking account %s to quit before installing", other)
                     ipc.request_quit(gd, other)
@@ -1093,19 +1123,28 @@ class UpdateProgressDialog(wx.Dialog):
         return pids
 
     def _claim_install_slot(self):
-        """The update_coord owner-token, or None when another account is
-        still alive. Without a global dir there is no one to coordinate with,
+        """The update_coord owner-token, or None with a specific refusal reason.
+        Without a global dir there is no one to coordinate with,
         so a placeholder token lets the install go ahead."""
         coord = self._coord()
         if coord is None:
             return {}
         try:
             import update_coord
-            return update_coord.try_begin_update(coord[0])
+            claim = update_coord.try_begin_update(coord[0], explain=True)
+            i18n = self._main_window.i18n
+            if claim.reason == "other_accounts":
+                self._claim_error = i18n.t("update_other_accounts_running")
+            elif claim.reason in ("same_process", "other_updater"):
+                self._claim_error = i18n.t("update_install_in_progress")
+            else:
+                self._claim_error = i18n.t("update_coordination_failed")
+            return claim.token
         except Exception:
             # Unlike a prompt claim, an install must never proceed unless it
             # can prove no other account still maps the program files.
             logging.exception("Auto-updater: try_begin_update failed — blocking installation")
+            self._claim_error = self._main_window.i18n.t("update_coordination_failed")
             return None
 
     def _end_install_slot(self, token) -> None:
@@ -1383,6 +1422,10 @@ class UpdateChecker(BackgroundDownloadMixin):
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _check_once(self):
+        if getattr(self, "_install_pending", False):
+            self._force = False
+            self._schedule_retry()
+            return
         if getattr(self, "_background_version", ""):
             # Already accepted and downloading in the background: asking again
             # would open a second prompt, and a Yes a second download.
@@ -1572,6 +1615,8 @@ class UpdateChecker(BackgroundDownloadMixin):
 
     def _show_update_dialog(self, remote_version: str, changelog: str, zip_url: str, sha256sums_url: str = "",
                             signature_url: str = "", is_alpha: bool = False):
+        if getattr(self, "_install_pending", False):
+            return  # A queued prompt must not release the active install's claim.
         if getattr(self._mw, "_shutting_down", False):
             # Quitting: no dialog on a dying app. The retry covers a shutdown
             # Windows cancelled, after which the app is still here.
@@ -1628,6 +1673,9 @@ class UpdateChecker(BackgroundDownloadMixin):
                     signature_url: str = "", is_alpha: bool = False, extracted_dir: str = ""):
         """Download and install, or — given *extracted_dir*, a package a
         background download already prepared — only install."""
+        if getattr(self, "_install_pending", False):
+            logging.info("Auto-updater: an installation is still settling — refusing a second attempt")
+            return
         if not extracted_dir and getattr(self, "_background_version", ""):
             # A background download is under way (or waiting to install): a
             # forced reinstall must not start a second one beside it.
@@ -1640,7 +1688,10 @@ class UpdateChecker(BackgroundDownloadMixin):
             self._download_in_background(new_version, zip_url, sha256sums_url,
                                          signature_url, is_alpha)
             return
-        while True:
+        self._install_pending = True
+        args = (new_version, zip_url, sha256sums_url, signature_url, is_alpha, extracted_dir)
+        prog = None
+        try:
             prog = UpdateProgressDialog(
                 self._mw, new_version, self._mw, zip_url, sha256sums_url,
                 signature_url=signature_url, is_alpha=is_alpha,
@@ -1648,55 +1699,60 @@ class UpdateChecker(BackgroundDownloadMixin):
             )
             bring_to_front_if_hidden(self._mw, prog)
             result = prog.run()
-            # Read before Destroy(): this is the dialog's answer to "is a batch
-            # installer now running and waiting for this process to exit?", and
-            # it is the only thing that justifies quitting.
-            install_launched = bool(getattr(prog, "_install_ok", False))
-            prog.Destroy()
-
-            if result == wx.ID_OK:
-                if not install_launched:
-                    # Downloaded and extracted, but nothing was installed and
-                    # nothing is waiting to relaunch us — the dev-mode path.
-                    # Quitting here would kill a perfectly healthy app (and the
-                    # WPPConnect server under it) to complete an update that
-                    # never happened.
-                    logging.info(
-                        "Auto-updater: nothing was installed and no installer is "
-                        "waiting — staying open instead of exiting."
-                    )
-                    discard_package(extracted_dir)
-                    self._release_prompt()
-                    return
-                # Install launched — quit the app so the batch script can run
-                self._mw.real_exit()
-                return
-
-            if result == wx.ID_CANCEL:
-                # User cancelled
-                discard_package(extracted_dir)
+        except Exception as exc:
+            if prog is None:
+                self._install_pending = False
                 self._release_prompt()
-                self._schedule_retry()
-                return
+                raise
+            logging.exception("Auto-updater: update dialog ended unexpectedly")
+            prog._handoff.cancel()
+            if getattr(prog, "_thread", None) is None:
+                prog._handoff.settled.set()
+            prog._error_msg = str(exc)
+            result = wx.ID_ABORT
+        complete = lambda: UpdateChecker._complete_install(self, prog, result, args)
+        defer = getattr(prog, "defer_until_settled", None)
+        if defer is not None and defer(complete):
+            return
+        complete()
 
-            # wx.ID_ABORT: error occurred
-            error_msg = prog._error_msg
-            i18n = self._mw.i18n
+    def _complete_install(self, prog, result, args):
+        """UI thread, only after the worker has released or handed off its token."""
+        install_launched = bool(prog._install_ok)
+        error_msg = prog._error_msg
+        try:
+            prog.Destroy()
+        except RuntimeError:
+            logging.info("Auto-updater: progress dialog was already destroyed")
+        if install_launched:
+            # Keep the in-process gate held through shutdown. CANCEL/ABORT can
+            # be a stale modal answer, not an answer about the child process.
+            self._mw.real_exit()
+            return
+        extracted_dir = args[-1]
+        if result in (wx.ID_OK, wx.ID_CANCEL):
+            self._install_pending = False
+            discard_package(extracted_dir)
+            self._release_prompt()
+            if result == wx.ID_CANCEL:
+                self._schedule_retry()
+            return
+        i18n = self._mw.i18n
+        try:
             retry = message_box(
-                self._mw,
-                i18n.t("update_error_msg").format(error=error_msg),
-                i18n.t("update_error_title"),
-                wx.YES_NO | wx.ICON_ERROR,
+                self._mw, i18n.t("update_error_msg").format(error=error_msg),
+                i18n.t("update_error_title"), wx.YES_NO | wx.ICON_ERROR,
                 announce=lambda: self._mw.output(
                     i18n.t("update_error_msg").format(error=error_msg), interrupt=True),
             )
-            if retry != wx.YES:
-                discard_package(extracted_dir)
-                self._release_prompt()
-                self._schedule_retry()
-                return
-            # else: loop and retry (the download, or only the install when the
-            # package came from a background download)
+        finally:
+            self._install_pending = False
+        if retry != wx.YES:
+            discard_package(extracted_dir)
+            self._release_prompt()
+            self._schedule_retry()
+            return
+        wx.CallAfter(self._do_install, *args)
 
     def _schedule_retry(self, interval: float = None):
         if interval is None:

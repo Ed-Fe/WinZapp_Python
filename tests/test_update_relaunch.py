@@ -12,6 +12,7 @@ writer replaced, so nothing is launched.
 
 import os
 import re
+import types
 
 import pytest
 
@@ -77,6 +78,18 @@ class TestTheElevatedScriptLeavesTheRelaunchToTheWaiter:
 
 
 class TestTheWaiter:
+    def test_parent_abort_wins_over_done_or_installer_disappearance(self):
+        w = build_relaunch_waiter_script(9001, EXE, LOG, HANDOFF, parent_pid=4242)
+        loop = w.split(":WAIT\n", 1)[1].split(":GAVE_UP", 1)[0]
+        assert loop.index(f'if exist "{HANDOFF}.abort" goto ABORT') < loop.index(".done")
+        for label, end in ((":GAVE_UP\n", ":RELAUNCH\n"), (":RELAUNCH\n", ":ABORT\n")):
+            branch = w.split(label, 1)[1].split(end, 1)[0]
+            assert branch.index('tasklist /FI "PID eq 4242"') < branch.index(START)
+            assert "if not errorlevel 1 goto ABORT" in branch
+        abort = w.split(":ABORT\n", 1)[1]
+        assert START not in abort and 'del "%~f0"' in abort
+        assert f'del "{HANDOFF}.abort"' in abort and "exit /b 1" in abort
+
     def test_creating_the_marker_is_its_first_action(self):
         w = build_relaunch_waiter_script(9001, EXE, LOG, HANDOFF)
         lines = w.splitlines()
@@ -100,7 +113,7 @@ class TestTheWaiter:
         w = build_relaunch_waiter_script(9001, EXE, LOG, HANDOFF)
         gave_up = w.split(":GAVE_UP", 1)[1].split(":RELAUNCH", 1)[0]
         assert START in gave_up
-        assert HANDOFF not in gave_up
+        assert f'del "{HANDOFF}"' not in gave_up
 
     def test_a_normal_end_relaunches_and_cleans_up(self):
         w = build_relaunch_waiter_script(9001, EXE, LOG, HANDOFF)
@@ -176,6 +189,7 @@ def install(tmp_path, monkeypatch):
     monkeypatch.setattr(updater.subprocess, "Popen", _popen)
     monkeypatch.setattr(update_relaunch.time, "sleep", lambda s: None)
     elevated = []
+    state["elevated"] = elevated
 
     def run(needs_admin=True, result=(True, 9001), waiter_creates_marker=True):
         state["waiter_creates_marker"] = waiter_creates_marker
@@ -194,6 +208,23 @@ def install(tmp_path, monkeypatch):
 
 
 class TestRunBatchInstaller:
+    def test_installer_script_write_error_never_reaches_uac_or_popen(self, install, monkeypatch):
+        spawned = []
+        def fail(path, script):
+            raise OSError("mock installer disk full")
+        monkeypatch.setattr(updater, "_write_installer_script", fail)
+        monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **kw: spawned.append(a))
+        with pytest.raises(OSError, match="mock installer disk full"):
+            install()
+        assert spawned == [] and install.state["elevated"] == []
+
+    def test_waiter_exception_cannot_change_an_already_launched_install(self, install, monkeypatch):
+        def fail(*a, **kw):
+            raise OSError("mock waiter failure")
+        monkeypatch.setattr(updater, "start_relaunch_waiter", fail)
+        ok, written, popen, elevated = install()
+        assert ok and len(elevated) == 1 and popen == []
+
     def test_elevated_hands_the_relaunch_to_a_waiter_that_created_the_marker(self, install):
         ok, written, popen, elevated = install()
         assert ok is True
@@ -202,6 +233,7 @@ class TestRunBatchInstaller:
         assert [c for c, kw in popen] == [["cmd.exe", "/c", waiter]]
         assert popen[0][1]["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
         assert "PID eq 9001" in written[waiter]
+        assert "PID eq 1234" in written[waiter], "the waiter must also guard the original parent"
         assert os.path.isfile(bat + ".relaunch")
         assert f'if exist "{bat}.relaunch" (' in written[bat]
         assert not install.state["proc"].killed
@@ -282,6 +314,33 @@ class TestRunBatchInstaller:
             ok, written, popen, elevated = install(needs_admin=False)
         assert ok is True and elevated == []
         assert "running elevated" in caplog.text
+
+
+@pytest.mark.parametrize("failure", ["pid", "close_handle", "kernel_library"])
+def test_successful_uac_spawn_cannot_be_undone_by_metadata_errors(monkeypatch, failure):
+    def shell_execute(info_ptr):
+        info_ptr._obj.hProcess = 123  # synthetic handle, never passed to Windows
+        return True
+
+    def get_pid(handle):
+        if failure == "pid":
+            raise OSError("mock PID lookup failure")
+        return 9001
+
+    def close(handle):
+        if failure == "close_handle":
+            raise OSError("mock handle close failure")
+
+    def library(name, **kw):
+        if name == "shell32":
+            return types.SimpleNamespace(ShellExecuteExW=shell_execute)
+        if failure == "kernel_library":
+            raise OSError("mock kernel library failure")
+        return types.SimpleNamespace(GetProcessId=get_pid, CloseHandle=close)
+
+    monkeypatch.setattr(update_relaunch.ctypes, "WinDLL", library)
+    assert update_relaunch.run_elevated("synthetic.bat") == (
+        True, 9001 if failure == "close_handle" else None)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="wintypes only has Windows sizes on Windows")

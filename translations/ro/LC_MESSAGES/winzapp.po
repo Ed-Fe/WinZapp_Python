@@ -12713,6 +12713,15 @@ msgctxt "update_closing_other_accounts"
 msgid "Closing the other WinZapp accounts..."
 msgstr "Se închid celelalte conturi WinZapp..."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+msgctxt "update_coordination_failed"
+msgid ""
+"WinZapp could not verify that it is safe to install the update. Installation"
+" was not started."
+msgstr ""
+"WinZapp nu a putut verifica dacă actualizarea poate fi instalată în "
+"siguranță. Instalarea nu a fost pornită."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "update_downloading"
 msgid "Downloading update..."
@@ -12752,6 +12761,15 @@ msgstr ""
 "Ultima actualizare WinZapp nu s-a finalizat: fișierele programului nu au "
 "putut fi înlocuite, iar versiunea anterioară rulează în continuare. Motivul "
 "este consemnat în logs/update_install.log."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+msgctxt "update_install_in_progress"
+msgid ""
+"An update installation is already in progress. Wait for it to finish before "
+"trying again."
+msgstr ""
+"O actualizare este deja în curs de instalare. Așteptați finalizarea înainte "
+"de a încerca din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "update_installing"

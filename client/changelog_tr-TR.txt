@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Güncellemeler: kurulum başlamadan ilerleme penceresini iptal etmek veya kapatmak güncellemeyi güvenle durdurur. Kurulum zaten başladıysa WinZapp tamamlanmasına izin vermek için kapanır. Kurucu artık WinZapp'ın çıkmasını süresiz beklemez; sürmekte olan güncelleme başka bir açık hesap olarak bildirilmez.
+
 - Grup davetleri: Yeni sohbet ekranına Gruba bağlantıyla katıl eklendi. Katılmadan önce grup önizlenir; onay bekleyen ve doğrulanamayan sonuçlar ayrı gösterilir.
 
 - Gruplar: davet bağlantısı ve QR kodu görüntüleme, bağlantıyı kopyalama, QR kodunu kaydetme ve onaylı sıfırlama eklendi. Üye eklemede onay bekleme ile doğrulanamayan sonuçlar ayrılıyor; grup oluşturma, ayrılma ve düzenleme izinleri düzeltildi.
