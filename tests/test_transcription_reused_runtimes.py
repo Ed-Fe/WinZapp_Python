@@ -294,6 +294,10 @@ class TestWhatTheUserIsTold:
         key, args = reused_runtimes.whisper_cpp_check_message(
             reused_runtimes.WhisperCppFolderCheck(reused_runtimes.OK, "x", ("cpu", "cuda")))
         assert args == {"builds": "cpu, cuda"}
+        key, args = reused_runtimes.whisper_cpp_check_message(
+            reused_runtimes.WhisperCppFolderCheck(reused_runtimes.OK, "x", ("cpu", "cuda")),
+            build_name=str.upper)
+        assert args == {"builds": "CPU, CUDA"}
 
 
 class TestUnregisteringADirectory:

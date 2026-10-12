@@ -25,6 +25,7 @@ import os
 import wx
 
 from core.sound_system import load_sound
+from core.transcription import errors as transcription_errors
 from core.transcription import model_queue
 from core.transcription import preferences as transcription_preferences
 from ui.shortcut_bindings import command_key_event
@@ -139,7 +140,10 @@ class TranscriptionModelMarksMixin:
                 )
             self._transcription_mark_sound.play()
         except Exception as exc:
-            logging.warning("[transcription] could not play the selection sound: %s", exc)
+            # The report, not the exception's text: it can quote a path that
+            # names the Windows user.
+            logging.warning("[transcription] could not play the selection sound: %s",
+                            transcription_errors.exception_report(exc))
 
     # ── Marking ──────────────────────────────────────────────────────────────
 

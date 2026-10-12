@@ -142,7 +142,8 @@ class TranscriptionCacheMixin:
 
     def _on_transcription_clear_cache(self, event) -> None:
         model_id = self._transcription_clear_cache_target()
-        if model_id is None or self._transcription_job_running:
+        if (model_id is None or self._transcription_job_running
+                or getattr(self, "_transcription_clearing", False)):
             return
         i18n = self.main_window.i18n
         text = i18n.t("transcription_clear_cache_confirm").format(
@@ -153,15 +154,15 @@ class TranscriptionCacheMixin:
         ) != wx.YES:
             return
         backend_id = self._selected_transcription_backend()
-        button = self._transcription_clear_cache_btn
-        # One clear at a time, and the button says so while the database works.
-        button.Disable()
+        # One clear at a time. Not by disabling the button: it holds the focus,
+        # and a disabled control says nothing to a screen reader.
+        self._transcription_clearing = True
 
         def _done(count):
             # Spoken even if Settings was closed meanwhile: the database has
             # answered, and it is still true and useful.
             if self:
-                self._sync_transcription_clear_cache_button()
+                self._transcription_clearing = False
             self.main_window.speak_output.output(
                 i18n.t(stored_transcription.clear_cache_message_key(count)).format(
                     count=count or 0), interrupt=True)
@@ -169,7 +170,7 @@ class TranscriptionCacheMixin:
         self.main_window.clear_model_transcriptions(model_id, backend_id, _done)
 
     def _on_transcription_clear_all_cache(self, event) -> None:
-        if self._transcription_job_running:
+        if self._transcription_job_running or getattr(self, "_transcription_clearing", False):
             return
         i18n = self.main_window.i18n
         if wx.MessageBox(
@@ -177,13 +178,12 @@ class TranscriptionCacheMixin:
                 wx.YES_NO | wx.ICON_QUESTION, self
         ) != wx.YES:
             return
-        # One clear at a time, and the buttons say so while the database works.
-        self._transcription_clear_all_cache_btn.Disable()
-        self._transcription_clear_cache_btn.Disable()
+        # One clear at a time (see _on_transcription_clear_cache()).
+        self._transcription_clearing = True
 
         def _done(count):
             if self:
-                self._sync_transcription_clear_cache_button()
+                self._transcription_clearing = False
             key = ("transcription_clear_all_cache_none" if count == 0
                    else stored_transcription.clear_cache_message_key(count))
             self.main_window.speak_output.output(i18n.t(key).format(count=count or 0),

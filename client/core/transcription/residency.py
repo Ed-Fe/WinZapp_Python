@@ -106,7 +106,10 @@ class ModelResidency:
 
     def _arm_locked(self, key, backend) -> None:
         self._cancel_locked(key)
-        timer = self._timer_factory(self._idle_seconds, self._expire, args=(key,))
+        holder = []
+        timer = self._timer_factory(
+            self._idle_seconds, lambda: self._expire(key, holder[0] if holder else None))
+        holder.append(timer)
         timer.daemon = True
         self._timers[key] = timer
         timer.start()
@@ -120,9 +123,15 @@ class ModelResidency:
         for key in list(self._timers):
             self._cancel_locked(key)
 
-    def _expire(self, key) -> None:
-        """The idle time ran out: release, unless a run or the setting says no."""
+    def _expire(self, key, timer=None) -> None:
+        """The idle time ran out: release, unless a run or the setting says no.
+
+        `timer` is the one firing: a timer already firing when begin_use()
+        cancelled it must not act for — and take away — the next one.
+        """
         with self._lock:
+            if timer is not None and self._timers.get(key) is not timer:
+                return
             self._timers.pop(key, None)
             if self._keep or self._busy.get(key):
                 return

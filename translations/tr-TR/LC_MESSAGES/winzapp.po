@@ -1827,8 +1827,8 @@ msgid ""
 "progress window (WinZapp tells you before installing an update and when a "
 "download finishes)"
 msgstr ""
-"Güncellemeleri ve transkripsiyon indirmelerini ilerleme penceresi olmadan "
-"arka planda indir (WinZapp bir güncellemeyi yüklemeden önce ve bir indirme "
+"Güncellemeleri ve yazıya döküm indirmelerini ilerleme penceresi olmadan arka"
+" planda indir (WinZapp bir güncellemeyi yüklemeden önce ve bir indirme "
 "bittiğinde haber verir)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -11309,6 +11309,16 @@ msgid "Choose the folder for the transcription models"
 msgstr "Yazıya döküm modelleri için klasörü seçin"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_busy"
+msgid ""
+"A download is running in the background. The models folder can be moved once"
+" it finishes; until then the current folder stays."
+msgstr ""
+"Arka planda bir indirme sürüyor. Modeller klasörü indirme bittiğinde "
+"taşınabilir; o zamana kadar mevcut klasör kalır."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_models_dir_kept_previous"
 msgid ""
 "The models folder is still the previous one. Choose the new folder again to "
@@ -11742,11 +11752,11 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_browse_whisper_cpp"
 msgid ""
-"Choose the folder with the whisper.cpp programs WinZapp downloaded (the one "
-"that holds the cpu and cuda folders)"
+"Choose the folder with the whisper.cpp programs WinZapp downloaded "
+"(whisper_cpp_runtime, which holds one folder per build)"
 msgstr ""
-"WinZapp'in indirdiği whisper.cpp programlarının bulunduğu klasörü seçin (cpu"
-" ve cuda klasörlerini içeren klasör)"
+"WinZapp'in indirdiği whisper.cpp programlarının bulunduğu klasörü seçin (her"
+" sürüm için bir klasör içeren whisper_cpp_runtime)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_cuda_label"
@@ -11787,6 +11797,13 @@ msgstr ""
 msgctxt "transcription_reuse_group"
 msgid "Reuse downloads from another folder"
 msgstr "Başka bir klasörden indirilenleri yeniden kullan"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_reuse_in_use_note"
+msgid "(in use from the folder chosen for reuse)"
+msgstr "(yeniden kullanmak için seçilen klasörden kullanılıyor)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_reuse.py

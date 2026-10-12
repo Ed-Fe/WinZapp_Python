@@ -16,9 +16,14 @@ Two things are deliberate:
   (`_watch_transcription_background()`), with its buttons off, so a second
   action cannot queue behind the first on the models lock.
 
-* **Finishing in the background never moves the focus.** The user is in
-  another tab or another window by then.
+* **Finishing in the background never moves the focus** — the user is in
+  another tab or another window by then — except off a control of this tab
+  that can no longer answer (Cancel, now hidden, or a switched-off button),
+  where it would otherwise be stranded. Starting a run moves it to Cancel, for
+  the same reason: the button pressed is switched off.
 """
+
+import wx
 
 from core.transcription import background as transcription_background
 from core.transcription import management as transcription_management
@@ -63,12 +68,23 @@ class TranscriptionBackgroundTabMixin:
             # one is, so this is a press that got through, and it changes
             # nothing.
             return
-        self._enter_transcription_background_run()
+        self._enter_transcription_background_run(focus_cancel=True)
 
-    def _enter_transcription_background_run(self) -> None:
-        """The tab goes quiet and offers Cancel while the window runs the job."""
+    def _enter_transcription_background_run(self, focus_cancel=False) -> None:
+        """The tab goes quiet and offers Cancel while the window runs the job.
+
+        `focus_cancel` when the user has just started it: the button they
+        pressed is switched off with every other one, and a disabled control
+        says nothing to a screen reader, so the focus moves to the one control
+        that does something now. A tab adopting a run already under way leaves
+        the focus where the user put it.
+        """
         self._set_transcription_job_running(True)
         self._show_transcription_cancel(True)
+        if focus_cancel:
+            button = getattr(self, "_transcription_cancel_btn", None)
+            if button is not None:
+                button.SetFocus()
         self.main_window.watch_transcription_background(
             self._transcription_background_ended
         )
@@ -77,16 +93,49 @@ class TranscriptionBackgroundTabMixin:
         """The window's call when a job of the background run is over.
 
         True: said here. `last` is False between the jobs of a queue, when the
-        tab stays busy and Cancel stays offered.
+        tab stays busy and Cancel stays offered. `job` None: the run ended
+        without a job of its own to report (the next one of a queue could not
+        start) — the tab only comes back to life; the window says why.
         """
         if not self:
             # Settings was closed meanwhile; the window says it.
             return False
+        if job is None:
+            self._set_transcription_job_running(False)
+            self._show_transcription_cancel(False)
+            if self._transcription_focus_stranded():
+                self._transcription_model_list.SetFocus()
+            return True
+        stranded = False
         if last:
             self._set_transcription_job_running(False)
             self._show_transcription_cancel(False)
+            stranded = self._transcription_focus_stranded()
         self._after_transcription_job(job, result, error, restore_focus=False)
+        if stranded:
+            self._rescue_transcription_focus(job.action)
         return True
+
+    def _transcription_focus_stranded(self) -> bool:
+        """Whether the focus is on a control of this window that can no longer
+        answer: Cancel, now hidden, or a button switched off. Focus anywhere
+        else — another window included — is the user's and is left alone."""
+        focused = wx.Window.FindFocus()
+        if focused is None or wx.GetTopLevelParent(focused) is not self:
+            return False
+        return (focused is getattr(self, "_transcription_cancel_btn", None)
+                or not focused.IsEnabled() or not focused.IsShown())
+
+    def _rescue_transcription_focus(self, action) -> None:
+        """The button of the action that ran when it can be pressed again,
+        else the nearest control of its row that can."""
+        button = self._transcription_action_buttons.get(action)
+        if button is not None and button.IsEnabled() and button.IsShown():
+            button.SetFocus()
+        elif action in transcription_management.WHISPER_CPP_ACTIONS:
+            self._restore_whisper_cpp_focus(action)
+        else:
+            self._restore_transcription_focus(action)
 
     def _after_transcription_job(self, job, result, error, restore_focus=True,
                                  extra_keys=()):
@@ -118,21 +167,27 @@ class TranscriptionBackgroundTabMixin:
         """Offer Cancel only while there is something to cancel.
 
         Hidden rather than disabled: it is a stop in the tab order that answers
-        nothing the rest of the time. Re-enabled whenever it is shown again,
-        since pressing it disables it until the run is over.
+        nothing the rest of the time. Never disabled while shown: it may hold
+        the focus, and a disabled control says nothing to a screen reader.
         """
         button = getattr(self, "_transcription_cancel_btn", None)
         if button is None:
             return
+        self._transcription_cancel_requested = False
         button.Enable(True)
         button.Show(bool(shown))
         button.GetParent().Layout()
 
     def _on_transcription_cancel_background(self, event) -> None:
         """Stop the running download and whatever was queued behind it."""
+        if getattr(self, "_transcription_cancel_requested", False):
+            # Asked already: say it again rather than nothing.
+            self.main_window.speak_output.output(
+                self.main_window.i18n.t("transcription_progress_cancelling"))
+            return
         if not self.main_window.cancel_transcription_background():
             return
-        self._transcription_cancel_btn.Disable()
+        self._transcription_cancel_requested = True
         self.main_window.speak_output.output(
             self.main_window.i18n.t("transcription_progress_cancelling")
         )

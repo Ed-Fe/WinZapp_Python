@@ -67,20 +67,26 @@ _BUILD_CHOICE_I18N_KEYS = {
 }
 
 
-def whisper_cpp_build_label(i18n, build, state) -> str:
+def whisper_cpp_build_label(i18n, build, state, reused=False) -> str:
     """One line of the builds combobox, written as a sentence.
 
     Which build, whether it is here, and the download it costs — the whole of
     what the user chooses on, since a combobox item is read whole and nothing
     else is. An unknown state reads as "not installed", as on the model list.
+    `reused`: not installed in WinZapp's own folder, but in use from the folder
+    the user asked to reuse (transcription_reuse.py) — said, or the line would
+    offer to download what is already being used.
     """
     key = _BUILD_CHOICE_I18N_KEYS.get(
         state, _BUILD_CHOICE_I18N_KEYS[whisper_cpp_runtime.STATE_ABSENT]
     )
-    return i18n.t(key).format(
+    text = i18n.t(key).format(
         build=_whisper_cpp_build_name(i18n, build.id),
         size=_format_transcription_size(i18n, build.archive_bytes),
     )
+    if reused and state != whisper_cpp_runtime.STATE_INSTALLED:
+        text = f"{text} {i18n.t('transcription_reuse_in_use_note')}"
+    return text
 
 
 def listed_builds(compute_capability, states) -> tuple:
@@ -172,6 +178,12 @@ class WhisperCppMixin:
             build.id: whisper_cpp_runtime.installation_state(build).state
             for build in whisper_cpp_builds.BUILDS
         }
+        # Builds WinZapp's own folder lacks but the reused folder serves.
+        self._whisper_cpp_reused = {
+            build.id for build in whisper_cpp_builds.BUILDS
+            if self._whisper_cpp_states[build.id] != whisper_cpp_runtime.STATE_INSTALLED
+            and whisper_cpp_runtime.usable_root(build) is not None
+        }
         self._populate_whisper_cpp_builds()
 
     def _populate_whisper_cpp_builds(self):
@@ -182,8 +194,10 @@ class WhisperCppMixin:
             self._whisper_cpp_states,
         )
         ids = [build.id for build in builds]
+        reused = getattr(self, "_whisper_cpp_reused", set())
         labels = [
-            whisper_cpp_build_label(i18n, build, self._whisper_cpp_states.get(build.id))
+            whisper_cpp_build_label(i18n, build, self._whisper_cpp_states.get(build.id),
+                                    reused=build.id in reused)
             for build in builds
         ]
         if ids != self._whisper_cpp_build_ids or labels != self._whisper_cpp_build_labels:
@@ -204,7 +218,9 @@ class WhisperCppMixin:
         first measurement: the device a run would pick is then the processor,
         which is what the notices must not contradict."""
         return (self._whisper_cpp_states.get(whisper_cpp_builds.BUILD_CUDA.id)
-                == whisper_cpp_runtime.STATE_INSTALLED)
+                == whisper_cpp_runtime.STATE_INSTALLED
+                # Served from the reused folder: what a run will use too.
+                or whisper_cpp_builds.BUILD_CUDA.id in getattr(self, "_whisper_cpp_reused", set()))
 
     def _whisper_cpp_button_state(self):
         build_id = self._selected_whisper_cpp_build()

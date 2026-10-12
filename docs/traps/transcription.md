@@ -508,6 +508,13 @@ transcription would cost far more than it protects, so they are checked at
 download and by the explicit verify. Accepted limit: a swap that restores size
 and mtime after a file has passed is not seen again in that process.
 
+**Nor may the folder hold code the manifest does not list.** ggml loads its CPU
+backend by scanning the program's folder for `ggml-cpu-*.dll`, and Windows
+looks in the application folder first for any DLL loaded by name: an extra
+`.dll`/`.exe` anywhere under the build folder is refused
+(`unlisted_code_files()`), for WinZapp's own folder and — the reason it exists —
+for a folder the user chose to reuse, which may be writable by other accounts.
+
 ## Coexistence with online AI transcription
 
 The online AI (`client/core/ai_media/`,

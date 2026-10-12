@@ -307,8 +307,10 @@ def read_waveform(path):
             ):
                 return None
             frames = handle.readframes(handle.getnframes())
-        samples = numpy.frombuffer(frames, dtype="<i2")
-        return samples.astype(numpy.float32) / 32768.0
+        samples = numpy.frombuffer(frames, dtype="<i2").astype(numpy.float32)
+        # In place: one float32 copy, not two (a video's sound track is long).
+        samples /= 32768.0
+        return samples
     except Exception:
         return None
 

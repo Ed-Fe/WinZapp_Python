@@ -237,6 +237,25 @@ class TestARunOfSeveralJobs:
         assert not window.transcription_background_running()
         assert "transcription_queue_stopped" in window.said
 
+    def test_a_next_job_that_cannot_start_ends_the_run_for_the_listeners(self, window):
+        """The listener heard "more to come"; it must hear the end too, or the
+        Settings tab would stay with every button off and a dead Cancel."""
+        heard = []
+        items = _items(window, "tiny", "base")
+
+        def broken(on_progress, on_finished):
+            raise RuntimeError("cannot build")
+
+        items[1] = (broken,) + tuple(items[1][1:])
+        window.start_transcription_background_jobs(items)
+        window.watch_transcription_background(
+            lambda job, result, error, last: heard.append(
+                (getattr(job, "model_id", None), last)) or True)
+        window.jobs[0].on_finished("ok", None)
+        assert heard == [("tiny", False), (None, True)]
+        assert not window.transcription_background_running()
+        assert window.said[-1] == "transcription_queue_stopped"
+
     def test_a_stop_by_the_last_job_does_not_claim_a_rest(self, window):
         from core.transcription import errors
 

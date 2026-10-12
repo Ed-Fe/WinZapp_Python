@@ -35,6 +35,7 @@ from core.transcription import (
     model_names,
     model_store,
     preferences as transcription_preferences,
+    reused_runtimes,
 )
 from ui.dialogs.transcription_result_field import VERIFY_ACTIONS
 from ui.dialogs.transcription_progress import (
@@ -1058,10 +1059,14 @@ class TranscriptionTabMixin:
         """Put the one line about the CUDA libraries into its own field."""
         state = cuda_runtime.installation_state()
         self._transcription_cuda_state = state.state
+        text = _transcription_cuda_status_text(self.main_window.i18n, state)
+        if (state.state != cuda_runtime.STATE_INSTALLED
+                and reused_runtimes.registered_cuda_dir()):
+            # The libraries come from the folder the user chose to reuse: said,
+            # or the line would offer the very download the folder replaces.
+            text = f"{text} {self.main_window.i18n.t('transcription_reuse_in_use_note')}"
         # ChangeValue for the same reason as the warning field above.
-        self._transcription_cuda_field.ChangeValue(
-            _transcription_cuda_status_text(self.main_window.i18n, state)
-        )
+        self._transcription_cuda_field.ChangeValue(text)
         self._sync_transcription_action_buttons()
 
     # ── The eight actions ────────────────────────────────────────────────────
@@ -1111,6 +1116,11 @@ class TranscriptionTabMixin:
         """One action at a time, and every other button says so."""
         self._transcription_job_running = bool(running)
         self._sync_transcription_action_buttons()
+        # Choosing another models folder moves the models on OK, under the
+        # same lock a running download holds: not offered while one runs.
+        browse = getattr(self, "_transcription_models_dir_browse_btn", None)
+        if browse is not None:
+            browse.Enable(not self._transcription_job_running)
         # The buttons of the section for models in other folders wait for the
         # same job: two at once would serialize behind a bar that does not move.
         self._sync_external_buttons()
@@ -1796,6 +1806,19 @@ class TranscriptionTabMixin:
         # into this account's settings.json — app_settings.set() raises KeyError
         # for anything that is not global, which is what keeps it that way.
         app_settings = self._install_wide_settings()
+        background_running = getattr(self.main_window, "transcription_background_running", None)
+        if (app_settings is not None
+                and self._transcription_models_dir != self._stored_transcription_models_dir()
+                and callable(background_running) and background_running()):
+            # The move waits on the models lock the download holds — up to
+            # hours, behind a modal window. Refused instead; the choice stays
+            # shown for an Apply once the download is over.
+            wx.MessageBox(
+                self.main_window.i18n.t("transcription_models_dir_busy"),
+                self.main_window.i18n.t("settings_title"),
+                wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
         if (app_settings is not None
                 and self._transcription_models_dir != self._stored_transcription_models_dir()):
             # Checked again here and not only in Procurar: a folder of the

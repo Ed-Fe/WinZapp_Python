@@ -11454,6 +11454,16 @@ msgid "Choose the folder for the transcription models"
 msgstr "Selecione a pasta dos modelos de transcrição"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+msgctxt "transcription_models_dir_busy"
+msgid ""
+"A download is running in the background. The models folder can be moved once"
+" it finishes; until then the current folder stays."
+msgstr ""
+"Está em curso uma transferência em segundo plano. A pasta dos modelos pode "
+"ser movida quando ela terminar; até lá a pasta atual mantém-se."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_models_dir_kept_previous"
 msgid ""
 "The models folder is still the previous one. Choose the new folder again to "
@@ -11893,11 +11903,11 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_browse_whisper_cpp"
 msgid ""
-"Choose the folder with the whisper.cpp programs WinZapp downloaded (the one "
-"that holds the cpu and cuda folders)"
+"Choose the folder with the whisper.cpp programs WinZapp downloaded "
+"(whisper_cpp_runtime, which holds one folder per build)"
 msgstr ""
-"Escolha a pasta com os programas whisper.cpp que o WinZapp transferiu (a que"
-" contém as pastas cpu e cuda)"
+"Escolha a pasta com os programas whisper.cpp que o WinZapp transferiu "
+"(whisper_cpp_runtime, que tem uma pasta por versão)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_cuda_label"
@@ -11940,6 +11950,13 @@ msgstr ""
 msgctxt "transcription_reuse_group"
 msgid "Reuse downloads from another folder"
 msgstr "Reutilizar transferências de outra pasta"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_tab.py
+#: client/ui/dialogs/transcription_whisper_cpp.py
+msgctxt "transcription_reuse_in_use_note"
+msgid "(in use from the folder chosen for reuse)"
+msgstr "(em uso a partir da pasta escolhida para reutilizar)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_reuse.py

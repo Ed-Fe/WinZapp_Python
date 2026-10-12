@@ -124,10 +124,13 @@ def cuda_check_message(check):
     return "transcription_reuse_not_a_folder", {}
 
 
-def whisper_cpp_check_message(check):
-    """The same for `check_whisper_cpp_folder`."""
+def whisper_cpp_check_message(check, build_name=None):
+    """The same for `check_whisper_cpp_folder`. `build_name(build_id)` names a
+    build out loud (management_text.build_name); without one, the id."""
     if check.code == OK:
-        return "transcription_reuse_whisper_cpp_ok", {"builds": ", ".join(check.builds)}
+        name = build_name or (lambda build_id: build_id)
+        return "transcription_reuse_whisper_cpp_ok", {
+            "builds": ", ".join(name(build_id) for build_id in check.builds)}
     if check.code == NO_BUILD:
         return "transcription_reuse_whisper_cpp_none", {}
     return "transcription_reuse_not_a_folder", {}
@@ -136,6 +139,11 @@ def whisper_cpp_check_message(check):
 #: The CUDA folder this module registered, so that choosing another (or none)
 #: takes the previous one off the loader's search path.
 _registered_cuda = ""
+
+
+def registered_cuda_dir() -> str:
+    """The reused CUDA folder in effect, "" for none."""
+    return _registered_cuda
 
 
 def configure(cuda_dir, whisper_cpp_dir) -> None:

@@ -15,7 +15,7 @@ import threading
 
 import wx
 
-from core.transcription import reused_runtimes
+from core.transcription import management_text, reused_runtimes
 
 _CUDA = "cuda"
 _WHISPER_CPP = "whisper_cpp"
@@ -80,8 +80,9 @@ class TranscriptionReuseMixin:
             # _show_transcription_models_dir).
             field.ChangeValue(folder or i18n.t("transcription_reuse_none"))
             self._transcription_reuse_forget[kind].Enable(bool(folder))
-            self._transcription_reuse_choose[kind].Enable(
-                kind not in self._transcription_reuse_checking)
+            # Browse stays enabled while its folder is checked (a second press
+            # is ignored): it holds the focus, and a disabled control says
+            # nothing to a screen reader.
 
     def _refresh_transcription_reuse_labels(self) -> None:
         i18n = self.main_window.i18n
@@ -126,9 +127,13 @@ class TranscriptionReuseMixin:
                 continue
         if changed:
             reused_runtimes.configure_from(app)
-            # The CUDA status line and the buttons were measured without it.
+            # The CUDA line and the builds list say when what they describe
+            # comes from the reused folder (transcription_reuse_in_use_note),
+            # and the device notices follow what a run will pick: redrawn now
+            # that the folders changed.
             self._show_transcription_cuda_status()
             self._show_whisper_cpp_status()
+            self._show_transcription_hardware_notices()
 
     # ── Choosing and forgetting ──────────────────────────────────────────────
 
@@ -169,7 +174,8 @@ class TranscriptionReuseMixin:
         elif kind == _CUDA:
             key, args = reused_runtimes.cuda_check_message(check)
         else:
-            key, args = reused_runtimes.whisper_cpp_check_message(check)
+            key, args = reused_runtimes.whisper_cpp_check_message(
+                check, lambda build_id: management_text.build_name(i18n, build_id))
         text = i18n.t(key).format(**args)
         if check is not None and check.code == reused_runtimes.OK:
             self._transcription_reuse_dirs[kind] = check.path

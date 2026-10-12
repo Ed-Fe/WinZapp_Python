@@ -150,6 +150,26 @@ class TestIdleRelease:
         assert backend.released == 1
 
 
+class TestAStaleTimer:
+    def test_a_timer_firing_late_does_not_take_the_next_ones_place(self):
+        """begin_use() cancelled a timer that was already firing; it must not
+        pop the timer the next run's end armed and release at once."""
+        manager, timers = _residency()
+        backend = _Backend()
+        with manager.using(backend):
+            pass
+        stale = _live(timers)[0]
+        with manager.using(backend):
+            pass
+        fresh = _live(timers)[0]
+        assert fresh is not stale
+        stale.function(*stale.args)  # the cancelled one runs anyway
+        assert backend.released == 0
+        assert _live(timers) == [fresh]
+        fresh.fire()
+        assert backend.released == 1
+
+
 class TestKeepingItLoaded:
     def test_no_clock_starts_while_it_is_kept(self):
         manager, timers = _residency()

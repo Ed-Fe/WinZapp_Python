@@ -2632,6 +2632,31 @@ class TestTheModelsMoveOnlyAfterOk:
             preferences.MODELS_DIR_SETTING
         ) == str(tmp_path / "elsewhere")
 
+    def test_no_move_while_a_download_runs_in_the_background(
+        self, tab, monkeypatch, tmp_path
+    ):
+        """The move would wait on the models lock the download holds, behind a
+        modal window: refused with a sentence, nothing stored, nothing moved."""
+        made = _install_fake_progress(monkeypatch)
+        said = []
+        monkeypatch.setattr(transcription_tab.wx, "MessageBox",
+                            lambda text, *a, **k: said.append(text))
+        tab.main_window.background_running = True
+        tab._load_transcription_values()
+        before = tab.main_window._app_settings.get(preferences.MODELS_DIR_SETTING)
+        tab._transcription_models_dir = str(tmp_path / "elsewhere")
+        tab._apply_transcription_values()
+        assert made == []
+        assert said == [tab.main_window.i18n.t("transcription_models_dir_busy")]
+        assert tab.main_window._app_settings.get(preferences.MODELS_DIR_SETTING) == before
+
+    def test_browse_is_not_offered_while_a_job_runs(self, tab):
+        tab._load_transcription_values()
+        tab._set_transcription_job_running(True)
+        assert not tab._transcription_models_dir_browse_btn.IsEnabled()
+        tab._set_transcription_job_running(False)
+        assert tab._transcription_models_dir_browse_btn.IsEnabled()
+
     def test_a_folder_with_models_in_it_is_moved_and_the_new_one_stored(
         self, tab, monkeypatch, tmp_path
     ):
@@ -3454,10 +3479,21 @@ class TestCancellingABackgroundDownload:
         tab._watch_transcription_background()
         tab._on_transcription_cancel_background(_Event())
         assert tab.main_window.background_cancels == 1
-        assert not tab._transcription_cancel_btn.IsEnabled()
-        assert tab.main_window.speak_output.spoken[-1] == (
-            tab.main_window.i18n.t("transcription_progress_cancelling")
-        )
+        # Still enabled: it may hold the focus, and a disabled control says
+        # nothing. A second press only repeats the sentence.
+        assert tab._transcription_cancel_btn.IsEnabled()
+        tab._on_transcription_cancel_background(_Event())
+        assert tab.main_window.background_cancels == 1
+        assert tab.main_window.speak_output.spoken[-2:] == [
+            tab.main_window.i18n.t("transcription_progress_cancelling")] * 2
+
+    def test_a_run_that_ends_without_a_job_brings_the_tab_back(self, tab):
+        """The window's "the next queued job could not start" (job None)."""
+        tab.main_window.background_running = True
+        tab._watch_transcription_background()
+        assert tab._transcription_background_ended(None, None, None, True) is True
+        assert not tab._transcription_cancel_btn.IsShown()
+        assert tab._transcription_job_running is False
 
     def test_a_press_with_nothing_running_does_nothing(self, tab):
         tab._on_transcription_cancel_background(_Event())

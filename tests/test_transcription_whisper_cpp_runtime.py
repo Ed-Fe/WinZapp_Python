@@ -254,6 +254,28 @@ class TestVerifyingTheProgramBeforeLaunch:
         with pytest.raises(errors.TranscriptionError):
             runtime.verify_executable(build, root)
 
+    @pytest.mark.parametrize("planted", ["Release/ggml-cpu-evil.dll", "Release/EXTRA.EXE",
+                                         "Release/sub/helper.dll"])
+    def test_a_code_file_the_manifest_does_not_list_is_refused(self, root, planted):
+        """ggml scans the program's folder for its CPU backends and Windows
+        loads DLLs from there first: an unlisted one would run unseen."""
+        build, _executable = _install(root, _zip(_LAYOUT))
+        path = os.path.join(root, "cpu", *planted.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as handle:
+            handle.write(b"MZ")
+        with pytest.raises(errors.TranscriptionError) as caught:
+            runtime.verify_executable(build, root)
+        assert caught.value.code == errors.WHISPER_CPP_CORRUPTED
+        # Named by the file's own name only, never by the folder.
+        assert root not in caught.value.detail
+
+    def test_other_unlisted_files_are_harmless(self, root):
+        build, _executable = _install(root, _zip(_LAYOUT))
+        with open(os.path.join(root, "cpu", "Release", "notes.txt"), "w") as handle:
+            handle.write("x")
+        runtime.verify_executable(build, root)
+
     def test_no_manifest_is_refused(self, root):
         build, _executable = _install(root, _zip(_LAYOUT))
         os.remove(os.path.join(root, "cpu", runtime.MANIFEST_FILENAME))

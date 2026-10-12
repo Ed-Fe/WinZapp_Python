@@ -69,7 +69,6 @@ class TranscriptionBackgroundMixin:
         self._transcription_background_queue = list(items)
         self._transcription_background_total = len(items)
         self._transcription_background_done = 0
-        self._transcription_background_cancelled = False
         if not self._start_next_transcription_background_job(first=True):
             self._transcription_background_queue = []
             return False
@@ -85,7 +84,6 @@ class TranscriptionBackgroundMixin:
         job = getattr(self, "_transcription_background_job", None)
         if job is None:
             return False
-        self._transcription_background_cancelled = True
         self._transcription_background_queue = []
         try:
             job.cancel()
@@ -150,8 +148,18 @@ class TranscriptionBackgroundMixin:
             return
         if not self._start_next_transcription_background_job():
             # The next job could not even be built: end the run like a failure.
+            # The listeners were told "more to come" above, so they are told
+            # it is over now (job None: no outcome of its own to report), or a
+            # Settings tab would stay with every button off and a Cancel that
+            # cancels nothing.
             self._transcription_background_queue = []
-            self.__dict__.pop("_transcription_background_listeners", None)
+            ended = self.__dict__.pop("_transcription_background_listeners", [])
+            for listener in ended:
+                try:
+                    listener(None, None, None, True)
+                except Exception as exc:
+                    logging.error("[transcription] a background listener raised: %s",
+                                  transcription_errors.exception_report(exc))
             self.output(self.i18n.t("transcription_queue_stopped"))
 
     def _say_transcription_background_outcome(self, job, result, error) -> None:
