@@ -347,13 +347,14 @@ def test_every_string_exists_in_every_locale_and_formats(locale):
 
 
 @pytest.mark.parametrize("locale", LOCALES)
-def test_the_group_names_and_buttons_spend_no_letter_they_do_not_own(locale):
-    """The group is not a tab stop and the five buttons are named by their
-    group, like the model and CUDA rows: no Alt key on any of them, so none can
-    take one from a control that needs it."""
+def test_the_group_name_spends_no_letter_and_every_button_has_one(locale):
+    """The group is not a tab stop, so it takes no Alt key. The five buttons
+    each have one, like every action button on the tab: the letters are shared
+    by word across the rows and never take OK's, Cancel's or Apply's (see
+    tests/test_transcription_settings_tab.py::TestTheMnemonicsOnThisTab)."""
     table = load_strings(locale)
-    for key in ("transcription_external_actions_group",
-                "transcription_external_add_btn", "transcription_external_find_btn",
+    assert "&" not in table["transcription_external_actions_group"], locale
+    for key in ("transcription_external_add_btn", "transcription_external_find_btn",
                 "transcription_external_use_btn", "transcription_external_check_btn",
                 "transcription_external_forget_btn"):
-        assert "&" not in table[key], f"{locale}: {key}"
+        assert table[key].count("&") == 1, f"{locale}: {key}"

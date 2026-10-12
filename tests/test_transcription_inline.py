@@ -150,7 +150,7 @@ class TestTheRow:
         assert _I18n().t("transcription_row_label") not in row
 
     def test_a_note_of_unknown_length_still_carries_its_text(self):
-        row = _Stub()._get_message_content(_voice(seconds=0))
+        row = _Stub()._get_message_content(_voice(seconds=None))
         i18n = _I18n()
         assert row == (
             f"{i18n.t('message_type_voice_message')}, "
