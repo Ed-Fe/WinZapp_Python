@@ -74,7 +74,7 @@ class _Window(WppBackgroundUpdateMixin):
 @pytest.fixture
 def env(monkeypatch, tmp_path):
     state = types.SimpleNamespace(
-        builds=[], boxes=[], later=[], discarded=[], swaps=[], pending=[], order=[],
+        builds=[], boxes=[], errors=[], later=[], discarded=[], swaps=[], pending=[], order=[],
         room=True, swap_error=None, busy=False, modal=[], api=str(tmp_path / "api"),
         build_raises=None)
 
@@ -126,6 +126,10 @@ def env(monkeypatch, tmp_path):
         monkeypatch.setattr(module, "threading", types.SimpleNamespace(Thread=_Thread))
         monkeypatch.setattr(module.wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
         monkeypatch.setattr(module, "message_box", _box)
+        def _error(window, i18n, text, title, details="", announce=None):
+            state.errors.append(details)
+            return _box(window, text, title, wx.OK, announce)
+        monkeypatch.setattr(module, "show_error_details", _error)
         monkeypatch.setattr(module, "resource_path", lambda *parts: os.path.join(state.api, *parts[1:]))
     monkeypatch.setattr(wpp_background_update.wx, "CallLater",
                         lambda ms, fn, *a: state.later.append((fn, a)))
@@ -348,6 +352,7 @@ class TestWhenItDoesNotGoWell:
 
         assert "stop" not in window.events and env.swaps == []
         assert env.boxes == ["wpp_update_failed_msg"]
+        assert env.errors == ["npm ERR!"]
         assert env.api + "_staging" in env.discarded
         assert finished == [False] and _busy(window) is False
 
@@ -364,6 +369,7 @@ class TestWhenItDoesNotGoWell:
         assert window.events[:2] == ["notice", "stop"] and window.events[-1] == "start"
         assert env.discarded == [env.api + "_staging"]   # the unused build does not stay on disk
         assert "wpp_update_failed_msg" in env.boxes
+        assert env.errors == ["in use"]
         assert env.modal == []                        # the built old server needs no rollback
         assert finished == [False]
 
@@ -510,7 +516,7 @@ class TestTheSetupReportsInsteadOfShowing:
 class TestTheSetupBuildsWhereItIsTold:
     """_run_setup() with every slow step replaced: where does it work?"""
 
-    def _run(self, monkeypatch, tmp_path, api_dir, forced_tag=TAG):
+    def _run(self, monkeypatch, tmp_path, api_dir, forced_tag=TAG, first_install_error=""):
         live = tmp_path / "live"
         (live / "api" / "src").mkdir(parents=True)
         (live / "api" / "dist").mkdir()
@@ -531,6 +537,8 @@ class TestTheSetupBuildsWhereItIsTold:
             seen.commands.append((cmd, env))
             seen.cwds.append(cwd)
             seen.caches.append((env or {}).get("PUPPETEER_CACHE_DIR"))
+            if first_install_error and len(seen.commands) == 1:
+                return False, first_install_error
             return True, ""
 
         setup = types.SimpleNamespace(
@@ -567,6 +575,21 @@ class TestTheSetupBuildsWhereItIsTold:
             if original.is_file():
                 copied = Path(staging) / ".cache" / original.relative_to(live_api / ".cache")
                 assert copied.read_bytes() == original.read_bytes()
+
+    def test_a_stale_npm_cache_is_retried_online(self, monkeypatch, tmp_path):
+        error = "npm error code ETARGET\nnpm error notarget No matching version found for @babel/runtime@^7.29.10."
+
+        seen, _ = self._run(monkeypatch, tmp_path, None, first_install_error=error)
+
+        assert seen.ended == ["ok"]
+        first, retry = seen.commands[0][0], seen.commands[1][0]
+        assert "--prefer-offline" in first
+        assert "--prefer-offline" not in retry and "--prefer-online" in retry and "--offline" not in retry
+
+    def test_another_npm_error_is_not_retried(self, monkeypatch, tmp_path):
+        seen, _ = self._run(monkeypatch, tmp_path, None, first_install_error="npm error code ENOTFOUND")
+
+        assert seen.ended[0].startswith("error") and len(seen.commands) == 1
 
     def test_without_one_it_rebuilds_in_place_as_before(self, monkeypatch, tmp_path):
         seen, live_api = self._run(monkeypatch, tmp_path, None)

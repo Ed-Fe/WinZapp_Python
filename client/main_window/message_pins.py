@@ -24,7 +24,7 @@ class MessagePinsMixin:
         if body.get("status") != "success" or not isinstance(raw, list):
             raise ValueError("Invalid pinned messages response")
         messages = self._normalize_fetched_messages(raw, jid)
-        if len(messages) != len(raw) or any(
+        if messages is None or len(messages) != len(raw) or any(
             not (m.get("key") or {}).get("id")
             or not self._chat_jids_equivalent(jid, (m.get("key") or {}).get("remoteJid", ""))
             for m in messages

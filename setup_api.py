@@ -52,6 +52,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from node_download_config import NODE_VERSION  # noqa: E402
+from core.npm_environment import npm_environment  # noqa: E402
 from winzapp_tools.build_env import (  # noqa: E402
     node_major,
     portable_node_version,
@@ -119,10 +120,18 @@ CUSTOM_SRC_FILES = [
     "src/util/callMediaBridge.ts",
     "src/util/chatListsRuntime.ts",
     "src/util/pinnedMessagesRuntime.ts",
+    "src/util/pollRuntime.ts",
+    "src/controller/pollController.ts",
+    "src/util/communityCommentsRuntime.ts",
+    "src/controller/communityCommentsController.ts",
+    "src/tests/controller/communityCommentsController.test.ts",
     "src/controller/pinnedMessagesController.ts",
+    "src/controller/groupOperationsController.ts",
+    "src/tests/controller/groupOperationsController.test.ts",
     "src/tests/controller/pinnedMessagesController.test.ts",
     "src/util/forwardRuntime.ts",
     "src/util/statusReactionRuntime.ts",
+    "src/util/contactPresenceRuntime.ts",
     "src/util/listChatsDiag.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",
@@ -171,7 +180,19 @@ def _load_env() -> dict:
     return result
 
 
-def _run(cmd: list, cwd: str = None):
+# WinZapp's own npm cache and config (core/npm_environment.py), at the same
+# place a dev run started from client/ keeps it: global_dir("npm") resolves
+# to client/data/global/npm there. Not global_dir() itself, which resolves
+# against the working directory and would put a data/ folder wherever this
+# script happens to be run from.
+NPM_DIR = os.path.join(ROOT_DIR, "client", "data", "global", "npm")
+
+
+def _npm_env() -> dict:
+    return npm_environment(os.environ, NPM_DIR, CLIENT_API_DIR)
+
+
+def _run(cmd: list, cwd: str = None, env: dict = None):
     # subprocess.run() with a bare command name (no shell=True, no
     # explicit .cmd/.exe suffix) can fail on Windows with
     # "[WinError 2] The system cannot find the file specified" for
@@ -187,7 +208,7 @@ def _run(cmd: list, cwd: str = None):
         if resolved:
             cmd = [resolved] + cmd[1:]
     print(f"  $ {' '.join(str(c) for c in cmd)}")
-    result = subprocess.run(cmd, cwd=cwd)
+    result = subprocess.run(cmd, cwd=cwd, env=env)
     if result.returncode != 0:
         print(f"\n[ERROR] Command failed (exit {result.returncode}).")
         sys.exit(result.returncode)
@@ -1055,6 +1076,7 @@ def main():
                             capture_output=True,
                             text=True,
                             timeout=120,
+                            env=_npm_env(),
                         )
                     except subprocess.TimeoutExpired:
                         print(
@@ -1089,9 +1111,11 @@ def main():
         # Run npm install
         print("[INFO] Running npm install...")
         if npm_runs_under_portable_node(npm_bin):
-            _run([node_bin, npm_bin, "install", "--no-audit", "--no-fund", "--legacy-peer-deps"], cwd=CLIENT_API_DIR)
+            _run([node_bin, npm_bin, "install", "--no-audit", "--no-fund", "--legacy-peer-deps"], cwd=CLIENT_API_DIR,
+                 env=_npm_env())
         else:
-            _run([npm_bin, "install", "--no-audit", "--no-fund", "--legacy-peer-deps"], cwd=CLIENT_API_DIR)
+            _run([npm_bin, "install", "--no-audit", "--no-fund", "--legacy-peer-deps"], cwd=CLIENT_API_DIR,
+                 env=_npm_env())
 
         # Apply the RangeError/memory-leak patch to @wppconnect-team/wppconnect decrypt.js by copying our modified file
         try:
@@ -1161,14 +1185,14 @@ def main():
             _run([node_bin, install_js], cwd=CLIENT_API_DIR)
         else:
             print("[WARNING] puppeteer install.mjs not found. Attempting fallback browser download...")
-            _run([npm_bin, "run", "postinstall"], cwd=CLIENT_API_DIR)
+            _run([npm_bin, "run", "postinstall"], cwd=CLIENT_API_DIR, env=_npm_env())
 
         # Run npm run build
         print("[INFO] Compiling WPPConnect Server...")
         if npm_bin.endswith("npm-cli.js"):
-            _run([node_bin, npm_bin, "run", "build"], cwd=CLIENT_API_DIR)
+            _run([node_bin, npm_bin, "run", "build"], cwd=CLIENT_API_DIR, env=_npm_env())
         else:
-            _run([npm_bin, "run", "build"], cwd=CLIENT_API_DIR)
+            _run([npm_bin, "run", "build"], cwd=CLIENT_API_DIR, env=_npm_env())
 
         print("[OK] WPPConnect Server dependencies installed and built successfully.")
 

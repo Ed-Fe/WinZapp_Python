@@ -59,8 +59,11 @@ import zipfile
 
 import requests
 import wx
+from ui.dialogs.error_details import show_error_details
 
-from app_paths import resource_path
+from app_paths import global_dir, resource_path
+from core.api_dependencies import npm_cached_metadata_is_stale
+from core.npm_environment import npm_environment
 from core.wpp_runtime import homologated_wpp_tag
 
 # GitHub download URLs — no git required
@@ -210,10 +213,18 @@ _CUSTOM_SRC_FILES = [
     "src/util/callMediaBridge.ts",
     "src/util/chatListsRuntime.ts",
     "src/util/pinnedMessagesRuntime.ts",
+    "src/util/pollRuntime.ts",
+    "src/controller/pollController.ts",
+    "src/util/communityCommentsRuntime.ts",
+    "src/controller/communityCommentsController.ts",
+    "src/tests/controller/communityCommentsController.test.ts",
     "src/controller/pinnedMessagesController.ts",
+    "src/controller/groupOperationsController.ts",
+    "src/tests/controller/groupOperationsController.test.ts",
     "src/tests/controller/pinnedMessagesController.test.ts",
     "src/util/forwardRuntime.ts",
     "src/util/statusReactionRuntime.ts",
+    "src/util/contactPresenceRuntime.ts",
     "src/util/listChatsDiag.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",
@@ -886,7 +897,7 @@ class ApiSetupDialog(wx.Dialog):
     def _run_subprocess(self, cmd, cwd=None, env=None):
         """
         Run a subprocess and wait for it to finish.
-        Returns (success: bool, stderr: str).
+        Returns (success: bool, combined_output: str).
         """
         import sys
         creation_flags = 0
@@ -896,18 +907,20 @@ class ApiSetupDialog(wx.Dialog):
             self._proc = subprocess.Popen(
                 cmd, cwd=cwd, env=env,
                 creationflags=creation_flags,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
+                # Compiler diagnostics (notably tsc) use stdout. Keep both
+                # streams so a failed build reports its actual cause.
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
-            _, stderr_bytes = self._proc.communicate()
+            output_bytes, _ = self._proc.communicate()
         except FileNotFoundError as exc:
             return False, str(exc)
 
         if self._cancelled:
             return False, ""
         rc     = self._proc.returncode
-        stderr = (stderr_bytes or b"").decode("utf-8", errors="replace").strip()
-        return (rc == 0), stderr
+        output = (output_bytes or b"").decode("utf-8", errors="replace").strip()
+        return (rc == 0), output
 
     # ── Background setup thread ───────────────────────────────────────────────
 
@@ -946,7 +959,7 @@ class ApiSetupDialog(wx.Dialog):
         # browser the server looks for are two different trees.
         puppeteer_cache = (os.path.join(staging_dir, ".cache") if staging_dir
                            else resource_path("api", ".cache"))
-        npm_env  = {
+        npm_base_env = {
             **os.environ,
             "PATH": path_env,
             "npm_config_timing": "true",
@@ -1130,6 +1143,12 @@ class ApiSetupDialog(wx.Dialog):
 
             # ── Step 4: npm install ───────────────────────────────────────
             self._set_stage(self._i18n.t("api_setup_npm_install"), *stages["npm_install"])
+            # npm_environment(): WinZapp's own npm cache and config, never the
+            # user's (core/npm_environment.py). global_dir, not api_dir, so a
+            # staged build and the in-place one share one cache that no update
+            # replaces. Built only now, once the source (and its own .npmrc,
+            # which must keep outranking the user's settings) is in api_dir.
+            npm_env = npm_environment(npm_base_env, global_dir("npm"), api_dir)
             # puppeteer's own postinstall script (node_modules/puppeteer/install.mjs)
             # otherwise downloads Chrome silently as part of `npm install` — a
             # multi-hundred-MB download with zero progress feedback, hidden
@@ -1145,11 +1164,13 @@ class ApiSetupDialog(wx.Dialog):
 
             dependency_flags = timed_call("dependency_manifest", prepare_api_dependencies,
                                           api_dir, building=not modules_only)
-            ok, err = self._run_subprocess(
-                npm_cmd + ["install", "--prefer-offline", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"] + dependency_flags,
-                cwd=api_dir,
-                env=npm_install_env,
-            )
+            install_cmd = npm_cmd + ["install", "--prefer-offline", "--no-audit", "--no-fund", "--include=optional", "--legacy-peer-deps"] + dependency_flags
+            ok, err = self._run_subprocess(install_cmd, cwd=api_dir, env=npm_install_env)
+            if not ok and not self._cancelled and npm_cached_metadata_is_stale(err):
+                # The cached registry metadata predates a version upstream
+                # now asks for; ask the registry again instead of failing.
+                install_cmd = [arg for arg in install_cmd if arg != "--prefer-offline"] + ["--prefer-online"]
+                ok, err = self._run_subprocess(install_cmd, cwd=api_dir, env=npm_install_env)
             if not ok:
                 if not self._cancelled:
                     wx.CallAfter(self._finish_error,
@@ -1408,8 +1429,9 @@ class ApiSetupDialog(wx.Dialog):
         # Only shown to the user until now; npm's output is the evidence when an
         # update to a newer server release fails to build.
         logging.error("[api_setup] Setup failed: %s", details or "(no details)")
-        msg = self._i18n.t("api_setup_error_generic")
-        if details:
-            msg = f"{msg}\n\n{details}"
-        wx.MessageBox(msg, self._i18n.t("api_setup_error_title"), wx.OK | wx.ICON_ERROR, self)
+        self._error_details = details
+        # A staged update's caller shows one report after the progress closes.
+        if not getattr(self, "_api_dir", None):
+            show_error_details(self, self._i18n, self._i18n.t("api_setup_error_generic"),
+                               self._i18n.t("api_setup_error_title"), details)
         self._end_modal_safely(wx.ID_CANCEL)

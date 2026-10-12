@@ -11,6 +11,8 @@ class _I18n:
         "notif_list": "[list]",
         "notif_location": "[location]",
         "notif_poll": "[poll: {name}]",
+        "poll_row_question": "[poll: {name}]",
+        "poll_row_options": "{question} {options}",
         "notif_poll_no_name": "[poll]",
         "notif_system_message": "[system]",
         "notif_template": "[template]",

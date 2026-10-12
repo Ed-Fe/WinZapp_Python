@@ -5,13 +5,16 @@ import time
 import socketio
 import wx
 import requests
+from core.community_comments import comment_count
 from core.api_client import api_get, api_post
+from core.connection_lifecycle import socket_client_is_current
 from core.call_log import CALL_LOG_MESSAGE_TYPE, call_log_creator, call_log_payload
 from core.i18n import I18n
 from core.message_edit import MESSAGE_EDIT, clean_message_id, server_marks_edited
 from core.message_stars import remote_star_state
 from core.reaction_echo import reaction_echo_keys, take_matching_send
 from core.meta_ai import rich_response_text
+from core.polls import poll_message_from_wpp
 from core.sync_contracts import observe_payload
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE, is_view_once_unavailable
 from core.utils import looks_like_binary_blob, looks_like_jid, _slim_quoted_message, parse_bool_flag as _parse_bool_flag
@@ -313,6 +316,7 @@ class WebSocketClient:
     def __init__(self, main_window, connect, instance_name):
         self.main_window = main_window
         self.connect = connect
+        self._session_token = instance_name
         self.instance_name = instance_name.split(":")[0]
         #Initialize i18n
         self.i18n = I18n(self.main_window)
@@ -369,6 +373,7 @@ class WebSocketClient:
 
         # Debounce timer for on_disconnect() — see that method.
         self._disconnect_timer = None
+        self._disconnect_epoch = 0
         self._locally_sent_reaction_ids = {}
 
         # Diagnostic-only: how many "call:video:remote" frames Socket.IO has
@@ -422,7 +427,12 @@ class WebSocketClient:
         return jid_val.replace("@c.us", "@s.whatsapp.net")
 
     def on_connect(self):
+        self._presence_delivery_generation = getattr(self, "_presence_delivery_generation", 0) + 1
+        if hasattr(self.main_window, "_invalidate_contact_presence"):
+            wx.CallAfter(self.main_window._invalidate_contact_presence)
+            wx.CallAfter(self.main_window._refresh_open_contact_presence)
         logging.info("[WebSocketClient] WebSocket connected.")
+        self._disconnect_epoch = getattr(self, "_disconnect_epoch", 0) + 1
         # Cancel any pending "confirm still disconnected" check from
         # on_disconnect() — we just reconnected, so that transient blip
         # never needs to be declared offline at all.
@@ -444,7 +454,11 @@ class WebSocketClient:
 
     def _recheck_connection_after_connect(self):
         try:
+            if not socket_client_is_current(self):
+                return
             self.main_window.check_wa_connection_http()
+            if not socket_client_is_current(self):
+                return
             if getattr(self.main_window, "_wa_connected", False):
                 if hasattr(self.main_window, "message_queue"):
                     self.main_window.message_queue.flush()
@@ -471,6 +485,9 @@ class WebSocketClient:
             logging.exception("[WebSocketClient] _recheck_connection_after_connect error")
 
     def on_disconnect(self):
+        self._presence_delivery_generation = getattr(self, "_presence_delivery_generation", 0) + 1
+        if hasattr(self.main_window, "_invalidate_contact_presence"):
+            wx.CallAfter(self.main_window._invalidate_contact_presence)
         logging.info("[WebSocketClient] WebSocket disconnected.")
         # Debounced: python-socketio auto-reconnects on its own within a few
         # seconds for an ordinary transient blip (Wi-Fi/NAT power-save churn,
@@ -486,9 +503,12 @@ class WebSocketClient:
         # 30-second health check regardless.
         if self._disconnect_timer is not None:
             self._disconnect_timer.cancel()
+        self._disconnect_epoch = getattr(self, "_disconnect_epoch", 0) + 1
+        epoch = self._disconnect_epoch
 
         def _confirm_still_disconnected():
-            if not self.sio.connected:
+            if (self._disconnect_epoch == epoch and socket_client_is_current(self)
+                    and not self.sio.connected):
                 self.main_window._set_wa_connected(False, "socket disconnected", False)
 
         self._disconnect_timer = threading.Timer(
@@ -1743,7 +1763,11 @@ class WebSocketClient:
             presences = data.get("presences", {})
             if not jid or not isinstance(presences, dict):
                 return
-            wx.CallAfter(self.main_window.on_presence_update, jid, presences)
+            generation = getattr(self, "_presence_delivery_generation", 0)
+            def deliver():
+                if generation == getattr(self, "_presence_delivery_generation", 0):
+                    self.main_window.on_presence_update(jid, presences)
+            wx.CallAfter(deliver)
         except Exception:
             logging.exception("[WebSocketClient] on_presence_update error")
 
@@ -1809,10 +1833,11 @@ class WebSocketClient:
                     # Unknown/unexpected chat-state value — log it so a real-world
                     # mismatch (e.g. a different literal used for audio recording)
                     # can be diagnosed from the logs instead of failing silently.
-                    logging.warning(f"[WebSocketClient] Unrecognized presence state: {s!r} (raw info: {info})")
+                    logging.warning("[WebSocketClient] Unrecognized presence state")
                 return s
 
-            timestamp = info.get("t")
+            # WA-JS t is Date.now() when emitting, NOT chatstate.t (last seen).
+            timestamp = info.get("lastSeen")
 
             if is_group:
                 participants = info.get("participants", [])
@@ -1829,18 +1854,24 @@ class WebSocketClient:
                             p_state = map_state(p.get("state"))
                             presences[p_jid] = {
                                 "lastKnownPresence": p_state,
-                                "lastSeen": timestamp
                             }
             else:
                 state = map_state(info.get("state"))
                 presences[chat_jid] = {
                     "lastKnownPresence": state,
-                    "lastSeen": timestamp
+                    "isOnline": info.get("isOnline"),
+                    "eventTimestamp": info.get("t"),
                 }
+                if "lastSeen" in info:
+                    presences[chat_jid]["lastSeen"] = timestamp
 
             if presences:
                 logging.info(f"[WebSocketClient] on_wpp_presence_changed JID: {chat_jid}, presences: {presences}")
-                wx.CallAfter(self.main_window.on_presence_update, chat_jid, presences)
+                generation = getattr(self, "_presence_delivery_generation", 0)
+                def deliver():
+                    if generation == getattr(self, "_presence_delivery_generation", 0):
+                        self.main_window.on_presence_update(chat_jid, presences)
+                wx.CallAfter(deliver)
         except Exception:
             logging.exception("[WebSocketClient] on_wpp_presence_changed error")
 
@@ -2241,9 +2272,6 @@ class WebSocketClient:
 
     def on_wpp_message_received(self, data):
         try:
-            note_live = getattr(self.main_window, "_note_live_wpp_event", None)
-            if note_live:
-                note_live()
             # Unconditional breadcrumb, logged before any filtering below —
             # reported live: a message shows up in the chat list (unread
             # count bumped) with no toast/sound/local notification at all,
@@ -2269,9 +2297,14 @@ class WebSocketClient:
             if not session_ok:
                 return
             wpp_msg = data.get("response")
-            if not wpp_msg:
+            if not isinstance(wpp_msg, dict) or not wpp_msg:
                 return
             normalized = self._normalize_wpp_message(wpp_msg)
+            if not isinstance(normalized, dict):
+                return
+            note_live = getattr(self.main_window, "_note_live_wpp_event", None)
+            if note_live:
+                note_live()
             # When this message reached WinZapp, so on_new_message() can say how
             # much of the delay before the screen reader speaks was its own.
             # Kept out of the stored record by prune_message_record()'s caller
@@ -2906,11 +2939,12 @@ class WebSocketClient:
                     "displayName": wpp_msg.get("displayName") or wpp_msg.get("body") or "Contato",
                 }
             }
-        elif msg_type == "pollCreation":
+        elif msg_type in ("pollCreation", "poll_creation"):
+            # WhatsApp Web's type is "poll_creation" (wa-js sends exactly that);
+            # "pollCreation" is what this branch used to wait for, so a real
+            # poll fell through to the unsupported-message fallback.
             message_content = {
-                "pollCreationMessage": {
-                    "name": wpp_msg.get("pollName") or wpp_msg.get("body") or ""
-                }
+                "pollCreationMessage": poll_message_from_wpp(wpp_msg)
             }
         elif msg_type == "buttons":
             message_content = {
@@ -3020,6 +3054,7 @@ class WebSocketClient:
             "sticker": "stickerMessage",
             "vcard": "contactMessage",
             "pollCreation": "pollCreationMessage",
+            "poll_creation": "pollCreationMessage",
             "buttons": "buttonsMessage",
             "list": "listMessage",
             "template": "templateMessage",
@@ -3065,6 +3100,9 @@ class WebSocketClient:
         if not _is_edit_event and server_marks_edited(wpp_msg):
             normalized["_edited"] = True
         normalized.update(remote_star_state(wpp_msg))
+        replies = comment_count(wpp_msg.get("replyCount"))
+        if replies is not None:
+            normalized["replyCount"] = replies
 
         # Status messages: include the real sender as participant
         if status_participant:

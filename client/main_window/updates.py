@@ -18,6 +18,7 @@ from core.api_install_timing import timed_call, timed_step
 from core.wpp_connection_recovery import begin_update_reconnection
 from update_background import background_downloads_enabled
 from main_window.wpp_update_validation import restart_api_after_update
+from ui.dialogs.error_details import show_error_details
 
 
 def should_roll_back(server_built: bool, target_tag: str, minimum_tag: str) -> bool:
@@ -104,6 +105,11 @@ class UpdatesMixin:
         ready = getattr(self, "_ui_ready_event", None)
         if ready is not None and not ready.is_set():
             return False  # still inside MainWindow.__init__: no window to ask from
+        api_start = getattr(self, "_api_start_settled", None)
+        if api_start is not None and not api_start.is_set():
+            # Node still starting behind the window (issue #407): the same
+            # moment this used to be still inside __init__'s startup dialog.
+            return False
         try:
             if self._is_pairing_dialog_active():
                 return False
@@ -213,10 +219,13 @@ class UpdatesMixin:
         backup = ""
         stop_failed = False
         no_room = False
+        failure_details = ""
+        self._wpp_update_error_key = ""
+        self._wpp_update_error_details = ""
 
         @timed_step("api_stop_phase")
         def _stop_phase():
-            nonlocal stop_failed, no_room
+            nonlocal stop_failed, no_room, failure_details
             try:
                 if not staged_dir:
                     # What an interrupted build left counts against the free
@@ -239,8 +248,9 @@ class UpdatesMixin:
                 running = getattr(self, "_is_wpp_running", lambda: False)
                 if released is False or not wait_for_port_closed(running):
                     raise TimeoutError("previous API or Chrome profile is still in use")
-            except Exception:
+            except Exception as exc:
                 stop_failed = True
+                failure_details = str(exc)
                 logging.exception("[wpp_update] Could not stop the previous API; installation preserved")
             finally:
                 try:
@@ -253,7 +263,7 @@ class UpdatesMixin:
                         on_finished(False)
 
         def _run_install(tag):
-            nonlocal backup
+            nonlocal backup, failure_details
             if staged_dir and tag == target_tag:
                 result, user_cancelled = wx.ID_OK, False
             else:
@@ -262,12 +272,14 @@ class UpdatesMixin:
                 try:
                     backup = timed_call("api_swap", api_staging.swap_in_staged_api,
                                         api_dir, build_dir, attempts=4, pause=0.5)
-                except api_staging.SwapError:
+                except api_staging.SwapError as exc:
+                    failure_details = str(exc)
                     logging.exception("[wpp_update] Could not install the staged API")
                     return wx.ID_CANCEL, False
             return result, user_cancelled
 
         def _build_install(tag):
+            nonlocal failure_details
             from ui.dialogs.api_setup import ApiSetupDialog
             dlg = ApiSetupDialog(
                 self,
@@ -280,10 +292,10 @@ class UpdatesMixin:
             # the progress dialog pulled forward again.
             bring_to_front_if_hidden(self, dlg)
             result = dlg.ShowModal()
-            # ApiSetupDialog ends with ID_CANCEL both for a failure (after it
-            # showed its own error box) and for the user's Cancel; only the
-            # latter sets _cancelled.
+            # Staged setup retains error details for this caller. ID_CANCEL
+            # covers failure and cancellation; only cancellation sets _cancelled.
             user_cancelled = bool(getattr(dlg, "_cancelled", False))
+            failure_details = getattr(dlg, "_error_details", "")
             dlg.Destroy()
             return result, user_cancelled
 
@@ -294,7 +306,7 @@ class UpdatesMixin:
                     logging.error("[wpp_update] Insufficient space to retain the current API")
                     self.error_sound.play()
                     text = self.i18n.t("wpp_update_not_enough_space")
-                    message_box(self, text, self.i18n.t("update_error_title"), wx.OK | wx.ICON_ERROR,
+                    show_error_details(self, self.i18n, text, self.i18n.t("update_error_title"),
                                 announce=lambda: self.output(text, interrupt=True))
                     return
                 if stop_failed:
@@ -310,11 +322,12 @@ class UpdatesMixin:
                         # A cancel needs no "could not update" box; the user just
                         # asked for it. A failure does.
                         self.error_sound.play()
-                        message_box(
+                        show_error_details(
                             self,
+                            self.i18n,
                             self.i18n.t("wpp_update_failed_msg"),
                             self.i18n.t("update_error_title"),
-                            wx.OK | wx.ICON_ERROR,
+                            failure_details,
                             announce=lambda: self.output(self.i18n.t("wpp_update_failed_msg"), interrupt=True),
                         )
                     # Normally the previous API is intact. The bundled minimum
@@ -345,8 +358,12 @@ class UpdatesMixin:
                 logging.info("[wpp_update] WPPConnect Server updated to %s — restarting...", target_tag)
                 restart_api_after_update(self, api_dir, backup, _validated)
                 deferred = True
-            except Exception:
+            except Exception as exc:
                 logging.exception("[wpp_update] Installing the API failed")
+                if not getattr(self, "_shutting_down", False):
+                    text = self.i18n.t("wpp_update_failed_msg")
+                    show_error_details(self, self.i18n, text, self.i18n.t("update_error_title"), str(exc),
+                                       announce=lambda: self.output(text, interrupt=True))
             finally:
                 if not deferred:
                     _finish(False)
@@ -364,7 +381,11 @@ class UpdatesMixin:
                     if report_failure:
                         self.error_sound.play()
                         text = self.i18n.t("wpp_update_failed_msg")
-                        message_box(self, text, self.i18n.t("update_error_title"), wx.OK | wx.ICON_ERROR,
+                        key = getattr(self, "_wpp_update_error_key", "")
+                        details = getattr(self, "_wpp_update_error_details", "") or failure_details
+                        if key:
+                            details = self.i18n.t(key) + ("\n\n" + details if details else "")
+                        show_error_details(self, self.i18n, text, self.i18n.t("update_error_title"), details,
                                     announce=lambda: self.output(text, interrupt=True))
                     return
 

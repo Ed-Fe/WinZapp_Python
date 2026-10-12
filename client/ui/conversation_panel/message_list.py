@@ -5,11 +5,13 @@ the ConversationsPanel instance, so every attribute set in
 ConversationsPanel.__init__/init_UI is available here.
 """
 
+from ui.shortcut_bindings import command_key_event
 import base64 as _b64
 import logging
 import os
 import threading
 import wx
+from core.polls import POLL_MESSAGE_TYPES
 from ui.conversation_panel.media_paths import _SAVEABLE_MESSAGE_TYPES
 from core.call_log import (
     call_log_is_video,
@@ -246,6 +248,9 @@ class MessageListMixin:
             # covers both, including the download-failure reporting.
             self.open_media_message(msg)
 
+        elif msg_type in POLL_MESSAGE_TYPES:
+            self._show_poll_dialog(msg)
+
         elif msg_type == "contactMessage":
             # Enter on a contact message → open a conversation with that
             # contact, same as clicking the "Conversar" button. Space
@@ -429,6 +434,7 @@ class MessageListMixin:
 
         self._update_return_call_button(idx)
         self._update_read_more_button(idx)
+        self._update_inline_poll(idx)
         self._update_reactions_button(idx)
         event.Skip()
 
@@ -688,6 +694,7 @@ class MessageListMixin:
         Activation stayed on Enter / double-click — see _do_activate_message.
         Page Up / Page Down jump by a configurable number of messages (page_up_down_step setting).
         Trigger loading older messages on Arrow Up / Page Up when at the top (index 0)."""
+        event = command_key_event(self, 'message_list', event)
         key = event.GetKeyCode()
         ctrl = event.ControlDown()
         shift = event.ShiftDown()

@@ -135,6 +135,22 @@ def tag_is_newer(tag, running_tag):
     return _tag_key(tag) > _tag_key(running_tag)
 
 
+def bundle_version(tag):
+    """CFBundleVersion of release *tag*, or "" for anything that is not one.
+
+    Sparkle decides "newer" (and its installer refuses a downgrade) by
+    comparing CFBundleVersion numerically, part by part, so this must order
+    exactly as tag_is_newer() does: v2.1.0.4258alpha < v2.1.0.4258beta <
+    v2.1.0.4258 < v2.1.0.4259alpha. The channel goes into the last digit of
+    the fourth number (alpha 1, beta 2, stable 3): "2.1.0.42581". Four
+    integers, the shape CFBundleShortVersionString already ships notarized
+    in, rather than a fifth part Apple's format does not describe."""
+    if not is_release_tag(tag):
+        return ""
+    nums, pre = _tag_key(tag)
+    return f"{nums[0]}.{nums[1]}.{nums[2]}.{nums[3] * 10 + pre}"
+
+
 def running_release_tag(info):
     """The official tag this app was built from (Info.plist WinZappReleaseTag,
     written by build_app.py), or "" for a development build. The running
