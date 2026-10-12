@@ -20,6 +20,8 @@ NOWOŚCI
 
 - Przeglądanie ostatnich wiadomości według pozycji: dziesięć nowych poleceń na karcie „Skróty klawiszowe” w Ustawieniach, po jednym dla każdej pozycji od najnowszej wiadomości (1) do dziesiątej (0), czyta tę wiadomość na głos bez przenoszenia fokusu, a dwukrotne szybkie naciśnięcie tego samego klawisza ją kopiuje. Nie mają przypisanego klawisza, bo Alt+1 do Alt+9 należą do okna głównego: zwolnij je albo wybierz inne klawisze na tej karcie.
 
+- Aktualizacje: anulowanie lub zamknięcie okna postępu przed rozpoczęciem instalacji bezpiecznie zatrzymuje aktualizację. Jeśli instalacja już się rozpoczęła, WinZapp zamyka się, aby umożliwić jej zakończenie. Instalator nie czeka już bez końca na zamknięcie WinZapp, a trwająca aktualizacja nie jest już zgłaszana jako inne otwarte konto.
+
 - Zaproszenia do grup: Nowy czat udostępnia teraz opcję Dołącz do grupy przez link, z podglądem przed dołączeniem i oddzielnymi wynikami oczekiwania na zatwierdzenie oraz niepotwierdzonego dołączenia.
 
 - Grupy: można wyświetlać, kopiować i zapisywać linki zaproszeń oraz kody QR, a także resetować je po potwierdzeniu. Rozróżniane są oczekujące zatwierdzenia i niepotwierdzone wyniki; poprawiono tworzenie, opuszczanie i uprawnienia edycji grup.

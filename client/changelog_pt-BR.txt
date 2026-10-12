@@ -20,6 +20,8 @@ NOVIDADES
 
 - Revisar as mensagens recentes por posição: dez novos comandos na aba "Atalhos de teclado" das Configurações, um para cada posição da mensagem mais nova (1) até a décima (0), leem aquela mensagem em voz alta sem mover o foco, e apertar a mesma tecla duas vezes rapidamente a copia. Vêm sem tecla definida, já que Alt+1 a Alt+9 pertencem à janela principal: libere essas ou escolha outras teclas nessa aba.
 
+- Atualizações: cancelar ou fechar a janela de progresso antes do início da instalação agora interrompe a atualização com segurança. Se a instalação já começou, o WinZapp fecha para permitir sua conclusão. O instalador não espera mais indefinidamente pelo encerramento do WinZapp, e uma atualização em andamento não é mais informada como outra conta aberta.
+
 - Convites de grupo: Nova conversa agora oferece Entrar no grupo por link, com prévia antes de entrar e resultados separados para aprovação pendente e entrada não confirmada.
 
 - Grupos: links de convite e códigos QR podem ser visualizados, copiados, salvos e redefinidos com confirmação. A aprovação pendente e os resultados não confirmados são informados corretamente; a criação, saída e permissões de edição foram corrigidas.

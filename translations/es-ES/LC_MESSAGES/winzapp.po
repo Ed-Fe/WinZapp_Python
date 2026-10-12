@@ -13241,6 +13241,15 @@ msgctxt "update_closing_other_accounts"
 msgid "Closing the other WinZapp accounts..."
 msgstr "Cerrando las otras cuentas de WinZapp..."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+msgctxt "update_coordination_failed"
+msgid ""
+"WinZapp could not verify that it is safe to install the update. Installation"
+" was not started."
+msgstr ""
+"WinZapp no pudo verificar que sea seguro instalar la actualización. No se "
+"inició la instalación."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "update_downloading"
 msgid "Downloading update..."
@@ -13280,6 +13289,15 @@ msgstr ""
 "La última actualización de WinZapp no se completó: los archivos del programa"
 " no pudieron reemplazarse y la versión anterior sigue en uso. El motivo está"
 " en logs/update_install.log."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+msgctxt "update_install_in_progress"
+msgid ""
+"An update installation is already in progress. Wait for it to finish before "
+"trying again."
+msgstr ""
+"Ya hay una actualización en proceso de instalación. Espere a que termine "
+"antes de intentarlo de nuevo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "update_installing"

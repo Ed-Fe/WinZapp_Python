@@ -39,7 +39,11 @@ marker is missing. So: no waiter, a waiter that could not start, or one
 killed before the marker — the script relaunches as it always did; a marker
 — the waiter does, and the script does not.
 
-The waiter stops waiting at whichever comes first: the script's
+An abort marker or a still-running original parent suppresses relaunch. The
+installer bounds its parent wait at 300 checks and must not start a duplicate
+WinZapp on that failure. This also guards a missing/unwritable abort marker.
+
+The waiter otherwise stops waiting at whichever comes first: the script's
 `<marker>.done`, written after its relaunch decision on every exit path
 (only when the marker is there, so no waiter means no leftover file); the
 script's cmd.exe gone (by pid and image name — the path where the script
@@ -152,9 +156,17 @@ def relaunch_lines(exe_path: str, log_path: str, handoff_path: str = "",
 
 def build_relaunch_waiter_script(installer_pid: int, exe_path: str, log_path: str,
                                  handoff_path: str,
-                                 passes: int = WAITER_PASSES) -> str:
+                                 passes: int = WAITER_PASSES, parent_pid: int = 0) -> str:
     """The waiter's batch text. Pure — every path is already console-safe."""
     done_path = handoff_path + ".done"
+    abort_path = handoff_path + ".abort"
+    # Also fail closed if the abort marker could not be written. A PID reused
+    # by an unrelated process may suppress a relaunch, never create a duplicate.
+    parent_check = (
+        f'tasklist /FI "PID eq {parent_pid}" 2>NUL | find "{parent_pid}" >NUL\n'
+        "if not errorlevel 1 goto ABORT\n"
+        if parent_pid else ""
+    )
     return (
         "@echo off\n"
         "setlocal EnableDelayedExpansion\n"
@@ -164,6 +176,7 @@ def build_relaunch_waiter_script(installer_pid: int, exe_path: str, log_path: st
         f'if not exist "{handoff_path}" exit /b 1\n'
         "set /a WAITED=0\n"
         ":WAIT\n"
+        f'if exist "{abort_path}" goto ABORT\n'
         f'if exist "{done_path}" goto RELAUNCH\n'
         f'tasklist /FI "PID eq {installer_pid}" /FI "IMAGENAME eq cmd.exe" 2>NUL | find "{installer_pid}" >NUL\n'
         "if errorlevel 1 goto RELAUNCH\n"
@@ -172,23 +185,35 @@ def build_relaunch_waiter_script(installer_pid: int, exe_path: str, log_path: st
         "timeout /t 1 /nobreak >NUL\n"
         "goto WAIT\n"
         ":GAVE_UP\n"
+        f'if exist "{abort_path}" goto ABORT\n'
+        + parent_check +
         # The marker stays: a script still running must not relaunch too.
         f'>> "{log_path}" echo gave up waiting for the installer after {passes} checks - relaunching WinZapp\n'
         f'if exist "{exe_path}" start "" "{exe_path}"\n'
         'del "%~f0"\n'
         "goto :EOF\n"
         ":RELAUNCH\n"
+        f'if exist "{abort_path}" goto ABORT\n'
+        + parent_check +
         f'>> "{log_path}" echo installer finished - relaunching WinZapp without administrator rights\n'
         f'if exist "{exe_path}" start "" "{exe_path}"\n'
         f'del "{handoff_path}" >NUL 2>&1\n'
         f'del "{done_path}" >NUL 2>&1\n'
         'del "%~f0"\n'
+        "goto :EOF\n"
+        ":ABORT\n"
+        f'>> "{log_path}" echo installer aborted while WinZapp was still running - not relaunching\n'
+        f'del "{handoff_path}" >NUL 2>&1\n'
+        f'del "{done_path}" >NUL 2>&1\n'
+        f'del "{abort_path}" >NUL 2>&1\n'
+        'del "%~f0"\n'
+        "exit /b 1\n"
     )
 
 
 def start_relaunch_waiter(bat_path: str, installer_pid, exe_path: str, log_path: str,
                           handoff_path: str, write_script, popen=None,
-                          appear_timeout: float = 10.0) -> bool:
+                          appear_timeout: float = 10.0, parent_pid: int = 0) -> bool:
     """Start the non-elevated waiter and wait for it to take the relaunch
     over (its marker). Returns True when it did. Every other outcome leaves
     no marker and no waiter, so the elevated script relaunches WinZapp
@@ -200,7 +225,8 @@ def start_relaunch_waiter(bat_path: str, installer_pid, exe_path: str, log_path:
                         "relaunches WinZapp itself")
         return False
     waiter_path = bat_path[:-len(".bat")] + "_relaunch.bat"
-    script = build_relaunch_waiter_script(installer_pid, exe_path, log_path, handoff_path)
+    script = build_relaunch_waiter_script(installer_pid, exe_path, log_path, handoff_path,
+                                          parent_pid=parent_pid)
     if not write_script(waiter_path, script):
         return False
     popen = popen or subprocess.Popen
@@ -281,11 +307,21 @@ def run_elevated(bat_path: str):
         return False, None
     if not info.hProcess:
         return True, None
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.GetProcessId.argtypes = (wintypes.HANDLE,)
-    kernel32.GetProcessId.restype = wintypes.DWORD
-    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32 = None
     try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetProcessId.argtypes = (wintypes.HANDLE,)
+        kernel32.GetProcessId.restype = wintypes.DWORD
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
         return True, (kernel32.GetProcessId(info.hProcess) or None)
+    except Exception:
+        # ShellExecuteExW already succeeded. Missing PID metadata only means
+        # no waiter, never permission to release the installer's token.
+        logging.exception("Auto-updater: installer launched but its PID is unavailable")
+        return True, None
     finally:
-        kernel32.CloseHandle(info.hProcess)
+        if kernel32 is not None:
+            try:
+                kernel32.CloseHandle(info.hProcess)
+            except Exception:
+                logging.exception("Auto-updater: could not close the installer process handle")

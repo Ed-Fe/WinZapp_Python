@@ -20,6 +20,8 @@ YENİLİKLER
 
 - Son mesajları konumuna göre gözden geçirme: Ayarlar > Kısayollar içinde, en yeni mesajdan (1) onuncuya (0) kadar her konum için bir tane olmak üzere on yeni komut, o mesajı odağı taşımadan sesli okur; aynı tuşa hızlıca iki kez basmak mesajı kopyalar. Alt+1 ile Alt+9 ana pencereye ait olduğundan atanmış bir tuşla gelmezler: o sekmede bunları serbest bırakın ya da başka tuşlar seçin.
 
+- Güncellemeler: kurulum başlamadan ilerleme penceresini iptal etmek veya kapatmak güncellemeyi güvenle durdurur. Kurulum zaten başladıysa WinZapp tamamlanmasına izin vermek için kapanır. Kurucu artık WinZapp'ın çıkmasını süresiz beklemez; sürmekte olan güncelleme başka bir açık hesap olarak bildirilmez.
+
 - Grup davetleri: Yeni sohbet ekranına Gruba bağlantıyla katıl eklendi. Katılmadan önce grup önizlenir; onay bekleyen ve doğrulanamayan sonuçlar ayrı gösterilir.
 
 - Gruplar: davet bağlantısı ve QR kodu görüntüleme, bağlantıyı kopyalama, QR kodunu kaydetme ve onaylı sıfırlama eklendi. Üye eklemede onay bekleme ile doğrulanamayan sonuçlar ayrılıyor; grup oluşturma, ayrılma ve düzenleme izinleri düzeltildi.
