@@ -232,7 +232,9 @@ def voter_rows(i18n, voters: list, options: list, name_of) -> list[str]:
         chosen = [names[i] for i in voter.get("localIds") or [] if names.get(i)]
         if not chosen:
             continue
-        who = i18n.t("sender_you") if voter.get("mine") else name_of(voter.get("sender", ""))
+        who = i18n.t("sender_you") if voter.get("mine") else (
+            name_of(voter.get("sender", "")) or str(voter.get("name") or "").strip()
+            or i18n.t("unknown_contact"))
         rows.append((who, i18n.t("poll_voter_row").format(name=who, options=", ".join(chosen))))
     rows.sort(key=lambda pair: pair[0].casefold())
     return [text for _who, text in rows]

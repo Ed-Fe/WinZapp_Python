@@ -96,10 +96,11 @@ assert.strictEqual(JSON.stringify(r), '{"ok":false,"error":"poll_vote_failed"}')
 
 def test_voters_list_who_voted_what_and_mark_mine():
     _run("""
+modules.WAWebContactCollection = {ContactCollection: {get: id => id === 'ana@lid' ? {name: '', pushname: 'Ana P'} : undefined}};
 const out = await ctx.readPollVoters({messageId:'poll-id'});
 assert.strictEqual(out.ok, true);
 assert.strictEqual(JSON.stringify(out.voters),
-  '[{"sender":"ana@lid","mine":false,"localIds":[0]},{"sender":"me","mine":true,"localIds":[0,1]}]');
+  '[{"sender":"ana@lid","mine":false,"name":"Ana P","localIds":[0]},{"sender":"me","mine":true,"name":"","localIds":[0,1]}]');
 assert.strictEqual(JSON.stringify(out.options.map(o=>o.name)), '["A","B","C"]');
 """)
 

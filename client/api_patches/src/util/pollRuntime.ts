@@ -100,13 +100,25 @@ export async function readPollVoters({ messageId }) {
     let me = '';
     try { me = idOf(loadModule('WAWebUserPrefsMeUser')?.getMeLidUserOrThrow?.()); } catch { /* unknown */ }
     const group = collection.getForParentAddressingModeInsensitive([msg.id])?.[0];
+    const meUser = loadModule('WAWebUserPrefsMeUser');
+    const contacts = loadModule('WAWebContactCollection')?.ContactCollection;
     const voters = new Array();
     for (const vote of group?.toArray?.() ?? []) {
       const localIds = (vote?.selectedOptionLocalIds ?? []).filter((id) => Number.isInteger(id));
       if (!localIds.length) continue;
       const sender = idOf(vote.sender ?? vote.senderUserJid ?? vote.from);
       if (!sender) continue;
-      voters.push({ sender, mine: !!me && sender === me, localIds });
+      // Measured over CDP on a group poll: the vote's `sender` is the voter's
+      // @lid Wid; WhatsApp Web's ContactCollection has a name (address book)
+      // and/or a pushname for each, so it names voters the client cannot.
+      let mine = !!me && sender === me;
+      try { if (typeof meUser?.isMeAccount === 'function') mine = meUser.isMeAccount(vote.sender) === true; } catch { /* keep equality */ }
+      let name = '';
+      try {
+        const contact = contacts?.get?.(vote.sender);
+        name = String(contact?.name || contact?.pushname || '').trim();
+      } catch { /* the client names them */ }
+      voters.push({ sender, mine, name, localIds });
     }
     return {
       ok: true,

@@ -507,6 +507,16 @@ class TestVoterRows:
         rows = polls.voter_rows(_I18n(), voters, self.OPTIONS, {"g": "gustavo", "a": "Ana"}.get)
         assert rows == ["Ana: Sim, Não", "gustavo: Sim", "You: Não"]
 
+    def test_a_voter_the_client_cannot_name_gets_the_name_the_page_knows(self):
+        voters = [{"sender": "x@lid", "mine": False, "name": "Ana P", "localIds": [0]},
+                  {"sender": "y@lid", "mine": False, "name": "", "localIds": [1]}]
+        rows = polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: "")
+        assert rows == ["Ana P: Sim", "unknown_contact: Não"]
+
+    def test_the_clients_own_name_wins_over_the_pages(self):
+        voters = [{"sender": "x@lid", "mine": False, "name": "Ana P", "localIds": [0]}]
+        assert polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: "Ana") == ["Ana: Sim"]
+
     def test_voters_without_a_known_option_are_dropped(self):
         voters = [{"sender": "a", "mine": False, "localIds": [9]}, {"sender": "b", "localIds": []}]
         assert polls.voter_rows(_I18n(), voters, self.OPTIONS, lambda s: s) == []
