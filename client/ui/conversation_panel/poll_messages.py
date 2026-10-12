@@ -132,6 +132,7 @@ class PollMessagesMixin:
                 changed = True
         if changed:
             self.refresh_messages_if_changed()
+            self._reload_inline_poll()
 
     def _send_poll_vote(self, msg: dict, local_ids: list, on_done) -> None:
         """Cast the user's vote in the background; *on_done(ok)* runs on the

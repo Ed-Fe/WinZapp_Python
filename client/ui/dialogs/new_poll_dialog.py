@@ -58,9 +58,10 @@ class NewPollDialog(wx.Dialog):
                   0, wx.LEFT | wx.RIGHT, 8)
         self._list = wx.ListBox(panel, style=wx.LB_SINGLE)
         sizer.Add(self._list, 1, wx.EXPAND | wx.ALL, 8)
-        remove_btn = wx.Button(panel, label=i18n.t("new_poll_remove_option"))
-        remove_btn.Bind(wx.EVT_BUTTON, self._on_remove_option)
-        sizer.Add(remove_btn, 0, wx.LEFT | wx.RIGHT, 8)
+        self._remove_btn = wx.Button(panel, label=i18n.t("new_poll_remove_option"))
+        self._remove_btn.Bind(wx.EVT_BUTTON, self._on_remove_option)
+        self._remove_btn.Disable()   # nothing to remove until an option is added
+        sizer.Add(self._remove_btn, 0, wx.LEFT | wx.RIGHT, 8)
 
         self._multiple = wx.CheckBox(panel, label=i18n.t("new_poll_allow_multiple"))
         sizer.Add(self._multiple, 0, wx.ALL, 8)
@@ -99,6 +100,7 @@ class NewPollDialog(wx.Dialog):
             self._warn("poll_error_duplicate_option", self._option)
             return
         self._list.Append(text)
+        self._remove_btn.Enable()
         self._option.Clear()
         self._option.SetFocus()
 
@@ -111,6 +113,7 @@ class NewPollDialog(wx.Dialog):
         if count:
             self._list.SetSelection(min(index, count - 1))
         else:
+            self._remove_btn.Disable()
             self._option.SetFocus()
 
     def _on_ok(self, event):

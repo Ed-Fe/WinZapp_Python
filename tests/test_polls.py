@@ -343,3 +343,80 @@ class TestVoteRequests:
     def test_a_refused_vote_is_a_failure(self, monkeypatch):
         _post(monkeypatch, _Response(503, {"status": "error"}))
         assert _VoteSender().send_poll_vote(MSG, [1]) is False
+
+
+class _FakeList:
+    def __init__(self, checked):
+        self.checked = list(checked)
+
+    def GetItemCount(self):
+        return len(self.checked)
+
+    def IsItemChecked(self, index):
+        return self.checked[index]
+
+    def CheckItem(self, index, state):
+        self.checked[index] = state
+
+
+class _Event:
+    def __init__(self, index):
+        self._index = index
+
+    def GetIndex(self):
+        return self._index
+
+    def Skip(self):
+        pass
+
+
+def _inline_panel(checked, sent):
+    from ui.conversation_panel.poll_inline import PollInlineMixin
+
+    msg = {"key": {"id": "P"}, "message": {"pollCreationMessage": {
+        "name": "Q", "selectableOptionsCount": 1,
+        "options": [{"name": "A", "localId": 0}, {"name": "B", "localId": 1}]}}}
+    panel = types.SimpleNamespace(
+        _poll_inline_list=_FakeList(checked), _poll_inline_msg=msg,
+        _poll_inline_order=["A", "B"], _poll_inline_loading=False,
+        main_window=types.SimpleNamespace(
+            i18n=_I18n(), speak_output=types.SimpleNamespace(output=lambda _t: None)),
+        _send_poll_vote=lambda m, ids, done: sent.append(ids),
+    )
+    return panel, PollInlineMixin._on_inline_poll_checked
+
+
+class TestInlinePollVote:
+    def test_only_a_confirmed_single_answer_poll_is_voted_inline(self):
+        from ui.conversation_panel.poll_inline import inline_poll_applies
+
+        base = {"message": {"pollCreationMessage": {"name": "Q", "options": [{"name": "A"}]}}}
+        single = {"message": {"pollCreationMessage": {
+            "name": "Q", "options": [{"name": "A"}], "selectableOptionsCount": 1}}}
+        several = {"message": {"pollCreationMessage": {
+            "name": "Q", "options": [{"name": "A"}], "selectableOptionsCount": 0}}}
+        assert inline_poll_applies(single)
+        assert not inline_poll_applies(several)
+        assert not inline_poll_applies(base)   # unknown: opens in the window
+        assert not inline_poll_applies({**single, "_local_pending": True})
+        assert not inline_poll_applies({"message": {"conversation": "hi"}})
+
+    def test_ticking_an_option_votes_for_it_and_unticks_the_other(self):
+        sent = []
+        panel, handler = _inline_panel([True, True], sent)
+        handler(panel, _Event(1))
+        assert sent == [[1]]
+        assert panel._poll_inline_list.checked == [False, True]
+
+    def test_unticking_the_option_clears_the_vote(self):
+        sent = []
+        panel, handler = _inline_panel([False, False], sent)
+        handler(panel, _Event(0))
+        assert sent == [[]]
+
+    def test_loading_the_list_never_casts_a_vote(self):
+        sent = []
+        panel, handler = _inline_panel([True, False], sent)
+        panel._poll_inline_loading = True
+        handler(panel, _Event(0))
+        assert sent == []

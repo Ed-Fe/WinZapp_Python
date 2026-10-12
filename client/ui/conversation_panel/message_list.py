@@ -434,6 +434,7 @@ class MessageListMixin:
 
         self._update_return_call_button(idx)
         self._update_read_more_button(idx)
+        self._update_inline_poll(idx)
         self._update_reactions_button(idx)
         event.Skip()
 
