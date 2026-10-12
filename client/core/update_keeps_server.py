@@ -27,7 +27,7 @@ the periodic check then offers the newer one again.
 
 What that leaves: upstream source that changed between the bundled tag and
 the installed one runs as the bundled tag's until the next server update. Every
-upstream release from 2.10.27 to 2.10.37 changed dependencies only, which live
+upstream release from 2.10.27 to 2.10.48 changed dependencies only, which live
 in node_modules, so today that is nothing.
 
 Plain functions over paths, no wx, so the decision is tested on temporary
