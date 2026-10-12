@@ -12,6 +12,8 @@ WHAT'S NEW
 
 - Poll votes: on a single-answer poll, Tab from the message reaches its options and ticking one votes at once. Each option now also shows its share of the votes in percent, and the poll window has a View votes button (Alt+V) that lists who voted for what.
 
+- Poll options list: it is now announced with the label "Options" before it, and after voting, the vote count of the option you ticked updates right away.
+
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 
 - Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.

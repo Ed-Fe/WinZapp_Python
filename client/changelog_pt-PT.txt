@@ -12,6 +12,8 @@ NOVIDADES
 
 - Votos nas sondagens: numa sondagem de resposta única, o Tab a partir da mensagem leva às opções e marcar uma vota logo. Cada opção passa a mostrar também a percentagem dos votos, e a janela da sondagem tem o botão Ver votos (Alt+V), que lista quem votou em quê.
 
+- Lista de opções da sondagem: passa a vir precedida da etiqueta "Opções" e, ao votar, a contagem de votos da opção marcada é atualizada de imediato.
+
 - Os erros de instalação e atualização da WPPConnect passam a aparecer num campo de texto só de leitura, com detalhes para ler e copiar. As atualizações preparadas separadamente mostram um único relatório de erro, sem avisos duplicados.
 
 - Respostas aos avisos de comunidades: abra o menu de uma mensagem e escolha "Respostas ao aviso da comunidade" para ler e enviar respostas. A janela permite atualizar as respostas e conserva o texto quando o envio não é confirmado. Os avisos anunciam a contagem conhecida de respostas. Os autores usam nomes guardados ou de perfil, e as suas respostas respeitam a configuração de como se referir a si.

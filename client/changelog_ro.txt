@@ -12,6 +12,8 @@ NOUTĂȚI
 
 - Voturile la sondaje: la un sondaj cu un singur răspuns, Tab de la mesaj duce la opțiuni, iar bifarea uneia votează imediat. Fiecare opțiune arată acum și procentul de voturi, iar fereastra sondajului are butonul Vezi voturile (Alt+V), care arată cine a votat ce.
 
+- Lista de opțiuni a sondajului: este precedată acum de eticheta "Opțiuni", iar după vot numărul de voturi al opțiunii bifate se actualizează imediat.
+
 - Erorile de instalare și actualizare WPPConnect apar acum într-un câmp de text doar pentru citire, cu detalii care pot fi citite și copiate. Actualizările pregătite separat afișează un singur raport de eroare, fără notificări duplicate.
 
 - Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Fereastra poate actualiza răspunsurile și păstrează textul când trimiterea nu este confirmată. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.

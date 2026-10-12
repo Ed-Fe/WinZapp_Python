@@ -12,6 +12,8 @@ NOWOŚCI
 
 - Głosy w ankietach: w ankiecie jednokrotnego wyboru Tab z wiadomości prowadzi do opcji, a zaznaczenie jednej od razu oddaje głos. Każda opcja pokazuje teraz także procent głosów, a okno ankiety ma przycisk Pokaż głosy (Alt+P), który wyświetla, kto na co głosował.
 
+- Lista opcji ankiety: poprzedza ją teraz etykieta "Opcje", a po oddaniu głosu liczba głosów zaznaczonej opcji aktualizuje się od razu.
+
 - Błędy instalacji i aktualizacji WPPConnect są teraz wyświetlane w polu tekstowym tylko do odczytu, ze szczegółami do przeczytania i skopiowania. Aktualizacje przygotowane osobno wyświetlają jeden raport błędu zamiast powielonych komunikatów.
 
 - Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Okno umożliwia odświeżanie odpowiedzi i zachowuje tekst, gdy wysłanie nie zostanie potwierdzone. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
