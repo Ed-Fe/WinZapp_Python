@@ -98,6 +98,13 @@ class TestKeyHandlers:
     def test_native_unrelated_gestures_are_untouched(self):
         assert logical_key('message_list', (0, wx.WXK_TAB), {'message_list.play': None}, SHORTCUTS, translate) == (0, wx.WXK_TAB)
 
+    def test_a_command_without_a_shipped_key_passes_its_chord_on(self):
+        # Review position 1 has no default key; binding Alt+Shift+W to it must not make
+        # the messages-scope handler (Conversation data's media list) crash.
+        prefs = {'messages.ID_REVIEW[1]': [5, ord('W')]}
+        assert default_binding(find('messages.ID_REVIEW[1]'), translate) is None
+        assert logical_key('messages', (5, ord('W')), prefs, SHORTCUTS, translate) == (5, ord('W'))
+
     def test_alias_slots_can_be_changed_independently(self):
         prefs = {'messages.ID_ALT_U': [2, ord('J')]}
         assert binding_for(find('messages.ID_ALT_U.1'), prefs, translate) == (2, ord('L'))

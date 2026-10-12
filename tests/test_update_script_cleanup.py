@@ -7,6 +7,8 @@ relaunch (the user is waiting for the app, not for a few thousand deletes), and
 never on the failure paths, where the folder is evidence and the retry's source.
 """
 
+import os
+
 import updater
 
 EXE = r"C:\WinZapp\WinZapp.exe"
@@ -64,7 +66,38 @@ class TestTheCleanupLine:
 
 
 class TestWhatTheInstallerPassesIt:
-    def test_it_is_handed_the_root_not_the_folder_inside_it(self):
-        source = open(updater.__file__, encoding="utf-8").read()
-        assert "extraction_root(extracted_dir)" in source
-        assert "cleanup_dir=cleanup_dir" in source
+    """_run_batch_installer itself, stopped where the script would be written:
+    nothing is launched and nothing outside tmp_path is touched."""
+
+    def _cleanup_dir_for(self, monkeypatch, tmp_path, extracted):
+        seen = {}
+
+        def build(*args, **kwargs):
+            seen.update(kwargs)
+            return "script"
+
+        def mkstemp(suffix="", prefix=""):
+            path = tmp_path / f"{prefix}x{suffix}"
+            path.write_text("")
+            return os.open(path, os.O_RDONLY), str(path)
+
+        monkeypatch.setattr(updater, "_build_installer_script", build)
+        monkeypatch.setattr(updater, "_write_installer_script", lambda path, script: False)
+        monkeypatch.setattr(updater, "_keep_newer_installed_server", lambda *a: None)
+        monkeypatch.setattr(updater, "own_node_pids", lambda *a: [])
+        monkeypatch.setattr(updater, "log_path", lambda: str(tmp_path / "logs"))
+        monkeypatch.setattr(updater, "_console_safe_path", lambda path: path)
+        monkeypatch.setattr(updater.tempfile, "mkstemp", mkstemp)
+        assert updater._run_batch_installer(str(extracted), str(tmp_path / "install"),
+                                            "WinZapp.exe", 4242) is False
+        return seen["cleanup_dir"]
+
+    def test_it_is_handed_the_root_not_the_folder_inside_it(self, monkeypatch, tmp_path):
+        root = tmp_path / "winzapp_ext_ab12"
+        (root / "WinZapp").mkdir(parents=True)
+        assert self._cleanup_dir_for(monkeypatch, tmp_path, root / "WinZapp") == str(root)
+
+    def test_a_folder_not_named_like_ours_is_never_handed_over(self, monkeypatch, tmp_path):
+        other = tmp_path / "Downloads" / "WinZapp"
+        other.mkdir(parents=True)
+        assert self._cleanup_dir_for(monkeypatch, tmp_path, other) == ""

@@ -12,6 +12,7 @@ tests/test_mentions_and_reactions.py.
 """
 
 import pathlib
+import re
 
 import pytest
 
@@ -168,12 +169,12 @@ class TestTheKeys:
         ]
         assert same == []
 
-    def test_they_sit_beside_the_backward_keys_in_the_table_and_are_bound(self):
+    def test_they_are_bound_to_the_forward_handlers(self):
+        # Their table entries are evaluated in
+        # tests/test_shortcut_table_catalog_coverage.py; this is the Bind.
         source = (CLIENT / "ui/conversation_panel/accelerators.py").read_text(encoding="utf-8")
-        assert 'ord("J"),          self.ID_ALT_SHIFT_J' in source
-        assert 'ord("O"),          self.ID_ALT_SHIFT_O' in source
-        assert "self._on_accel_mentions_next,       id=self.ID_ALT_SHIFT_J" in source
-        assert "self._on_accel_replies_next,        id=self.ID_ALT_SHIFT_O" in source
+        assert re.search(r"self\._on_accel_mentions_next,\s*id=self\.ID_ALT_SHIFT_J\)", source)
+        assert re.search(r"self\._on_accel_replies_next,\s*id=self\.ID_ALT_SHIFT_O\)", source)
 
     @pytest.mark.parametrize("shortcut_id, keycode, label", NEXT_KEYS)
     def test_the_f1_list_describes_them(self, shortcut_id, keycode, label):

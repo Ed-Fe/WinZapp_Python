@@ -7,6 +7,7 @@ aloud, and the same key again, quickly, copies it.
 """
 
 import pathlib
+import re
 
 import pytest
 
@@ -131,11 +132,11 @@ class TestTheCatalogue:
 
 
 class TestTheWiring:
-    def test_the_table_ties_each_command_to_its_row_without_a_key(self):
+    def test_each_command_is_bound_to_its_handler(self):
+        # The table itself (no key until one is chosen) is evaluated in
+        # tests/test_shortcut_table_catalog_coverage.py; this is the Bind.
         source = (CLIENT / "ui/conversation_panel/accelerators.py").read_text(encoding="utf-8")
-        assert "(0, 0, self.ID_REVIEW[d]) for d in range(10)" in source
-        assert "self.ID_REVIEW          = [wx.NewIdRef() for _ in range(10)]" in source
-        assert "self._on_accel_review_message(d), id=self.ID_REVIEW[_d]" in source
+        assert re.search(r"self\._on_accel_review_message\(d\),\s*id=self\.ID_REVIEW\[_d\]", source)
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_sentence_for_no_message_exists(self, locale):
