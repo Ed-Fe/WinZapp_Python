@@ -9,6 +9,7 @@ import logging
 import threading
 from core.community_comments import comment_count
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE
+from core.polls import POLL_MESSAGE_TYPES, poll_content, poll_row_text
 from core.call_log import (
     CALL_LOG_MESSAGE_TYPE,
     LEGACY_CALL_LOG_TYPE,
@@ -305,10 +306,11 @@ class MessageRenderingMixin:
             return i18n.t("contacts_count").format(count=len(contacts))
 
         # ── Poll ─────────────────────────────────────────────────────────────
-        if msg_type in ("pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3", "pollUpdateMessage"):
-            poll = msg_obj.get("pollCreationMessage") or msg_obj.get("pollCreationMessageV2") or msg_obj.get("pollCreationMessageV3") or {}
-            name = poll.get("name") or ""
-            return i18n.t("notif_poll").format(name=name) if name else i18n.t("notif_poll_no_name")
+        if msg_type in POLL_MESSAGE_TYPES:
+            # The question, then each option with its votes (core/polls.py).
+            return poll_row_text(i18n, poll_content(msg_obj))
+        if msg_type == "pollUpdateMessage":
+            return i18n.t("notif_poll_no_name")
 
         # ── Location ─────────────────────────────────────────────────────────
         if msg_type in ("locationMessage", "liveLocationMessage"):

@@ -20,6 +20,8 @@ WHAT'S NEW
 
 - Review recent messages by position: ten new commands in Settings > Shortcuts, one per position from the newest message (1) to the tenth (0), read that message aloud without moving the focus, and pressing the same key twice quickly copies it. They come with no key assigned, since Alt+1 to Alt+9 belong to the main window: free those, or pick any other keys, in that tab.
 
+- Polls: choose Poll, the last item of the attachment menu, to send a poll with a question, up to 12 options and the choice of allowing several answers. Received polls are no longer shown as unsupported messages: the row reads the question first, then each option (with its votes when WinZapp receives them), and Enter opens a window with the same list, check boxes to vote and a progress bar per option.
+
 - WPPConnect installation and update errors now appear in a read-only text field, with details available for reading and copying. Staged updates show one error report instead of duplicate notices.
 
 - Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.
@@ -31,6 +33,8 @@ WHAT'S NEW
 - Customizable keyboard shortcuts: the new Shortcuts tab in Settings lists every application shortcut, including the global show-window shortcut. Select one, press Change and type the new combination, or disable it, restore its default or restore them all. Conflicts are reported before you apply, and changes only take effect with Apply or OK.
 
 - Pinned messages: a button in each chat lists the messages pinned on WhatsApp, including older messages. Press Enter to go to one in the history. Opening a chat announces the number of pinned messages without moving focus; each pinned message also has a readable marker.
+
+- "Profile picture" button (Alt+F) in the Overview tab of "Chat info" and "Group info". It shows the chat's profile picture or the group's image, and "Open in external viewer" (Alt+A) opens the picture in Windows' default program for images. When there is no picture or the person does not let you see it, a message says that access to this profile picture is unavailable.
 
 - The message field's "Spelling" context submenu offers Windows dictionary suggestions. The editor keeps its standard screen-reader navigation and WinZapp's spelling-error sound.
 
@@ -71,6 +75,8 @@ FIXES
 - Syncing and backfilling chat history now ask WhatsApp Web for at most two chats' messages at a time instead of up to six, which keeps the processor and memory use low on small computers and servers during the first sync, without making it noticeably slower. Opening a chat, scrolling up and resyncing a conversation are not slowed down.
 
 - The updater now cleans up after itself: when an update has been installed it deletes the folder it extracted into your temporary folder, and the next time WinZapp starts it also removes what earlier updates, failed installs and interrupted downloads left there, which could add up to a full copy of each version you ever installed.
+
+- Sending a message to yourself no longer fails with "could not confirm the send" on accounts whose own address carried a device suffix.
 
 - When you open or read a chat inside WinZapp, the notification for its new message is removed from the notification area instead of lingering there.
 
@@ -113,6 +119,8 @@ FIXES
 - The WPPConnect Server update no longer fails with an npm "ETARGET" error when npm's saved package list is older than the versions the server needs. WinZapp now asks npm to check online and tries again.
 
 - When an update or the Node download was cancelled at the same moment it finished, WinZapp could show an "Attempt to exit a non-running event loop" error. Late completions are now ignored.
+
+- Forward dialog: pressing Down arrow in the search field now moves to the first result and focuses the list, as in the conversations search.
 
 V2.0.0.0
 

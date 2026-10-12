@@ -165,6 +165,8 @@ from ui.conversation_panel.community_comments import CommunityCommentsPanelMixin
 from ui.conversation_panel.pinned_messages import PinnedMessagesMixin
 from ui.conversation_panel.reactions import ReactionsMixin
 from ui.conversation_panel.attachments import AttachmentsMixin
+from ui.conversation_panel.poll_inline import PollInlineMixin
+from ui.conversation_panel.poll_messages import PollMessagesMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
 from ui.conversation_panel.bulk_messages import BulkMessagesMixin
 from ui.conversation_panel.bulk_transcription import BulkTranscriptionMixin
@@ -210,6 +212,8 @@ class ConversationsPanel(
     PinnedMessagesMixin,
     ReactionsMixin,
     AttachmentsMixin,
+    PollMessagesMixin,
+    PollInlineMixin,
     ContactMessagesMixin,
     BulkMessagesMixin,
     BulkTranscriptionMixin,
@@ -721,6 +725,9 @@ class ConversationsPanel(
         conv_sizer.Add(self._read_more_btn, 0, wx.LEFT | wx.BOTTOM, 5)
         self._read_more_btn.Hide()
 
+        # ── Options of a focused single-answer poll (votes on tick) ───────────
+        self._create_inline_poll_list(self.conversation_panel, conv_sizer)
+
         # ── Link controls (shown when focused message contains URLs) ─────────
         self._links_panel = wx.Panel(self.conversation_panel)
         self._links_label = wx.StaticText(
@@ -1188,6 +1195,7 @@ class ConversationsPanel(
 
         old_list.Hide()
         new_list.Show()
+        self._hide_inline_poll()
         self.conversation_panel.Layout()
 
         if total and focused >= 0:

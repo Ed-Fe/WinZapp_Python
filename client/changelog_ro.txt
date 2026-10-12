@@ -20,6 +20,8 @@ NOUTĂȚI
 
 - Revizuirea mesajelor recente după poziție: zece comenzi noi în Setări > Comenzi rapide, câte una pentru fiecare poziție de la cel mai nou mesaj (1) până la al zecelea (0), citesc acel mesaj cu voce tare fără a muta focalizarea, iar apăsarea aceleiași taste de două ori repede îl copiază. Vin fără tastă atribuită, deoarece Alt+1 până la Alt+9 aparțin ferestrei principale: eliberați-le sau alegeți alte taste în acea filă.
 
+- Sondaje: alegeți Sondaj, ultimul element din meniul de atașare, pentru a trimite un sondaj cu întrebare, până la 12 opțiuni și posibilitatea de a permite mai multe răspunsuri. Sondajele primite nu mai apar ca mesaj neacceptat: rândul citește mai întâi întrebarea, apoi fiecare opțiune (cu voturile ei, când WinZapp le primește), iar Enter deschide o fereastră cu aceeași listă, casete de bifat pentru vot și o bară de progres pentru fiecare opțiune.
+
 - Erorile de instalare și actualizare WPPConnect apar acum într-un câmp de text doar pentru citire, cu detalii care pot fi citite și copiate. Actualizările pregătite separat afișează un singur raport de eroare, fără notificări duplicate.
 
 - Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Fereastra poate actualiza răspunsurile și păstrează textul când trimiterea nu este confirmată. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.
@@ -31,6 +33,8 @@ NOUTĂȚI
 - Comenzi rapide de tastatură personalizabile: noul tab Comenzi rapide din Setări listează toate comenzile rapide ale aplicației, inclusiv comanda globală de afișare a ferestrei. Selectează una, apasă Schimbă și introdu noua combinație sau dezactiveaz-o, restabilește valoarea implicită ori restabilește-le pe toate. Conflictele sunt semnalate înainte de aplicare, iar modificările au efect doar după Aplică sau OK.
 
 - Mesaje fixate: un buton în fiecare chat afișează mesajele fixate în WhatsApp, inclusiv mesajele mai vechi. Apăsați Enter pentru a merge la mesajul ales în istoric. La deschiderea chatului este anunțat numărul mesajelor fixate fără a muta focalizarea; fiecare mesaj fixat are și un marcaj text.
+
+- Butonul „Fotografie de profil” (Alt+F) în fila Prezentare generală din „Informații despre conversație” și „Informații despre grup”. Afișează fotografia de profil a conversației sau imaginea grupului, iar butonul „Deschide în vizualizator extern” (Alt+A) deschide fotografia în programul implicit din Windows pentru imagini. Când nu există fotografie sau persoana nu vă permite să o vedeți, un mesaj anunță că accesul la această fotografie de profil nu este disponibil.
 
 - Submeniul contextual „Ortografie” al câmpului de mesaj oferă sugestii din dicționarul Windows. Editorul păstrează navigarea standard a cititorului de ecran și sunetul de eroare de ortografie WinZapp.
 
@@ -71,6 +75,8 @@ CORECTĂRI
 - Sincronizarea și completarea istoricului conversațiilor cer acum de la WhatsApp Web mesajele a cel mult două conversații odată, în loc de până la șase, ceea ce menține scăzută utilizarea procesorului și a memoriei pe calculatoarele mici și pe servere în timpul primei sincronizări, fără a o încetini vizibil. Deschiderea unei conversații, derularea în sus și resincronizarea unei conversații nu sunt încetinite.
 
 - Programul de actualizare curăță acum după el: la terminarea instalării unei actualizări șterge dosarul în care a extras-o, din dosarul temporar, iar la următoarea pornire WinZapp elimină și ce au lăsat acolo actualizările anterioare, instalările eșuate și descărcările întrerupte, ceea ce putea însuma o copie completă a fiecărei versiuni instalate.
+
+- Trimiterea unui mesaj către tine însuți nu mai eșuează cu "nu s-a putut confirma trimiterea" pe conturile a căror adresă proprie avea un sufix de dispozitiv.
 
 - Când deschizi sau citești o conversație în WinZapp, notificarea mesajului ei nou este eliminată din zona de notificări în loc să rămână acolo.
 
@@ -113,6 +119,8 @@ CORECTĂRI
 - Actualizarea WPPConnect Server nu mai eșuează cu eroarea npm „ETARGET” atunci când lista de pachete salvată de npm este mai veche decât versiunile de care are nevoie serverul. WinZapp îi cere acum npm-ului să verifice online și încearcă din nou.
 
 - Când o actualizare sau descărcarea Node era anulată exact în momentul în care se termina, WinZapp putea afișa eroarea "Attempt to exit a non-running event loop". Finalizările întârziate sunt acum ignorate.
+
+- Dialogul de redirecționare: săgeata în jos din câmpul de căutare merge acum la primul rezultat și mută focalizarea pe listă, ca în căutarea conversațiilor.
 
 V2.0.0.0
 

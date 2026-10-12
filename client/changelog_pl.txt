@@ -20,6 +20,8 @@ NOWOŚCI
 
 - Przeglądanie ostatnich wiadomości według pozycji: dziesięć nowych poleceń w Ustawienia > Skróty, po jednym dla każdej pozycji od najnowszej wiadomości (1) do dziesiątej (0), czyta tę wiadomość na głos bez przenoszenia fokusu, a dwukrotne szybkie naciśnięcie tego samego klawisza ją kopiuje. Nie mają przypisanego klawisza, bo Alt+1 do Alt+9 należą do okna głównego: zwolnij je albo wybierz inne klawisze na tej karcie.
 
+- Ankiety: wybierz Ankieta, ostatnią pozycję menu załączników, aby wysłać ankietę z pytaniem, maksymalnie 12 opcjami i możliwością zezwolenia na kilka odpowiedzi. Otrzymane ankiety nie są już pokazywane jako nieobsługiwana wiadomość: wiersz czyta najpierw pytanie, a potem każdą opcję (z jej głosami, gdy WinZapp je otrzyma), a Enter otwiera okno z tą samą listą, polami wyboru do głosowania i paskiem postępu przy każdej opcji.
+
 - Błędy instalacji i aktualizacji WPPConnect są teraz wyświetlane w polu tekstowym tylko do odczytu, ze szczegółami do przeczytania i skopiowania. Aktualizacje przygotowane osobno wyświetlają jeden raport błędu zamiast powielonych komunikatów.
 
 - Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Okno umożliwia odświeżanie odpowiedzi i zachowuje tekst, gdy wysłanie nie zostanie potwierdzone. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
@@ -31,6 +33,8 @@ NOWOŚCI
 - Konfigurowalne skróty klawiszowe: nowa karta Skróty w Ustawieniach wyświetla wszystkie skróty aplikacji, w tym globalny skrót pokazywania okna. Zaznacz skrót, naciśnij Zmień i wpisz nową kombinację albo wyłącz go, przywróć domyślny lub przywróć wszystkie. Konflikty są zgłaszane przed zastosowaniem, a zmiany obowiązują dopiero po wybraniu Zastosuj lub OK.
 
 - Przypięte wiadomości: przycisk w każdym czacie wyświetla wiadomości przypięte w WhatsApp, również te starsze. Naciśnij Enter, aby przejść do wybranej wiadomości w historii. Po otwarciu czatu ogłaszana jest liczba przypiętych wiadomości bez zmiany fokusu; każda przypięta wiadomość ma też oznaczenie tekstowe.
+
+- Przycisk „Zdjęcie profilowe” (Alt+F) na karcie Przegląd w oknach „Informacje o czacie” i „Informacje o grupie”. Pokazuje zdjęcie profilowe czatu lub obraz grupy, a przycisk „Otwórz w zewnętrznej przeglądarce” (Alt+A) otwiera zdjęcie w domyślnym programie Windows do obrazów. Gdy zdjęcia nie ma lub dana osoba nie pozwala Ci go zobaczyć, komunikat informuje, że dostęp do tego zdjęcia profilowego jest niedostępny.
 
 - Podmenu kontekstowe „Pisownia” w polu wiadomości oferuje sugestie ze słownika Windows. Edytor zachowuje standardową nawigację czytnika ekranu i dźwięk błędu pisowni WinZapp.
 
@@ -71,6 +75,8 @@ POPRAWKI
 - Synchronizacja i uzupełnianie historii czatów proszą teraz WhatsApp Web o wiadomości z najwyżej dwóch czatów naraz zamiast z maksymalnie sześciu, co utrzymuje niskie zużycie procesora i pamięci na małych komputerach i serwerach podczas pierwszej synchronizacji, bez zauważalnego spowolnienia. Otwieranie czatu, przewijanie w górę i ponowna synchronizacja rozmowy nie są spowolnione.
 
 - Aktualizator sprząta teraz po sobie: po zainstalowaniu aktualizacji usuwa folder, do którego ją rozpakował w folderze tymczasowym, a przy następnym uruchomieniu WinZapp usuwa też to, co zostawiły tam wcześniejsze aktualizacje, nieudane instalacje i przerwane pobierania; mogło to dawać pełną kopię każdej zainstalowanej wersji.
+
+- Wysyłanie wiadomości do samego siebie nie kończy się już błędem "nie udało się potwierdzić wysłania" na kontach, których własny adres zawierał sufiks urządzenia.
 
 - Gdy otworzysz lub przeczytasz czat w WinZapp, powiadomienie o jego nowej wiadomości jest usuwane z obszaru powiadomień zamiast w nim pozostawać.
 
@@ -113,6 +119,8 @@ POPRAWKI
 - Aktualizacja WPPConnect Server nie kończy się już błędem npm „ETARGET”, gdy zapisana przez npm lista pakietów jest starsza niż wersje potrzebne serwerowi. WinZapp prosi teraz npm o sprawdzenie w internecie i próbuje ponownie.
 
 - Gdy aktualizacja lub pobieranie Node zostały anulowane dokładnie w chwili zakończenia, WinZapp mógł pokazać błąd "Attempt to exit a non-running event loop". Spóźnione zakończenia są teraz ignorowane.
+
+- Okno przekazywania: strzałka w dół w polu wyszukiwania przechodzi teraz do pierwszego wyniku i ustawia fokus na liście, tak jak w wyszukiwaniu rozmów.
 
 V2.0.0.0
 

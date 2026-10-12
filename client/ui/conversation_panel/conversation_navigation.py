@@ -303,6 +303,7 @@ class ConversationNavigationMixin:
             except Exception:
                 pass
         self._hide_audio_controls()
+        self._hide_inline_poll()
         self._hide_all_media_controls()
         self._hide_media_transfer_gauge()
         self._hide_attachment_panel()

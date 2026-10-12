@@ -20,6 +20,8 @@ YENİLİKLER
 
 - Son mesajları konumuna göre gözden geçirme: Ayarlar > Kısayollar içinde, en yeni mesajdan (1) onuncuya (0) kadar her konum için bir tane olmak üzere on yeni komut, o mesajı odağı taşımadan sesli okur; aynı tuşa hızlıca iki kez basmak mesajı kopyalar. Alt+1 ile Alt+9 ana pencereye ait olduğundan atanmış bir tuşla gelmezler: o sekmede bunları serbest bırakın ya da başka tuşlar seçin.
 
+- Anketler: bir soru, en fazla 12 seçenek ve birden çok yanıta izin verme seçeneğiyle anket göndermek için ek menüsünün son öğesi olan Anket'i seçin. Alınan anketler artık desteklenmeyen mesaj olarak gösterilmez: satır önce soruyu, ardından her seçeneği (WinZapp aldığında oylarıyla birlikte) okur; Enter aynı listeyi, oy vermek için işaret kutularını ve her seçenek için bir ilerleme çubuğunu içeren bir pencere açar.
+
 - WPPConnect kurulum ve güncelleme hataları artık ayrıntıları okunabilen ve kopyalanabilen salt okunur bir metin alanında gösteriliyor. Ayrı olarak hazırlanan güncellemelerde yinelenen bildirimler yerine tek bir hata raporu gösteriliyor.
 
 - Topluluk duyurusu yanıtları: yanıtları okumak ve göndermek için mesaj menüsünü açıp "Topluluk duyurusunun yanıtları" seçeneğini seçin. Pencerede yanıtları yenileyebilirsiniz; gönderim doğrulanmazsa metniniz korunur. Duyurular bilinen yanıt sayısını belirtir. Yazarlar kayıtlı veya profil adlarıyla gösterilir; kendi yanıtlarınızda kendinize hitap etme ayarınız kullanılır.
@@ -31,6 +33,8 @@ YENİLİKLER
 - Özelleştirilebilir klavye kısayolları: Ayarlar'daki yeni Kısayollar sekmesi, pencereyi gösteren genel kısayol dahil uygulamanın tüm kısayollarını listeler. Birini seçip Değiştir'e basın ve yeni birleşimi yazın; ya da devre dışı bırakın, varsayılana döndürün veya tümünü sıfırlayın. Çakışmalar uygulamadan önce bildirilir ve değişiklikler yalnızca Uygula veya Tamam ile geçerli olur.
 
 - Sabitlenen mesajlar: her sohbetteki bir düğme, eski mesajlar dahil WhatsApp üzerinde sabitlenen mesajları listeler. Seçilen mesaja geçmişte gitmek için Enter tuşuna basın. Sohbet açıldığında odak değiştirilmeden sabitlenen mesajların sayısı duyurulur; her sabitlenen mesajda ayrıca bir metin işareti bulunur.
+
+- "Sohbet bilgisi" ve "Grup bilgisi" pencerelerinin Genel bakış sekmesinde "Profil fotoğrafı" düğmesi (Alt+F). Sohbetin profil fotoğrafını veya grubun resmini gösterir; "Harici görüntüleyicide aç" düğmesi (Alt+A) fotoğrafı Windows'un varsayılan resim programında açar. Fotoğraf yoksa veya kişi görmenize izin vermiyorsa, bu profil fotoğrafına erişimin kullanılamadığını bildiren bir mesaj gösterilir.
 
 - Mesaj alanının bağlam menüsündeki "Yazım" alt menüsü Windows sözlüğünden öneriler sunar. Düzenleyici, ekran okuyucunun standart gezinmesini ve WinZapp'ın yazım hatası sesini korur.
 
@@ -71,6 +75,8 @@ DÜZELTMELER
 - Sohbet geçmişinin eşitlenmesi ve tamamlanması artık WhatsApp Web'den en fazla altı yerine aynı anda en fazla iki sohbetin mesajlarını ister; bu, ilk eşitleme sırasında küçük bilgisayarlarda ve sunucularda işlemci ve bellek kullanımını düşük tutar ve eşitlemeyi belirgin biçimde yavaşlatmaz. Bir sohbeti açmak, yukarı kaydırmak ve bir görüşmeyi yeniden eşitlemek yavaşlamaz.
 
 - Güncelleyici artık arkasını topluyor: bir güncelleme kurulduğunda geçici klasörde açtığı klasörü siler, WinZapp bir sonraki açılışında da önceki güncellemelerin, başarısız kurulumların ve yarım kalan indirmelerin orada bıraktıklarını kaldırır; bu, kurulmuş her sürümün tam bir kopyası kadar yer tutabiliyordu.
+
+- Kendinize mesaj göndermek, kendi adresi cihaz soneki taşıyan hesaplarda artık "gönderim doğrulanamadı" hatasıyla başarısız olmuyor.
 
 - WinZapp içinde bir sohbeti açtığınızda veya okuduğunuzda, yeni iletisinin bildirimi bildirim alanında kalmak yerine kaldırılır.
 
@@ -113,6 +119,8 @@ DÜZELTMELER
 - npm'in kaydettiği paket listesi sunucunun ihtiyaç duyduğu sürümlerden eskiyse WPPConnect Server güncellemesi artık npm "ETARGET" hatasıyla başarısız olmuyor. WinZapp şimdi npm'den çevrimiçi kontrol etmesini istiyor ve yeniden deniyor.
 
 - Bir güncelleme veya Node indirmesi tam bittiği anda iptal edildiğinde WinZapp "Attempt to exit a non-running event loop" hatasını gösterebiliyordu. Geç gelen tamamlanmalar artık yok sayılıyor.
+
+- İlet penceresi: arama alanında aşağı ok artık ilk sonuca gidip odağı listeye taşıyor; sohbet aramasındaki gibi.
 
 V2.0.0.0
 

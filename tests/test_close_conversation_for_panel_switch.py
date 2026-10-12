@@ -104,6 +104,9 @@ class _Stub:
     def _hide_audio_controls(self):
         pass
 
+    def _hide_inline_poll(self):
+        pass
+
     def _hide_all_media_controls(self):
         pass
 

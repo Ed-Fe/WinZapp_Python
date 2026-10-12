@@ -10,6 +10,7 @@ import requests
 import threading
 import time
 import wx
+from core.jid_device import strip_device_suffix
 from core import phone_contacts
 from core.api_client import (
     api_get,
@@ -1165,6 +1166,10 @@ class IdentityMixin:
         """
         if not lid_jid or not phone_jid:
             return
+        # Never keep a companion-device suffix ("<id>:56@lid"): the cached LID
+        # is the send destination, and WhatsApp Web refuses a device address.
+        lid_jid = strip_device_suffix(lid_jid)
+        phone_jid = strip_device_suffix(phone_jid)
         if not lid_jid.endswith("@lid") or not phone_jid.endswith("@s.whatsapp.net"):
             return
             

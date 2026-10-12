@@ -20,6 +20,8 @@ NOVEDADES
 
 - Revisar los mensajes recientes por posición: diez nuevos comandos en Configuración > Atajos, uno por cada posición desde el mensaje más nuevo (1) hasta el décimo (0), leen ese mensaje en voz alta sin mover el foco, y pulsar la misma tecla dos veces seguidas lo copia. Vienen sin tecla asignada, ya que Alt+1 a Alt+9 pertenecen a la ventana principal: libera esas o elige otras teclas en esa pestaña.
 
+- Encuestas: elige Encuesta, el último elemento del menú de adjuntos, para enviar una encuesta con pregunta, hasta 12 opciones y la posibilidad de permitir varias respuestas. Las encuestas recibidas ya no aparecen como mensaje no compatible: la fila lee primero la pregunta y después cada opción (con sus votos cuando WinZapp los recibe), y Intro abre una ventana con la misma lista, casillas para votar y una barra de progreso por opción.
+
 - Los errores de instalación y actualización de WPPConnect ahora aparecen en un campo de texto de solo lectura, con detalles que se pueden leer y copiar. Las actualizaciones preparadas por separado muestran un único informe de error, sin avisos duplicados.
 
 - Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. La ventana permite actualizar las respuestas y conserva tu texto si el envío no se confirma. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.
@@ -31,6 +33,8 @@ NOVEDADES
 - Atajos de teclado personalizables: la nueva pestaña Atajos de Ajustes enumera todos los atajos de la aplicación, incluido el atajo global para mostrar la ventana. Selecciona uno, pulsa Cambiar y escribe la nueva combinación, o desactívalo, restaura su valor predeterminado o restaura todos. Los conflictos se avisan antes de aplicar y los cambios solo se aplican con Aplicar o Aceptar.
 
 - Mensajes fijados: un botón en cada conversación muestra los mensajes fijados en WhatsApp, incluidos los antiguos. Pulsa Intro para ir a uno de ellos en el historial. Al abrir la conversación se anuncia la cantidad de mensajes fijados sin mover el foco; cada mensaje fijado también tiene una indicación en texto.
+
+- Botón "Foto de perfil" (Alt+F) en la pestaña Resumen de "Datos de la conversación" y de "Datos del grupo". Muestra la foto de perfil de la conversación o la imagen del grupo, y el botón "Abrir en visor externo" (Alt+A) abre la foto en el programa predeterminado de Windows para imágenes. Cuando no hay foto o la persona no te permite verla, un mensaje avisa de que el acceso a esta foto de perfil no está disponible.
 
 - El submenú contextual "Ortografía" del campo de mensaje ofrece sugerencias del diccionario de Windows. El editor mantiene la navegación estándar del lector de pantalla y el sonido de error ortográfico de WinZapp.
 
@@ -71,6 +75,8 @@ CORRECCIONES
 - La sincronización y la carga del historial de los chats ahora piden a WhatsApp Web los mensajes de como máximo dos chats a la vez, en lugar de hasta seis, lo que mantiene bajo el uso de procesador y de memoria en ordenadores pequeños y servidores durante la primera sincronización, sin hacerla notablemente más lenta. Abrir un chat, desplazarse hacia arriba y resincronizar una conversación no se ralentizan.
 
 - El actualizador ahora limpia lo que deja atrás: al terminar de instalar una actualización borra la carpeta en la que la extrajo, dentro de la carpeta temporal, y la próxima vez que se abra WinZapp también elimina lo que dejaron allí actualizaciones anteriores, instalaciones fallidas y descargas interrumpidas, que podía sumar una copia completa de cada versión instalada.
+
+- Enviarte un mensaje a ti mismo ya no falla con "no se pudo confirmar el envío" en cuentas cuya propia dirección incluía un sufijo de dispositivo.
 
 - Al abrir o leer un chat dentro de WinZapp, la notificación de su mensaje nuevo se quita del área de notificaciones en lugar de quedarse allí.
 
@@ -113,6 +119,8 @@ CORRECCIONES
 - La actualización de WPPConnect Server ya no falla con el error "ETARGET" de npm cuando la lista de paquetes guardada por npm es más antigua que las versiones que necesita el servidor. WinZapp ahora pide a npm que consulte internet y lo intenta de nuevo.
 
 - Si se cancelaba una actualización o la descarga de Node justo cuando terminaban, WinZapp podía mostrar el error "Attempt to exit a non-running event loop". Ahora las finalizaciones tardías se ignoran.
+
+- Diálogo de reenviar: la flecha abajo en el campo de búsqueda ahora va al primer resultado y enfoca la lista, como en la búsqueda de conversaciones.
 
 V2.0.0.0
 

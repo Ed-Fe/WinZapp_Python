@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import wx
+from core.jid_device import strip_device_suffix
 from core.message_stars import apply_remote_star, merge_star_state
 from core.conversation_view import (
     archived_chat_stays_silent, archived_panel_is_shown, conversation_in_view,
@@ -606,7 +607,9 @@ class MessageEventsMixin:
         # Opportunistically learn my_lid from case (a) first, so later
         # messages resolve immediately via _is_self_jid() without waiting on
         # resolve_self_lid()'s async API round-trip.
-        participant_raw = key.get("participant") or ""
+        # The participant can carry the companion-device suffix ("<id>:56@lid");
+        # a self LID kept with it is refused by the send endpoint (HTTP 500).
+        participant_raw = strip_device_suffix(key.get("participant") or "")
         # Normalize before using as a redirect target below — my_jid can be
         # in raw "@c.us" form early in a session (set directly from the
         # host-device API response, before resolve_self_lid() gets a chance
