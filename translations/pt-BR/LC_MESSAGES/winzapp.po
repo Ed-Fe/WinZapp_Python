@@ -11911,7 +11911,7 @@ msgstr "Reutilizar downloads de outra pasta"
 #: client/ui/dialogs/transcription_whisper_cpp.py
 msgctxt "transcription_reuse_in_use_note"
 msgid "(in use from the folder chosen for reuse)"
-msgstr "(em uso a partir da pasta escolhida para reaproveitar)"
+msgstr "(em uso a partir da pasta escolhida para reutilizar)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_reuse.py

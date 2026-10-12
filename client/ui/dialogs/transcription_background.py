@@ -108,9 +108,11 @@ class TranscriptionBackgroundTabMixin:
             return True
         stranded = False
         if last:
+            # Asked before Cancel is hidden: whatever wx does with the focus of
+            # a control it hides, the answer is about where the user was.
+            stranded = self._transcription_focus_stranded()
             self._set_transcription_job_running(False)
             self._show_transcription_cancel(False)
-            stranded = self._transcription_focus_stranded()
         self._after_transcription_job(job, result, error, restore_focus=False)
         if stranded:
             self._rescue_transcription_focus(job.action)
