@@ -953,7 +953,15 @@ class MessageTranscriptionFlow:
         wx.CallAfter(self._main_window.output, inline_speech(self._i18n, result.text, spoken))
 
     def _repaint_row(self):
-        """Redraw the message's row, which carries the stored text from now on."""
+        """Redraw the message's row, which carries the stored text from now on.
+
+        Only in the message's own conversation: an answer arriving after the
+        user moved on would find no row there, and _repaint_or_repopulate()
+        would rebuild the conversation they are reading instead.
+        """
+        conversation = getattr(self._panel, "conversation", None)
+        if not isinstance(conversation, dict) or conversation.get("remoteJid", "") != self._jid:
+            return
         repaint = getattr(self._panel, "_repaint_or_repopulate", None)
         if repaint is not None and self._msg_id:
             repaint([self._msg_id])

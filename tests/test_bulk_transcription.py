@@ -157,6 +157,7 @@ class _Panel:
     _on_mass_transcribe_inline_messages = ConversationsPanel._on_mass_transcribe_inline_messages
     _mark_bulk_saved_inline = ConversationsPanel._mark_bulk_saved_inline
     _bulk_window_may_open = ConversationsPanel._bulk_window_may_open
+    _bulk_shown_entries = ConversationsPanel._bulk_shown_entries
     _cancel_bulk_transcription_now = ConversationsPanel._cancel_bulk_transcription_now
 
     def __init__(self, messages=(), selected=(), **kwargs):
@@ -379,6 +380,17 @@ class TestTheWindowOpensOnlyWhereTheUserIs:
         assert panel.shown == 0
         assert panel.main_window.said[-1].endswith(
             panel.main_window.i18n.t("bulk_transcription_open_hint"))
+
+
+    def test_nothing_left_to_show_offers_nothing(self, runs):
+        runs.outcomes = [(_result("um"), None)]
+        panel = self._run(runs)
+        panel.main_window.answers["a"] = stored_transcription.SAVE_WITHDRAWN
+        panel._on_mass_transcribe_messages()
+        assert panel.shown == 0
+        i18n = panel.main_window.i18n
+        assert panel.main_window.said[-1] == i18n.t("bulk_transcription_done").format(
+            done=1, skipped=0, failed=0)
 
 
 class TestWhatTheWindowMayShow:

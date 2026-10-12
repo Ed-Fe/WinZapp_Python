@@ -219,12 +219,7 @@ class BulkTranscriptionMixin:
         if mw.is_chat_hidden_by_vault(run.jid):
             return
         i18n = mw.i18n
-        selection = stored_transcription.selection_from_settings(mw.settings)
-        shown = bulk.shown_entries(
-            run.entries,
-            lambda msg_id: stored_transcription.find_record(
-                mw._transcription_copies(run.jid, msg_id), msg_id),
-            selection)
+        shown = self._bulk_shown_entries(run)
         if not shown:
             # The tally the window would have said, then why it did not open.
             nothing = i18n.t("bulk_transcription_nothing_to_show")
@@ -405,7 +400,8 @@ class BulkTranscriptionMixin:
         if run.not_kept:
             # The model's cache is off: the texts were made but not kept.
             text = f"{text} {i18n.t('bulk_transcription_not_kept')}"
-        if not run.inline and run.entries and not run.cancelled.is_set():
+        if (not run.inline and not run.cancelled.is_set()
+                and self._bulk_shown_entries(run)):
             # Alt+Shift+T's form ends where Alt+Shift+T does, in the window —
             # but only where the user still is: the conversation the run was
             # started in, with WinZapp's window active. The tally is then said
@@ -417,6 +413,15 @@ class BulkTranscriptionMixin:
                 return
             text = f"{text} {i18n.t('bulk_transcription_open_hint')}"
         self.main_window.output(text)
+
+    def _bulk_shown_entries(self, run) -> list:
+        """bulk.shown_entries() of `run`, read from what memory holds now."""
+        mw = self.main_window
+        return bulk.shown_entries(
+            run.entries,
+            lambda msg_id: stored_transcription.find_record(
+                mw._transcription_copies(run.jid, msg_id), msg_id),
+            stored_transcription.selection_from_settings(mw.settings))
 
     def _bulk_window_may_open(self, run) -> bool:
         conversation = self.conversation if isinstance(self.conversation, dict) else {}

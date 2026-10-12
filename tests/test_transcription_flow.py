@@ -1831,6 +1831,22 @@ class TestDeletingAStoredTranscription:
         transcription_flow.delete_transcription(world.panel, world.target)
         assert repainted == [[world.target["key"]["id"]]]
 
+    def test_an_answer_after_the_user_moved_on_redraws_nothing(self, world):
+        # _repaint_or_repopulate() would rebuild the conversation now open.
+        _saved(world)
+        repainted = []
+        world.panel._repaint_or_repopulate = repainted.append
+        _FakeMessageDialog.answer = transcription_flow.wx.ID_YES
+        db_delete = world.main_window.delete_message_transcription
+
+        def moved_on(jid, msg_id, on_done):
+            world.panel.conversation = {"remoteJid": "other@s.whatsapp.net"}
+            db_delete(jid, msg_id, on_done)
+
+        world.main_window.delete_message_transcription = moved_on
+        transcription_flow.delete_transcription(world.panel, world.target)
+        assert repainted == []
+
     def test_a_failed_delete_redraws_nothing(self, world):
         _saved(world)
         repainted = []

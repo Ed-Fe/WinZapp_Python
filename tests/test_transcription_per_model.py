@@ -335,6 +335,31 @@ class TestMarkingAnOldTextInline:
         assert {r["model_id"] for r in stored.results_of(marked)} == {"small", "base"}
 
 
+class TestASyncKeepsTheRowsOtherModelsOnATie:
+    """The write kept the row's other models; the next sync rewrites the
+    message from the memory copy with the same decision and must keep them."""
+
+    def test_the_same_decision_keeps_what_either_side_knows(self):
+        row = stored.with_result(_rec("medium", "m", at=1.0), _rec("small", "s", at=5.0))
+        memory = _rec("small", "s", at=5.0)
+        written = stored.with_known_transcription(_msg(memory), _msg(row))
+        assert {r["model_id"] for r in stored.results_of(written[TRANSCRIPTION_KEY])} == {
+            "small", "medium"}
+
+    def test_a_later_decision_still_wins_alone(self):
+        # A clear dates its result after the one it replaced: what it dropped
+        # stays dropped.
+        row = stored.with_result(_rec("medium", "m", at=1.0), _rec("small", "s", at=5.0))
+        newer = _rec("small", "s", at=6.0)
+        written = stored.with_known_transcription(_msg(newer), _msg(row))
+        assert written[TRANSCRIPTION_KEY] is newer
+
+    def test_nothing_new_returns_the_message_itself(self):
+        value = _rec("small", "s", at=5.0)
+        msg = _msg(value)
+        assert stored.with_known_transcription(msg, _msg(dict(value))) is msg
+
+
 class TestWhatClearingSays:
     def test_each_outcome_has_its_own_sentence(self):
         assert stored.clear_cache_message_key(None) == "transcription_clear_cache_failed"

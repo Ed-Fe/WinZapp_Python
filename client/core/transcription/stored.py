@@ -660,6 +660,12 @@ def with_known_transcription(msg, stored_msg):
         kept = stored
     else:
         kept = newer_decision(incoming, stored)
+        if (kept is incoming and kept is not None
+                and decision_time(incoming) == decision_time(stored)):
+            # The same decision on both sides, one of them knowing more models'
+            # results: a copy built in memory without the row's (a message
+            # loaded through on_historical_message) must not drop them.
+            kept = with_missing_results(incoming, stored)
     if kept is incoming and (kept is not None or TRANSCRIPTION_KEY not in msg):
         return msg
     merged = dict(msg)
