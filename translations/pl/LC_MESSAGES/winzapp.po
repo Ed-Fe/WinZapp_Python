@@ -517,7 +517,7 @@ msgctxt "ai_demo_title"
 msgid "WinZapp — manual photo demo (no WhatsApp)"
 msgstr "WinZapp — ręczny test zdjęć (bez WhatsApp)"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py client/ui/conversations.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py client/ui/ai_media_demo.py client/ui/conversations.py client/ui/media_viewer.py
 msgctxt "ai_describe_image_menu"
 msgid "Describe"
 msgstr "Opisz"
@@ -552,7 +552,7 @@ msgctxt "ai_detailed"
 msgid "Detailed"
 msgstr "Szczegółowy"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversation_panel/ai_actions.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_launch.py client/ui/conversation_panel/ai_actions.py
 #| msgctxt "ai_disabled"
 #| msgid "Turn on AI features, add a key for a provider and enable this kind of media in Settings > Transcriptions and Descriptions first."
 msgctxt "ai_disabled"
@@ -738,8 +738,8 @@ msgstr "Ten plik pochodzi z zablokowanego czatu. Wysłanie go poza WhatsApp wyma
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_metadata_notice"
-msgid "Videos, voice messages and PDFs are sent exactly as they are, including any information stored inside the file, such as author or location."
-msgstr "Pliki wideo, wiadomości głosowe i pliki PDF są wysyłane w niezmienionej postaci, razem z informacjami zapisanymi w pliku, takimi jak autor czy lokalizacja."
+msgid "Voice messages and PDFs are sent exactly as they are, including any information stored inside the file, such as author or location."
+msgstr "Wiadomości głosowe i pliki PDF są wysyłane w niezmienionej postaci, razem z informacjami zapisanymi w pliku, takimi jak autor czy lokalizacja."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
@@ -978,6 +978,11 @@ msgstr "&Transkrybuj wiadomości głosowe"
 msgctxt "ai_transcribe_audio_menu"
 msgid "Transcribe with online AI"
 msgstr "Transkrybuj za pomocą AI online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/ai_result_dialog.py
+msgctxt "ai_video_frame_notice"
+msgid "Only one still picture taken from the video is sent, without its sound and with its information removed."
+msgstr "Wysyłany jest tylko jeden obraz nieruchomy z wideo, bez dźwięku i bez informacji zapisanych w pliku."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/conversation_data_dialog.py client/ui/dialogs/settings_dialog.py
 msgctxt "alert_tone_custom"

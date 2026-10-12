@@ -216,6 +216,8 @@ class MediaFilesMixin:
                 "caption": caption,
                 "label": label,
             }],
+            describe_label=lambda item: self._ai_menu_label(msg, self.main_window.i18n),
+            on_describe=lambda item, parent: self._on_ai_action(message=msg, parent=parent),
         )
         try:
             dlg.ShowModal()

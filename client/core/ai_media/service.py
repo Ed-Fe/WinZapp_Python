@@ -186,9 +186,9 @@ def probe_connection(provider, model, key, token, session_factory=tls_trust.crea
         raise DescriptionError("network") from None
 
 
-#: Seconds one provider may take, by kind: a converted PDF or a long video
+#: Seconds one provider may take, by kind: a converted PDF
 #: legitimately generates for much longer than a one-paragraph description.
-ATTEMPT_SECONDS = {"image": 60, "sticker": 60, "video": 120, "audio": 90, "pdf": 150}
+ATTEMPT_SECONDS = {"image": 60, "sticker": 60, "video": 60, "audio": 90, "pdf": 150}
 #: One user action may use this many attempts' worth of time in total.
 BUDGET_ATTEMPTS = 2.5
 

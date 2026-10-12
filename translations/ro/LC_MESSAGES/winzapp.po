@@ -617,8 +617,9 @@ msgctxt "ai_demo_title"
 msgid "WinZapp — manual photo demo (no WhatsApp)"
 msgstr "WinZapp — test manual de fotografii (fără WhatsApp)"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
-#: client/ui/conversations.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
+#: client/ui/ai_media_demo.py client/ui/conversations.py
+#: client/ui/media_viewer.py
 msgctxt "ai_describe_image_menu"
 msgid "Describe"
 msgstr "Descrieți"
@@ -653,7 +654,7 @@ msgctxt "ai_detailed"
 msgid "Detailed"
 msgstr "Detaliat"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_launch.py
 #: client/ui/conversation_panel/ai_actions.py
 msgctxt "ai_disabled"
 msgid ""
@@ -916,11 +917,11 @@ msgstr ""
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_metadata_notice"
 msgid ""
-"Videos, voice messages and PDFs are sent exactly as they are, including any "
+"Voice messages and PDFs are sent exactly as they are, including any "
 "information stored inside the file, such as author or location."
 msgstr ""
-"Videoclipurile, mesajele vocale și PDF-urile sunt trimise exact cum sunt, "
-"inclusiv orice informație păstrată în fișier, precum autorul sau locația."
+"Mesajele vocale și PDF-urile sunt trimise exact cum sunt, inclusiv orice "
+"informație păstrată în fișier, precum autorul sau locația."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
@@ -1172,6 +1173,16 @@ msgstr "&Transcrieți mesajele vocale"
 msgctxt "ai_transcribe_audio_menu"
 msgid "Transcribe with online AI"
 msgstr "Transcrieți cu AI online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+msgctxt "ai_video_frame_notice"
+msgid ""
+"Only one still picture taken from the video is sent, without its sound and "
+"with its information removed."
+msgstr ""
+"Se trimite doar o imagine statică extrasă din videoclip, fără sunet și fără "
+"informațiile păstrate în fișier."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py

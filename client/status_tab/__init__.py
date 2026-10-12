@@ -18,6 +18,7 @@ Where to look (and where new code goes):
     status_media         video playback, copy text, save media
     status_composer      composer panels, posting text and media statuses
     status_voice         recording, previewing and posting a voice status
+    status_ai            describing a photo or video status with the AI providers
 
   Plain modules
     status_rules         post-result checks, content label, media download, save extension

@@ -52,9 +52,11 @@ def failure_text(i18n, error):
 def consent_text(i18n, providers, kind, locked):
     """What the person is told before media leaves the machine."""
     message = i18n.t("ai_consent").format(providers=provider_names(providers))
-    if kind in ("video", "audio", "pdf"):
+    if kind in ("audio", "pdf"):
         # Pictures are re-encoded (metadata removed); these go out untouched.
         message += "\n\n" + i18n.t("ai_metadata_notice")
+    if kind == "video":
+        message += "\n\n" + i18n.t("ai_video_frame_notice")
     if "gemini" in providers:
         message += "\n\n" + i18n.t("ai_gemini_notice")
     if locked:
