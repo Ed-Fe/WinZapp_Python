@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Eşitleme: Tekrar gelen geçmiş mesajlar yeni gelmiş gibi sona eklenmez; tarih sırası korunur. Sohbetin alternatif adresini sorgularken oluşan geçici hatalar yeniden denemek üzere kuyrukta tutulur.
+
 - Seçili mesajların toplu yazıya dökümü (issue #469). Toplu işlemler alt menüsünde, Kısayollar sekmesinden değiştirilebilen kendi kısayolları olan iki seçenek var: "Seçili mesajları yazıya dök ve birlikte göster" (Ctrl+Alt+Shift+T, Alt+Shift+T gibi) ve "Seçili mesajları kendi satırlarına yazıya dök" (Ctrl+Alt+Shift+N, Alt+Shift+N gibi). Kısayolları toplu işlemlerle değiştirme seçeneği açıkken Alt+Shift+T ve Alt+Shift+N de seçim üzerinde çalışır. WinZapp başlamadan önce kaç mesajın yazıya döküleceğini, atlanacağını veya yeniden kullanılacağını söyler, mesajları arka planda "mesaj 3 / 12" diye duyurarak tek tek yazıya döker, biri başarısız olunca devam eder ve sonunda kaçının yazıya döküldüğünü, atlandığını ve hatalı olduğunu söyler. Aynı kısayol veya bağlam menüsü kuyruğu iptal eder; bağlam menüsü tüm dökümleri gönderen, tarih ve saatle birlikte, kopyalamak veya kaydetmek için tek bir pencerede gösterir.
 
 - Yerel yazıya döküm artık videolarla da çalışıyor: videonun sesi sese dönüştürülüp faster-whisper'a veya whisper.cpp'ye verilir. Tüm seçenekler videolar için de geçerli: Alt+Shift+T, satıra yazıya döküm (Alt+Shift+N), yazıya döken Enter ve Boşluk (bu durumda Alt+Shift+N videoyu oynatır veya açar), alınanların otomatik yazıya dökümü, model başına önbellek ve temizlenmesi. GIF'ler atlanır, sesi olmayan bir video için bu durum bildirilir.

@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Synchronizacja: ponownie otrzymane starsze wiadomości zachowują kolejność chronologiczną, zamiast pojawiać się jako nowe. Tymczasowe błędy sprawdzania alternatywnego adresu czatu pozostają w kolejce do ponowienia.
+
 - Masowa transkrypcja zaznaczonych wiadomości (issue #469). Podmenu Akcje masowe ma dwie pozycje, każdą z własnym skrótem, który można zmienić na karcie Skróty klawiszowe: "Transkrybuj zaznaczone wiadomości i pokaż je razem" (Ctrl+Alt+Shift+T, jak Alt+Shift+T) oraz "Transkrybuj zaznaczone wiadomości w ich wierszach" (Ctrl+Alt+Shift+N, jak Alt+Shift+N). Gdy włączona jest opcja zastępowania skrótów akcjami masowymi, Alt+Shift+T i Alt+Shift+N także działają na zaznaczeniu. Przed rozpoczęciem WinZapp mówi, ile wiadomości zostanie przetranskrybowanych, pominiętych lub użytych ponownie, transkrybuje je po jednej w tle, ogłaszając "wiadomość 3 z 12", kontynuuje mimo błędu jednej z nich, a na końcu mówi, ile przetranskrybowano, pominięto i ile zakończyło się błędem. Ten sam skrót lub menu kontekstowe anulują kolejkę, a menu kontekstowe pokazuje wszystkie transkrypcje razem, z nadawcą, datą i godziną, do skopiowania lub zapisania.
 
 - Transkrypcja lokalna działa teraz także z wideo: dźwięk wideo jest zamieniany na audio i przekazywany do faster-whisper lub whisper.cpp. Wszystkie opcje obejmują wideo: Alt+Shift+T, transkrypcja w wierszu (Alt+Shift+N), Enter i Spacja transkrybujące (Alt+Shift+N wtedy odtwarza lub otwiera wideo), automatyczna transkrypcja odebranych, pamięć podręczna dla każdego modelu i jej czyszczenie. GIF-y są pomijane, a o wideo bez dźwięku WinZapp informuje wprost.
