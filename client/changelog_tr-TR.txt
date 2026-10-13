@@ -82,6 +82,8 @@ YENİLİKLER
 
 - macOS: sürüm derlemeleri artık VoiceOver'ın iyi okuduğu Sparkle 2'nin standart pencereleriyle güncelleniyor. "Güncellemeleri denetle", 3 saatte bir yapılan otomatik denetim ve "Alfa güncellemelerini denetle" Sparkle'ı açar. Bir sürüm sunulmadan önce, Yükle'yi seçtiğinizde ve bir kez daha "Yüklemeye hazır" aşamasında WinZapp, sürümün etiketinin resmi depoda bulunduğunu, bildirilen commit'i gösterdiğini ve çalıştırdığınız sürümden yeni olduğunu denetler; bunlardan biri başarısız olursa veya GitHub'a ulaşılamazsa güncelleme iptal edilir ve nedeni gösterilir. Yükle'yi seçtiğinizde diğer hesaplarınız kapanır ve güncelleme bitene kadar hiçbir hesap başlatılamaz; güncelleme yüklenmezse yeniden açılırlar. Arka planda bulunan bir güncelleme sesle ve bir bildirimle duyurulur, "Yüklemeye hazır" da duyurulur. Önceki kapanışlardan kalan hesap kilitleri artık Mac'te güncellemeleri ve açılışı engellemez.
 
+- Yeni Dosya > WhatsApp ayarları penceresi: Gizlilik sekmesinde WhatsApp hesabınızın gizliliği doğrudan WhatsApp'ta ayarlanır: son görülme, çevrimiçi olduğunuzu kimlerin görebileceği, hakkımda, profil fotoğrafı, okundu bilgisi, sizi gruplara kimlerin ekleyebileceği ve durumunuzu kimlerin görebileceği (kişilerim, kişilerim şunlar hariç... veya yalnızca şunlarla paylaş...). Durum için kişiler, eşitlenmiş kişileriniz arasından aranabilir bir listede Boşluk ile işaretlenerek seçilir. Pencere geçerli değerleri WhatsApp'tan yükler, yalnızca değiştirdiklerinizi gönderir, ardından kontrol eder ve WhatsApp'ın onaylamadığı ayarları bildirir.
+
 DÜZELTMELER
 
 - Eşitleme: Tekrar gelen geçmiş mesajlar yeni gelmiş gibi sona eklenmez; tarih sırası korunur. Sohbetin alternatif adresini sorgularken oluşan geçici hatalar yeniden denemek üzere kuyrukta tutulur.
