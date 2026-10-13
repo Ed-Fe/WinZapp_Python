@@ -6737,6 +6737,27 @@ msgid ""
 "Could not quote the original message; sending as a regular message instead."
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_missing_error"
+msgid ""
+"The quoted message was not found, so your reply was not sent. Your text is "
+"kept in the message list. Choose 'Edit unsent reply without its quote' in "
+"its menu to continue."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_save_failed"
+msgid ""
+"The reply could not be saved to disk. Its text is still in the message list;"
+" copy it before closing WinZapp."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/text_sending.py
+msgctxt "reply_restore_draft_busy"
+msgid "Finish or clear your current message before restoring this reply."
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #, python-brace-format
@@ -6768,6 +6789,12 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "restart_required_message"
 msgid "Some changes will only take effect after restarting WinZapp."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "restore_unsent_reply"
+msgid "Edit unsent reply without its quote"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_tab/status_voice.py

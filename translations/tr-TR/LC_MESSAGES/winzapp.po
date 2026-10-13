@@ -7138,6 +7138,34 @@ msgstr ""
 "Özgün mesaj alıntılanamadı; bunun yerine normal bir mesaj olarak "
 "gönderiliyor."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_missing_error"
+msgid ""
+"The quoted message was not found, so your reply was not sent. Your text is "
+"kept in the message list. Choose 'Edit unsent reply without its quote' in "
+"its menu to continue."
+msgstr ""
+"Alıntılanan mesaj bulunamadığından yanıtınız gönderilmedi. Metniniz mesaj "
+"listesinde korundu. Devam etmek için menüsünden 'Gönderilmemiş yanıtı "
+"alıntısız düzenle' seçeneğini seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_save_failed"
+msgid ""
+"The reply could not be saved to disk. Its text is still in the message list;"
+" copy it before closing WinZapp."
+msgstr ""
+"Yanıt diske kaydedilemedi. Metni hâlâ mesaj listesinde; WinZapp’ı kapatmadan"
+" önce kopyalayın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/text_sending.py
+msgctxt "reply_restore_draft_busy"
+msgid "Finish or clear your current message before restoring this reply."
+msgstr ""
+"Bu yanıtı geri almadan önce yazmakta olduğunuz mesajı tamamlayın veya "
+"temizleyin."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #, python-brace-format
@@ -7172,6 +7200,12 @@ msgid "Some changes will only take effect after restarting WinZapp."
 msgstr ""
 "Bazı değişiklikler yalnızca WinZapp yeniden başlatıldıktan sonra geçerli "
 "olacaktır."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "restore_unsent_reply"
+msgid "Edit unsent reply without its quote"
+msgstr "Gönderilmemiş yanıtı alıntısız düzenle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_tab/status_voice.py
 #: client/ui/conversations.py

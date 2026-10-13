@@ -17,6 +17,7 @@ from core.message_edit import (
     edit_window_open,
 )
 from core.message_queue import PendingMessage
+from core.reply_failure import is_missing_quote_failure
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
 from ui.conversation_panel.media_paths import discard_local_media_cache
@@ -208,7 +209,10 @@ class MessageActionsMixin:
         # would be misleading anyway (see the comment above).
         if is_self_chat and not is_system:
             if self._confirm_local_only_delete(1):
-                self._delete_message_for_me_only(msg, msg_id, index)
+                if is_missing_quote_failure(msg):
+                    self._cancel_pending_message(msg, str(msg.get("_local_id") or msg_id), hold_for_echo=False)
+                else:
+                    self._delete_message_for_me_only(msg, msg_id, index)
             return
 
         if not can_delete_for_all and not is_system and self.conversation:
@@ -296,7 +300,10 @@ class MessageActionsMixin:
         # path below (which would build a revoke request around the local
         # UUID this row's key.id still holds and could only fail).
         cancelled_pending = bool(
-            pending_local_id and (msg.get("_local_pending") or msg.get("_send_unconfirmed"))
+            pending_local_id and (
+                msg.get("_local_pending") or msg.get("_send_unconfirmed")
+                or is_missing_quote_failure(msg)
+            )
         )
         if cancelled_pending:
             # An unconfirmed send shares the "nothing to revoke, local delete
@@ -671,6 +678,9 @@ class MessageActionsMixin:
             return
         if not msg.get("key", {}).get("fromMe", False):
             return
+        if is_missing_quote_failure(msg):
+            self._on_restore_unsent_reply(msg)
+            return
         if edit_kind(msg) is None:
             return
         if not edit_window_open(msg.get("messageTimestamp")):
@@ -687,6 +697,9 @@ class MessageActionsMixin:
 
     def _on_menu_edit_message(self, index: int, msg: dict):
         """Enter edit mode: pre-fill message field with message text."""
+        if is_missing_quote_failure(msg):
+            self._on_restore_unsent_reply(msg)
+            return
         if edit_kind(msg) == "caption":
             # The raw caption, not _get_message_content(): for media that is
             # the row as the list reads it (type, file name, size), none of

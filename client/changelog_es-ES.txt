@@ -88,6 +88,8 @@ CORRECCIONES
 
 - Actualizaciones: "Comprobar actualizaciones", en el menú Ayuda, ahora avisa cuando WinZapp no puede conectar con el servidor de actualizaciones, en lugar de no decir nada.
 
+- Respuestas: si no se encuentra el mensaje original antes de enviar, WinZapp informa de la cita ausente y conserva el texto para editarlo desde el menú del mensaje. No lo envía silenciosamente sin la cita ni anuncia una pérdida de conexión. Los envíos inciertos siguen sin reintentarse automáticamente.
+
 - Sincronización: los mensajes antiguos recibidos de nuevo mantienen su orden cronológico en lugar de aparecer como nuevos. Los fallos temporales al consultar una dirección alternativa del chat quedan pendientes para volver a intentarlo.
 
 - Reenviar ya no abre un cuadro cuando sale bien. "Mensaje reenviado." (o cuántos mensajes se han reenviado) ahora lo dice el lector de pantalla, sin ventana que cerrar y sin interrumpir lo que se está leyendo; también funciona con WinZapp en la bandeja.
