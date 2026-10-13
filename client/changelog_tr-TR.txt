@@ -82,7 +82,11 @@ YENİLİKLER
 
 - macOS: sürüm derlemeleri artık VoiceOver'ın iyi okuduğu Sparkle 2'nin standart pencereleriyle güncelleniyor. "Güncellemeleri denetle", 3 saatte bir yapılan otomatik denetim ve "Alfa güncellemelerini denetle" Sparkle'ı açar. Bir sürüm sunulmadan önce, Yükle'yi seçtiğinizde ve bir kez daha "Yüklemeye hazır" aşamasında WinZapp, sürümün etiketinin resmi depoda bulunduğunu, bildirilen commit'i gösterdiğini ve çalıştırdığınız sürümden yeni olduğunu denetler; bunlardan biri başarısız olursa veya GitHub'a ulaşılamazsa güncelleme iptal edilir ve nedeni gösterilir. Yükle'yi seçtiğinizde diğer hesaplarınız kapanır ve güncelleme bitene kadar hiçbir hesap başlatılamaz; güncelleme yüklenmezse yeniden açılırlar. Arka planda bulunan bir güncelleme sesle ve bir bildirimle duyurulur, "Yüklemeye hazır" da duyurulur. Önceki kapanışlardan kalan hesap kilitleri artık Mac'te güncellemeleri ve açılışı engellemez.
 
+- Eşitleme ve medya indirme için sesli ilerleme: bir eşitleme (ilk eşleştirmede veya F5 ile yapılan tam eşitleme ve WinZapp açıldığında yapılan, değişen sohbetlerin güncellenmesi) ve ardından gelen medya indirme sırasında WinZapp, yaklaşık her 5 saniyede bir ne kadarının bittiğini pencere başlığında gösterir ve seslendirir: "Sohbetler eşitleniyor: 12 / 80" ve "Medya indiriliyor: 30 / 120 işlendi (8 indirildi)". Önceden başlangıç ve bitiş duyuruları arasında hiçbir şey duyulmuyordu ve uzun bir eşitleme takılmış gibi görünüyordu. "İşlendi", indirilmesine gerek kalmayan medyaları da (örneğin zaten bilgisayarda olanları) sayar; toplam ise tüm geçmişi değil, yalnızca Depolama ayarlarınızın hâlâ indirilmesine izin verdiği medyaları kapsar. İlerleme, Ayarlar > Genel bölümündeki "Eşitlemeyi, medya indirmelerini ve otomatik çevrimdışı modu duyur" seçeneğine uyar ve WinZapp arka planda başlatıldığında veya sesli arama sırasında seslendirilmez; her dakika çalışan otomatik kontrol sessiz kalır. Ayarlar > Konuşulan içerik bölümündeki, varsayılan olarak işaretli "Sohbet eşitlemesinin ilerlemesini birkaç saniyede bir duyur" ve "Medya indirme ilerlemesini birkaç saniyede bir duyur" kutuları bu duyuruların her birini ayrı ayrı kapatır; pencere başlığı sayıları göstermeye devam eder.
+
 DÜZELTMELER
+
+- Güncellemeler: Yardım menüsündeki "Güncellemeleri denetle", WinZapp güncelleme sunucusuna ulaşamadığında artık sessiz kalmak yerine bunu bildirir.
 
 - Yanıtlar: gönderimden önce özgün mesaj bulunamazsa WinZapp eksik alıntıyı bildirir ve metninizi mesaj menüsünden düzenleyebilmeniz için korur. Alıntıyı sessizce kaldırıp göndermez veya bağlantı kesildiğini söylemez. Sonucu belirsiz gönderimler otomatik olarak tekrar denenmez.
 
@@ -141,6 +145,10 @@ DÜZELTMELER
 - Bir güncelleme veya Node indirmesi tam bittiği anda iptal edildiğinde WinZapp "Attempt to exit a non-running event loop" hatasını gösterebiliyordu. Geç gelen tamamlanmalar artık yok sayılıyor.
 
 - İlet penceresi: arama alanında aşağı ok artık ilk sonuca gidip odağı listeye taşıyor; sohbet aramasındaki gibi.
+
+- Telefon numarasıyla eşleştirmede ülke seçimi artık WhatsApp'ın desteklediği tüm ülke ve bölgeleri içeriyor (Hollanda, Kenya, Belarus ve Kuzey Makedonya gibi ülkeler eksikti) ve ülke adları Lehçe, Türkçe ve Rumence için de seçilen dilde gösteriliyor.
+
+- Kişilerinize kaydetmediğiniz doğrulanmış WhatsApp Business hesapları (bankalar, ödeme uygulamaları, hizmet şirketleri) sohbet listesinde yalnızca telefon numarasıyla görünüyordu. Artık WhatsApp'ta olduğu gibi işletmenin doğrulanmış adıyla görünür. Kişilerinizde kayıtlı bir ad yine önceliklidir.
 
 V2.0.0.0
 

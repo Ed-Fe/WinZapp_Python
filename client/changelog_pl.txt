@@ -82,7 +82,11 @@ NOWOŚCI
 
 - macOS: wersje wydania aktualizują się teraz przez standardowe okna Sparkle 2, które VoiceOver czyta dobrze. „Sprawdź aktualizacje”, automatyczne sprawdzanie co 3 godziny i „Sprawdzaj aktualizacje alfa” otwierają Sparkle. Zanim wersja zostanie zaproponowana, po wybraniu Zainstaluj i jeszcze raz przy „Gotowe do instalacji” WinZapp sprawdza, czy tag wersji istnieje w oficjalnym repozytorium, wskazuje zadeklarowany commit i jest nowszy od używanej wersji; jeśli cokolwiek z tego zawiedzie albo GitHub jest nieosiągalny, aktualizacja jest anulowana, a przyczyna wyświetlona. Po wybraniu Zainstaluj pozostałe konta są zamykane i żadne konto nie może się uruchomić do końca aktualizacji; jeśli aktualizacja nie zostanie zainstalowana, konta są otwierane ponownie. Aktualizacja znaleziona w tle jest zapowiadana głosowo i powiadomieniem, a „Gotowe do instalacji” również jest zapowiadane. Blokady kont pozostawione po wcześniejszych zamknięciach nie blokują już aktualizacji ani uruchamiania na Macu.
 
+- Odczytywany postęp synchronizacji i pobierania multimediów: podczas synchronizacji (pełnej przy pierwszym parowaniu lub po F5, a także aktualizacji zmienionych czatów przy otwieraniu WinZapp) i pobierania multimediów, które po niej następuje, WinZapp pokazuje w tytule okna i odczytuje mniej więcej co 5 sekund, ile już zrobiono: „Synchronizowanie czatów: 12 z 80” i „Pobieranie multimediów: 30 z 120 przetworzonych (8 pobranych)”. Wcześniej między komunikatem o rozpoczęciu a komunikatem o zakończeniu nic nie było słychać, a długa synchronizacja sprawiała wrażenie zawieszonej. „Przetworzone” obejmuje też multimedia, których nie trzeba było pobierać (na przykład już były na komputerze), a suma obejmuje tylko te, które ustawienia Pamięci nadal pozwalają pobrać, a nie całą historię. Postęp respektuje opcję „Ogłaszaj synchronizację, pobieranie multimediów i automatyczne przejście w tryb offline” w Ustawienia > Ogólne i nie jest odczytywany, gdy WinZapp uruchamia się w tle, ani podczas połączenia głosowego; automatyczne sprawdzanie co minutę pozostaje ciche. W Ustawienia > Zawartość mówiona pola „Ogłaszaj co kilka sekund postęp synchronizacji czatów” i „Ogłaszaj co kilka sekund postęp pobierania multimediów”, domyślnie zaznaczone, wyłączają każdy z tych komunikatów osobno; tytuł okna nadal pokazuje liczby.
+
 POPRAWKI
+
+- Aktualizacje: „Sprawdź aktualizacje” w menu Pomoc informuje teraz, gdy WinZapp nie może połączyć się z serwerem aktualizacji, zamiast nic nie mówić.
 
 - Odpowiedzi: jeśli przed wysłaniem nie można znaleźć oryginalnej wiadomości, WinZapp informuje o brakującym cytacie i zachowuje tekst do edycji z menu wiadomości. Nie wysyła go po cichu bez cytatu ani nie zgłasza utraty połączenia. Wysyłki o niepewnym wyniku nadal nie są automatycznie ponawiane.
 
@@ -141,6 +145,10 @@ POPRAWKI
 - Gdy aktualizacja lub pobieranie Node zostały anulowane dokładnie w chwili zakończenia, WinZapp mógł pokazać błąd "Attempt to exit a non-running event loop". Spóźnione zakończenia są teraz ignorowane.
 
 - Okno przekazywania: strzałka w dół w polu wyszukiwania przechodzi teraz do pierwszego wyniku i ustawia fokus na liście, tak jak w wyszukiwaniu rozmów.
+
+- Lista wyboru kraju przy parowaniu przez numer telefonu zawiera teraz wszystkie kraje i terytoria obsługiwane przez WhatsApp (brakowało m.in. Holandii, Kenii, Białorusi i Macedonii Północnej), a nazwy krajów są wyświetlane w wybranym języku także po polsku, turecku i rumuńsku.
+
+- Zweryfikowane konta firmowe WhatsApp (banki, aplikacje płatnicze, dostawcy usług), których nie masz zapisanych w kontaktach, były widoczne na liście czatów tylko z numerem telefonu. Teraz pokazują zweryfikowaną nazwę firmy, tak jak w WhatsApp. Nazwa zapisana w kontaktach nadal ma pierwszeństwo.
 
 V2.0.0.0
 

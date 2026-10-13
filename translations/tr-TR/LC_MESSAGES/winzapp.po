@@ -9113,9 +9113,21 @@ msgstr "Sohbet güncellemesi başladığında duyur"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_media_progress_label"
+msgid "Announce media download progress every few seconds"
+msgstr "Medya indirme ilerlemesini birkaç saniyede bir duyur"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_recording_label"
 msgid "Announce when a contact is recording an audio message in a chat"
 msgstr "Bir kişi bir sohbette sesli mesaj kaydederken duyur"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_sync_progress_label"
+msgid "Announce chat sync progress every few seconds"
+msgstr "Sohbet eşitlemesinin ilerlemesini birkaç saniyede bir duyur"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -9732,6 +9744,12 @@ msgid "Chats unarchived."
 msgstr "Sohbetler arşivden çıkarıldı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr "Sohbetler eşitleniyor: {done} / {total}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr "Sohbetler eşitlendi."
@@ -9751,6 +9769,13 @@ msgstr "Medya indirme işlemi tamamlandı."
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
 msgstr "Medya indirilemedi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
+msgstr "Medya indiriliyor: {done} / {total} işlendi ({downloaded} indirildi)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
 #: client/main_window/sync.py
@@ -13042,6 +13067,23 @@ msgctxt "unsupported_message"
 msgid "Incompatible message"
 msgstr "Uyumsuz mesaj"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+#, python-brace-format
+msgctxt "update_alpha_choice_message"
+msgid ""
+"You are running {current}. A newer alpha version, {new}, is available, but "
+"alpha updates are disabled. Would you like to view this update once? "
+"Automatic alpha updates will remain disabled."
+msgstr ""
+"{current} sürümünü kullanıyorsunuz. Daha yeni bir alfa sürümü ({new}) var, "
+"ancak alfa güncellemeleri kapalı. Bu güncellemeyi bir kez görüntülemek "
+"ister misiniz? Otomatik alfa güncellemeleri kapalı kalacak."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+msgctxt "update_alpha_choice_title"
+msgid "Alpha updates are disabled"
+msgstr "Alfa güncellemeleri kapalı"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
 msgctxt "update_available_msg"
@@ -13206,6 +13248,16 @@ msgid ""
 msgstr ""
 "Başka bir WinZapp hesabında zaten bir güncelleme penceresi açık. Güncellemek"
 " için o pencereyi tamamlayın veya kapatın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#, python-brace-format
+msgctxt "update_reinstall_downgrade_warning"
+msgid ""
+"Reinstalling will replace your current version {current} with the older "
+"version {new} from the selected update channel."
+msgstr ""
+"Yeniden kurulum, mevcut {current} sürümünüzü seçili güncelleme kanalındaki "
+"daha eski {new} sürümüyle değiştirecek."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "update_uac_declined"

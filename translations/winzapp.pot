@@ -8605,8 +8605,20 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_media_progress_label"
+msgid "Announce media download progress every few seconds"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_recording_label"
 msgid "Announce when a contact is recording an audio message in a chat"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_sync_progress_label"
+msgid "Announce chat sync progress every few seconds"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9198,6 +9210,12 @@ msgid "Chats unarchived."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr ""
@@ -9216,6 +9234,13 @@ msgstr ""
 #: client/main_window/sync.py
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
@@ -12235,6 +12260,20 @@ msgctxt "unsupported_message"
 msgid "Incompatible message"
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+#, python-brace-format
+msgctxt "update_alpha_choice_message"
+msgid ""
+"You are running {current}. A newer alpha version, {new}, is available, but "
+"alpha updates are disabled. Would you like to view this update once? "
+"Automatic alpha updates will remain disabled."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+msgctxt "update_alpha_choice_title"
+msgid "Alpha updates are disabled"
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
 msgctxt "update_available_msg"
@@ -12373,6 +12412,14 @@ msgctxt "update_prompt_open_elsewhere"
 msgid ""
 "An update window is already open in another WinZapp account. Finish or close"
 " that window to update."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#, python-brace-format
+msgctxt "update_reinstall_downgrade_warning"
+msgid ""
+"Reinstalling will replace your current version {current} with the older "
+"version {new} from the selected update channel."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py

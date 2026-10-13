@@ -9208,10 +9208,22 @@ msgstr "Anunțați când începe actualizarea conversațiilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_media_progress_label"
+msgid "Announce media download progress every few seconds"
+msgstr "Anunțați la câteva secunde progresul descărcării media"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_recording_label"
 msgid "Announce when a contact is recording an audio message in a chat"
 msgstr ""
 "Anunțați când un contact înregistrează un mesaj audio într-o conversație"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_sync_progress_label"
+msgid "Announce chat sync progress every few seconds"
+msgstr "Anunțați la câteva secunde progresul sincronizării conversațiilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -9840,6 +9852,12 @@ msgid "Chats unarchived."
 msgstr "Conversații dezarhivate."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr "Se sincronizează conversațiile: {done} din {total}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr "Conversații sincronizate."
@@ -9859,6 +9877,14 @@ msgstr "Descărcare media finalizată."
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
 msgstr "Nu s-a putut descărca media."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
+msgstr ""
+"Descărcare media: {done} din {total} procesate ({downloaded} descărcate)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
 #: client/main_window/sync.py
@@ -13215,6 +13241,24 @@ msgctxt "unsupported_message"
 msgid "Incompatible message"
 msgstr "Mesaj incompatibil"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+#, python-brace-format
+msgctxt "update_alpha_choice_message"
+msgid ""
+"You are running {current}. A newer alpha version, {new}, is available, but "
+"alpha updates are disabled. Would you like to view this update once? "
+"Automatic alpha updates will remain disabled."
+msgstr ""
+"Folosiți versiunea {current}. Este disponibilă o versiune alfa mai nouă, "
+"{new}, dar actualizările alfa sunt dezactivate. Doriți să vedeți această "
+"actualizare o singură dată? Actualizările alfa automate vor rămâne "
+"dezactivate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+msgctxt "update_alpha_choice_title"
+msgid "Alpha updates are disabled"
+msgstr "Actualizările alfa sunt dezactivate"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
 msgctxt "update_available_msg"
@@ -13382,6 +13426,16 @@ msgid ""
 msgstr ""
 "O fereastră de actualizare este deja deschisă într-un alt cont WinZapp. "
 "Finalizați operația sau închideți acea fereastră pentru a actualiza."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#, python-brace-format
+msgctxt "update_reinstall_downgrade_warning"
+msgid ""
+"Reinstalling will replace your current version {current} with the older "
+"version {new} from the selected update channel."
+msgstr ""
+"Reinstalarea va înlocui versiunea curentă {current} cu versiunea mai veche "
+"{new} din canalul de actualizare selectat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "update_uac_declined"
