@@ -7229,6 +7229,32 @@ msgid ""
 msgstr ""
 "Não foi possível citar a mensagem original; a enviar como mensagem normal."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_missing_error"
+msgid ""
+"The quoted message was not found, so your reply was not sent. Your text is "
+"kept in the message list. Choose 'Edit unsent reply without its quote' in "
+"its menu to continue."
+msgstr ""
+"A mensagem citada não foi encontrada, pelo que a sua resposta não foi "
+"enviada. O texto foi mantido na lista de mensagens. Escolha 'Editar resposta"
+" não enviada sem a citação' no respetivo menu para continuar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
+msgctxt "reply_quote_save_failed"
+msgid ""
+"The reply could not be saved to disk. Its text is still in the message list;"
+" copy it before closing WinZapp."
+msgstr ""
+"Não foi possível guardar a resposta no disco. O texto ainda está na lista de"
+" mensagens; copie-o antes de fechar o WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/text_sending.py
+msgctxt "reply_restore_draft_busy"
+msgid "Finish or clear your current message before restoring this reply."
+msgstr "Conclua ou limpe a mensagem atual antes de recuperar esta resposta."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 #, python-brace-format
@@ -7261,6 +7287,12 @@ msgstr "Reenviar"
 msgctxt "restart_required_message"
 msgid "Some changes will only take effect after restarting WinZapp."
 msgstr "Algumas alterações só terão efeito depois de reiniciar o WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_menu.py
+msgctxt "restore_unsent_reply"
+msgid "Edit unsent reply without its quote"
+msgstr "Editar resposta não enviada sem a citação"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_tab/status_voice.py
 #: client/ui/conversations.py

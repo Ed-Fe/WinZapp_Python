@@ -12,6 +12,7 @@ import time
 import uuid
 import wx
 from core.message_queue import PendingMessage
+from core.reply_failure import is_missing_quote_failure
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
 from ui.conversation_panel.media_paths import (
@@ -24,7 +25,7 @@ from core.message_edit import (
     restore_edit_state,
     snapshot_edit_state,
 )
-from core.utils import normalize_line_separators
+from core.utils import normalize_line_separators, to_editor_line_endings
 
 
 class TextSendingMixin:
@@ -304,6 +305,11 @@ class TextSendingMixin:
             "pushName":         "",
         }
         if self._quoted_message:
+            # Keep the composed text (including display names), not a rendered
+            # quote/preview or a wire body with mention phone numbers.
+            virtual_msg["_reply_draft_text"] = text
+            virtual_msg["_reply_draft_mentions"] = list(self._pending_mentions)
+            virtual_msg["_reply_draft_mention_names"] = dict(self._pending_mention_display_names)
             _qk = self._quoted_message.get("key", {})
             virtual_msg["contextInfo"] = {
                 "stanzaId":      _qk.get("id", ""),
@@ -570,6 +576,29 @@ class TextSendingMixin:
         # Refresh conversation list so the preview reflects the sent message.
         self.main_window._schedule_set_chats()
 
+
+    def _on_restore_unsent_reply(self, msg: dict):
+        """Explicit recovery only: never overwrite another draft or send here."""
+        if not is_missing_quote_failure(msg):
+            return
+        if not self.conversation or (
+            msg.get("key", {}).get("remoteJid") != self.conversation.get("remoteJid")
+        ):
+            return
+        if (self.message_field.GetValue() or self._quoted_message
+                or self._editing_message_id is not None or self._pending_mentions):
+            self.main_window.output(self.main_window.i18n.t("reply_restore_draft_busy"), interrupt=False)
+            return
+        text = msg.get("_reply_draft_text")
+        if not isinstance(text, str) or not text:
+            return
+        self._pending_mention_display_names = dict(msg.get("_reply_draft_mention_names") or {})
+        self._pending_mentions = list(msg.get("_reply_draft_mentions") or [])
+        self._last_sent_signature = None  # This explicit retry is a new user action.
+        self._rebuild_mention_pills()
+        self.message_field.SetValue(to_editor_line_endings(text))
+        self.message_field.SetInsertionPointEnd()
+        self.message_field.SetFocus()
 
     def _mark_message_failed(self, local_id: str):
         """Mark a virtual pending message as permanently failed (exhausted retries)."""

@@ -84,6 +84,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Yanıtlar: gönderimden önce özgün mesaj bulunamazsa WinZapp eksik alıntıyı bildirir ve metninizi mesaj menüsünden düzenleyebilmeniz için korur. Alıntıyı sessizce kaldırıp göndermez veya bağlantı kesildiğini söylemez. Sonucu belirsiz gönderimler otomatik olarak tekrar denenmez.
+
 - Eşitleme: Tekrar gelen geçmiş mesajlar yeni gelmiş gibi sona eklenmez; tarih sırası korunur. Sohbetin alternatif adresini sorgularken oluşan geçici hatalar yeniden denemek üzere kuyrukta tutulur.
 
 - İletme başarılı olduğunda artık bir kutu açmıyor. "Mesaj iletildi." (ya da kaç mesajın iletildiği) artık ekran okuyucu tarafından söyleniyor; kapatılacak bir pencere yok ve okunan şey kesilmiyor. WinZapp sistem tepsisindeyken de çalışır.

@@ -84,6 +84,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Odpowiedzi: jeśli przed wysłaniem nie można znaleźć oryginalnej wiadomości, WinZapp informuje o brakującym cytacie i zachowuje tekst do edycji z menu wiadomości. Nie wysyła go po cichu bez cytatu ani nie zgłasza utraty połączenia. Wysyłki o niepewnym wyniku nadal nie są automatycznie ponawiane.
+
 - Synchronizacja: ponownie otrzymane starsze wiadomości zachowują kolejność chronologiczną, zamiast pojawiać się jako nowe. Tymczasowe błędy sprawdzania alternatywnego adresu czatu pozostają w kolejce do ponowienia.
 
 - Przekazywanie dalej nie otwiera już okna, gdy się uda. „Wiadomość przekazana.” (albo liczbę przekazanych wiadomości) mówi teraz czytnik ekranu, bez okna do zamknięcia i bez przerywania tego, co jest czytane; działa też, gdy WinZapp jest w zasobniku.

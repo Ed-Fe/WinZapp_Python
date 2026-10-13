@@ -1,5 +1,19 @@
 # Send compatibility contract
 
+- **A missing ordinary reply quote has a pre-send verdict (2026-10-13).**
+  `replyMessage` and quoted `sendMentioned` resolve the quote before the first
+  recipient's send. Only the in-page `msg_not_found` code emits
+  `{status:'error', code:'quoted_message_not_found', stage:'quote_resolution',
+  sendAttempted:false}`. It deliberately stays HTTP 500: old Python clients
+  strip quotes and resend on 4xx. New clients recognize the complete verdict
+  before any fallback, keep the failed row/text in its original chat and offer
+  an explicit edit action. No automatic plain resend or offline transition.
+  Unknown preflight errors and EVERY exception during/after a send still use
+  the old ambiguous path. Never infer this verdict from an error message or add
+  it to a catch around a send. Status replies retain their separate model path.
+  `quotedMessagePreflight.ts` is shipped through all patch lists; without a
+  rebuilt API an older Node still returns the existing ambiguous response.
+
 > Exact wppconnect/wa-js pins, `auditSendResult()`, and why HTTP 201 without a message id is a failure.
 >
 > Moved verbatim out of `CLAUDE.md` so it is read when the area is touched, not on every session. Keep it here: this is measured history, not a summary.

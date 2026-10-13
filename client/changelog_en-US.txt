@@ -84,6 +84,8 @@ WHAT'S NEW
 
 FIXES
 
+- Replies: when the original message cannot be found before sending, WinZapp reports the missing quote and keeps your text for editing from the message menu. It does not silently send without the quote or report a connection loss. Uncertain sends still are not retried automatically.
+
 - Synchronization: replayed history messages keep their chronological position instead of appearing as new arrivals. Temporary failures when checking an alternate chat address remain queued for retry.
 
 - Forwarding no longer opens a box when it worked. "Message forwarded." (or how many messages were forwarded) is now said by the screen reader, with no window to close and without cutting off what is being read; it works with WinZapp in the tray too.

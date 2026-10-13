@@ -43,6 +43,7 @@ message in it.
 from __future__ import annotations
 
 import copy
+from core.reply_failure import is_missing_quote_failure
 import json
 import time
 
@@ -270,6 +271,8 @@ def edit_kind(msg):
     """
     if not isinstance(msg, dict) or not (msg.get("key") or {}).get("fromMe"):
         return None
+    if is_missing_quote_failure(msg):
+        return None  # A definite pre-send refusal has no WhatsApp ID to edit.
     mtype = msg.get("messageType")
     if mtype in _TEXT_TYPES:
         return "text"
