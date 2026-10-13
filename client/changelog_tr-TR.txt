@@ -84,7 +84,7 @@ YENİLİKLER
 
 DÜZELTMELER
 
-- Güncellemeler: sürüm ve paket kontrolleri, UTF-8 BOM desteğini koruyarak kullanılamayan codec hatalarını karşılar. Alfa güncellemeleri kapalıyken elle kontrolde yeni alfa için tek seferlik açık tercih sunulur; eski sürümü yeniden kurmadan önce uyarı gösterilir.
+- Güncellemeler: Yardım menüsündeki "Güncellemeleri denetle", WinZapp güncelleme sunucusuna ulaşamadığında artık sessiz kalmak yerine bunu bildirir.
 
 - Eşitleme: Tekrar gelen geçmiş mesajlar yeni gelmiş gibi sona eklenmez; tarih sırası korunur. Sohbetin alternatif adresini sorgularken oluşan geçici hatalar yeniden denemek üzere kuyrukta tutulur.
 

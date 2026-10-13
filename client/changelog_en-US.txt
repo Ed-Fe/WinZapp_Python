@@ -84,7 +84,7 @@ WHAT'S NEW
 
 FIXES
 
-- Updates: version and package checks tolerate missing codecs while preserving UTF-8 BOM support. Manual checks on an alpha with alpha updates disabled offer an explicit one-time alpha choice; reinstalling an older version warns before proceeding.
+- Updates: "Check for updates" in the Help menu now tells you when WinZapp could not reach the update server, instead of saying nothing.
 
 - Synchronization: replayed history messages keep their chronological position instead of appearing as new arrivals. Temporary failures when checking an alternate chat address remain queued for retry.
 
