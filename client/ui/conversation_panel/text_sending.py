@@ -813,6 +813,7 @@ class TextSendingMixin:
         if real_id:
             msg["_local_pending"] = False
             msg.setdefault("key", {})["id"] = real_id
+            clear_reply_draft(msg)  # delivered, as in _mark_message_sent()
             if quote_lost:
                 # The quoted send failed server-side and it went out as a plain
                 # message: the row must stop reading as a reply, exactly as

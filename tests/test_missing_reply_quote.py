@@ -438,8 +438,12 @@ def test_clear_reply_draft_drops_only_the_recovery_copy():
 def test_a_reply_marked_sent_no_longer_carries_its_draft():
     msg = echo._make_msg(**_draft())
     panel = echo._make_panel(msg)
+    # The tracked copy and the row are separate dicts after a list rebuild.
+    tracked = copy.deepcopy(msg)
+    panel._outgoing_virtual_messages = {"loc-1": tracked}
     ConversationsPanel._mark_message_sent(panel, "loc-1", real_id="REAL")
-    assert not any(key in msg for key in REPLY_DRAFT_KEYS)
+    for record in (msg, tracked):
+        assert not any(key in record for key in REPLY_DRAFT_KEYS)
 
 
 def test_a_reply_whose_send_is_still_unconfirmed_keeps_its_draft():
