@@ -290,6 +290,21 @@ def status_needs_people(change: "tuple | None") -> bool:
     return bool(change) and change[0] == STATUS_ONLY and not change[1]
 
 
+def apply_outcome(changes: list, errors: dict, unconfirmed: list,
+                  status: "tuple | None", status_error, status_unconfirmed) -> tuple:
+    """What an Apply actually changed: (confirmed settings as {setting: value},
+    whether the Status change took effect).
+
+    A setting that failed, or that the read-back did not show, is not
+    confirmed: the window keeps its last known value for it, so the next Apply
+    tries again instead of believing WhatsApp already has it.
+    """
+    failed = set(errors) | set(unconfirmed)
+    confirmed = {setting: value for setting, value in changes if setting not in failed}
+    status_confirmed = status is not None and not status_error and not status_unconfirmed
+    return confirmed, status_confirmed
+
+
 class AudienceSelection:
     """Who is ticked in the Status contact picker, kept by person, outside the
     list: filtering only changes which rows are shown, never who is chosen.

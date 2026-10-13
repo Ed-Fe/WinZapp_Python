@@ -36,13 +36,19 @@ def _outside_contact_label(main_window, jid: str) -> str:
     their name when WinZapp knows one, else their phone number, else a generic
     label — an unbridged @lid's digits are not a phone number."""
     i18n = main_window.i18n
-    info = (getattr(main_window, "contacts", {}) or {}).get(jid) or {}
+    # WhatsApp reports @c.us; the contacts are keyed by @s.whatsapp.net, and an
+    # @lid's name may be stored under its bridged phone.
+    normalize = getattr(main_window, "_normalize_jid", None) or (lambda j: j)
+    canonical = normalize(jid) or jid
+    phone = canonical
+    if canonical.endswith("@lid"):
+        phone = (getattr(main_window, "_lid_to_phone", {}) or {}).get(canonical, "")
+    contacts = getattr(main_window, "contacts", {}) or {}
+    info = next((contacts[form] for form in (canonical, phone, jid)
+                 if form and contacts.get(form)), {})
     name = info.get("name") or info.get("pushName") or info.get("notify")
     if name:
         return name
-    phone = jid
-    if jid.endswith("@lid"):
-        phone = (getattr(main_window, "_lid_to_phone", {}) or {}).get(jid, "")
     if phone:
         return i18n.t("wa_privacy_status_unknown_contact").format(number=format_number(phone))
     return i18n.t("unknown_contact")

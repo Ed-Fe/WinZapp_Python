@@ -133,7 +133,6 @@ class WhatsAppSettingsDialog(wx.Dialog):
             # Silent empty dropdowns look like a working tab that ignores you.
             message = i18n.t("wa_privacy_unreadable_msg")
             self._message.SetLabel(message)
-            self._say(message)
             self._error_box(message)
             return
         self._loaded = dict(settings)
@@ -270,11 +269,11 @@ class WhatsAppSettingsDialog(wx.Dialog):
             return
         i18n = self._i18n
         self._apply_button.Enable()
-        failed = set(errors) | set(unconfirmed)
-        for setting, value in changes:
-            if setting not in failed and self._loaded is not None:
-                self._loaded[setting] = value  # confirmed by the read-back
-        if status is not None and not status_error and not status_unconfirmed:
+        confirmed, status_confirmed = privacy.apply_outcome(
+            changes, errors, unconfirmed, status, status_error, status_unconfirmed)
+        if self._loaded is not None:
+            self._loaded.update(confirmed)  # confirmed by the read-back
+        if status_confirmed:
             self._status_loaded = privacy.StatusPrivacy(status[0], tuple(status[1]))
             self._status_people = None
 
@@ -294,7 +293,6 @@ class WhatsAppSettingsDialog(wx.Dialog):
         self._refresh_status_controls()
         if lines:
             self._message.SetLabel(i18n.t("wa_privacy_apply_partial_error"))
-            self._say(i18n.t("wa_privacy_apply_partial_error"))
             self._error_box(i18n.t("wa_privacy_apply_partial_error") + "\n\n" + "\n".join(lines))
             return
         self._message.SetLabel(i18n.t("wa_privacy_apply_success"))

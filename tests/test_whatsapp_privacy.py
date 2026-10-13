@@ -326,6 +326,17 @@ class TestAudienceRows:
                         "5511912345678@c.us"]
         assert rows[-1][1].startswith("Not in your contacts (")
 
+    @pytest.mark.parametrize("reported, stored", [
+        ("5511912345678@c.us", "5511912345678@s.whatsapp.net"),
+        ("999999999999999@lid", "5551999998888@s.whatsapp.net"),
+    ])
+    def test_a_known_non_contact_is_named_whatever_form_whatsapp_reports(self, reported, stored):
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({stored: {"pushName": "Carla"}})
+        [(_key, label, jid)] = audience_rows(mw, [reported])
+        assert label == "Carla" and jid == reported
+
     def test_an_unbridged_lid_never_shows_its_digits(self):
         from ui.dialogs.status_audience_dialog import audience_rows
 
@@ -334,3 +345,30 @@ class TestAudienceRows:
         labels = [label for _key, label, _jid in rows]
         assert labels == ["Duda", "unknown_contact"]
         assert not any("555555555555555" in label for label in labels)
+
+
+class TestApplyOutcome:
+    CHANGES = [("lastSeen", "contacts"), ("about", "none"), ("online", "match_last_seen")]
+
+    def test_only_what_the_read_back_showed_counts_as_confirmed(self):
+        confirmed, status_ok = privacy.apply_outcome(
+            self.CHANGES, {"about": "failed"}, ["online"], None, None, None)
+        # A setting that failed or did not stick keeps its last known value,
+        # so the next Apply sends it again.
+        assert confirmed == {"lastSeen": "contacts"}
+        assert status_ok is False
+
+    def test_everything_confirmed(self):
+        confirmed, _ = privacy.apply_outcome(self.CHANGES, {}, [], None, None, None)
+        assert confirmed == dict(self.CHANGES)
+
+    @pytest.mark.parametrize("status_error, status_unconfirmed, expected", [
+        (None, False, True),
+        ("status_privacy_failed", False, False),
+        (None, True, False),
+    ])
+    def test_the_status_change_counts_only_when_it_took_effect(self, status_error,
+                                                               status_unconfirmed, expected):
+        _, status_ok = privacy.apply_outcome(
+            [], {}, [], ("contact", []), status_error, status_unconfirmed)
+        assert status_ok is expected

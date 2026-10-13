@@ -45,7 +45,7 @@ export async function readPrivacySettings() {
           ? value.getModelsArray()
           : null;
     if (!Array.isArray(items)) return null;
-    const ids = [];
+    const ids: string[] = [];
     for (const item of items) {
       const wid = item?.id && typeof item.id === 'object' ? item.id : item;
       const id = typeof wid === 'string'
@@ -56,7 +56,7 @@ export async function readPrivacySettings() {
     return ids;
   };
 
-  let settings = null;
+  let settings: any = null;
   try {
     settings = await wpp.privacy.get();
   } catch {
@@ -79,11 +79,11 @@ export async function readPrivacySettings() {
       api = null;
     }
   }
-  let status = null;
+  let status: { setting: string; list: string[] | null } | null = null;
   if (api) {
     try {
       const setting = String(await api.getStatusPrivacySetting());
-      let list = [];
+      let list: string[] | null = [];
       if (setting === 'allow-list') list = toIds(await api.getStatusAllowList());
       else if (setting === 'deny-list') list = toIds(await api.getStatusDenyList());
       // list === null: the setting was read but its contact list was not.
@@ -113,7 +113,7 @@ export async function writePrivacySetting({ setting, value }) {
   try {
     await setter(value);
     return { ok: true };
-  } catch (e) {
+  } catch (e: any) {
     // The kind of failure helps a bug report ("is not a function" after a
     // WhatsApp Web update); its text could carry an identifier, so only the
     // error's class is kept.
@@ -161,7 +161,7 @@ export async function writeStatusPrivacy({ setting, list }) {
     await api.setStatusPrivacyConfig({ setting, list: wids });
     const now = String(await api.getStatusPrivacySetting());
     return { ok: true, setting: now };
-  } catch (e) {
+  } catch (e: any) {
     return { ok: false, error: 'status_privacy_failed', kind: String(e?.name || 'Error') };
   }
 }
