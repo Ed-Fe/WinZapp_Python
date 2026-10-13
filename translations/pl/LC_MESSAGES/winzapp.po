@@ -13254,14 +13254,14 @@ msgid ""
 "alpha updates are disabled. Would you like to view this update once? "
 "Automatic alpha updates will remain disabled."
 msgstr ""
-"Używasz wersji {current}. Dostępna jest nowsza wersja alpha, {new}, ale "
-"aktualizacje alpha są wyłączone. Czy chcesz jednorazowo wyświetlić tę "
-"aktualizację? Automatyczne aktualizacje alpha pozostaną wyłączone."
+"Używasz wersji {current}. Dostępna jest nowsza wersja alfa, {new}, ale "
+"aktualizacje alfa są wyłączone. Czy chcesz jednorazowo wyświetlić tę "
+"aktualizację? Automatyczne aktualizacje alfa pozostaną wyłączone."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
 msgctxt "update_alpha_choice_title"
 msgid "Alpha updates are disabled"
-msgstr "Aktualizacje alpha są wyłączone"
+msgstr "Aktualizacje alfa są wyłączone"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format

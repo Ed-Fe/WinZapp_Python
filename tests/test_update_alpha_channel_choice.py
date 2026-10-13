@@ -190,11 +190,16 @@ def test_old_modal_answer_cannot_finish_a_new_choice(monkeypatch):
 def test_reinstall_downgrade_is_explicit_and_defaults_to_no(monkeypatch):
     obj, events, queued = make_checker(monkeypatch)
     dialogs = []
-    monkeypatch.setattr(updater.wx, "MessageBox", lambda msg, title, style, parent: dialogs.append((msg, style)) or updater.wx.NO)
+    def dialog(parent, msg, title, style, announce):
+        dialogs.append((msg, style))
+        announce()
+        return updater.wx.NO
+    monkeypatch.setattr(updater, "message_box", dialog)
     monkeypatch.setattr(obj, "_do_install", lambda *a: pytest.fail("declined downgrade"))
     obj._confirm_and_reinstall("2.0.0.0", "https://example.invalid/WinZapp.zip")
     assert "Downgrade 2.1.0.4258alpha to 2.0.0.0" in dialogs[0][0]
     assert dialogs[0][1] & updater.wx.NO_DEFAULT
+    assert events == ["speech"]  # announced, so a tray-hidden user hears it
 
 
 def test_alpha_listing_failure_does_not_report_up_to_date(monkeypatch):
@@ -207,4 +212,41 @@ def test_alpha_listing_failure_does_not_report_up_to_date(monkeypatch):
     monkeypatch.setattr(obj, "_get_json", get_json)
     monkeypatch.setattr(obj, "_fetch_releases", lambda: updater.UpdateChecker._fetch_releases(obj))
     obj._check_once()
+    assert events == ["retry"]
+    # The manual check is answered with the error, never with "no update".
+    assert [fn.__name__ for fn, _, _ in queued] == ["_show_reinstall_error"]
+    assert "synthetic listing failure" in queued[0][1][0]
+
+
+def test_a_failed_automatic_check_stays_silent(monkeypatch):
+    obj, events, queued = make_checker(monkeypatch, forced=False)
+    def fail():
+        raise RuntimeError("offline")
+    monkeypatch.setattr(obj, "_fetch_releases", fail)
+    obj._check_once()
     assert events == ["retry"] and queued == []
+
+
+# ── newer_excluded_alpha: the rule on its own ─────────────────────────────────
+
+@pytest.mark.parametrize("releases, local, include_alpha, expected", [
+    # An alpha build with the channel off, a newer alpha out: offered.
+    ([release("2.1.0.4363alpha"), release("2.0.0.0")], "2.1.0.4258alpha", False, "v2.1.0.4363alpha"),
+    # Channel on: the alpha is the normal update, nothing is excluded.
+    ([release("2.1.0.4363alpha")], "2.1.0.4258alpha", True, None),
+    # A stable build never opted in: never offered an alpha.
+    ([release("2.1.0.4363alpha")], "2.0.0.0", False, None),
+    ([release("2.1.0.4363alpha")], "2.1.0.4258beta", False, None),
+    ([release("2.1.0.4363alpha")], "not a version", False, None),
+    # A newer stable wins: that is the normal update.
+    ([release("2.2.0.0"), release("2.1.0.4363alpha")], "2.1.0.4258alpha", False, None),
+    # The newest alpha is not newer than the running one.
+    ([release("2.1.0.4258alpha")], "2.1.0.4258alpha", False, None),
+    ([release("2.1.0.4000alpha")], "2.1.0.4258alpha", False, None),
+    ([], "2.1.0.4258alpha", False, None),
+    # An alpha without a ZIP cannot be installed, so it is not offered.
+    ([dict(release("2.1.0.4363alpha"), assets=[])], "2.1.0.4258alpha", False, None),
+])
+def test_newer_excluded_alpha(releases, local, include_alpha, expected):
+    found = updater.newer_excluded_alpha(releases, local, include_alpha)
+    assert (found or {}).get("tag_name") == expected

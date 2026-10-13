@@ -335,6 +335,29 @@ def select_release(releases: list, include_alpha: bool) -> "dict | None":
     return best
 
 
+def newer_excluded_alpha(releases: list, local_version: str,
+                         include_alpha: bool) -> "dict | None":
+    """The alpha a disabled alpha channel is keeping from an alpha build, or None.
+
+    Only an alpha build is ever offered one (a stable build that never opted in
+    stays on the stable line), and only when nothing the user is eligible for
+    is newer: a newer stable is the normal update and wins.
+    """
+    if include_alpha:
+        return None
+    parsed = parse_version(local_version)
+    if parsed is None or parsed[1] != "alpha":
+        return None
+    eligible = select_release(releases, False)
+    if eligible is not None and is_newer(
+            (eligible.get("tag_name") or "").lstrip("vV"), local_version):
+        return None
+    alpha = select_release([r for r in releases if is_alpha_release(r)], True)
+    if alpha is None or not is_newer(alpha["tag_name"].lstrip("vV"), local_version):
+        return None
+    return alpha
+
+
 # ── Changelog parser ──────────────────────────────────────────────────────────
 
 _HDR_RE = re.compile(r"^V(\d+\.\d+\.\d+\.(?:\d+)(?:dev|alpha|beta)?)\s*$", re.IGNORECASE)
@@ -1387,7 +1410,8 @@ class UpdateChecker(AlphaChannelChoiceMixin, BackgroundDownloadMixin):
         Either request failing on its own is survivable (a rate-limited listing
         still leaves the stable release reachable; `/releases/latest` 404s on a
         repo that has only ever published prereleases), so only a total failure
-        propagates.
+        propagates — except that with the alpha channel on, a failed listing
+        propagates too: a stable-only result cannot prove an alpha user current.
         """
         releases: list = []
         first_error = None
@@ -1487,8 +1511,12 @@ class UpdateChecker(AlphaChannelChoiceMixin, BackgroundDownloadMixin):
         )
         try:
             releases = self._fetch_releases()
-        except Exception:
+        except Exception as exc:
             logging.exception("Auto-updater: Exception checking for updates")
+            if self._force:
+                # A check the user asked for by hand gets an answer; the quick
+                # retries below run as automatic checks and stay silent.
+                wx.CallAfter(self._show_reinstall_error, str(exc))
             # At a Windows login the network is often not up yet when the first
             # check runs 15 s after launch; waiting the full retry interval
             # would put the next attempt hours away. A few quick retries first.
@@ -1502,21 +1530,17 @@ class UpdateChecker(AlphaChannelChoiceMixin, BackgroundDownloadMixin):
         self._fetch_failures = 0
 
         data = select_release(releases, include_alpha)
-        if not include_alpha and (data is None or not is_newer(
-                data.get("tag_name", "").lstrip("vV"), __version__)):
-            parsed = parse_version(__version__)
-            alpha = select_release([r for r in releases if is_alpha_release(r)], True)
-            if (parsed is not None and parsed[1] == "alpha" and alpha is not None
-                    and is_newer(alpha["tag_name"].lstrip("vV"), __version__)):
-                logging.info("Auto-updater: Newer alpha %s is excluded by the disabled alpha channel.",
-                             alpha["tag_name"])
-                if self._force:
-                    self._force = False
-                    language = self._mw.i18n.language if hasattr(self._mw, "i18n") else "pt-BR"
-                    changelog = resolve_changelog(__version__, alpha["tag_name"].lstrip("vV"),
-                                                  language, alpha.get("body", ""))
-                    self._queue_alpha_channel_choice(alpha, changelog)
-                    return
+        alpha = newer_excluded_alpha(releases, __version__, include_alpha)
+        if alpha is not None:
+            logging.info("Auto-updater: Newer alpha %s is excluded by the disabled alpha channel.",
+                         alpha["tag_name"])
+            if self._force:
+                self._force = False
+                language = self._mw.i18n.language if hasattr(self._mw, "i18n") else "pt-BR"
+                changelog = resolve_changelog(__version__, alpha["tag_name"].lstrip("vV"),
+                                              language, alpha.get("body", ""))
+                self._queue_alpha_channel_choice(alpha, changelog)
+                return
         if data is None:
             logging.warning(
                 "Auto-updater: No eligible release found among %d listed "
@@ -1648,23 +1672,21 @@ class UpdateChecker(AlphaChannelChoiceMixin, BackgroundDownloadMixin):
         if is_newer(__version__, remote_version):
             warning = i18n.t("update_reinstall_downgrade_warning").format(
                 current=__version__, new=remote_version) + "\n\n"
-        if wx.MessageBox(
-            warning + i18n.t("force_reinstall_confirm_msg").format(version=remote_version),
-            i18n.t("force_reinstall_confirm_title"),
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
-            self._mw,
+        message = warning + i18n.t("force_reinstall_confirm_msg").format(version=remote_version)
+        title = i18n.t("force_reinstall_confirm_title")
+        if message_box(
+            self._mw, message, title, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            announce=lambda: self._mw.output(f"{title}. {message}", interrupt=True),
         ) != wx.YES:
             return
         self._do_install(remote_version, zip_url, sha256sums_url, signature_url, is_alpha)
 
     def _show_reinstall_error(self, error_msg: str):
         i18n = self._mw.i18n
-        wx.MessageBox(
-            i18n.t("update_error_msg").format(error=error_msg),
-            i18n.t("update_error_title"),
-            wx.OK | wx.ICON_ERROR,
-            self._mw,
-        )
+        message = i18n.t("update_error_msg").format(error=error_msg)
+        title = i18n.t("update_error_title")
+        message_box(self._mw, message, title, wx.OK | wx.ICON_ERROR,
+                    announce=lambda: self._mw.output(f"{title}. {message}", interrupt=True))
 
     def _show_prompt_open_elsewhere(self):
         """Only for a check the user asked for by hand (Help > Check for

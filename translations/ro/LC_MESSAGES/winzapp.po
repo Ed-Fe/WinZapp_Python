@@ -13190,15 +13190,15 @@ msgid ""
 "alpha updates are disabled. Would you like to view this update once? "
 "Automatic alpha updates will remain disabled."
 msgstr ""
-"Folosești versiunea {current}. Este disponibilă o versiune alpha mai nouă, "
-"{new}, dar actualizările alpha sunt dezactivate. Vrei să vezi această "
-"actualizare o singură dată? Actualizările alpha automate vor rămâne "
+"Folosiți versiunea {current}. Este disponibilă o versiune alfa mai nouă, "
+"{new}, dar actualizările alfa sunt dezactivate. Doriți să vedeți această "
+"actualizare o singură dată? Actualizările alfa automate vor rămâne "
 "dezactivate."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
 msgctxt "update_alpha_choice_title"
 msgid "Alpha updates are disabled"
-msgstr "Actualizările alpha sunt dezactivate"
+msgstr "Actualizările alfa sunt dezactivate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
