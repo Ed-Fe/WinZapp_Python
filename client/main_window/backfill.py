@@ -1549,11 +1549,10 @@ class BackfillMixin:
                 # "Processed" (not "downloaded") is the X: most candidates
                 # still end up skipped (already on disk, CDN expired), and a
                 # count of downloads alone looks stuck while the sweep moves.
-                # Nothing is said while a voice call pauses the sweep or once
-                # it has been superseded.
+                # Nothing is said once it has been superseded; a voice call is
+                # _report_sync_progress()'s to check.
                 if (progress is not None and progress.step()
-                        and not (should_stop is not None and should_stop())
-                        and not self._voice_call_in_progress()):
+                        and not (should_stop is not None and should_stop())):
                     wx.CallAfter(
                         self._report_sync_progress,
                         self.i18n.t("sync_media_progress").format(

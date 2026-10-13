@@ -1,12 +1,15 @@
 """Spoken "X of Y" progress for the long sync sweeps.
 
-A full sync (first pairing, F5) and the media phase after it can take
-minutes; between "synchronization started" and "finished" the user heard
+A sync round (a full one on first pairing or F5 most of all, but also the
+update when WinZapp opens after days away) and the media phase after it can
+take minutes; between "synchronization started" and "finished" the user heard
 nothing, so a long sweep could not be told apart from a stuck one. Both sweeps
 now report every few seconds (core/sync_progress.py), through
 MainWindow._report_sync_progress(), which follows the same mute as every other
-sync announcement. The once-a-minute safety poll stays quiet (its side is in
-tests/test_periodic_poll_delta.py).
+sync announcement and stays silent during a voice call. The once-a-minute
+safety poll stays quiet (its side is in tests/test_periodic_poll_delta.py).
+A round's full and incremental passes share one count (its side is in
+tests/test_run_sync_warm_path.py).
 
 MainWindow is a wx.Frame, so the methods run unbound against small stubs.
 """
@@ -21,7 +24,6 @@ import core.sync_progress as sync_progress
 import main
 from core.sync_progress import PROGRESS_INTERVAL_SECONDS, ProgressThrottle
 from main import MainWindow
-from tests.god_modules import main_window_method_source
 
 A = "5511900000000@s.whatsapp.net"
 
@@ -78,6 +80,10 @@ class TestProgressThrottle:
 class _ReportStub:
     _announce_sync_events_enabled = MainWindow._announce_sync_events_enabled
     _report_sync_progress = MainWindow._report_sync_progress
+    _voice_call_in_progress = MainWindow._voice_call_in_progress
+    _VOICE_CALL_PAUSE_MAX_SECONDS = MainWindow._VOICE_CALL_PAUSE_MAX_SECONDS
+    _active_voice_call = None
+    _voice_call_pause_since = 0.0
 
     def __init__(self, settings=None, background_mode=False):
         self.settings = settings or {}
@@ -111,6 +117,15 @@ class TestReportSyncProgress:
         assert stub.statuses == ["Syncing chats: 3 of 10"]
         assert stub.spoken == []
 
+    def test_a_voice_call_silences_it(self):
+        """The chat sweep keeps running through a call on purpose (its failure
+        set must stay honest); its progress must not talk over the call."""
+        stub = _ReportStub()
+        stub._active_voice_call = {"id": "CALL1"}
+        stub._report_sync_progress("Syncing chats: 3 of 10", "announce_sync_progress")
+        assert stub.statuses == ["Syncing chats: 3 of 10"]
+        assert stub.spoken == []
+
     @pytest.mark.parametrize("key", ["announce_sync_progress", "announce_media_progress"])
     def test_its_own_spoken_content_box_silences_only_it(self, key):
         """Settings > Conteúdo falado has one box per sweep: unticking the
@@ -135,12 +150,6 @@ class TestTheSpokenContentBoxes:
         for key in ("announce_sync_progress", "announce_media_progress"):
             assert defaults["speech_content"][key] is True
             assert DEFAULT_SETTINGS["speech_content"][key] is True
-
-    def test_each_sweep_names_its_own_box(self):
-        from tests.god_modules import main_window_method_source as src
-
-        assert '"announce_sync_progress"' in src("sync_remote_chats")
-        assert '"announce_media_progress"' in src("sync_media_for_all_chats")
 
 
 class _I18n:
@@ -181,12 +190,14 @@ class _ChatSweepStub:
         self._message_retry_jids = set()
         self._history_still_landing = False
         self.reports = []
+        self.speech_keys = set()
 
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full"):
         return True
 
     def _report_sync_progress(self, text, speech_key):
         self.reports.append(text)
+        self.speech_keys.add(speech_key)
 
     def _persist_message_retry_jids(self):
         pass
@@ -207,6 +218,25 @@ class TestTheChatSweepReportsProgress:
         stub = _ChatSweepStub()
         MainWindow.sync_remote_chats(stub, _chats(4), incremental=False, expected_run_id=1)
         assert stub.reports == ["chats 1/4", "chats 2/4", "chats 3/4"]
+        # Settings > Conteúdo falado: the chats box, not the media one.
+        assert stub.speech_keys == {"announce_sync_progress"}
+
+    def test_a_shared_count_runs_on_across_passes(self, every_step_is_due):
+        """_run_sync() hands its full and incremental passes one count, so
+        the second pass goes on from where the first stopped."""
+        stub = _ChatSweepStub()
+        progress = ProgressThrottle(5)
+        MainWindow.sync_remote_chats(stub, _chats(2), incremental=False,
+                                     expected_run_id=1, progress=progress)
+        MainWindow.sync_remote_chats(stub, _chats(3), incremental=True,
+                                     expected_run_id=1, progress=progress)
+        assert stub.reports == ["chats 1/5", "chats 2/5", "chats 3/5", "chats 4/5"]
+
+    def test_quiet_wins_over_a_shared_count(self, every_step_is_due):
+        stub = _ChatSweepStub()
+        MainWindow.sync_remote_chats(stub, _chats(4), incremental=True, expected_run_id=1,
+                                     quiet=True, progress=ProgressThrottle(4))
+        assert stub.reports == []
 
     def test_quiet_reports_nothing(self, every_step_is_due):
         stub = _ChatSweepStub()
@@ -244,6 +274,7 @@ class _MediaSweepStub:
         self._downloads = set(downloads)
         self.fetched = []
         self.reports = []
+        self.speech_keys = set()
 
     def _media_sync_candidate(self, msg, explicit=False):
         return msg["messageType"] if msg["key"]["id"] in self._eligible else None
@@ -254,6 +285,7 @@ class _MediaSweepStub:
 
     def _report_sync_progress(self, text, speech_key):
         self.reports.append(text)
+        self.speech_keys.add(speech_key)
 
     def _save_media_failed_ids(self):
         pass
@@ -272,6 +304,7 @@ class TestTheSweepCountsOnlyCandidates:
         assert sorted(stub.fetched) == ["1", "4", "7", "9"]
         assert stub.reports[-1] == "media 3/4 (1)"
         assert all("/4 " in report for report in stub.reports)
+        assert stub.speech_keys == {"announce_media_progress"}
 
     def test_nothing_eligible_returns_at_once(self, every_step_is_due):
         stub = _MediaSweepStub([_media_msg("1")], eligible=set())
@@ -327,10 +360,3 @@ class TestTheCandidateCheck:
         assert stub._media_sync_candidate(_media_msg("3EB0AA")) is None
         assert stub._media_sync_candidate(_media_msg("3EB0AA"), explicit=True) == "imageMessage"
 
-
-class TestWhoReportsProgress:
-    def test_only_the_periodic_poll_is_quiet(self):
-        poll = "".join(main_window_method_source("start_periodic_contacts_sync").split())
-        assert poll.count("quiet=True") == 3
-        for method in ("_run_sync", "_on_menu_sync_media", "_start_deferred_media_sync"):
-            assert "quiet=" not in main_window_method_source(method), method

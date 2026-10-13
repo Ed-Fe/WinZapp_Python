@@ -1330,10 +1330,15 @@ class WindowChromeMixin:
         automático" (the master switch of every sync announcement), and the
         sweep's own box in Settings > Conteúdo falado — ``speech_key`` is
         "announce_sync_progress" or "announce_media_progress". Never
-        interrupts: the user may be reading a message.
+        interrupts: the user may be reading a message. Nothing is spoken
+        during a WhatsApp voice call either: the chat sweep keeps running
+        through one on purpose (see sync_remote_chats()), and "X de Y" every
+        few seconds would talk over the call.
         """
         self._set_status(text)
         if self.background_mode or not self._announce_sync_events_enabled():
+            return
+        if self._voice_call_in_progress():
             return
         if not self.settings.get("speech_content", {}).get(speech_key, True):
             return

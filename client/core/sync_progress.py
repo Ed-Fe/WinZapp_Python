@@ -1,8 +1,8 @@
 """Periodic spoken progress for the long synchronization sweeps.
 
-A full sync (first pairing, F5) walks every chat, and the media phase walks
-every candidate media message after it; on a real account either can take
-minutes. Between "synchronization started" and "synchronization finished" a
+A full sync (first pairing, F5) walks every chat, an update after days away
+can walk hundreds, and the media phase walks every candidate media message
+after either; on a real account any of them can take minutes. Between "synchronization started" and "synchronization finished" a
 screen reader user heard nothing, so a long sweep could not be told apart from
 a stuck one.
 
