@@ -1559,6 +1559,7 @@ class BackfillMixin:
                         self.i18n.t("sync_media_progress").format(
                             done=progress.done, total=progress.total,
                             downloaded=downloaded),
+                        "announce_media_progress",
                     )
 
         if should_stop is not None and should_stop():

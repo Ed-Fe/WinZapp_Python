@@ -2611,6 +2611,7 @@ class SyncMixin:
                         self._report_sync_progress,
                         self.i18n.t("sync_chats_progress").format(
                             done=progress.done, total=progress.total),
+                        "announce_sync_progress",
                     )
 
         if _superseded():

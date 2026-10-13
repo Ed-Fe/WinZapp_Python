@@ -95,21 +95,52 @@ class _ReportStub:
 class TestReportSyncProgress:
     def test_shown_and_spoken_without_interrupting(self):
         stub = _ReportStub()
-        stub._report_sync_progress("Syncing chats: 3 of 10")
+        stub._report_sync_progress("Syncing chats: 3 of 10", "announce_sync_progress")
         assert stub.statuses == ["Syncing chats: 3 of 10"]
         assert stub.spoken == [("Syncing chats: 3 of 10", False)]
 
     def test_the_sync_announcement_mute_silences_it(self):
         stub = _ReportStub({"general": {"announce_sync_events": False}})
-        stub._report_sync_progress("Syncing chats: 3 of 10")
+        stub._report_sync_progress("Syncing chats: 3 of 10", "announce_sync_progress")
         assert stub.statuses == ["Syncing chats: 3 of 10"]
         assert stub.spoken == []
 
     def test_background_mode_silences_it(self):
         stub = _ReportStub(background_mode=True)
-        stub._report_sync_progress("Syncing chats: 3 of 10")
+        stub._report_sync_progress("Syncing chats: 3 of 10", "announce_sync_progress")
         assert stub.statuses == ["Syncing chats: 3 of 10"]
         assert stub.spoken == []
+
+    @pytest.mark.parametrize("key", ["announce_sync_progress", "announce_media_progress"])
+    def test_its_own_spoken_content_box_silences_only_it(self, key):
+        """Settings > Conteúdo falado has one box per sweep: unticking the
+        chats one keeps the media progress, and the other way round."""
+        other = ({"announce_sync_progress", "announce_media_progress"} - {key}).pop()
+        stub = _ReportStub({"speech_content": {key: False}})
+        stub._report_sync_progress("muted", key)
+        stub._report_sync_progress("spoken", other)
+        assert stub.statuses == ["muted", "spoken"]
+        assert stub.spoken == [("spoken", False)]
+
+
+class TestTheSpokenContentBoxes:
+    def test_both_default_to_on(self):
+        import json
+        from pathlib import Path
+
+        from core.utils import DEFAULT_SETTINGS
+
+        defaults = json.loads((Path(__file__).resolve().parents[1] / "client" / "data"
+                               / "settings_default.json").read_text(encoding="utf-8"))
+        for key in ("announce_sync_progress", "announce_media_progress"):
+            assert defaults["speech_content"][key] is True
+            assert DEFAULT_SETTINGS["speech_content"][key] is True
+
+    def test_each_sweep_names_its_own_box(self):
+        from tests.god_modules import main_window_method_source as src
+
+        assert '"announce_sync_progress"' in src("sync_remote_chats")
+        assert '"announce_media_progress"' in src("sync_media_for_all_chats")
 
 
 class _I18n:
@@ -154,7 +185,7 @@ class _ChatSweepStub:
     def sync_chat_messages(self, chat, expected_run_id=None, sync_mode="full"):
         return True
 
-    def _report_sync_progress(self, text):
+    def _report_sync_progress(self, text, speech_key):
         self.reports.append(text)
 
     def _persist_message_retry_jids(self):
@@ -221,7 +252,7 @@ class _MediaSweepStub:
         self.fetched.append(msg["key"]["id"])
         return msg["key"]["id"] in self._downloads
 
-    def _report_sync_progress(self, text):
+    def _report_sync_progress(self, text, speech_key):
         self.reports.append(text)
 
     def _save_media_failed_ids(self):

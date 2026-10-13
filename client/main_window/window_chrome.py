@@ -1320,19 +1320,24 @@ class WindowChromeMixin:
         """
         return bool(self.settings.get("general", {}).get("announce_sync_events", True))
 
-    def _report_sync_progress(self, text: str) -> None:
+    def _report_sync_progress(self, text: str, speech_key: str) -> None:
         """Show a sweep's periodic "X of Y" line and speak it.
 
         Runs on the main thread (the sweeps hand it over with wx.CallAfter;
         see core/sync_progress.py for the cadence). The status text always
-        changes; speech follows the same rule as the other sync announcements:
-        silent in background mode and with Settings > Geral > "Anunciar
-        sincronização, download de mídias e modo offline automático"
-        unchecked. Never interrupts: the user may be reading a message.
+        changes. Speech needs all three: not in background mode, Settings >
+        Geral > "Anunciar sincronização, download de mídias e modo offline
+        automático" (the master switch of every sync announcement), and the
+        sweep's own box in Settings > Conteúdo falado — ``speech_key`` is
+        "announce_sync_progress" or "announce_media_progress". Never
+        interrupts: the user may be reading a message.
         """
         self._set_status(text)
-        if not self.background_mode and self._announce_sync_events_enabled():
-            self.output(text)
+        if self.background_mode or not self._announce_sync_events_enabled():
+            return
+        if not self.settings.get("speech_content", {}).get(speech_key, True):
+            return
+        self.output(text)
 
     def _search_normalization_mode(self) -> str:
         """Settings > Geral > "Normalização Unicode nas pesquisas": one of
