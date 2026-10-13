@@ -43,12 +43,12 @@ message in it.
 from __future__ import annotations
 
 import copy
-from core.reply_failure import is_missing_quote_failure
 import json
 import time
 
 from urllib3.exceptions import NewConnectionError
 
+from core.reply_failure import is_missing_quote_failure
 from core.utils import is_message_forwarded
 
 #: How the normaliser tags an edit inside message.protocolMessage.type.

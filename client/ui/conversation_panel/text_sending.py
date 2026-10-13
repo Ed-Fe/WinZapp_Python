@@ -581,9 +581,11 @@ class TextSendingMixin:
         """Explicit recovery only: never overwrite another draft or send here."""
         if not is_missing_quote_failure(msg):
             return
-        if not self.conversation or (
-            msg.get("key", {}).get("remoteJid") != self.conversation.get("remoteJid")
-        ):
+        # The record keeps the address it was sent to; after an @lid chat is
+        # re-keyed to its phone JID the two differ but are the same chat.
+        conv_jid = self.conversation.get("remoteJid", "") if self.conversation else ""
+        if not conv_jid or not self.main_window._chat_jids_equivalent(
+                (msg.get("key") or {}).get("remoteJid", ""), conv_jid):
             return
         if (self.message_field.GetValue() or self._quoted_message
                 or self._editing_message_id is not None or self._pending_mentions):

@@ -7217,7 +7217,7 @@ msgid ""
 "its menu to continue."
 msgstr ""
 "Mesajul citat nu a fost găsit, deci răspunsul nu a fost trimis. Textul a "
-"fost păstrat în lista de mesaje. Alege „Editează răspunsul netrimis fără "
+"fost păstrat în lista de mesaje. Alegeți „Editați răspunsul netrimis fără "
 "citat” din meniul acestuia pentru a continua."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
@@ -7227,14 +7227,14 @@ msgid ""
 " copy it before closing WinZapp."
 msgstr ""
 "Răspunsul nu a putut fi salvat pe disc. Textul este încă în lista de mesaje;"
-" copiază-l înainte de a închide WinZapp."
+" copiați-l înainte de a închide WinZapp."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/text_sending.py
 msgctxt "reply_restore_draft_busy"
 msgid "Finish or clear your current message before restoring this reply."
 msgstr ""
-"Finalizează sau șterge mesajul curent înainte de a restaura acest răspuns."
+"Finalizați sau ștergeți mesajul curent înainte de a restaura acest răspuns."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -7273,7 +7273,7 @@ msgstr "Unele modificări vor intra în vigoare numai după repornirea WinZapp."
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "restore_unsent_reply"
 msgid "Edit unsent reply without its quote"
-msgstr "Editează răspunsul netrimis fără citat"
+msgstr "Editați răspunsul netrimis fără citat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_tab/status_voice.py
 #: client/ui/conversations.py

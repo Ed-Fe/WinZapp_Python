@@ -146,14 +146,29 @@ class Field:
         self.focused = True
 
 
+PHONE = "5511988887777@s.whatsapp.net"
+
+
+class _Identity:
+    """The real JID equivalence, with LID bridged to PHONE."""
+    _normalize_jid = staticmethod(MainWindow._normalize_jid)
+    _jid_address_forms = MainWindow._jid_address_forms
+    _chat_jids_equivalent = MainWindow._chat_jids_equivalent
+
+    def __init__(self, output):
+        self.output = lambda *a, **kw: output.append(a)
+        self.i18n = types.SimpleNamespace(t=lambda key: key)
+        self._lid_to_phone = {LID: PHONE}
+        self._phone_to_lid = {PHONE: LID}
+
+
 def panel():
     output = []
     return types.SimpleNamespace(conversation={'remoteJid': GROUP},
         message_field=Field(), _quoted_message=None, _editing_message_id=None,
         _pending_mentions=[], _pending_mention_display_names={},
         _rebuild_mention_pills=lambda: None,
-        main_window=types.SimpleNamespace(output=lambda *a, **kw: output.append(a),
-            i18n=types.SimpleNamespace(t=lambda key: key)), output=output)
+        main_window=_Identity(output), output=output)
 
 
 def test_explicit_recovery_restores_composed_text_and_mentions_without_sending():
@@ -193,6 +208,30 @@ def test_recovery_does_not_insert_text_into_another_chat():
     stub.conversation = {'remoteJid': LID}
     ConversationsPanel._on_restore_unsent_reply(stub, record)
     assert stub.message_field.text == '' and stub.output == []
+
+
+@pytest.mark.parametrize('sent_to, open_chat', [(LID, PHONE), (PHONE, LID),
+                                                (PHONE.replace('@s.whatsapp.net', '@c.us'), PHONE)])
+def test_recovery_survives_the_chat_being_rekeyed(sent_to, open_chat):
+    """Sent while the chat was keyed by its @lid, restored after
+    deduplicate_chats() re-keyed it to the phone JID (or the reverse): the
+    record keeps the old address, and the recovery must still work."""
+    record = message()
+    record['key']['remoteJid'] = sent_to
+    mark_missing_reply_quote({sent_to: {"messages": {"messages": {"records": [record]}}}}, 'local')
+    stub = panel()
+    stub.conversation = {'remoteJid': open_chat}
+    ConversationsPanel._on_restore_unsent_reply(stub, record)
+    assert stub.message_field.text.replace('\r\n', '\n') == record['_reply_draft_text']
+
+
+def test_recovery_needs_an_open_conversation():
+    record = message()
+    mark_missing_reply_quote(chats(record), 'local')
+    stub = panel()
+    stub.conversation = None
+    ConversationsPanel._on_restore_unsent_reply(stub, record)
+    assert stub.message_field.text == ''
 
 
 def test_composition_snapshot_keeps_display_text_and_wire_mentions(monkeypatch):
