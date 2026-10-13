@@ -144,6 +144,7 @@ export async function writeStatusPrivacy({ setting, list }) {
     return null;
   };
   let api = statusApi(fns);
+  // The module scan only runs when wa-js did not bind the status functions.
   if (!api && typeof wpp?.loader?.search === 'function') {
     try {
       api = statusApi(wpp.loader.search((m) => !!statusApi(m)));

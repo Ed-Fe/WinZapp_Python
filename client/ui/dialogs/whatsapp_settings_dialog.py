@@ -160,6 +160,9 @@ class WhatsAppSettingsDialog(wx.Dialog):
         self._message.Wrap(420)
         self._apply_button.Enable()
         self.Layout()
+        # A disabled Status choice just drops out of the Tab order, and the
+        # dropdowns turning live is otherwise silent: say what happened.
+        self._say(" ".join(notes) if notes else i18n.t("wa_privacy_loaded"))
 
     # ── Status audience ───────────────────────────────────────────────────────
 
@@ -210,6 +213,7 @@ class WhatsAppSettingsDialog(wx.Dialog):
             dialog.Destroy()
         self._refresh_status_controls()
         self._status_people_button.SetFocus()
+        self._say(self._status_summary.GetLabel())
 
     # ── Applying ──────────────────────────────────────────────────────────────
 
@@ -220,7 +224,8 @@ class WhatsAppSettingsDialog(wx.Dialog):
         status = None
         if self._status_choice.IsEnabled() and self._status_setting():
             status = privacy.status_change(
-                self._status_loaded, self._status_setting(), self._status_people)
+                self._status_loaded, self._status_setting(), self._status_people,
+                to_id=self.main_window.status_list_id)
         if privacy.status_needs_people(status):
             self._message.SetLabel(i18n.t("wa_privacy_status_need_contacts"))
             self._say(i18n.t("wa_privacy_status_need_contacts"))
@@ -252,9 +257,8 @@ class WhatsAppSettingsDialog(wx.Dialog):
                     sent, answer["settings"] if answer else None)
             status_error = status_unconfirmed = None
             if status is not None:
-                now, status_error = mw.set_status_privacy(*status)
-                status_unconfirmed = (status_error is None
-                                      and privacy.status_not_confirmed(status[0], now))
+                confirmed, status_error = mw.set_status_privacy(*status)
+                status_unconfirmed = status_error is None and not confirmed
             wx.CallAfter(self._on_applied, changes, errors, unconfirmed,
                          status, status_error, status_unconfirmed)
 

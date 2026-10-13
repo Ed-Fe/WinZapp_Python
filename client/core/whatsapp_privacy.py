@@ -203,14 +203,68 @@ def jid_for_status_list(jid: str) -> str:
     return ""
 
 
+def _br_mobile_variants(digits: str) -> tuple:
+    """*digits* and, for a Brazilian mobile, its other 8/9-digit form."""
+    if digits.startswith("55"):
+        if len(digits) == 13 and digits[4] == "9":
+            return digits, digits[:4] + digits[5:]
+        if len(digits) == 12:
+            return digits, digits[:4] + "9" + digits[4:]
+    return (digits,)
+
+
+def status_list_id(jid: str, phone_to_lid: "dict | None") -> str:
+    """The id to put on WhatsApp's status list for *jid*.
+
+    On an account addressed by linked-device ids WhatsApp accepts a phone
+    ``@c.us`` entry without error and then ignores it (the same trap
+    ``_resolve_jid_for_send`` documents), so a person whose ``@lid`` is known
+    (*phone_to_lid*, MainWindow's bridge, tried under both Brazilian 8/9-digit
+    forms) goes in as that ``@lid``. Only when none is known does the phone
+    form go, and the read-back after applying tells whether it stuck.
+    """
+    base = jid_for_status_list(jid)
+    if not base.endswith("@c.us"):
+        return base
+    digits = base.split("@", 1)[0]
+    for variant in _br_mobile_variants(digits):
+        lid = (phone_to_lid or {}).get(f"{variant}@s.whatsapp.net", "")
+        lid_digits = lid.split("@", 1)[0].split(":", 1)[0] if lid else ""
+        if lid_digits.isdigit():
+            return f"{lid_digits}@lid"
+    return base
+
+
+def status_list_confirmed(sent: list, reported: "StatusPrivacy | None",
+                          setting: str, same_person) -> bool:
+    """True when a fresh read shows WhatsApp holding *setting* with exactly the
+    people in *sent*.
+
+    The setter can return and still drop entries (a phone id on an @lid
+    account), and only the list read back proves who is in it. *same_person*
+    maps an id to the key identifying the person across ``@lid``/phone forms
+    (``core.utils.contact_dedup_key``), since WhatsApp may answer with a
+    different form than the one sent. A list that could not be read confirms
+    nothing.
+    """
+    if reported is None or reported.setting != setting:
+        return False
+    if setting == STATUS_CONTACTS:
+        return True
+    if reported.people is None:
+        return False
+    return {same_person(j) for j in sent} == {same_person(j) for j in reported.people}
+
+
 def status_change(loaded: "StatusPrivacy | None", setting: str,
-                  people: "list | None") -> "tuple | None":
+                  people: "list | None", to_id=jid_for_status_list) -> "tuple | None":
     """(setting, list of JIDs) to send, or None when nothing changed.
 
     *people* is the list chosen in the dialog, or None when the person never
     opened the contact picker — then the list WhatsApp already holds is kept
     (sent again unchanged when only the setting changes). "My contacts" never
-    sends a list.
+    sends a list. *to_id* turns a stored JID into the id the list takes
+    (``status_list_id`` with the account's bridge, in the dialog).
     """
     if setting == STATUS_CONTACTS:
         if loaded is not None and loaded.setting == STATUS_CONTACTS:
@@ -222,9 +276,9 @@ def status_change(loaded: "StatusPrivacy | None", setting: str,
         # Switching setting without picking anyone: carry the current list
         # over only when it is the same kind of list.
         people = []
-    wanted = sorted({j for j in (jid_for_status_list(p) for p in people) if j})
+    wanted = sorted({j for j in (to_id(p) for p in people) if j})
     if loaded is not None and loaded.setting == setting and loaded.people is not None:
-        current = sorted({j for j in (jid_for_status_list(p) for p in loaded.people) if j})
+        current = sorted({j for j in (to_id(p) for p in loaded.people) if j})
         if current == wanted:
             return None
     return (setting, wanted)
@@ -236,8 +290,37 @@ def status_needs_people(change: "tuple | None") -> bool:
     return bool(change) and change[0] == STATUS_ONLY and not change[1]
 
 
-def status_not_confirmed(requested: str, reported) -> bool:
-    """True when WhatsApp, read back after the change, does not report the
-    Status setting that was sent (or reports nothing at all)."""
-    parsed = parse_status_privacy({"setting": reported}) if reported else None
-    return parsed is None or parsed.setting != requested
+class AudienceSelection:
+    """Who is ticked in the Status contact picker, kept by person, outside the
+    list: filtering only changes which rows are shown, never who is chosen.
+
+    *rows* are ``(key, label, jid)`` (``status_audience_dialog.audience_rows``);
+    *matches(query, label)* decides whether a row fits the search.
+    """
+
+    def __init__(self, rows: list, current_keys, matches):
+        self.rows = list(rows)
+        self._matches = matches
+        self.checked = {key for key, _label, _jid in self.rows if key in set(current_keys)}
+        self.shown = []  # keys of the rows on screen, in order
+
+    def filter(self, query: str) -> list:
+        """(label, checked) for the rows matching *query*; ``shown`` follows."""
+        visible = [(key, label) for key, label, _jid in self.rows
+                   if self._matches(query, label)]
+        self.shown = [key for key, _label in visible]
+        return [(label, key in self.checked) for key, label in visible]
+
+    def set_checked(self, index: int, checked: bool) -> bool:
+        """Tick or untick the shown row *index*; False when it is not a person
+        (the "no contacts" placeholder row)."""
+        if not 0 <= index < len(self.shown):
+            return False
+        if checked:
+            self.checked.add(self.shown[index])
+        else:
+            self.checked.discard(self.shown[index])
+        return True
+
+    def chosen(self) -> list:
+        return [jid for key, _label, jid in self.rows if key in self.checked]

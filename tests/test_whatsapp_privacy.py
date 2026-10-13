@@ -123,10 +123,87 @@ class TestStatusPrivacy:
         assert not privacy.status_needs_people(
             privacy.status_change(loaded, privacy.STATUS_EXCEPT, None))
 
-    def test_confirmation_compares_the_setting_read_back(self):
-        assert not privacy.status_not_confirmed(privacy.STATUS_EXCEPT, "deny-list")
-        assert privacy.status_not_confirmed(privacy.STATUS_EXCEPT, "contact")
-        assert privacy.status_not_confirmed(privacy.STATUS_EXCEPT, None)
+    def test_a_person_goes_on_the_list_by_lid_when_one_is_known(self):
+        bridge = {"5551999998888@s.whatsapp.net": "111111111111111@lid"}
+        assert privacy.status_list_id("5551999998888@s.whatsapp.net", bridge) == "111111111111111@lid"
+        assert privacy.status_list_id("5551999998888@c.us", bridge) == "111111111111111@lid"
+
+    def test_the_lid_is_found_under_the_other_brazilian_form(self):
+        nine = {"5551999998888@s.whatsapp.net": "111111111111111@lid"}
+        eight = {"555199998888@s.whatsapp.net": "222222222222222@lid:3"}
+        assert privacy.status_list_id("555199998888@s.whatsapp.net", nine) == "111111111111111@lid"
+        assert privacy.status_list_id("5551999998888@s.whatsapp.net", eight) == "222222222222222@lid"
+
+    def test_without_a_known_lid_the_phone_form_goes(self):
+        assert privacy.status_list_id("5551999998888@s.whatsapp.net", {}) == "5551999998888@c.us"
+        assert privacy.status_list_id("5551999998888@s.whatsapp.net", None) == "5551999998888@c.us"
+        assert privacy.status_list_id("333333333333333@lid", {}) == "333333333333333@lid"
+        assert privacy.status_list_id("120363000000000000@g.us", {}) == ""
+
+    def test_the_change_uses_the_given_id_form_for_both_sides(self):
+        bridge = {"5551999998888@s.whatsapp.net": "111111111111111@lid"}
+        to_id = lambda jid: privacy.status_list_id(jid, bridge)  # noqa: E731
+        loaded = privacy.StatusPrivacy(privacy.STATUS_EXCEPT, ("111111111111111@lid",))
+        # Same person picked again by phone: nothing to send.
+        assert privacy.status_change(loaded, privacy.STATUS_EXCEPT,
+                                     ["5551999998888@s.whatsapp.net"], to_id=to_id) is None
+        assert privacy.status_change(loaded, privacy.STATUS_ONLY,
+                                     ["5551999998888@s.whatsapp.net"], to_id=to_id) == (
+            privacy.STATUS_ONLY, ["111111111111111@lid"])
+
+    def test_the_list_read_back_must_hold_exactly_the_people_sent(self):
+        same = {"111111111111111@lid": "A", "5551999998888@c.us": "A",
+                "222222222222222@lid": "B"}.get
+        sent = ["5551999998888@c.us"]
+        held = privacy.StatusPrivacy(privacy.STATUS_EXCEPT, ("111111111111111@lid",))
+        assert privacy.status_list_confirmed(sent, held, privacy.STATUS_EXCEPT, same)
+        # The setting stuck but the person was dropped (phone id on an @lid account).
+        dropped = privacy.StatusPrivacy(privacy.STATUS_EXCEPT, ())
+        assert not privacy.status_list_confirmed(sent, dropped, privacy.STATUS_EXCEPT, same)
+        extra = privacy.StatusPrivacy(privacy.STATUS_EXCEPT, ("111111111111111@lid", "222222222222222@lid"))
+        assert not privacy.status_list_confirmed(sent, extra, privacy.STATUS_EXCEPT, same)
+
+    def test_a_wrong_setting_or_an_unread_list_confirms_nothing(self):
+        same = lambda jid: jid  # noqa: E731
+        assert not privacy.status_list_confirmed(["1@lid"], None, privacy.STATUS_EXCEPT, same)
+        assert not privacy.status_list_confirmed(
+            ["1@lid"], privacy.StatusPrivacy(privacy.STATUS_CONTACTS, ()), privacy.STATUS_EXCEPT, same)
+        assert not privacy.status_list_confirmed(
+            ["1@lid"], privacy.StatusPrivacy(privacy.STATUS_EXCEPT, None), privacy.STATUS_EXCEPT, same)
+        assert privacy.status_list_confirmed(
+            [], privacy.StatusPrivacy(privacy.STATUS_CONTACTS, ()), privacy.STATUS_CONTACTS, same)
+
+
+class TestAudienceSelection:
+    ROWS = [("a", "Ana", "a@s.whatsapp.net"), ("b", "Bruno", "b@s.whatsapp.net"),
+            ("c", "Carla", "c@s.whatsapp.net")]
+
+    @staticmethod
+    def _matches(query, label):
+        return query.lower() in label.lower()
+
+    def test_starts_with_the_people_already_on_the_list(self):
+        sel = privacy.AudienceSelection(self.ROWS, {"b"}, self._matches)
+        assert sel.filter("") == [("Ana", False), ("Bruno", True), ("Carla", False)]
+        assert sel.chosen() == ["b@s.whatsapp.net"]
+
+    def test_filtering_never_adds_or_drops_a_ticked_person(self):
+        sel = privacy.AudienceSelection(self.ROWS, set(), self._matches)
+        sel.filter("ana")
+        assert sel.set_checked(0, True)
+        assert sel.filter("bru") == [("Bruno", False)]
+        assert sel.set_checked(0, True)
+        assert sel.filter("carla") == [("Carla", False)]
+        assert sel.chosen() == ["a@s.whatsapp.net", "b@s.whatsapp.net"]
+        sel.filter("")
+        assert sel.set_checked(0, False)
+        assert sel.chosen() == ["b@s.whatsapp.net"]
+
+    def test_the_placeholder_row_is_not_a_person(self):
+        sel = privacy.AudienceSelection(self.ROWS, set(), self._matches)
+        assert sel.filter("zzz") == []
+        assert not sel.set_checked(0, True)
+        assert sel.chosen() == []
 
 
 # ── Server calls ─────────────────────────────────────────────────────────────
@@ -183,11 +260,27 @@ class TestServerCalls:
         assert _Stub().set_privacy_setting("about", "none") == "privacy_setting_failed (TypeError)"
         assert calls == [("privacy/set", {"setting": "about", "value": "none"})]
 
-    def test_status_audience_answers_with_the_setting_read_back(self, posts):
+    def test_status_audience_is_confirmed_by_reading_the_list_back(self, posts):
         calls, answers = posts
         answers.append(_Response(200, {"status": "success", "response": {"setting": "deny-list"}}))
-        assert _Stub().set_status_privacy("deny-list", ["5551999998888@c.us"]) == ("deny-list", None)
-        assert calls == [("privacy/status", {"setting": "deny-list", "list": ["5551999998888@c.us"]})]
+        answers.append(_Response(200, {"status": "success", "response": {
+            "settings": SIX, "status": {"setting": "deny-list", "list": ["111111111111111@lid"]}}}))
+        assert _Stub().set_status_privacy("deny-list", ["111111111111111@lid"]) == (True, None)
+        assert calls == [("privacy/status", {"setting": "deny-list", "list": ["111111111111111@lid"]}),
+                         ("privacy", {})]
+
+    def test_status_audience_dropped_by_whatsapp_is_not_confirmed(self, posts):
+        _calls, answers = posts
+        answers.append(_Response(200, {"status": "success", "response": {"setting": "deny-list"}}))
+        answers.append(_Response(200, {"status": "success", "response": {
+            "settings": SIX, "status": {"setting": "deny-list", "list": []}}}))
+        assert _Stub().set_status_privacy("deny-list", ["5551999998888@c.us"]) == (False, None)
+
+    def test_status_list_id_uses_the_bridge(self):
+        stub = _Stub()
+        stub._phone_to_lid = {"5551999998888@s.whatsapp.net": "111111111111111@lid"}
+        assert stub.status_list_id("5551999998888@s.whatsapp.net") == "111111111111111@lid"
+        assert _Stub().status_list_id("5551999998888@s.whatsapp.net") == "5551999998888@c.us"
 
     def test_an_exception_is_an_error_string_not_a_crash(self, monkeypatch):
         def boom(*args, **kwargs):
@@ -196,7 +289,7 @@ class TestServerCalls:
         monkeypatch.setattr(mixin_module, "api_post", boom)
         assert _Stub().fetch_privacy_settings() is None
         assert _Stub().set_privacy_setting("about", "all") == "ConnectionError"
-        assert _Stub().set_status_privacy("contact", []) == (None, "ConnectionError")
+        assert _Stub().set_status_privacy("contact", []) == (False, "ConnectionError")
 
 
 # ── People offered for a Status audience ─────────────────────────────────────
@@ -232,3 +325,12 @@ class TestAudienceRows:
         assert jids == ["5551988887777@s.whatsapp.net", "5551999998888@s.whatsapp.net",
                         "5511912345678@c.us"]
         assert rows[-1][1].startswith("Not in your contacts (")
+
+    def test_an_unbridged_lid_never_shows_its_digits(self):
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({"444444444444444@lid": {"pushName": "Duda"}})
+        rows = audience_rows(mw, ["444444444444444@lid", "555555555555555@lid"])
+        labels = [label for _key, label, _jid in rows]
+        assert labels == ["Duda", "unknown_contact"]
+        assert not any("555555555555555" in label for label in labels)

@@ -15,7 +15,9 @@ Methods run with ``self`` bound to the MainWindow instance.
 
 import logging
 
+from core import whatsapp_privacy
 from core.api_client import api_post
+from core.utils import contact_dedup_key
 
 
 class WhatsAppPrivacyMixin:
@@ -87,20 +89,28 @@ class WhatsAppPrivacyMixin:
         logging.warning("[privacy] %s not applied: %s", setting, error)
         return error
 
-    def set_status_privacy(self, setting: str, people: list) -> "tuple[str | None, str | None]":
-        """Who can see my Status. Returns (setting WhatsApp now reports, error):
-        the first is what the read-back said, the second None on success."""
+    def status_list_id(self, jid: str) -> str:
+        """The id WhatsApp's status list takes for *jid*: its @lid when the
+        bridge knows one, else the phone form (core.whatsapp_privacy)."""
+        return whatsapp_privacy.status_list_id(jid, getattr(self, "_phone_to_lid", None))
+
+    def set_status_privacy(self, setting: str, people: list) -> "tuple[bool, str | None]":
+        """Who can see my Status. Returns (confirmed, error): *error* is None
+        when the server took the call, and *confirmed* says whether a fresh read
+        then showed WhatsApp holding that setting with exactly those people."""
         try:
             response = self._privacy_post(
                 "privacy/status", {"setting": setting, "list": list(people)})
         except Exception as exc:
-            return None, type(exc).__name__
+            return False, type(exc).__name__
         if response.status_code not in (200, 201):
             error = self._privacy_error(response)
             logging.warning("[privacy] status audience not applied: %s", error)
-            return None, error
-        try:
-            now = (response.json().get("response") or {}).get("setting")
-        except Exception:
-            now = None
-        return (str(now) if now is not None else None), None
+            return False, error
+        answer = self.fetch_privacy_settings()
+        reported = whatsapp_privacy.parse_status_privacy(answer.get("status") if answer else None)
+        confirmed = whatsapp_privacy.status_list_confirmed(
+            list(people), reported, setting, lambda jid: contact_dedup_key(self, jid))
+        if not confirmed:
+            logging.warning("[privacy] status audience not confirmed by the read-back")
+        return confirmed, None
