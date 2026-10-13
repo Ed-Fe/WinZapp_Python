@@ -1,7 +1,8 @@
 // Self-contained: Puppeteer serializes each exported function on its own into
 // the WhatsApp page, so nothing here may reach a helper outside the function
-// that uses it. JavaScript syntax also lets the Node tests run the exact
-// browser function against a fake WPP.
+// that uses it. Only type annotations Babel erases are allowed, so the function
+// serialised into the page stays plain JavaScript and the Node tests run the
+// exact browser function against a fake WPP.
 //
 // None of these return a native exception's text: WhatsApp's errors can carry
 // phone numbers and contact names. They return a stable error code instead.

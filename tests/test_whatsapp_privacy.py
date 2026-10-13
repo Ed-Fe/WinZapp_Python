@@ -8,6 +8,7 @@ import pytest
 
 from core import whatsapp_privacy as privacy
 from main_window import whatsapp_privacy as mixin_module
+from main_window.contacts import ContactsMixin
 from main_window.whatsapp_privacy import WhatsAppPrivacyMixin
 
 SIX = {
@@ -300,6 +301,8 @@ class _I18n:
 
 
 class _Mw:
+    _get_contact_tolerant = ContactsMixin._get_contact_tolerant
+
     def __init__(self, contacts):
         self.contacts = contacts
         self.chats = {}
@@ -329,6 +332,8 @@ class TestAudienceRows:
     @pytest.mark.parametrize("reported, stored", [
         ("5511912345678@c.us", "5511912345678@s.whatsapp.net"),
         ("999999999999999@lid", "5551999998888@s.whatsapp.net"),
+        # Brazilian mobile reported with 8 digits, stored with the 9.
+        ("551199998888@c.us", "5511999998888@s.whatsapp.net"),
     ])
     def test_a_known_non_contact_is_named_whatever_form_whatsapp_reports(self, reported, stored):
         from ui.dialogs.status_audience_dialog import audience_rows
@@ -336,6 +341,14 @@ class TestAudienceRows:
         mw = _Mw({stored: {"pushName": "Carla"}})
         [(_key, label, jid)] = audience_rows(mw, [reported])
         assert label == "Carla" and jid == reported
+
+    def test_a_nameless_lid_record_does_not_hide_the_phone_s_name(self):
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({"999999999999999@lid": {"isMyContact": False},
+                  "5551999998888@s.whatsapp.net": {"pushName": "Carla"}})
+        [(_key, label, _jid)] = audience_rows(mw, ["999999999999999@lid"])
+        assert label == "Carla"
 
     def test_an_unbridged_lid_never_shows_its_digits(self):
         from ui.dialogs.status_audience_dialog import audience_rows

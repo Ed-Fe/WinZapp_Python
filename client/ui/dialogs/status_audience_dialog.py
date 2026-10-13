@@ -43,12 +43,16 @@ def _outside_contact_label(main_window, jid: str) -> str:
     phone = canonical
     if canonical.endswith("@lid"):
         phone = (getattr(main_window, "_lid_to_phone", {}) or {}).get(canonical, "")
-    contacts = getattr(main_window, "contacts", {}) or {}
-    info = next((contacts[form] for form in (canonical, phone, jid)
-                 if form and contacts.get(form)), {})
-    name = info.get("name") or info.get("pushName") or info.get("notify")
-    if name:
-        return name
+    # The phone first, as _resolve_contact_name does: an @lid record may hold
+    # an older name. _get_contact_tolerant also bridges the Brazilian 8/9-digit
+    # forms. The first form that carries a name wins, not the first entry.
+    lookup = (getattr(main_window, "_get_contact_tolerant", None)
+              or (getattr(main_window, "contacts", {}) or {}).get)
+    for form in dict.fromkeys(f for f in (phone, canonical, jid) if f):
+        info = lookup(form) or {}
+        name = info.get("name") or info.get("pushName") or info.get("notify")
+        if name:
+            return name
     if phone:
         return i18n.t("wa_privacy_status_unknown_contact").format(number=format_number(phone))
     return i18n.t("unknown_contact")
