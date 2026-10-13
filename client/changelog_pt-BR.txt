@@ -86,6 +86,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Atualizações: "Verificar atualizações", no menu Ajuda, agora avisa quando o WinZapp não consegue acessar o servidor de atualizações, em vez de não dizer nada.
+
 - Sincronização: mensagens antigas recebidas novamente mantêm a ordem cronológica, em vez de aparecerem como novas. Falhas temporárias ao consultar um endereço alternativo da conversa continuam na fila para nova tentativa.
 
 - Encaminhar não abre mais uma caixa quando dá certo. "Mensagem encaminhada." (ou quantas mensagens foram encaminhadas) agora é falado pelo leitor de tela, sem janela para fechar e sem interromper o que está sendo lido; funciona também com o WinZapp na bandeja.
