@@ -2,9 +2,9 @@
 
 A full sync (first pairing, F5) walks every chat, an update after days away
 can walk hundreds, and the media phase walks every candidate media message
-after either; on a real account any of them can take minutes. Between "synchronization started" and "synchronization finished" a
-screen reader user heard nothing, so a long sweep could not be told apart from
-a stuck one.
+after either; on a real account any of them can take minutes. Between
+"synchronization started" and "synchronization finished" a screen reader user
+heard nothing, so a long sweep could not be told apart from a stuck one.
 
 The sweeps report "X of Y" every few seconds instead. Never per item: with
 hundreds or thousands of chats that would flood the screen reader faster than
