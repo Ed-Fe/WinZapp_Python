@@ -4,8 +4,6 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
-- Synchronization: replayed history messages keep their chronological position instead of appearing as new arrivals. Temporary failures when checking an alternate chat address remain queued for retry.
-
 - Bulk transcription of the selected messages (issue #469). The Bulk actions submenu has two entries, each with its own shortcut that can be changed in the Keyboard shortcuts tab: "Transcribe the selected messages and show them together" (Ctrl+Alt+Shift+T, like Alt+Shift+T) and "Transcribe the selected messages into their lines" (Ctrl+Alt+Shift+N, like Alt+Shift+N). With the option to replace shortcuts with bulk actions on, Alt+Shift+T and Alt+Shift+N also act on the selection. WinZapp says how many messages will be transcribed, skipped or reused before starting, transcribes them one at a time in the background announcing "message 3 of 12", carries on when one fails and says at the end how many were transcribed, skipped and failed. The same shortcut or the context menu cancels the queue, and the context menu shows every transcription together, with sender, date and time, to copy or save.
 
 - Local transcription now works with videos too: the video's sound is converted to audio and handed to faster-whisper or whisper.cpp. Every option applies to videos: Alt+Shift+T, transcription into the line (Alt+Shift+N), Enter and Space transcribing (with Alt+Shift+N then playing or opening the video), automatic transcription of received ones, the per-model cache and clearing it. GIFs are skipped, and a video with no sound is reported as such.
@@ -85,6 +83,8 @@ WHAT'S NEW
 - macOS: release builds now update through Sparkle 2's standard windows, which VoiceOver reads well. "Check for updates", the automatic check every 3 hours and "Check for alpha updates" open Sparkle. Before a release is offered, when you choose Install and once more at "Ready to Install", WinZapp checks that the release's tag exists in the official repository, points at its declared commit and is newer than the version you are running; if any of that fails, or GitHub cannot be reached, the update is cancelled and the reason is shown. When you choose Install, your other accounts close and no account can start until the update ends; if the update does not install, they open again. An update found in the background is announced by speech and by a notification, and "Ready to Install" is announced too. Account locks left behind by past quits no longer block updates or start-up on the Mac.
 
 FIXES
+
+- Synchronization: replayed history messages keep their chronological position instead of appearing as new arrivals. Temporary failures when checking an alternate chat address remain queued for retry.
 
 - Forwarding no longer opens a box when it worked. "Message forwarded." (or how many messages were forwarded) is now said by the screen reader, with no window to close and without cutting off what is being read; it works with WinZapp in the tray too.
 

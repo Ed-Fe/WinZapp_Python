@@ -4,8 +4,6 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
-- Sincronização: mensagens antigas recebidas novamente mantêm a ordem cronológica, em vez de aparecerem como novas. Falhas temporárias ao consultar um endereço alternativo da conversa continuam na fila para nova tentativa.
-
 - Transcrição em massa das mensagens selecionadas (issue #469). No submenu Ações em massa há duas opções, cada uma com atalho próprio que pode ser alterado no separador Atalhos de teclado: "Transcrever as mensagens selecionadas e mostrá-las juntas" (Ctrl+Alt+Shift+T, como o Alt+Shift+T) e "Transcrever as mensagens selecionadas nas linhas delas" (Ctrl+Alt+Shift+N, como o Alt+Shift+N). Com a opção de substituir atalhos por ações em massa ativada, o Alt+Shift+T e o Alt+Shift+N também atuam sobre a seleção. O WinZapp indica quantas mensagens serão transcritas, ignoradas ou reaproveitadas antes de começar, transcreve uma de cada vez em segundo plano anunciando "mensagem 3 de 12", continua quando uma falha e indica no fim quantas foram transcritas, ignoradas e com erro. O mesmo atalho ou o menu de contexto cancelam a fila, e o menu de contexto mostra todas as transcrições juntas, com remetente, data e hora, para copiar ou guardar.
 
 - A transcrição local passa a funcionar também com vídeos: o som do vídeo é convertido em áudio e enviado ao faster-whisper ou ao whisper.cpp. Todas as opções valem para vídeos: Alt+Shift+T, a transcrição na linha (Alt+Shift+N), Enter e Espaço a transcrever (com o Alt+Shift+N então a reproduzir ou abrir o vídeo), a transcrição automática dos recebidos, o cache por modelo e a limpeza do cache. Os GIFs são ignorados, e um vídeo sem som é indicado como tal.
@@ -85,6 +83,8 @@ NOVIDADES
 - macOS: as versões de lançamento atualizam-se agora pelas janelas padrão do Sparkle 2, que o VoiceOver lê bem. "Verificar atualizações", a verificação automática de 3 em 3 horas e "Verificar atualizações alpha" abrem o Sparkle. Antes de oferecer uma versão, quando escolhe Instalar e mais uma vez em "Pronto para instalar", o WinZapp confirma que a etiqueta da versão existe no repositório oficial, aponta para o commit declarado e é mais recente do que a versão em uso; se alguma destas condições falhar, ou se o GitHub não puder ser alcançado, a atualização é cancelada e o motivo é mostrado. Ao escolher Instalar, as suas outras contas são fechadas e nenhuma conta pode iniciar até ao fim da atualização; se a atualização não for instalada, são abertas novamente. Uma atualização encontrada em segundo plano é anunciada por voz e por uma notificação, e "Pronto para instalar" também é anunciado. Os bloqueios de conta deixados por encerramentos anteriores já não impedem as atualizações nem o arranque no Mac.
 
 CORREÇÕES
+
+- Sincronização: mensagens antigas recebidas novamente mantêm a ordem cronológica, em vez de aparecerem como novas. Falhas temporárias ao consultar um endereço alternativo da conversa continuam na fila para nova tentativa.
 
 - Reencaminhar deixa de abrir uma caixa quando corre bem. "Mensagem reencaminhada." (ou quantas mensagens foram reencaminhadas) passa a ser dito pelo leitor de ecrã, sem janela para fechar e sem interromper o que está a ser lido; funciona também com o WinZapp na área de notificação.
 

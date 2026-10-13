@@ -394,8 +394,14 @@ class ListRefreshMixin:
         # to an old message. Bursts still cost one focus-preserving rebuild.
         tail = next((m for m in reversed(self._sorted_messages)
                      if not self._is_separator(m)), None)
-        if (tail is not None and (self._extract_timestamp(msg) or 0)
-                < (self._extract_timestamp(tail) or 0)):
+        # A row this client sent carries the PC clock's stamp, not the
+        # server's; with the clock ahead, a reply right after it would look
+        # late. Compare against the last server-stamped row instead.
+        stamped_tail = next((m for m in reversed(self._sorted_messages)
+                             if not self._is_separator(m)
+                             and not m.get("_local_id")), None)
+        if (stamped_tail is not None and (self._extract_timestamp(msg) or 0)
+                < (self._extract_timestamp(stamped_tail) or 0)):
             self.main_window._schedule_refresh_messages()
             return
 

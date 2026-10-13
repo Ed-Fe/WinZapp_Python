@@ -95,3 +95,29 @@ def test_aliased_pagination_lists_cannot_double_append():
     panel._records.append(incoming)
     panel.on_incoming_message("g@g.us", incoming)
     assert len(panel._sorted_messages) == 2
+    assert panel._sorted_messages[-1] is incoming
+
+
+def test_own_sent_row_ahead_of_the_server_clock_does_not_make_a_reply_late():
+    # The PC clock runs ahead: the user's own send is stamped after the reply
+    # the server stamps a moment later. The reply is still a new tail row.
+    sent = _msg("sent", ts=1_800_000_100, _local_id="local-1")
+    sent["key"]["fromMe"] = True
+    panel = _Panel([_msg("recent", ts=1_800_000_000), sent])
+    reply = _msg("reply", ts=1_800_000_050)
+    panel._records.append(reply)
+    panel.on_incoming_message("g@g.us", reply)
+    assert panel._sorted_messages[-1] is reply
+    panel.main_window._schedule_refresh_messages.assert_not_called()
+    panel._update_unread_separator_for_incoming.assert_called_once_with(reply)
+
+
+def test_replay_older_than_the_last_server_row_is_late_despite_an_own_send():
+    sent = _msg("sent", ts=1_800_000_100, _local_id="local-1")
+    sent["key"]["fromMe"] = True
+    panel = _Panel([_msg("recent", ts=1_800_000_000), sent])
+    replay = _msg("old", ts=1_799_000_000)
+    panel._records.append(replay)
+    panel.on_incoming_message("g@g.us", replay)
+    assert [m["key"]["id"] for m in panel._sorted_messages] == ["recent", "sent"]
+    panel.main_window._schedule_refresh_messages.assert_called_once_with()
