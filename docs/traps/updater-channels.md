@@ -1,5 +1,31 @@
 # Auto-updater: two channels, the alpha version scheme, one prompt per machine
 
+## Codec failures and explicit alpha consent (2026-10-13)
+
+An unavailable `utf_8_sig` codec raised `LookupError` outside readers that
+only caught `OSError` and `ValueError`. Version/package readers now use strict
+UTF-8 with a leading BOM removed, and retain their empty-result contracts on
+read/decode/lookup errors. Do not use replacement decoding: corrupt bytes
+would become a non-existent version/tag. Package JSON needs BOM removal too.
+This is defensive source coverage, not proof that a particular frozen package
+omitted the codec. PyInstaller collects encoding submodules by default.
+
+Unexpected periodic WPP worker errors log their traceback and retry through
+the existing offline interval. A forced reinstall check reports failure and
+does not silently retry a forced installation later. `stop()` prevents an
+in-flight WPP worker from starting a new timer after shutdown.
+
+Alpha opt-out remains effective even when the running build is alpha. A
+manual check that finds a newer excluded alpha asks for explicit one-time
+consent, defaulting to No. It preserves the install-wide setting, claims the
+existing per-machine prompt slot, waits for the startup/pairing gate and
+hands the exact consented release to the normal update/signature flow.
+Automatic checks do not ask this question. A newer eligible stable still uses
+the normal path. A failed alpha listing is not a complete alpha check even
+if the separate stable endpoint succeeded; opted-in checks retry rather than
+reporting an unsupported "up to date" result. Forced ZIP reinstall keeps its
+channel filter and explicitly warns, default No, before an older version.
+
 ## Progress cancellation and installer ownership (2026-10-12)
 
 A reported update cancelled as its download finished: the worker started a

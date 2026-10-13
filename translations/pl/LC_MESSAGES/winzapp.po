@@ -13246,6 +13246,23 @@ msgctxt "unsupported_message"
 msgid "Incompatible message"
 msgstr "Nieobsługiwana wiadomość"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+#, python-brace-format
+msgctxt "update_alpha_choice_message"
+msgid ""
+"You are running {current}. A newer alpha version, {new}, is available, but "
+"alpha updates are disabled. Would you like to view this update once? "
+"Automatic alpha updates will remain disabled."
+msgstr ""
+"Używasz wersji {current}. Dostępna jest nowsza wersja alpha, {new}, ale "
+"aktualizacje alpha są wyłączone. Czy chcesz jednorazowo wyświetlić tę "
+"aktualizację? Automatyczne aktualizacje alpha pozostaną wyłączone."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/update_channel_choice.py
+msgctxt "update_alpha_choice_title"
+msgid "Alpha updates are disabled"
+msgstr "Aktualizacje alpha są wyłączone"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
 msgctxt "update_available_msg"
@@ -13411,6 +13428,16 @@ msgid ""
 msgstr ""
 "Okno aktualizacji jest już otwarte na innym koncie WinZapp. Zakończ lub "
 "zamknij tamto okno, aby zaktualizować."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#, python-brace-format
+msgctxt "update_reinstall_downgrade_warning"
+msgid ""
+"Reinstalling will replace your current version {current} with the older "
+"version {new} from the selected update channel."
+msgstr ""
+"Ponowna instalacja zastąpi bieżącą wersję {current} starszą wersją {new} z "
+"wybranego kanału aktualizacji."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "update_uac_declined"

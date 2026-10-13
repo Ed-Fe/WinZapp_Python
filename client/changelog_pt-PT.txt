@@ -84,6 +84,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Atualizações: as verificações de versão e de pacotes toleram codecs indisponíveis e mantêm o suporte ao BOM UTF-8. A verificação manual numa versão alpha com atualizações alpha desativadas oferece uma escolha explícita para essa atualização; a reinstalação de uma versão mais antiga avisa antes de continuar.
+
 - Sincronização: mensagens antigas recebidas novamente mantêm a ordem cronológica, em vez de aparecerem como novas. Falhas temporárias ao consultar um endereço alternativo da conversa continuam na fila para nova tentativa.
 
 - Reencaminhar deixa de abrir uma caixa quando corre bem. "Mensagem reencaminhada." (ou quantas mensagens foram reencaminhadas) passa a ser dito pelo leitor de ecrã, sem janela para fechar e sem interromper o que está a ser lido; funciona também com o WinZapp na área de notificação.

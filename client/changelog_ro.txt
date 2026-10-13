@@ -84,6 +84,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- Actualizări: verificările versiunilor și pachetelor tolerează codecurile indisponibile și păstrează suportul BOM UTF-8. Verificarea manuală într-o versiune alpha cu actualizările alpha dezactivate oferă o alegere explicită pentru acea actualizare; reinstalarea unei versiuni mai vechi afișează un avertisment.
+
 - Sincronizare: mesajele vechi primite din nou își păstrează ordinea cronologică, în loc să apară ca mesaje noi. Erorile temporare la verificarea unei adrese alternative a conversației rămân în coadă pentru o nouă încercare.
 
 - Redirecționarea nu mai deschide o casetă când a reușit. „Mesajul a fost redirecționat.” (sau câte mesaje au fost redirecționate) este acum rostit de cititorul de ecran, fără o fereastră de închis și fără a întrerupe ce se citește; funcționează și cu WinZapp în bara de sistem.
