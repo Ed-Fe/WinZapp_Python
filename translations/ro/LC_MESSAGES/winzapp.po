@@ -9807,6 +9807,12 @@ msgid "Chats unarchived."
 msgstr "Conversații dezarhivate."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr "Se sincronizează conversațiile: {done} din {total}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr "Conversații sincronizate."
@@ -9826,6 +9832,14 @@ msgstr "Descărcare media finalizată."
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
 msgstr "Nu s-a putut descărca media."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
+msgstr ""
+"Descărcare media: {done} din {total} procesate ({downloaded} descărcate)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
 #: client/main_window/sync.py

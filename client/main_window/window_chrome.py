@@ -1320,6 +1320,20 @@ class WindowChromeMixin:
         """
         return bool(self.settings.get("general", {}).get("announce_sync_events", True))
 
+    def _report_sync_progress(self, text: str) -> None:
+        """Show a sweep's periodic "X of Y" line and speak it.
+
+        Runs on the main thread (the sweeps hand it over with wx.CallAfter;
+        see core/sync_progress.py for the cadence). The status text always
+        changes; speech follows the same rule as the other sync announcements:
+        silent in background mode and with Settings > Geral > "Anunciar
+        sincronização, download de mídias e modo offline automático"
+        unchecked. Never interrupts: the user may be reading a message.
+        """
+        self._set_status(text)
+        if not self.background_mode and self._announce_sync_events_enabled():
+            self.output(text)
+
     def _search_normalization_mode(self) -> str:
         """Settings > Geral > "Normalização Unicode nas pesquisas": one of
         "off" (default), "nfd" or "nfkd" — see normalize_for_search().

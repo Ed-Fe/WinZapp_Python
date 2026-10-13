@@ -9171,6 +9171,12 @@ msgid "Chats unarchived."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr ""
@@ -9189,6 +9195,13 @@ msgstr ""
 #: client/main_window/sync.py
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
