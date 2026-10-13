@@ -531,7 +531,7 @@ class ChatsStoreMixin:
         verified name, which WPPConnect serialises as `contact.verifiedName`;
         it is the last fallback for `name`, after the address-book name and
         shortName. Seen live on accounts such as "99 Pay" and "Verisure
-        Brasil" (TeleZapp fork, reffehcsoibaf/winzapp).
+        Brasil".
 
         Never overwrites a value the chat already carries — the top-level keys
         win when both are present. Mutates `chat` in place.
@@ -540,11 +540,15 @@ class ChatsStoreMixin:
         if not isinstance(contact_obj, dict):
             return
         if not (chat.get("name") or "").strip():
-            cname = (
-                contact_obj.get("name") or contact_obj.get("shortName")
-                or contact_obj.get("verifiedName") or ""
+            # The first non-blank one: a whitespace-only name must not hide
+            # the verified name behind it.
+            cname = next(
+                (value.strip()
+                 for value in (contact_obj.get(key)
+                               for key in ("name", "shortName", "verifiedName"))
+                 if isinstance(value, str) and value.strip()),
+                "",
             )
-            cname = cname.strip() if isinstance(cname, str) else ""
             if cname:
                 chat["name"] = cname
         if not (chat.get("pushName") or "").strip():

@@ -142,7 +142,7 @@ CORECTĂRI
 
 - Lista de țări de la asocierea prin număr de telefon conține acum toate țările și teritoriile acceptate de WhatsApp (lipseau, de exemplu, Țările de Jos, Kenya, Belarus și Macedonia de Nord), iar numele țărilor apar în limba aleasă și pentru poloneză, turcă și română.
 
-- Conturile de afaceri WhatsApp verificate (bănci, aplicații de plată, furnizori de utilități) pe care nu le-ați salvat în contacte apăreau în lista de conversații doar cu numărul de telefon. Acum apar cu numele verificat al companiei, ca în WhatsApp. Un nume salvat în contacte are în continuare prioritate.
+- Conturile business WhatsApp verificate (bănci, aplicații de plată, furnizori de utilități) pe care nu le-ați salvat în contacte apăreau în lista de conversații doar cu numărul de telefon. Acum apar cu numele verificat al companiei, ca în WhatsApp. Un nume salvat în contacte are în continuare prioritate.
 
 V2.0.0.0
 

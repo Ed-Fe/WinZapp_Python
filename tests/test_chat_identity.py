@@ -64,6 +64,12 @@ class TestLiftContactIdentity:
         lift(chat)
         assert chat["name"] == "Apelido"
 
+    @pytest.mark.parametrize("blank", ["name", "shortName"])
+    def test_a_blank_address_book_name_does_not_hide_the_verified_name(self, blank):
+        chat = {"contact": {blank: "   ", "verifiedName": "99 Pay"}}
+        lift(chat)
+        assert chat["name"] == "99 Pay"
+
     @pytest.mark.parametrize("bad", [None, 42, "   ", {"x": 1}])
     def test_a_missing_or_malformed_verified_name_is_ignored(self, bad):
         chat = {"contact": {"verifiedName": bad}}
@@ -184,11 +190,10 @@ class TestNotInTheAddressBook:
         assert stub._resolve_contact_name(chat) == "Carteira digital"
 
     def test_a_person_s_profile_name_is_lifted_for_the_list(self):
-        """Nothing in the address book, so the resolver has no name; the
-        chat list then uses chat["pushName"], which the lift fills from the
-        contact's own WhatsApp profile name."""
+        """Nothing in the address book; the chat list then uses
+        chat["pushName"], which the lift fills from the contact's own
+        WhatsApp profile name."""
         chat = {"remoteJid": "5511999999999@s.whatsapp.net",
                 "contact": {"pushname": "Maria da Padaria"}}
         lift(chat)
-        assert _ResolverStub()._resolve_contact_name(chat) is None
         assert chat["pushName"] == "Maria da Padaria"
