@@ -9200,9 +9200,24 @@ msgstr "Anunciar quando a atualização de conversas for iniciada"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_media_progress_label"
+msgid "Announce media download progress every few seconds"
+msgstr ""
+"Anunciar a cada poucos segundos o progresso do descarregamento de ficheiros "
+"multimédia"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_recording_label"
 msgid "Announce when a contact is recording an audio message in a chat"
 msgstr "Anunciar quando um contacto está a gravar um áudio numa conversa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "speech_announce_sync_progress_label"
+msgid "Announce chat sync progress every few seconds"
+msgstr ""
+"Anunciar a cada poucos segundos o progresso da sincronização de conversas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -9827,6 +9842,12 @@ msgid "Chats unarchived."
 msgstr "Conversas desarquivadas."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
+#, python-brace-format
+msgctxt "sync_chats_progress"
+msgid "Syncing chats: {done} of {total}"
+msgstr "A sincronizar conversas: {done} de {total}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "sync_complete"
 msgid "Chats synced."
 msgstr "Conversas sincronizadas."
@@ -9846,6 +9867,15 @@ msgstr "Descarregamento de ficheiros multimédia concluído."
 msgctxt "sync_media_failed"
 msgid "Failed to download media."
 msgstr "Falha ao descarregar os ficheiros multimédia."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
+#, python-brace-format
+msgctxt "sync_media_progress"
+msgid ""
+"Downloading media: {done} of {total} processed ({downloaded} downloaded)"
+msgstr ""
+"A descarregar ficheiros multimédia: {done} de {total} processados "
+"({downloaded} descarregados)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/backfill.py
 #: client/main_window/sync.py
