@@ -8,11 +8,13 @@ import types
 import pytest
 
 from core.message_queue import MessageQueue, PendingMessage
-from core.reply_failure import is_missing_quote_failure, mark_missing_reply_quote, quote_missing_before_send
+from core.reply_failure import (REPLY_DRAFT_KEYS, clear_reply_draft, is_missing_quote_failure,
+                                 mark_missing_reply_quote, quote_missing_before_send)
 from main import MainWindow
 from ui.conversations import ConversationsPanel
 from tests.god_modules import patch_main_global
 from tests.test_reply_with_mention_keeps_quote import _Stub as SendStub, QUOTED, GROUP, LID, MENTION
+from tests import test_duplicate_message_echo_matching as echo
 
 
 VERDICT = {"status": "error", "code": "quoted_message_not_found",
@@ -416,3 +418,44 @@ def test_bulk_delete_removes_failed_reply_locally_and_keeps_real_message_scope(m
     assert len(local) == int(mixed and not for_everyone)
     assert all(key['id'] == 'REAL' for jid, key in every + local)
     assert not stub.selected_messages
+
+
+# ── the recovery copy goes once the reply was delivered ──────────────────────
+
+def _draft(**record):
+    return {**record, "_reply_draft_text": "text", "_reply_draft_mentions": [MENTION],
+            "_reply_draft_mention_names": {MENTION: "Name"}}
+
+
+def test_clear_reply_draft_drops_only_the_recovery_copy():
+    record = _draft(message={"conversation": "text"})
+    clear_reply_draft(record)
+    assert record == {"message": {"conversation": "text"}}
+    clear_reply_draft(record)   # idempotent
+    clear_reply_draft(None)     # and tolerant
+
+
+def test_a_reply_marked_sent_no_longer_carries_its_draft():
+    msg = echo._make_msg(**_draft())
+    panel = echo._make_panel(msg)
+    ConversationsPanel._mark_message_sent(panel, "loc-1", real_id="REAL")
+    assert not any(key in msg for key in REPLY_DRAFT_KEYS)
+
+
+def test_a_reply_whose_send_is_still_unconfirmed_keeps_its_draft():
+    """No real id yet: the row stays pending for the echo, draft included."""
+    msg = echo._make_msg(**_draft())
+    panel = echo._make_panel(msg)
+    ConversationsPanel._mark_message_sent(panel, "loc-1", real_id=None)
+    assert all(key in msg for key in REPLY_DRAFT_KEYS)
+
+
+def test_the_echo_of_a_reply_drops_its_draft_before_it_is_saved():
+    saved = []
+    record = _draft(**echo._pending_record("locB"))
+    stub = echo._Stub(echo._chat_with([record]))
+    stub._msg_bg_executor = types.SimpleNamespace(submit=lambda fn: fn())
+    stub.db = types.SimpleNamespace(insert_message=lambda jid, msg: saved.append(dict(msg)))
+    stub.on_new_message(echo._echo("REAL_B"))
+    assert record["_local_pending"] is False
+    assert saved and not any(key in saved[0] for key in REPLY_DRAFT_KEYS)

@@ -36,3 +36,20 @@ def mark_missing_reply_quote(chats, local_id):
                 record["_reply_quote_missing"] = True
                 return jid, record
     return None
+
+
+#: What the composer held when a quoted reply was queued, kept on the row only
+#: so a pre-send "quote missing" refusal can give the text back.
+REPLY_DRAFT_KEYS = ("_reply_draft_text", "_reply_draft_mentions", "_reply_draft_mention_names")
+
+
+def clear_reply_draft(record) -> None:
+    """Drop the recovery copy once the reply was sent.
+
+    Nothing reads it after that (the restore needs a missing-quote failure),
+    and left on the row it is saved to messages.db with every sent reply: a
+    second copy of the text and a JID-to-name map, forever.
+    """
+    if isinstance(record, dict):
+        for key in REPLY_DRAFT_KEYS:
+            record.pop(key, None)

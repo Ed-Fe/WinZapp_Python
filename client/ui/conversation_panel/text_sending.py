@@ -12,7 +12,7 @@ import time
 import uuid
 import wx
 from core.message_queue import PendingMessage
-from core.reply_failure import is_missing_quote_failure
+from core.reply_failure import clear_reply_draft, is_missing_quote_failure
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
 from ui.conversation_panel.media_paths import (
@@ -496,6 +496,7 @@ class TextSendingMixin:
         tracked = self._outgoing_virtual_messages.pop(local_id, None)
         if tracked is not None:
             tracked["_local_pending"] = False
+            clear_reply_draft(tracked)
             if real_id and isinstance(real_id, str):
                 tracked.setdefault("key", {})["id"] = real_id
         self._media_upload_progress.pop(local_id, None)
@@ -518,6 +519,7 @@ class TextSendingMixin:
                     return  # Already marked sent on the UI, ignore to prevent duplicate sound and actions
                 msg["_ui_sent"] = True
                 msg["_local_pending"] = False
+                clear_reply_draft(msg)
                 # The quoted send failed and the message went out as a plain
                 # send: drop the reply contextInfo so the row no longer reads
                 # as "respondendo a …". The quote never reached the recipient.
