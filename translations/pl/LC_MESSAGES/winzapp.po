@@ -4571,7 +4571,7 @@ msgstr ""
 #, python-brace-format
 msgctxt "group_size"
 msgid "{count} participant(s)"
-msgstr "{count} uczestnik(ów)"
+msgstr "Liczba członków: {count}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "hotkey_first_run_message"
@@ -12859,7 +12859,7 @@ msgid ""
 "name is available. Applies to private and group chats, including reply "
 "prefixes. Names, message content, chat titles and other notifications stay "
 "unchanged. Off by default."
-msgstr "Pomija numer telefonu nadawcy przed treścią wiadomości i w komunikatach otwartego czatu, jeśli jego nazwa jest niedostępna. Dotyczy czatów osobistych i grupowych, także oznaczeń nadawców cytowanych wiadomości. Nazwy, treść wiadomości, tytuły czatów i inne powiadomienia pozostają bez zmian. Domyślnie wyłączone."
+msgstr "Pomija numer telefonu nadawcy przed treścią wiadomości i w komunikatach otwartego czatu, jeśli jego nazwa jest niedostępna. Dotyczy czatów prywatnych i grupowych, także oznaczeń nadawców cytowanych wiadomości. Nazwy, treść wiadomości, tytuły czatów i inne powiadomienia pozostają bez zmian. Domyślnie wyłączone."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -13168,7 +13168,7 @@ msgstr ""
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "unnamed_participant"
 msgid "Unnamed participant"
-msgstr "Uczestnik bez nazwy"
+msgstr "Członek bez nazwy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -14123,4 +14123,3 @@ msgstr "&Tak"
 msgctxt "yesterday_at"
 msgid "Yesterday at {time}"
 msgstr "Wczoraj o {time}"
-
