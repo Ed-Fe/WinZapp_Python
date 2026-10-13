@@ -250,3 +250,28 @@ def test_a_failed_automatic_check_stays_silent(monkeypatch):
 def test_newer_excluded_alpha(releases, local, include_alpha, expected):
     found = updater.newer_excluded_alpha(releases, local, include_alpha)
     assert (found or {}).get("tag_name") == expected
+
+
+def test_a_failed_manual_check_shows_one_dialog_not_one_per_quick_retry(monkeypatch):
+    obj, events, queued = make_checker(monkeypatch)
+    monkeypatch.setattr(obj, "_schedule_retry",
+                        lambda *a: updater.UpdateChecker._schedule_retry(obj, *a))
+    timers = []
+
+    class _Timer:
+        def __init__(self, interval, fn):
+            timers.append(fn)
+            self.daemon = False
+        def start(self):
+            pass
+        def cancel(self):
+            pass
+
+    monkeypatch.setattr(updater.threading, "Timer", _Timer)
+    def offline():
+        raise RuntimeError("offline")
+    monkeypatch.setattr(obj, "_fetch_releases", offline)
+    obj._check_once()
+    for _ in range(3):           # the quick retries, still offline
+        timers.pop()()
+    assert [fn.__name__ for fn, _, _ in queued] == ["_show_reinstall_error"]
