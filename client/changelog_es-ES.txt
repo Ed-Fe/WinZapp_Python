@@ -140,6 +140,8 @@ CORRECCIONES
 
 - Diálogo de reenviar: la flecha abajo en el campo de búsqueda ahora va al primer resultado y enfoca la lista, como en la búsqueda de conversaciones.
 
+- El selector de país del emparejamiento por número de teléfono ahora incluye todos los países y territorios que admite WhatsApp (faltaban, por ejemplo, los Países Bajos, Kenia, Bielorrusia y Macedonia del Norte), y los nombres de los países también se muestran en el idioma elegido para polaco, turco y rumano.
+
 - Las cuentas de empresa verificadas de WhatsApp (bancos, aplicaciones de pago, compañías de servicios) que no tienes guardadas en contactos aparecían en la lista de chats solo con el número de teléfono. Ahora aparecen con el nombre verificado de la empresa, como en WhatsApp. Un nombre guardado en tus contactos sigue teniendo prioridad.
 
 V2.0.0.0

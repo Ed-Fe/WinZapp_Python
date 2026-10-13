@@ -140,6 +140,8 @@ POPRAWKI
 
 - Okno przekazywania: strzałka w dół w polu wyszukiwania przechodzi teraz do pierwszego wyniku i ustawia fokus na liście, tak jak w wyszukiwaniu rozmów.
 
+- Lista wyboru kraju przy parowaniu przez numer telefonu zawiera teraz wszystkie kraje i terytoria obsługiwane przez WhatsApp (brakowało m.in. Holandii, Kenii, Białorusi i Macedonii Północnej), a nazwy krajów są wyświetlane w wybranym języku także po polsku, turecku i rumuńsku.
+
 - Zweryfikowane konta firmowe WhatsApp (banki, aplikacje płatnicze, dostawcy usług), których nie masz zapisanych w kontaktach, były widoczne na liście czatów tylko z numerem telefonu. Teraz pokazują zweryfikowaną nazwę firmy, tak jak w WhatsApp. Nazwa zapisana w kontaktach nadal ma pierwszeństwo.
 
 V2.0.0.0

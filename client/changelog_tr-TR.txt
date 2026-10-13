@@ -140,6 +140,8 @@ DÜZELTMELER
 
 - İlet penceresi: arama alanında aşağı ok artık ilk sonuca gidip odağı listeye taşıyor; sohbet aramasındaki gibi.
 
+- Telefon numarasıyla eşleştirmede ülke seçimi artık WhatsApp'ın desteklediği tüm ülke ve bölgeleri içeriyor (Hollanda, Kenya, Belarus ve Kuzey Makedonya gibi ülkeler eksikti) ve ülke adları Lehçe, Türkçe ve Rumence için de seçilen dilde gösteriliyor.
+
 - Kişilerinize kaydetmediğiniz doğrulanmış WhatsApp Business hesapları (bankalar, ödeme uygulamaları, hizmet şirketleri) sohbet listesinde yalnızca telefon numarasıyla görünüyordu. Artık WhatsApp'ta olduğu gibi işletmenin doğrulanmış adıyla görünür. Kişilerinizde kayıtlı bir ad yine önceliklidir.
 
 V2.0.0.0

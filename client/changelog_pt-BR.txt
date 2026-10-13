@@ -140,6 +140,8 @@ CORREÇÕES
 
 - Diálogo de encaminhar: a seta para baixo no campo de pesquisa agora vai para o primeiro resultado e foca a lista, como na pesquisa de conversas.
 
+- Na seleção de país do pareamento por número de telefone, a lista agora contém todos os países e territórios que o WhatsApp aceita (faltavam, por exemplo, Países Baixos, Quênia, Belarus e Macedônia do Norte), e os nomes dos países aparecem no idioma escolhido também em polonês, turco e romeno.
+
 - Contas comerciais verificadas do WhatsApp (bancos, aplicativos de pagamento, concessionárias) que você não salvou nos contatos apareciam na lista de conversas só com o número de telefone. Agora aparecem com o nome verificado da empresa, como no WhatsApp. Um nome salvo nos seus contatos continua tendo preferência.
 
 V2.0.0.0

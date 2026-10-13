@@ -140,6 +140,8 @@ FIXES
 
 - Forward dialog: pressing Down arrow in the search field now moves to the first result and focuses the list, as in the conversations search.
 
+- The country selector for pairing by phone number now lists every country and territory WhatsApp supports (the Netherlands, Kenya, Belarus and North Macedonia, among others, were missing), and country names are now shown in your chosen language for Polish, Turkish and Romanian too.
+
 - Verified WhatsApp Business accounts (banks, payment apps, utilities) that you have not saved as contacts showed only their phone number in the chat list. They now show the business's verified name, as in WhatsApp. A name saved in your contacts still takes precedence.
 
 V2.0.0.0
