@@ -140,6 +140,8 @@ CORREÇÕES
 
 - Diálogo de encaminhar: a seta para baixo no campo de pesquisa agora vai para o primeiro resultado e foca a lista, como na pesquisa de conversas.
 
+- Na seleção de país do pareamento por número de telefone, a lista agora contém todos os países e territórios que o WhatsApp aceita (faltavam, por exemplo, Países Baixos, Quênia, Belarus e Macedônia do Norte), e os nomes dos países aparecem no idioma escolhido também em polonês, turco e romeno.
+
 V2.0.0.0
 
 A grande novidade desta versão são as ligações: agora dá para ligar, atender e recusar ligações de voz e de vídeo pelo próprio WinZapp, sem pegar o celular, com uma janela de ligação acessível, atalhos de teclado, configurações de áudio próprias e o histórico na nova aba Ligações. Também chegaram as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de uso, além de correções em situações em que o WinZapp pedia para parear de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: ela não muda nada no uso, mas deixa o WinZapp mais fácil de manter e de corrigir daqui para a frente.
