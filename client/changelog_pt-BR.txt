@@ -84,6 +84,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- Sincronização: mensagens antigas recebidas novamente mantêm a ordem cronológica, em vez de aparecerem como novas. Falhas temporárias ao consultar um endereço alternativo da conversa continuam na fila para nova tentativa.
+
 - Encaminhar não abre mais uma caixa quando dá certo. "Mensagem encaminhada." (ou quantas mensagens foram encaminhadas) agora é falado pelo leitor de tela, sem janela para fechar e sem interromper o que está sendo lido; funciona também com o WinZapp na bandeja.
 
 - A sincronização e o preenchimento do histórico das conversas agora pedem ao WhatsApp Web as mensagens de no máximo duas conversas por vez, em vez de até seis, o que mantém baixo o uso de processador e de memória em computadores pequenos e servidores durante a primeira sincronização, sem deixá-la visivelmente mais lenta. Abrir uma conversa, rolar para cima e ressincronizar uma conversa não ficam mais lentos.
