@@ -116,7 +116,7 @@ WHAT'S NEW
 
 - Communities is now a row of the navigation list, after Calls, with its Alt+8 shortcut in the row's name, so it can be reached by arrowing through the list as well as with Alt+8.
 
-- Help > "Usage guide" opens, in a WinZapp window, the complete guide to using the program, in the chosen language: where each feature is, the shortcuts and what the screen reader says. It has search and a section menu, and the shortcut tables come straight from the program.
+- Help > "Usage guide" opens, in the default browser, the complete guide to using the program, in the chosen language: where each feature is, the shortcuts and what the screen reader says. It has search and a section menu, and the shortcut tables come straight from the program.
 
 FIXES
 

@@ -116,7 +116,7 @@ NOVIDADES
 
 - As comunidades passam a ser um item da lista de navegação, depois de Chamadas, com o atalho Alt+8 no nome do item; pode chegar-se lá descendo pela lista e não só com Alt+8.
 
-- Ajuda > "Guia de utilização" abre, numa janela do próprio WinZapp, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de ecrã diz. Tem pesquisa e menu de secções, e as tabelas de atalhos vêm diretamente do programa.
+- Ajuda > "Guia de utilização" abre, no navegador padrão, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de ecrã diz. Tem pesquisa e menu de secções, e as tabelas de atalhos vêm diretamente do programa.
 
 CORREÇÕES
 

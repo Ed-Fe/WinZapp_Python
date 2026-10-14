@@ -1,14 +1,7 @@
-"""The in-app usage guide: which file it opens, and which links stay inside it.
+"""Help > Usage guide: which file opens, and that it opens in the browser."""
 
-Only the pure decisions are tested here. Building `HelpGuideDialog` opens a real
-window (and WebView2), which a plain `pytest` must never do on somebody's
-desktop - see tests/test_no_desktop_visible_windows.py.
-"""
-
-import pytest
-
+from core.help_guide import find_help_guide_path, open_help_guide
 from tests.locales import registered_locale_codes
-from ui.dialogs.help_guide_dialog import find_help_guide_path, is_external_url
 
 
 def _fake_path_for(*parts):
@@ -40,24 +33,13 @@ class TestFindHelpGuidePath:
             assert path is not None and path.endswith(f"{code}.html"), code
 
 
-class TestIsExternalUrl:
-    @pytest.mark.parametrize("url", [
-        "https://github.com/x/y",
-        "http://example.com",
-        "HTTPS://EXAMPLE.COM",
-        "  https://example.com",
-        "mailto:someone@example.com",
-    ])
-    def test_web_links_leave_the_guide(self, url):
-        assert is_external_url(url) is True
+class TestOpenHelpGuide:
+    def test_opens_the_guide_of_the_language_with_the_given_opener(self):
+        opened = []
+        assert open_help_guide("es-ES", open_file=opened.append) is True
+        assert len(opened) == 1 and opened[0].endswith("es-ES.html")
 
-    @pytest.mark.parametrize("url", [
-        "file:///C:/WinZapp/data/help_guide/pt-BR.html#envio",
-        "file:///C:/WinZapp/data/help_guide/pt-BR.html",
-        "about:blank",
-        "#envio",
-        "",
-        None,
-    ])
-    def test_the_guides_own_navigation_stays_inside(self, url):
-        assert is_external_url(url) is False
+    def test_an_unknown_language_opens_the_pt_br_guide(self):
+        opened = []
+        assert open_help_guide("xx", open_file=opened.append) is True
+        assert opened[0].endswith("pt-BR.html")

@@ -998,9 +998,9 @@ class WindowChromeMixin:
             )
 
     def _on_open_help_guide(self, event=None):
-        """Help > Usage guide (see ui/dialogs/help_guide_dialog.py)."""
-        from ui.dialogs.help_guide_dialog import open_help_guide
-        open_help_guide(self, self.i18n)
+        """Help > Usage guide: opens it in the default browser."""
+        from core.help_guide import open_help_guide
+        open_help_guide(self.i18n.language)
 
     def _on_about(self, event=None):
         """Show application authorship, version and license information."""
