@@ -14,7 +14,7 @@ from pathlib import Path
 AQUI = Path(__file__).parent
 IDIOMAS = ['pt-BR', 'pt-PT', 'en-US', 'es-ES', 'pl', 'tr-TR', 'ro']
 
-def gerar(repo, loc):
+def gerar(repo, loc, pasta_saida=None):
     t = json.loads((AQUI / 'i18n' / f'{loc}.json').read_text(encoding='utf-8'))
     cob = json.loads((AQUI / 'cobertura.json').read_text(encoding='utf-8'))
     pasta = AQUI / 'secoes' / loc
@@ -47,7 +47,7 @@ def gerar(repo, loc):
     sobra = re.findall(r'\{\{\w+\}\}', html)
     if sobra:
         sys.exit(f'{loc}: marcadores sem valor: {sobra}')
-    pasta_saida = Path(repo) / 'client' / 'data' / 'help_guide'
+    pasta_saida = Path(pasta_saida) if pasta_saida else Path(repo) / 'client' / 'data' / 'help_guide'
     pasta_saida.mkdir(parents=True, exist_ok=True)
     saida = pasta_saida / f'{loc}.html'
     saida.write_text(html, encoding='utf-8')

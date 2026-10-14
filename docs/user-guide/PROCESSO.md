@@ -2,6 +2,16 @@
 
 Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no guia.**
 
+## Como a regra é cobrada (automático)
+
+Toda alteração na `main` vira uma alpha, e o pytest roda antes de cada alpha e em cada PR. O teste `tests/test_user_guide_coverage.py` falha quando:
+
+1. a versão em andamento de `client/changelog_pt-BR.txt` tem um item que não está em `cobertura.json` (`itens`). Isso significa: o guia ainda não explica essa função;
+2. os guias de `client/data/help_guide/` não são exatamente o que o `gerar_guia.py` produz agora;
+3. algum idioma tem seções, selos `desde` ou subtítulos diferentes do pt-BR.
+
+Para destravar: escreva a função nos 7 idiomas (roteiro abaixo), rode `python gerar_guia.py <clone>` e depois `python verificar_guia.py <clone> --registrar`. Registrar é a declaração de que o guia cobre os itens atuais; só faça depois de atualizar o texto. Um PR sem item novo no changelog (só documentação, refatoração) não precisa de nada.
+
 ## O que é cada arquivo
 
 | Arquivo | Função |
@@ -14,6 +24,7 @@ Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no gu
 | `cobertura.json` | Até que alpha o guia está completo (`alpha`, `tag`, `commit`, `data`). |
 | `gerar_guia.py` | Junta tudo e escreve `client/data/help_guide/<idioma>.html` (`python gerar_guia.py <clone> [idioma ...]`). |
 | `gerar_atalhos.py` | Gera as tabelas de atalhos direto do catálogo do WinZapp (`client/core/shortcut_catalog.py` + PO do idioma). Chamado pelo `gerar_guia.py`. |
+| `verificar_guia.py` | Confere guia x changelog x idiomas. É chamado pelo teste `tests/test_user_guide_coverage.py`; `--registrar` registra os itens atuais. |
 | `novidades_desde_a_ultima.py` | Mostra o que mudou desde a alpha coberta: commits/PRs, diff do changelog e atalhos novos/removidos/alterados. |
 
 ## Roteiro a cada alpha (ou a cada lote de alphas)
@@ -30,7 +41,7 @@ Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no gu
 4. Atalhos: **nada a fazer à mão**; o `gerar_guia.py` regenera as tabelas. Só atualize as tabelas escritas à mão nas seções (conversas, mensagens, voz, ligações) se um atalho citado nelas mudou.
 5. Mudou ou foi removida uma funcionalidade? Ajuste o texto da seção para descrever **só como é agora** (sem "antes era assim").
 6. **Traduza o mesmo trecho para os outros 6 idiomas** (pt-PT, en-US, es-ES, pl, tr-TR, ro), nos mesmos arquivos `secoes/<idioma>/` e na mesma ordem, com o mesmo selo `desde`. Escreva os rótulos da interface entre aspas retas, em inglês (ou como `⟦rótulo⟧`), e rode `python ferramentas/swap.py <idioma> apply`: ele troca cada rótulo pelo texto real do PO daquele idioma. Depois `python ferramentas/examples.py <idioma>` e `python ferramentas/verify.py <idioma>`; o que ficar "sem correspondência" deve ser só exemplo de fala do leitor de tela, não rótulo.
-7. Registro: acrescente uma linha em `secoes/<idioma>/99-registro.html` **em cada idioma** (alpha + o que entrou) e atualize `cobertura.json`.
+7. Registro: rode `python verificar_guia.py <clone> --registrar` e acrescente uma linha em `secoes/<idioma>/99-registro.html` **em cada idioma** (alpha + o que entrou) e atualize `cobertura.json`.
 8. Rode `python gerar_guia.py <clone>` (todos os idiomas) e abra os HTML: confira a busca, o menu lateral e, com leitor de tela, as seções alteradas.
 
 ## Regras de conteúdo
