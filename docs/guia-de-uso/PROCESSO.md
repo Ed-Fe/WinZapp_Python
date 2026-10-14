@@ -6,12 +6,14 @@ Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no gu
 
 | Arquivo | Função |
 |---|---|
-| `guia-de-uso.html` | O guia pronto (um arquivo só, acessível, com busca e modo escuro). É gerado; não edite à mão. |
-| `secoes/NN-nome.html` | O conteúdo, uma seção por arquivo (a ordem dos números define a ordem no guia). **É aqui que se edita.** |
+| `guia-de-uso.<idioma>.html` | O guia pronto de cada idioma (um arquivo só, acessível, com busca e modo escuro). É gerado; não edite à mão. |
+| `secoes/<idioma>/NN-nome.html` | O conteúdo, uma seção por arquivo (a ordem dos números define a ordem no guia). **É aqui que se edita.** Idiomas: pt-BR (fonte), pt-PT, en-US, es-ES, pl, tr-TR, ro. |
+| `i18n/<idioma>.json` | Textos da página (título, busca, menu, títulos dos grupos de atalhos) e nomes das teclas. |
+| `ferramentas/` | `swap.py` troca rótulos entre aspas pelos do PO do idioma; `examples.py` e `verify.py` conferem os exemplos entre aspas contra o PO; `gloss.json`/`prefix.json` são glossários. |
 | `template.html` | Visual e script do guia (CSS, busca, menu). Raramente muda. |
 | `cobertura.json` | Até que alpha o guia está completo (`alpha`, `tag`, `commit`, `data`). |
-| `gerar_guia.py` | Junta tudo e escreve `guia-de-uso.html`. |
-| `gerar_atalhos.py` | Gera as tabelas de atalhos direto do catálogo do WinZapp (`client/core/shortcut_catalog.py` + PO pt-BR). Chamado pelo `gerar_guia.py`. |
+| `gerar_guia.py` | Junta tudo e escreve `guia-de-uso.<idioma>.html` (`python gerar_guia.py <clone> [idioma ...]`). |
+| `gerar_atalhos.py` | Gera as tabelas de atalhos direto do catálogo do WinZapp (`client/core/shortcut_catalog.py` + PO do idioma). Chamado pelo `gerar_guia.py`. |
 | `novidades_desde_a_ultima.py` | Mostra o que mudou desde a alpha coberta: commits/PRs, diff do changelog e atalhos novos/removidos/alterados. |
 
 ## Roteiro a cada alpha (ou a cada lote de alphas)
@@ -22,24 +24,26 @@ Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no gu
    - o diff de `client/changelog_pt-BR.txt` (a melhor lista de funcionalidades novas, porque o projeto exige uma entrada por PR em todos os idiomas);
    - atalhos novos, removidos ou alterados.
 3. Para cada funcionalidade nova do changelog:
-   - ache a seção certa em `secoes/` e escreva como se usa (onde fica, qual atalho, o que o leitor de tela diz);
+   - em `secoes/pt-BR/`, ache a seção certa e escreva como se usa (onde fica, qual atalho, o que o leitor de tela diz);
    - acrescente `<span class="desde">alpha 4412</span>` no título ou no começo do item, com o número da alpha em que ela chegou;
    - se não houver seção que sirva, crie `secoes/NN-nome.html` (começa com `<!--nav: 🔔 Título-->`).
 4. Atalhos: **nada a fazer à mão**; o `gerar_guia.py` regenera as tabelas. Só atualize as tabelas escritas à mão nas seções (conversas, mensagens, voz, ligações) se um atalho citado nelas mudou.
 5. Mudou ou foi removida uma funcionalidade? Ajuste o texto da seção para descrever **só como é agora** (sem "antes era assim").
-6. Registro: acrescente uma linha em `secoes/99-registro.html` (alpha + o que entrou) e atualize `cobertura.json`.
-7. Rode `python gerar_guia.py <clone>` e abra o HTML: confira a busca, o menu lateral e, com leitor de tela, as seções alteradas.
+6. **Traduza o mesmo trecho para os outros 6 idiomas** (pt-PT, en-US, es-ES, pl, tr-TR, ro), nos mesmos arquivos `secoes/<idioma>/` e na mesma ordem, com o mesmo selo `desde`. Escreva os rótulos da interface entre aspas retas, em inglês (ou como `⟦rótulo⟧`), e rode `python ferramentas/swap.py <idioma> apply`: ele troca cada rótulo pelo texto real do PO daquele idioma. Depois `python ferramentas/examples.py <idioma>` e `python ferramentas/verify.py <idioma>`; o que ficar "sem correspondência" deve ser só exemplo de fala do leitor de tela, não rótulo.
+7. Registro: acrescente uma linha em `secoes/<idioma>/99-registro.html` **em cada idioma** (alpha + o que entrou) e atualize `cobertura.json`.
+8. Rode `python gerar_guia.py <clone>` (todos os idiomas) e abra os HTML: confira a busca, o menu lateral e, com leitor de tela, as seções alteradas.
 
 ## Regras de conteúdo
 
 - Só funcionalidades que funcionam. Nada de "não funciona ainda" nem de bug conhecido.
 - Nunca descreva como era antes de uma mudança.
-- Nomes de botões, menus e opções exatamente como aparecem no programa em português (conferir no PO: `translations/pt-BR/LC_MESSAGES/winzapp.po`).
+- Nomes de botões, menus e opções exatamente como aparecem no programa, no idioma do guia (conferir no PO: `translations/<idioma>/LC_MESSAGES/winzapp.po`; o `swap.py` faz isso). Termos que o PO de cada idioma já usa têm prioridade sobre tradução própria (`docs/reference/i18n-terminology.md`).
 - Atalhos sempre os de fábrica; o texto lembra que dá para trocar nas Configurações.
 - O changelog entra só com mudanças estável-para-estável; para o guia vale o contrário: tudo o que existe na alpha entra, inclusive o que só existe em alpha.
 
 ## Verificação antes de publicar
 
-- `python gerar_guia.py <clone>` roda sem erro e informa a alpha coberta.
+- `python gerar_guia.py <clone>` roda sem erro e informa a alpha coberta nos 7 idiomas.
+- Todos os idiomas têm as mesmas seções e o mesmo número de selos `desde`.
 - Nenhum `{{...}}` sobrou no HTML; todos os links `#...` do menu levam a uma seção.
 - Os atalhos citados no texto conferem com a tabela gerada.

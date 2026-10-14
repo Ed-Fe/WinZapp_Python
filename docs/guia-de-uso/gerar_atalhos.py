@@ -1,49 +1,28 @@
 #!/usr/bin/env python3
 """Gera as tabelas de atalhos do guia a partir do catálogo do WinZapp.
 
-Uso: python gerar_atalhos.py <pasta-do-repositorio-winzapp> [saida.html]
+Uso: python gerar_atalhos.py <pasta-do-repositorio-winzapp> <idioma> [saida.html]
+  idioma: pt-BR, pt-PT, en-US, es-ES, pl, tr-TR ou ro
 
 Lê client/core/shortcut_catalog.py e o PO pt-BR do próprio repositório, então
 as tabelas nunca ficam desatualizadas em relação ao código.
 """
-import ast, collections, html, re, sys
+import ast, collections, html, json, re, sys
 from pathlib import Path
 
 ALT, CTRL, SHIFT = 1, 2, 4
-TECLAS = {32: 'Espaço', 13: 'Enter', 27: 'Esc', 127: 'Delete', 9: 'Tab', 44: ',', 46: '.',
-          312: 'End', 313: 'Home', 314: 'Seta para a esquerda', 315: 'Seta para cima',
-          316: 'Seta para a direita', 317: 'Seta para baixo', 366: 'Page Up', 367: 'Page Down'}
+TECLAS = {32: 'Space', 13: 'Enter', 27: 'Esc', 127: 'Delete', 9: 'Tab', 44: ',', 46: '.',
+          312: 'End', 313: 'Home', 314: 'Left', 315: 'Up', 316: 'Right', 317: 'Down',
+          366: 'PageUp', 367: 'PageDown'}
 TECLAS.update({340 + i: f'F{i + 1}' for i in range(12)})
 
-GRUPOS = [  # (escopo, título)
-    ('main', 'Janela principal e navegação'),
-    ('navigation', 'Listas (em geral)'),
-    ('device', 'Dispositivos de áudio'),
-    ('chats', 'Lista de conversas'),
-    ('chat_selection', 'Seleção de conversas'),
-    ('archived', 'Conversas arquivadas'),
-    ('locked', 'Conversas trancadas'),
-    ('search', 'Pesquisa'),
-    ('messages', 'Dentro de uma conversa'),
-    ('message_list', 'Lista de mensagens'),
-    ('composer', 'Campo de mensagem'),
-    ('links', 'Links numa mensagem'),
-    ('mention', 'Menções'),
-    ('autocomplete', 'Autocompletar'),
-    ('media', 'Visualizador de mídia e reprodução'),
-    ('emoji', 'Seletor de emojis'),
-    ('ai_result', 'Janela de resultado (IA e transcrição)'),
-    ('status', 'Status'),
-    ('status_list', 'Lista de status'),
-    ('status_reply', 'Resposta a status'),
-    ('calls', 'Aba Ligações'),
-    ('call', 'Durante uma ligação'),
-    ('incoming', 'Ligação recebida'),
-]
+GRUPOS = ['main', 'navigation', 'device', 'chats', 'chat_selection', 'archived', 'locked', 'search',
+          'messages', 'message_list', 'composer', 'links', 'mention', 'autocomplete', 'media', 'emoji',
+          'ai_result', 'status', 'status_list', 'status_reply', 'calls', 'call', 'incoming']
 
 # Textos do próprio programa que descrevem a ação errada; corrigidos aqui.
-CORRECOES = {
-    'chats.ID_ARCHIVE_LIST': 'Arquivar conversa',
+CORRECOES = {  # id do atalho -> chave do PO com o texto certo
+    'chats.ID_ARCHIVE_LIST': 'archive_chat',
 }
 
 def carregar_po(po_path):
@@ -64,7 +43,7 @@ def carregar_po(po_path):
         saida[ctx] = mstr
     return saida
 
-def nome_tecla(mod, key):
+def nome_tecla(mod, key, nomes):
     partes = []
     if mod & CTRL: partes.append('Ctrl')
     if mod & ALT: partes.append('Alt')
@@ -72,7 +51,7 @@ def nome_tecla(mod, key):
     if isinstance(key, int) and (65 <= key <= 90 or 48 <= key <= 57):
         partes.append(chr(key))
     else:
-        partes.append(TECLAS.get(key, f'#{key}'))
+        partes.append(nomes.get(TECLAS.get(key, ''), TECLAS.get(key, f'#{key}')))
     return '+'.join(partes)
 
 def juntar_numerados(linhas):
@@ -97,47 +76,50 @@ def juntar_numerados(linhas):
     return [(t, a) for _, t, a in sorted(resultado)]
 
 def main():
-    repo = Path(sys.argv[1])
-    destino = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('secoes/zz-atalhos-gerados.html')
+    repo, locale = Path(sys.argv[1]), sys.argv[2]
+    destino = Path(sys.argv[3]) if len(sys.argv) > 3 else Path('secoes/zz-atalhos-gerados.html')
+    t = json.loads((Path(__file__).parent / 'i18n' / f'{locale}.json').read_text(encoding='utf-8'))
     sys.path.insert(0, str(repo / 'client'))
     from core.shortcut_catalog import SHORTCUTS
     from core.keyboard_shortcuts import default_binding, action_text
-    po = carregar_po(repo / 'translations/pt-BR/LC_MESSAGES/winzapp.po')
+    po = carregar_po(repo / 'translations' / locale / 'LC_MESSAGES' / 'winzapp.po')
     tr = lambda k: po.get(k, k)
     por_escopo = collections.defaultdict(list)
     sem_tecla = []
     for s in SHORTCUTS:
         b = default_binding(s, tr)
-        acao = CORRECOES.get(s.id) or action_text(s, tr).rstrip(' :')
+        acao = (tr(CORRECOES[s.id]).replace('&', '') if s.id in CORRECOES
+                else action_text(s, tr)).rstrip(' :')
         if b is None:
             sem_tecla.append((s, acao)); continue
-        por_escopo[s.scope].append((nome_tecla(*b), acao))
+        por_escopo[s.scope].append((nome_tecla(*b, t['keys']), acao))
     for escopo, linhas in list(por_escopo.items()):
         por_escopo[escopo] = juntar_numerados(linhas)
+    up = lambda x: x[:1].upper() + x[1:]
     out = []
-    conhecidos = {g for g, _ in GRUPOS}
-    ordem = GRUPOS + [(e, e) for e in por_escopo if e not in conhecidos]
-    for escopo, titulo in ordem:
+    ordem = GRUPOS + [e for e in por_escopo if e not in GRUPOS]
+    for escopo in ordem:
         linhas = por_escopo.get(escopo)
         if not linhas:
             continue
-        out.append(f'<h3>{html.escape(titulo)}</h3>\n<table class="field-table">\n<tr><th>Atalho</th><th>Ação</th></tr>')
+        titulo = t['groups'].get(escopo, escopo)
+        out.append(f'<h3>{html.escape(titulo)}</h3>\n<table class="field-table">\n<tr><th>{html.escape(t["col_shortcut"])}</th><th>{html.escape(t["col_action"])}</th></tr>')
         vistos = set()
         for tecla, acao in linhas:
             if (tecla, acao) in vistos: continue
             vistos.add((tecla, acao))
-            out.append(f'<tr><td class="field-name">{html.escape(tecla)}</td><td>{html.escape(acao[:1].upper() + acao[1:])}</td></tr>')
+            out.append(f'<tr><td class="field-name">{html.escape(tecla)}</td><td>{html.escape(up(acao))}</td></tr>')
         out.append('</table>')
     if sem_tecla:
-        out.append('<h3>Comandos sem tecla definida</h3>\n<p>Estes comandos existem na aba Atalhos de teclado das Configurações, mas vêm sem tecla. Escolha uma lá se quiser usá-los.</p>\n<table class="field-table">\n<tr><th>Comando</th></tr>')
+        out.append(f'<h3>{html.escape(t["nokey_title"])}</h3>\n<p>{html.escape(t["nokey_intro"])}</p>\n<table class="field-table">\n<tr><th>{html.escape(t["col_command"])}</th></tr>')
         vistos = set()
         for s, acao in sem_tecla:
             if acao in vistos: continue
             vistos.add(acao)
-            out.append(f'<tr><td>{html.escape(acao[:1].upper() + acao[1:])}</td></tr>')
+            out.append(f'<tr><td>{html.escape(up(acao))}</td></tr>')
         out.append('</table>')
     destino.write_text('\n'.join(out), encoding='utf-8')
-    print(f'{len(SHORTCUTS)} atalhos no catálogo -> {destino}')
+    print(f'{locale}: {len(SHORTCUTS)} atalhos no catálogo -> {destino}')
 
 if __name__ == '__main__':
     main()

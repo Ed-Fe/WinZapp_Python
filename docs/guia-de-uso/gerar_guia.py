@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Monta guia-de-uso.html a partir de template.html + secoes/*.html.
+"""Monta guia-de-uso.<idioma>.html a partir de template.html, i18n/ e secoes/<idioma>/*.html.
 
-Uso: python gerar_guia.py <pasta-do-repositorio-winzapp> [saida.html]
+Uso: python gerar_guia.py <pasta-do-repositorio-winzapp> [idioma ...]
+Sem idiomas, gera todos. Idiomas: pt-BR, pt-PT, en-US, es-ES, pl, tr-TR, ro.
 
-1. Regenera as tabelas de atalhos do catálogo do repositório informado.
+1. Regenera as tabelas de atalhos do catálogo do repositório, com o PO do idioma.
 2. Numera e junta as seções (ordem dos nomes de arquivo).
 3. Escreve o HTML final com a alpha coberta (cobertura.json).
 """
@@ -11,34 +12,53 @@ import json, re, subprocess, sys
 from pathlib import Path
 
 AQUI = Path(__file__).parent
+IDIOMAS = ['pt-BR', 'pt-PT', 'en-US', 'es-ES', 'pl', 'tr-TR', 'ro']
 
-def main():
-    repo = sys.argv[1]
-    saida = Path(sys.argv[2]) if len(sys.argv) > 2 else AQUI / 'guia-de-uso.html'
-    gerado = AQUI / 'secoes' / '.atalhos-gerados.html'
-    subprocess.run([sys.executable, str(AQUI / 'gerar_atalhos.py'), repo, str(gerado)], check=True)
+def gerar(repo, loc):
+    t = json.loads((AQUI / 'i18n' / f'{loc}.json').read_text(encoding='utf-8'))
     cob = json.loads((AQUI / 'cobertura.json').read_text(encoding='utf-8'))
+    pasta = AQUI / 'secoes' / loc
+    gerado = pasta / '.atalhos-gerados.html'
+    subprocess.run([sys.executable, str(AQUI / 'gerar_atalhos.py'), repo, loc, str(gerado)], check=True)
     nav, toc, secoes = [], [], []
-    for n, arq in enumerate(sorted((AQUI / 'secoes').glob('[0-9]*.html')), 1):
+    for n, arq in enumerate(sorted(pasta.glob('[0-9]*.html')), 1):
         texto = arq.read_text(encoding='utf-8')
         m = re.match(r'<!--nav: (.+?)-->\n', texto)
         if not m:
-            sys.exit(f'{arq.name}: falta a linha <!--nav: ...-->')
+            sys.exit(f'{loc}/{arq.name}: falta a linha <!--nav: ...-->')
         titulo, corpo = m.group(1).strip(), texto[m.end():]
         corpo = corpo.replace('<!--ATALHOS_GERADOS-->', gerado.read_text(encoding='utf-8'))
         sid = re.sub(r'^\d+-', '', arq.stem)
-        sem_emoji = re.sub(r'^\S+\s', '', titulo)
+        emoji, sem_emoji = titulo.split(' ', 1)
         nav.append(f'    <a href="#{sid}" class="nav-link">{n}. {sem_emoji}</a>')
         toc.append(f'        <li><a href="#{sid}">{sem_emoji}</a></li>')
         secoes.append(f'  <section id="{sid}" class="wiki-section" aria-labelledby="h-{sid}">\n'
-                      f'    <h2 id="h-{sid}">{titulo.split(" ", 1)[0]} {n}. {sem_emoji}</h2>\n{corpo}\n  </section>\n')
-    html = (AQUI / 'template.html').read_text(encoding='utf-8')
-    for k, v in {'NAV': '\n'.join(nav), 'TOC': '\n'.join(toc), 'SECOES': '\n'.join(secoes),
-                 'ALPHA': cob['alpha'], 'DATA': cob['data']}.items():
-        html = html.replace('{{' + k + '}}', v)
-    saida.write_text(html, encoding='utf-8')
+                      f'    <h2 id="h-{sid}">{emoji} {n}. {sem_emoji}</h2>\n{corpo}\n  </section>\n')
     gerado.unlink()
-    print(f'{len(secoes)} seções, {len(html)//1024} KB -> {saida} (cobre até a alpha {cob["alpha"]})')
+    campos = {'LANG': t['lang'], 'SUBTITLE': t['subtitle'], 'SKIP': t['skip'], 'MENU': t['menu'],
+              'MENU_OPEN_LABEL': t['menu_open_label'], 'CLOSE': t['close'], 'NAV_LABEL': t['nav_label'],
+              'SEARCH': t['search'], 'SEARCH_LABEL': t['search_label'], 'INTRO': t['intro'],
+              'COVERAGE': t['coverage'].replace('{ALPHA}', cob['alpha']).replace('{DATA}', cob['data']),
+              'TOC_LABEL': t['toc_label'], 'TOC_TITLE': t['toc_title'],
+              'NAV': '\n'.join(nav), 'TOC': '\n'.join(toc), 'SECOES': '\n'.join(secoes)}
+    html = (AQUI / 'template.html').read_text(encoding='utf-8')
+    for k, v in campos.items():
+        html = html.replace('{{' + k + '}}', v)
+    sobra = re.findall(r'\{\{\w+\}\}', html)
+    if sobra:
+        sys.exit(f'{loc}: marcadores sem valor: {sobra}')
+    saida = AQUI / f'guia-de-uso.{loc}.html'
+    saida.write_text(html, encoding='utf-8')
+    print(f'{loc}: {len(secoes)} seções, {len(html)//1024} KB -> {saida.name} (cobre até a alpha {cob["alpha"]})')
+
+def main():
+    repo = sys.argv[1]
+    alvo = sys.argv[2:] or IDIOMAS
+    for loc in alvo:
+        if (AQUI / 'secoes' / loc).is_dir():
+            gerar(repo, loc)
+        else:
+            print(f'{loc}: sem pasta secoes/{loc}, ignorado')
 
 if __name__ == '__main__':
     main()

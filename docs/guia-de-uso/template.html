@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{LANG}}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WinZapp — Guia de Uso</title>
+<title>WinZapp — {{SUBTITLE}}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -184,16 +184,16 @@
 </head>
 <body>
 
-<a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
-<button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false" id="menuToggle">☰ Menu</button>
+<a class="skip-link" href="#conteudo">{{SKIP}}</a>
+<button class="menu-toggle" aria-label="{{MENU_OPEN_LABEL}}" aria-expanded="false" id="menuToggle">☰ {{MENU}}</button>
 
-<nav class="sidebar" id="sidebar" aria-label="Navegação do guia">
+<nav class="sidebar" id="sidebar" aria-label="{{NAV_LABEL}}">
   <div class="sidebar-header">
     <a href="#topo" class="sidebar-logo"><span>💬</span> WinZapp</a>
-    <div class="sidebar-subtitle">Guia de Uso</div>
+    <div class="sidebar-subtitle">{{SUBTITLE}}</div>
   </div>
   <div class="sidebar-search">
-    <input type="search" id="searchInput" placeholder="Buscar no guia…" aria-label="Buscar no guia" autocomplete="off">
+    <input type="search" id="searchInput" placeholder="{{SEARCH}}" aria-label="{{SEARCH_LABEL}}" autocomplete="off">
   </div>
   <div class="nav-section">
 {{NAV}}
@@ -204,10 +204,10 @@
 
   <div id="topo" class="wiki-section">
     <h1>WinZapp</h1>
-    <p class="lead">Guia de uso do WinZapp, o cliente de WhatsApp acessível para Windows. Navegue pelo índice à esquerda ou use a busca para localizar qualquer tópico.</p>
-    <p class="cobertura">Este guia cobre o WinZapp até a alpha {{ALPHA}} ({{DATA}}). Funcionalidades que chegaram depois ainda não estão aqui.</p>
-    <div class="hero-toc" role="navigation" aria-label="Índice do guia">
-      <div class="hero-toc-title">📋 Neste guia</div>
+    <p class="lead">{{INTRO}}</p>
+    <p class="cobertura">{{COVERAGE}}</p>
+    <div class="hero-toc" role="navigation" aria-label="{{TOC_LABEL}}">
+      <div class="hero-toc-title">📋 {{TOC_TITLE}}</div>
       <ol>
 {{TOC}}
       </ol>
@@ -239,14 +239,14 @@
     btn.addEventListener('click', function() {
         const open = sidebar.classList.toggle('open');
         btn.setAttribute('aria-expanded', open);
-        btn.textContent = open ? '✕ Fechar' : '☰ Menu';
+        btn.textContent = open ? '✕ {{CLOSE}}' : '☰ {{MENU}}';
     });
     sidebar.querySelectorAll('.nav-link').forEach(l => {
         l.addEventListener('click', function() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('open');
                 btn.setAttribute('aria-expanded', 'false');
-                btn.textContent = '☰ Menu';
+                btn.textContent = '☰ {{MENU}}';
             }
         });
     });
