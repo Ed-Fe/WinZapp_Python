@@ -49,7 +49,8 @@ def test_windows_bundles_compiled_resources_before_pyinstaller(tmp_path, monkeyp
         "run": lambda cmd, **kwargs: calls.append(("pyinstaller", cmd)),
         "NODE_DIR": str(tmp_path / "node"), "API_DIR": str(tmp_path / "api"),
         "SOUND_LIB_X64": str(tmp_path / "bass"), "AO2_LIB": str(tmp_path / "ao2"),
-        "SETTINGS_DEFAULT": str(tmp_path / "settings.json"), "OPUS_DLL": None, "FFMPEG_EXE": None,
+        "SETTINGS_DEFAULT": str(tmp_path / "settings.json"),
+        "HELP_GUIDE_DIR": str(tmp_path / "help_guide"), "OPUS_DLL": None, "FFMPEG_EXE": None,
     }
     load_build_function("build.py", "pyinstaller_compile", namespace)()
     assert calls[0] == ("gettext", tmp_path, build_dir / "languages")

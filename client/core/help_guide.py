@@ -23,7 +23,7 @@ def find_help_guide_path(language, path_for=resource_path, exists=os.path.isfile
 
 
 def open_help_guide(language, open_file=None):
-    """Open the guide in the default browser. False when no guide ships."""
+    """Open the guide in the default browser. False when it cannot be opened."""
     path = find_help_guide_path(language)
     if path is None:
         logging.warning(
@@ -31,5 +31,9 @@ def open_help_guide(language, open_file=None):
             language, _FALLBACK_LANGUAGE,
         )
         return False
-    (open_file or os.startfile)(path)
+    try:
+        (open_file or os.startfile)(path)
+    except OSError:
+        logging.warning("[help_guide] The guide could not be opened.", exc_info=True)
+        return False
     return True

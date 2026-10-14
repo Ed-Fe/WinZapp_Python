@@ -1257,7 +1257,8 @@
             if (node.nodeType === 3) {
                 if (rx.test(node.textContent)) {
                     const span = document.createElement('span');
-                    span.innerHTML = node.textContent.replace(rx, '<mark>$1</mark>');
+                    const safe = node.textContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    span.innerHTML = safe.replace(rx, '<mark>$1</mark>');
                     node.parentNode.replaceChild(span, node);
                 }
             } else if (node.nodeType === 1 && !['SCRIPT','STYLE','INPUT'].includes(node.tagName)) {

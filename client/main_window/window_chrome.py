@@ -1000,7 +1000,8 @@ class WindowChromeMixin:
     def _on_open_help_guide(self, event=None):
         """Help > Usage guide: opens it in the default browser."""
         from core.help_guide import open_help_guide
-        open_help_guide(self.i18n.language)
+        if not open_help_guide(self.i18n.language):
+            self.speak_output(self.i18n.t("help_guide_unavailable"))
 
     def _on_about(self, event=None):
         """Show application authorship, version and license information."""
