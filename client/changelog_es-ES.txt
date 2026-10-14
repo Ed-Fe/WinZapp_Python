@@ -116,6 +116,8 @@ NOVEDADES
 
 - Comunidades es ahora un elemento de la lista de navegación, después de Llamadas, con su atajo Alt+8 en el nombre del elemento; se puede llegar bajando por la lista y no solo con Alt+8.
 
+- Ayuda > "Guía de uso" abre, en una ventana del propio WinZapp, la guía completa de cómo usar el programa, en el idioma elegido: dónde está cada función, los atajos y lo que dice el lector de pantalla. Tiene búsqueda y menú de secciones, y las tablas de atajos vienen directamente del programa.
+
 CORRECCIONES
 
 - Los botones de grabar en el otro modo (estéreo o mono) y de grabar con el audio del ordenador indicaban al lector de pantalla el atajo Ctrl+R. Ahora cada uno indica el suyo, Ctrl+Shift+G y Ctrl+Shift+H, o las teclas que les hayas asignado.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monta guia-de-uso.<idioma>.html a partir de template.html, i18n/ e secoes/<idioma>/*.html.
+"""Monta client/data/help_guide/<idioma>.html a partir de template.html, i18n/ e secoes/<idioma>/*.html.
 
 Uso: python gerar_guia.py <pasta-do-repositorio-winzapp> [idioma ...]
 Sem idiomas, gera todos. Idiomas: pt-BR, pt-PT, en-US, es-ES, pl, tr-TR, ro.
@@ -47,7 +47,9 @@ def gerar(repo, loc):
     sobra = re.findall(r'\{\{\w+\}\}', html)
     if sobra:
         sys.exit(f'{loc}: marcadores sem valor: {sobra}')
-    saida = AQUI / f'guia-de-uso.{loc}.html'
+    pasta_saida = Path(repo) / 'client' / 'data' / 'help_guide'
+    pasta_saida.mkdir(parents=True, exist_ok=True)
+    saida = pasta_saida / f'{loc}.html'
     saida.write_text(html, encoding='utf-8')
     print(f'{loc}: {len(secoes)} seções, {len(html)//1024} KB -> {saida.name} (cobre até a alpha {cob["alpha"]})')
 

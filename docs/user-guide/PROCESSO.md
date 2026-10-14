@@ -6,13 +6,13 @@ Regra do projeto: **a cada alpha lançada, as funcionalidades novas entram no gu
 
 | Arquivo | Função |
 |---|---|
-| `guia-de-uso.<idioma>.html` | O guia pronto de cada idioma (um arquivo só, acessível, com busca e modo escuro). É gerado; não edite à mão. |
+| `client/data/help_guide/<idioma>.html` | O guia pronto de cada idioma (um arquivo só, acessível, com busca e modo escuro). É o que o menu Ajuda > Guia de uso abre. É gerado; não edite à mão. O `.gitignore` do projeto ignora `data/`: um idioma novo precisa de `git add -f`. |
 | `secoes/<idioma>/NN-nome.html` | O conteúdo, uma seção por arquivo (a ordem dos números define a ordem no guia). **É aqui que se edita.** Idiomas: pt-BR (fonte), pt-PT, en-US, es-ES, pl, tr-TR, ro. |
 | `i18n/<idioma>.json` | Textos da página (título, busca, menu, títulos dos grupos de atalhos) e nomes das teclas. |
 | `ferramentas/` | `swap.py` troca rótulos entre aspas pelos do PO do idioma; `examples.py` e `verify.py` conferem os exemplos entre aspas contra o PO; `gloss.json`/`prefix.json` são glossários. |
 | `template.html` | Visual e script do guia (CSS, busca, menu). Raramente muda. |
 | `cobertura.json` | Até que alpha o guia está completo (`alpha`, `tag`, `commit`, `data`). |
-| `gerar_guia.py` | Junta tudo e escreve `guia-de-uso.<idioma>.html` (`python gerar_guia.py <clone> [idioma ...]`). |
+| `gerar_guia.py` | Junta tudo e escreve `client/data/help_guide/<idioma>.html` (`python gerar_guia.py <clone> [idioma ...]`). |
 | `gerar_atalhos.py` | Gera as tabelas de atalhos direto do catálogo do WinZapp (`client/core/shortcut_catalog.py` + PO do idioma). Chamado pelo `gerar_guia.py`. |
 | `novidades_desde_a_ultima.py` | Mostra o que mudou desde a alpha coberta: commits/PRs, diff do changelog e atalhos novos/removidos/alterados. |
 

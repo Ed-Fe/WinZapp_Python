@@ -2878,6 +2878,7 @@ msgstr "Limpar conversas selecionadas"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
+#: client/ui/dialogs/help_guide_dialog.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
@@ -6451,6 +6452,12 @@ msgstr "&Verificar atualizações"
 msgctxt "menu_help"
 msgid "&Help"
 msgstr "A&juda"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/window_chrome.py client/ui/dialogs/help_guide_dialog.py
+msgctxt "menu_help_guide"
+msgid "Usage guide"
+msgstr "Guia de uso"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py

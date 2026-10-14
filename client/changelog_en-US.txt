@@ -116,6 +116,8 @@ WHAT'S NEW
 
 - Communities is now a row of the navigation list, after Calls, with its Alt+8 shortcut in the row's name, so it can be reached by arrowing through the list as well as with Alt+8.
 
+- Help > "Usage guide" opens, in a WinZapp window, the complete guide to using the program, in the chosen language: where each feature is, the shortcuts and what the screen reader says. It has search and a section menu, and the shortcut tables come straight from the program.
+
 FIXES
 
 - The buttons for recording in the other mode (stereo or mono) and for recording with the computer's audio told the screen reader their shortcut was Ctrl+R. They now announce their own, Ctrl+Shift+G and Ctrl+Shift+H, or the keys you assigned to them.

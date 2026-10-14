@@ -151,6 +151,7 @@ INSTALLER_OUT   = os.path.join(DIST_DIR,  "WinZappInstaller.exe")
 PORTABLE_ZIP    = os.path.join(DIST_DIR,  "WinZapp.zip")
 
 SETTINGS_DEFAULT = os.path.join(CLIENT_DIR, "data", "settings_default.json")
+HELP_GUIDE_DIR = os.path.join(CLIENT_DIR, "data", "help_guide")
 
 SITE_PACKAGES = sysconfig.get_paths()["purelib"]
 SOUND_LIB_X64 = os.path.join(SITE_PACKAGES, "sound_lib", "lib", "x64")
@@ -849,6 +850,7 @@ def pyinstaller_compile():
             (os.path.join(CLIENT_DIR, "sounds"), "sounds"),
             (os.path.join(BUILD_DIR, "languages"), "languages"),
             (SETTINGS_DEFAULT, os.path.join("data", "settings_default.json")),
+            (HELP_GUIDE_DIR, os.path.join("data", "help_guide")),
         ]
         wpp_min_version_file = os.path.join(CLIENT_DIR, "wpp_minimum_version.txt")
         if os.path.isfile(wpp_min_version_file):
@@ -978,6 +980,9 @@ def assemble_staging():
     os.makedirs(data_dir)
     shutil.copy2(SETTINGS_DEFAULT, os.path.join(data_dir, "settings_default.json"))
     print(f"  -> data/settings_default.json")
+    if os.path.isdir(HELP_GUIDE_DIR):
+        shutil.copytree(HELP_GUIDE_DIR, os.path.join(data_dir, "help_guide"))
+        print(f"  -> data/help_guide/  ({len(os.listdir(HELP_GUIDE_DIR))} files)")
 
     # wpp_minimum_version.txt (plain text, just the version string) feeds
     # MainWindow.ensure_wpp_version() — see its own docstring for why this
