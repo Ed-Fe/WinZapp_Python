@@ -86,6 +86,8 @@ NOWOŚCI
 
 - Nowe okno Plik > Ustawienia WhatsApp z kartą Prywatność, w której ustawiasz prywatność swojego konta WhatsApp bezpośrednio w WhatsApp: ostatnio widziano, kto widzi, że jesteś online, informacje, zdjęcie profilowe, potwierdzenia odczytu, kto może dodawać Cię do grup oraz kto widzi Twój status (moje kontakty, moje kontakty oprócz... lub udostępniaj tylko...). Osoby dla statusu wybierasz spośród zsynchronizowanych kontaktów na liście z wyszukiwaniem, zaznaczając każdą Spacją. Okno wczytuje bieżące wartości z WhatsApp, wysyła tylko to, co zmieniono, a potem sprawdza wynik i informuje, których ustawień WhatsApp nie potwierdził.
 
+- Informacje o czacie prywatnym pokazują, czy jego powiadomienia są wyciszone (i do kiedy) oraz, gdy WhatsApp to podaje, czas znikających wiadomości.
+
 POPRAWKI
 
 - Aktualizacje: „Sprawdź aktualizacje” w menu Pomoc informuje teraz, gdy WinZapp nie może połączyć się z serwerem aktualizacji, zamiast nic nie mówić.

@@ -86,6 +86,8 @@ NOVEDADES
 
 - Nueva ventana Archivo > Configuración de WhatsApp, con la pestaña Privacidad para la privacidad de tu cuenta de WhatsApp, aplicada directamente en WhatsApp: última vez, quién puede ver cuándo estás en línea, info, foto de perfil, confirmaciones de lectura, quién puede añadirte a grupos y quién puede ver tu estado (mis contactos, mis contactos excepto... o compartir solo con...). Las personas del estado se eligen entre tus contactos sincronizados, en una lista con búsqueda en la que cada una se marca con Espacio. La ventana carga los valores actuales de WhatsApp, envía solo lo que cambiaste y después lo comprueba, indicando qué ajustes no confirmó WhatsApp.
 
+- La información del chat personal muestra si sus notificaciones están silenciadas (y hasta cuándo) y, cuando WhatsApp lo indica, el tiempo de los mensajes temporales.
+
 CORRECCIONES
 
 - Actualizaciones: "Comprobar actualizaciones", en el menú Ayuda, ahora avisa cuando WinZapp no puede conectar con el servidor de actualizaciones, en lugar de no decir nada.

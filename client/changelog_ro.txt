@@ -86,6 +86,8 @@ NOUTĂȚI
 
 - Fereastră nouă Fișier > Setări WhatsApp, cu fila Confidențialitate pentru confidențialitatea contului dvs. WhatsApp, aplicată direct în WhatsApp: văzut ultima dată, cine poate vedea când sunteți online, despre, fotografia de profil, confirmările de citire, cine vă poate adăuga în grupuri și cine vă poate vedea starea (contactele mele, contactele mele cu excepția... sau partajați doar cu...). Persoanele pentru stare se aleg dintre contactele sincronizate, într-o listă cu căutare în care fiecare se bifează cu Spațiu. Fereastra încarcă valorile actuale din WhatsApp, trimite doar ce ați modificat și apoi verifică, spunând ce setări nu a confirmat WhatsApp.
 
+- Informațiile despre conversația personală arată acum dacă notificările sunt dezactivate (și până când) și, când WhatsApp le transmite, durata mesajelor care dispar.
+
 CORECTĂRI
 
 - Actualizări: „Verificați actualizările” din meniul Ajutor vă anunță acum când WinZapp nu poate contacta serverul de actualizări, în loc să nu spună nimic.
