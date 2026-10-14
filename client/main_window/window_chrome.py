@@ -81,6 +81,7 @@ class WindowChromeMixin:
         self._ID_RESYNC_CONVERSATION = wx.NewIdRef()
         self._ID_SYNC_MEDIA    = wx.NewIdRef()
         self._ID_OFFLINE_MENU  = wx.NewIdRef()
+        self._ID_HELP_GUIDE    = wx.NewIdRef()
         self._ID_SHORTCUTS     = wx.NewIdRef()
         self._ID_FORCE_UPDATE  = wx.NewIdRef()
         self._ID_FORCE_REINSTALL_ZIP = wx.NewIdRef()
@@ -224,6 +225,8 @@ class WindowChromeMixin:
 
         # ── Ajuda ─────────────────────────────────────────────────────────────
         help_menu = wx.Menu()
+        help_menu.Append(self._ID_HELP_GUIDE, self.i18n.t("menu_help_guide"))
+        help_menu.AppendSeparator()
         help_menu.Append(
             self._ID_SHORTCUTS,
             f"{self.i18n.t('menu_shortcuts')}\tF1",
@@ -260,6 +263,7 @@ class WindowChromeMixin:
         self.Bind(wx.EVT_MENU, self._on_whats_new,     id=self._ID_WHATS_NEW)
         self.Bind(wx.EVT_MENU, self._on_whats_new_since, id=self._ID_WHATS_NEW_SINCE)
         self.Bind(wx.EVT_MENU, self._on_about,         id=self._ID_ABOUT)
+        self.Bind(wx.EVT_MENU, self._on_open_help_guide, id=self._ID_HELP_GUIDE)
 
     def _on_account_hotkey_char(self, event):
         """Frame-level Ctrl+Alt+1..9 → switch to the n-th paired account.
@@ -946,6 +950,9 @@ class WindowChromeMixin:
             help_menu = mb.GetMenu(help_idx)
         if help_menu is not None:
             mb.SetMenuLabel(help_idx, self.i18n.t("menu_help"))
+            help_menu.FindItemById(self._ID_HELP_GUIDE).SetItemLabel(
+                self.i18n.t("menu_help_guide")
+            )
             help_menu.FindItemById(self._ID_SHORTCUTS).SetItemLabel(
                 f"{self.i18n.t('menu_shortcuts')}\tF1"
             )
@@ -989,6 +996,12 @@ class WindowChromeMixin:
                 i18n.t("whats_new_none_title"),
                 wx.OK | wx.ICON_INFORMATION,
             )
+
+    def _on_open_help_guide(self, event=None):
+        """Help > Usage guide: opens it in the default browser."""
+        from core.help_guide import open_help_guide
+        if not open_help_guide(self.i18n.language):
+            self.speak_output(self.i18n.t("help_guide_unavailable"))
 
     def _on_about(self, event=None):
         """Show application authorship, version and license information."""

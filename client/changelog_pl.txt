@@ -116,6 +116,8 @@ NOWOŚCI
 
 - Społeczności są teraz pozycją listy nawigacji, po Połączeniach, ze skrótem Alt+8 w nazwie pozycji; można do nich dojść strzałkami po liście, a nie tylko skrótem Alt+8.
 
+- Pomoc > "Przewodnik użytkownika" otwiera w domyślnej przeglądarce pełny przewodnik po programie w wybranym języku: gdzie jest każda funkcja, jakie są skróty i co mówi czytnik ekranu. Ma wyszukiwarkę i menu sekcji, a tabele skrótów pochodzą prosto z programu.
+
 POPRAWKI
 
 - Przyciski nagrywania w drugim trybie (stereo lub mono) i nagrywania z dźwiękiem komputera podawały czytnikowi ekranu skrót Ctrl+R. Teraz każdy podaje swój, Ctrl+Shift+G i Ctrl+Shift+H, albo klawisze, które im przypisano.

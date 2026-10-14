@@ -116,6 +116,8 @@ NOVIDADES
 
 - Comunidades agora é um item da lista de navegação, depois de Ligações, com o atalho Alt+8 no nome do item; dá para chegar nela descendo pela lista e não só com Alt+8.
 
+- Ajuda > "Guia de uso" abre, no navegador padrão, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de tela diz. Tem busca e menu de seções, e as tabelas de atalhos vêm direto do programa.
+
 CORREÇÕES
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.

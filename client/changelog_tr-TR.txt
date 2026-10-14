@@ -116,6 +116,8 @@ YENİLİKLER
 
 - Topluluklar artık gezinme listesinde Aramalar'dan sonra gelen bir öğedir ve öğenin adında Alt+8 kısayolu yer alır; yalnızca Alt+8 ile değil, listede ilerleyerek de ulaşılabilir.
 
+- Yardım > "Kullanım kılavuzu", programın nasıl kullanılacağını anlatan eksiksiz kılavuzu seçili dilde varsayılan tarayıcıda açar: her işlevin nerede olduğu, kısayollar ve ekran okuyucunun ne söylediği. Arama ve bölüm menüsü vardır; kısayol tabloları doğrudan programdan gelir.
+
 DÜZELTMELER
 
 - Diğer modda (stereo veya mono) kayıt ve bilgisayar sesiyle kayıt düğmeleri ekran okuyucuya kısayol olarak Ctrl+R bildiriyordu. Artık her biri kendi kısayolunu, Ctrl+Shift+G ve Ctrl+Shift+H'yi ya da onlara atadığınız tuşları bildiriyor.

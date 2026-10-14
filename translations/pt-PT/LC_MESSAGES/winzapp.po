@@ -5730,6 +5730,12 @@ msgctxt "group_size"
 msgid "{count} participant(s)"
 msgstr "{count} membro(s)"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/window_chrome.py
+msgctxt "help_guide_unavailable"
+msgid "The usage guide could not be opened."
+msgstr "Não foi possível abrir o guia de utilização."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "hotkey_first_run_message"
 msgid ""
@@ -6480,6 +6486,12 @@ msgstr "&Verificar atualizações"
 msgctxt "menu_help"
 msgid "&Help"
 msgstr "&Ajuda"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/window_chrome.py
+msgctxt "menu_help_guide"
+msgid "Usage guide"
+msgstr "Guia de utilização"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
