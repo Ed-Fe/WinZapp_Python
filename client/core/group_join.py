@@ -15,11 +15,8 @@ class GroupPreview:
     approval: bool | None
 
 
-def invitation_code(value):
-    if not isinstance(value, str):
-        return ""
-    match = re.fullmatch(r"https://chat\.whatsapp\.com/(?:invite/)?([A-Za-z0-9]{10,64})", value.strip())
-    return match[1] if match else ""
+# Re-exported: the callers of this module have always taken it from here.
+from core.group_invitation_link import invitation_code  # noqa: F401
 
 
 def _response(connection, endpoint, payload, accepted):

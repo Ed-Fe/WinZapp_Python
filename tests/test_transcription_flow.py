@@ -1017,7 +1017,7 @@ class TestTheWhisperCppProgramIsMissingOrDamaged:
     @pytest.mark.parametrize("code", [errors.WHISPER_CPP_NOT_INSTALLED,
                                       errors.WHISPER_CPP_CORRUPTED])
     def test_it_is_offered_with_the_tab_that_fixes_it(self, code):
-        assert code in transcription_flow._SETTINGS_OFFER_CODES
+        assert code in transcription_flow.SETTINGS_OFFER_CODES
         for settings in ({}, {"transcription": {"model": "ggml-small"}}):
             assert transcription_flow.model_problem_i18n_key(
                 code, None, settings
@@ -1030,7 +1030,7 @@ class TestAPrecisionTheDeviceRefused:
 
     def test_it_is_offered_with_the_tab_that_fixes_it(self):
         code = errors.PRECISION_UNSUPPORTED
-        assert code in transcription_flow._SETTINGS_OFFER_CODES
+        assert code in transcription_flow.SETTINGS_OFFER_CODES
         resolution = preferences.Resolution(
             "faster_whisper", "small", device.PREFERENCE_AUTO, None)
         for settings in ({}, {"transcription": {"model": "small"}}):
@@ -1051,7 +1051,7 @@ class TestAModelInAnotherFolder:
     @pytest.mark.parametrize("code", [errors.EXTERNAL_MODEL_MISSING,
                                       errors.EXTERNAL_MODEL_CHANGED])
     def test_the_failures_are_offered_with_the_tab_that_fixes_them(self, code):
-        assert code in transcription_flow._SETTINGS_OFFER_CODES
+        assert code in transcription_flow.SETTINGS_OFFER_CODES
 
     @pytest.mark.parametrize("code", [errors.EXTERNAL_MODEL_MISSING,
                                       errors.EXTERNAL_MODEL_CHANGED])
@@ -1284,8 +1284,12 @@ def _accelerator_bindings(path):
 
 
 class TestAltShiftTIsOurs:
-    """Alt+Shift+T must mean one thing. Alt+T (presence) lives in MainWindow's
-    table, which is why a scan of the panel alone would not see a clash."""
+    """Alt+Shift+T must mean one thing: transcribe locally what the list is
+    on. Alt+T (presence) lives in MainWindow's table, which is why a scan of
+    the panel alone would not see a clash. The Status tab and its "my status"
+    window bind the same chord to the same action on an audio or video status
+    (each table is the one active while that window has the focus), and
+    nothing else may take it."""
 
     # Every file MainWindow, ConversationsPanel and StatusPanel are built from
     # (their accelerator tables now sit in main_window/shortcuts.py,
@@ -1305,7 +1309,11 @@ class TestAltShiftTIsOurs:
             for mods, key, target in _accelerator_bindings(_REPO / module):
                 if mods == alt_shift and key == 'ORD("T")':
                     owners.append((module, target))
-        assert owners == [("client/ui/conversation_panel/accelerators.py", "self.ID_ALT_SHIFT_T")]
+        assert sorted(owners) == [
+            ("client/status_panel.py", "self.ID_ALT_SHIFT_T"),
+            ("client/status_tab/my_status_transcription.py", "self.ID_ALT_SHIFT_T"),
+            ("client/ui/conversation_panel/accelerators.py", "self.ID_ALT_SHIFT_T"),
+        ]
 
     def test_the_scan_sees_the_bindings_it_is_guarding(self):
         """A scanner that found nothing would pass the test above forever."""

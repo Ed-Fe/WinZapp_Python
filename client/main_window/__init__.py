@@ -34,6 +34,7 @@ Where to look (and where new code goes):
     message_actions     edit, delete, forward, resend, mark played
     message_stars       verified WhatsApp star writes, remote star persistence
     message_pins        read the linked device pinned-message overview
+    commerce            business account and business chats, read in the background; cart setting
     media               media download, failed ids, base64 fetch, durations
     transcription_store saved voice-message transcriptions: store, delete
     transcription_background  model, CUDA and whisper.cpp downloads without a window
@@ -46,12 +47,15 @@ Where to look (and where new code goes):
     contacts            local/remote contacts, self reference
     identity            JID normalization, @lid <-> phone, name resolution
     groups              group metadata, permissions, group management
+    group_invitation_links  invitation links handed over by Windows, whatsapp: association
+    status_transcription    saved transcriptions of statuses, their media and automatic runs
     calls               voice/video calls, call bar, call-log watcher
     chat_lock           locked-chats vault
     phone_chat_lock     chats locked with WhatsApp Chat Lock on the phone
     quick_audio_devices Ctrl+Alt+Shift+H/G quick output/recording device switch
     message_ack         live delivered/read/played times of our own sent messages
     whatsapp_privacy    the paired account's privacy and Status audience (File > WhatsApp settings)
+    whats_new_since     Help > "What's new since you last looked" (changelog compared, install-wide)
 
   Plain functions (import and test them directly — no wx, no stub)
     message_rules       unread/history-gap/countable-message rules

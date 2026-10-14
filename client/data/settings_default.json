@@ -86,11 +86,13 @@
         "escape_clears_selection": true,
         "keep_search_after_open": false,
         "enter_transcribes_voice_messages": false,
+        "enter_transcribes_statuses": false,
         "auto_focus_next_audio": true,
         "selected_announcement_position": "end",
         "show_yesterday_label": true,
         "show_link_previews": true,
         "forwarded_prefix_enabled": false,
+        "delete_media_from_phone": true,
         "forward_voice_as_voice": false,
         "conversation_video_media_viewer_dialog": true,
         "status_media_viewer_dialog": true,
@@ -129,9 +131,12 @@
         "language": "interface",
         "auto_detect_language": true,
         "keep_model_loaded": false,
+        "run_without_dialog": false,
         "auto_transcribe_received": false,
         "cache_enabled": true,
-        "cache_by_model": {}
+        "cache_by_model": {},
+        "auto_transcribe_statuses": false,
+        "status_cache_enabled": true
     },
     "files": {
         "save_dialog_folder_mode": "last",

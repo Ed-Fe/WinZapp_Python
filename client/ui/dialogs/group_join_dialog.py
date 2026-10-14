@@ -4,28 +4,61 @@ import threading
 import wx
 from core.group_invitation import connection_identity
 from core.group_join import invitation_code, preview_group, join_group
+from ui.accessible import split_mnemonic
 
 
-def open_join_dialog(owner, event=None):
-    dialog = GroupJoinDialog(owner, owner._mw)
+def join_group_by_link(mw, parent, link=""):
+    """Show the join dialog and open the group once membership is confirmed.
+
+    *link* fills the field and starts the preview, for a link the user
+    activated in a message or that Windows handed over. Nothing is joined
+    until the user presses the join button. True when the group was joined.
+    """
+    dialog = GroupJoinDialog(parent, mw, link)
     try:
         if dialog.ShowModal() != wx.ID_OK:
-            return
+            return False
         preview = dialog.result
     finally:
         dialog.Destroy()
-    mw = owner._mw
-    owner.EndModal(wx.ID_OK)
-    chat = mw.chats.get(preview.jid)
-    if chat is None:
-        chat = {"remoteJid": preview.jid, "name": preview.name or mw.i18n.t("unknown_group")}
-        mw.chats[preview.jid] = chat
+    open_group_chat(mw, preview.jid, preview.name)
+    return True
+
+
+def open_group_chat(mw, jid, name):
+    """Go to a group the account is in, creating its chat when it has none
+    yet (a group just joined, or one with no message so far)."""
+    if mw.chats.get(jid) is None:
+        mw.chats[jid] = {"remoteJid": jid, "name": name or mw.i18n.t("unknown_group")}
         mw._schedule_set_chats()
-    wx.CallAfter(mw.conversations_panel.navigate_to_conversation, chat)
+    wx.CallAfter(_go_to_group, mw, jid, name)
+
+
+def _go_to_group(mw, jid, name):
+    """Through MainWindow.navigate_to_conversation_jid(), as a toast or a
+    participant list opens a chat: it asks the PIN of a locked chat, opens an
+    archived one from its own list, and shows the main panel before any focus
+    moves (Communities opens with Alt+8 from Status or Calls too). Only a
+    group whose row is not in the list yet (just joined or created) is opened
+    here, and never a locked one."""
+    mw.navigate_to_conversation_jid(jid, name)
+    panel = mw.conversations_panel
+    if (panel.conversation or {}).get("remoteJid") == jid or mw.is_chat_locked(jid):
+        return
+    chat = mw.chats.get(jid)
+    if chat is not None and panel.IsShown():
+        panel.navigate_to_conversation(chat)
+
+
+def open_join_dialog(owner, event=None):
+    """New conversation's "Join group by link": that dialog closes once the
+    group is joined."""
+    if join_group_by_link(owner._mw, owner):
+        owner.EndModal(wx.ID_OK)
 
 
 class GroupJoinDialog(wx.Dialog):
-    def __init__(self, parent, main_window):
+    def __init__(self, parent, main_window, link=""):
         self._mw = main_window
         self._i18n = main_window.i18n
         self._connection = connection_identity(main_window)
@@ -40,14 +73,14 @@ class GroupJoinDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(wx.StaticText(self, label=self._i18n.t("group_invitation_link")), 0, wx.ALL, 8)
         self._input = wx.TextCtrl(self)
-        self._input.SetName(self._i18n.t("group_invitation_link"))
+        self._input.SetName(split_mnemonic(self._i18n.t("group_invitation_link"))[0])
         self._input.Bind(wx.EVT_TEXT, self._on_change)
         sizer.Add(self._input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
         self._read = wx.Button(self, label=self._i18n.t("group_join_preview"))
         self._read.Bind(wx.EVT_BUTTON, self._on_preview)
         sizer.Add(self._read, 0, wx.ALL, 8)
         self._details = wx.TextCtrl(self, style=wx.TE_READONLY | wx.TE_MULTILINE)
-        self._details.SetName(self._i18n.t("group_join_preview"))
+        self._details.SetName(split_mnemonic(self._i18n.t("group_join_preview"))[0])
         sizer.Add(self._details, 1, wx.EXPAND | wx.ALL, 8)
         buttons = wx.WrapSizer(wx.HORIZONTAL)
         self._join = wx.Button(self, label=self._i18n.t("group_join_action"))
@@ -63,6 +96,11 @@ class GroupJoinDialog(wx.Dialog):
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
         self._input.SetFocus()
         self.CentreOnParent()
+        if link:
+            # ChangeValue: the field is being filled for the user, not edited
+            # by them, so it must not clear the preview it is about to ask for.
+            self._input.ChangeValue(link)
+            wx.CallAfter(self._on_preview, None)
 
     def _on_close(self, event):
         self._closed.set()

@@ -1,5 +1,6 @@
 import ctypes
 import os
+import sys
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
@@ -388,6 +389,15 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         gen_sizer.Add(self._autostart_check, 0, wx.ALL, 8)
 
+        # Registers WinZapp for whatsapp: links (group invitations opened from
+        # a browser or another program). Windows only: the association is a
+        # registry entry, see core/whatsapp_link_association.py.
+        self._whatsapp_links_check = wx.CheckBox(
+            self._general_page, label=i18n.t("whatsapp_links_label")
+        )
+        self._whatsapp_links_check.Show(sys.platform == "win32")
+        gen_sizer.Add(self._whatsapp_links_check, 0, wx.ALL, 8)
+
         self._tray_icon_check = wx.CheckBox(
             self._general_page, label=i18n.t("tray_show_icon")
         )
@@ -749,6 +759,15 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         ui_sizer.Add(
             self._forwarded_prefix_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
+        )
+
+        # How the box of the delete confirmations starts; the confirmation
+        # itself still lets each delete decide.
+        self._delete_media_default_cb = wx.CheckBox(
+            self._ui_page, label=i18n.t("ui_delete_media_default_label")
+        )
+        ui_sizer.Add(
+            self._delete_media_default_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT | wx.BOTTOM, 8
         )
 
         self._forward_voice_as_voice_cb = wx.CheckBox(
@@ -1964,6 +1983,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         from autostart import is_autostart_enabled
         self._autostart_check.SetValue(is_autostart_enabled())
+        self._whatsapp_links_check.SetValue(self._whatsapp_links_registered())
 
         hk = self.main_window.settings.get("general", {}).get("global_hotkey")
         if hk and isinstance(hk, dict) and hk.get("vk"):
@@ -2110,6 +2130,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "forwarded_prefix_enabled", False
         )
         self._forwarded_prefix_cb.SetValue(bool(forwarded_prefix_enabled))
+
+        delete_media_from_phone = self.main_window.settings.get("user_interface", {}).get(
+            "delete_media_from_phone", True
+        )
+        self._delete_media_default_cb.SetValue(bool(delete_media_from_phone))
 
         forward_voice_as_voice = self.main_window.settings.get("user_interface", {}).get(
             "forward_voice_as_voice", False
@@ -2534,6 +2559,19 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                         self._save_folder_custom_field,
                         self._save_folder_browse_btn):
             control.Enable(is_custom)
+
+    @staticmethod
+    def _whatsapp_links_registered() -> bool:
+        """Whether Windows currently has WinZapp registered for whatsapp:
+        links. Read from the registry itself, so the box never claims an
+        association a reinstall or a moved folder has broken."""
+        if sys.platform != "win32":
+            return False
+        try:
+            from core import whatsapp_link_association
+            return whatsapp_link_association.is_registered()
+        except Exception:
+            return False
 
     def _on_save_folder_mode_changed(self, event):
         self._sync_save_folder_controls()
@@ -3436,6 +3474,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "forwarded_prefix_enabled"
         ] = self._forwarded_prefix_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
+            "delete_media_from_phone"
+        ] = self._delete_media_default_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
             "forward_voice_as_voice"
         ] = self._forward_voice_as_voice_cb.GetValue()
         self.main_window.settings.setdefault("reactions", {})[
@@ -3641,6 +3682,13 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             self.main_window._apply_autostart(enable=new_autostart)
             # Resync the checkbox in case _apply_autostart failed and rolled back
             self._autostart_check.SetValue(is_autostart_enabled())
+
+        # whatsapp: link association. The registry is the setting: there is
+        # nothing to keep in settings.json that could disagree with it.
+        new_links = self._whatsapp_links_check.GetValue()
+        if new_links != self._whatsapp_links_registered():
+            self.main_window._apply_whatsapp_link_association(enable=new_links)
+            self._whatsapp_links_check.SetValue(self._whatsapp_links_registered())
 
         # Audio playback speed
         speed_sel = self._audio_speed_combo.GetSelection()
@@ -3895,6 +3943,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._save_folder_custom_label.SetLabel(i18n.t("save_folder_custom_label"))
         self._save_folder_browse_btn.SetLabel(i18n.t("save_folder_browse_btn"))
         self._autostart_check.SetLabel(i18n.t("autostart_label"))
+        self._whatsapp_links_check.SetLabel(i18n.t("whatsapp_links_label"))
         self._tray_icon_check.SetLabel(i18n.t("tray_show_icon"))
         self._updates_check.SetLabel(i18n.t("updates_label"))
         self._alpha_updates_check.SetLabel(i18n.t("alpha_updates_label"))
@@ -3933,6 +3982,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._show_link_previews_cb.SetLabel(i18n.t("ui_show_link_previews_label"))
         self._show_yesterday_label_cb.SetLabel(i18n.t("ui_show_yesterday_label"))
         self._forwarded_prefix_cb.SetLabel(i18n.t("ui_forwarded_prefix_label"))
+        self._delete_media_default_cb.SetLabel(i18n.t("ui_delete_media_default_label"))
         self._forward_voice_as_voice_cb.SetLabel(i18n.t("ui_forward_voice_as_voice"))
         self._conversation_video_media_viewer_dialog_cb.SetLabel(
             i18n.t("ui_conversation_video_media_viewer_dialog_label")

@@ -90,6 +90,7 @@ from core.message_copy_format import format_copied_message
 from core.wrapped_text import original_range, selection_offsets, word_wrap
 from core.video_player import VideoPlayer
 from core.focus_cloak import cloak_panel_focus_fallback
+from core.chain_repaint_guard import ChainRepaintGuard
 from core.spell_checker import (
     WindowsSpellChecker, spell_check_active, windows_spellcheck_enabled,
 )
@@ -162,6 +163,7 @@ from ui.conversation_panel.message_accels import MessageAccelsMixin
 from ui.conversation_panel.bookmarks import BookmarksMixin
 from ui.conversation_panel.message_search import MessageSearchMixin
 from ui.conversation_panel.community_comments import CommunityCommentsPanelMixin
+from ui.conversation_panel.commerce import CommercePanelMixin
 from ui.conversation_panel.pinned_messages import PinnedMessagesMixin
 from ui.conversation_panel.reactions import ReactionsMixin
 from ui.conversation_panel.attachments import AttachmentsMixin
@@ -170,6 +172,7 @@ from ui.conversation_panel.poll_messages import PollMessagesMixin
 from ui.conversation_panel.contact_messages import ContactMessagesMixin
 from ui.conversation_panel.bulk_messages import BulkMessagesMixin
 from ui.conversation_panel.bulk_transcription import BulkTranscriptionMixin
+from ui.conversation_panel.transcription_delete import TranscriptionDeleteMixin
 from ui.conversation_panel.message_data import MessageDataMixin
 from ui.conversation_panel.panel_visibility import ConversationPanelVisibilityMixin
 from ui.conversation_panel.ai_actions import AIActionsMixin
@@ -209,6 +212,7 @@ class ConversationsPanel(
     BookmarksMixin,
     MessageSearchMixin,
     CommunityCommentsPanelMixin,
+    CommercePanelMixin,
     PinnedMessagesMixin,
     ReactionsMixin,
     AttachmentsMixin,
@@ -217,6 +221,7 @@ class ConversationsPanel(
     ContactMessagesMixin,
     BulkMessagesMixin,
     BulkTranscriptionMixin,
+    TranscriptionDeleteMixin,
     AIActionsMixin,
     MessageDataMixin,
     wx.Panel,
@@ -293,11 +298,10 @@ class ConversationsPanel(
         self._chain_start_timer = None
         self._chain_end_timer = None
         self._pending_played_refresh_id = None
-        # Row repaints deferred while the audio chain is moving list focus —
-        # see _release_chain_held_repaints() for why they must not be written
-        # during the sequence at all.
-        self._hold_status_repaints_for_chain = False
-        self._chain_held_status_repaints = set()
+        # Repaints of the rows the audio chain is moving list focus off — see
+        # _release_chain_held_repaints() for why they must not be written
+        # during the sequence.
+        self._chain_repaint_guard = ChainRepaintGuard()
         self._audio_stream_duration = 0
         self._audio_temp_file = None
         self._audio_speed_steps = [1.0, 1.5, 2.0]
@@ -1010,7 +1014,7 @@ class ConversationsPanel(
             self.conversation_panel, label=i18n.t(self._alternate_record_label_key())
         )
         self._record_voice_alt_btn.SetAccessible(
-            AccessibleRecordVoiceMessage("Ctrl+Shift+G")
+            AccessibleRecordVoiceMessage("Ctrl+Shift+G", ("messages.ID_CTRL_SHIFT_G",))
         )
         self._record_voice_alt_btn.Bind(wx.EVT_BUTTON, self._on_record_alternate_mode)
         conv_sizer.Add(self._record_voice_alt_btn, 0, wx.LEFT | wx.BOTTOM, 5)
@@ -1019,7 +1023,7 @@ class ConversationsPanel(
             self.conversation_panel, label=i18n.t("record_voice_message_system_audio")
         )
         self._record_voice_system_btn.SetAccessible(
-            AccessibleRecordVoiceMessage("Ctrl+Shift+H")
+            AccessibleRecordVoiceMessage("Ctrl+Shift+H", ("messages.ID_CTRL_SHIFT_H",))
         )
         self._record_voice_system_btn.Bind(wx.EVT_BUTTON, self._on_record_system_audio)
         conv_sizer.Add(self._record_voice_system_btn, 0, wx.LEFT | wx.BOTTOM, 5)

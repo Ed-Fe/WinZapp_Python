@@ -133,7 +133,7 @@ _MEDIA_STATUS_I18N_KEYS = {
 #: The failures whose answer lives on the Transcription tab — download a model,
 #: pick another, repair the one that is there — and which are therefore
 #: offered with a shortcut to it rather than only said.
-_SETTINGS_OFFER_CODES = (
+SETTINGS_OFFER_CODES = (
     errors.MODEL_NOT_INSTALLED,
     errors.MODEL_CORRUPTED,
     # The folder of a model the user pointed WinZapp at is gone or changed:
@@ -485,6 +485,8 @@ class MessageTranscriptionFlow:
         self._dialog = None
         #: The run currently behind it — read by `_on_phase` for the device.
         self._run = None
+        #: True for a run with no progress window (`_start_in_background`).
+        self._background = False
 
     def start(self):
         """Transcribe the message, report, and put the focus back."""
@@ -499,11 +501,28 @@ class MessageTranscriptionFlow:
             self._main_window.output(self._i18n.t("transcription_no_audio"))
             return
 
-        handover = None
-        declined = False
+        if self._runs_without_dialog():
+            self._start_in_background()
+            return
+        self._prepare()
         try:
             run, result, error = self._run_behind_dialog(self._make_first_run)
-            handover = getattr(run, "prepared_handover", None)
+            self._finish(run, result, error)
+        finally:
+            self._cleanup()
+
+    def _prepare(self):
+        """Before the run is made; `_cleanup()` after it has been reported."""
+
+    def _cleanup(self):
+        pass
+
+    def _finish(self, run, result, error):
+        """From a finished run to its report: the offer to redo it on the
+        processor, then what the user is told."""
+        handover = getattr(run, "prepared_handover", None)
+        declined = False
+        try:
             if error is not None and handover is not None:
                 offer = narration.cpu_retry_note(error, run.device)
                 if offer is not None:
@@ -530,6 +549,65 @@ class MessageTranscriptionFlow:
             self._focus_message()
             return
         self._report(run, result, error)
+
+    # ── Without the progress window ──────────────────────────────────────────
+    # "Transcribe without the progress window" (transcription.run_without_dialog):
+    # the user stays where they are, and the result arrives when it is ready.
+    # One such run at a time, kept on the main window so the same shortcut can
+    # cancel it and quitting can stop it (MainWindow.stop_transcription_runs).
+
+    def _runs_without_dialog(self):
+        section = self._main_window.settings.get("transcription")
+        return isinstance(section, dict) and section.get("run_without_dialog") is True
+
+    def _start_in_background(self):
+        mw = self._main_window
+        i18n = self._i18n
+        active = getattr(mw, "_background_transcription", None)
+        if active is not None:
+            if active.targets(self):
+                # The same shortcut on the same message: that is Cancel.
+                active.cancel_background()
+                mw.output(i18n.t("transcription_background_cancelling"))
+            else:
+                mw.output(i18n.t("transcription_background_busy"))
+            return
+        self._background = True
+        self._prepare()
+        mw._background_transcription = self
+        mw.output(i18n.t("transcription_background_started"))
+        try:
+            self._make_first_run(lambda tick: None, self._background_done).start()
+        except Exception as exc:
+            # Nothing would ever report: say it failed rather than stay "busy".
+            logging.error("[transcription] a run without the progress window could not start: %s",
+                          errors.exception_report(exc))
+            self._background_finished(None, errors.TranscriptionError(
+                errors.BACKEND_ERROR, f"{type(exc).__name__}: {exc}"))
+
+    def targets(self, other):
+        """Whether `other` asks for the message (or status) this one is on."""
+        return type(other) is type(self) and other._msg_id == self._msg_id
+
+    def cancel_background(self):
+        """The run this flow has under way, to cancel it; None when none."""
+        run = self._run
+        if run is not None:
+            run.cancel()
+        return run
+
+    def _background_done(self, result, error):
+        # On the run's thread: see "Called on the run's threads" below.
+        wx.CallAfter(self._background_finished, result, error)
+
+    def _background_finished(self, result, error):
+        mw = self._main_window
+        if getattr(mw, "_background_transcription", None) is self:
+            mw._background_transcription = None
+        try:
+            self._finish(self._run, result, error)
+        finally:
+            self._cleanup()
 
     # ── Running ──────────────────────────────────────────────────────────────
 
@@ -647,7 +725,7 @@ class MessageTranscriptionFlow:
             if code == errors.MEDIA_NOT_DOWNLOADED and media_status in _MEDIA_STATUS_I18N_KEYS:
                 self._say_after_focus(i18n.t(_MEDIA_STATUS_I18N_KEYS[media_status]), failed=True)
                 return
-            if code in _SETTINGS_OFFER_CODES:
+            if code in SETTINGS_OFFER_CODES:
                 key = model_problem_i18n_key(
                     code, getattr(run, "resolution", None), self._main_window.settings
                 )
@@ -817,7 +895,31 @@ class MessageTranscriptionFlow:
             # it when the window runs the transcription again.
             inline=self._inline or stored_transcription.is_inline(previous),
         ))
+        return self._save(value)
+
+    # Where the text is kept, who the result window names and whether it
+    # offers "insert into the message": the four things that differ for a
+    # status update (ui/status_transcription_flow.py overrides them).
+
+    #: Whether the result window offers "Insert into the message".
+    _offers_insert = True
+    #: The question delete_saved() asks. It says what stays (the message and
+    #: its audio), which is not what stays when the thing is a status.
+    _delete_question_key = "transcription_delete_question"
+
+    def _save(self, value, existing=False):
+        """Storing's SAVE_* answer for `value`. `existing`: a text already
+        kept that is only being marked, which the cache switches let through."""
+        if existing:
+            return self._main_window.store_message_transcription(
+                self._jid, self._msg_id, value, existing=True)
         return self._main_window.store_message_transcription(self._jid, self._msg_id, value)
+
+    def _delete(self, on_done):
+        self._main_window.delete_message_transcription(self._jid, self._msg_id, on_done)
+
+    def _title_name(self):
+        return title_name(self._panel, self._msg)
 
     def show_saved(self):
         """Open the stored transcription — no model, no wait, same window."""
@@ -855,7 +957,7 @@ class MessageTranscriptionFlow:
         i18n = self._i18n
         dlg = wx.MessageDialog(
             self._main_window,
-            i18n.t("transcription_delete_question"),
+            i18n.t(self._delete_question_key),
             i18n.t("transcription_progress_title"),
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
         )
@@ -869,7 +971,7 @@ class MessageTranscriptionFlow:
         self._focus_message()
         if answer != wx.ID_YES:
             return
-        self._main_window.delete_message_transcription(self._jid, self._msg_id, self._after_delete)
+        self._delete(self._after_delete)
 
     def _after_delete(self, ok):
         """On the wx thread, once the database has answered."""
@@ -894,7 +996,7 @@ class MessageTranscriptionFlow:
             return
         i18n = self._i18n
         _spoken, shown = split_result_notes(announcement, notes)
-        name = title_name(self._panel, self._msg)
+        name = self._title_name()
         title = (i18n.t("transcription_result_title").format(name=name) if name
                  else i18n.t("transcription_progress_title"))
         dialog = TranscriptionResultDialog(
@@ -905,6 +1007,9 @@ class MessageTranscriptionFlow:
             notes=[i18n.t(n.i18n_key).format(**n.values) for n in shown],
             spoken=result_speech(i18n, announcement, notes, window=True),
             default_file=default_file_name(i18n, name),
+            # Named only when it differs from the window's default, so the
+            # conversation's call stays exactly what it was.
+            **({} if self._offers_insert else {"can_insert": False}),
         )
         try:
             dialog.run()
@@ -982,9 +1087,7 @@ class MessageTranscriptionFlow:
             marked = stored_transcription.marked_inline(value, previous, time.time())
             # existing=True: a text already kept, only marked — the cache
             # switches are about keeping new ones.
-            if self._main_window.store_message_transcription(
-                    self._jid, self._msg_id, marked, existing=True
-            ) != stored_transcription.SAVE_STORED:
+            if self._save(marked, existing=True) != stored_transcription.SAVE_STORED:
                 # Nowhere to keep the mark: open the window, where the text can
                 # still be read.
                 self._inline = False
@@ -1022,7 +1125,10 @@ class MessageTranscriptionFlow:
     def _say_after_focus(self, sentence, failed=False):
         if failed:
             self._play_error_sound()
-        self._focus_message()
+        if not self._background:
+            # A run without the progress window took the focus from nowhere:
+            # the user may be typing, or in another chat by now.
+            self._focus_message()
         # After the focus move, not before: see the module docstring.
         wx.CallAfter(self._main_window.output, sentence)
 

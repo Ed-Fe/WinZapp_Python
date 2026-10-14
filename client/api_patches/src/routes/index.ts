@@ -34,6 +34,10 @@ import * as PinnedMessagesController from '../controller/pinnedMessagesControlle
 import * as PrivacyController from '../controller/privacyController';
 import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
+import * as CommunityOverviewController from '../controller/communityOverviewController';
+import * as CommunityAdminController from '../controller/communityAdminController';
+import * as CommerceController from '../controller/commerceController';
+import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
 import * as OrderController from '../controller/orderController';
@@ -115,7 +119,6 @@ routes.post(
 routes.post(
   '/api/:session/logout-session',
   verifyToken,
-  statusConnection,
   SessionController.logOutSession
 );
 routes.post(
@@ -355,6 +358,14 @@ routes.get('/api/:session/group-invitation/:groupId', verifyToken, statusConnect
   GroupOperationsController.readInvitation);
 routes.post('/api/:session/group-invitation/:groupId/reset', verifyToken, statusConnection,
   GroupOperationsController.resetInvitation);
+// Pending requests to join a group and the admin's answer (WinZapp's own:
+// wppconnect-server has no route for the library's functions).
+routes.get('/api/:session/group-membership-requests/:groupId', verifyToken, statusConnection,
+  GroupMembershipRequestsController.listRequests);
+routes.post('/api/:session/group-membership-requests/:groupId/approve', verifyToken, statusConnection,
+  GroupMembershipRequestsController.approveRequests);
+routes.post('/api/:session/group-membership-requests/:groupId/reject', verifyToken, statusConnection,
+  GroupMembershipRequestsController.rejectRequests);
 routes.get(
   '/api/:session/all-broadcast-list',
   verifyToken,
@@ -936,6 +947,27 @@ routes.post(
   statusConnection,
   CatalogController.setProductVisibility
 );
+// Carts and orders (WinZapp's own: commerceController.ts). The cart is the
+// buyer's; accepting, declining and updating an order are a business
+// account's. Creating an order for a customer (send-order-message) and the
+// business's own cart setting (set-cart-enabled) are the upstream routes.
+routes.get('/api/:session/commerce/account', verifyToken, statusConnection, CommerceController.account);
+routes.get('/api/:session/commerce/catalog/:chatId', verifyToken, statusConnection, CommerceController.catalog);
+routes.get('/api/:session/commerce/cart/:chatId', verifyToken, statusConnection, CommerceController.cart);
+routes.post('/api/:session/commerce/cart/:chatId/set', verifyToken, statusConnection, CommerceController.cartSet);
+routes.post('/api/:session/commerce/cart/:chatId/remove', verifyToken, statusConnection,
+  CommerceController.cartRemove);
+routes.post('/api/:session/commerce/cart/:chatId/clear', verifyToken, statusConnection,
+  CommerceController.cartClear);
+routes.post('/api/:session/commerce/cart/:chatId/submit', verifyToken, statusConnection,
+  CommerceController.cartSubmit);
+routes.get('/api/:session/commerce/order/:messageId', verifyToken, statusConnection, CommerceController.order);
+routes.post('/api/:session/commerce/order/:messageId/accept', verifyToken, statusConnection,
+  CommerceController.orderAccept);
+routes.post('/api/:session/commerce/order/:messageId/decline', verifyToken, statusConnection,
+  CommerceController.orderDecline);
+routes.post('/api/:session/commerce/order/:messageId/status', verifyToken, statusConnection,
+  CommerceController.orderUpdate);
 routes.post(
   '/api/:session/set-cart-enabled',
   verifyToken,
@@ -1166,6 +1198,22 @@ routes.post(
 );
 
 //Communitys
+// The account's communities, their admins and joined groups (WinZapp's own:
+// see communityOverviewController.ts). The community actions below it are the
+// upstream routes, used as they are, except promotion: the library's cannot
+// promote anyone who is not an admin already (communityAdminController.ts).
+routes.get(
+  '/api/:session/communities',
+  verifyToken,
+  statusConnection,
+  CommunityOverviewController.listCommunities
+);
+routes.post(
+  '/api/:session/community-admin/:communityId/promote',
+  verifyToken,
+  statusConnection,
+  CommunityAdminController.promoteAdmin
+);
 routes.post(
   '/api/:session/create-community',
   verifyToken,

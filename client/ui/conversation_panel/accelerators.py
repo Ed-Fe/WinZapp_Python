@@ -28,6 +28,8 @@ class AcceleratorsMixin:
         self.ID_BLOCK_LIST          = wx.NewIdRef()
         self.ID_CLEAR_LIST          = wx.NewIdRef()
         self.ID_ARCHIVE_LIST        = wx.NewIdRef()
+        self.ID_CATALOG_LIST        = wx.NewIdRef()  # business catalog and cart (Alt+Shift+B)
+        self.ID_ORDER_CREATE_LIST   = wx.NewIdRef()  # create an order (business) (Ctrl+Shift+N)
         self.ID_LOCK_LIST           = wx.NewIdRef()
         self.ID_PIN_LIST            = wx.NewIdRef()
         self.ID_CLOSE_CONV_LIST     = wx.NewIdRef()
@@ -109,8 +111,13 @@ class AcceleratorsMixin:
             (CAS,             ord("A"),         self.ID_BULK_ARCHIVE_CHATS),
             (CAS,             ord("R"),         self.ID_BULK_READ_CHATS),
             (CAS,             ord("U"),         self.ID_BULK_UNREAD_CHATS),
+            # B for "business": its catalog and cart (ui/conversation_panel/commerce.py).
+            (AS,              ord("B"),         self.ID_CATALOG_LIST),
+            (CS,              ord("N"),         self.ID_ORDER_CREATE_LIST),
         ])
         self.SetAcceleratorTable(accel_tbl)
+        self.Bind(wx.EVT_MENU, self._on_accel_catalog_list,       id=self.ID_CATALOG_LIST)
+        self.Bind(wx.EVT_MENU, self._on_accel_order_create_list,  id=self.ID_ORDER_CREATE_LIST)
         self.Bind(wx.EVT_MENU, self.on_ctrl_f,                    id=self.ID_CTRL_F)
         self.Bind(wx.EVT_MENU, self._on_new_conversation,         id=self.ID_CTRL_N)
         self.Bind(wx.EVT_MENU, self._on_accel_delete_conv,        id=self.ID_DELETE_CONV)
@@ -145,6 +152,8 @@ class AcceleratorsMixin:
         self.ID_CTRL_R          = wx.NewIdRef()  # record voice            (Ctrl+R)
         self.ID_CTRL_SHIFT_G    = wx.NewIdRef()  # record, other mode      (Ctrl+Shift+G)
         self.ID_CTRL_SHIFT_H    = wx.NewIdRef()  # microphone + system     (Ctrl+Shift+H)
+        self.ID_CATALOG         = wx.NewIdRef()  # business catalog/cart   (Alt+Shift+B)
+        self.ID_ORDER_CREATE    = wx.NewIdRef()  # create an order         (Ctrl+Shift+N)
         self.ID_ALT_2           = wx.NewIdRef()  # jump to last message    (Alt+2)
         self.ID_ESC             = wx.NewIdRef()  # close conversation      (Esc)
         self.CTRL_W             = wx.NewIdRef()  # close conversation      (Ctrl+W)
@@ -232,6 +241,10 @@ class AcceleratorsMixin:
         self.ID_BULK_SAVE       = wx.NewIdRef()  # save selected           (Ctrl+Alt+Shift+S)
         self.ID_BULK_TRANSCRIBE = wx.NewIdRef()  # transcribe selected, window (Ctrl+Alt+Shift+T)
         self.ID_BULK_TRANSCRIBE_INLINE = wx.NewIdRef()  # ... into their lines (Ctrl+Alt+Shift+N)
+        # Delete saved transcriptions: the focused message's (Alt+Shift+Delete)
+        # and the selection's (Ctrl+Alt+Shift+Delete).
+        self.ID_ALT_SHIFT_DELETE = wx.NewIdRef()
+        self.ID_BULK_DELETE_TRANSCRIPTIONS = wx.NewIdRef()
         self.ID_BULK_DELETE     = wx.NewIdRef()  # delete selected         (Ctrl+Shift+Delete)
         # ── Audio speed ──────────────────────────────────────────────────────
         self.ID_ALT_COMMA       = wx.NewIdRef()  # decrease audio speed    (Alt+,)
@@ -285,6 +298,8 @@ class AcceleratorsMixin:
             # types "®" on US-International and would be taken from the editor.
             (CS,               ord("G"),          self.ID_CTRL_SHIFT_G),
             (CS,               ord("H"),          self.ID_CTRL_SHIFT_H),
+            (AS,               ord("B"),          self.ID_CATALOG),
+            (CS,               ord("N"),          self.ID_ORDER_CREATE),
             (wx.ACCEL_NORMAL,  wx.WXK_DELETE,     self.ID_DELETE_MSG),
             (wx.ACCEL_CTRL,    ord("C"),          self.ID_CTRL_C),
             (CS,               ord("C"),          self.ID_CTRL_SHIFT_C),
@@ -321,6 +336,7 @@ class AcceleratorsMixin:
             (AS,               ord("S"),          self.ID_ALT_SHIFT_S),
             (AS,               ord("T"),          self.ID_ALT_SHIFT_T),
             (AS,               ord("N"),          self.ID_ALT_SHIFT_N),
+            (AS,               wx.WXK_DELETE,     self.ID_ALT_SHIFT_DELETE),
             (CS,               ord("O"),           self.ID_CTRL_SHIFT_O),
             (wx.ACCEL_ALT,     ord(","),           self.ID_ALT_COMMA),
             (wx.ACCEL_ALT,     ord("."),           self.ID_ALT_PERIOD),
@@ -332,6 +348,7 @@ class AcceleratorsMixin:
             (CAS,              ord("S"),           self.ID_BULK_SAVE),
             (CAS,              ord("T"),           self.ID_BULK_TRANSCRIBE),
             (CAS,              ord("N"),           self.ID_BULK_TRANSCRIBE_INLINE),
+            (CAS,              wx.WXK_DELETE,      self.ID_BULK_DELETE_TRANSCRIPTIONS),
             (CS,               wx.WXK_DELETE,      self.ID_BULK_DELETE),
         ] + [
             # No default key (mod 0, key 0): the entry only ties the command to
@@ -357,6 +374,8 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self.on_record_voice_message,       id=self.ID_CTRL_R)
         self.Bind(wx.EVT_MENU, self._on_record_alternate_mode,     id=self.ID_CTRL_SHIFT_G)
         self.Bind(wx.EVT_MENU, self._on_record_system_audio,       id=self.ID_CTRL_SHIFT_H)
+        self.Bind(wx.EVT_MENU, self._on_accel_catalog,             id=self.ID_CATALOG)
+        self.Bind(wx.EVT_MENU, self._on_accel_order_create,        id=self.ID_ORDER_CREATE)
         self.Bind(wx.EVT_MENU, self._on_accel_jump_last,           id=self.ID_ALT_2)
         self.Bind(wx.EVT_MENU, self._on_escape_conversation,        id=self.ID_ESC)
         self.Bind(wx.EVT_MENU, self.close_conversation,            id=self.CTRL_W)
@@ -410,6 +429,9 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_save,            id=self.ID_BULK_SAVE)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe,      id=self.ID_BULK_TRANSCRIBE)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_transcribe_inline, id=self.ID_BULK_TRANSCRIBE_INLINE)
+        self.Bind(wx.EVT_MENU, self._on_accel_delete_transcription, id=self.ID_ALT_SHIFT_DELETE)
+        self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete_transcriptions,
+                  id=self.ID_BULK_DELETE_TRANSCRIPTIONS)
         self.Bind(wx.EVT_MENU, self._on_accel_bulk_delete,          id=self.ID_BULK_DELETE)
         for _d in range(10):
             self.Bind(wx.EVT_MENU, lambda e, d=_d: self._on_accel_review_message(d), id=self.ID_REVIEW[_d])

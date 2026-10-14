@@ -11,6 +11,7 @@ import logging
 import os
 import threading
 import wx
+from core.group_invitation_link import invitation_code
 from core.polls import POLL_MESSAGE_TYPES
 from ui.conversation_panel.media_paths import _SAVEABLE_MESSAGE_TYPES
 from core.call_log import (
@@ -259,6 +260,11 @@ class MessageListMixin:
             # _on_message_focused() for why GetItemText(index) is wrong here.
             links = self._message_own_links(msg)
             if links:
+                # A WhatsApp group invitation is answered in WinZapp, as it is
+                # from the link control itself (LinksMixin._activate_link()).
+                if invitation_code(links[0]):
+                    self._join_group_from_link(links[0])
+                    return
                 try:
                     os.startfile(links[0])
                 except Exception:
@@ -300,6 +306,11 @@ class MessageListMixin:
 
         elif msg_type in POLL_MESSAGE_TYPES:
             self._show_poll_dialog(msg)
+
+        elif self._can_view_order(msg):
+            # An order opens like a poll does: its items, and for a business
+            # account that received it, the answer (ui/conversation_panel/commerce.py).
+            self._show_order(msg)
 
         elif msg_type == "contactMessage":
             # Enter on a contact message → open a conversation with that
@@ -386,6 +397,13 @@ class MessageListMixin:
         return m.get("key", {}).get("id", "")
 
     def _on_message_focused(self, event):
+        # A row a voice-note sequence parked only because it had focus is owed
+        # its repaint once focus is elsewhere (core/chain_repaint_guard.py).
+        # Ahead of the gate below on purpose: this is not a reaction to a
+        # human moving through the list, it is bookkeeping for any focus move.
+        guard = getattr(self, "_chain_repaint_guard", None)
+        if guard is not None and guard.parked:
+            self._recheck_parked_chain_repaints()
         # Set while another surface (the group data dialog's Media tab) drives
         # this list's selection purely to hand an index to a handler that reads
         # it. Everything below reacts to a HUMAN moving through the list -

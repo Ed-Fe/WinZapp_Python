@@ -120,6 +120,11 @@ class MessageMenuMixin:
             inline_item = mass_menu.Append(
                 wx.ID_ANY, f"{i18n.t('transcribe_selected_inline')}\tCtrl+Alt+Shift+N")
             self.Bind(wx.EVT_MENU, self._on_mass_transcribe_inline_messages, inline_item)
+            delete_transcriptions_item = mass_menu.Append(
+                wx.ID_ANY,
+                f"{i18n.t('transcription_bulk_delete_menu')}\tCtrl+Alt+Shift+Delete")
+            self.Bind(wx.EVT_MENU, self._on_mass_delete_transcriptions,
+                      delete_transcriptions_item)
 
             delete_item = mass_menu.Append(
                 wx.ID_ANY, f"{i18n.t('delete_selected')}\tCtrl+Shift+Delete")
@@ -268,6 +273,12 @@ class MessageMenuMixin:
         if not is_call and self._can_open_announcement_comments(msg):
             comments_item = menu.Append(wx.ID_ANY, i18n.t("community_comments_title"))
             self.Bind(wx.EVT_MENU, lambda e, m=msg: self._show_announcement_comments(m), comments_item)
+
+        # An order: its items and, for a business account that received it,
+        # the answer (ui/conversation_panel/commerce.py).
+        if self._can_view_order(msg):
+            order_item = menu.Append(wx.ID_ANY, i18n.t("commerce_view_order"))
+            self.Bind(wx.EVT_MENU, lambda e, m=msg: self._show_order(m), order_item)
 
         # Reply (Alt+R)
         if not is_call:

@@ -1143,11 +1143,19 @@ DEFAULT_SETTINGS = {
         # list instead of playing it; Alt+Shift+N then plays it (and, with this
         # off, is what transcribes it). Off: Enter plays, as it always has.
         "enter_transcribes_voice_messages": False,
+        # The same choice on the Status tab: on, Enter and Space transcribe an
+        # audio or video status into its line and Alt+Shift+N opens or plays
+        # it. See core/transcription/statuses.py.
+        "enter_transcribes_statuses": False,
         "auto_focus_next_audio": True,
         "selected_announcement_position": "end",
         "show_yesterday_label": True,
         "show_link_previews": True,
         "forwarded_prefix_enabled": False,
+        # How the "also delete the media from your phone" box of the delete
+        # confirmations starts. On is WhatsApp Web's own default and what
+        # WinZapp did before the box existed, so no migration.
+        "delete_media_from_phone": True,
         # A forwarded voice message stays a voice message instead of becoming
         # a plain audio, as WhatsApp makes it. Off: WhatsApp's own behaviour,
         # so no migration.
@@ -1219,13 +1227,21 @@ DEFAULT_SETTINGS = {
         # Keep the loaded model in memory for good (off: released after a
         # few idle minutes). See core/transcription/residency.py.
         "keep_model_loaded": False,
+        # Transcribe with no progress window: stay on the list until the text
+        # is ready. See ui/transcription_flow.py (_start_in_background).
+        "run_without_dialog": False,
         # Transcribe received voice messages on arrival and put the text in
         # the message line. See core/transcription/auto_queue.py.
         "auto_transcribe_received": False,
         # Keep results with the message so they are not redone (on), and the
         # per-model overrides {model id: bool}. See stored.cache_enabled_for().
         "cache_enabled": True,
-        "cache_by_model": {}
+        "cache_by_model": {},
+        # The same two switches for status updates: transcribe on arrival
+        # (off) and keep the result with the status, which takes it along when
+        # it expires (on). See core/transcription/statuses.py.
+        "auto_transcribe_statuses": False,
+        "status_cache_enabled": True
     },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old

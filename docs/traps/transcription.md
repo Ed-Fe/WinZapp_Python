@@ -690,9 +690,51 @@ default) is on.
 - The flag is `residency.configure(...)`d at the end of `load_settings()` and on
   Apply (`TranscriptionOptionsMixin._apply_transcription_options`). Nothing else
   reads the setting — the job does not.
-- whisper.cpp runs one process per transcription, so there is nothing to keep:
-  the checkbox's label says "(faster-whisper)" and the setting does nothing for it.
+- whisper.cpp runs one whisper-cli process per transcription and keeps nothing,
+  **unless the setting is on**: then it asks the release's `whisper-server.exe`
+  instead (next section), and `release()` stops that server. For whisper.cpp the
+  setting is the switch itself: off, nothing of it stays in memory.
 - Never log anything but the fact that a model was released.
+
+## whisper.cpp with the model kept loaded (`whisper_cpp_server.py`)
+
+Reported from users' logs (2026-10): with "Keep the model loaded" on and a
+graphics card, every transcription still reloaded the model. Those logs were
+whisper.cpp (`backend=whisper_cpp ... device=cuda`), where the setting did
+nothing: 0.8 to 2.9 s of every run were whisper-cli starting, initialising CUDA
+and loading the model. The zip WinZapp already downloads and verifies ships
+`whisper-server.exe`, which loads once and answers one HTTP request per
+recording. With the setting on, `WhisperCppBackend.transcribe()` asks it.
+
+- **Any doubt goes back to whisper-cli.** Everything but a cancellation raises
+  `ServerUnavailable` (not installed, not the pinned file, busy, did not start,
+  bad answer, recording over 256 MB) and the note runs the old way, where
+  failures are classified. The server can make a run faster, never fail one.
+- **Pinned apart from `pinned_files`**: `RuntimeBuild.server_sha256`, read off
+  the pinned zips. `whisper_cpp_runtime.server_path()` returns the program only
+  when the manifest lists it with that digest; `verify_executable()` (always
+  called first) holds the file to the manifest. A reused folder without the
+  server still runs whisper-cli. Moving the release means reading both digests
+  again.
+- **127.0.0.1, a port the system picked, local files only.** stdout to the null
+  device; stderr to a file in a private `winzapp-whisper-` folder, read for
+  progress and the detected language. The text exists only in the HTTP answer.
+- **It never outlives WinZapp**: the process is put in a Windows job object with
+  kill-on-close, whose handle WinZapp holds. A server that cannot be put in the
+  job is killed and not used. `atexit` stops it too.
+- **Same decoding as whisper-cli**: `-bs 5 -bo 5` are passed, because the
+  server's own defaults differ (greedy, best of 2). `-l auto` is always given
+  and each request carries its language.
+- **The language code comes from stderr** (`auto-detected language: pt (p =
+  ...)`); the answer's own `language` is a name ("portuguese"), not a code.
+- **Cancel kills the server**: it is the only way to stop a transcription it has
+  begun. The next run starts it again.
+- One request at a time; a second transcription meanwhile is told "busy" and
+  runs on whisper-cli. A different model, device or filter restarts the server.
+- Run end to end on a verified CPU build (the backend as the job calls it):
+  same text and segment times as whisper-cli, cancel and restart, `release()`
+  leaving no process and no temporary folder. **Not run on a card**: the gain
+  there is the point, and it was not measured.
 
 ## CUDA libraries and whisper.cpp programs from another folder (`reused_runtimes.py`)
 
@@ -730,8 +772,19 @@ as an **inline** transcription (same record as Alt+Shift+N, so the row shows it)
   **Locked chats are skipped** (vault or phone lock).
 - One run at a time (a serial queue of at most 10; the rest of a burst is dropped).
   A failure that means "not set up" (`SETUP_FAILURES`: no model, no program, corrupted…)
-  pauses the queue 15 min and speaks `transcription_auto_paused` **once**; any other
-  failure is silent and logged by code only.
+  pauses the queue 15 min and speaks `transcription_auto_paused` with the reason a
+  manual run gives (`_auto_pause_reason()`, through `transcription_flow.
+  model_problem_i18n_key()`); any other failure is silent and logged by code only.
+- **Once per fault, not once per pause** (`auto_queue.PauseNotices`). The pause ends
+  and the next message tries again; with the fault still there that was a new pause
+  and a new sentence every quarter of an hour, heard by a user who had asked for
+  nothing (reported 2026-10). The fault is news again only after a run worked
+  (any result, even empty) or Settings applied the Transcription tab
+  (`transcription_settings_applied()`, which also resumes the queue at once).
+- **"Automatic" with no model fitting the free memory is not a setup fault.** It
+  comes back as `MODEL_NOT_INSTALLED` with `resolution.model_none_reason ==
+  MODEL_NONE_NOTHING_FITS`; `pauses_the_queue(error, resolution)` lets it pass as a
+  fault of that moment. Unmeasured memory with nothing installed still pauses.
 - Never a window, sound or speech per message. The run waits up to 45 s for the
   download the auto-download is already doing before fetching the audio itself.
 - When the result arrives, the stored decision wins if the user acted meanwhile
@@ -805,3 +858,90 @@ Alt+Shift+N (only while it transcribes, i.e. Enter plays) run the bulk forms. Bo
 - **Quitting stops automatic and bulk runs** (`MainWindow.stop_transcription_runs`, from
   `_perform_shutdown`): the queue stops, the running transcription is cancelled (its ffmpeg or
   whisper-cli child killed, the decrypted audio deleted) and waited for up to 2 s.
+
+## Status updates (`statuses.py`)
+
+An audio or video status is transcribed through the same run as a voice message
+(`MessageTranscription`); `core/transcription/statuses.py` holds what differs,
+`main_window/status_transcription.py` the storage and the automatic runs,
+`ui/status_transcription_flow.py` the flow (a subclass of
+`MessageTranscriptionFlow` overriding four hooks: `_save`, `_delete`,
+`_title_name`, `_offers_insert`) and `status_tab/status_transcription.py` the
+keys and the row.
+
+- **Keys**: Alt+Shift+T and Alt+Shift+N on the Status tab, the conversation's
+  chords, in the catalogue under scope `status` (customisable). They act on the
+  status the focused row is showing: the one open in the inline viewer, else
+  the one the contact's row previews (the one navigated to with Ctrl+Left/Right
+  for the open contact, the newest for any other). In the separate media
+  viewer (`status_media_viewer_dialog`) the keys are those of the list behind
+  it, not of the dialog. The account's own statuses have them in the "my
+  status" window (see *Deleting saved transcriptions from the keyboard*).
+- **Enter and Space** follow `user_interface.enter_transcribes_statuses` (off):
+  on, they transcribe into the line and Alt+Shift+N opens or plays, exactly the
+  conversation's alternation. Only on a row showing audio or video; a photo, a
+  text or the "my status" row opens as always.
+- **Where the text lives**: under `_transcription` in the status's own record,
+  i.e. in `status_updates.message_json`. **Nothing else deletes it**: the
+  periodic `_prune_expired_status_updates()` removes the row and the text goes
+  with it, so there is no second store to keep in step.
+- **Two kinds of copy.** `_status_updates` holds the cached records; the tab's
+  list is built from the API's answer first (`_merge_status_lists`: API copy
+  wins the dedup), so the dict on screen is often not the cached one. Storing
+  writes both, and `statuses.carry_over()` puts the text back on the list every
+  time `_load_statuses()` rebuilds it. A status shown from the API and never
+  cached is added to `_status_updates` when its transcription is stored.
+- **The media is never on disk.** The run gets a private folder
+  (`statuses.TEMP_PREFIX`, in `temp_sweep.PREFIXES`) into which
+  `MainWindow._fetch_status_media()` writes the download Fernet-encrypted, the
+  way the run reads every local media file; the folder lives as long as the
+  flow's `start()` (or the automatic run).
+- **No vault, no withdrawal, no "insert into the message"**: the flow answers
+  False for the first two without asking the vault (it would say "hidden" for a
+  jid it does not know), and the result window hides the insert button
+  (`can_insert=False`).
+- **Settings** (Settings > Local transcription, after the conversation's):
+  `transcription.auto_transcribe_statuses` (off), `transcription.
+  status_cache_enabled` (on) and the Enter switch above, plus "Clear saved
+  local transcriptions of statuses" (`MainWindow.clear_status_transcriptions`).
+  A model's own cache choice (`cache_by_model`) is shared with the conversation:
+  it is about the model. The statuses' general switch is its own.
+- **Automatic runs share the conversation's queue** (one transcription at a
+  time): `_store_status_update()` calls `_maybe_auto_transcribe_status()`, the
+  item is keyed `("status@broadcast", id)` and `_run_auto_transcription()`
+  hands it to `_run_status_auto_transcription()`. Eligibility is
+  `auto_queue.eligible()` unchanged (someone else's, audio or video, under five
+  minutes old, at most ten minutes long, nothing decided yet).
+
+## Deleting saved transcriptions from the keyboard
+
+Until 2026-10 a saved transcription could only be deleted from the message's
+context menu. `ui/conversation_panel/transcription_delete.py`:
+
+- **Alt+Shift+Delete** (`messages.ID_ALT_SHIFT_DELETE`) deletes the focused
+  message's, through the menu item's own path (`delete_transcription()`: the
+  question, the tombstone, the row redrawn). With messages selected and
+  `user_interface.bulk_action_shortcuts` on, it acts on the selection, like
+  every single-message key. A message with nothing saved gets one sentence
+  (`transcription_none_to_delete`), never silence.
+- **Ctrl+Alt+Shift+Delete** (`messages.ID_BULK_DELETE_TRANSCRIPTIONS`) and the
+  "Ações em massa" item delete the saved transcriptions of the selection after
+  one question that counts them. Only messages that hold a result
+  (`stored.results_of()`) are counted or touched; a tombstone is a decision,
+  not a text. Each goes through `MainWindow.delete_message_transcription()`,
+  and the rows are redrawn once every answer is in, only if the user is still
+  in that conversation.
+- On the Status tab the key is `status.ID_ALT_SHIFT_DELETE`; the flow's
+  question is `transcription_status_delete_question` (the message's says "the
+  message and its audio stay in the conversation").
+- **The "my status" window has the three status keys too**
+  (`status_tab/my_status_transcription.py`, a base class of `MyStatusDialog`,
+  not a `StatusPanel` mixin). The list's keys never reached it: the "my
+  status" row is a summary that opens that window. Its table is built with
+  `make_shortcut_table(self, 'status', …)`, so it reads the same catalogue rows
+  and the same user preference as the tab. An own status names no poster, so
+  `store_status_transcription()` files it under the account (`my_jid`), as
+  `_store_status_update()` does.
+- Every key here is a catalogue row and so is listed on the Keyboard shortcuts
+  tab (`visible_shortcuts()`); `tests/test_transcription_delete_shortcuts.py`
+  holds the list.
