@@ -219,6 +219,15 @@ class MediaCleanupDialog(wx.Dialog):
             stats = media_cleanup.execute(
                 preview, roots, progress_cb=_progress,
                 should_cancel=lambda: not self._alive)
+            # Remembered before anything else can run: what was deleted must
+            # not be fetched again by the next sync.
+            try:
+                from ui.conversation_panel.media_paths import media_cache_id
+                self.main_window.mark_media_cleaned(
+                    [media_cache_id(i) for i in stats.deleted_ids])
+            except Exception as exc:
+                logging.warning("[media-cleanup] could not index the cleaned media: %s",
+                                type(exc).__name__)
             wx.CallAfter(self._on_done, stats)
 
         threading.Thread(target=_work, daemon=True, name="winzapp-media-cleanup-delete").start()

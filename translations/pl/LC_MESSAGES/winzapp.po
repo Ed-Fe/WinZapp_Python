@@ -2895,14 +2895,15 @@ msgstr "Rozmowy:"
 #, python-brace-format
 msgctxt "cleanup_confirm_msg"
 msgid ""
-"This will delete {files} media file(s) ({mb:.1f} MB), freeing up disk space."
-" The messages stay — only the downloaded file is removed, and can be "
-"downloaded again later if still available. This can't be undone. Continue?"
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing disk space. "
+"The messages stay, but the deleted media will not be downloaded again, by "
+"itself or by hand, unless this account is paired again. This cannot be "
+"undone. Continue?"
 msgstr ""
-"To usunie {files} plik(ów) multimedialnych ({mb:.1f} MB), zwalniając miejsce"
-" na dysku. Wiadomości pozostają — usuwany jest tylko pobrany plik, który "
-"można pobrać ponownie później, jeśli nadal jest dostępny. Tej czynności nie "
-"można cofnąć. Kontynuować?"
+"To usunie {files} plik(ów) multimedialnych ({mb:.1f} MB) i zwolni miejsce na"
+" dysku. Wiadomości zostają, ale usuniętych plików nie będzie można pobrać "
+"ponownie, ani automatycznie, ani ręcznie, chyba że to konto zostanie "
+"sparowane na nowo. Tej operacji nie można cofnąć. Kontynuować?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -6419,6 +6420,15 @@ msgid "Could not convert the audio to an Opus format accepted by WhatsApp."
 msgstr ""
 "Nie udało się przekonwertować dźwięku do formatu Opus akceptowanego przez "
 "WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/media.py
+msgctxt "media_cleaned_not_restored"
+msgid ""
+"This media was removed by the cleanup and will not be downloaded again "
+"unless this account is paired again."
+msgstr ""
+"Ten plik został usunięty podczas czyszczenia i nie zostanie pobrany "
+"ponownie, chyba że to konto zostanie sparowane na nowo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format

@@ -78,6 +78,9 @@ class CleanupStats:
     files_missing: int = 0   # already gone by the time it ran — not an error
     files_failed: int = 0    # in use or refused by the system
     cancelled: bool = False
+    #: The ids of the messages whose file was deleted here, for the index of
+    #: cleaned media (core/media_cleaned.py).
+    deleted_ids: list = field(default_factory=list)
 
 
 def _default_path_for(msg_type: str, msg_id: str) -> str:
@@ -149,6 +152,7 @@ def execute(preview: CleanupPreview, allowed_roots, progress_cb=None,
                 os.remove(candidate.path)
                 stats.files_deleted += 1
                 stats.bytes_freed += size
+                stats.deleted_ids.append(candidate.message_id)
             except FileNotFoundError:
                 stats.files_missing += 1
             except OSError:

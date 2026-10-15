@@ -2652,9 +2652,10 @@ msgstr ""
 #, python-brace-format
 msgctxt "cleanup_confirm_msg"
 msgid ""
-"This will delete {files} media file(s) ({mb:.1f} MB), freeing up disk space."
-" The messages stay — only the downloaded file is removed, and can be "
-"downloaded again later if still available. This can't be undone. Continue?"
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing disk space. "
+"The messages stay, but the deleted media will not be downloaded again, by "
+"itself or by hand, unless this account is paired again. This cannot be "
+"undone. Continue?"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -6010,6 +6011,13 @@ msgstr ""
 #: client/ui/conversation_panel/voice_recording.py
 msgctxt "media_audio_convert_failed"
 msgid "Could not convert the audio to an Opus format accepted by WhatsApp."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/media.py
+msgctxt "media_cleaned_not_restored"
+msgid ""
+"This media was removed by the cleanup and will not be downloaded again "
+"unless this account is paired again."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

@@ -125,6 +125,35 @@ class MediaMixin:
             except Exception:
                 pass
 
+    def _media_cleaned_index(self):
+        """The ids of the media the cleanup deleted (core/media_cleaned.py)."""
+        index = getattr(self, "_media_cleaned_idx", None)
+        if index is None:
+            from core.media_cleaned import CleanedMediaIndex
+            index = self._media_cleaned_idx = CleanedMediaIndex(
+                lambda: data_path("media_cleaned.json"))
+        return index
+
+    def is_media_cleaned(self, msg_id: str) -> bool:
+        """Whether the cleanup removed this message's file: it is not fetched
+        again, by the sweeps or by hand, until the account is paired anew."""
+        if not msg_id:
+            return False
+        if "_" in msg_id:
+            parts = msg_id.split("_")
+            msg_id = parts[2] if len(parts) > 2 else parts[-1]
+        return self._media_cleaned_index().contains(msg_id)
+
+    def mark_media_cleaned(self, cache_ids) -> int:
+        return self._media_cleaned_index().add_many(cache_ids)
+
+    def _say_media_cleaned(self) -> None:
+        """Said when a download is refused because the cleanup removed the file."""
+        try:
+            wx.CallAfter(self.output, self.i18n.t("media_cleaned_not_restored"))
+        except Exception:
+            pass
+
     def _forget_media_failures(self):
         """Drop the ids of media whose CDN URL had already expired (403/410),
         from RAM and from data/media_failed.json.
@@ -136,6 +165,12 @@ class MediaMixin:
         to download media it had never once tried.
         """
         self._media_failed_ids = {}
+        # What the cleanup removed goes with the data it was about: a new
+        # pairing, a full resync or a logout is how that media comes back.
+        try:
+            self._media_cleaned_index().clear()
+        except Exception as exc:
+            logging.warning("[media_cleanup] could not clear the cleaned index: %s", exc)
         try:
             media_failed_path = data_path("media_failed.json")
             if os.path.isfile(media_failed_path):
@@ -244,6 +279,11 @@ class MediaMixin:
         if not msg_id or "-" in msg_id or msg.get("_local_pending"):
             return None
 
+        # Removed by the media cleanup: never fetched again by itself.
+        cleaned = getattr(self, "is_media_cleaned", None)
+        if callable(cleaned) and cleaned(msg_id):
+            return None
+
         # Skip IDs that previously returned 403/410 (expired CDN URL).
         if msg_id and msg_id in self._media_failed_ids:
             return None
@@ -334,6 +374,9 @@ class MediaMixin:
             msg_id = parts[2] if len(parts) > 2 else parts[-1]
         media_path = data_path("media", f"{msg_id}.wzmedia")
         if os.path.isfile(media_path):
+            return False
+        if self.is_media_cleaned(msg_id):
+            self._say_media_cleaned()
             return False
         if not getattr(self, "_wa_connected", False):
             # Covers both "confirmed offline" and "still connecting at
@@ -452,6 +495,9 @@ class MediaMixin:
             msg_id = parts[2] if len(parts) > 2 else parts[-1]
         audio_file_path = os.path.join(voice_messages_dir, f"{msg_id}.msv")
         if os.path.isfile(audio_file_path):
+            return False
+        if self.is_media_cleaned(msg_id):
+            self._say_media_cleaned()
             return False
         if not getattr(self, "_wa_connected", False):
             # See handle_media_message() — same reasoning applies to audio.

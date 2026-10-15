@@ -2857,13 +2857,15 @@ msgstr "Sohbetler:"
 #, python-brace-format
 msgctxt "cleanup_confirm_msg"
 msgid ""
-"This will delete {files} media file(s) ({mb:.1f} MB), freeing up disk space."
-" The messages stay — only the downloaded file is removed, and can be "
-"downloaded again later if still available. This can't be undone. Continue?"
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing disk space. "
+"The messages stay, but the deleted media will not be downloaded again, by "
+"itself or by hand, unless this account is paired again. This cannot be "
+"undone. Continue?"
 msgstr ""
 "{files} ortam dosyası ({mb:.1f} MB) silinecek ve disk alanı boşalacak. "
-"Mesajlar kalır — yalnızca indirilen dosya silinir; hâlâ mevcutsa daha sonra "
-"yeniden indirilebilir. Bu işlem geri alınamaz. Devam edilsin mi?"
+"Mesajlar kalır, ancak silinen ortam dosyaları bu hesap yeniden "
+"eşleştirilmedikçe ne otomatik ne de elle yeniden indirilir. Bu işlem geri "
+"alınamaz. Devam edilsin mi?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -6356,6 +6358,15 @@ msgctxt "media_audio_convert_failed"
 msgid "Could not convert the audio to an Opus format accepted by WhatsApp."
 msgstr ""
 "Ses, WhatsApp tarafından kabul edilen bir Opus biçimine dönüştürülemedi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/media.py
+msgctxt "media_cleaned_not_restored"
+msgid ""
+"This media was removed by the cleanup and will not be downloaded again "
+"unless this account is paired again."
+msgstr ""
+"Bu ortam dosyası temizlikle kaldırıldı ve bu hesap yeniden eşleştirilmedikçe"
+" tekrar indirilmeyecek."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format

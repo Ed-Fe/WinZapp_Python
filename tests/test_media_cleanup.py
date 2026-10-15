@@ -113,3 +113,54 @@ def test_a_file_already_gone_is_counted_and_cancel_stops(cache):
     preview = cleanup.scan({"c": [_msg("P1"), _msg("P2")]}, ["photos"], path_for=cache["path_for"])
     stats = cleanup.execute(preview, cache["roots"], should_cancel=lambda: True)
     assert stats.cancelled and stats.files_deleted == 0
+
+
+def test_execute_reports_the_ids_it_deleted(cache):
+    cache["put"]("media", "P1.wzmedia", 10)
+    preview = cleanup.scan({"c": [_msg("P1"), _msg("P2")]}, ["photos"], path_for=cache["path_for"])
+    stats = cleanup.execute(preview, cache["roots"])
+    assert stats.deleted_ids == ["P1"]
+
+
+# ── the index of cleaned media ────────────────────────────────────────────
+
+def test_the_index_remembers_across_instances_and_clears(tmp_path):
+    from core.media_cleaned import CleanedMediaIndex
+
+    path = str(tmp_path / "acct" / "media_cleaned.json")
+    index = CleanedMediaIndex(lambda: path)
+    assert not index.contains("A1") and len(index) == 0
+    assert index.add_many(["A1", "B2", "", None]) == 2
+    assert index.add_many(["A1"]) == 0
+    assert index.contains("A1") and index.contains("B2")
+
+    again = CleanedMediaIndex(lambda: path)
+    assert again.contains("A1") and len(again) == 2
+
+    again.clear()
+    assert not again.contains("A1")
+    assert not os.path.exists(path)
+    assert not CleanedMediaIndex(lambda: path).contains("A1")
+
+
+def test_the_index_follows_the_accounts_folder(tmp_path):
+    from core.media_cleaned import CleanedMediaIndex
+
+    current = {"path": str(tmp_path / "a" / "media_cleaned.json")}
+    index = CleanedMediaIndex(lambda: current["path"])
+    index.add_many(["X"])
+    current["path"] = str(tmp_path / "b" / "media_cleaned.json")
+    assert not index.contains("X")          # another account, another list
+    index.add_many(["Y"])
+    current["path"] = str(tmp_path / "a" / "media_cleaned.json")
+    assert index.contains("X") and not index.contains("Y")
+
+
+def test_a_damaged_index_file_reads_as_empty(tmp_path):
+    from core.media_cleaned import CleanedMediaIndex
+
+    path = tmp_path / "media_cleaned.json"
+    path.write_text("{ not json", encoding="utf-8")
+    index = CleanedMediaIndex(lambda: str(path))
+    assert not index.contains("A") and len(index) == 0
+    assert index.add_many(["A"]) == 1 and index.contains("A")
