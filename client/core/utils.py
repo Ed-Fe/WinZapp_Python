@@ -1273,6 +1273,7 @@ DEFAULT_SETTINGS = {
         "group_custom_path": ""
     },
     "conversation_sounds": {},
+    "conversation_auto_ai": {},
     "cleared_chats": {},
     "cleared_starred_chats": {},
     "storage": {

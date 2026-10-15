@@ -38,6 +38,7 @@ from core.transcription import (
     stored as stored_transcription,
 )
 from coord_locks import LockTimeout
+from core import conversation_auto_ai
 from core.utils import auto_download_allows, auto_download_enabled
 from ui import transcription_flow
 
@@ -61,6 +62,11 @@ class AutoTranscriptionMixin:
             return
         try:
             if not auto_queue.eligible(msg) or self.is_chat_locked(remote_jid):
+                return
+            # Cleared in the conversation's data window.
+            if not conversation_auto_ai.allowed(
+                    self.settings, self._normalize_jid(remote_jid),
+                    conversation_auto_ai.TRANSCRIBE):
                 return
             # A model chosen explicitly whose cache is off would run for
             # nothing: the result could not be kept in the line.
@@ -98,7 +104,9 @@ class AutoTranscriptionMixin:
         try:
             # Checked again here: the queue holds several runs of minutes each,
             # and the chat may have been locked since this one was queued.
-            if self.is_chat_locked(remote_jid):
+            if self.is_chat_locked(remote_jid) or not conversation_auto_ai.allowed(
+                    self.settings, self._normalize_jid(remote_jid),
+                    conversation_auto_ai.TRANSCRIBE):
                 return
         except Exception:
             return

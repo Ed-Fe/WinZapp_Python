@@ -128,3 +128,16 @@ def test_turning_the_local_option_on_asks_before_turning_the_online_one_off(monk
     dialog._on_local_auto_toggle(event)
     assert dialog._transcription_auto_check.GetValue() is False
     assert dialog._ai_page.auto_transcribe.GetValue() is True
+
+
+def test_conversation_boxes_only_record_what_was_cleared():
+    from core import conversation_auto_ai as conv
+
+    settings = {}
+    assert conv.allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE)
+    conv.set_allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE, False)
+    assert not conv.allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE)
+    assert conv.allowed(settings, "5511@s.whatsapp.net", conv.DESCRIBE)
+    assert conv.allowed(settings, "other@s.whatsapp.net", conv.TRANSCRIBE)
+    conv.set_allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE, True)
+    assert settings[conv.SETTING] == {}

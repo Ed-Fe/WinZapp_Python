@@ -24,6 +24,7 @@ import wx
 
 from app_paths import global_dir
 from app_settings import AppSettings
+from core import conversation_auto_ai
 from core.ai_credentials import CredentialStore
 from core.ai_media import auto as ai_auto
 from core.ai_media import config as ai_config
@@ -44,6 +45,14 @@ class AutoAIMediaMixin:
         app = getattr(self, "_app_settings", None) or AppSettings(global_dir())
         return ai_config.preferences(app)
 
+    def _conversation_allows_auto_ai(self, remote_jid: str, kind: str) -> bool:
+        """The conversation's boxes (data window): voice is "transcribe",
+        pictures, stickers and videos are "describe"."""
+        which = (conversation_auto_ai.TRANSCRIBE if kind == "audio"
+                 else conversation_auto_ai.DESCRIBE)
+        return conversation_auto_ai.allowed(
+            self.settings, self._normalize_jid(remote_jid), which)
+
     def _maybe_auto_ai_media(self, remote_jid: str, msg: dict) -> None:
         """Queue *msg* if the online automatic options ask for it (wx thread,
         for messages that just arrived; cheap when both are off)."""
@@ -53,6 +62,8 @@ class AutoAIMediaMixin:
                 return
             kind = ai_auto.wanted_kind(msg, config, auto_queue.enabled(self.settings))
             if kind is None or self.is_chat_locked(remote_jid):
+                return
+            if not self._conversation_allows_auto_ai(remote_jid, kind):
                 return
             if not ai_auto.usable_providers(config, kind, CredentialStore(global_dir()).saved()):
                 return
@@ -84,7 +95,8 @@ class AutoAIMediaMixin:
             # Checked again: the queue may have held this for a while, and the
             # options or the chat's lock may have changed since.
             config = self._ai_media_preferences()
-            if self.is_chat_locked(remote_jid):
+            if self.is_chat_locked(remote_jid) \
+                    or not self._conversation_allows_auto_ai(remote_jid, kind):
                 return
             if ai_auto.wanted_kind(dict(msg, messageTimestamp=0), config,
                                    auto_queue.enabled(self.settings)) != kind:
