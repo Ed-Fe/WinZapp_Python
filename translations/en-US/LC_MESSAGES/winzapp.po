@@ -524,8 +524,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope"
-msgid "Conversations the automatic options apply to"
-msgstr "Conversations the automatic options apply to"
+msgid "Conversations the automatic options apply to:"
+msgstr "Conversations the automatic options apply to:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope_all"
