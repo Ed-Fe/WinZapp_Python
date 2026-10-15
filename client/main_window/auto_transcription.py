@@ -162,6 +162,9 @@ class AutoTranscriptionMixin:
         `timeout` seconds in all.
         """
         running = []
+        stop_ai = getattr(self, "stop_auto_ai_media", None)
+        if callable(stop_ai):
+            stop_ai()
         queue = getattr(self, "_auto_transcription_queue", None)
         if queue is not None:
             queue.stop()

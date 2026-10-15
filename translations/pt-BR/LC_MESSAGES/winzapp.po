@@ -503,6 +503,40 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_consent"
+msgid ""
+"Every voice message, picture, sticker or video you receive in a conversation"
+" that is not locked will be sent automatically to: {providers}. Do you "
+"agree?"
+msgstr ""
+"Toda mensagem de voz, imagem, figurinha ou vídeo que você receber em uma "
+"conversa não trancada será enviada automaticamente a: {providers}. Você "
+"concorda?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_consent_title"
+msgid "Send media automatically?"
+msgstr "Enviar mídia automaticamente?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_describe"
+msgid ""
+"Describe received pictures, stickers and videos automatically, with the "
+"online providers"
+msgstr ""
+"Descrever automaticamente as imagens, figurinhas e vídeos recebidos, com os "
+"provedores online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_transcribe"
+msgid ""
+"Transcribe received voice messages automatically, with the online providers"
+msgstr ""
+"Transcrever automaticamente as mensagens de voz recebidas, com os provedores"
+" online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
 msgid "Balanced"
 msgstr "Equilibrada"
@@ -11528,6 +11562,17 @@ msgid "Automatic transcription was paused for a while. {reason}"
 msgstr "A transcrição automática foi pausada por um tempo. {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_auto_replaces_online"
+msgid ""
+"Turning this on turns off the automatic transcription with the online "
+"providers (Transcriptions && Descriptions tab), so a voice message is not "
+"transcribed twice. Continue?"
+msgstr ""
+"Ativar isto desativa a transcrição automática com os provedores online (aba "
+"Transcrições e Descrições), para que uma mensagem de voz não seja transcrita"
+" duas vezes. Continuar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
@@ -13380,6 +13425,16 @@ msgid ""
 msgstr ""
 "A precisão de cálculo escolhida, {chosen}, não pode ser usada onde a "
 "transcrição vai ser executada; no lugar dela será usada {used}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_online_auto_replaces_local"
+msgid ""
+"Turning this on turns off the automatic transcription with the local models "
+"(Transcription tab), so a voice message is not transcribed twice. Continue?"
+msgstr ""
+"Ativar isto desativa a transcrição automática com os modelos locais (aba "
+"Transcrição), para que uma mensagem de voz não seja transcrita duas vezes. "
+"Continuar?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
 msgctxt "transcription_open_settings_question"

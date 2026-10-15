@@ -23,6 +23,7 @@ from wx.lib.scrolledpanel import ScrolledPanel
 from app_paths import global_dir
 from app_settings import AppSettings
 from core.ai_credentials import CredentialStore, CredentialError
+from core.ai_media import config as ai_config
 from core.ai_media.config import KINDS, PROFILES, PROVIDERS, preferences, supports, valid_model
 from core.ai_media.errors import DescriptionError
 from core.ai_media.service import RequestToken, probe_connection, submit
@@ -326,6 +327,15 @@ class AISettingsPage(ScrolledPanel):
         self.profile = self._choice("ai_profile", self._profile_labels())
         self.profile.SetSelection(PROFILES.index(config["profile"]))
         self.read_answers = self._check("ai_read_answers", config["read_answers"])
+        # On arrival, with no window: the text goes to the message's line.
+        self.auto_transcribe = self._check("ai_auto_transcribe", config["auto_transcribe"])
+        self.auto_describe = self._check("ai_auto_describe", config["auto_describe"])
+        self.auto_transcribe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
+        self.auto_describe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
+        #: Set by SettingsDialog: asks before this replaces the local
+        #: automatic transcription; True when it may go ahead.
+        self.confirm_replaces_local = None
+        self._auto_consent = set()  # providers consented to by turning an option on
         self._label("ai_settings_help")
         self.notice = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(-1, 155))
         self.sizer.Add(self.notice, 0, wx.EXPAND | wx.ALL, 8)
@@ -477,6 +487,36 @@ class AISettingsPage(ScrolledPanel):
         self._refresh_list(self.providers.GetSelection())
         self._on_change()
 
+    def _on_auto_toggle(self, event):
+        """Turning an automatic option on: replace the local automatic
+        transcription (asked first) and consent to the providers that will
+        receive every message of the kind. Turning it off asks nothing."""
+        control = event.GetEventObject()
+        if control.GetValue():
+            if control is self.auto_transcribe and callable(self.confirm_replaces_local)                     and not self.confirm_replaces_local():
+                control.SetValue(False)
+                return
+            kinds = ("audio",) if control is self.auto_transcribe else ("image", "sticker", "video")
+            order = {"order": self._order, "disabled": sorted(self._disabled)}
+            providers = []
+            for kind in kinds:
+                for provider in ai_config.chain(order, kind, self._has_key):
+                    if provider not in providers:
+                        providers.append(provider)
+            consented = set(preferences(self.app)["consented"]) | self._auto_consent
+            needed = [p for p in providers if p not in consented]
+            if needed:
+                text = self._t("ai_auto_consent").format(
+                    providers=", ".join(PROVIDERS[p].name for p in needed))
+                answer = wx.MessageBox(text, self._plain("ai_auto_consent_title"),
+                                       wx.YES_NO | wx.ICON_WARNING, self)
+                if answer != wx.YES:
+                    control.SetValue(False)
+                    return
+                self._auto_consent.update(needed)
+        self._on_change()
+        event.Skip()
+
     def _technical_info(self, event):
         dialog = wx.Dialog(self, title=self._t("ai_technical_info").replace("&", ""), size=(560, 400),
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
@@ -523,8 +563,15 @@ class AISettingsPage(ScrolledPanel):
                             for name, model in self._models.items()},
                     kinds={kind: check.GetValue() for kind, check in self.toggles.items()},
                     profile=PROFILES[self.profile.GetSelection()],
-                    read_answers=self.read_answers.GetValue())
+                    read_answers=self.read_answers.GetValue(),
+                    auto_transcribe=self.auto_transcribe.GetValue(),
+                    auto_describe=self.auto_describe.GetValue())
                 consented = value.get("consented", [])
+                if self.auto_transcribe.GetValue() or self.auto_describe.GetValue():
+                    value["consented"] = sorted(
+                        (set(consented) if isinstance(consented, list) else set())
+                        | self._auto_consent)
+                    consented = value["consented"]
                 value["consented"] = [p for p in consented if p not in removed] \
                     if isinstance(consented, list) else []
                 return value

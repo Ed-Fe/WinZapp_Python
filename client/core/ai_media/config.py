@@ -140,6 +140,11 @@ def preferences(app_settings):
         "kinds": {k: _flag(kinds.get(k), True) for k in KINDS},
         "profile": profile if profile in PROFILES else "balanced",
         "read_answers": _flag(raw.get("read_answers"), True),
+        # Done on arrival, with no window (core/ai_media/auto.py). Off by
+        # default: every received voice message or picture would otherwise
+        # leave the computer for a provider without anyone asking.
+        "auto_transcribe": _flag(raw.get("auto_transcribe"), False),
+        "auto_describe": _flag(raw.get("auto_describe"), False),
         "consented": sorted(set(consented)),
     }
 

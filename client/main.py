@@ -299,6 +299,7 @@ from main_window.media import MediaMixin
 from main_window.transcription_store import TranscriptionStoreMixin
 from main_window.transcription_background import TranscriptionBackgroundMixin
 from main_window.auto_transcription import AutoTranscriptionMixin
+from main_window.auto_ai_media import AutoAIMediaMixin
 from main_window.chat_events import ChatEventsMixin
 from main_window.contact_presence import ContactPresenceMixin
 from main_window.history import HistoryMixin
@@ -361,6 +362,7 @@ class MainWindow(
     TranscriptionStoreMixin,
     TranscriptionBackgroundMixin,
     AutoTranscriptionMixin,
+    AutoAIMediaMixin,
     ChatEventsMixin,
     ContactPresenceMixin,
     HistoryMixin,

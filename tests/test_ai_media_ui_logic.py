@@ -804,6 +804,9 @@ class PageStub:
         self.toggles = {kind: Control(True) for kind in ai_config.KINDS}
         self.profile = Control(selection=1)
         self.read_answers = Control(False)
+        self.auto_transcribe = Control(False)
+        self.auto_describe = Control(False)
+        self._auto_consent = set()
         self.status = Control()
         self.providers = Control(selection=0)
         self.refreshed = []
