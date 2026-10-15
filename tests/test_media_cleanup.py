@@ -164,3 +164,32 @@ def test_a_damaged_index_file_reads_as_empty(tmp_path):
     index = CleanedMediaIndex(lambda: str(path))
     assert not index.contains("A") and len(index) == 0
     assert index.add_many(["A"]) == 1 and index.contains("A")
+
+
+def test_f5_keeps_the_cleaned_index_and_a_logout_clears_it(tmp_path, monkeypatch):
+    """The only way cleaned media comes back is a logout or a new pairing."""
+    import types
+
+    import main_window.media as media_module
+    from core.media_cleaned import CleanedMediaIndex
+
+    path = str(tmp_path / "media_cleaned.json")
+    monkeypatch.setattr(media_module, "data_path", lambda *parts: str(tmp_path.joinpath(*parts)))
+    window = types.SimpleNamespace(_media_failed_ids={"x": 1})
+    window._media_cleaned_idx = CleanedMediaIndex(lambda: path)
+    window._media_cleaned_index = lambda: window._media_cleaned_idx
+    window.is_media_cleaned = lambda msg_id: media_module.MediaMixin.is_media_cleaned(window, msg_id)
+    window.mark_media_cleaned = lambda ids: window._media_cleaned_idx.add_many(ids)
+    window.mark_media_cleaned(["A1"])
+
+    # F5 forgets the expired-link ids and nothing else.
+    media_module.MediaMixin._forget_media_failures(window)
+    assert window._media_failed_ids == {}
+    assert window.is_media_cleaned("A1")
+
+    # A message id in WhatsApp's composite form is reduced like the cache file's.
+    assert window.is_media_cleaned("false_5511@s.whatsapp.net_A1")
+
+    # A logout or a new pairing is the one thing that empties it.
+    media_module.MediaMixin._forget_cleaned_media(window)
+    assert not window.is_media_cleaned("A1")

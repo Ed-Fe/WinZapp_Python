@@ -8,10 +8,11 @@ ui.conversation_panel.media_paths.media_cache_id) of the files the cleanup
 deleted, kept in `media_cleaned.json` of the account's data folder.
 
 What it blocks: every automatic download and every explicit one — the
-message offers no download and says why. What clears it: the same events that
-empty the account's local data (a new pairing, a full resync, a logout) —
-`MainWindow._forget_media_failures()` calls `clear()` — because the files
-and messages it refers to go with them.
+message offers no download and says why. What clears it: a logout or a new
+pairing (`MainWindow._forget_cleaned_media()`, from the wipe that empties the
+account's local data) and nothing else. A full resync (F5) does not: it
+refetches the messages of the same account, and what the user chose to delete
+must stay deleted.
 
 No wx, no MainWindow; the file path is resolved at each use because the
 account's data folder changes with the account.

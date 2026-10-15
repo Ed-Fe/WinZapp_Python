@@ -147,6 +147,16 @@ class MediaMixin:
     def mark_media_cleaned(self, cache_ids) -> int:
         return self._media_cleaned_index().add_many(cache_ids)
 
+    def _forget_cleaned_media(self) -> None:
+        """Empty the index of cleaned media. Only for a logout or a new
+        pairing — the one way that media is allowed to come back. F5 is not:
+        a resync refetches the messages of the same account, and what the user
+        chose to delete stays deleted."""
+        try:
+            self._media_cleaned_index().clear()
+        except Exception as exc:
+            logging.warning("[media_cleanup] could not clear the cleaned index: %s", exc)
+
     def _say_media_cleaned(self) -> None:
         """Said when a download is refused because the cleanup removed the file."""
         try:
@@ -165,12 +175,6 @@ class MediaMixin:
         to download media it had never once tried.
         """
         self._media_failed_ids = {}
-        # What the cleanup removed goes with the data it was about: a new
-        # pairing, a full resync or a logout is how that media comes back.
-        try:
-            self._media_cleaned_index().clear()
-        except Exception as exc:
-            logging.warning("[media_cleanup] could not clear the cleaned index: %s", exc)
         try:
             media_failed_path = data_path("media_failed.json")
             if os.path.isfile(media_failed_path):
