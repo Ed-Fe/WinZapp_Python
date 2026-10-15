@@ -61,7 +61,9 @@ class AutoTranscriptionMixin:
         if not auto_queue.enabled(self.settings):
             return
         try:
-            if not auto_queue.eligible(msg) or self.is_chat_locked(remote_jid):
+            if not auto_queue.eligible(
+                    msg, max_age=auto_queue.max_age_seconds(self.settings)) \
+                    or self.is_chat_locked(remote_jid):
                 return
             # Cleared in the conversation's data window.
             if not conversation_auto_ai.allowed(

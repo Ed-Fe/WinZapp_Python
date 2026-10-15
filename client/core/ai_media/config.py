@@ -100,6 +100,21 @@ def asks_questions(kind):
     return kind in ("image", "sticker", "video")
 
 
+def _count(value, default, ceiling):
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return default
+    return min(value, ceiling)
+
+
+def _usage(value):
+    day = value.get("day") if isinstance(value, dict) else None
+    count = value.get("count") if isinstance(value, dict) else None
+    if not isinstance(day, str) or isinstance(count, bool) or not isinstance(count, int) \
+            or count < 0:
+        return {"day": "", "count": 0}
+    return {"day": day, "count": count}
+
+
 def _flag(value, default):
     return value if isinstance(value, bool) else default
 
@@ -145,6 +160,10 @@ def preferences(app_settings):
         # leave the computer for a provider without anyone asking.
         "auto_transcribe": _flag(raw.get("auto_transcribe"), False),
         "auto_describe": _flag(raw.get("auto_describe"), False),
+        # A ceiling on the requests made on arrival, per day, and how many
+        # were made today (core/ai_media/auto.py). 0 = no ceiling.
+        "auto_daily_limit": _count(raw.get("auto_daily_limit"), 50, 10000),
+        "auto_usage": _usage(raw.get("auto_usage")),
         "consented": sorted(set(consented)),
     }
 

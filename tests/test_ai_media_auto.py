@@ -165,3 +165,61 @@ def test_an_unknown_scope_reads_as_all_and_old_entries_still_hold():
     old = {conv.SETTING: {"a@s.whatsapp.net": {"transcribe": False}}}
     assert not conv.allowed(old, "a@s.whatsapp.net", conv.TRANSCRIBE)
     assert conv.allowed(old, "a@s.whatsapp.net", conv.DESCRIBE)
+
+
+def test_the_age_a_message_may_have_is_a_choice_with_a_safe_default():
+    from core.transcription import auto_queue
+
+    assert auto_queue.max_age_seconds({}) == auto_queue.MAX_AGE_SECONDS
+    for minutes in auto_queue.AGE_CHOICES_MINUTES:
+        settings = {"transcription": {"auto_max_age_minutes": minutes}}
+        assert auto_queue.max_age_seconds(settings) == minutes * 60.0
+    for junk in (0, 7, -5, "30", None, True, 10 ** 6):
+        settings = {"transcription": {"auto_max_age_minutes": junk}}
+        assert auto_queue.max_age_seconds(settings) == auto_queue.MAX_AGE_SECONDS
+
+
+def test_a_longer_age_reaches_older_messages_online_and_locally():
+    from core.transcription import auto_queue
+
+    old = _msg(messageTimestamp=time.time() - 20 * 60)
+    assert auto.wanted_kind(old, _prefs()) is None
+    assert auto.wanted_kind(old, _prefs(), max_age=30 * 60) == "audio"
+    assert auto.wanted_kind(old, _prefs(), max_age=15 * 60) is None
+    assert not auto_queue.eligible(old)
+    assert auto_queue.eligible(old, max_age=30 * 60)
+
+
+def test_the_daily_ceiling_counts_per_day_and_zero_means_none():
+    day = auto.day_key(1_700_000_000)
+    config = {"auto_daily_limit": 2, "auto_usage": {"day": day, "count": 1}}
+    assert not auto.limit_reached(config, 1_700_000_000)
+    config["auto_usage"]["count"] = 2
+    assert auto.limit_reached(config, 1_700_000_000)
+    # Another day starts again from zero.
+    assert not auto.limit_reached(config, 1_700_000_000 + 2 * 86400)
+    assert auto.spent_today(config, 1_700_000_000 + 2 * 86400) == 0
+    config["auto_daily_limit"] = 0
+    assert not auto.limit_reached(config, 1_700_000_000)
+
+
+def test_charging_counts_one_more_and_keeps_the_rest_of_the_block():
+    now = 1_700_000_000
+    block = {"enabled": True, "consented": ["gemini"]}
+    once = auto.charged(block, now)
+    twice = auto.charged(once, now)
+    assert twice["auto_usage"] == {"day": auto.day_key(now), "count": 2}
+    assert twice["enabled"] is True and twice["consented"] == ["gemini"]
+    next_day = auto.charged(twice, now + 86400 * 2)
+    assert next_day["auto_usage"]["count"] == 1
+    assert auto.charged(None, now)["auto_usage"]["count"] == 1
+
+
+def test_only_failures_that_repeat_pause_the_queue():
+    from core.ai_media.errors import DescriptionError
+    from core.ai_media.service import ChainFailed
+
+    assert auto.pauses(ChainFailed([("gemini", "quota"), ("openai", "authentication")]))
+    assert not auto.pauses(ChainFailed([("gemini", "quota"), ("openai", "network")]))
+    assert not auto.pauses(DescriptionError("timeout"))
+    assert auto.pauses(DescriptionError("quota"))

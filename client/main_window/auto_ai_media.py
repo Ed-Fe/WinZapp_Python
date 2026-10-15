@@ -18,6 +18,7 @@ is not sent anything until it has it.
 """
 
 import logging
+import threading
 import time
 
 import wx
@@ -30,6 +31,7 @@ from core.ai_media import auto as ai_auto
 from core.ai_media import config as ai_config
 from core.ai_media.payload import prepare_media
 from core.ai_media.prompts import first_question, instructions
+from core.ai_media.errors import DescriptionError
 from core.ai_media.service import Operation, run_chain
 from core.ai_media.transcript import spoken_answer
 from core.transcription import auto_queue
@@ -60,10 +62,15 @@ class AutoAIMediaMixin:
             config = self._ai_media_preferences()
             if not (config["auto_transcribe"] or config["auto_describe"]):
                 return
-            kind = ai_auto.wanted_kind(msg, config, auto_queue.enabled(self.settings))
+            kind = ai_auto.wanted_kind(
+                msg, config, auto_queue.enabled(self.settings),
+                max_age=auto_queue.max_age_seconds(self.settings))
             if kind is None or self.is_chat_locked(remote_jid):
                 return
             if not self._conversation_allows_auto_ai(remote_jid, kind):
+                return
+            if ai_auto.limit_reached(config):
+                self._say_auto_ai_limit_once(config)
                 return
             if not ai_auto.usable_providers(config, kind, CredentialStore(global_dir()).saved()):
                 return
@@ -80,6 +87,47 @@ class AutoAIMediaMixin:
             queue = auto_queue.AutoTranscriptionQueue(self._run_auto_ai_media)
             self._auto_ai_queue = queue
         return queue
+
+    # ── The ceiling and the pause ────────────────────────────────────────────
+
+    def _charge_auto_ai_request(self) -> bool:
+        """Count one request against today's ceiling, before it is made (a
+        failed one reached the provider too). False when the ceiling is used."""
+        lock = getattr(self, "_auto_ai_charge_lock", None)
+        if lock is None:
+            lock = self._auto_ai_charge_lock = threading.Lock()
+        app = getattr(self, "_app_settings", None) or AppSettings(global_dir())
+        with lock:
+            if ai_auto.limit_reached(ai_config.preferences(app)):
+                wx.CallAfter(self._say_auto_ai_limit_once, ai_config.preferences(app))
+                return False
+            app.update("ai_media", ai_auto.charged)
+        return True
+
+    def _say_auto_ai_limit_once(self, config) -> None:
+        """One sentence a day: the ceiling was reached and nothing more is sent."""
+        day = ai_auto.day_key()
+        if getattr(self, "_auto_ai_limit_said_on", None) == day:
+            return
+        self._auto_ai_limit_said_on = day
+        self.output(self.i18n.t("auto_media_limit_reached").format(
+            limit=config.get("auto_daily_limit", 0)))
+
+    def _pause_auto_ai_media(self) -> None:
+        """Every provider refused for a reason that repeats: stop for an hour
+        and say so once (again only after the settings were applied)."""
+        started = self._auto_ai_queue_get().pause(ai_auto.PAUSE_SECONDS)
+        if started and not getattr(self, "_auto_ai_pause_said", False):
+            self._auto_ai_pause_said = True
+            wx.CallAfter(self.output, self.i18n.t("auto_media_paused_provider"))
+
+    def resume_auto_ai_media(self) -> None:
+        """Settings > Transcriptions & Descriptions was applied: what paused the
+        queue may have been fixed there (a key, a provider)."""
+        queue = getattr(self, "_auto_ai_queue", None)
+        if queue is not None:
+            queue.resume()
+        self._auto_ai_pause_said = False
 
     def stop_auto_ai_media(self) -> None:
         """At shutdown: nothing more is sent."""
@@ -119,6 +167,10 @@ class AutoAIMediaMixin:
             mime = str(info.get("mimetype") or "") if isinstance(info, dict) else ""
             prepared = prepare_media(kind, decrypt_bytes(encrypted, self.key), mime,
                                      config["profile"])
+            # Counted when the request is about to leave, not when it was
+            # queued: a message whose media never arrived costs nothing.
+            if not self._charge_auto_ai_request():
+                return
             language = getattr(self.i18n, "language", "")
             answer, provider = run_chain(
                 Operation(kind), providers, config["models"], store.get, prepared, (),
@@ -129,6 +181,8 @@ class AutoAIMediaMixin:
             # quote a path, a key or the message.
             logging.info("[ai-media] automatic request ended without text: %s",
                          type(exc).__name__)
+            if isinstance(exc, DescriptionError) and ai_auto.pauses(exc):
+                self._pause_auto_ai_media()
             return
         text = spoken_answer(answer or "")
         if text:

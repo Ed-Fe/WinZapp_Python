@@ -479,6 +479,17 @@ msgid "{provider}: {reason}"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -493,10 +504,20 @@ msgid "Send media automatically?"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_describe"
 msgid ""
 "Describe received pictures, stickers and videos automatically, with the "
 "online providers"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -518,6 +539,11 @@ msgstr ""
 msgctxt "ai_auto_transcribe"
 msgid ""
 "Transcribe received voice messages automatically, with the online providers"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1670,6 +1696,23 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py

@@ -509,6 +509,17 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr "1 godzinę temu"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr "{minutes} minut temu"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -525,12 +536,22 @@ msgid "Send media automatically?"
 msgstr "Wysyłać multimedia automatycznie?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr "Dzienny limit żądań automatycznych (0 oznacza brak limitu):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_describe"
 msgid ""
 "Describe received pictures, stickers and videos automatically, with the "
 "online providers"
 msgstr ""
 "Automatycznie opisuj odebrane obrazy, naklejki i filmy u dostawców online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr "Przetwarzaj automatycznie wiadomości odebrane do:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope"
@@ -553,6 +574,11 @@ msgid ""
 "Transcribe received voice messages automatically, with the online providers"
 msgstr ""
 "Automatycznie transkrybuj odebrane wiadomości głosowe u dostawców online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr "Żądania automatyczne wykonane dzisiaj:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
@@ -1855,6 +1881,27 @@ msgstr "&Domyślna prędkość odtwarzania audio"
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
 msgstr "Automatycznie pobieraj multimedia"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+"Automatyczna transkrypcja i opisy wstrzymane na dziś: osiągnięto limit "
+"{limit} żądań."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
+msgstr ""
+"Automatyczna transkrypcja i opisy wstrzymane na godzinę: dostawca odrzucił "
+"żądania (limit lub klucz)."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_ask_message"

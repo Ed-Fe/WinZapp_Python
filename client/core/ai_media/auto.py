@@ -30,7 +30,52 @@ from . import config as ai_config
 AUTO_KINDS = ("audio", "image", "sticker", "video")
 
 
-def wanted_kind(msg, config, local_auto_transcription=False, now=None):
+#: How long the automatic requests stop after every provider refused one
+#: for a reason that will repeat (quota, key): one hour.
+PAUSE_SECONDS = 3600.0
+#: The failures that repeat for every message until the user fixes something.
+PAUSING_CATEGORIES = frozenset(("quota", "authentication", "credentials"))
+
+
+def day_key(now=None) -> str:
+    """The local calendar day, the unit of the daily ceiling."""
+    return time.strftime("%Y-%m-%d", time.localtime(time.time() if now is None else now))
+
+
+def spent_today(config, now=None) -> int:
+    usage = config.get("auto_usage") or {}
+    return usage.get("count", 0) if usage.get("day") == day_key(now) else 0
+
+
+def limit_reached(config, now=None) -> bool:
+    """Whether today's ceiling has been used up (0 = there is none)."""
+    limit = config.get("auto_daily_limit", 0)
+    return bool(limit) and spent_today(config, now) >= limit
+
+
+def charged(raw_block, now=None):
+    """`raw_block` (the stored ai_media dict) with one more request counted today.
+    Written whole by the caller through AppSettings.update()."""
+    value = dict(raw_block) if isinstance(raw_block, dict) else {}
+    today = day_key(now)
+    usage = value.get("auto_usage")
+    count = usage.get("count") if isinstance(usage, dict) and usage.get("day") == today else 0
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        count = 0
+    value["auto_usage"] = {"day": today, "count": count + 1}
+    return value
+
+
+def pauses(error) -> bool:
+    """Whether a failed chain means "stop for a while" rather than "this message":
+    every provider it tried refused for a reason that repeats."""
+    attempts = getattr(error, "attempts", ())
+    if attempts:
+        return all(category in PAUSING_CATEGORIES for _provider, category in attempts)
+    return getattr(error, "category", None) in PAUSING_CATEGORIES
+
+
+def wanted_kind(msg, config, local_auto_transcription=False, now=None, max_age=None):
     """The kind to process `msg` as on arrival, or None.
 
     `config` is core.ai_media.config.preferences(); `local_auto_transcription`
@@ -57,7 +102,8 @@ def wanted_kind(msg, config, local_auto_transcription=False, now=None):
         arrived = float(msg.get("messageTimestamp") or 0)
     except (TypeError, ValueError):
         arrived = 0.0
-    if arrived and (time.time() if now is None else now) - arrived > auto_queue.MAX_AGE_SECONDS:
+    limit = auto_queue.MAX_AGE_SECONDS if max_age is None else max_age
+    if arrived and (time.time() if now is None else now) - arrived > limit:
         return None
     info = ((msg.get("message") or {}).get(msg.get("messageType")) or {})
     try:

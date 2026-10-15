@@ -739,6 +739,9 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
                            _profile_labels=lambda: ["quick", "balanced", "detailed"],
                            _scope_labels=lambda: ["all", "selected"],
                            auto_scope=NamedControl(selection=1),
+                           _age_labels=lambda: ["5", "15", "30", "60"],
+                           auto_max_age=NamedControl(selection=2),
+                           auto_limit=NamedControl(), auto_used=NamedControl(),
                            profile=NamedControl(selection=2), providers=NamedControl(selection=-1),
                            notice=NamedControl(), status=NamedControl(),
                            _refresh_list=lambda selection: None)
@@ -747,6 +750,7 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
     assert page.status.name == "ai_status_label" and page.profile.selection == 2
     assert page.profile.items == ["quick", "balanced", "detailed"]
     assert page.auto_scope.items == ["all", "selected"] and page.auto_scope.selection == 1
+    assert page.auto_max_age.items == ["5", "15", "30", "60"] and page.auto_max_age.selection == 2
     assert page.providers.name == "ai_provider_list_label"
 
 
@@ -810,6 +814,8 @@ class PageStub:
         self.auto_transcribe = Control(False)
         self.auto_describe = Control(False)
         self.auto_scope = Control(selection=0)
+        self.auto_max_age = Control(selection=0)
+        self.auto_limit = Control(50)
         self._auto_consent = set()
         self.status = Control()
         self.providers = Control(selection=0)

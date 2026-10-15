@@ -1233,6 +1233,10 @@ DEFAULT_SETTINGS = {
         # Transcribe received voice messages on arrival and put the text in
         # the message line. See core/transcription/auto_queue.py.
         "auto_transcribe_received": False,
+        # How old (minutes) a received message may be and still be
+        # transcribed/described on its own, local or online: one of
+        # auto_queue.AGE_CHOICES_MINUTES. See auto_queue.max_age_seconds().
+        "auto_max_age_minutes": 5,
         # Keep results with the message so they are not redone (on), and the
         # per-model overrides {model id: bool}. See stored.cache_enabled_for().
         "cache_enabled": True,

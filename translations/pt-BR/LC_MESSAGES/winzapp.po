@@ -503,6 +503,17 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr "1 hora atrás"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr "{minutes} minutos atrás"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -520,6 +531,11 @@ msgid "Send media automatically?"
 msgstr "Enviar mídia automaticamente?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr "Limite diário de chamadas automáticas (0 para sem limite):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_describe"
 msgid ""
 "Describe received pictures, stickers and videos automatically, with the "
@@ -527,6 +543,11 @@ msgid ""
 msgstr ""
 "Descrever automaticamente as imagens, figurinhas e vídeos recebidos, com os "
 "provedores online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr "Processar automaticamente as mensagens recebidas até:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope"
@@ -550,6 +571,11 @@ msgid ""
 msgstr ""
 "Transcrever automaticamente as mensagens de voz recebidas, com os provedores"
 " online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr "Chamadas automáticas feitas hoje:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
@@ -1838,6 +1864,27 @@ msgstr "&Velocidade padrão para a reprodução de áudios"
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
 msgstr "Baixar mídias automaticamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+"Transcrição e descrição automáticas paradas por hoje: o limite de {limit} "
+"chamadas foi atingido."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
+msgstr ""
+"Transcrição e descrição automáticas pausadas por uma hora: o provedor "
+"recusou as chamadas (cota ou chave)."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_ask_message"

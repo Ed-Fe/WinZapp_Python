@@ -24,6 +24,8 @@ from app_paths import global_dir
 from app_settings import AppSettings
 from core.ai_credentials import CredentialStore, CredentialError
 from core import conversation_auto_ai
+from core.ai_media import auto as ai_auto
+from core.transcription import auto_queue
 from core.ai_media import config as ai_config
 from core.ai_media.config import KINDS, PROFILES, PROVIDERS, preferences, supports, valid_model
 from core.ai_media.errors import DescriptionError
@@ -340,6 +342,22 @@ class AISettingsPage(ScrolledPanel):
         self.auto_scope.SetSelection(
             1 if conversation_auto_ai.scope(self.main_window.settings)
             == conversation_auto_ai.SCOPE_SELECTED else 0)
+        # How old a message may be to be processed on its own, local or
+        # online (core/transcription/auto_queue.max_age_seconds()).
+        self.auto_max_age = self._choice("ai_auto_max_age", self._age_labels())
+        minutes = int(auto_queue.max_age_seconds(self.main_window.settings) // 60)
+        self.auto_max_age.SetSelection(auto_queue.AGE_CHOICES_MINUTES.index(minutes))
+        # The ceiling on requests made on arrival, and what was spent today.
+        self._label("ai_auto_daily_limit")
+        self.auto_limit = wx.SpinCtrl(
+            self, min=0, max=10000, initial=config["auto_daily_limit"],
+            name=self._plain("ai_auto_daily_limit"))
+        self.sizer.Add(self.auto_limit, 0, wx.ALL, 8)
+        self._label("ai_auto_used_today")
+        self.auto_used = wx.TextCtrl(
+            self, value=str(ai_auto.spent_today(config)), style=wx.TE_READONLY,
+            name=self._plain("ai_auto_used_today"))
+        self.sizer.Add(self.auto_used, 0, wx.EXPAND | wx.ALL, 8)
         #: Set by SettingsDialog: asks before this replaces the local
         #: automatic transcription; True when it may go ahead.
         self.confirm_replaces_local = None
@@ -409,6 +427,12 @@ class AISettingsPage(ScrolledPanel):
         self.auto_scope.SetItems(self._scope_labels())
         self.auto_scope.SetSelection(max(scope_selection, 0))
         self.auto_scope.SetName(self._plain("ai_auto_scope"))
+        age_selection = self.auto_max_age.GetSelection()
+        self.auto_max_age.SetItems(self._age_labels())
+        self.auto_max_age.SetSelection(max(age_selection, 0))
+        self.auto_max_age.SetName(self._plain("ai_auto_max_age"))
+        self.auto_limit.SetName(self._plain("ai_auto_daily_limit"))
+        self.auto_used.SetName(self._plain("ai_auto_used_today"))
         self.notice.SetName(self._plain("ai_settings_help"))
         self.notice.ChangeValue(self._t("ai_settings_notice"))
         self.status.SetName(self._plain("ai_status_label"))
@@ -499,6 +523,15 @@ class AISettingsPage(ScrolledPanel):
         self._refresh_list(self.providers.GetSelection())
         self._on_change()
 
+    def _age_labels(self):
+        labels = []
+        for minutes in auto_queue.AGE_CHOICES_MINUTES:
+            if minutes == 60:
+                labels.append(self._t("ai_auto_age_hour"))
+            else:
+                labels.append(self._t("ai_auto_age_minutes").format(minutes=minutes))
+        return labels
+
     def _scope_labels(self):
         return [self._t("ai_auto_scope_all"), self._t("ai_auto_scope_selected")]
 
@@ -580,7 +613,8 @@ class AISettingsPage(ScrolledPanel):
                     profile=PROFILES[self.profile.GetSelection()],
                     read_answers=self.read_answers.GetValue(),
                     auto_transcribe=self.auto_transcribe.GetValue(),
-                    auto_describe=self.auto_describe.GetValue())
+                    auto_describe=self.auto_describe.GetValue(),
+                    auto_daily_limit=int(self.auto_limit.GetValue()))
                 consented = value.get("consented", [])
                 if self.auto_transcribe.GetValue() or self.auto_describe.GetValue():
                     value["consented"] = sorted(
@@ -594,6 +628,12 @@ class AISettingsPage(ScrolledPanel):
             self.main_window.settings[conversation_auto_ai.SCOPE_SETTING] = (
                 conversation_auto_ai.SCOPE_SELECTED if self.auto_scope.GetSelection() == 1
                 else conversation_auto_ai.SCOPE_ALL)
+            index = max(self.auto_max_age.GetSelection(), 0)
+            self.main_window.settings.setdefault("transcription", {})[
+                auto_queue.SETTING_MAX_AGE_MINUTES] = auto_queue.AGE_CHOICES_MINUTES[index]
+            resume = getattr(self.main_window, "resume_auto_ai_media", None)
+            if callable(resume):
+                resume()
         except (CredentialError, OSError, RuntimeError):
             self.status.ChangeValue(self._t("ai_error_credentials"))
             return False

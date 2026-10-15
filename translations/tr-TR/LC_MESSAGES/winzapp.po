@@ -497,6 +497,17 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr "1 saat önce"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr "{minutes} dakika önce"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -514,6 +525,11 @@ msgid "Send media automatically?"
 msgstr "Ortam otomatik olarak gönderilsin mi?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr "Otomatik isteklerin günlük sınırı (0 sınırsız):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_describe"
 msgid ""
 "Describe received pictures, stickers and videos automatically, with the "
@@ -521,6 +537,11 @@ msgid ""
 msgstr ""
 "Alınan resim, çıkartma ve videoları çevrimiçi sağlayıcılarla otomatik olarak"
 " tanımla"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr "Şu süreye kadar alınan mesajları otomatik işle:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope"
@@ -543,6 +564,11 @@ msgid ""
 "Transcribe received voice messages automatically, with the online providers"
 msgstr ""
 "Alınan sesli mesajları çevrimiçi sağlayıcılarla otomatik olarak yazıya dök"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr "Bugün yapılan otomatik istekler:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
@@ -1823,6 +1849,27 @@ msgstr "&Varsayılan ses oynatma hızı"
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
 msgstr "Medyayı otomatik olarak indir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+"Otomatik yazıya dökme ve açıklama bugün için durduruldu: {limit} istek "
+"sınırına ulaşıldı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
+msgstr ""
+"Otomatik yazıya dökme ve açıklama bir saat duraklatıldı: sağlayıcı istekleri"
+" reddetti (kota veya anahtar)."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_ask_message"
