@@ -410,7 +410,8 @@ class AIResultDialog(wx.Dialog):
         if answer == stored_transcription.SAVE_STORED:
             repaint = getattr(self.panel, "_repaint_or_repopulate", None)
             conversation = getattr(self.panel, "conversation", None)
-            if repaint is not None and isinstance(conversation, dict)                     and conversation.get("remoteJid", "") == jid:
+            if (repaint is not None and isinstance(conversation, dict)
+                    and conversation.get("remoteJid", "") == jid):
                 repaint([msg_id])
             if described:
                 self._speak(self.i18n.t("description_inline_spoken").format(text=text))

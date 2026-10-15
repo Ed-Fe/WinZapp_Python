@@ -541,7 +541,8 @@ class AISettingsPage(ScrolledPanel):
         receive every message of the kind. Turning it off asks nothing."""
         control = event.GetEventObject()
         if control.GetValue():
-            if control is self.auto_transcribe and callable(self.confirm_replaces_local)                     and not self.confirm_replaces_local():
+            if (control is self.auto_transcribe and callable(self.confirm_replaces_local)
+                    and not self.confirm_replaces_local()):
                 control.SetValue(False)
                 return
             kinds = ("audio",) if control is self.auto_transcribe else ("image", "sticker", "video")
