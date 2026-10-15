@@ -7869,8 +7869,12 @@ msgstr "Profil yedekleniyor. İşlem bitene kadar WhatsApp bağlantısı kesilir
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_blank_note"
-msgid "Leave a field blank to keep it unchanged."
-msgstr "Değiştirmek istemediğiniz alanı boş bırakın."
+msgid ""
+"Your current name and About text are filled in. Change only what you want; a"
+" field left blank or unchanged is kept."
+msgstr ""
+"Mevcut adınız ve Hakkımda metniniz dolu olarak gelir. Yalnızca istediğinizi "
+"değiştirin; boş veya değişmeyen alan olduğu gibi kalır."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -7891,6 +7895,18 @@ msgstr ""
 "eşlemeniz gerekecektir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_load_failed"
+msgid "Could not read your current profile. You can still set new values."
+msgstr ""
+"Mevcut profiliniz okunamadı. Yine de yeni değerler ayarlayabilirsiniz."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/whatsapp_profile_panel.py
+msgctxt "profile_loading"
+msgid "Loading your current profile…"
+msgstr "Mevcut profiliniz yükleniyor…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_name_label"
 msgid "Display name:"
@@ -7907,6 +7923,16 @@ msgstr "Fotoğraf seçilmedi."
 msgctxt "profile_nothing_to_save"
 msgid "Fill in at least one field or choose a photo."
 msgstr "En az bir alanı doldurun veya bir fotoğraf seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_none"
+msgid "Current photo: none"
+msgstr "Mevcut fotoğraf: yok"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_set"
+msgid "Current photo: set"
+msgstr "Mevcut fotoğraf: ayarlı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -9541,6 +9567,12 @@ msgstr "Ctrl+Shift+B: kişiyi engelle"
 msgctxt "shortcut_ctrl_shift_c_label"
 msgid "Ctrl+Shift+C: copy caption (photo/video/document)"
 msgstr "Ctrl+Shift+C: açıklamayı kopyala (fotoğraf/video/belge)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_comma_label"
+msgid "Ctrl+Shift+comma: WhatsApp settings"
+msgstr "Ctrl+Shift+virgül: WhatsApp ayarları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py

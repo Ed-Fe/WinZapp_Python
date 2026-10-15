@@ -18,6 +18,7 @@ SHORTCUTS = (
     Shortcut('main.ID_ALT_7', 'main', 'ID_ALT_7', 'shortcut_alt7_label', 1, 55, 0),
     Shortcut('main.ID_ALT_NAV', 'main', 'ID_ALT_NAV', 'shortcut_alt_nav_label', 1, '@main_nav', 0),
     Shortcut('main.ID_CTRL_COMMA', 'main', 'ID_CTRL_COMMA', 'shortcut_ctrl_comma_label', 2, 44, 0),
+    Shortcut('main.ID_CTRL_SHIFT_COMMA', 'main', 'ID_CTRL_SHIFT_COMMA', 'shortcut_ctrl_shift_comma_label', 6, 44, 0),
     Shortcut('main.ID_F1', 'main', 'ID_F1', 'shortcut_f1_label', 0, 340, 0),
     Shortcut('main.ID_ALT_T', 'main', 'ID_ALT_T', 'shortcut_alt_t_label', 1, 84, 0),
     Shortcut('main.ID_CTRL_ALT_SHIFT_P', 'main', 'ID_CTRL_ALT_SHIFT_P', 'shortcut_ctrl_alt_shift_p_label', 7, 80, 0),

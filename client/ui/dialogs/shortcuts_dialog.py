@@ -103,6 +103,7 @@ class ShortcutsDialog(wx.Dialog):
             i18n.t("shortcut_alt8_communities_label"),
             i18n.t("shortcut_alt_nav_label").format(letter=nav_letter),
             i18n.t("shortcut_ctrl_comma_label"),
+            i18n.t("shortcut_ctrl_shift_comma_label"),
             i18n.t("shortcut_f1_label"),
             i18n.t("shortcut_ctrl_n_label"),
             i18n.t("shortcut_alt_shift_f_filter_label"),

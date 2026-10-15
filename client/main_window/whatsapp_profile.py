@@ -4,8 +4,8 @@ The paired account's own profile (display name, About text, photo), as
 File > WhatsApp settings > Profile (ui/dialogs/whatsapp_profile_panel.py) sets
 it. It lives on WhatsApp, not in WinZapp's settings, and is reached through
 WPPConnect Server's own routes: ``change-username``, ``profile-status`` and
-``set-profile-pic``. Unlike privacy, nothing has to be added to api_patches for
-them.
+``set-profile-pic``; what the account holds now is read from ``my-profile``
+(api_patches deviceController.ts, reading the WhatsApp Web page).
 
 Every method is safe to call from a worker thread (no wx object) and returns
 instead of raising: None on success, else an error string, so the page can list
@@ -19,7 +19,7 @@ import logging
 import os
 
 from core import whatsapp_profile
-from core.api_client import api_post
+from core.api_client import api_get, api_post
 
 
 class WhatsAppProfileMixin:
@@ -100,6 +100,32 @@ class WhatsAppProfileMixin:
             return None
         logging.warning("[profile] photo not applied: HTTP %s", response.status_code)
         return self._profile_error(response)
+
+    def fetch_my_profile(self):
+        """What the account has now (core.whatsapp_profile.CurrentProfile), or
+        None on any failure or when nothing was readable: the page then opens
+        empty and still works, exactly as it did before it could read."""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            response = api_get(
+                self._profile_url("my-profile"), headers=headers,
+                timeout=self._PROFILE_TIMEOUT)
+        except Exception as exc:
+            logging.warning("[profile] read failed: %s", type(exc).__name__)
+            return None
+        if response.status_code != 200:
+            logging.warning("[profile] read failed: HTTP %s", response.status_code)
+            return None
+        try:
+            body = response.json()
+        except Exception:
+            logging.warning("[profile] read answered without JSON")
+            return None
+        answer = body.get("response") if isinstance(body, dict) else None
+        current = whatsapp_profile.parse_current_profile(answer)
+        if current is None:
+            logging.warning("[profile] read answered with nothing readable")
+        return current
 
     def apply_profile_changes(self, changes) -> dict:
         """Sends every field of *changes* (core.whatsapp_profile.ProfileChanges)

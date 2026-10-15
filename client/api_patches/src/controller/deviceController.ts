@@ -29,6 +29,7 @@ import {
   SyncMessageListSchema,
 } from '../dto/sync';
 import { contactToArray, unlinkAsync } from '../util/functions';
+import { readMyProfile } from '../util/profileRuntime';
 import { buildForwardRuntimeExpression } from '../util/forwardRuntime';
 import {
   buildStatusReactionInstallExpression,
@@ -4426,6 +4427,26 @@ export async function getStatus(req: Request, res: Response) {
     res
       .status(500)
       .json({ status: 'error', message: 'Error on  get status', error: error });
+  }
+}
+
+/**
+ * GET /api/:session/my-profile — the paired account's own display name, About
+ * text and whether it has a photo: `{ name, status, photo }`, each null when it
+ * could not be read (see util/profileRuntime.ts). Backs the Profile tab of
+ * File > WhatsApp settings, so it opens already showing what is set.
+ */
+export async function getMyProfile(req: Request, res: Response) {
+  const page = (req.client as any)?.page;
+  if (!page || page.isClosed()) {
+    return res.status(503).json({ status: 'error', code: 'profile_unavailable' });
+  }
+  try {
+    const response = await page.evaluate(readMyProfile);
+    return res.status(200).json({ status: 'success', response });
+  } catch (_) {
+    // Native errors can include phone numbers and contact names.
+    return res.status(503).json({ status: 'error', code: 'profile_unavailable' });
   }
 }
 

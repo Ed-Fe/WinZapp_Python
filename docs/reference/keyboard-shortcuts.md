@@ -42,6 +42,7 @@ Aşağıdaki değerler Türkçe arayüz içindir. Çevirinin mnemonik harfi değ
 | Ana gezinti | kilitli sohbetleri aç | Alt+7 | main.ID_ALT_7 |
 | Ana gezinti | ana gezintiye odaklan | Alt+A | main.ID_ALT_NAV |
 | Ana gezinti | ayarlar | Kontrol+, | main.ID_CTRL_COMMA |
+| Ana gezinti | WhatsApp ayarları | Kontrol+Shift+, | main.ID_CTRL_SHIFT_COMMA |
 | Ana gezinti | klavye kısayollarını göster | F1 | main.ID_F1 |
 | Ana gezinti | sohbet durumunu duyur (son görülme, çevrimiçi, yazıyor) | Alt+T | main.ID_ALT_T |
 | Ana gezinti | herhangi bir panelden o anda çalmakta olan sesi duraklat/sürdür | Kontrol+Alt+Shift+P | main.ID_CTRL_ALT_SHIFT_P |

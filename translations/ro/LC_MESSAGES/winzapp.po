@@ -7950,8 +7950,12 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_blank_note"
-msgid "Leave a field blank to keep it unchanged."
-msgstr "Lăsați un câmp necompletat pentru a-l păstra neschimbat."
+msgid ""
+"Your current name and About text are filled in. Change only what you want; a"
+" field left blank or unchanged is kept."
+msgstr ""
+"Numele și textul Despre actuale sunt deja completate. Modificați doar ce "
+"doriți; un câmp necompletat sau nemodificat rămâne neschimbat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -7972,6 +7976,18 @@ msgstr ""
 " sesiunea și să efectuați din nou asocierea."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_load_failed"
+msgid "Could not read your current profile. You can still set new values."
+msgstr ""
+"Profilul actual nu a putut fi citit. Puteți totuși să setați valori noi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/whatsapp_profile_panel.py
+msgctxt "profile_loading"
+msgid "Loading your current profile…"
+msgstr "Se încarcă profilul dumneavoastră actual…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_name_label"
 msgid "Display name:"
@@ -7988,6 +8004,16 @@ msgstr "Nu a fost aleasă nicio fotografie."
 msgctxt "profile_nothing_to_save"
 msgid "Fill in at least one field or choose a photo."
 msgstr "Completați cel puțin un câmp sau alegeți o fotografie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_none"
+msgid "Current photo: none"
+msgstr "Fotografia actuală: niciuna"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_set"
+msgid "Current photo: set"
+msgstr "Fotografia actuală: setată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -9635,6 +9661,12 @@ msgstr "Ctrl+Shift+B: blocare contact"
 msgctxt "shortcut_ctrl_shift_c_label"
 msgid "Ctrl+Shift+C: copy caption (photo/video/document)"
 msgstr "Ctrl+Shift+C: copiați legenda (foto/video/document)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_comma_label"
+msgid "Ctrl+Shift+comma: WhatsApp settings"
+msgstr "Ctrl+Shift+virgulă: setări WhatsApp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py

@@ -1147,6 +1147,12 @@ routes.post(
   statusConnection,
   DeviceController.setProfilePic
 );
+routes.get(
+  '/api/:session/my-profile',
+  verifyToken,
+  statusConnection,
+  DeviceController.getMyProfile
+);
 routes.post(
   '/api/:session/profile-status',
   verifyToken,
