@@ -134,9 +134,14 @@ class AIResultDialog(wx.Dialog):
             self.ask.SetAccessible(AccessibleAskQuestion())
         self.copy = self._button(buttons, "ai_copy_answer", self._copy)
         self.regenerate = self._button(buttons, "ai_regenerate", self._regenerate)
-        # Only a transcription has a message line to go to; the stored result
-        # is the offline transcription's own (core/transcription/stored.py).
-        self.inline = self._button(buttons, "ai_put_in_line", self._put_in_line)             if kind == "audio" else None
+        # A transcription or a description has a message line to go to; the
+        # stored result is the offline transcription's own
+        # (core/transcription/stored.py). A PDF's text is too long for a line.
+        self.inline = None
+        if kind in ("audio", "image", "sticker", "video"):
+            self.inline = self._button(
+                buttons, "ai_put_in_line" if kind == "audio" else "ai_put_description_in_line",
+                self._put_in_line)
         self.cancel = self._button(buttons, "cancel", self._cancel)
         close = wx.Button(self, wx.ID_CANCEL, label=plain(self.i18n, "close"))
         close.Bind(wx.EVT_BUTTON, self._close)
@@ -366,9 +371,20 @@ class AIResultDialog(wx.Dialog):
         self._busy(False)
         self.status.ChangeValue(self.i18n.t("ai_cancel_notice"))
 
+    def _inline_text(self):
+        """The text that goes in the line. A transcription is the latest
+        answer; a description is the first one — a follow-up question's answer
+        describes the question, not the picture."""
+        if self.kind == "audio":
+            return spoken_answer(self._latest)
+        for role, text in self.session.history:
+            if role == "assistant":
+                return spoken_answer(text)
+        return spoken_answer(self._latest)
+
     def _put_in_line(self, event=None):
-        """Keep the transcription with its message and show it in the message's
-        own line of the list — what Alt+Shift+N does for an offline one."""
+        """Keep the result with its message and show it in the message's own
+        line of the list — what Alt+Shift+N does for an offline transcription."""
         if not self._valid() or not self._latest or self._provider is None:
             return
         import time
@@ -377,15 +393,18 @@ class AIResultDialog(wx.Dialog):
         from ui import transcription_flow
         mw = self.main_window
         _, jid, msg_id = self.session.identity
+        text = self._inline_text()
         copies = mw._transcription_copies(jid, msg_id)
         current = stored_transcription.find_record(copies, msg_id)
         previous = current.get(stored_transcription.TRANSCRIPTION_KEY) if current else None
         now = stored_transcription.next_decision_time(time.time(), previous)
+        described = self.kind != "audio"
         record = stored_transcription.record_from_result(
-            SimpleNamespace(text=spoken_answer(self._latest), language=None,
+            SimpleNamespace(text=text, language=None,
                             language_probability=None, model_id=self._provider,
                             backend=stored_transcription.ONLINE_BACKEND, vad_used=True),
-            now, inline=True)
+            now, inline=True,
+            kind=stored_transcription.DESCRIPTION_KIND if described else None)
         answer = mw.store_message_transcription(
             jid, msg_id, stored_transcription.with_result(previous, record))
         if answer == stored_transcription.SAVE_STORED:
@@ -393,7 +412,10 @@ class AIResultDialog(wx.Dialog):
             conversation = getattr(self.panel, "conversation", None)
             if repaint is not None and isinstance(conversation, dict)                     and conversation.get("remoteJid", "") == jid:
                 repaint([msg_id])
-            self._speak(transcription_flow.inline_speech(self.i18n, self._latest, ()))
+            if described:
+                self._speak(self.i18n.t("description_inline_spoken").format(text=text))
+            else:
+                self._speak(transcription_flow.inline_speech(self.i18n, text, ()))
         elif answer == stored_transcription.SAVE_WITHDRAWN:
             self._speak(self.i18n.t(transcription_flow.WITHDRAWN_I18N_KEY))
         else:

@@ -362,3 +362,29 @@ def test_online_result_keeps_the_offline_one_under_other_models():
     assert stored.saved_transcription({stored.TRANSCRIPTION_KEY: both},
                                       ("faster-whisper", "small"))["text"] == "online"
     assert [r["text"] for r in stored.results_of(both)] == ["online", "offline"]
+
+
+def test_a_description_in_the_line_of_a_picture_a_sticker_and_a_video():
+    from core.transcription import stored
+
+    for msg_type in ("imageMessage", "stickerMessage", "videoMessage"):
+        assert stored.can_carry_transcription({"messageType": msg_type})
+    record = stored.record_from_result(
+        type("R", (), {"text": "um gato\nna janela", "language": None,
+                       "language_probability": None, "model_id": "gemini",
+                       "backend": stored.ONLINE_BACKEND, "vad_used": True})(),
+        10.0, inline=True, kind=stored.DESCRIPTION_KIND)
+    msg = {"messageType": "imageMessage", stored.TRANSCRIPTION_KEY: record}
+    assert stored.inline_row_text(msg) == "um gato na janela"
+    assert stored.inline_row_label_key(msg) == "description_row_label"
+    plain = {"messageType": "audioMessage", stored.TRANSCRIPTION_KEY: dict(record, kind=None)}
+    assert stored.inline_row_label_key(plain) == "transcription_row_label"
+
+
+def test_a_picture_keeps_its_description_through_a_resync_copy():
+    from core.transcription import stored
+
+    record = {"text": "um gato", "at": 5.0, "inline": True, "kind": "description"}
+    old = {"messageType": "imageMessage", "key": {"id": "X"}}
+    kept = stored.with_known_transcription(old, {stored.TRANSCRIPTION_KEY: record})
+    assert kept[stored.TRANSCRIPTION_KEY]["text"] == "um gato"

@@ -92,7 +92,12 @@ TRANSCRIPTION_KEY = "_transcription"
 
 #: The types a transcription can be attached to — see the module docstring for
 #: why by type and not by message_audio.is_transcribable()'s mimetype check.
-CARRYING_TYPES = ("audioMessage", "videoMessage", "documentMessage")
+CARRYING_TYPES = ("audioMessage", "videoMessage", "documentMessage",
+                  "imageMessage", "stickerMessage")
+
+#: The `kind` of a record that is an AI *description* of a picture, sticker or
+#: video (core/ai_media), not the words spoken in it. Absent on a transcription.
+DESCRIPTION_KIND = "description"
 
 #: What a message deleted for everyone becomes — the only copy that drops the
 #: key.
@@ -104,8 +109,8 @@ WITHDRAWN_TYPE = "protocolMessage"
 #: stored row. Anything outside this set and CARRYING_TYPES — a type passed
 #: through unmapped — may be.
 OTHER_KINDS = frozenset((
-    "conversation", "extendedTextMessage", "imageMessage",
-    "stickerMessage", "contactMessage", "locationMessage", "liveLocationMessage",
+    "conversation", "extendedTextMessage",
+    "contactMessage", "locationMessage", "liveLocationMessage",
     "pollCreationMessage", "buttonsMessage", "listMessage", "templateMessage",
     "groupNotification", "reactionMessage", "orderMessage", "orderUpdateMessage", "productMessage",
 ))
@@ -114,7 +119,7 @@ OTHER_KINDS = frozenset((
 # ── What is stored ───────────────────────────────────────────────────────────
 
 
-def record_from_result(result, at, inline=False) -> dict:
+def record_from_result(result, at, inline=False, kind=None) -> dict:
     """The stored form of a finished `TranscriptionResult`.
 
     Everything the window needs to say the truth when it is opened again: the
@@ -143,6 +148,8 @@ def record_from_result(result, at, inline=False) -> dict:
     }
     if inline:
         record["inline"] = True
+    if kind:
+        record["kind"] = kind
     return record
 
 
@@ -559,6 +566,15 @@ def inline_row_text(msg, selection=None) -> str:
     if value is None or not is_inline(value):
         return ""
     return " ".join(value["text"].split())
+
+
+def inline_row_label_key(msg, selection=None) -> str:
+    """The i18n key of the word that introduces the row's inline text: the
+    description's for an AI description, the transcription's otherwise."""
+    value = saved_transcription(msg, selection)
+    if isinstance(value, dict) and value.get("kind") == DESCRIPTION_KIND:
+        return "description_row_label"
+    return "transcription_row_label"
 
 
 def as_result(value) -> TranscriptionResult:

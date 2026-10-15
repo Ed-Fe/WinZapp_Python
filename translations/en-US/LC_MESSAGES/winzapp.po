@@ -1026,6 +1026,11 @@ msgid "Handles: {kinds}."
 msgstr "Handles: {kinds}."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_description_in_line"
+msgid "Put description in the message line"
+msgstr "Put description in the message line"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_put_in_line"
 msgid "Put transcription in the message line"
 msgstr "Put transcription in the message line"
@@ -4460,6 +4465,18 @@ msgstr "Could not remove {name} as group admin: {error}"
 msgctxt "demote_from_admin"
 msgid "Remove as group admin"
 msgstr "Remove as group admin"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+#, python-brace-format
+msgctxt "description_inline_spoken"
+msgid "Description: {text}"
+msgstr "Description: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "description_row_label"
+msgid "description"
+msgstr "description"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/websocket_client.py
 #: client/main.py client/main_window/account_link.py
