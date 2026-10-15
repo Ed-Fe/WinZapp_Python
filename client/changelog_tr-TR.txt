@@ -118,6 +118,8 @@ YENİLİKLER
 
 - Yardım > "Kullanım kılavuzu", programın nasıl kullanılacağını anlatan eksiksiz kılavuzu seçili dilde varsayılan tarayıcıda açar: her işlevin nerede olduğu, kısayollar ve ekran okuyucunun ne söylediği. Arama ve bölüm menüsü vardır; kısayol tabloları doğrudan programdan gelir.
 
+- Yeni veya boş bir kişisel sohbet artık "mesaj yok" satırında mesajların ve aramaların uçtan uca şifreli olduğunu ve kaybolan mesajlar açıksa süresini belirtiyor. Sohbet bilgileri de şifrelemeden söz ediyor.
+
 DÜZELTMELER
 
 - Diğer modda (stereo veya mono) kayıt ve bilgisayar sesiyle kayıt düğmeleri ekran okuyucuya kısayol olarak Ctrl+R bildiriyordu. Artık her biri kendi kısayolunu, Ctrl+Shift+G ve Ctrl+Shift+H'yi ya da onlara atadığınız tuşları bildiriyor.

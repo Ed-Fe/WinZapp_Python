@@ -118,6 +118,8 @@ NOVEDADES
 
 - Ayuda > "Guía de uso" abre, en el navegador predeterminado, la guía completa de cómo usar el programa, en el idioma elegido: dónde está cada función, los atajos y lo que dice el lector de pantalla. Tiene búsqueda y menú de secciones, y las tablas de atajos vienen directamente del programa.
 
+- Un chat personal nuevo o vacío indica ahora, en la línea de "no hay mensajes", que los mensajes y las llamadas están cifrados de extremo a extremo y, si hay mensajes temporales, su duración. La información del chat también menciona el cifrado.
+
 CORRECCIONES
 
 - Los botones de grabar en el otro modo (estéreo o mono) y de grabar con el audio del ordenador indicaban al lector de pantalla el atajo Ctrl+R. Ahora cada uno indica el suyo, Ctrl+Shift+G y Ctrl+Shift+H, o las teclas que les hayas asignado.
