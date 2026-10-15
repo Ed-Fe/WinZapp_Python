@@ -118,6 +118,8 @@ NOVIDADES
 
 - Ajuda > "Guia de uso" abre, no navegador padrão, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de tela diz. Tem busca e menu de seções, e as tabelas de atalhos vêm direto do programa.
 
+- Transcrição e descrição online na linha da mensagem, de forma automática: a janela de resultado da IA ganhou "Colocar a transcrição na linha da mensagem" (mensagens de voz) e "Colocar a descrição na linha da mensagem" (imagens, figurinhas e vídeos). Em Configurações > Transcrições e Descrições, duas novas opções, desligadas por padrão, transcrevem automaticamente as mensagens de voz recebidas e descrevem as imagens, figurinhas e vídeos recebidos com os provedores online, sem janela nem som a cada mensagem; ligar uma delas pede o consentimento de sempre e desliga a transcrição automática local, e vice-versa. A janela de dados de cada conversa tem as caixas "transcrever" e "descrever" (elas valem também para a transcrição automática local), com a escolha entre "Todas as conversas, exceto as que eu desligar" e "Somente as conversas que eu ligar". Para proteger a sua cota da API, você escolhe a idade máxima de uma mensagem recebida para ser processada (5 minutos, 15, 30 ou 1 hora) e define um limite diário de pedidos online automáticos (50 por padrão, 0 para nenhum limite); quando todos os provedores recusam por um motivo que se repete, como cota ou chave, a fila automática pausa por uma hora e avisa uma única vez.
+
 CORREÇÕES
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.

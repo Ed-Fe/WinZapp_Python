@@ -118,6 +118,8 @@ NOWOŚCI
 
 - Pomoc > "Przewodnik użytkownika" otwiera w domyślnej przeglądarce pełny przewodnik po programie w wybranym języku: gdzie jest każda funkcja, jakie są skróty i co mówi czytnik ekranu. Ma wyszukiwarkę i menu sekcji, a tabele skrótów pochodzą prosto z programu.
 
+- Transkrypcja i opis online w wierszu wiadomości, w trybie automatycznym: okno wyniku AI ma nowe polecenia "Umieść transkrypcję w wierszu wiadomości" (wiadomości głosowe) oraz "Umieść opis w wierszu wiadomości" (obrazy, naklejki i filmy). W Ustawienia > Transkrypcje i opisy dwie nowe opcje, domyślnie wyłączone, automatycznie transkrybują odebrane wiadomości głosowe i opisują odebrane obrazy, naklejki i filmy u dostawców online, bez okna i dźwięku przy każdej wiadomości; włączenie jednej prosi o zwykłą zgodę i wyłącza lokalną transkrypcję automatyczną, i odwrotnie. Okno danych każdej rozmowy ma pola "transkrybuj" i "opisuj" (dotyczą też lokalnej transkrypcji automatycznej) oraz wybór między "Wszystkie rozmowy oprócz tych, które wyłączę" a "Tylko rozmowy, które włączę". Aby chronić limit API, wybierasz, jak stara może być odebrana wiadomość, by została przetworzona (5 minut, 15, 30 lub 1 godzina), i ustawiasz dzienny limit automatycznych zapytań online (domyślnie 50, 0 oznacza brak limitu); gdy wszyscy dostawcy odmawiają z powtarzającego się powodu, takiego jak limit lub klucz, kolejka automatyczna zatrzymuje się na godzinę i informuje o tym jeden raz.
+
 POPRAWKI
 
 - Przyciski nagrywania w drugim trybie (stereo lub mono) i nagrywania z dźwiękiem komputera podawały czytnikowi ekranu skrót Ctrl+R. Teraz każdy podaje swój, Ctrl+Shift+G i Ctrl+Shift+H, albo klawisze, które im przypisano.
