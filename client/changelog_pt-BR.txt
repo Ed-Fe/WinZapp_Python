@@ -118,6 +118,8 @@ NOVIDADES
 
 - Ajuda > "Guia de uso" abre, no navegador padrão, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de tela diz. Tem busca e menu de seções, e as tabelas de atalhos vêm direto do programa.
 
+- Limpeza de mídia: Configurações > Armazenamento > "Limpeza de mídia" libera espaço em disco apagando os arquivos de mídia baixados das conversas que você escolher; as mensagens ficam. Você escolhe as conversas, os tipos de mídia e um tamanho mínimo, "Reunir dados" mostra quantos arquivos e MB correspondem sem apagar nada, e "Prosseguir com a limpeza" pede confirmação e apaga exatamente o que foi mostrado. Arquivos salvos com Salvar como e a mídia de mensagens não enviadas nunca são tocados, e os arquivos apagados não são baixados de novo pelos downloads automáticos nem pelas sincronizações até você sair da conta ou parear de novo.
+
 CORREÇÕES
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.

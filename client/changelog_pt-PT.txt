@@ -118,6 +118,8 @@ NOVIDADES
 
 - Ajuda > "Guia de utilização" abre, no navegador padrão, o guia completo de como usar o programa, no idioma escolhido: onde fica cada função, os atalhos e o que o leitor de ecrã diz. Tem pesquisa e menu de secções, e as tabelas de atalhos vêm diretamente do programa.
 
+- Limpeza de multimédia: Definições > Armazenamento > "Limpeza de multimédia" liberta espaço em disco apagando os ficheiros multimédia descarregados das conversas que escolher; as mensagens ficam. Escolhe as conversas, os tipos de multimédia e um tamanho mínimo, "Reunir dados" mostra quantos ficheiros e MB correspondem sem apagar nada, e "Continuar com a limpeza" pede confirmação e apaga exatamente o que foi mostrado. Os ficheiros guardados com Guardar como e o multimédia de mensagens por enviar nunca são tocados, e os ficheiros apagados não são descarregados de novo pelas transferências automáticas nem pelas sincronizações até terminar a sessão ou emparelhar de novo.
+
 CORREÇÕES
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador indicavam ao leitor de ecrã o atalho Ctrl+R. Agora cada um indica o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que definiu para eles.

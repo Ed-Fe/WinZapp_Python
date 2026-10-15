@@ -118,6 +118,8 @@ YENİLİKLER
 
 - Yardım > "Kullanım kılavuzu", programın nasıl kullanılacağını anlatan eksiksiz kılavuzu seçili dilde varsayılan tarayıcıda açar: her işlevin nerede olduğu, kısayollar ve ekran okuyucunun ne söylediği. Arama ve bölüm menüsü vardır; kısayol tabloları doğrudan programdan gelir.
 
+- Ortam temizliği: Ayarlar > Depolama > "Ortam dosyalarını temizle", seçtiğiniz konuşmaların indirilmiş ortam dosyalarını silerek disk alanı açar; mesajlar kalır. Konuşmaları, ortam türlerini ve en küçük boyutu seçersiniz; "Verileri topla" hiçbir şeyi silmeden kaç dosya ve MB eşleştiğini gösterir, "Temizlemeye devam et" onay ister ve gösterilenin tam olarak aynısını siler. Farklı kaydet ile kaydettiğiniz dosyalara ve gönderilmemiş mesajların ortamlarına hiç dokunulmaz; temizlenen dosyalar, oturumu kapatana veya yeniden eşleştirene kadar otomatik indirmelerle ya da eşitlemelerle yeniden indirilmez.
+
 DÜZELTMELER
 
 - Diğer modda (stereo veya mono) kayıt ve bilgisayar sesiyle kayıt düğmeleri ekran okuyucuya kısayol olarak Ctrl+R bildiriyordu. Artık her biri kendi kısayolunu, Ctrl+Shift+G ve Ctrl+Shift+H'yi ya da onlara atadığınız tuşları bildiriyor.

@@ -118,6 +118,8 @@ NOUTĂȚI
 
 - Ajutor > "Ghid de utilizare" deschide, în browserul implicit, ghidul complet de folosire a programului, în limba aleasă: unde se află fiecare funcție, comenzile rapide și ce spune cititorul de ecran. Are căutare și meniu de secțiuni, iar tabelele de comenzi rapide vin direct din program.
 
+- Curățarea fișierelor media: Setări > Stocare > „Curățarea fișierelor media" eliberează spațiu pe disc ștergând fișierele media descărcate din conversațiile alese; mesajele rămân. Alegi conversațiile, tipurile de media și o dimensiune minimă, „Adună datele" arată câte fișiere și MB corespund fără a șterge nimic, iar „Continuă curățarea" cere confirmare și șterge exact ce a fost afișat. Fișierele salvate cu Salvează ca și media mesajelor netrimise nu sunt atinse niciodată, iar fișierele curățate nu mai sunt descărcate de descărcările automate sau de sincronizări până când te deconectezi sau asociezi din nou.
+
 CORECTĂRI
 
 - Butoanele de înregistrare în celălalt mod (stereo sau mono) și de înregistrare cu sunetul computerului anunțau cititorului de ecran comanda rapidă Ctrl+R. Acum fiecare o anunță pe a sa, Ctrl+Shift+G și Ctrl+Shift+H, sau tastele pe care le-ați atribuit.

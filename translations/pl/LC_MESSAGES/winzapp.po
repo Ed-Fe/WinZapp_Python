@@ -2836,12 +2836,12 @@ msgstr "Nie wyciszone"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/chat_picker.py
 msgctxt "chat_picker_column_label"
 msgid "Chat"
-msgstr "Rozmowa"
+msgstr "Czat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "chat_picker_empty"
 msgid "No chats match these filters."
-msgstr "Nie znaleziono żadnej rozmowy pasującej do tych filtrów."
+msgstr "Żaden czat nie pasuje do tych filtrów."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "chat_picker_loading"
@@ -2888,7 +2888,7 @@ msgstr "Wiadomości głosowe"
 #: client/ui/dialogs/media_cleanup_dialog.py
 msgctxt "cleanup_chats_label"
 msgid "Chats:"
-msgstr "Rozmowy:"
+msgstr "Czaty:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -2962,7 +2962,7 @@ msgstr "Wybierz co najmniej jeden typ multimediów."
 #: client/ui/dialogs/media_cleanup_dialog.py
 msgctxt "cleanup_no_chats_selected"
 msgid "Select at least one chat."
-msgstr "Wybierz co najmniej jedną rozmowę."
+msgstr "Wybierz co najmniej jeden czat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -3000,7 +3000,7 @@ msgstr "Zbieranie danych…"
 msgctxt "cleanup_summary_header"
 msgid "{chats} chat(s) affected, {files} file(s), {mb:.1f} MB total:"
 msgstr ""
-"{chats} rozmow(y/a) dotkniętych, {files} plik(ów), łącznie {mb:.1f} MB:"
+"Dotyczy czatów: {chats}, plików: {files}, łącznie {mb:.1f} MB:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
