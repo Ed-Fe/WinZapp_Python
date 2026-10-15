@@ -4,8 +4,11 @@ A page of the WhatsApp settings dialog (whatsapp_settings_dialog.py). These
 live on WhatsApp's servers, not in WinZapp's settings, and are applied with
 their own Save button, so closing the dialog never discards anything.
 
-Each field is optional: one left empty is left as it is on WhatsApp, and one
-that fails does not stop the others. The call runs on a worker thread and the
+The page opens showing what is set now (name and About in their fields, and
+whether there is a photo), read in the background like the Privacy tab. If
+that cannot be read the fields simply start empty. Each field is optional: one
+left empty or unchanged is left as it is on WhatsApp, and one that fails does
+not stop the others. The call runs on a worker thread and the
 result comes back through ``wx.CallAfter``: it can take several seconds, and a
 frozen window is indistinguishable from a crashed program for a screen-reader
 user. Results are also spoken, because a changing static label is not
@@ -29,6 +32,10 @@ class WhatsAppProfilePanel(wx.Panel):
         self.main_window = main_window
         self._i18n = i18n = main_window.i18n
         self._photo_path = ""
+        # What WhatsApp held when the page opened (then, after each Save, what
+        # that Save left): a field still equal to it is not sent again. None
+        # until the read answers, or for good if it never can.
+        self._current = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         note = wx.StaticText(self, label=i18n.t("profile_blank_note"))
@@ -49,19 +56,23 @@ class WhatsAppProfilePanel(wx.Panel):
 
         sizer.Add(wx.StaticText(self, label=i18n.t("profile_photo_label")), 0,
                   wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        # Empty (and so silent) until the read says whether a photo is set.
+        self._photo_current = wx.StaticText(self, label="")
+        sizer.Add(self._photo_current, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         self._photo_button = wx.Button(self, label=i18n.t("profile_choose_photo_button"))
         self._photo_button.Bind(wx.EVT_BUTTON, self._on_choose_photo)
         sizer.Add(self._photo_button, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self._photo_label = wx.StaticText(self, label=i18n.t("profile_no_photo_chosen"))
         sizer.Add(self._photo_label, 0, wx.ALL, 8)
 
-        self._message = wx.StaticText(self, label="")
+        self._message = wx.StaticText(self, label=i18n.t("profile_loading"))
         sizer.Add(self._message, 0, wx.ALL, 8)
         self._save_button = wx.Button(self, label=i18n.t("profile_save_button"))
         self._save_button.Bind(wx.EVT_BUTTON, self._on_save)
         sizer.Add(self._save_button, 0, wx.ALL, 8)
 
         self.SetSizer(sizer)
+        self._load_current()
 
     def _say(self, text):
         self.main_window.speak_output.output(text)
@@ -77,6 +88,39 @@ class WhatsAppProfilePanel(wx.Panel):
         self._message.SetLabel(text)
         self._message.Wrap(420)
         self.Layout()
+
+    # ── Reading what is set now ───────────────────────────────────────────────
+
+    def _load_current(self):
+        def work():
+            current = self.main_window.fetch_my_profile()
+            wx.CallAfter(self._on_loaded, current)
+
+        threading.Thread(target=work, daemon=True, name="wa-profile-read").start()
+
+    def _show_photo_state(self):
+        photo = self._current.photo if self._current is not None else None
+        key = {True: "profile_photo_current_set", False: "profile_photo_current_none"}.get(photo)
+        self._photo_current.SetLabel(self._i18n.t(key) if key else "")
+        self.Layout()
+
+    def _on_loaded(self, current):
+        if not self:  # closed while the server was still answering
+            return
+        if current is None:
+            # Not worth a dialog: the page works as it always did, the fields
+            # just start empty. Spoken, because a label does not announce itself.
+            self._show(self._i18n.t("profile_load_failed"))
+            self._say(self._i18n.t("profile_load_failed"))
+            return
+        self._current = current
+        # Whatever the person already typed while this was loading is theirs.
+        if current.name and not self._name_field.GetValue():
+            self._name_field.SetValue(current.name)
+        if current.status and not self._status_field.GetValue():
+            self._status_field.SetValue(current.status)
+        self._show_photo_state()
+        self._show("")
 
     # ── Photo ─────────────────────────────────────────────────────────────────
 
@@ -105,7 +149,8 @@ class WhatsAppProfilePanel(wx.Panel):
     def _on_save(self, event):
         i18n = self._i18n
         changes = profile.profile_changes(
-            self._name_field.GetValue(), self._status_field.GetValue(), self._photo_path)
+            self._name_field.GetValue(), self._status_field.GetValue(), self._photo_path,
+            self._current)
         if changes.empty:
             self._show(i18n.t("profile_nothing_to_save"))
             self._say(i18n.t("profile_nothing_to_save"))
@@ -133,15 +178,14 @@ class WhatsAppProfilePanel(wx.Panel):
             return
         i18n = self._i18n
         self._save_button.Enable()
-        # What went through is cleared; what failed stays, ready for another try.
-        done = {field for field, _value in changes.fields()} - set(errors)
-        if "name" in done:
-            self._name_field.SetValue("")
-        if "status" in done:
-            self._status_field.SetValue("")
-        if "photo" in done:
+        # What went through is now what WhatsApp holds: the text stays in its
+        # field, as the new baseline, and a chosen photo is done with. What
+        # failed stays as it was, ready for another try.
+        self._current = profile.current_after_save(self._current, changes, errors)
+        if changes.photo and "photo" not in errors:
             self._photo_path = ""
             self._photo_label.SetLabel(i18n.t("profile_no_photo_chosen"))
+            self._show_photo_state()
 
         if errors:
             labels = {

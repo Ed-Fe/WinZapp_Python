@@ -62,6 +62,72 @@ class TestFailureLines:
         assert profile.failure_lines({}, self.LABELS) == []
 
 
+class TestCurrentProfile:
+    def test_a_full_answer_is_read(self):
+        current = profile.parse_current_profile(
+            {"name": " Ana ", "status": "Busy", "photo": True})
+        assert current == profile.CurrentProfile(name="Ana", status="Busy", photo=True)
+
+    def test_a_part_the_server_could_not_read_stays_empty_without_hiding_the_rest(self):
+        current = profile.parse_current_profile({"name": "Ana", "status": None, "photo": None})
+        assert current == profile.CurrentProfile(name="Ana", status="", photo=None)
+
+    def test_an_empty_about_text_is_readable_not_missing(self):
+        current = profile.parse_current_profile({"name": None, "status": "", "photo": False})
+        assert current == profile.CurrentProfile(name="", status="", photo=False)
+
+    @pytest.mark.parametrize("answer", [
+        None, "oops", [], {}, {"name": None, "status": None, "photo": None},
+        {"name": 5, "status": 6, "photo": "yes"},
+    ])
+    def test_nothing_readable_is_none(self, answer):
+        assert profile.parse_current_profile(answer) is None
+
+
+class TestChangesAgainstCurrent:
+    CURRENT = profile.CurrentProfile(name="Ana", status="Busy", photo=True)
+
+    def test_text_still_equal_to_what_is_set_is_not_sent_again(self):
+        changes = profile.profile_changes(" Ana ", "Busy", "", self.CURRENT)
+        assert changes.empty
+
+    def test_only_the_edited_field_goes(self):
+        changes = profile.profile_changes("Ana", "At work", "", self.CURRENT)
+        assert changes.fields() == [("status", "At work")]
+
+    def test_a_chosen_photo_is_always_a_change(self):
+        changes = profile.profile_changes("Ana", "Busy", r"C:\fotos\eu.png", self.CURRENT)
+        assert changes.fields() == [("photo", r"C:\fotos\eu.png")]
+
+    def test_without_a_current_profile_everything_filled_in_goes(self):
+        changes = profile.profile_changes("Ana", "Busy", "", None)
+        assert changes.fields() == [("name", "Ana"), ("status", "Busy")]
+
+
+class TestCurrentAfterSave:
+    def test_what_went_through_becomes_the_new_baseline(self):
+        before = profile.CurrentProfile(name="Ana", status="Busy", photo=False)
+        changes = profile.profile_changes("Bia", "At work", r"C:\fotos\eu.png", before)
+        after = profile.current_after_save(before, changes, {})
+        assert after == profile.CurrentProfile(name="Bia", status="At work", photo=True)
+
+    def test_a_failed_field_keeps_its_old_baseline(self):
+        before = profile.CurrentProfile(name="Ana", status="Busy", photo=False)
+        changes = profile.profile_changes("Bia", "At work", "", before)
+        after = profile.current_after_save(before, changes, {"name": "HTTP 500"})
+        assert after == profile.CurrentProfile(name="Ana", status="At work", photo=False)
+
+    def test_a_failed_field_is_still_a_change_next_time(self):
+        before = profile.CurrentProfile(name="Ana")
+        changes = profile.profile_changes("Bia", "", "", before)
+        after = profile.current_after_save(before, changes, {"name": "HTTP 500"})
+        assert not profile.profile_changes("Bia", "", "", after).empty
+
+    def test_it_works_when_the_page_never_managed_to_read(self):
+        changes = profile.profile_changes("Bia", "", "", None)
+        assert profile.current_after_save(None, changes, {}) == profile.CurrentProfile(name="Bia")
+
+
 # ── Server calls ─────────────────────────────────────────────────────────────
 
 class _Response:
@@ -210,3 +276,75 @@ class TestApplyProfileChanges:
         assert errors == {"name": "Error on set profile name. (no)"}
         assert [call["route"] for call in calls] == [
             "change-username", "profile-status", "set-profile-pic"]
+
+
+class TestFetchMyProfile:
+    @pytest.fixture
+    def gets(self, monkeypatch):
+        calls = []
+        answers = []
+
+        def fake_get(url, headers=None, timeout=None):
+            calls.append({"url": url, "headers": headers, "timeout": timeout})
+            answer = answers.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+        monkeypatch.setattr(mixin_module, "api_get", fake_get)
+        return calls, answers
+
+    def test_it_asks_the_my_profile_route_and_reads_the_answer(self, gets):
+        calls, answers = gets
+        answers.append(_Response(200, {"status": "success", "response": {
+            "name": "Ana", "status": "Busy", "photo": True}}))
+        current = _Stub().fetch_my_profile()
+        assert current == profile.CurrentProfile(name="Ana", status="Busy", photo=True)
+        assert calls[0]["url"].endswith("/api/SESSION:TOKEN/my-profile")
+        assert calls[0]["headers"]["Authorization"] == "Bearer SESSION:TOKEN"
+
+    @pytest.mark.parametrize("answer", [
+        _Response(503, {"status": "error", "code": "profile_unavailable"}),
+        _Response(200),
+        _Response(200, {"status": "success"}),
+        _Response(200, {"status": "success", "response": {"name": None, "status": None, "photo": None}}),
+        ConnectionError("refused"),
+    ])
+    def test_anything_unreadable_is_none_not_a_crash(self, gets, answer):
+        _calls, answers = gets
+        answers.append(answer)
+        assert _Stub().fetch_my_profile() is None
+
+    def test_what_was_read_never_reaches_the_log(self, gets, caplog):
+        _calls, answers = gets
+        answers.append(_Response(200, {"response": {"name": "Segredo Pessoal", "status": None, "photo": 3}}))
+        with caplog.at_level("DEBUG"):
+            _Stub().fetch_my_profile()
+        assert "Segredo Pessoal" not in caplog.text
+
+
+class TestServerSide:
+    """The route and the file it needs are shipped by both installers."""
+
+    ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
+
+    def test_the_route_is_registered_and_answered_by_the_device_controller(self):
+        routes = (self.ROOT / "client/api_patches/src/routes/index.ts").read_text(encoding="utf-8")
+        assert "'/api/:session/my-profile'" in routes
+        assert "DeviceController.getMyProfile" in routes
+        controller = (self.ROOT / "client/api_patches/src/controller/deviceController.ts").read_text(encoding="utf-8")
+        assert "export async function getMyProfile" in controller
+        assert "readMyProfile" in controller
+
+    def test_the_runtime_file_is_in_both_patch_lists(self):
+        assert (self.ROOT / "client/api_patches/src/util/profileRuntime.ts").is_file()
+        for path in ("setup_api.py", "client/ui/dialogs/api_setup.py"):
+            text = (self.ROOT / path).read_text(encoding="utf-8")
+            assert '"src/util/profileRuntime.ts"' in text, path
+
+    def test_the_runtime_never_returns_the_photo_address_or_an_error_text(self):
+        runtime = (self.ROOT / "client/api_patches/src/util/profileRuntime.ts").read_text(encoding="utf-8")
+        body = runtime.split("export async function readMyProfile", 1)[1]
+        assert "return answer;" in body
+        assert "photo = !!(" in body            # a boolean, never the URL itself
+        assert "e.message" not in body and "error.message" not in body

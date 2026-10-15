@@ -104,8 +104,11 @@ class WindowChromeMixin:
             f"{self.i18n.t('menu_settings')}\tCtrl+,",
         )
         # The paired account's own settings, kept on WhatsApp rather than in
-        # WinZapp's: next to Configurações, no accelerator (a rare action).
-        file_menu.Append(self._ID_WA_SETTINGS, self.i18n.t("menu_settings_whatsapp"))
+        # WinZapp's: next to Configurações, on that one's key plus Shift.
+        file_menu.Append(
+            self._ID_WA_SETTINGS,
+            f"{self.i18n.t('menu_settings_whatsapp')}\tCtrl+Shift+,",
+        )
         # Carrying settings to another install. Next to Configurações because
         # that is what they are about, and with no accelerator: they are rare,
         # deliberate actions and every letter here is already spoken for.
@@ -907,7 +910,7 @@ class WindowChromeMixin:
             f"{self.i18n.t('menu_settings')}\tCtrl+,"
         )
         file_menu.FindItemById(self._ID_WA_SETTINGS).SetItemLabel(
-            self.i18n.t("menu_settings_whatsapp")
+            f"{self.i18n.t('menu_settings_whatsapp')}\tCtrl+Shift+,"
         )
         file_menu.FindItemById(self._ID_EXPORT_SETTINGS).SetItemLabel(
             self.i18n.t("menu_export_settings")

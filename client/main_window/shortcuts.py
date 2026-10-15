@@ -26,6 +26,7 @@ class ShortcutsMixin:
         self.ID_ALT_7      = wx.NewIdRef()
         self.ID_ALT_NAV    = wx.NewIdRef()
         self.ID_CTRL_COMMA = wx.NewIdRef()
+        self.ID_CTRL_SHIFT_COMMA = wx.NewIdRef()
         self.ID_F1         = wx.NewIdRef()
         self.ID_ALT_T      = wx.NewIdRef()
         self.ID_CTRL_ALT_SHIFT_P = wx.NewIdRef()
@@ -58,6 +59,9 @@ class ShortcutsMixin:
             (wx.ACCEL_ALT,    ord('7'),    self.ID_ALT_7),
             (wx.ACCEL_ALT,    ord(nav_letter), self.ID_ALT_NAV),
             (wx.ACCEL_CTRL,   ord(','),    self.ID_CTRL_COMMA),
+            # File > WhatsApp settings, on the same key as WinZapp's own
+            # settings with Shift added. Not Ctrl+.: that is the emoji picker.
+            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord(','), self.ID_CTRL_SHIFT_COMMA),
             (wx.ACCEL_NORMAL, wx.WXK_F1,  self.ID_F1),
             (wx.ACCEL_ALT,    ord('T'),    self.ID_ALT_T),
             (wx.ACCEL_CTRL | wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord('P'), self.ID_CTRL_ALT_SHIFT_P),
@@ -79,6 +83,7 @@ class ShortcutsMixin:
         self.Bind(wx.EVT_MENU, self.on_alt_7,       id=self.ID_ALT_7)
         self.Bind(wx.EVT_MENU, self._on_alt_nav,    id=self.ID_ALT_NAV)
         self.Bind(wx.EVT_MENU, self.on_ctrl_comma,  id=self.ID_CTRL_COMMA)
+        self.Bind(wx.EVT_MENU, self.open_whatsapp_settings, id=self.ID_CTRL_SHIFT_COMMA)
         self.Bind(wx.EVT_MENU, self.on_f1,          id=self.ID_F1)
         self.Bind(wx.EVT_MENU, self._on_global_alt_t, id=self.ID_ALT_T)
         self.Bind(wx.EVT_MENU, self._on_global_toggle_audio_playback, id=self.ID_CTRL_ALT_SHIFT_P)

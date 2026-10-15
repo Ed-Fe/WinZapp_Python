@@ -219,6 +219,7 @@ def pass_to_ancestor_command(owner, event):
 
 MENU_COMMANDS = {
     '_ID_SETTINGS': 'main.ID_CTRL_COMMA', '_ID_SHORTCUTS': 'main.ID_F1',
+    '_ID_WA_SETTINGS': 'main.ID_CTRL_SHIFT_COMMA',
     '_ID_MARK_ALL_READ': 'main.mark_all_read', '_ID_DISCONNECT': 'main.disconnect',
     '_ID_EXIT': 'main.exit', '_ID_RESYNC_ALL': 'main.resync_all',
     '_ID_RESYNC_CONVERSATION': 'main.resync_conversation',
