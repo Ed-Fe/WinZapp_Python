@@ -40,6 +40,19 @@ from core.transcription import stored as stored_transcription
 from ui.conversation_panel.own_sender import row_lead, should_hide_sender
 
 
+def _with_inline_text(main_window, msg, line: str, i18n) -> str:
+    """`line` followed by the text kept with the message and asked to show in
+    its line: a transcription, or an AI description of a picture, sticker or
+    video (core/transcription/stored.py)."""
+    selection = stored_transcription.selection_from_settings(
+        getattr(main_window, "settings", None))
+    written = stored_transcription.inline_row_text(msg, selection)
+    if not written:
+        return line
+    label = i18n.t(stored_transcription.inline_row_label_key(msg, selection))
+    return f"{line}, {label}: {written}"
+
+
 class MessageRenderingMixin:
     """Turning a message record into its list row text: content, status, sender,
     quotes and participant names.
@@ -252,19 +265,22 @@ class MessageRenderingMixin:
             img     = msg_obj.get("imageMessage") or {}
             caption = (img.get("caption") or "").strip()
             if caption:
-                return f"{i18n.t('photo')}, {caption}"
-            return i18n.t("photo_no_caption")
+                line = f"{i18n.t('photo')}, {caption}"
+            else:
+                line = i18n.t("photo_no_caption")
+            # An AI description the user asked to have in the line.
+            return _with_inline_text(self.main_window, msg, line, i18n)
 
         # ── Sticker ──────────────────────────────────────────────────────────
         if msg_type == "stickerMessage":
-            return i18n.t("sticker")
+            return _with_inline_text(self.main_window, msg, i18n.t("sticker"), i18n)
 
         # ── Video / GIF ──────────────────────────────────────────────────────
         if msg_type == "videoMessage":
             video = msg_obj.get("videoMessage") or {}
             if video.get("gifPlayback"):
                 # Animated GIF — treat identically to sticker
-                return i18n.t("sticker")
+                return _with_inline_text(self.main_window, msg, i18n.t("sticker"), i18n)
             dur = self._format_duration(video_seconds(video))
             # Same as the audio branch: an unknown length omits the clause
             # instead of reading "duração: " with nothing after the colon.
@@ -273,12 +289,7 @@ class MessageRenderingMixin:
             caption = (video.get("caption") or "").strip()
             line = f"{base}, {caption}" if caption else base
             # Its sound track transcribed into the line, as for a voice message.
-            written = stored_transcription.inline_row_text(
-                msg, stored_transcription.selection_from_settings(
-                    getattr(self.main_window, "settings", None)))
-            if written:
-                line = f"{line}, {i18n.t('transcription_row_label')}: {written}"
-            return line
+            return _with_inline_text(self.main_window, msg, line, i18n)
 
         # ── Interactive buttons ───────────────────────────────────────────────
         if msg_type == "buttonsMessage":

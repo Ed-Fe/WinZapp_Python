@@ -49,6 +49,10 @@ from core.transcription.stored import TRANSCRIPTION_KEY
 SETTING_AUTO_TRANSCRIBE = "auto_transcribe_received"
 
 MAX_AGE_SECONDS = 300.0
+#: What the user may choose for how old a message can be (minutes), stored as
+#: `transcription.auto_max_age_minutes`. The default is MAX_AGE_SECONDS.
+AGE_CHOICES_MINUTES = (5, 15, 30, 60)
+SETTING_MAX_AGE_MINUTES = "auto_max_age_minutes"
 MAX_AUDIO_SECONDS = 600
 MAX_PENDING = 10
 PAUSE_SECONDS = 900.0
@@ -89,8 +93,19 @@ def audio_seconds(msg) -> int:
     return message_audio.media_seconds(msg)
 
 
-def eligible(msg, now=None) -> bool:
-    """Whether `msg` is one the setting should transcribe."""
+def max_age_seconds(settings) -> float:
+    """How old a message may be, from the settings; an unknown value reads as
+    the default, so a hand-edited file cannot open the door to a backlog."""
+    section = settings.get("transcription") if isinstance(settings, dict) else None
+    value = section.get(SETTING_MAX_AGE_MINUTES) if isinstance(section, dict) else None
+    if isinstance(value, bool) or value not in AGE_CHOICES_MINUTES:
+        return MAX_AGE_SECONDS
+    return float(value) * 60.0
+
+
+def eligible(msg, now=None, max_age=None) -> bool:
+    """Whether `msg` is one the setting should transcribe. `max_age` (seconds)
+    defaults to MAX_AGE_SECONDS; statuses keep that."""
     if not isinstance(msg, dict):
         return False
     key = msg.get("key") or {}
@@ -107,7 +122,8 @@ def eligible(msg, now=None) -> bool:
     except (TypeError, ValueError):
         arrived = 0.0
     # A message with no timestamp has no age to judge: it just arrived live.
-    if arrived and (time.time() if now is None else now) - arrived > MAX_AGE_SECONDS:
+    limit = MAX_AGE_SECONDS if max_age is None else max_age
+    if arrived and (time.time() if now is None else now) - arrived > limit:
         return False
     return True
 

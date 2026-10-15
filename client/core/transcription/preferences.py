@@ -100,6 +100,9 @@ SETTING_KEEP_MODEL_LOADED = "keep_model_loaded"
 #: Whether received voice messages are transcribed on arrival and the text put
 #: in the message's line (core/transcription/auto_queue.py). Off by default.
 SETTING_AUTO_TRANSCRIBE_RECEIVED = "auto_transcribe_received"
+#: How old (minutes) a received message may be and still go through the
+#: automatic paths; see core/transcription/auto_queue.py.
+SETTING_AUTO_MAX_AGE_MINUTES = "auto_max_age_minutes"
 #: Whether results are kept with the message so they are not redone (the
 #: "cache"), on by default; and the per-model overrides of it, {model id: bool}.
 #: See stored.cache_enabled_for().
@@ -130,6 +133,7 @@ DEFAULTS = {
     SETTING_KEEP_MODEL_LOADED: False,
     SETTING_RUN_WITHOUT_DIALOG: False,
     SETTING_AUTO_TRANSCRIBE_RECEIVED: False,
+    SETTING_AUTO_MAX_AGE_MINUTES: 5,
     SETTING_CACHE_ENABLED: True,
     SETTING_CACHE_BY_MODEL: {},
     SETTING_AUTO_TRANSCRIBE_STATUSES: False,

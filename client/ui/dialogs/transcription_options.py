@@ -54,6 +54,41 @@ class TranscriptionOptionsMixin:
             wx.EVT_BUTTON, self._on_transcription_clear_status_cache
         )
         sizer.Add(self._transcription_status_clear_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        # Automatic transcription with the online providers (Settings >
+        # Transcriptions & Descriptions) and this one would write two texts for
+        # the same message: turning either on turns the other off, after asking.
+        self._transcription_auto_check.Bind(wx.EVT_CHECKBOX, self._on_local_auto_toggle)
+        ai_page = getattr(self, "_ai_page", None)
+        if ai_page is not None:
+            ai_page.confirm_replaces_local = self._confirm_online_replaces_local
+
+    def _ask_replace_automatic(self, key) -> bool:
+        i18n = self.main_window.i18n
+        return wx.MessageBox(
+            i18n.t(key), i18n.t("settings_title"), wx.YES_NO | wx.ICON_QUESTION, self
+        ) == wx.YES
+
+    def _on_local_auto_toggle(self, event) -> None:
+        """Turning on the local automatic transcription while the online one is
+        on: ask, then turn the online one off (or leave this one off)."""
+        ai_page = getattr(self, "_ai_page", None)
+        if (self._transcription_auto_check.GetValue() and ai_page is not None
+                and ai_page.auto_transcribe.GetValue()):
+            if not self._ask_replace_automatic("transcription_auto_replaces_online"):
+                self._transcription_auto_check.SetValue(False)
+                return
+            ai_page.auto_transcribe.SetValue(False)
+        event.Skip()
+
+    def _confirm_online_replaces_local(self) -> bool:
+        """The online automatic transcription is being turned on: True when the
+        local one is off, or is turned off now because the user agreed."""
+        if not self._transcription_auto_check.GetValue():
+            return True
+        if not self._ask_replace_automatic("transcription_online_auto_replaces_local"):
+            return False
+        self._transcription_auto_check.SetValue(False)
+        return True
 
     def _on_transcription_clear_status_cache(self, event) -> None:
         """Delete the saved transcription of every status, after asking."""
