@@ -2459,7 +2459,8 @@ msgctxt "chat_disappearing_90d"
 msgid "90 days"
 msgstr "90 dias"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
+#: client/core/chat_settings.py
 msgctxt "chat_disappearing_label"
 msgid "Disappearing messages"
 msgstr "Mensagens temporárias"
@@ -2473,6 +2474,23 @@ msgstr "Desativadas"
 msgctxt "chat_disappearing_on"
 msgid "On"
 msgstr "Ativadas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
+msgctxt "chat_encryption_label"
+msgid "Encryption"
+msgstr "Encriptação"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
+msgctxt "chat_encryption_notice"
+msgid ""
+"Messages and calls are end-to-end encrypted. Only people in this chat can "
+"read, listen to or share them."
+msgstr "As mensagens e as chamadas são protegidas com encriptação de ponta a ponta. Só as pessoas nesta conversa as podem ler, ouvir ou partilhar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
+msgctxt "chat_encryption_notice_short"
+msgid "Messages and calls are end-to-end encrypted."
+msgstr "As mensagens e as chamadas são protegidas com encriptação de ponta a ponta."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_list.py
