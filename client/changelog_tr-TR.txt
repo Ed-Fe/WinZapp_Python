@@ -118,11 +118,9 @@ YENİLİKLER
 
 - Yardım > "Kullanım kılavuzu", programın nasıl kullanılacağını anlatan eksiksiz kılavuzu seçili dilde varsayılan tarayıcıda açar: her işlevin nerede olduğu, kısayollar ve ekran okuyucunun ne söylediği. Arama ve bölüm menüsü vardır; kısayol tabloları doğrudan programdan gelir.
 
-<<<<<<< HEAD
 - Ortam temizliği: Ayarlar > Depolama > "Ortam dosyalarını temizle", seçtiğiniz konuşmaların indirilmiş ortam dosyalarını silerek disk alanı açar; mesajlar kalır. Konuşmaları, ortam türlerini ve en küçük boyutu seçersiniz; "Verileri topla" hiçbir şeyi silmeden kaç dosya ve MB eşleştiğini gösterir, "Temizlemeye devam et" onay ister ve gösterilenin tam olarak aynısını siler. Farklı kaydet ile kaydettiğiniz dosyalara ve gönderilmemiş mesajların ortamlarına hiç dokunulmaz; temizlenen dosyalar, oturumu kapatana veya yeniden eşleştirene kadar otomatik indirmelerle ya da eşitlemelerle yeniden indirilmez.
-=======
+
 - Mesaj satırında çevrimiçi yazıya dökme ve betimleme, otomatik olarak: yapay zekâ sonuç penceresine "Yazıya dökmeyi mesaj satırına koy" (sesli mesajlar) ve "Betimlemeyi mesaj satırına koy" (resimler, çıkartmalar ve videolar) eklendi. Ayarlar > Yazıya Dökmeler ve Betimlemeler içinde, varsayılan olarak kapalı iki yeni seçenek, alınan sesli mesajları otomatik olarak yazıya döker ve alınan resim, çıkartma ve videoları çevrimiçi sağlayıcılarla betimler; her mesaj için pencere veya ses çıkmaz. Birini açmak olağan onayı ister ve yerel otomatik yazıya dökmeyi kapatır, tersi de geçerlidir. Her konuşmanın veri penceresinde "yazıya dök" ve "betimle" kutuları vardır (yerel otomatik yazıya dökme için de geçerlidir); "Kapattıklarım dışında tüm konuşmalar" ile "Yalnızca açtığım konuşmalar" arasında seçim yapılır. API kotanızı korumak için alınan bir mesajın işlenebilmesi için en fazla ne kadar eski olabileceğini (5 dakika, 15, 30 veya 1 saat) seçebilir ve otomatik çevrimiçi isteklere günlük bir üst sınır koyabilirsiniz (varsayılan 50, 0 sınır yok); tüm sağlayıcılar kota veya anahtar gibi yinelenen bir nedenle reddederse otomatik kuyruk bir saat duraklar ve bunu bir kez bildirir.
->>>>>>> origin/main
 
 DÜZELTMELER
 

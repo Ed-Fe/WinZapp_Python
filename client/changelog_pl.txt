@@ -118,11 +118,9 @@ NOWOŚCI
 
 - Pomoc > "Przewodnik użytkownika" otwiera w domyślnej przeglądarce pełny przewodnik po programie w wybranym języku: gdzie jest każda funkcja, jakie są skróty i co mówi czytnik ekranu. Ma wyszukiwarkę i menu sekcji, a tabele skrótów pochodzą prosto z programu.
 
-<<<<<<< HEAD
-- Czyszczenie multimediów: Ustawienia > Pamięć > „Czyszczenie multimediów" zwalnia miejsce na dysku, usuwając pobrane pliki multimedialne z wybranych rozmów; wiadomości zostają. Wybierasz rozmowy, rodzaje multimediów i minimalny rozmiar, „Zbierz dane" pokazuje, ile plików i MB pasuje, niczego nie usuwając, a „Kontynuuj czyszczenie" prosi o potwierdzenie i usuwa dokładnie to, co pokazano. Pliki zapisane przez Zapisz jako i multimedia niewysłanych wiadomości nigdy nie są ruszane, a wyczyszczone pliki nie są pobierane ponownie przez pobieranie automatyczne ani synchronizację, dopóki się nie wylogujesz lub nie sparujesz ponownie.
-=======
+- Czyszczenie multimediów: Ustawienia > Pamięć > „Czyszczenie multimediów" zwalnia miejsce na dysku, usuwając pobrane pliki multimedialne z wybranych czatów; wiadomości zostają. Wybierasz czaty, rodzaje multimediów i minimalny rozmiar, „Zbierz dane" pokazuje, ile plików i MB pasuje, niczego nie usuwając, a „Kontynuuj czyszczenie" prosi o potwierdzenie i usuwa dokładnie to, co pokazano. Pliki zapisane przez Zapisz jako i multimedia niewysłanych wiadomości nigdy nie są ruszane, a wyczyszczone pliki nie są pobierane ponownie przez pobieranie automatyczne ani synchronizację, dopóki się nie wylogujesz lub nie sparujesz ponownie.
+
 - Transkrypcja i opis online w wierszu wiadomości, w trybie automatycznym: okno wyniku AI ma nowe polecenia "Umieść transkrypcję w wierszu wiadomości" (wiadomości głosowe) oraz "Umieść opis w wierszu wiadomości" (obrazy, naklejki i filmy). W Ustawienia > Transkrypcje i opisy dwie nowe opcje, domyślnie wyłączone, automatycznie transkrybują odebrane wiadomości głosowe i opisują odebrane obrazy, naklejki i filmy u dostawców online, bez okna i dźwięku przy każdej wiadomości; włączenie jednej prosi o zwykłą zgodę i wyłącza lokalną transkrypcję automatyczną, i odwrotnie. Okno danych każdej rozmowy ma pola "transkrybuj" i "opisuj" (dotyczą też lokalnej transkrypcji automatycznej) oraz wybór między "Wszystkie rozmowy oprócz tych, które wyłączę" a "Tylko rozmowy, które włączę". Aby chronić limit API, wybierasz, jak stara może być odebrana wiadomość, by została przetworzona (5 minut, 15, 30 lub 1 godzina), i ustawiasz dzienny limit automatycznych zapytań online (domyślnie 50, 0 oznacza brak limitu); gdy wszyscy dostawcy odmawiają z powtarzającego się powodu, takiego jak limit lub klucz, kolejka automatyczna zatrzymuje się na godzinę i informuje o tym jeden raz.
->>>>>>> origin/main
 
 POPRAWKI
 
