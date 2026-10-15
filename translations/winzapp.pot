@@ -7452,7 +7452,9 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_blank_note"
-msgid "Leave a field blank to keep it unchanged."
+msgid ""
+"Your current name and About text are filled in. Change only what you want; a"
+" field left blank or unchanged is kept."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -7471,6 +7473,17 @@ msgid ""
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_load_failed"
+msgid "Could not read your current profile. You can still set new values."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/whatsapp_profile_panel.py
+msgctxt "profile_loading"
+msgid "Loading your current profile…"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_name_label"
 msgid "Display name:"
@@ -7486,6 +7499,16 @@ msgstr ""
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_nothing_to_save"
 msgid "Fill in at least one field or choose a photo."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_none"
+msgid "Current photo: none"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_set"
+msgid "Current photo: set"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -9030,6 +9053,12 @@ msgstr ""
 #: client/ui/dialogs/shortcuts_dialog.py
 msgctxt "shortcut_ctrl_shift_c_label"
 msgid "Ctrl+Shift+C: copy caption (photo/video/document)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_comma_label"
+msgid "Ctrl+Shift+comma: WhatsApp settings"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

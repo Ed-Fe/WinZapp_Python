@@ -228,6 +228,7 @@ _CUSTOM_SRC_FILES = [
     "src/tests/controller/commerceController.test.ts",
     "src/controller/pinnedMessagesController.ts",
     "src/util/privacyRuntime.ts",
+    "src/util/profileRuntime.ts",
     "src/controller/privacyController.ts",
     "src/tests/controller/privacyController.test.ts",
     "src/controller/groupOperationsController.ts",

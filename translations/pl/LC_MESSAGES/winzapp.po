@@ -7962,8 +7962,12 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_blank_note"
-msgid "Leave a field blank to keep it unchanged."
-msgstr "Pozostaw pole puste, aby go nie zmieniać."
+msgid ""
+"Your current name and About text are filled in. Change only what you want; a"
+" field left blank or unchanged is kept."
+msgstr ""
+"Twoja bieżąca nazwa i informacje są już wpisane. Zmień tylko to, co chcesz; "
+"pole puste lub bez zmian pozostaje bez zmian."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -7984,6 +7988,19 @@ msgstr ""
 " ponownie."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_load_failed"
+msgid "Could not read your current profile. You can still set new values."
+msgstr ""
+"Nie udało się odczytać bieżącego profilu. Nadal możesz ustawić nowe "
+"wartości."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/whatsapp_profile_panel.py
+msgctxt "profile_loading"
+msgid "Loading your current profile…"
+msgstr "Wczytywanie bieżącego profilu…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_name_label"
 msgid "Display name:"
@@ -8000,6 +8017,16 @@ msgstr "Nie wybrano zdjęcia."
 msgctxt "profile_nothing_to_save"
 msgid "Fill in at least one field or choose a photo."
 msgstr "Wypełnij co najmniej jedno pole lub wybierz zdjęcie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_none"
+msgid "Current photo: none"
+msgstr "Bieżące zdjęcie: brak"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "profile_photo_current_set"
+msgid "Current photo: set"
+msgstr "Bieżące zdjęcie: ustawione"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -9642,6 +9669,12 @@ msgstr "Ctrl+Shift+B: zablokuj kontakt"
 msgctxt "shortcut_ctrl_shift_c_label"
 msgid "Ctrl+Shift+C: copy caption (photo/video/document)"
 msgstr "Ctrl+Shift+C: kopiuj podpis (zdjęcie/wideo/dokument)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_dialog.py
+msgctxt "shortcut_ctrl_shift_comma_label"
+msgid "Ctrl+Shift+comma: WhatsApp settings"
+msgstr "Ctrl+Shift+przecinek: ustawienia WhatsApp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
