@@ -569,6 +569,11 @@ msgid "Copy latest answer"
 msgstr "Copiază ultimul răspuns"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_in_line"
+msgid "Put transcription in the message line"
+msgstr "Pune transcrierea în rândul mesajului"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_delete_key"
 msgid "Remove &saved key"
 msgstr "Elimină c&heia salvată"

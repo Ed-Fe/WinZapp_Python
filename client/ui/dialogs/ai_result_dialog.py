@@ -134,6 +134,9 @@ class AIResultDialog(wx.Dialog):
             self.ask.SetAccessible(AccessibleAskQuestion())
         self.copy = self._button(buttons, "ai_copy_answer", self._copy)
         self.regenerate = self._button(buttons, "ai_regenerate", self._regenerate)
+        # Only a transcription has a message line to go to; the stored result
+        # is the offline transcription's own (core/transcription/stored.py).
+        self.inline = self._button(buttons, "ai_put_in_line", self._put_in_line)             if kind == "audio" else None
         self.cancel = self._button(buttons, "cancel", self._cancel)
         close = wx.Button(self, wx.ID_CANCEL, label=plain(self.i18n, "close"))
         close.Bind(wx.EVT_BUTTON, self._close)
@@ -215,6 +218,9 @@ class AIResultDialog(wx.Dialog):
         self.regenerate.Enable(not busy)
         self.cancel.Enable(busy)
         self.copy.Enable(bool(self._latest))
+        inline = getattr(self, "inline", None)
+        if inline is not None:
+            inline.Enable(not busy and bool(self._latest) and self._provider is not None)
 
     def _key(self, event):
         event = command_key_event(self, 'ai_result', event)
@@ -359,6 +365,42 @@ class AIResultDialog(wx.Dialog):
             self._timer = None
         self._busy(False)
         self.status.ChangeValue(self.i18n.t("ai_cancel_notice"))
+
+    def _put_in_line(self, event=None):
+        """Keep the transcription with its message and show it in the message's
+        own line of the list — what Alt+Shift+N does for an offline one."""
+        if not self._valid() or not self._latest or self._provider is None:
+            return
+        import time
+        from types import SimpleNamespace
+        from core.transcription import stored as stored_transcription
+        from ui import transcription_flow
+        mw = self.main_window
+        _, jid, msg_id = self.session.identity
+        copies = mw._transcription_copies(jid, msg_id)
+        current = stored_transcription.find_record(copies, msg_id)
+        previous = current.get(stored_transcription.TRANSCRIPTION_KEY) if current else None
+        now = stored_transcription.next_decision_time(time.time(), previous)
+        record = stored_transcription.record_from_result(
+            SimpleNamespace(text=spoken_answer(self._latest), language=None,
+                            language_probability=None, model_id=self._provider,
+                            backend=stored_transcription.ONLINE_BACKEND, vad_used=True),
+            now, inline=True)
+        answer = mw.store_message_transcription(
+            jid, msg_id, stored_transcription.with_result(previous, record))
+        if answer == stored_transcription.SAVE_STORED:
+            repaint = getattr(self.panel, "_repaint_or_repopulate", None)
+            conversation = getattr(self.panel, "conversation", None)
+            if repaint is not None and isinstance(conversation, dict)                     and conversation.get("remoteJid", "") == jid:
+                repaint([msg_id])
+            self._speak(transcription_flow.inline_speech(self.i18n, self._latest, ()))
+        elif answer == stored_transcription.SAVE_WITHDRAWN:
+            self._speak(self.i18n.t(transcription_flow.WITHDRAWN_I18N_KEY))
+        else:
+            key = transcription_flow.NOT_SAVED_I18N_KEYS.get(answer)
+            if key:
+                self.status.ChangeValue(self.i18n.t(key))
+                self._speak(self.i18n.t(key))
 
     def _copy(self, event):
         if self._latest and wx.TheClipboard.Open():

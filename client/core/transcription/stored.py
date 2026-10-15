@@ -203,6 +203,14 @@ BY_MODEL_KEY = "by_model"
 MADE_AT_KEY = "made_at"
 _AUTO = "auto"
 
+#: The `backend` of a transcription made by an online AI provider (the result
+#: window of core/ai_media) and put in the message's line. Its `model_id` is
+#: the provider's id. It is kept beside the offline models' results (it is one
+#: more entry under BY_MODEL_KEY once another result is newer) but never
+#: filtered out by the model selected for offline use: the user asked for that
+#: exact text, and "which offline model is selected" says nothing about it.
+ONLINE_BACKEND = "online"
+
 
 def selection_from_settings(settings):
     """(backend, model) the user has selected, "auto" where they chose none.
@@ -272,7 +280,7 @@ def matches_selection(record, selection) -> bool:
     model): there is no model to tell it apart by, and dropping it would throw
     away a text the user already waited for.
     """
-    if not record.get("model_id"):
+    if not record.get("model_id") or record.get("backend") == ONLINE_BACKEND:
         return True
     backend, model = selection if selection else (_AUTO, _AUTO)
     if model != _AUTO and record.get("model_id") != model:
