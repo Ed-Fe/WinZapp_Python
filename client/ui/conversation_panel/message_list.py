@@ -615,11 +615,12 @@ class MessageListMixin:
             msg = self._sorted_messages[idx]
             if not self._is_separator(msg):
                 msg_type = msg.get("messageType", "")
-                # A voice note, video or audio/video document carries a long
-                # text only when its transcription was put in its line
+                # A voice note, video, picture, sticker or audio/video document
+                # carries a long text only when its transcription or description was put in its line
                 # (stored_transcription.inline_row_text).
                 if msg_type in ("conversation", "extendedTextMessage", "") or (
-                        msg_type in ("audioMessage", "videoMessage", "documentMessage")
+                        msg_type in ("audioMessage", "videoMessage", "documentMessage",
+                                     "imageMessage", "stickerMessage")
                         and stored_transcription.inline_row_text(
                             msg, stored_transcription.selection_from_settings(
                                 getattr(self.main_window, "settings", None)))):

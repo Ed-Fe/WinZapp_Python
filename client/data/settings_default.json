@@ -133,6 +133,7 @@
         "keep_model_loaded": false,
         "run_without_dialog": false,
         "auto_transcribe_received": false,
+        "auto_max_age_minutes": 5,
         "cache_enabled": true,
         "cache_by_model": {},
         "auto_transcribe_statuses": false,
@@ -163,6 +164,8 @@
         "group_custom_path": ""
     },
     "conversation_sounds": {},
+    "conversation_auto_ai": {},
+    "conversation_auto_ai_scope": "all",
     "cleared_chats": {},
     "cleared_starred_chats": {},
     "storage": {

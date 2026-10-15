@@ -479,6 +479,74 @@ msgid "{provider}: {reason}"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_consent"
+msgid ""
+"Every voice message, picture, sticker or video you receive in a conversation"
+" that is not locked will be sent automatically to: {providers}. Do you "
+"agree?"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_consent_title"
+msgid "Send media automatically?"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_describe"
+msgid ""
+"Describe received pictures, stickers and videos automatically, with the "
+"online providers"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope"
+msgid "Conversations the automatic options apply to:"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_all"
+msgid "All conversations, except the ones I turn off"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_selected"
+msgid "Only the conversations I turn on"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_transcribe"
+msgid ""
+"Transcribe received voice messages automatically, with the online providers"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
 msgid "Balanced"
 msgstr ""
@@ -948,6 +1016,16 @@ msgstr ""
 #, python-brace-format
 msgctxt "ai_provider_supports"
 msgid "Handles: {kinds}."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_description_in_line"
+msgid "Put description in the message line"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_in_line"
+msgid "Put transcription in the message line"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1618,6 +1696,23 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
@@ -3983,6 +4078,22 @@ msgid "you:"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_describe_check"
+msgid ""
+"Describe this conversation's pictures, stickers and videos automatically "
+"(when turned on in Settings)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_transcribe_check"
+msgid ""
+"Transcribe this conversation's voice messages and videos automatically (when"
+" turned on in Settings)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
 #: client/ui/conversation_panel/chat_menu.py
 #: client/ui/conversation_panel/conversation_navigation.py
@@ -4390,6 +4501,18 @@ msgstr ""
 #: client/ui/dialogs/conversation_data_dialog.py
 msgctxt "demote_from_admin"
 msgid "Remove as group admin"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+#, python-brace-format
+msgctxt "description_inline_spoken"
+msgid "Description: {text}"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "description_row_label"
+msgid "description"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/websocket_client.py
@@ -11005,6 +11128,14 @@ msgid "Automatic transcription was paused for a while. {reason}"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_auto_replaces_online"
+msgid ""
+"Turning this on turns off the automatic transcription with the online "
+"providers (Transcriptions && Descriptions tab), so a voice message is not "
+"transcribed twice. Continue?"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
@@ -12615,6 +12746,13 @@ msgctxt "transcription_notice_precision_replaced"
 msgid ""
 "The chosen calculation precision, {chosen}, cannot be used where the "
 "transcription will run, so {used} will be used instead."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_online_auto_replaces_local"
+msgid ""
+"Turning this on turns off the automatic transcription with the local models "
+"(Transcription tab), so a voice message is not transcribed twice. Continue?"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py

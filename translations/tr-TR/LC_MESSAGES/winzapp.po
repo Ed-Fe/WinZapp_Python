@@ -497,6 +497,80 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr "1 saat önce"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr "{minutes} dakika önce"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_consent"
+msgid ""
+"Every voice message, picture, sticker or video you receive in a conversation"
+" that is not locked will be sent automatically to: {providers}. Do you "
+"agree?"
+msgstr ""
+"Kilitli olmayan bir sohbette aldığınız her sesli mesaj, resim, çıkartma veya"
+" video otomatik olarak şuraya gönderilecek: {providers}. Kabul ediyor "
+"musunuz?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_consent_title"
+msgid "Send media automatically?"
+msgstr "Ortam otomatik olarak gönderilsin mi?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr "Otomatik isteklerin günlük sınırı (0 sınırsız):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_describe"
+msgid ""
+"Describe received pictures, stickers and videos automatically, with the "
+"online providers"
+msgstr ""
+"Alınan resim, çıkartma ve videoları çevrimiçi sağlayıcılarla otomatik olarak"
+" tanımla"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr "Şu süreye kadar alınan mesajları otomatik işle:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope"
+msgid "Conversations the automatic options apply to:"
+msgstr "Otomatik seçeneklerin geçerli olduğu sohbetler:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_all"
+msgid "All conversations, except the ones I turn off"
+msgstr "Kapattıklarım hariç tüm sohbetler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_selected"
+msgid "Only the conversations I turn on"
+msgstr "Yalnızca açtığım sohbetler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_transcribe"
+msgid ""
+"Transcribe received voice messages automatically, with the online providers"
+msgstr ""
+"Alınan sesli mesajları çevrimiçi sağlayıcılarla otomatik olarak yazıya dök"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr "Bugün yapılan otomatik istekler:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
 msgid "Balanced"
 msgstr "Dengeli"
@@ -1026,6 +1100,16 @@ msgstr "Etkin"
 msgctxt "ai_provider_supports"
 msgid "Handles: {kinds}."
 msgstr "Desteklenenler: {kinds}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_description_in_line"
+msgid "Put description in the message line"
+msgstr "Açıklamayı mesaj satırına koy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_in_line"
+msgid "Put transcription in the message line"
+msgstr "Çeviriyazıyı mesaj satırına koy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1765,6 +1849,27 @@ msgstr "&Varsayılan ses oynatma hızı"
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
 msgstr "Medyayı otomatik olarak indir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+"Otomatik yazıya dökme ve açıklama bugün için durduruldu: {limit} istek "
+"sınırına ulaşıldı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
+msgstr ""
+"Otomatik yazıya dökme ve açıklama bir saat duraklatıldı: sağlayıcı istekleri"
+" reddetti (kota veya anahtar)."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_ask_message"
@@ -4235,6 +4340,26 @@ msgid "you:"
 msgstr "siz:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_describe_check"
+msgid ""
+"Describe this conversation's pictures, stickers and videos automatically "
+"(when turned on in Settings)"
+msgstr ""
+"Bu sohbetin resim, çıkartma ve videolarını otomatik olarak tanımla "
+"(ayarlarda açıksa)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_transcribe_check"
+msgid ""
+"Transcribe this conversation's voice messages and videos automatically (when"
+" turned on in Settings)"
+msgstr ""
+"Bu sohbetin sesli mesajlarını ve videolarını otomatik olarak yazıya dök "
+"(ayarlarda açıksa)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
 #: client/ui/conversation_panel/chat_menu.py
 #: client/ui/conversation_panel/conversation_navigation.py
@@ -4657,6 +4782,18 @@ msgstr "{name} grup yöneticiliğinden çıkarılamadı: {error}"
 msgctxt "demote_from_admin"
 msgid "Remove as group admin"
 msgstr "Grup yöneticiliğinden çıkar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+#, python-brace-format
+msgctxt "description_inline_spoken"
+msgid "Description: {text}"
+msgstr "Açıklama: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "description_row_label"
+msgid "description"
+msgstr "açıklama"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/websocket_client.py
 #: client/main.py client/main_window/account_link.py
@@ -11614,6 +11751,17 @@ msgid "Automatic transcription was paused for a while. {reason}"
 msgstr "Otomatik yazıya döküm bir süreliğine duraklatıldı. {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_auto_replaces_online"
+msgid ""
+"Turning this on turns off the automatic transcription with the online "
+"providers (Transcriptions && Descriptions tab), so a voice message is not "
+"transcribed twice. Continue?"
+msgstr ""
+"Bunu açmak, çevrimiçi sağlayıcılarla otomatik yazıya dökmeyi (Yazıya "
+"dökmeler ve açıklamalar sekmesi) kapatır; böylece bir sesli mesaj iki kez "
+"yazıya dökülmez. Devam edilsin mi?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
@@ -13425,6 +13573,15 @@ msgid ""
 msgstr ""
 "Seçilen hesaplama hassasiyeti ({chosen}) yazıya dökümün yapılacağı yerde "
 "kullanılamıyor, bu yüzden yerine {used} kullanılacak."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_online_auto_replaces_local"
+msgid ""
+"Turning this on turns off the automatic transcription with the local models "
+"(Transcription tab), so a voice message is not transcribed twice. Continue?"
+msgstr ""
+"Bunu açmak, yerel modellerle otomatik yazıya dökmeyi (Yazıya dökme sekmesi) "
+"kapatır; böylece bir sesli mesaj iki kez yazıya dökülmez. Devam edilsin mi?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
 msgctxt "transcription_open_settings_question"

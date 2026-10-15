@@ -59,6 +59,9 @@ class _FakeMainWindow(wx.Frame):
     def get_active_sound_pack(self):
         return self._default_sound_pack
 
+    def _normalize_jid(self, jid):
+        return jid
+
     def _resolve_contact_name(self, chat):
         return "Fulano"
 
