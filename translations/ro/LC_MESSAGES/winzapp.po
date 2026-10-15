@@ -528,6 +528,21 @@ msgstr ""
 "furnizorii online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope"
+msgid "Conversations the automatic options apply to"
+msgstr "Conversațiile la care se aplică opțiunile automate"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_all"
+msgid "All conversations, except the ones I turn off"
+msgstr "Toate conversațiile, cu excepția celor pe care le dezactivez"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_selected"
+msgid "Only the conversations I turn on"
+msgstr "Doar conversațiile pe care le activez"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_transcribe"
 msgid ""
 "Transcribe received voice messages automatically, with the online providers"

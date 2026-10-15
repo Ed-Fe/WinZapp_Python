@@ -737,6 +737,8 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
             return 0
     page = SimpleNamespace(_labels=[], _t=lambda key: key, _plain=lambda key: key,
                            _profile_labels=lambda: ["quick", "balanced", "detailed"],
+                           _scope_labels=lambda: ["all", "selected"],
+                           auto_scope=NamedControl(selection=1),
                            profile=NamedControl(selection=2), providers=NamedControl(selection=-1),
                            notice=NamedControl(), status=NamedControl(),
                            _refresh_list=lambda selection: None)
@@ -744,6 +746,7 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
     assert page.notice.name == "ai_settings_help" and page.notice.value == "ai_settings_notice"
     assert page.status.name == "ai_status_label" and page.profile.selection == 2
     assert page.profile.items == ["quick", "balanced", "detailed"]
+    assert page.auto_scope.items == ["all", "selected"] and page.auto_scope.selection == 1
     assert page.providers.name == "ai_provider_list_label"
 
 
@@ -806,13 +809,14 @@ class PageStub:
         self.read_answers = Control(False)
         self.auto_transcribe = Control(False)
         self.auto_describe = Control(False)
+        self.auto_scope = Control(selection=0)
         self._auto_consent = set()
         self.status = Control()
         self.providers = Control(selection=0)
         self.refreshed = []
         self.dirty = []
         self._on_change = lambda: self.dirty.append(True)
-        self.main_window = SimpleNamespace(i18n=SimpleNamespace(t=lambda key: key))
+        self.main_window = SimpleNamespace(i18n=SimpleNamespace(t=lambda key: key), settings={})
         self.GetTopLevelParent = lambda: None
 
     def _t(self, key):

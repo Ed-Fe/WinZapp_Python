@@ -23,6 +23,7 @@ from wx.lib.scrolledpanel import ScrolledPanel
 from app_paths import global_dir
 from app_settings import AppSettings
 from core.ai_credentials import CredentialStore, CredentialError
+from core import conversation_auto_ai
 from core.ai_media import config as ai_config
 from core.ai_media.config import KINDS, PROFILES, PROVIDERS, preferences, supports, valid_model
 from core.ai_media.errors import DescriptionError
@@ -332,6 +333,13 @@ class AISettingsPage(ScrolledPanel):
         self.auto_describe = self._check("ai_auto_describe", config["auto_describe"])
         self.auto_transcribe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
         self.auto_describe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
+        # Which conversations the two options reach before the user visits
+        # each one (core/conversation_auto_ai.py). Saved with the account's
+        # settings, beside the per-conversation boxes it is the default of.
+        self.auto_scope = self._choice("ai_auto_scope", self._scope_labels())
+        self.auto_scope.SetSelection(
+            1 if conversation_auto_ai.scope(self.main_window.settings)
+            == conversation_auto_ai.SCOPE_SELECTED else 0)
         #: Set by SettingsDialog: asks before this replaces the local
         #: automatic transcription; True when it may go ahead.
         self.confirm_replaces_local = None
@@ -397,6 +405,10 @@ class AISettingsPage(ScrolledPanel):
         selection = self.profile.GetSelection()
         self.profile.SetItems(self._profile_labels())
         self.profile.SetSelection(selection)
+        scope_selection = self.auto_scope.GetSelection()
+        self.auto_scope.SetItems(self._scope_labels())
+        self.auto_scope.SetSelection(max(scope_selection, 0))
+        self.auto_scope.SetName(self._plain("ai_auto_scope"))
         self.notice.SetName(self._plain("ai_settings_help"))
         self.notice.ChangeValue(self._t("ai_settings_notice"))
         self.status.SetName(self._plain("ai_status_label"))
@@ -487,6 +499,9 @@ class AISettingsPage(ScrolledPanel):
         self._refresh_list(self.providers.GetSelection())
         self._on_change()
 
+    def _scope_labels(self):
+        return [self._t("ai_auto_scope_all"), self._t("ai_auto_scope_selected")]
+
     def _on_auto_toggle(self, event):
         """Turning an automatic option on: replace the local automatic
         transcription (asked first) and consent to the providers that will
@@ -576,6 +591,9 @@ class AISettingsPage(ScrolledPanel):
                     if isinstance(consented, list) else []
                 return value
             self.app.update("ai_media", merge)
+            self.main_window.settings[conversation_auto_ai.SCOPE_SETTING] = (
+                conversation_auto_ai.SCOPE_SELECTED if self.auto_scope.GetSelection() == 1
+                else conversation_auto_ai.SCOPE_ALL)
         except (CredentialError, OSError, RuntimeError):
             self.status.ChangeValue(self._t("ai_error_credentials"))
             return False

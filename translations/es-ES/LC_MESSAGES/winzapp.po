@@ -526,6 +526,21 @@ msgstr ""
 " proveedores en línea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope"
+msgid "Conversations the automatic options apply to"
+msgstr "Conversaciones a las que se aplican las opciones automáticas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_all"
+msgid "All conversations, except the ones I turn off"
+msgstr "Todas las conversaciones, excepto las que desactive"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_selected"
+msgid "Only the conversations I turn on"
+msgstr "Solo las conversaciones que active"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_transcribe"
 msgid ""
 "Transcribe received voice messages automatically, with the online providers"

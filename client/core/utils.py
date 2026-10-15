@@ -1274,6 +1274,7 @@ DEFAULT_SETTINGS = {
     },
     "conversation_sounds": {},
     "conversation_auto_ai": {},
+    "conversation_auto_ai_scope": "all",
     "cleared_chats": {},
     "cleared_starred_chats": {},
     "storage": {

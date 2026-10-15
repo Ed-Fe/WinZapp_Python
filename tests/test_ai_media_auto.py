@@ -130,14 +130,38 @@ def test_turning_the_local_option_on_asks_before_turning_the_online_one_off(monk
     assert dialog._ai_page.auto_transcribe.GetValue() is True
 
 
-def test_conversation_boxes_only_record_what_was_cleared():
+def test_conversation_boxes_only_record_what_differs_from_the_scope():
     from core import conversation_auto_ai as conv
 
+    jid = "5511@s.whatsapp.net"
+    # Scope "all" (the default): everyone, except the ones turned off.
     settings = {}
-    assert conv.allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE)
-    conv.set_allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE, False)
-    assert not conv.allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE)
-    assert conv.allowed(settings, "5511@s.whatsapp.net", conv.DESCRIBE)
+    assert conv.allowed(settings, jid, conv.TRANSCRIBE)
+    conv.set_allowed(settings, jid, conv.TRANSCRIBE, False)
+    assert not conv.allowed(settings, jid, conv.TRANSCRIBE)
+    assert conv.allowed(settings, jid, conv.DESCRIBE)
     assert conv.allowed(settings, "other@s.whatsapp.net", conv.TRANSCRIBE)
-    conv.set_allowed(settings, "5511@s.whatsapp.net", conv.TRANSCRIBE, True)
+    conv.set_allowed(settings, jid, conv.TRANSCRIBE, True)
     assert settings[conv.SETTING] == {}
+
+    # Scope "selected": nobody, except the ones turned on.
+    settings = {conv.SCOPE_SETTING: conv.SCOPE_SELECTED}
+    assert not conv.allowed(settings, jid, conv.TRANSCRIBE)
+    assert not conv.allowed(settings, jid, conv.DESCRIBE)
+    conv.set_allowed(settings, jid, conv.DESCRIBE, True)
+    assert conv.allowed(settings, jid, conv.DESCRIBE)
+    assert not conv.allowed(settings, jid, conv.TRANSCRIBE)
+    assert not conv.allowed(settings, "other@s.whatsapp.net", conv.DESCRIBE)
+    conv.set_allowed(settings, jid, conv.DESCRIBE, False)
+    assert settings[conv.SETTING] == {}
+
+
+def test_an_unknown_scope_reads_as_all_and_old_entries_still_hold():
+    from core import conversation_auto_ai as conv
+
+    assert conv.scope({conv.SCOPE_SETTING: "nonsense"}) == conv.SCOPE_ALL
+    assert conv.scope({}) == conv.SCOPE_ALL
+    # Entries written before the scope existed held only cleared boxes.
+    old = {conv.SETTING: {"a@s.whatsapp.net": {"transcribe": False}}}
+    assert not conv.allowed(old, "a@s.whatsapp.net", conv.TRANSCRIBE)
+    assert conv.allowed(old, "a@s.whatsapp.net", conv.DESCRIBE)
