@@ -194,6 +194,8 @@ CORREÇÕES
 
 - Sair de uma sessão que ficou pela metade (por exemplo, uma conta que nunca terminou de ser pareada) agora recebe uma resposta, em vez de falhar em silêncio.
 
+- Arquivos baixados cujo tamanho é múltiplo de 16 bytes (um APK, por exemplo) deixam de terminar com 16 bytes a mais. O Android se recusava a instalá-los com "problema ao analisar o pacote"; agora o arquivo salvo é idêntico ao original.
+
 V2.0.0.0
 
 A grande novidade desta versão são as ligações: agora dá para ligar, atender e recusar ligações de voz e de vídeo pelo próprio WinZapp, sem pegar o celular, com uma janela de ligação acessível, atalhos de teclado, configurações de áudio próprias e o histórico na nova aba Ligações. Também chegaram as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de uso, além de correções em situações em que o WinZapp pedia para parear de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: ela não muda nada no uso, mas deixa o WinZapp mais fácil de manter e de corrigir daqui para a frente.

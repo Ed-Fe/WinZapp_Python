@@ -194,6 +194,8 @@ CORREÇÕES
 
 - Terminar uma sessão que ficou a meio (por exemplo, uma conta que nunca chegou a ser emparelhada) passa a receber uma resposta, em vez de falhar em silêncio.
 
+- Os ficheiros transferidos cujo tamanho é múltiplo de 16 bytes (um APK, por exemplo) deixam de terminar com 16 bytes a mais. O Android recusava-se a instalá-los com "problema ao analisar o pacote"; agora o ficheiro guardado é idêntico ao original.
+
 V2.0.0.0
 
 A grande novidade desta versão são as chamadas: agora é possível fazer, atender e recusar chamadas de voz e de vídeo no próprio WinZapp, sem pegar no telemóvel, com uma janela de chamada acessível, atalhos de teclado, definições de áudio próprias e o histórico no novo separador Chamadas. Chegaram também as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de utilização, além de correções em situações em que o WinZapp pedia para emparelhar de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: não muda nada na utilização, mas torna o WinZapp mais fácil de manter e de corrigir daqui para a frente.
