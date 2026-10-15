@@ -570,11 +570,6 @@ msgid "Copy latest answer"
 msgstr "Copiar última respuesta"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "ai_put_in_line"
-msgid "Put transcription in the message line"
-msgstr "Poner la transcripción en la línea del mensaje"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_delete_key"
 msgid "Remove &saved key"
 msgstr "Quitar la clave &guardada"
@@ -1042,6 +1037,11 @@ msgstr "Activado"
 msgctxt "ai_provider_supports"
 msgid "Handles: {kinds}."
 msgstr "Admite: {kinds}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_in_line"
+msgid "Put transcription in the message line"
+msgstr "Poner la transcripción en la línea del mensaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
