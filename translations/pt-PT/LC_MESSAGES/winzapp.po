@@ -2828,11 +2828,198 @@ msgctxt "chat_notifications_not_muted"
 msgid "Not muted"
 msgstr "Não silenciada"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/chat_picker.py
+msgctxt "chat_picker_column_label"
+msgid "Chat"
+msgstr "Conversa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_empty"
+msgid "No chats match these filters."
+msgstr "Nenhuma conversa encontrada com esses filtros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_loading"
+msgid "Loading chats…"
+msgstr "A carregar conversas…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_select_all"
+msgid "Select all"
+msgstr "Marcar todas"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 #: client/main_window/sync.py
 msgctxt "chat_retrieval_failed"
 msgid "Failed to retrieve the chat list from the server."
 msgstr "Não foi possível recuperar a lista de conversas do servidor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_audios"
+msgid "Audio"
+msgstr "Áudios"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_documents"
+msgid "Documents"
+msgstr "Documentos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_photos"
+msgid "Photos and stickers"
+msgstr "Fotos e autocolantes"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_videos"
+msgid "Videos"
+msgstr "Vídeos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_voice_messages"
+msgid "Voice messages"
+msgstr "Mensagens de voz"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_chats_label"
+msgid "Chats:"
+msgstr "Conversas:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_confirm_msg"
+msgid ""
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing up disk space."
+" The messages stay — only the downloaded file is removed, and can be "
+"downloaded again later if still available. This can't be undone. Continue?"
+msgstr ""
+"Isto vai apagar {files} ficheiro(s) de multimédia ({mb:.1f} MB), libertando "
+"espaço em disco. As mensagens continuam lá — só o ficheiro descarregado é "
+"removido, podendo ser descarregado novamente depois se ainda estiver "
+"disponível. Esta ação não pode ser desfeita. Continuar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_confirm_title"
+msgid "Confirm cleanup"
+msgstr "Confirmar limpeza"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_deleting"
+msgid "Deleting files…"
+msgstr "A apagar ficheiros…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_deleting_count"
+msgid "Deleting file {done} of {total}…"
+msgstr "A apagar ficheiro {done} de {total}…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done"
+msgid ""
+"Cleanup complete.\n"
+"\n"
+"Files deleted: {files}\n"
+"Space freed: {mb:.1f} MB"
+msgstr ""
+"Limpeza concluída.\n"
+"\n"
+"Ficheiros apagados: {files}\n"
+"Espaço libertado: {mb:.1f} MB"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done_failed"
+msgid "Files that could not be deleted: {files}"
+msgstr "Ficheiros que não puderam ser apagados: {files}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_min_size_label"
+msgid "Minimum size (MB):"
+msgstr "Tamanho mínimo (MB):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_categories_selected"
+msgid "Select at least one media type."
+msgstr "Selecione pelo menos um tipo de multimédia."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_chats_selected"
+msgid "Select at least one chat."
+msgstr "Selecione pelo menos uma conversa."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_nothing_found"
+msgid "No files matched these filters."
+msgstr "Nenhum ficheiro encontrado com estes filtros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "cleanup_open_button"
+msgid "Media cleanup…"
+msgstr "Limpeza de multimédia…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_proceed_button"
+msgid "Proceed with cleanup"
+msgstr "Continuar com a limpeza"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scan_button"
+msgid "Gather data"
+msgstr "Reunir dados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scanning"
+msgid "Gathering data…"
+msgstr "A reunir dados…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_header"
+msgid "{chats} chat(s) affected, {files} file(s), {mb:.1f} MB total:"
+msgstr ""
+"{chats} conversa(s) afetada(s), {files} ficheiro(s), {mb:.1f} MB no total:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_summary_label"
+msgid "Overview:"
+msgstr "Panorama:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_line"
+msgid "{category}: {files} ({mb:.1f} MB)"
+msgstr "{category}: {files} ({mb:.1f} MB)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_title"
+msgid "Media cleanup"
+msgstr "Limpeza de multimédia"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_types_label"
+msgid "Media types to delete:"
+msgstr "Tipos de multimédia a apagar:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -2896,6 +3083,7 @@ msgstr "Limpar conversas selecionadas"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
+#: client/ui/dialogs/media_cleanup_dialog.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
@@ -4053,24 +4241,28 @@ msgstr "&Continuar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_all"
 msgid "All"
 msgstr "Todas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_groups"
 msgid "Groups"
 msgstr "Grupos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_individual"
 msgid "Individual"
 msgstr "Individuais"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_label"
 msgid "Filter chats"
 msgstr "Filtrar conversas"

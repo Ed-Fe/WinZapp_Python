@@ -2795,11 +2795,196 @@ msgctxt "chat_notifications_not_muted"
 msgid "Not muted"
 msgstr "Sessize alınmadı"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/chat_picker.py
+msgctxt "chat_picker_column_label"
+msgid "Chat"
+msgstr "Sohbet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_empty"
+msgid "No chats match these filters."
+msgstr "Bu filtrelerle hiçbir sohbet bulunamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_loading"
+msgid "Loading chats…"
+msgstr "Sohbetler yükleniyor…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_select_all"
+msgid "Select all"
+msgstr "Tümünü seç"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 #: client/main_window/sync.py
 msgctxt "chat_retrieval_failed"
 msgid "Failed to retrieve the chat list from the server."
 msgstr "Sohbet listesi sunucudan alınamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_audios"
+msgid "Audio"
+msgstr "Ses dosyaları"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_documents"
+msgid "Documents"
+msgstr "Belgeler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_photos"
+msgid "Photos and stickers"
+msgstr "Fotoğraflar ve çıkartmalar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_videos"
+msgid "Videos"
+msgstr "Videolar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_voice_messages"
+msgid "Voice messages"
+msgstr "Sesli mesajlar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_chats_label"
+msgid "Chats:"
+msgstr "Sohbetler:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_confirm_msg"
+msgid ""
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing up disk space."
+" The messages stay — only the downloaded file is removed, and can be "
+"downloaded again later if still available. This can't be undone. Continue?"
+msgstr ""
+"{files} ortam dosyası ({mb:.1f} MB) silinecek ve disk alanı boşalacak. "
+"Mesajlar kalır — yalnızca indirilen dosya silinir; hâlâ mevcutsa daha sonra "
+"yeniden indirilebilir. Bu işlem geri alınamaz. Devam edilsin mi?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_confirm_title"
+msgid "Confirm cleanup"
+msgstr "Temizliği onayla"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_deleting"
+msgid "Deleting files…"
+msgstr "Dosyalar siliniyor…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_deleting_count"
+msgid "Deleting file {done} of {total}…"
+msgstr "{done}/{total}. dosya siliniyor…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done"
+msgid ""
+"Cleanup complete.\n"
+"\n"
+"Files deleted: {files}\n"
+"Space freed: {mb:.1f} MB"
+msgstr ""
+"Temizlik tamamlandı.\n"
+"\n"
+"Silinen dosyalar: {files}\n"
+"Boşaltılan alan: {mb:.1f} MB"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done_failed"
+msgid "Files that could not be deleted: {files}"
+msgstr "Silinemeyen dosyalar: {files}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_min_size_label"
+msgid "Minimum size (MB):"
+msgstr "En düşük boyut (MB):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_categories_selected"
+msgid "Select at least one media type."
+msgstr "En az bir ortam türü seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_chats_selected"
+msgid "Select at least one chat."
+msgstr "En az bir sohbet seçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_nothing_found"
+msgid "No files matched these filters."
+msgstr "Bu filtrelerle hiçbir dosya bulunamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "cleanup_open_button"
+msgid "Media cleanup…"
+msgstr "Ortam dosyalarını temizle…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_proceed_button"
+msgid "Proceed with cleanup"
+msgstr "Temizlemeye devam et"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scan_button"
+msgid "Gather data"
+msgstr "Verileri topla"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scanning"
+msgid "Gathering data…"
+msgstr "Veriler toplanıyor…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_header"
+msgid "{chats} chat(s) affected, {files} file(s), {mb:.1f} MB total:"
+msgstr "{chats} sohbet etkilendi, toplam {files} dosya, {mb:.1f} MB:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_summary_label"
+msgid "Overview:"
+msgstr "Özet:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_line"
+msgid "{category}: {files} ({mb:.1f} MB)"
+msgstr "{category}: {files} ({mb:.1f} MB)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_title"
+msgid "Media cleanup"
+msgstr "Ortam dosyalarını temizle"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_types_label"
+msgid "Media types to delete:"
+msgstr "Silinecek ortam türleri:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -2862,6 +3047,7 @@ msgstr "Seçili sohbetleri temizle"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
+#: client/ui/dialogs/media_cleanup_dialog.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
@@ -4009,24 +4195,28 @@ msgstr "&Devam et"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_all"
 msgid "All"
 msgstr "Tümü"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_groups"
 msgid "Groups"
 msgstr "Gruplar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_individual"
 msgid "Individual"
 msgstr "Bireysel"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_label"
 msgid "Filter chats"
 msgstr "Sohbetleri filtrele"
