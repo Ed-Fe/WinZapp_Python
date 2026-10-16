@@ -206,6 +206,20 @@ POPRAWKI
 
 - macOS: instalacja aktualizacji i pierwsze uruchomienie po niej są znacznie szybsze. Aplikacja ma dużo mniej plików do rozpakowania (około 24 000 zamiast 61 000), jej serwer trafia na miejsce w ułamku sekundy zamiast w kilka sekund, poprzednia kopia jest usuwana w tle, a przeglądarka, w której działa WhatsApp (około 190 MB), jest zachowywana zamiast pobierania jej ponownie po każdej aktualizacji.
 
+V2.0.1.0
+
+To wersja konserwacyjna wydania stabilnego. Aktualizuje tylko biblioteki WPPConnect, których WinZapp używa do komunikacji z WhatsApp, po zmianie w WhatsApp Web, która zepsuła wysyłanie wiadomości głosowych i dokumentów.
+
+POPRAWKI
+
+Wysyłanie wiadomości głosowych i dokumentów znowu działa. WhatsApp Web zmienił się tak, że te wysyłki kończyły się błędem; WinZapp używa teraz zaktualizowanych bibliotek WPPConnect (WPPConnect 2.3.5 i WA-JS 4.7.1), które sobie z tym radzą.
+
+Obsługiwany jest serwer WPPConnect 2.10.55. Instalacja lub aktualizacja do najnowszego serwera nie kończy się już błędem "npm run build failed", a serwer jest uruchamiany z aktualnymi ustawieniami.
+
+Anulowanie parowania przy łączeniu konta nie zostawia już działającej starej pętli kodu QR, a strona WhatsApp Web, która nigdy nie kończy ładowania, jest porzucana po 60 sekundach zamiast zostawiać WinZapp w oczekiwaniu.
+
+Jeśli używałeś wcześniejszej wersji, a wiadomości głosowe nadal nie działają po aktualizacji, WinZapp przy uruchomieniu proponuje ponowną instalację WPPConnect; zaakceptuj to raz, a nowe biblioteki zostaną zainstalowane.
+
 V2.0.0.0
 
 Najważniejszą nowością tej wersji są połączenia: połączenia głosowe i wideo można teraz nawiązywać, odbierać i odrzucać bezpośrednio w WinZapp, bez sięgania po telefon — z dostępnym oknem połączenia, skrótami klawiszowymi, własnymi ustawieniami dźwięku i historią w nowej karcie Połączenia. Doszły też zabezpieczone czaty, wyszukiwanie w zarchiwizowanych czatach, języki turecki i rumuński oraz kilka usprawnień w obsłudze, a także poprawki sytuacji, w których WinZapp niepotrzebnie prosił o ponowne parowanie. Pod spodem kod programu przeszedł dużą reorganizację: niczego nie zmienia w codziennym używaniu, ale sprawia, że WinZapp będzie łatwiej utrzymywać i naprawiać.

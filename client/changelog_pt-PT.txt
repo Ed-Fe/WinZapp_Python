@@ -206,6 +206,20 @@ CORREÇÕES
 
 - macOS: instalar uma atualização, e a primeira abertura depois dela, ficaram muito mais rápidos. A app tem bastante menos ficheiros para descompactar (cerca de 24 000 em vez de 61 000), o servidor é colocado no lugar numa fração de segundo em vez de vários segundos, a cópia anterior é apagada em segundo plano, e o navegador em que o WhatsApp corre (cerca de 190 MB) é mantido em vez de ser transferido de novo a cada atualização.
 
+V2.0.1.0
+
+Esta é uma versão de manutenção da estável. Apenas atualiza as bibliotecas WPPConnect que o WinZapp usa para comunicar com o WhatsApp, depois de uma alteração no WhatsApp Web que quebrou o envio de mensagens de voz e de documentos.
+
+CORREÇÕES
+
+O envio de mensagens de voz e de documentos voltou a funcionar. O WhatsApp Web mudou de uma forma que fazia estes envios falharem; o WinZapp passa a usar as bibliotecas WPPConnect atualizadas (WPPConnect 2.3.5 e WA-JS 4.7.1), que tratam essa alteração.
+
+O servidor WPPConnect 2.10.55 passa a ser suportado. Instalar ou atualizar para o servidor mais recente deixa de terminar com "npm run build failed", e o servidor é iniciado com as definições atuais.
+
+Ao associar a conta, cancelar o emparelhamento deixa de manter um ciclo de código QR antigo em execução, e uma página do WhatsApp Web que nunca acaba de carregar passa a ser abandonada ao fim de 60 segundos, em vez de deixar o WinZapp à espera.
+
+Se já utilizava uma versão anterior e as mensagens de voz continuam a falhar depois de atualizar, o WinZapp oferece reinstalar o WPPConnect ao iniciar; aceite uma vez e as novas bibliotecas ficam instaladas.
+
 V2.0.0.0
 
 A grande novidade desta versão são as chamadas: agora é possível fazer, atender e recusar chamadas de voz e de vídeo no próprio WinZapp, sem pegar no telemóvel, com uma janela de chamada acessível, atalhos de teclado, definições de áudio próprias e o histórico no novo separador Chamadas. Chegaram também as conversas trancadas, a pesquisa nas conversas arquivadas, os idiomas turco e romeno e várias melhorias de utilização, além de correções em situações em que o WinZapp pedia para emparelhar de novo sem necessidade. Por baixo, o código do programa passou por uma grande reorganização: não muda nada na utilização, mas torna o WinZapp mais fácil de manter e de corrigir daqui para a frente.
