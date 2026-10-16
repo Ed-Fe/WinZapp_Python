@@ -14657,6 +14657,16 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_mark_unsaved_contacts"
+msgid ""
+"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"messages"
+msgstr ""
+"Preceder nomes de contatos não salvos com um sinal de til (~) nas conversas "
+"e mensagens"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_message_list_mode_classic"
 msgid "Classic message list (default, 512-character limit)"
 msgstr "Lista de mensagens clássica (padrão, limite de 512 caracteres)"

@@ -351,7 +351,7 @@ class ChatEventsMixin:
                     if unread > 0 else ""
                 )
                 preview   = self._last_msg_preview(chat)
-                item_text = name + unread_str
+                item_text = self._unsaved_marked_chat_name(chat, name) + unread_str
                 if preview:
                     item_text += f" {preview}"
                 label = self._presence_label_for_chat(chat_jid_norm, is_group)

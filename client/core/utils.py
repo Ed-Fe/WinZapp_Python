@@ -1116,6 +1116,7 @@ DEFAULT_SETTINGS = {
         "self_reference_custom_word": "",
         "hide_own_sender_in_message_list": False,
         "hide_unnamed_sender_numbers": False,
+        "mark_unsaved_contacts": True,
         "show_delivery_status_in_chat_list": True,
         "keep_pinned_chat_order": False,
         "preserve_typed_text_as_attachment_caption": True,
