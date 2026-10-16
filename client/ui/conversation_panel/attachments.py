@@ -470,6 +470,16 @@ class AttachmentsMixin:
 
     # ── Contact message helpers ──────────────────────────────────────────────
 
+    def _on_caption_field_key_down(self, event):
+        """Shift+Enter and Ctrl+Enter add a line to the caption; plain Enter
+        still sends (EVT_TEXT_ENTER), like the message field. WriteText()
+        keeps the caret right on Windows, where the control stores \\r\\n."""
+        if (event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
+                and (event.ShiftDown() or event.ControlDown())):
+            self._caption_field.WriteText("\n")
+            return
+        event.Skip()
+
     def _consume_attachment_caption(self) -> str:
         """Return the staged caption and clear it for the next attachment."""
         caption = normalize_line_separators(self._caption_field.GetValue()).strip()

@@ -124,6 +124,8 @@ YENİLİKLER
 
 - Yeni veya boş bir kişisel sohbet artık "mesaj yok" satırında mesajların ve aramaların uçtan uca şifreli olduğunu ve kaybolan mesajlar açıksa süresini belirtiyor. Sohbet bilgileri de şifrelemeden söz ediyor.
 
+- Ek dosyaların açıklama alanı artık WhatsApp Desktop gibi birden çok satır kabul ediyor: Enter eki açıklamasıyla göndermeye devam eder, Shift+Enter veya Ctrl+Enter ise mesaj alanındaki gibi yeni satır açar.
+
 DÜZELTMELER
 
 - Sesli mesajların ve belgelerin gönderimi, 15 Ekim'de yayımlanan ve bu işlevi taşıyan bir WhatsApp Web sürümünde "Cannot read properties of undefined (reading 'prepRawMedia')" hatasıyla başarısız oluyordu. WinZapp artık WhatsApp Web kitaplığının uyumlu sürümünü (WA-JS 4.7.1) içeriyor. Güncellemeden sonra gönderim hâlâ başarısız olursa WPPConnect'i güncelleme penceresinden yeniden yükleyin.
