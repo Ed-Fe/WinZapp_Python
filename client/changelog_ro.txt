@@ -210,6 +210,8 @@ CORECTĂRI
 
 - macOS: instalarea unei actualizări și prima pornire după ea sunt mult mai rapide. Aplicația are mult mai puține fișiere de dezarhivat (aproximativ 24.000 în loc de 61.000), serverul ei este pus la locul lui într-o fracțiune de secundă în loc de câteva secunde, copia anterioară este ștearsă în fundal, iar browserul în care rulează WhatsApp (aproximativ 190 MB) este păstrat în loc să fie descărcat din nou după fiecare actualizare.
 
+- Anularea ecoului în apelurile vocale și video funcționează acum în apelurile pe care le preiei. Difuzorul cânta încă de când apelul suna, așa că anulatorul compara microfonul cu sunet dinaintea deschiderii lui și nu găsea niciodată ecoul: cealaltă persoană își auzea în continuare propria voce chiar cu opțiunea activată. Referința începe acum când se deschide microfonul.
+
 V2.0.1.0
 
 Aceasta este o versiune de întreținere a celei stabile. Actualizează doar bibliotecile WPPConnect pe care WinZapp le folosește pentru a comunica cu WhatsApp, după o schimbare în WhatsApp Web care a stricat trimiterea mesajelor vocale și a documentelor.

@@ -210,6 +210,8 @@ CORREÇÕES
 
 - macOS: instalar uma atualização, e a primeira abertura depois dela, ficaram muito mais rápidos. A app tem bastante menos ficheiros para descompactar (cerca de 24 000 em vez de 61 000), o servidor é colocado no lugar numa fração de segundo em vez de vários segundos, a cópia anterior é apagada em segundo plano, e o navegador em que o WhatsApp corre (cerca de 190 MB) é mantido em vez de ser transferido de novo a cada atualização.
 
+- O cancelamento de eco nas chamadas de voz e vídeo passa a funcionar nas chamadas que atende. O altifalante já tocava desde que a chamada começou a tocar, por isso o cancelador comparava o seu microfone com áudio anterior à abertura dele e nunca encontrava o eco: a outra pessoa continuava a ouvir a própria voz mesmo com a opção ativada. Agora a referência começa quando o microfone abre.
+
 V2.0.1.0
 
 Esta é uma versão de manutenção da estável. Apenas atualiza as bibliotecas WPPConnect que o WinZapp usa para comunicar com o WhatsApp, depois de uma alteração no WhatsApp Web que quebrou o envio de mensagens de voz e de documentos.
