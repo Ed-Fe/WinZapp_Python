@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Starea dumneavoastră online corespunde acum stării actuale a ferestrei chiar și atunci când treceți rapid la alt program, ascundeți WinZapp în zona de notificare sau vă reconectați în fundal. O actualizare online întârziată nu mai poate ajunge după cea offline, iar o încercare nereușită de a seta starea offline este repetată.
+
 - Comenzi rapide noi, fiecare modificabilă în fila Comenzi rapide din setări: Alt+8 deschide comunitățile de oriunde din fereastră; Alt+Shift+B deschide catalogul și coșul firmei din conversația selectată sau deschisă; iar într-un cont WhatsApp Business, Ctrl+Shift+N creează o comandă pentru contactul din conversație. Acolo unde nu se aplică, WinZapp spune motivul. Enter pe un mesaj de comandă deschide comanda.
 
 - Ajutor > "Noutăți de la ultima vizualizare" spune, în propoziții simple, ce s-a schimbat în aceste noutăți de când cineva de pe acest computer le-a deschis ultima dată: elementele noi din fiecare secțiune, elementele modificate (în forma actuală) și cele eliminate, iar o versiune nouă este afișată în întregime. Este la fel pentru toate conturile. Iar butonul "Ce este nou?" din fereastra de actualizare arată acum ce schimbă versiunea oferită în aceste noutăți, în loc de noutățile versiunii pe care o aveți deja; pentru o versiune Alpha listează și, pentru fiecare Alpha de la a dumneavoastră încoace, modificările înregistrate pe GitHub (titlul și numărul fiecărui pull request).

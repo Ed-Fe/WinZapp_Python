@@ -4,6 +4,8 @@ Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, 
 
 NOVEDADES
 
+- Tu estado en línea ahora sigue el estado actual de la ventana incluso al cambiar rápidamente a otro programa, ocultar WinZapp en la bandeja o reconectarse en segundo plano. Una actualización retrasada de «en línea» ya no se adelanta a la de «sin conexión», y si falla el envío del estado «sin conexión», se vuelve a intentar.
+
 - Nuevos atajos, cada uno modificable en la pestaña Atajos de teclado de la configuración: Alt+8 abre las comunidades desde cualquier lugar de la ventana; Alt+Shift+B abre el catálogo y el carrito de la empresa del chat seleccionado o abierto; y en una cuenta de WhatsApp Business, Ctrl+Shift+N crea un pedido para el contacto del chat. Donde no se aplican, WinZapp dice el motivo. Intro en un mensaje de pedido abre el pedido.
 
 - Ayuda > "Novedades desde la última vez que miraste" dice lo que ha cambiado en estas novedades desde la última vez que alguien en este ordenador las abrió, en frases sencillas: los elementos nuevos de cada sección, los modificados (tal como quedan) y los retirados, y una versión entera cuando es nueva. Es igual para todas las cuentas. Y el botón "¿Qué hay de nuevo?" de la ventana de actualización ahora muestra lo que la versión ofrecida cambia en estas novedades, en lugar de las novedades de la versión que ya tienes; en una versión alpha también enumera, para cada alpha desde la tuya, los cambios registrados en GitHub (el título y el número de cada pull request).
