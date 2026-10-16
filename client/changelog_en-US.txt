@@ -130,6 +130,8 @@ WHAT'S NEW
 
 FIXES
 
+- Receiving a file no longer downloads it into the message notification because of an unused webhook setting. Upload and download progress updates now keep only the latest pending value, avoiding a buildup of screen updates during fast transfers.
+
 - Fixed repeated conversation synchronization when WhatsApp's chat list was available but could not be transferred to the local server. Existing conversations are kept and the list can finish synchronizing.
 
 - Sending voice messages and documents failed with "Cannot read properties of undefined (reading 'prepRawMedia')" on a WhatsApp Web build released on 15 October, which moved that function. WinZapp now ships the matching version of its WhatsApp Web library (WA-JS 4.7.1). If sending still fails after updating, reinstall WPPConnect from the update window.

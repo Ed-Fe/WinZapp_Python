@@ -19,6 +19,7 @@ from core.utils import (
     normalize_line_separators,
 )
 from core.message_queue import PendingMessage
+from core.coalesced_callback import CoalescedCallback
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from core.attachment_types import classify_attachment_media_type
 from core.audio_transcode import exceeds_aac_channel_limit
@@ -432,8 +433,11 @@ class AttachmentsMixin:
             if last >= 0:
                 self.messages_list.Select(last, True)
                 self.messages_list.EnsureVisible(last)
-            def _update_upload_progress(progress, local_id=local_id):
-                wx.CallAfter(self.update_media_upload_progress, local_id, progress)
+            def _update_upload_progress(
+                progress, local_id=local_id,
+                notify=CoalescedCallback(wx.CallAfter, self.update_media_upload_progress),
+            ):
+                notify(local_id, progress)
 
             pm = PendingMessage(
                 local_id, remote_jid,

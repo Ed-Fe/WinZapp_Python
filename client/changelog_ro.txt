@@ -130,6 +130,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- Primirea unui fișier nu îl mai descarcă în notificarea mesajului din cauza unei setări webhook neutilizate. Actualizările progresului de trimitere și descărcare păstrează doar cea mai recentă valoare în așteptare, evitând acumularea actualizărilor ecranului în timpul transferurilor rapide.
+
 - S-a corectat sincronizarea repetată a conversațiilor când lista WhatsApp era disponibilă, dar nu putea fi transferată către serverul local. Conversațiile existente sunt păstrate, iar sincronizarea listei se poate încheia.
 
 - Trimiterea mesajelor vocale și a documentelor eșua cu "Cannot read properties of undefined (reading 'prepRawMedia')" pe o versiune de WhatsApp Web lansată pe 15 octombrie, care a mutat acea funcție. WinZapp include acum versiunea corespunzătoare a bibliotecii sale WhatsApp Web (WA-JS 4.7.1). Dacă trimiterea tot eșuează după actualizare, reinstalează WPPConnect din fereastra de actualizare.
