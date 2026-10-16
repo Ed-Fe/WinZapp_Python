@@ -1454,6 +1454,7 @@ class MainWindow(
         self._presence_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER,    self._on_presence_timer,   self._presence_timer)
         self.Bind(wx.EVT_ACTIVATE, self._on_window_activate)
+        wx.CallAfter(self._sync_online_presence)
         self.Bind(wx.EVT_CHAR_HOOK, self._on_chat_lock_char_hook)
         self._presence_debounce_timer = None
 
