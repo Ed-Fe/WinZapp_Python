@@ -16,6 +16,8 @@ list view does, which WinZapp's handlers rely on.
 
 import wx
 
+from . import vo_focus_mac
+
 _OrigListCtrl = wx.ListCtrl
 
 CHECK_MARK = "✓ "
@@ -63,7 +65,14 @@ class MacListCtrl(wx.ListBox):
     def _render(self, row):
         label = self._label(row)
         if self.GetString(row) != label:
-            self.SetString(row, label)
+            from . import native_rows
+            # Only this row's text: native_rows updates it in place instead
+            # of wx reloading the whole table under VoiceOver's cursor.
+            with native_rows.row_only(self, row):
+                self.SetString(row, label)
+            # Every wx.ListBox write reloads the native table; a chat open
+            # waits for those to stop before pointing VoiceOver at the field.
+            vo_focus_mac.note_list_write(self)
 
     # ---- events ----------------------------------------------------------
     def _emit(self, evt_type, row, **extra):
@@ -179,7 +188,10 @@ class MacListCtrl(wx.ListBox):
         index = max(0, min(index, len(self._rows)))
         self._rows.insert(index, [[label], data, False])
         sel, had_focus = self.GetSelection(), self.HasFocus()
-        self.Insert(self._label(index), index)
+        from . import native_rows
+        with native_rows.change(self, native_rows.INSERT, index):
+            self.Insert(self._label(index), index)
+        vo_focus_mac.note_list_write(self)
         if sel != wx.NOT_FOUND and index <= sel:
             self.SetSelection(sel + 1)
             self._last_sel = sel + 1
@@ -241,7 +253,10 @@ class MacListCtrl(wx.ListBox):
             return False
         sel, had_focus = self.GetSelection(), self.HasFocus()
         del self._rows[item]
-        self.Delete(item)
+        from . import native_rows
+        with native_rows.change(self, native_rows.DELETE, item):
+            self.Delete(item)
+        vo_focus_mac.note_list_write(self)
         if sel != wx.NOT_FOUND and self._rows:
             new = sel - 1 if sel > item else (max(0, item - 1) if sel == item else sel)
             self.SetSelection(min(new, len(self._rows) - 1))
@@ -254,6 +269,7 @@ class MacListCtrl(wx.ListBox):
         self._rows = []
         self._last_sel = wx.NOT_FOUND
         self.Clear()
+        vo_focus_mac.note_list_write(self)
         return True
 
     def ClearAll(self):
@@ -410,6 +426,7 @@ class MacListCtrl(wx.ListBox):
         sel_row = self._rows[sel] if sel != wx.NOT_FOUND else None
         self._rows.sort(key=functools.cmp_to_key(lambda a, b: fn(a[1], b[1])))
         self.Set([self._label(i) for i in range(len(self._rows))])
+        vo_focus_mac.note_list_write(self)
         if sel_row is not None:
             self.SetSelection(self._rows.index(sel_row))
         return True

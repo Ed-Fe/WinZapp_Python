@@ -19,10 +19,10 @@ index 0000000..2780d0b
 +write must stay what that release's `sparkle_policy.decide()` accepts.
 diff --git a/.github/mac-release-tools/release/appcast.py b/.github/mac-release-tools/release/appcast.py
 new file mode 100644
-index 0000000..8588c91
+index 0000000..5d766aa
 --- /dev/null
 +++ b/.github/mac-release-tools/release/appcast.py
-@@ -0,0 +1,299 @@
+@@ -0,0 +1,325 @@
 +#!/usr/bin/env python3
 +"""The Sparkle appcasts of the macOS releases (one per architecture).
 +
@@ -85,6 +85,8 @@ index 0000000..8588c91
 +_SIGN_OUTPUT = re.compile(r'sparkle:edSignature="([A-Za-z0-9+/=]+)"\s+length="(\d+)"', re.ASCII)
 +# client/updater.py's _HDR_RE: a "V1.2.3.4" line starts a version's section.
 +_HEADER = re.compile(r"^V(\d+\.\d+\.\d+\.\d+(?:dev|alpha|beta)?)\s*$", re.IGNORECASE | re.ASCII)
++# A pull request in a GitHub release body, as client/core/release_notes.py reads it.
++_PULL = re.compile(r"^\s*[*-]\s+(?P<title>.+?)\s+by\s+@[\w.-]+(?:\[bot\])?\s+in\s+\S*/pull/(?P<number>\d+)\s*$")
 +
 +ET.register_namespace("sparkle", SPARKLE_NS)
 +
@@ -151,6 +153,29 @@ index 0000000..8588c91
 +                best, best_key = body, key
 +        current, lines = m.group(1), []
 +    return best or ""
++
++
++def pull_requests(markdown):
++    """The pull requests a GitHub release body lists, one "- title (#N)" line
++    each, without the author's @handle or the link; "" when it lists none."""
++    lines = []
++    for line in (markdown or "").splitlines():
++        m = _PULL.match(line)
++        if m:
++            lines.append(f"- {m.group('title').strip()} (#{m.group('number')})")
++    return "\n".join(lines)
++
++
++def alpha_notes(notes, tag, markdown):
++    """For an alpha, *notes* with the pull requests of its GitHub release
++    first: the changelog section is the same for every alpha heading to one
++    release, so on its own it cannot say what this alpha changed. The app
++    shows its own notes when it can fetch them (winzapp_mac/sparkle_notes.py);
++    these are what it falls back to."""
++    pulls = pull_requests(markdown) if tag.endswith("alpha") else ""
++    if not pulls:
++        return dict(notes)
++    return {lang: f"{pulls}\n\n{text}" for lang, text in notes.items()}
 +
 +
 +def localized_notes(changelog_dir, tag, locales):
@@ -301,8 +326,9 @@ index 0000000..8588c91
 +    if args.notes_markdown and os.path.isfile(args.notes_markdown):
 +        with open(args.notes_markdown, encoding="utf-8") as fh:
 +            markdown = fh.read().strip()
-+    item = make_item(args.tag, args.arch, args.repo, signature,
-+                     localized_notes(os.path.join(args.source, "client"), args.tag, locales), markdown)
++    notes = alpha_notes(localized_notes(os.path.join(args.source, "client"), args.tag, locales),
++                        args.tag, markdown)
++    item = make_item(args.tag, args.arch, args.repo, signature, notes, markdown)
 +    os.makedirs(args.site, exist_ok=True)
 +    state = os.path.join(args.site, sparkle_policy.feed_name(args.arch).replace(".xml", ".json"))
 +    items = []
@@ -794,10 +820,10 @@ index 0000000..1aa7073
 +    return _read(_ASSET_OPENER, url, MAX_PROVENANCE_BYTES, {})[0]
 diff --git a/.github/mac-release-tools/winzapp_mac/sparkle_policy.py b/.github/mac-release-tools/winzapp_mac/sparkle_policy.py
 new file mode 100644
-index 0000000..ff68987
+index 0000000..fbcd111
 --- /dev/null
 +++ b/.github/mac-release-tools/winzapp_mac/sparkle_policy.py
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,246 @@
 +"""What Sparkle may offer and install, decided without Sparkle.
 +
 +Pure standard library (plus provenance.py): no PyObjC, no wx, so the normal
@@ -812,11 +838,15 @@ index 0000000..ff68987
 +zip prove nothing that attacker could not also produce. The one guarantee
 +they cannot fake is the official repository's: the release is an existing
 +tag of gabrielhhaber/WinZapp_Python, pointing at the commit its provenance
-+declares, newer than the running tag. So Sparkle may show a release only
-+when that holds (decide()), and may install it only when it still holds just
-+before installation (install_choice()). Sparkle's own checks (signed appcast,
-+EdDSA signature of the zip, code signing) come on top, as integrity of the
-+download.
++declares, newer than the running tag. So Sparkle may offer or download a
++release only when that holds (decide(), asked before anything is shown or
++downloaded, for the scheduled background download too), and, where Sparkle
++still asks at "Ready to Install" (a check the user started), may install it
++only when it still holds at that moment (install_choice()). An update
++downloaded in the background installs when WinZapp quits, with no question
++left for a second check: the offer-time one is its gate. Sparkle's own checks
++(signed appcast, EdDSA signature of the zip, code signing) come on top, as
++integrity of the download.
 +"""
 +
 +import base64
@@ -902,12 +932,19 @@ index 0000000..ff68987
 +      it also keeps Sparkle from asking its own permission question on the
 +      second launch, since Settings > General already asks it. The setting
 +      itself is applied at run time (sparkle_mac), so it stays the one switch.
-+    * SUAllowsAutomaticUpdates off: WinZapp always asks before installing, as
-+      it does today. It also rules out Sparkle's silent install-on-quit: with
-+      it off, automaticallyDownloadsUpdates is NO whatever the user defaults
-+      say (SPUUpdaterSettings.m:313-328), so SPUUpdater never picks the
-+      automatic driver (SPUUpdater.m:622), the only caller of
-+      updater:willInstallUpdateOnQuit: (SPUAutomaticUpdateDriver.m:111).
++    * SUAllowsAutomaticUpdates and SUAutomaticallyUpdate on: updates are
++      downloaded in the background and installed when WinZapp quits, as in
++      other Mac apps. A scheduled check then runs Sparkle's automatic driver
++      (SPUUpdater.m:622, while automaticallyDownloadsUpdates is on), which
++      downloads silently (SPUAutomaticUpdateDriver.m:87-97) once
++      updater:shouldProceedWithUpdate:... has let the release through, and
++      leaves the prepared installer waiting for the app to end
++      (:104-128, updater:willInstallUpdateOnQuit:...). A later check shows it
++      in Sparkle's standard window with "Install and Relaunch"
++      (SPUUpdater.m:903-906, SPUUIBasedUpdateDriver.m:236-237). The run-time
++      switch is WinZapp's "check for updates automatically" setting, which
++      sparkle_mac applies to automaticallyChecksForUpdates and
++      automaticallyDownloadsUpdates alike; this key is only the default.
 +    * SURequireSignedFeed (with its prerequisite SUVerifyUpdateBeforeExtraction)
 +      and no expiry for a signing failure: an unsigned or re-signed appcast is
 +      never trusted, however long it stays that way.
@@ -922,8 +959,8 @@ index 0000000..ff68987
 +        FEED_URL: f"{feed_base}/{feed_name(arch)}",
 +        PUBLIC_KEY: public_key,
 +        "SUEnableAutomaticChecks": True,
-+        "SUAllowsAutomaticUpdates": False,
-+        "SUAutomaticallyUpdate": False,
++        "SUAllowsAutomaticUpdates": True,
++        "SUAutomaticallyUpdate": True,
 +        "SUScheduledCheckInterval": SCHEDULED_CHECK_INTERVAL,
 +        "SUVerifyUpdateBeforeExtraction": True,
 +        "SURequireSignedFeed": True,
@@ -1014,7 +1051,8 @@ index 0000000..ff68987
 +
 +def install_choice(choice, verdict):
 +    """The answer Sparkle gets at "Ready to Install", its last question
-+    before it installs. *choice* is the user's; *verdict* the result of asking
++    before it installs, in a check the user started (a background download
++    never asks it: it installs on quit). *choice* is the user's; *verdict* the result of asking
 +    the official repository (and checking the appcast item) again just now,
 +    None when it was not asked because the user did not choose to install.
 +
@@ -1026,7 +1064,9 @@ index 0000000..ff68987
 +    to finishInstallationWithResponse: (SPUUIBasedUpdateDriver.m:420-425),
 +    not through the update window's handler that records skips (:282-283).
 +    The release is offered again at the next check. Unreachable GitHub counts
-+    as a refusal (fail closed): nothing is lost but the download."""
++    as a refusal (fail closed): nothing is lost but the download. Left
++    unanswered, the window lets the update install when WinZapp quits, like
++    one downloaded in the background."""
 +    if choice == CHOICE_INSTALL and verdict is not None and verdict[0]:
 +        return CHOICE_INSTALL
 +    return CHOICE_SKIP

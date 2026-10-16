@@ -102,7 +102,12 @@ alpha updates" is on, which is exactly how WinZapp chooses releases today. A
 feed keeps the newest 5 alphas and 3 stables (alphas never push the stables
 out), and only the newest item of each channel carries its release notes,
 taken per language from the tag's `client/changelog_<locale>.txt` (the
-upstream release notes when the changelog has no section for it).
+upstream release notes when the changelog has no section for it). An alpha's
+notes start with the pull requests its upstream release lists, since the
+changelog section is the same for every alpha heading to one release. These
+are the fallback: the app shows its own notes, what changed between the
+version it runs and the one offered, whenever it can fetch them
+(`winzapp_mac/sparkle_notes.py`).
 
 ## Delta updates: no
 

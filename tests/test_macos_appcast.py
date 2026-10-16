@@ -74,6 +74,31 @@ class TestReleaseNotes:
 
 
 
+class TestAnAlphasOwnNotes:
+    """Every alpha heading to 2.1.0.0 had the same section as its notes; the
+    feed's fallback now starts with the pull requests of that alpha's GitHub
+    release (the app shows its own notes when it can, sparkle_notes.py)."""
+
+    BODY = ("## What's Changed\n"
+            "* Calls ring on the Mac by @rocco in https://github.com/o/r/pull/484\n"
+            "* Fix the updater by @dependabot[bot] in https://github.com/o/r/pull/485\n\n"
+            "**Full Changelog**: https://github.com/o/r/compare/v1...v2")
+
+    def test_pull_requests_read_as_titles_and_numbers(self):
+        assert A.pull_requests(self.BODY) == "- Calls ring on the Mac (#484)\n- Fix the updater (#485)"
+        assert A.pull_requests("") == "" and A.pull_requests("Plain notes.") == ""
+
+    def test_an_alpha_starts_with_its_pull_requests_in_every_language(self):
+        notes = A.alpha_notes({"en": "What is new in 2.1.", "pt-BR": "Novidades."},
+                              "v2.1.0.4258alpha", self.BODY)
+        assert notes == {"en": "- Calls ring on the Mac (#484)\n- Fix the updater (#485)\n\nWhat is new in 2.1.",
+                         "pt-BR": "- Calls ring on the Mac (#484)\n- Fix the updater (#485)\n\nNovidades."}
+
+    @pytest.mark.parametrize("tag, body", [("v2.1.0.4258", BODY), ("v2.1.0.4258alpha", "No list here.")])
+    def test_a_stable_or_a_body_without_pull_requests_keeps_its_section(self, tag, body):
+        assert A.alpha_notes({"en": "What is new in 2.1."}, tag, body) == {"en": "What is new in 2.1."}
+
+
 class TestItems:
     def test_an_item_names_its_release_tag_the_way_the_app_checks_it(self):
         i = _item("v2.1.0.4258alpha")
@@ -197,6 +222,25 @@ def test_add_reads_the_tags_changelogs_from_source(tmp_path, monkeypatch):
             "--sign-update", "/pinned/sign_update"])
     xml = (tmp_path / "site" / "appcast-arm64.xml").read_text(encoding="utf-8")
     assert "From the tag." in xml and signed[0][1] == "/pinned/sign_update"
+
+
+def test_add_puts_an_alphas_pull_requests_before_its_section(tmp_path, monkeypatch):
+    """--notes-markdown is the tag's GitHub release body (the workflow's gh api)."""
+    src = tmp_path / "src" / "client"
+    (src / "languages").mkdir(parents=True)
+    (src / "languages" / "language_map.json").write_text('{"en-US": "English"}', encoding="utf-8")
+    (src / "changelog_en-US.txt").write_text("V2.1.0.0\n\nFrom the tag.\n", encoding="utf-8")
+    body = tmp_path / "notes.md"
+    body.write_text("* Calls ring by @rocco in https://github.com/o/r/pull/484\n", encoding="utf-8")
+    sig = tmp_path / "sig.json"
+    sig.write_text('{"edSignature": "%s", "length": 1}' % SIG["edSignature"], encoding="utf-8")
+    monkeypatch.setattr(A, "_sign", lambda path, tool=None: "")
+    A.main(["add", "--site", str(tmp_path / "site"), "--tag", "v2.1.0.4258alpha", "--arch", "arm64",
+            "--repo", REPO, "--signature", str(sig), "--source", str(tmp_path / "src"),
+            "--notes-markdown", str(body), "--sign-update", "/pinned/sign_update"])
+    root = ET.parse(tmp_path / "site" / "appcast-arm64.xml").getroot()
+    (desc,) = root.findall("channel/item/description")
+    assert desc.text == "- Calls ring (#484)\n\nFrom the tag."
 
 
 class TestOnlyBuildsCarryingTheKey:

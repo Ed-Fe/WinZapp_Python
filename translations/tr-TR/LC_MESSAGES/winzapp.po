@@ -6389,6 +6389,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
+msgctxt "mac_update_downloaded_reminder"
+msgid ""
+"WinZapp update v{new_version} has been downloaded and will be installed when"
+" you quit WinZapp. To install it now, choose Help > Check for updates, or "
+"switch to WinZapp."
+msgstr ""
+"WinZapp v{new_version} güncellemesi indirildi ve WinZapp'tan çıktığınızda "
+"yüklenecek. Şimdi yüklemek için Yardım > Güncellemeleri denetle'yi seçin "
+"veya WinZapp'e geçin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
 msgctxt "mac_update_ready_to_install"
 msgid ""
 "WinZapp update v{new_version} has been downloaded and is ready to install. "

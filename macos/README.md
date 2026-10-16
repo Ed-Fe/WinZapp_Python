@@ -16,24 +16,25 @@ and adapts WinZapp's UI to how Mac apps and VoiceOver behave:
 
 | Module | What it does on the Mac |
 |---|---|
-| `listctrl.py`, `native_rows.py` | `wx.ListCtrl` is invisible to VoiceOver on macOS (wxGenericListCtrl, custom-drawn). Every list becomes a native table; rows answer VO-Space (activate, like Enter), VO-Shift-M (the row's context menu) and offer the context-menu items as VoiceOver actions (VO-Command-Space), read from WinZapp's own menu handlers so new items appear automatically. |
+| `listctrl.py`, `native_rows.py` | `wx.ListCtrl` is invisible to VoiceOver on macOS (wxGenericListCtrl, custom-drawn). Every list becomes a native table; rows answer VO-Space (activate, like Enter), VO-Shift-M (the row's context menu) and offer the context-menu items as VoiceOver actions (VO-Command-Space), read from WinZapp's own menu handlers so new items appear automatically. wx rebuilds the whole native table for every row it writes, inserts or deletes (`src/osx/cocoa/listbox.mm`, "TODO optimize"), which threw away the cell VoiceOver was on; those writes now change only that row. |
 | `accessibility_mac.py` | `wx.Accessible` does nothing on macOS; its names, descriptions and shortcuts are bridged to NSAccessibility, and unlabelled fields take the label before them, as NVDA does. |
 | `speech.py` | Speech goes to VoiceOver as NSAccessibility announcements (no AppleScript setting needed); the system voice is the fallback instead of SAPI. |
+| `vo_focus_mac.py` | After a chat opens, VoiceOver is pointed at the message field once the chat list stops changing, and announcements made meanwhile (pinned messages) are spoken after it. |
 | `layout_mac.py` | The messages list keeps a few rows of height when voice playback, recording, a quote or the composer show extra controls: the room comes from the Chats list, which keeps a few rows too. A zero-height list disappears from VoiceOver. |
 | `keymap_mac.py` | Shortcuts follow one rule — Ctrl becomes Command, Alt becomes Command-Option, Ctrl+Alt becomes Control-Command — with exceptions where the rule would hit a macOS command (e.g. Exit is Command-Q, archive is Control-Command-A). Menus, hints and the shortcuts help speak the Mac keys. Option+letter keeps typing characters. |
-| `menubar_mac.py` | Settings, About and Quit in the application menu; Chats and Messages menus mirroring the selected row's context menu; the Windows self-updater is off. |
+| `menubar_mac.py` | Settings, About and Quit in the application menu, and in release builds Check for updates under About; Chats and Messages menus mirroring the selected row's context menu; the Windows self-updater is off. |
 | `notify_mac.py` | Native notifications with reply and quick reactions as actions; Focus modes apply. |
 | `launch_mac.py` | Ends wxWidgets 3.2's launch wait as soon as macOS finishes launching (it otherwise idles inside `wx.App()` until an unrelated event arrives, the fix wxWidgets 3.3.2 made) and logs `[STARTUP_TIMING] wx.App:` lines for each phase of `wx.App()`. |
 | `lifecycle_mac.py` | Closing the window keeps WinZapp running (it still receives messages); the Dock icon brings it back; quitting leaves the Dock immediately. |
 | `server_mac.py` | Stops the Node server on quit (the Mac equivalent of `taskkill /F /T`). |
-| `paths_mac.py` | Data and the paired session live in `~/Library/Application Support/WinZapp`; the app installs its bundled server runtime there at launch. |
+| `paths_mac.py` | Data and the paired session live in `~/Library/Application Support/WinZapp`; the app installs its bundled server runtime there at launch, after an update in a single APFS clone; the browser WhatsApp runs in (`api/.cache`) is carried over, minus versions the new runtime no longer pins, and the old runtime is deleted in the background. |
 | `sound_mac.py`, `audio_mac.py` | Universal BASS dylibs and the Opus plugin; bundled ffmpeg; the microphone recovers when CoreAudio restarts. |
 | `spell_mac.py`, `camera_mac.py`, `hotkey_mac.py`, `platform_mac.py` | Spell checking with the Mac's dictionaries, the camera through AVFoundation, the global hotkey through Carbon's RegisterEventHotKey (no Accessibility permission), Show in Finder, macOS region and language. |
 | `strings_mac.py` | Mac wording: a string that describes Windows has a Mac variant beside it in `client/languages` (`<key>_macos`), used in its place on the Mac. |
 | `focus_mac.py` | WinZapp's quiet-hours gate follows macOS Focus (Developer ID builds with the Communication Notifications entitlement). |
 | `coord_mac.py` | Which recorded account process is still alive: the app ships psutil (real creation times), and a lease whose pid is now another program counts as gone, so leases left by past quits no longer block updates or start-up. |
 | `updater_mac.py` | Signed release builds update from the macOS release feed named in their Info.plist; without one the updater is off. |
-| `sparkle_mac.py`, `sparkle_policy.py`, `update_accounts.py` | Release builds with a Sparkle key update through Sparkle 2's standard windows; the official tag is checked before Sparkle offers a release and again just before it installs (see "Updates through Sparkle"). `sparkle_policy.py` and `update_accounts.py` (the other accounts, the update slot, the stored verdicts) are pure Python, tested on every platform. |
+| `sparkle_mac.py`, `sparkle_policy.py`, `update_accounts.py`, `install_on_quit.py` | Release builds with a Sparkle key update through Sparkle 2's standard windows; they download in the background and install when WinZapp quits; the official tag is checked before Sparkle offers or downloads a release, and the update window says what changed since the running version (`sparkle_notes.py`; see "Updates through Sparkle"). `sparkle_policy.py`, `update_accounts.py` (the other accounts, the update slot, the stored verdicts) and `install_on_quit.py` (the update armed for quit, ending all accounts with it) are pure Python, tested on every platform. |
 | `version_mac.py` | A release build runs as its Info.plist release tag (About, update checks), not the unstamped `client/version.py`. |
 
 ## Building
@@ -46,7 +47,12 @@ builds `macos/dist/WinZapp.app` for the Mac it runs on (Apple Silicon or
 Intel) and `WinZapp-macOS-<arch>.zip`. It installs the Python
 dependencies into `.pydeps/`, downloads the pinned Node.js and ffmpeg
 (SHA-256 checked), runs `setup_api.py`, and bundles the WPPConnect server
-and its headless Chrome inside the app. `.github/workflows/build-macos.yml`
+and its headless Chrome inside the app. The server's `node_modules` keeps
+only what the server loads at run time (`macos/runtime_prune.py`: the
+packages a Windows end-user install keeps, cut down to what `dist/` and
+`start.js` reach through `package-lock.json`; the build stops if any of
+their imports no longer resolves), about a third of the files: fewer to
+unpack when an update installs, and to copy at the first launch after it. `.github/workflows/build-macos.yml`
 does this for both architectures on pull requests that touch the Mac build.
 
 Development run without building: `python3 macos/launcher.py`.
@@ -247,8 +253,9 @@ provenance files, and Sparkle's EdDSA key), a check of the zip's bytes adds
 nothing that attacker could not also produce. So the Sparkle path checks the
 one thing they cannot fake, and nothing else of its own:
 
-1. **Before Sparkle shows a release** (`updater:shouldProceedWithUpdate:...`,
-   Sparkle's veto before anything is shown or downloaded):
+1. **Before Sparkle shows or downloads a release**
+   (`updater:shouldProceedWithUpdate:...`, Sparkle's veto before anything is
+   shown or downloaded, for the background download too):
    `updater_mac.release_provenance()` asks the official repository that the
    release's tag exists, points at the commit its provenance declares, and is
    newer than the running tag; and the appcast item must name exactly that
@@ -259,36 +266,59 @@ one thing they cannot fake, and nothing else of its own:
    needs the network and the veto is synchronous, so Sparkle first aborts
    silently and checks again once the answer is in (a second or two; an
    answer older than 10 minutes is asked again).
-2. **When the user chooses Install** in Sparkle's update window, the item is
+2. **In the background**, with "check for updates automatically" on (it
+   governs Sparkle's scheduled checks and its automatic downloads alike;
+   `SUAllowsAutomaticUpdates` and `SUAutomaticallyUpdate` are on), a
+   scheduled check downloads a release that passed step 1 without a window
+   and leaves Sparkle's installer waiting for WinZapp to quit, as in other Mac
+   apps. Quitting installs it. Sparkle's next check shows it in its window as
+   downloaded, with "Install and Relaunch"; WinZapp says it ("...has been
+   downloaded and will be installed when you quit WinZapp. To install it now,
+   choose Help > Check for updates, or switch to WinZapp.") and posts it as a
+   notification. Sparkle's installer watches only one process of the app and
+   installs as soon as that one ends, and every account is a process of the
+   app: so while such an update waits, ending any account (Close current
+   account, an account switch) ends all of them first ("Closing the other
+   WinZapp accounts..."), and the ones the user did not close are opened
+   again in the background once the installer is done. No second provenance
+   check is possible here (the app is gone when it installs): step 1 is its
+   gate.
+3. **When the user chooses Install** in Sparkle's update window, the item is
    checked again (an update Sparkle resumes skips step 1), the other accounts
    quit ("Closing the other WinZapp accounts..."), and WinZapp claims
    `update_coord`'s update slot, which keeps every account from starting
-   until the update is over. Only then does Sparkle download. Sparkle's
-   installer watches only one process of the app and installs as soon as
-   that one ends, so no other account may be running once it exists. If an
+   until the update is over. Only then does Sparkle download, or, for an
+   update already downloaded in the background, install and relaunch. If an
    account cannot be closed, nothing is downloaded and WinZapp says so. If the
    update then does not install (the download fails or is cancelled, Sparkle
    gives up, the last check refuses), the slot is given back and the accounts
    closed for it are opened again in the background, and WinZapp says so.
-3. **The download** must be that same https asset
+4. **The download** must be that same https asset
    (`updater:willDownloadUpdate:withRequest:`); anything else is sent to a URL
    that fails.
-4. **At "Ready to Install"**, Sparkle's last question before installing, the
-   official repository is asked again and the item checked again; only then
-   does "Install and Relaunch" reach Sparkle. Anything else (the tag withdrawn
-   or moved, GitHub unreachable, an error) cancels Sparkle's prepared
-   installer, says why, and gives the update slot back; the release is offered
-   again at the next check. Quitting WinZapp while that window is open cancels
-   the install too (and waits for Sparkle to confirm, up to 3 seconds), so
-   Sparkle never installs on quit; the release is offered again later. The
-   same goes for SIGINT/SIGTERM, and a quit before Install is confirmed always
-   gives the update slot back.
-5. **Sparkle's own checks** come on top, as integrity of the download: a
+5. **At "Ready to Install"**, after a download the user started, the official
+   repository is asked again and the item checked again; only then does
+   "Install and Relaunch" reach Sparkle. Anything else (the tag withdrawn or
+   moved, GitHub unreachable, an error) cancels Sparkle's prepared installer,
+   says why, and gives the update slot back; the release is offered again at
+   the next check. Quitting WinZapp while that window is open installs the
+   update on quit, as a background download does (the other accounts are
+   already closed, and the update slot stays held until WinZapp is gone).
+6. **Sparkle's own checks** come on top, as integrity of the download: a
    signed appcast (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`, a
    signing failure that never expires), the zip's EdDSA signature, its
-   code-signing checks and its refusal of a downgrade. Sparkle never installs
-   silently (`SUAllowsAutomaticUpdates` off): WinZapp asks first, as it
-   always has.
+   code-signing checks and its refusal of a downgrade.
+
+**Release notes.** Sparkle's window shows what changed between the version
+running and the one offered, as the Windows updater's "What's new?" does
+(#488): the changelog of WinZapp's language at the offered tag compared with
+the one this app shipped, and for an alpha the pull requests of every alpha
+between the two, from the official repository's GitHub releases
+(`sparkle_notes.py`). They are fetched when the window is about to open (it
+waits up to 5 seconds for them) and handed to Sparkle through
+`standardUserDriverWillShowReleaseNotesText:...`. When they cannot be fetched
+the appcast's own notes are shown: for an alpha, its GitHub release's pull
+requests first, then the changelog section of the release it heads to.
 
 **A scheduled check that finds an update** while WinZapp is not the active
 app (or is, but Sparkle chooses not to interrupt) does not show Sparkle's
@@ -311,24 +341,24 @@ activating it brings the window.
 
 **log.log** has a line for each step of an update, successful or not
 (`[sparkle_mac]`): the official tag and commit confirmed, the item checks,
-the update shown or announced, the user's choice, the other accounts asked to
-quit, the update slot claimed, the download started and finished, Sparkle's
-installer started, Ready to Install (and whether it was brought forward or
-announced), the last check, Install handed to Sparkle.
+the update shown or announced, where its release notes came from, the user's
+choice, the other accounts asked to quit, the update slot claimed, the
+download started and finished, Sparkle's installer started, a background
+download ready to install on quit, Ready to Install (and whether it was
+brought forward or announced), the last check, Install handed to Sparkle.
 
-An install Sparkle resumes at its installing stage belongs to the process
-that prepared it; any other process leaves it alone (it is dismissed without
-a window, never skipped: a skip would hide that release from every account's
-scheduled checks).
+Sparkle's update window also has its own "Automatically download and install
+updates in the future" box; what it sets lasts until WinZapp's setting is
+applied again (next launch, or a change in Settings).
 
 Not checked on this path, deliberately: SHA256SUMS.txt, the provenance
 file's zip hash, the Team ID, `codesign` and `spctl` of the new app
-(`updater_mac` still checks them). **Remaining gap:** the last check is
-moments before Sparkle installs (the time this account takes to quit). A tag
-withdrawn in that moment still installs, and so does an update whose "Ready
-to Install" window is open when WinZapp ends without its own quit path (a
-crash, a force quit, a power cut): Sparkle's installer then installs what
-passed the checks at steps 1 and 2. A SIGKILL is one of those.
+(`updater_mac` still checks them). **Remaining gap:** an update installed on
+quit was checked against the official repository when it was offered, not
+when it installs; a tag withdrawn in between still installs. So does one
+whose "Ready to Install" window is open when WinZapp ends without its own
+quit path (a crash, a force quit, a power cut, a SIGKILL): Sparkle's
+installer then installs what passed the checks at steps 1 and 3.
 
 **Which account is still running** is `update_coord`'s runtime leases (pid
 and creation time). The Mac build ships psutil for real creation times, and
