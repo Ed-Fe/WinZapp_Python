@@ -132,6 +132,8 @@ NOVEDADES
 
 CORRECCIONES
 
+- Recibir un archivo ya no lo descarga dentro de la notificación del mensaje debido a una configuración de webhook sin uso. Las actualizaciones de progreso de envío y descarga conservan solo el último valor pendiente, evitando que se acumulen actualizaciones de pantalla durante las transferencias rápidas.
+
 - Corregida la sincronización repetida de conversaciones cuando la lista de WhatsApp estaba disponible, pero no podía transferirse al servidor local. Se conservan las conversaciones existentes y la sincronización de la lista puede completarse.
 
 - El envío de mensajes de voz y de documentos fallaba con "Cannot read properties of undefined (reading 'prepRawMedia')" en una versión de WhatsApp Web publicada el 15 de octubre, que movió esa función. WinZapp ahora incluye la versión correspondiente de su biblioteca de WhatsApp Web (WA-JS 4.7.1). Si el envío sigue fallando tras actualizar, reinstala WPPConnect desde la ventana de actualización.

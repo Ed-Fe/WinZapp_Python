@@ -132,6 +132,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- Kullanılmayan bir webhook ayarı nedeniyle gelen dosyanın mesaj bildiriminin içine indirilmesi önlendi. Gönderme ve indirme ilerlemesi güncellemeleri artık yalnızca bekleyen en son değeri tutarak hızlı aktarımlarda ekran güncellemelerinin birikmesini önlüyor.
+
 - WhatsApp sohbet listesi kullanılabilir olduğu hâlde yerel sunucuya aktarılamadığında konuşmaların tekrar tekrar eşitlenmesi düzeltildi. Mevcut konuşmalar korunur ve listenin eşitlenmesi tamamlanabilir.
 
 - Sesli mesajların ve belgelerin gönderimi, 15 Ekim'de yayımlanan ve bu işlevi taşıyan bir WhatsApp Web sürümünde "Cannot read properties of undefined (reading 'prepRawMedia')" hatasıyla başarısız oluyordu. WinZapp artık WhatsApp Web kitaplığının uyumlu sürümünü (WA-JS 4.7.1) içeriyor. Güncellemeden sonra gönderim hâlâ başarısız olursa WPPConnect'i güncelleme penceresinden yeniden yükleyin.

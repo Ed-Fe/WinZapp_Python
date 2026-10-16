@@ -132,6 +132,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Otrzymanie pliku nie powoduje już pobierania go do powiadomienia o wiadomości z powodu nieużywanego ustawienia webhooka. Aktualizacje postępu wysyłania i pobierania zachowują tylko najnowszą oczekującą wartość, zapobiegając gromadzeniu aktualizacji ekranu podczas szybkich transferów.
+
 - Naprawiono powtarzającą się synchronizację rozmów, gdy lista czatów WhatsApp była dostępna, ale nie można jej było przekazać do lokalnego serwera. Istniejące rozmowy są zachowywane, a synchronizacja listy może się zakończyć.
 
 - Wysyłanie wiadomości głosowych i dokumentów kończyło się błędem "Cannot read properties of undefined (reading 'prepRawMedia')" w wersji WhatsApp Web wydanej 15 października, która przeniosła tę funkcję. WinZapp zawiera teraz odpowiednią wersję swojej biblioteki WhatsApp Web (WA-JS 4.7.1). Jeśli wysyłanie nadal nie działa po aktualizacji, zainstaluj ponownie WPPConnect z okna aktualizacji.
