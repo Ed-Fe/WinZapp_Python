@@ -4,6 +4,7 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "ccbecffbe1e9": "Seu estado online agora acompanha a janela atual mesmo ao alternar rapidamente p",
     "033d14e653c7": "Novos atalhos, cada um alterável na aba Atalhos de teclado das configurações: Al",
     "f7a52c055d6d": "Ajuda > \"Novidades desde a última vez que você viu\" diz o que mudou nestas novid",
     "48d4666ce76e": "Transcrição local com whisper.cpp: a opção \"Manter o modelo carregado na memória",
