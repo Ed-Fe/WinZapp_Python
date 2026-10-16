@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Twój status online odpowiada teraz bieżącemu stanowi okna także po szybkim przełączeniu do innego programu, ukryciu WinZapp w zasobniku lub ponownym połączeniu w tle. Opóźniona aktualizacja statusu online nie wyprzedza już aktualizacji statusu offline, a nieudana próba ustawienia statusu offline jest ponawiana.
+
 - Nowe skróty, każdy do zmiany na karcie Skróty klawiszowe w ustawieniach: Alt+8 otwiera społeczności z dowolnego miejsca okna; Alt+Shift+B otwiera katalog i koszyk firmy z zaznaczonego lub otwartego czatu; a na koncie WhatsApp Business Ctrl+Shift+N tworzy zamówienie dla kontaktu z czatu. Tam, gdzie nie mają zastosowania, WinZapp mówi dlaczego. Enter na wiadomości z zamówieniem otwiera zamówienie.
 
 - Pomoc > "Nowości od ostatniego przeglądania" mówi prostymi zdaniami, co zmieniło się w tych nowościach od ostatniego otwarcia na tym komputerze: nowe pozycje każdej sekcji, zmienione pozycje (w obecnym brzmieniu) i usunięte, a nową wersję pokazuje w całości. Działa tak samo dla wszystkich kont. Przycisk "Co nowego?" w oknie aktualizacji pokazuje teraz, co oferowana wersja zmienia w tych nowościach, zamiast nowości wersji, którą już masz; dla wersji alfa wymienia też, dla każdej wersji alfa od Twojej, zmiany zapisane w serwisie GitHub (tytuł i numer każdego pull requesta).
