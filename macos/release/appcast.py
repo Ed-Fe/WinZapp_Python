@@ -60,6 +60,8 @@ KEY_ENV = "SPARKLE_ED_PRIVATE_KEY"
 _SIGN_OUTPUT = re.compile(r'sparkle:edSignature="([A-Za-z0-9+/=]+)"\s+length="(\d+)"', re.ASCII)
 # client/updater.py's _HDR_RE: a "V1.2.3.4" line starts a version's section.
 _HEADER = re.compile(r"^V(\d+\.\d+\.\d+\.\d+(?:dev|alpha|beta)?)\s*$", re.IGNORECASE | re.ASCII)
+# A pull request in a GitHub release body, as client/core/release_notes.py reads it.
+_PULL = re.compile(r"^\s*[*-]\s+(?P<title>.+?)\s+by\s+@[\w.-]+(?:\[bot\])?\s+in\s+\S*/pull/(?P<number>\d+)\s*$")
 
 ET.register_namespace("sparkle", SPARKLE_NS)
 
@@ -126,6 +128,29 @@ def release_notes(changelog_text, tag):
                 best, best_key = body, key
         current, lines = m.group(1), []
     return best or ""
+
+
+def pull_requests(markdown):
+    """The pull requests a GitHub release body lists, one "- title (#N)" line
+    each, without the author's @handle or the link; "" when it lists none."""
+    lines = []
+    for line in (markdown or "").splitlines():
+        m = _PULL.match(line)
+        if m:
+            lines.append(f"- {m.group('title').strip()} (#{m.group('number')})")
+    return "\n".join(lines)
+
+
+def alpha_notes(notes, tag, markdown):
+    """For an alpha, *notes* with the pull requests of its GitHub release
+    first: the changelog section is the same for every alpha heading to one
+    release, so on its own it cannot say what this alpha changed. The app
+    shows its own notes when it can fetch them (winzapp_mac/sparkle_notes.py);
+    these are what it falls back to."""
+    pulls = pull_requests(markdown) if tag.endswith("alpha") else ""
+    if not pulls:
+        return dict(notes)
+    return {lang: f"{pulls}\n\n{text}" for lang, text in notes.items()}
 
 
 def localized_notes(changelog_dir, tag, locales):
@@ -276,8 +301,9 @@ def main(argv=None):
     if args.notes_markdown and os.path.isfile(args.notes_markdown):
         with open(args.notes_markdown, encoding="utf-8") as fh:
             markdown = fh.read().strip()
-    item = make_item(args.tag, args.arch, args.repo, signature,
-                     localized_notes(os.path.join(args.source, "client"), args.tag, locales), markdown)
+    notes = alpha_notes(localized_notes(os.path.join(args.source, "client"), args.tag, locales),
+                        args.tag, markdown)
+    item = make_item(args.tag, args.arch, args.repo, signature, notes, markdown)
     os.makedirs(args.site, exist_ok=True)
     state = os.path.join(args.site, sparkle_policy.feed_name(args.arch).replace(".xml", ".json"))
     items = []

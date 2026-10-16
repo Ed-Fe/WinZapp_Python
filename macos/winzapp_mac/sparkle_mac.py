@@ -13,52 +13,65 @@ an existing tag of the official repository pointing at the commit its
 provenance declares, newer than the running tag
 (updater_mac.release_provenance()), and the appcast item stands for exactly
 that tag's full zip. Sparkle downloads, verifies (signed appcast, EdDSA, code
-signing) and installs with its own windows; nothing is downloaded before the
-user chooses Install. With Sparkle 2.10.0's public API only:
+signing) and installs. Updates are downloaded in the background and installed
+when WinZapp quits (sparkle_policy.plist_keys() explains the keys). With
+Sparkle 2.10.0's public API only:
 
-1. Before Sparkle shows a release: updater:shouldProceedWithUpdate:...
+1. Before Sparkle shows or downloads a release: updater:shouldProceedWithUpdate:...
    (SPUUpdaterDelegate.h:252), Sparkle's one veto before anything is shown
-   or downloaded (SPUBasicUpdateDriver.m:150-158). It is synchronous on the
-   main thread and the answer needs the network, so the first answer is a
+   or downloaded (SPUBasicUpdateDriver.m:150-158), for the scheduled
+   background download as for a check the user starts. It is synchronous on
+   the main thread and the answer needs the network, so the first answer is a
    silent abort (SUInstallationCanceledError, SPUUIBasedUpdateDriver.m:
    482-483), the question runs on a thread, and its end starts the same kind
    of check again, which the stored verdict (at most VERDICT_TTL old) answers.
-2. When the user chooses Install in the update window (WinZapp's subclass of
+2. A scheduled check, with "check for updates automatically" on, downloads
+   the release that passed 1 without a window (SPUAutomaticUpdateDriver.m:
+   87-97) and leaves Sparkle's installer waiting for the app to end
+   (:104-128); updater:willInstallUpdateOnQuit:immediateInstallationBlock:
+   (SPUUpdaterDelegate.h:440) records it (update_accounts.ARMED_FILE) and
+   answers NO, so Sparkle ends that cycle and its next check shows the update
+   as downloaded, with "Install and Relaunch" (SPUUpdater.m:903-906,
+   SPUUIBasedUpdateDriver.m:236-237). Quitting installs it. The installer
+   watches only the first running process of the app
+   (InstallerProgressAppController.m:292-308) and installs as soon as that
+   one ends (AppInstaller.m:403-410), and every account is a process of the
+   same app: so while an update is armed, ending any account ends them all
+   (the real_exit wrapper below), and the accounts the user did not close are
+   opened again once the installer is done (update_accounts.RELAUNCH_SCRIPT).
+   No second provenance check is possible there: the install happens after
+   the app is gone. Check 1 is its gate.
+3. When the user chooses Install in Sparkle's window (WinZapp's subclass of
    Sparkle's standard user driver holds that reply,
    SPUUIBasedUpdateDriver.m:244-275): the appcast item is checked again
    (an update Sparkle resumes skipped step 1, SPUBasicUpdateDriver.m:150), the
    other accounts quit, and WinZapp claims update_coord's update slot, which
    keeps any account from starting until the update is over (main.py exits a
    new account process while is_update_in_progress()). Only then does Install
-   reach Sparkle, which downloads and prepares its installer. This has to
-   happen before the installer exists: it watches only the first running
-   process of the app (InstallerProgressAppController.m:292-308) and installs
-   as soon as that one ends (AppInstaller.m:403-410), so an account quitting
-   later would install it, unchecked.
-3. At "Ready to Install", the last answer Sparkle waits for
+   reach Sparkle: for a release not downloaded yet, it downloads and prepares
+   its installer; for one downloaded in the background (2), it installs and
+   relaunches at once (SPUUIBasedUpdateDriver.m:273-274).
+4. At "Ready to Install", after a download the user started
    (SPUUIBasedUpdateDriver.m:416-425): the official repository is asked again
    and the item checked again; only a fresh yes answers Install, anything
    else answers Skip, which there cancels the prepared installer
    (SPUCoreBasedUpdateDriver.m:313-314 -> SPUInstallerDriver.m:563-572 ->
-   AppInstaller.m:681-684). updater:shouldPostponeRelaunchForUpdate: would
-   come later, but it cannot cancel (an installer past its first stage
-   installs whenever the app ends, AppInstaller.m:731-744), so it is not used.
-4. Quitting while the answer at 3 is outstanding answers Skip first and waits
-   for Sparkle to end that update cycle (cancel_pending_install()), so Sparkle
-   never installs on quit; so does SIGINT/SIGTERM, whose handler in main.py
-   ends in os._exit(). Quitting at any point before Install is confirmed gives
-   the update slot back.
+   AppInstaller.m:681-684). Quitting with that window unanswered installs on
+   quit, as in 2 (an installer past its first stage installs whenever the
+   app ends, AppInstaller.m:731-744): the other accounts are already closed
+   and the update slot stays held until this process is gone.
 
 When the update does not install after the other accounts were closed for it
 (the download failed or was cancelled, Sparkle aborted, the last check
 refused), the slot is given back, those accounts are opened again in the
 background, and WinZapp says so.
 
-An install Sparkle resumes at the installing stage belongs to the process
-that prepared it: here it is dismissed without a window. Dismiss there only
-ends this check (SPUCoreBasedUpdateDriver.m:310-312); Skip would cancel the
-other process's installer and mark the version as skipped for every account's
-scheduled checks (SPUUIBasedUpdateDriver.m:282-283, SUAppcastDriver.m:228).
+The release notes of Sparkle's window are WinZapp's own when it can make
+them (sparkle_notes.py): what changed between the running tag and the offered
+one, fetched when the window is about to be shown and handed to Sparkle
+through standardUserDriverWillShowReleaseNotesText:forUpdate:...
+(SPUStandardUserDriverDelegate.h:192-205, called for plain-text notes,
+SUTextViewReleaseNotesView.m:337-338). The appcast's notes stay when not.
 
 All Sparkle calls happen on the main thread, which is wx's: Sparkle calls the
 delegate and the user driver there, and the threads come back through
@@ -66,6 +79,7 @@ wx.CallAfter. No Python exception crosses into Objective-C: every method
 Sparkle calls refuses (and logs) instead.
 """
 
+import json
 import logging
 import os
 import signal
@@ -76,9 +90,10 @@ import time
 
 import objc
 import wx
-from Foundation import NSBundle, NSDate, NSDefaultRunLoopMode, NSError, NSObject, NSRunLoop, NSSet, NSURL
+from Foundation import NSAttributedString, NSBundle, NSError, NSObject, NSSet, NSURL
 
-from . import coord_mac, provenance, sparkle_policy as policy, update_accounts as accounts, updater_mac
+from . import (coord_mac, provenance, sparkle_notes, sparkle_policy as policy,
+               update_accounts as accounts, updater_mac)
 
 ARCH = updater_mac.ARCH
 FRAMEWORK = "Sparkle.framework"
@@ -87,8 +102,7 @@ NOT_NOW_RETRY_MS = 5 * 60 * 1000  # pairing or start-up still owns the screen
 VERDICT_TTL = 10 * 60             # an offer-time answer older than this is asked again
 SLOT_ATTEMPTS = 40                # the update slot, while the other accounts finish quitting
 SLOT_WAIT = 0.5
-CANCEL_CONFIRM_SECONDS = 3.0      # for Sparkle to end the cancelled cycle before we exit
-CANCEL_STEP = 0.05
+NOTES_WAIT_MS = 5000              # the update window waits this long at most for WinZapp's notes
 # Where a download that is not this release's zip is sent instead: https, so
 # Sparkle accepts the request (SPUDownloader.m:65-81 refuses anything but
 # http and https), and a closed local port, so it fails at once.
@@ -98,13 +112,14 @@ UPDATE_NOTIFICATION = "winzapp.sparkle.update"   # notify_mac identifier of the 
 # Who answers the outstanding reply: exactly one path. Re-entrant, because a
 # signal handler (main thread) can land while the main thread holds it.
 _lock = threading.RLock()
-_cycle_done = threading.Event()   # Sparkle ended an update cycle (didFinishUpdateCycle)
 _state = {"mw": None, "updater": None, "driver": None, "delegate": None,
           "checking": "", "user_waiting": False, "offered": "", "offered_item": None,
           "outstanding": None, "slot": None, "installing": False, "closed_accounts": [],
-          "quitting": False, "cancel_deadline": None, "driver_delegate": None,
+          "quitting": False, "driver_delegate": None,
           "immediate_focus": False, "user_initiated": False}
 _verdicts = {}      # tag -> (monotonic time, (ok, detail)), for the next veto only
+_notes = {}         # (tag, locale) -> WinZapp's notes for Sparkle's window
+_pending_show = {"token": None}   # the update window waiting for its notes (_with_notes)
 
 _CHOICE_BLOCK = {"callable": {"retval": {"type": b"v"},
                               "arguments": {0: {"type": b"^v"}, 1: {"type": b"q"}}}}
@@ -274,6 +289,181 @@ def _update_abandoned():
     _reopen_accounts(accounts.accounts_to_reopen(closed, _other_accounts(_state["mw"])))
 
 
+# -- an update that installs when the app ends -----------------------------------
+
+def _armed_path(mw=None):
+    gd = getattr(mw or _state["mw"], "global_dir", None)
+    return os.path.join(gd, accounts.ARMED_FILE) if gd else ""
+
+
+def _record_armed(tag):
+    """Every account process reads this when it ends (_end_all_for_install);
+    without a global dir there is no other account to end."""
+    path = _armed_path()
+    if not path:
+        return
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(accounts.armed_record(tag), fh)
+    except Exception:
+        logging.exception("[sparkle_mac] could not record the update armed for quit")
+
+
+def _forget_armed(mw=None):
+    path = _armed_path(mw)
+    try:
+        if path and os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        logging.exception("[sparkle_mac] could not remove %s", accounts.ARMED_FILE)
+
+
+def _installer_job():
+    return accounts.installer_job(updater_mac._info().get("CFBundleIdentifier", ""))
+
+
+def _installer_running():
+    """Whether Sparkle's installer job still runs: True/False, or None when
+    launchd could not be asked."""
+    try:
+        r = subprocess.run(["launchctl", "list", _installer_job()],
+                           capture_output=True, text=True, timeout=5)
+        return accounts.installer_running(r.returncode, r.stdout)
+    except Exception:
+        logging.exception("[sparkle_mac] could not ask launchd about Sparkle's installer")
+        return None
+
+
+def armed_install(mw=None):
+    """The tag of an update that installs when the app ends, or "". A record
+    that no longer holds (installed, cancelled) is removed."""
+    path = _armed_path(mw)
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            record = json.load(fh)
+    except Exception:
+        record = None
+    tag = accounts.armed_tag(record, _running_tag(),
+                             _installer_running() if record is not None else False)
+    if not tag:
+        _forget_armed(mw)
+    return tag
+
+
+def _end_all_for_install(mw):
+    """real_exit() of an account while an update is armed and other accounts
+    run: the installer may be watching any of them, and installs the moment
+    that one ends, under the others. So they are all ended
+    (quit_all_accounts(), which comes back to real_exit() once they are gone),
+    and the ones the user did not close are opened again after the install.
+    True when that took over this exit."""
+    try:
+        if getattr(mw, "_sparkle_ending_all", False):
+            return False
+        tag = armed_install(mw)
+        if not tag:
+            return False
+        others = _other_accounts(mw)
+        if not others:
+            return False
+        mw._sparkle_ending_all = True
+        logging.info("[sparkle_mac] %s installs on quit: ending %d other account(s) with this one",
+                     tag, len(others))
+        try:
+            mw.output(mw.i18n.t("update_closing_other_accounts"), interrupt=True)
+        except Exception:
+            logging.debug("[sparkle_mac] could not speak", exc_info=True)
+        command = accounts.relaunch_command(os.getpid(), _installer_job(), sys.argv[0], others)
+        subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        mw.quit_all_accounts()
+        return True
+    except Exception:
+        logging.exception("[sparkle_mac] could not end the other accounts for the update")
+        return False
+
+
+# -- WinZapp's notes in Sparkle's window --------------------------------------------
+
+def _locale():
+    return getattr(getattr(_state["mw"], "i18n", None), "language", "") or "en-US"
+
+
+def _make_notes(tag, locale):
+    """sparkle_notes.offer_notes() with WinZapp's own download and the
+    changelogs this app shipped (updater's, as on Windows). Never raises."""
+    try:
+        # Aliased: "updater" in this module is Sparkle's SPUUpdater.
+        import updater as winzapp_updater
+        t = _state["mw"].i18n.t
+        return sparkle_notes.offer_notes(_running_tag(), tag, locale, t, winzapp_updater._fetch_text,
+                                         winzapp_updater._read_changelog_file)
+    except Exception:
+        logging.exception("[sparkle_mac] could not make the release notes of %s", tag)
+        return ""
+
+
+def _with_notes(tag, present):
+    """Call *present*() once WinZapp's notes for *tag* are ready, or after
+    NOTES_WAIT_MS without them (the appcast's notes are shown then, and the
+    late ones kept for the next time the window opens)."""
+    key = (tag, _locale())
+    if key in _notes:
+        return present()
+    done = []
+
+    def once():
+        if not done:
+            done.append(True)
+            present()
+
+    def work():
+        text = _make_notes(tag, key[1])
+        wx.CallAfter(_notes_ready, key, text, once)
+
+    wx.CallLater(NOTES_WAIT_MS, once)
+    threading.Thread(target=work, daemon=True, name="winzapp-sparkle-notes").start()
+
+
+def _notes_ready(key, text, present):
+    # Nothing is kept when nothing was made (offline, rate limited): the next
+    # window asks again rather than showing the appcast's notes for good.
+    if text:
+        _notes[key] = text
+    logging.info("[sparkle_mac] release notes of %s: %s", key[0],
+                 "WinZapp's" if text else "the appcast's")
+    present()
+
+
+def _forget_pending_show(why):
+    """The update check a window was waiting for its notes ended (the user
+    closed Sparkle's "Checking for updates" window, Sparkle aborted): that
+    window must not open later for a check Sparkle no longer runs, where
+    Install would close the other accounts and claim the update slot with no
+    cycle end left to give it back. Its reply is not answered either: Sparkle
+    already ended that check."""
+    if _pending_show["token"] is not None:
+        logging.info("[sparkle_mac] %s: the update window waiting for its notes is not opened", why)
+    _pending_show["token"] = None
+
+
+def release_notes_text(original, item):
+    """Sparkle's plain-text notes of *item*, replaced by WinZapp's when they
+    were made for it, in the font Sparkle gave its own; None keeps Sparkle's."""
+    try:
+        tag = policy.item_tag(str(item.versionString() or ""), str(item.displayVersionString() or ""))
+        text = _notes.get((tag, _locale())) if tag else ""
+        if not text:
+            return None
+        attributes = original.attributesAtIndex_effectiveRange_(0, None)[0] if original.length() else {}
+        return NSAttributedString.alloc().initWithString_attributes_(text, attributes)
+    except Exception:
+        logging.exception("[sparkle_mac] release notes: keeping the appcast's")
+        return None
+
+
 def _item(item):
     url = item.fileURL()
     deltas = item.deltaUpdates()
@@ -373,39 +563,64 @@ def _recheck(user, attempt=0):
         logging.exception("[sparkle_mac] could not check again")
 
 
-# -- 2. Install chosen in the update window ---------------------------------------
+# -- 3. Install chosen in the update window ---------------------------------------
 
 def on_update_found(item, stage, reply, show, user_initiated=False):
     """SPUUserDriver showUpdateFoundWithAppcastItem:state:reply:. *show* hands
-    a reply to Sparkle's standard window."""
+    a reply to Sparkle's standard window, once WinZapp's release notes for it
+    are ready (_with_notes). At STAGE_INSTALLING the update was downloaded in
+    the background (step 2 of the module docstring) and waits for the app to
+    end; the window offers to install it now."""
     try:
         _state["user_initiated"] = bool(user_initiated)
-        if stage == policy.STAGE_INSTALLING:
-            # Another process prepared this installer and answers for it.
-            logging.info("[sparkle_mac] an install prepared elsewhere is pending: leaving it alone")
+        if stage not in (policy.STAGE_NOT_DOWNLOADED, policy.STAGE_DOWNLOADED,
+                         policy.STAGE_INSTALLING):
+            # Sparkle's state could not be read: nothing is offered, least of
+            # all "install now".
+            logging.error("[sparkle_mac] unknown update stage %r: not offering it", stage)
             return _call(reply, policy.CHOICE_DISMISS)
         fields = _item(item)
         tag, why = _item_refusal(fields)
         if why:
             logging.error("[sparkle_mac] not offering %s: %s", tag or "an appcast item", why)
             return _call(reply, policy.CHOICE_DISMISS)
-        logging.info("[sparkle_mac] showing %s (appcast item checks pass)", tag)
+        logging.info("[sparkle_mac] showing %s (appcast item checks pass%s)", tag,
+                     ", downloaded" if stage == policy.STAGE_INSTALLING else "")
         _state["offered"], _state["offered_item"] = tag, fields
-        show(lambda choice: on_update_choice(choice, reply))
+
+        token = object()
+        _pending_show["token"] = token
+
+        def present():
+            if _pending_show["token"] is not token:
+                return          # that check ended meanwhile (_forget_pending_show)
+            _pending_show["token"] = None
+            try:
+                show(lambda choice: on_update_choice(choice, reply, stage))
+            except Exception:
+                logging.exception("[sparkle_mac] update window: refusing")
+                _call(reply, policy.CHOICE_DISMISS)
+
+        _with_notes(tag, present)
     except Exception:
         logging.exception("[sparkle_mac] update found: refusing")
         _call(reply, policy.CHOICE_DISMISS)
 
 
-def on_update_choice(choice, reply):
+def on_update_choice(choice, reply, stage=policy.STAGE_NOT_DOWNLOADED):
     """The user answered the update window. Skip and Later go to Sparkle as
-    they are (that is the user's choice for this release); Install first
-    closes the other accounts and claims the update slot."""
+    they are (that is the user's choice for this release; Skip of a
+    downloaded update also cancels its installer, SPUUIBasedUpdateDriver.m:
+    297-298); Install first closes the other accounts and claims the update
+    slot."""
     try:
         if choice != policy.CHOICE_INSTALL:
             logging.info("[sparkle_mac] %s: the user chose %s", _state["offered"] or "update",
                          "skip" if choice == policy.CHOICE_SKIP else "later")
-            return _call(reply, choice)
+            _call(reply, choice)
+            if choice == policy.CHOICE_SKIP and stage == policy.STAGE_INSTALLING:
+                _forget_armed()
+            return
         mw = _state["mw"]
         others = _other_accounts(mw)
         logging.info("[sparkle_mac] Install chosen for %s; closing %d other account(s) first",
@@ -418,7 +633,7 @@ def on_update_choice(choice, reply):
         def work():
             _quit_other_accounts(mw, others)
             slot = _claim_update_slot(mw)
-            wx.CallAfter(_update_slot_claimed, reply, slot)
+            wx.CallAfter(_update_slot_claimed, reply, slot, stage)
 
         threading.Thread(target=work, daemon=True, name="winzapp-sparkle-slot").start()
     except Exception:
@@ -426,7 +641,7 @@ def on_update_choice(choice, reply):
         _call(reply, policy.CHOICE_DISMISS)
 
 
-def _update_slot_claimed(reply, slot):
+def _update_slot_claimed(reply, slot, stage=policy.STAGE_NOT_DOWNLOADED):
     try:
         if slot is None:
             logging.error("[sparkle_mac] another account is still running: not updating")
@@ -434,9 +649,14 @@ def _update_slot_claimed(reply, slot):
             _update_abandoned()
             mw = _state["mw"]
             return _show_refusal(mw.i18n.t("update_other_accounts_running"))
-        _state["slot"], _state["installing"] = slot, False
-        logging.info("[sparkle_mac] update slot claimed (no account can start); Sparkle downloads %s",
-                     _state["offered"] or "the update")
+        # A downloaded update installs and relaunches on this Install; any
+        # other is downloaded first, and Ready to Install asks again.
+        installing = stage == policy.STAGE_INSTALLING
+        _state["slot"], _state["installing"] = slot, installing
+        logging.info("[sparkle_mac] update slot claimed (no account can start); Sparkle %s %s",
+                     "installs" if installing else "downloads", _state["offered"] or "the update")
+        if installing:
+            _say(lambda t: t("update_installing"))
         _call(reply, policy.CHOICE_INSTALL)
     except Exception:
         logging.exception("[sparkle_mac] could not go on with the update")
@@ -444,7 +664,7 @@ def _update_slot_claimed(reply, slot):
         _update_abandoned()
 
 
-# -- 3. Ready to Install -------------------------------------------------------------
+# -- 4. Ready to Install -------------------------------------------------------------
 
 def on_ready_to_install(reply, show):
     """SPUUserDriver showReadyToInstallAndRelaunch: (its window has only
@@ -509,68 +729,24 @@ def _ready_checked(reply, tag, fields, verdict):
     _show_refusal(detail)
 
 
-# -- 4. quitting -------------------------------------------------------------------
-
-def cancel_pending_install():
-    """WinZapp is quitting with "Ready to Install" unanswered: cancel the
-    prepared installer, or it would install when this process ends
-    (AppInstaller.m:403-410) without the last check. Sparkle sends the cancel
-    from its main queue (SPUUIBasedUpdateDriver.m:420-425) and then ends the
-    update cycle (SPUInstallerDriver.m:563-572, installerIsRequestingAbort...),
-    which updater:didFinishUpdateCycleForUpdateCheck:error: reports: that is
-    the confirmation waited for, at most CANCEL_CONFIRM_SECONDS (the
-    hard-exit deadline of real_exit still applies)."""
-    with _lock:
-        reply, _state["outstanding"] = _state["outstanding"], None
-    if reply is None:
-        return
-    logging.info("[sparkle_mac] quitting before the install was confirmed: cancelling it")
-    _cycle_done.clear()
-    _state["cancel_deadline"] = time.monotonic() + CANCEL_CONFIRM_SECONDS
-    _call(reply, policy.CHOICE_SKIP)
-    if not _wait_for_cancel():
-        logging.error("[sparkle_mac] Sparkle did not confirm the cancel within %ss",
-                      CANCEL_CONFIRM_SECONDS)
-
-
-def _wait_for_cancel():
-    """Wait until Sparkle ends the cancelled cycle, or the cancel's deadline:
-    on the main thread by running its run loop in short steps (Sparkle sends
-    the cancel from the main queue), elsewhere on the Event. True when
-    confirmed, or when no cancel was sent."""
-    deadline = _state["cancel_deadline"]
-    if deadline is None:
-        return True
-    try:
-        if threading.current_thread() is threading.main_thread():
-            loop = NSRunLoop.mainRunLoop()
-            while not _cycle_done.is_set() and time.monotonic() < deadline:
-                loop.runMode_beforeDate_(NSDefaultRunLoopMode,
-                                         NSDate.dateWithTimeIntervalSinceNow_(CANCEL_STEP))
-            return _cycle_done.is_set()
-        return _cycle_done.wait(max(0.0, deadline - time.monotonic()))
-    except Exception:
-        logging.exception("[sparkle_mac] waiting for the cancel")
-        return False
-
+# -- quitting ------------------------------------------------------------------------
 
 def on_quit():
-    """Every way WinZapp ends: an install still unconfirmed is cancelled, and
-    unless Install was confirmed (then the slot stays held until this process
-    is gone, and a dead owner is recovered) the update slot goes back, also
-    when the quit lands during the download, before "Ready to Install".
-    Nothing is reopened while quitting (_update_abandoned)."""
+    """Every way WinZapp ends. An update that is ready (Ready to Install
+    unanswered, or Install confirmed) installs when this process ends, as
+    Sparkle does on quit: the update slot then stays held until this process
+    is gone (a dead owner is recovered), so no account starts under the
+    installer. Otherwise the slot goes back, also when the quit lands during
+    a download the user started. Nothing is reopened while quitting
+    (_update_abandoned)."""
     try:
         with _lock:
-            again, _state["quitting"] = _state["quitting"], True
-        if again:
-            # A second quit (a signal during the first one's wait): the
-            # process must not end before the cancel already sent is
-            # confirmed, so wait for that same cancel, as long as it may take.
-            _wait_for_cancel()
-            return
-        cancel_pending_install()
-        if not _state["installing"]:
+            _state["quitting"] = True
+            ready = _state["outstanding"] is not None
+        if ready:
+            logging.info("[sparkle_mac] quitting at Ready to Install: Sparkle installs %s on quit",
+                         _state["offered"] or "the update")
+        if not (_state["installing"] or ready):
             _release_update_slot()
     except Exception:
         logging.exception("[sparkle_mac] quit: could not tidy up the update")
@@ -580,7 +756,12 @@ def _chain_signals():
     """SIGINT/SIGTERM: main.py's handler ends in os._exit(0), past every quit
     path above, so it is wrapped once Sparkle runs (from the main thread,
     where signal handlers are set and run): on_quit() first, then whatever
-    handled the signal before."""
+    handled the signal before. While an update waits for the app to end, a
+    signal does not end the other accounts as real_exit() does
+    (_end_all_for_install needs the peers' quit replies, and os._exit comes
+    first); neither does a crash or a force quit. If the process Sparkle's
+    installer watches ends that way, the bundle is replaced under the
+    accounts still running; they keep running the old code until they quit."""
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             previous = signal.getsignal(sig)
@@ -617,7 +798,7 @@ def _user_driver_class():
             try:
                 stage, user = int(state.stage()), bool(state.userInitiated())
             except Exception:
-                stage, user = policy.STAGE_INSTALLING, False    # unknown: leave it alone
+                stage, user = None, False       # unknown: on_update_found refuses it
             on_update_found(item, stage, reply,
                             lambda r: sup.showUpdateFoundWithAppcastItem_state_reply_(item, state, r),
                             user_initiated=user)
@@ -625,6 +806,12 @@ def _user_driver_class():
         def showReadyToInstallAndRelaunch_(self, reply):
             sup = objc.super(WinZappSparkleUserDriver, self)
             on_ready_to_install(reply, lambda r: sup.showReadyToInstallAndRelaunch_(r))
+
+        def dismissUpdateInstallation(self):
+            # Sparkle ends the session's windows here when a check is
+            # aborted or cancelled (SPUUIBasedUpdateDriver.m:453-458).
+            _forget_pending_show("Sparkle ended the update session")
+            objc.super(WinZappSparkleUserDriver, self).dismissUpdateInstallation()
 
     _state["driver_class"] = WinZappSparkleUserDriver
     return WinZappSparkleUserDriver
@@ -731,21 +918,40 @@ class WinZappSparkleDelegate(NSObject):
         # Despite its name, Sparkle calls this once its installer tool has
         # been launched and handed the download (SPUInstallerDriver.m:476-486
         # -> SPUCoreBasedUpdateDriver.m:235-252), before that tool extracts and
-        # checks it; "Ready to Install" is what follows a successful check.
+        # checks it; "Ready to Install" (or, for a background download,
+        # updater:willInstallUpdateOnQuit:...) is what follows a successful check.
         logging.info("[sparkle_mac] Sparkle's installer started: extracting and checking the update")
 
     @objc.typedSelector(b"v@:@@")
     def updater_willInstallUpdate_(self, updater, item):
         logging.info("[sparkle_mac] Sparkle is installing the update")
 
+    @objc.typedSelector(b"Z@:@@@?")
+    def updater_willInstallUpdateOnQuit_immediateInstallationBlock_(self, updater, item, block):
+        """A background download is ready and installs when the app ends
+        (SPUAutomaticUpdateDriver.m:104-128). Recorded for every account
+        (_end_all_for_install); NO lets Sparkle end this cycle, so its next
+        check shows the update in its window (SPUUpdater.m:903-906) instead of
+        WinZapp holding the install block with no window of its own."""
+        try:
+            fields = _item(item)
+            tag = policy.item_tag(fields["version"], fields["display_version"])
+            logging.info("[sparkle_mac] %s downloaded in the background: it installs when WinZapp quits",
+                         tag or "the update")
+            if tag:
+                _record_armed(tag)
+        except Exception:
+            logging.exception("[sparkle_mac] install on quit: could not record it")
+        return False
+
     @objc.typedSelector(b"v@:@q@")
     def updater_didFinishUpdateCycleForUpdateCheck_error_(self, updater, check, error):
-        """Every update cycle ends here (SPUUpdaterDelegate.h:475): the cancel
-        confirmation cancel_pending_install() waits for, and the moment a
-        download that failed or was cancelled, or an install Sparkle gave up
+        """Every update cycle ends here (SPUUpdaterDelegate.h:475): the moment
+        a download that failed or was cancelled, or an install Sparkle gave up
         after Install was confirmed, gives the update slot back and reopens
         the accounts closed for it."""
         try:
+            _forget_pending_show("the update cycle ended")
             if error is not None and error.code() not in (policy.SILENT_ABORT, policy.NO_UPDATE):
                 logging.warning("[sparkle_mac] update cycle ended: %s", error.localizedDescription())
             if _state["outstanding"] is None and _state["slot"] is not None and (
@@ -755,13 +961,11 @@ class WinZappSparkleDelegate(NSObject):
                 _update_abandoned()
         except Exception:
             logging.exception("[sparkle_mac] cycle end")
-        finally:
-            _cycle_done.set()
 
 
 # -- the user driver's delegate: a scheduled update is announced -----------------
 
-def announce_scheduled_update(item):
+def announce_scheduled_update(item, downloaded=False):
     """A scheduled check found an update that Sparkle's window will show only
     when WinZapp is next activated (SPUStandardUserDriver.m:263-271, 316-332).
     Spoken, as WinZapp's own updater speaks an update while its window is
@@ -769,11 +973,16 @@ def announce_scheduled_update(item):
     how to act on it (neither can answer the update window itself); activating
     it opens Sparkle's window
     (checkForUpdates brings a pending update into focus, SPUUpdater.m:
-    checkForUpdates -> showUpdateInFocus)."""
+    checkForUpdates -> showUpdateInFocus). An update already *downloaded*
+    in the background is said as such: it installs when WinZapp quits, and
+    the window only offers to install it now."""
     try:
         version = str(item.displayVersionString() or "")
         mw = _state["mw"]
-        text = mw.i18n.t("mac_update_available_reminder").format(new_version=version)
+        if downloaded:
+            text = mw.i18n.t("mac_update_downloaded_reminder").format(new_version=version)
+        else:
+            text = mw.i18n.t("mac_update_available_reminder").format(new_version=version)
         logging.info("[sparkle_mac] scheduled check found %s: announcing it", version)
         mw.output(text, interrupt=True)
         from . import notify_mac
@@ -840,7 +1049,8 @@ def _forget_announcement():
 class WinZappSparkleUserDriverDelegate(NSObject):
     """SPUStandardUserDriverDelegate: gentle scheduled update reminders
     (SPUStandardUserDriverDelegate.h:94-189). Sparkle keeps showing the
-    update itself; WinZapp only makes sure a blind user hears about it."""
+    update itself; WinZapp only makes sure a blind user hears about it, and
+    gives the window its own release notes (release_notes_text)."""
 
     @objc.typedSelector(b"Z@:")
     def supportsGentleScheduledUpdateReminders(self):
@@ -858,9 +1068,14 @@ class WinZappSparkleUserDriverDelegate(NSObject):
                 return              # the user asked: Sparkle shows it at once, in front
             if _state["immediate_focus"] and _app_is_active():
                 return              # shown now, in front of the user
-            announce_scheduled_update(update)
+            announce_scheduled_update(update, int(state.stage()) == policy.STAGE_INSTALLING)
         except Exception:
             logging.exception("[sparkle_mac] scheduled update reminder")
+
+    @objc.typedSelector(b"@@:@@@@")
+    def standardUserDriverWillShowReleaseNotesText_forUpdate_withBundleDisplayVersion_bundleVersion_(
+            self, text, update, display_version, version):
+        return release_notes_text(text, update)
 
     @objc.typedSelector(b"v@:@")
     def standardUserDriverDidReceiveUserAttentionForUpdate_(self, update):
@@ -875,7 +1090,9 @@ class WinZappSparkleUserDriverDelegate(NSObject):
 
 def _sync_automatic_checks():
     """WinZapp's "check for updates automatically" is Sparkle's scheduled
-    check: applied at start and whenever the setting changes."""
+    check and its background download: applied at start and whenever the
+    setting changes. (Sparkle's window has its own "Automatically download
+    and install updates" box; what it sets lasts until this runs again.)"""
     updater = _state["updater"]
     if updater is None:
         return
@@ -883,6 +1100,8 @@ def _sync_automatic_checks():
         auto = policy.updates_enabled(_settings())
         if bool(updater.automaticallyChecksForUpdates()) != auto:
             updater.setAutomaticallyChecksForUpdates_(auto)
+        if bool(updater.automaticallyDownloadsUpdates()) != auto:
+            updater.setAutomaticallyDownloadsUpdates_(auto)
     except Exception:
         logging.exception("[sparkle_mac] could not apply the automatic check setting")
 
@@ -918,6 +1137,7 @@ def _start(mw):
     _state["updater"], _state["driver"], _state["delegate"] = updater, driver, delegate
     _state["driver_delegate"] = driver_delegate
     _sync_automatic_checks()
+    armed_install()             # drops the record of an update since installed
     _chain_signals()
     logging.info("[sparkle_mac] Sparkle started (feed %s, alpha %s)",
                  updater.feedURL(), bool(policy.allowed_channels(_settings())))
@@ -927,11 +1147,11 @@ def _start(mw):
 def install():
     """Route WinZapp's update entry points to Sparkle (menubar_mac and
     updater_mac have run: the menu item is shown, UpdateChecker points at the
-    Mac releases, which stays the fallback), and the quit paths through
-    on_quit()."""
+    Mac releases, which stays the fallback), the quit paths through
+    on_quit(), and real_exit() through _end_all_for_install()."""
     if not enabled():
         return
-    from main_window import session_lifecycle, settings, updates, window_lifecycle
+    from main_window import session_lifecycle, settings, updates, window_chrome, window_lifecycle
     orig_start = updates.UpdatesMixin._start_update_checker
     orig_force = updates.UpdatesMixin._on_force_update
 
@@ -965,6 +1185,30 @@ def install():
 
     window_lifecycle.WindowLifecycleMixin._perform_shutdown = perform_shutdown
     session_lifecycle.SessionLifecycleMixin._on_query_end_session = on_query_end_session
+
+    # Ending one account while an update waits for the app to end ends them
+    # all (_end_all_for_install); real_exit() is where an account chooses to
+    # end itself, before any teardown. An account asked to quit by another
+    # (ipc) does not pass here: the one asking does.
+    orig_real_exit = window_lifecycle.WindowLifecycleMixin.real_exit
+
+    def real_exit(self, *args, **kwargs):
+        if _end_all_for_install(self):
+            return None
+        return orig_real_exit(self, *args, **kwargs)
+
+    window_lifecycle.WindowLifecycleMixin.real_exit = real_exit
+
+    # quit_all_accounts() (Exit, Cmd-Q) already asks every other account to
+    # quit before its real_exit(): one that did not answer in time is not
+    # asked (and waited for) a second time.
+    orig_quit_all = window_chrome.WindowChromeMixin.quit_all_accounts
+
+    def quit_all_accounts(self, *args, **kwargs):
+        self._sparkle_ending_all = True
+        return orig_quit_all(self, *args, **kwargs)
+
+    window_chrome.WindowChromeMixin.quit_all_accounts = quit_all_accounts
 
     # The setting changed here (Settings dialog) or in another account.
     orig_choose = settings.SettingsMixin.choose_global_settings

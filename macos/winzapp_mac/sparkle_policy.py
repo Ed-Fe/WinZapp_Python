@@ -12,11 +12,15 @@ SHA256SUMS and provenance files, and Sparkle's EdDSA key), byte checks of the
 zip prove nothing that attacker could not also produce. The one guarantee
 they cannot fake is the official repository's: the release is an existing
 tag of gabrielhhaber/WinZapp_Python, pointing at the commit its provenance
-declares, newer than the running tag. So Sparkle may show a release only
-when that holds (decide()), and may install it only when it still holds just
-before installation (install_choice()). Sparkle's own checks (signed appcast,
-EdDSA signature of the zip, code signing) come on top, as integrity of the
-download.
+declares, newer than the running tag. So Sparkle may offer or download a
+release only when that holds (decide(), asked before anything is shown or
+downloaded, for the scheduled background download too), and, where Sparkle
+still asks at "Ready to Install" (a check the user started), may install it
+only when it still holds at that moment (install_choice()). An update
+downloaded in the background installs when WinZapp quits, with no question
+left for a second check: the offer-time one is its gate. Sparkle's own checks
+(signed appcast, EdDSA signature of the zip, code signing) come on top, as
+integrity of the download.
 """
 
 import base64
@@ -102,12 +106,19 @@ def plist_keys(public_key, feed_base, arch, locales=()):
       it also keeps Sparkle from asking its own permission question on the
       second launch, since Settings > General already asks it. The setting
       itself is applied at run time (sparkle_mac), so it stays the one switch.
-    * SUAllowsAutomaticUpdates off: WinZapp always asks before installing, as
-      it does today. It also rules out Sparkle's silent install-on-quit: with
-      it off, automaticallyDownloadsUpdates is NO whatever the user defaults
-      say (SPUUpdaterSettings.m:313-328), so SPUUpdater never picks the
-      automatic driver (SPUUpdater.m:622), the only caller of
-      updater:willInstallUpdateOnQuit: (SPUAutomaticUpdateDriver.m:111).
+    * SUAllowsAutomaticUpdates and SUAutomaticallyUpdate on: updates are
+      downloaded in the background and installed when WinZapp quits, as in
+      other Mac apps. A scheduled check then runs Sparkle's automatic driver
+      (SPUUpdater.m:622, while automaticallyDownloadsUpdates is on), which
+      downloads silently (SPUAutomaticUpdateDriver.m:87-97) once
+      updater:shouldProceedWithUpdate:... has let the release through, and
+      leaves the prepared installer waiting for the app to end
+      (:104-128, updater:willInstallUpdateOnQuit:...). A later check shows it
+      in Sparkle's standard window with "Install and Relaunch"
+      (SPUUpdater.m:903-906, SPUUIBasedUpdateDriver.m:236-237). The run-time
+      switch is WinZapp's "check for updates automatically" setting, which
+      sparkle_mac applies to automaticallyChecksForUpdates and
+      automaticallyDownloadsUpdates alike; this key is only the default.
     * SURequireSignedFeed (with its prerequisite SUVerifyUpdateBeforeExtraction)
       and no expiry for a signing failure: an unsigned or re-signed appcast is
       never trusted, however long it stays that way.
@@ -122,8 +133,8 @@ def plist_keys(public_key, feed_base, arch, locales=()):
         FEED_URL: f"{feed_base}/{feed_name(arch)}",
         PUBLIC_KEY: public_key,
         "SUEnableAutomaticChecks": True,
-        "SUAllowsAutomaticUpdates": False,
-        "SUAutomaticallyUpdate": False,
+        "SUAllowsAutomaticUpdates": True,
+        "SUAutomaticallyUpdate": True,
         "SUScheduledCheckInterval": SCHEDULED_CHECK_INTERVAL,
         "SUVerifyUpdateBeforeExtraction": True,
         "SURequireSignedFeed": True,
@@ -214,7 +225,8 @@ def decide(item, repo, arch, running_tag, verdict):
 
 def install_choice(choice, verdict):
     """The answer Sparkle gets at "Ready to Install", its last question
-    before it installs. *choice* is the user's; *verdict* the result of asking
+    before it installs, in a check the user started (a background download
+    never asks it: it installs on quit). *choice* is the user's; *verdict* the result of asking
     the official repository (and checking the appcast item) again just now,
     None when it was not asked because the user did not choose to install.
 
@@ -226,7 +238,9 @@ def install_choice(choice, verdict):
     to finishInstallationWithResponse: (SPUUIBasedUpdateDriver.m:420-425),
     not through the update window's handler that records skips (:282-283).
     The release is offered again at the next check. Unreachable GitHub counts
-    as a refusal (fail closed): nothing is lost but the download."""
+    as a refusal (fail closed): nothing is lost but the download. Left
+    unanswered, the window lets the update install when WinZapp quits, like
+    one downloaded in the background."""
     if choice == CHOICE_INSTALL and verdict is not None and verdict[0]:
         return CHOICE_INSTALL
     return CHOICE_SKIP
