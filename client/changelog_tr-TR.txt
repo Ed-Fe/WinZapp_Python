@@ -210,6 +210,8 @@ DÜZELTMELER
 
 - macOS: bir güncellemeyi yüklemek ve sonrasındaki ilk açılış çok daha hızlı. Uygulamada açılacak dosya sayısı çok daha az (61.000 yerine yaklaşık 24.000), sunucusu birkaç saniye yerine saniyenin küçük bir kesrinde yerine konur, önceki kopya arka planda silinir ve WhatsApp'ın çalıştığı tarayıcı (yaklaşık 190 MB) her güncellemeden sonra yeniden indirilmek yerine korunur.
 
+- Bağlantı önizlemelerinin açıklamasında artık &amp; veya &eacute; gibi ham HTML kodları görünmüyor. Bir önizleme WinZapp'tan gönderilirken ve okunurken bu kodlar artık gerçek karakterlere dönüşüyor.
+
 V2.0.1.0
 
 Bu, kararlı sürümün bakım sürümüdür. Yalnızca WinZapp'ın WhatsApp ile konuşmak için kullandığı WPPConnect kütüphanelerini günceller; WhatsApp Web'deki bir değişiklik sesli mesaj ve belge göndermeyi bozmuştu.
