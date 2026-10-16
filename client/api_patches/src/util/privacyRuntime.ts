@@ -12,8 +12,8 @@
 // WPP.privacy.get() reads the six account settings and then awaits
 // getStatusPrivacySetting(). On WhatsApp Web builds where the status module
 // stopped wrapping its exports in `default` (>= 2.3000.1048775404), wa-js 4.6.1
-// leaves that binding unresolved (fixed by wa-js#3693, in no npm release yet),
-// so get() throws "(0 , n.getStatusPrivacySetting) is not a function" although
+// leaves that binding unresolved (fixed by wa-js#3693, released in 4.7.0),
+// so on 4.6.1 get() throws "(0 , n.getStatusPrivacySetting) is not a function" although
 // the six settings are perfectly readable. So: when get() fails, the six come
 // from getUserPrivacySettings() directly, and Status is always read on its own,
 // from wherever the status functions really are (WPP.whatsapp.functions when

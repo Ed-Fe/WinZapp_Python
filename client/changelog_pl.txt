@@ -124,6 +124,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Wysyłanie wiadomości głosowych i dokumentów kończyło się błędem "Cannot read properties of undefined (reading 'prepRawMedia')" w wersji WhatsApp Web wydanej 15 października, która przeniosła tę funkcję. WinZapp zawiera teraz odpowiednią wersję swojej biblioteki WhatsApp Web (WA-JS 4.7.1). Jeśli wysyłanie nadal nie działa po aktualizacji, zainstaluj ponownie WPPConnect z okna aktualizacji.
+
 - macOS: na listach czatów i wiadomości VoiceOver nie gubi już swojego miejsca, gdy zmienia się wiersz, na przykład gdy zmienia się licznik nieprzeczytanych, ktoś zaczyna nagrywać audio albo przychodzi nowa wiadomość. Otwieranie czatu za pomocą VoiceOver działa teraz od razu i za każdym razem, zamiast czasem zawodzić albo działać dopiero po przerwie, a VoiceOver przechodzi potem do pola wiadomości; komunikaty takie jak ten o przypiętych wiadomościach są odczytywane po polu, zamiast mu przerywać.
 
 - Przyciski nagrywania w drugim trybie (stereo lub mono) i nagrywania z dźwiękiem komputera podawały czytnikowi ekranu skrót Ctrl+R. Teraz każdy podaje swój, Ctrl+Shift+G i Ctrl+Shift+H, albo klawisze, które im przypisano.
