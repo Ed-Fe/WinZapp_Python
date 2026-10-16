@@ -7,6 +7,7 @@ import base64
 import unicodedata
 import requests
 from cryptography.fernet import Fernet
+from core.link_preview import decode_html_entities
 from core.reaction_shortcuts import DEFAULT_QUICK_REACTIONS
 
 
@@ -948,8 +949,8 @@ def link_preview_text(ext: dict, text: str, main_window=None) -> str:
     bits = [
         part
         for part in (
-            (ext.get("title") or "").strip(),
-            (ext.get("description") or "").strip(),
+            decode_html_entities(ext.get("title") or "").strip(),
+            decode_html_entities(ext.get("description") or "").strip(),
         )
         if part
     ]
