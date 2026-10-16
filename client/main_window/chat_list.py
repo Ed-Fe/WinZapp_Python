@@ -10,7 +10,7 @@ import threading
 import time
 import wx
 from core.conversation_view import ARCHIVED
-from core.unsaved_contact_marker import mark_unsaved_name
+from core.unsaved_contact_marker import marked_chat_name
 from core.pinned_chat_order import canonical_pin_jid, keep_pinned_order, pinned_chat_ranks
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE
 from core.commerce import (
@@ -1412,7 +1412,7 @@ class ChatListMixin:
                 if unread > 0 else ""
             )
             preview = self._last_msg_preview(chat)
-            item_text = self._unsaved_marked_chat_name(chat, name) + unread_str
+            item_text = marked_chat_name(self, chat, name) + unread_str
             if item_text and preview:
                 item_text += f" {preview}"
             # Same "selecionado" marker, in the same configured position, as
@@ -1669,11 +1669,6 @@ class ChatListMixin:
                 seq[:] = chats_list if attr == "_all_chats_list" else names
         return True
 
-    def _unsaved_marked_chat_name(self, chat: dict, name: str) -> str:
-        """*name* as a row shows it: "~" first for a contact who is not saved."""
-        jid = chat.get("remoteJid", "")
-        return name if jid.endswith("@g.us") else mark_unsaved_name(self, jid, name)
-
     def _build_chat_item_text(self, chat: dict, name: str) -> str:
         """Render one conversations-list row: name, unread badge, preview,
         presence, and the pinned/muted/blocked/selected suffixes.
@@ -1688,7 +1683,7 @@ class ChatListMixin:
             if unread > 0 else ""
         )
         preview = self._last_msg_preview(chat)
-        text = self._unsaved_marked_chat_name(chat, name) + unread_str
+        text = marked_chat_name(self, chat, name) + unread_str
         if preview:
             text += f" {preview}"
         chat_jid_norm = self._normalize_jid(chat_jid) if chat_jid else ""

@@ -14,7 +14,7 @@ _NOT_A_CONTACT_SUFFIXES = ("@g.us", "@broadcast", "@newsletter")
 
 def unsaved_marker_enabled(settings) -> bool:
     ui = settings.get("user_interface") if isinstance(settings, dict) else None
-    return not isinstance(ui, dict) or ui.get("mark_unsaved_contacts", True) is not False
+    return not isinstance(ui, dict) or bool(ui.get("mark_unsaved_contacts", True))
 
 
 def contact_is_saved(contact) -> bool:
@@ -54,6 +54,12 @@ def is_unsaved_contact(main_window, jid: str) -> bool:
         return False
     return not any(contact_is_saved(lookup(candidate))
                    for candidate in _candidate_jids(main_window, jid))
+
+
+def marked_chat_name(main_window, chat: dict, name: str) -> str:
+    """*name* as a conversation row shows it: a group's name is never marked."""
+    jid = chat.get("remoteJid", "")
+    return name if jid.endswith("@g.us") else mark_unsaved_name(main_window, jid, name)
 
 
 def mark_unsaved_name(main_window, jid: str, name: str) -> str:

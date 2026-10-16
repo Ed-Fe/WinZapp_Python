@@ -2210,11 +2210,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             ) is True
         )
 
-        self._mark_unsaved_contacts_cb.SetValue(
+        self._mark_unsaved_contacts_cb.SetValue(bool(
             self.main_window.settings.get("user_interface", {}).get(
                 "mark_unsaved_contacts", True
-            ) is not False
-        )
+            )
+        ))
 
         accessibility = self.main_window.settings.get("accessibility", {})
         self._extended_sr_compat_check.SetValue(accessibility.get("extended_sr_compat_enabled", True))
@@ -3548,7 +3548,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             old_ui_settings.get("hide_unnamed_sender_numbers", False) is True
         ) != self._hide_unnamed_sender_numbers_cb.GetValue()
         unsaved_mark_changed = (
-            old_ui_settings.get("mark_unsaved_contacts", True) is not False
+            bool(old_ui_settings.get("mark_unsaved_contacts", True))
         ) != self._mark_unsaved_contacts_cb.GetValue()
         self_reference_changed = (
             old_ui_settings.get("self_reference_mode", "eu") != self_reference_mode
