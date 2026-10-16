@@ -124,11 +124,15 @@ NOVIDADES
 
 - As conversas e mensagens de contactos que não guardou passam a mostrar um sinal de til (~) antes do nome, como o WhatsApp faz. Para desligar, use Definições > Interface do utilizador > "Preceder os nomes de contactos não guardados com um sinal de til (~) nas conversas e mensagens".
 
+- Uma conversa pessoal nova ou vazia passa a indicar, na linha de "nenhuma mensagem", que as mensagens e as chamadas são protegidas com encriptação de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações da conversa também referem a encriptação.
+
 CORREÇÕES
 
 - O envio de mensagens de voz e de documentos falhava com "Cannot read properties of undefined (reading 'prepRawMedia')" numa versão do WhatsApp Web lançada a 15 de outubro, que mudou essa função de sítio. O WinZapp passa a incluir a versão correspondente da sua biblioteca do WhatsApp Web (WA-JS 4.7.1). Se o envio continuar a falhar depois de atualizar, reinstale o WPPConnect na janela de atualização.
 
 - macOS: nas listas de conversas e de mensagens, o VoiceOver já não perde o lugar quando uma linha muda, por exemplo quando um contador de não lidas muda, alguém começa a gravar áudio ou chega uma mensagem nova. Abrir uma conversa com o VoiceOver funciona agora de imediato e sempre, em vez de por vezes falhar ou só atuar depois de uma pausa, e o VoiceOver passa em seguida para o campo de mensagem; avisos como o das mensagens afixadas são lidos depois do campo em vez de o interromperem.
+
+- macOS: os atalhos com Command fazem agora a mesma coisa em todos os ecrãs. A letra sublinhada de um botão apoderava-se do Command com essa letra: enquanto "Ler mais" era mostrado, Command-L acionava-o, e outros botões apoderavam-se de outros atalhos da mesma forma. A letra sublinhada de um botão é agora acionada com Command-Option e a letra, a forma Mac de Alt e a letra no Windows, e um atalho do WinZapp nas mesmas teclas continua a ter prioridade, como no Windows.
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador indicavam ao leitor de ecrã o atalho Ctrl+R. Agora cada um indica o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que definiu para eles.
 

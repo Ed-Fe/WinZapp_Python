@@ -124,11 +124,15 @@ NOVIDADES
 
 - Conversas e mensagens de contatos que você não salvou agora mostram um sinal de til (~) antes do nome, como o WhatsApp faz. Para desligar, use Configurações > Interface do usuário > "Preceder nomes de contatos não salvos com um sinal de til (~) nas conversas e mensagens".
 
+- Um chat pessoal novo ou vazio agora informa, na linha de "nenhuma mensagem", que as mensagens e ligações são protegidas com criptografia de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações do chat também mencionam a criptografia.
+
 CORREÇÕES
 
 - O envio de mensagens de voz e de documentos falhava com "Cannot read properties of undefined (reading 'prepRawMedia')" numa versão do WhatsApp Web lançada em 15 de outubro, que mudou essa função de lugar. O WinZapp agora traz a versão correspondente da sua biblioteca do WhatsApp Web (WA-JS 4.7.1). Se o envio continuar falhando depois de atualizar, reinstale o WPPConnect pela janela de atualização.
 
 - macOS: nas listas de conversas e de mensagens, o VoiceOver não perde mais o lugar quando uma linha muda, por exemplo quando um contador de não lidas muda, alguém começa a gravar áudio ou chega uma mensagem nova. Abrir uma conversa com o VoiceOver agora funciona na hora e sempre, em vez de às vezes falhar ou só agir depois de uma pausa, e o VoiceOver vai em seguida para o campo de mensagem; avisos como o das mensagens fixadas são falados depois do campo em vez de interrompê-lo.
+
+- macOS: os atalhos com Command agora fazem a mesma coisa em todas as telas. A letra sublinhada de um botão tomava o Command com essa letra: enquanto "Ler mais" aparecia, Command-L o acionava, e outros botões tomavam outros atalhos do mesmo jeito. A letra sublinhada de um botão agora é acionada com Command-Option e a letra, a forma Mac de Alt e a letra no Windows, e um atalho do WinZapp nas mesmas teclas continua tendo prioridade, como no Windows.
 
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.
 
