@@ -128,6 +128,8 @@ NOVEDADES
 
 CORRECCIONES
 
+- Corregida la sincronización repetida de conversaciones cuando la lista de WhatsApp estaba disponible, pero no podía transferirse al servidor local. Se conservan las conversaciones existentes y la sincronización de la lista puede completarse.
+
 - El envío de mensajes de voz y de documentos fallaba con "Cannot read properties of undefined (reading 'prepRawMedia')" en una versión de WhatsApp Web publicada el 15 de octubre, que movió esa función. WinZapp ahora incluye la versión correspondiente de su biblioteca de WhatsApp Web (WA-JS 4.7.1). Si el envío sigue fallando tras actualizar, reinstala WPPConnect desde la ventana de actualización.
 
 - macOS: en las listas de chats y de mensajes, VoiceOver ya no pierde su sitio cuando cambia una fila, por ejemplo cuando cambia un contador de no leídos, alguien empieza a grabar audio o llega un mensaje nuevo. Abrir un chat con VoiceOver ahora funciona al instante y siempre, en lugar de fallar a veces o actuar solo tras una pausa, y VoiceOver pasa después al campo de mensaje; avisos como el de los mensajes fijados se leen después del campo en lugar de interrumpirlo.

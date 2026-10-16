@@ -128,6 +128,8 @@ YENİLİKLER
 
 DÜZELTMELER
 
+- WhatsApp sohbet listesi kullanılabilir olduğu hâlde yerel sunucuya aktarılamadığında konuşmaların tekrar tekrar eşitlenmesi düzeltildi. Mevcut konuşmalar korunur ve listenin eşitlenmesi tamamlanabilir.
+
 - Sesli mesajların ve belgelerin gönderimi, 15 Ekim'de yayımlanan ve bu işlevi taşıyan bir WhatsApp Web sürümünde "Cannot read properties of undefined (reading 'prepRawMedia')" hatasıyla başarısız oluyordu. WinZapp artık WhatsApp Web kitaplığının uyumlu sürümünü (WA-JS 4.7.1) içeriyor. Güncellemeden sonra gönderim hâlâ başarısız olursa WPPConnect'i güncelleme penceresinden yeniden yükleyin.
 
 - macOS: sohbet ve mesaj listelerinde, bir satır değiştiğinde (örneğin okunmamış sayısı değiştiğinde, biri ses kaydetmeye başladığında veya yeni bir mesaj geldiğinde) VoiceOver artık yerini kaybetmiyor. VoiceOver ile bir sohbeti açmak artık bazen başarısız olmak veya ancak bir duraklamadan sonra çalışmak yerine hemen ve her seferinde çalışıyor ve VoiceOver ardından mesaj alanına geçiyor; sabitlenmiş mesajlarla ilgili olan gibi bildirimler alanı kesmek yerine alandan sonra okunuyor.

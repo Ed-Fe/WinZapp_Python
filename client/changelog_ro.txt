@@ -128,6 +128,8 @@ NOUTĂȚI
 
 CORECTĂRI
 
+- S-a corectat sincronizarea repetată a conversațiilor când lista WhatsApp era disponibilă, dar nu putea fi transferată către serverul local. Conversațiile existente sunt păstrate, iar sincronizarea listei se poate încheia.
+
 - Trimiterea mesajelor vocale și a documentelor eșua cu "Cannot read properties of undefined (reading 'prepRawMedia')" pe o versiune de WhatsApp Web lansată pe 15 octombrie, care a mutat acea funcție. WinZapp include acum versiunea corespunzătoare a bibliotecii sale WhatsApp Web (WA-JS 4.7.1). Dacă trimiterea tot eșuează după actualizare, reinstalează WPPConnect din fereastra de actualizare.
 
 - macOS: în listele de conversații și de mesaje, VoiceOver nu își mai pierde locul când un rând se schimbă, de exemplu când se schimbă numărul de mesaje necitite, cineva începe să înregistreze audio sau sosește un mesaj nou. Deschiderea unei conversații cu VoiceOver funcționează acum imediat și de fiecare dată, în loc să eșueze uneori sau să acționeze abia după o pauză, iar VoiceOver trece apoi la câmpul de mesaj; anunțuri precum cel despre mesajele fixate sunt rostite după câmp în loc să îl întrerupă.
