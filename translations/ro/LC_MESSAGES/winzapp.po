@@ -2569,7 +2569,9 @@ msgctxt "chat_encryption_notice"
 msgid ""
 "Messages and calls are end-to-end encrypted. Only people in this chat can "
 "read, listen to or share them."
-msgstr "Mesajele și apelurile sunt criptate end-to-end. Doar persoanele din această conversație le pot citi, asculta sau distribui."
+msgstr ""
+"Mesajele și apelurile sunt criptate end-to-end. Doar persoanele din această "
+"conversație le pot citi, asculta sau distribui."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
 msgctxt "chat_encryption_notice_short"
@@ -14710,6 +14712,16 @@ msgid ""
 msgstr ""
 "Păstrați căutarea conversațiilor la deschiderea unei conversații, pentru ca "
 "Esc să revină la rezultate, nu la lista completă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_mark_unsaved_contacts"
+msgid ""
+"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"messages"
+msgstr ""
+"Precedă numele contactelor nesalvate cu semnul tilde (~) în conversații și "
+"mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -2569,7 +2569,8 @@ msgctxt "chat_disappearing_90d"
 msgid "90 days"
 msgstr "90 dni"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py client/core/chat_settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
+#: client/core/chat_settings.py
 msgctxt "chat_disappearing_label"
 msgid "Disappearing messages"
 msgstr "Znikające wiadomości"
@@ -2591,8 +2592,12 @@ msgstr "Szyfrowanie"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
 msgctxt "chat_encryption_notice"
-msgid "Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to or share them."
-msgstr "Wiadomości i połączenia są szyfrowane end-to-end. Tylko osoby w tym czacie mogą je czytać, słuchać lub udostępniać."
+msgid ""
+"Messages and calls are end-to-end encrypted. Only people in this chat can "
+"read, listen to or share them."
+msgstr ""
+"Wiadomości i połączenia są szyfrowane end-to-end. Tylko osoby w tym czacie "
+"mogą je czytać, słuchać lub udostępniać."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
 msgctxt "chat_encryption_notice_short"
@@ -3117,8 +3122,7 @@ msgstr "Zbieranie danych…"
 #, python-brace-format
 msgctxt "cleanup_summary_header"
 msgid "{chats} chat(s) affected, {files} file(s), {mb:.1f} MB total:"
-msgstr ""
-"Dotyczy czatów: {chats}, plików: {files}, łącznie {mb:.1f} MB:"
+msgstr "Dotyczy czatów: {chats}, plików: {files}, łącznie {mb:.1f} MB:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -14863,6 +14867,16 @@ msgid ""
 msgstr ""
 "Zachowaj wyszukiwanie czatów po otwarciu czatu, aby Esc wracał do wyników "
 "zamiast do pełnej listy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_mark_unsaved_contacts"
+msgid ""
+"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"messages"
+msgstr ""
+"Poprzedzaj nazwy niezapisanych kontaktów znakiem tyldy (~) w czatach i "
+"wiadomościach"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

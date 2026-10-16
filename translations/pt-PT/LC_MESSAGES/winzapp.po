@@ -2590,12 +2590,15 @@ msgctxt "chat_encryption_notice"
 msgid ""
 "Messages and calls are end-to-end encrypted. Only people in this chat can "
 "read, listen to or share them."
-msgstr "As mensagens e as chamadas são protegidas com encriptação de ponta a ponta. Só as pessoas nesta conversa as podem ler, ouvir ou partilhar."
+msgstr ""
+"As mensagens e as chamadas são protegidas com encriptação de ponta a ponta. "
+"Só as pessoas nesta conversa as podem ler, ouvir ou partilhar."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
 msgctxt "chat_encryption_notice_short"
 msgid "Messages and calls are end-to-end encrypted."
-msgstr "As mensagens e as chamadas são protegidas com encriptação de ponta a ponta."
+msgstr ""
+"As mensagens e as chamadas são protegidas com encriptação de ponta a ponta."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_list.py
@@ -14727,6 +14730,16 @@ msgid ""
 msgstr ""
 "Manter a pesquisa de conversas ao abrir uma conversa, para o Esc voltar aos "
 "resultados em vez da lista completa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_mark_unsaved_contacts"
+msgid ""
+"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"messages"
+msgstr ""
+"Preceder os nomes de contactos não guardados com um sinal de til (~) nas "
+"conversas e mensagens"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

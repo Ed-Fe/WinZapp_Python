@@ -2559,7 +2559,9 @@ msgctxt "chat_encryption_notice"
 msgid ""
 "Messages and calls are end-to-end encrypted. Only people in this chat can "
 "read, listen to or share them."
-msgstr "Mesajlar ve aramalar uçtan uca şifrelidir. Yalnızca bu sohbetteki kişiler bunları okuyabilir, dinleyebilir veya paylaşabilir."
+msgstr ""
+"Mesajlar ve aramalar uçtan uca şifrelidir. Yalnızca bu sohbetteki kişiler "
+"bunları okuyabilir, dinleyebilir veya paylaşabilir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/chat_notices.py
 msgctxt "chat_encryption_notice_short"
@@ -14528,6 +14530,16 @@ msgid ""
 msgstr ""
 "Bir sohbet açıldığında sohbet aramasını koru; böylece Esc tam liste yerine "
 "sonuçlara döner"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_mark_unsaved_contacts"
+msgid ""
+"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"messages"
+msgstr ""
+"Kaydedilmemiş kişilerin adlarının önüne sohbetlerde ve mesajlarda tilde (~) "
+"işareti koy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
