@@ -206,6 +206,20 @@ FIXES
 
 - macOS: installing an update, and the first launch after it, are much faster. The app has far fewer files to unpack (about 24,000 instead of 61,000), its server is put in place in a fraction of a second instead of several seconds, the previous copy is deleted in the background, and the browser WhatsApp runs in (about 190 MB) is kept instead of being downloaded again after every update.
 
+V2.0.1.0
+
+This is a maintenance release for the stable version. It only updates the WPPConnect libraries WinZapp uses to talk to WhatsApp, after a WhatsApp Web change broke sending voice messages and documents.
+
+FIXES
+
+Sending voice messages and documents works again. WhatsApp Web changed in a way that made these sends fail; WinZapp now uses the updated WPPConnect libraries (WPPConnect 2.3.5 and WA-JS 4.7.1) that handle it.
+
+WPPConnect server 2.10.55 is supported. Installing or updating to the latest server no longer ends with "npm run build failed", and the server is now started with the current settings.
+
+Linking your account no longer leaves a stale QR code loop running when pairing is cancelled, and a WhatsApp Web page that never finishes loading is now given up on after 60 seconds instead of leaving WinZapp waiting.
+
+If you used a previous version and voice messages still fail after updating, WinZapp offers to reinstall WPPConnect on startup; accept it once and the new libraries are installed.
+
 V2.0.0.0
 
 The big news in this release is calls: you can now place, answer and reject voice and video calls from WinZapp itself, without picking up your phone, with an accessible call window, keyboard shortcuts, dedicated audio settings and your call history in the new Calls tab. Locked chats, search in archived chats, Turkish and Romanian and several usability improvements arrived too, along with fixes for situations where WinZapp asked you to pair again when it did not need to. Under the hood, the program's code went through a major reorganization: it changes nothing in how you use WinZapp, but it makes it easier to maintain and to fix from here on.

@@ -206,6 +206,20 @@ DÜZELTMELER
 
 - macOS: bir güncellemeyi yüklemek ve sonrasındaki ilk açılış çok daha hızlı. Uygulamada açılacak dosya sayısı çok daha az (61.000 yerine yaklaşık 24.000), sunucusu birkaç saniye yerine saniyenin küçük bir kesrinde yerine konur, önceki kopya arka planda silinir ve WhatsApp'ın çalıştığı tarayıcı (yaklaşık 190 MB) her güncellemeden sonra yeniden indirilmek yerine korunur.
 
+V2.0.1.0
+
+Bu, kararlı sürümün bakım sürümüdür. Yalnızca WinZapp'ın WhatsApp ile konuşmak için kullandığı WPPConnect kütüphanelerini günceller; WhatsApp Web'deki bir değişiklik sesli mesaj ve belge göndermeyi bozmuştu.
+
+DÜZELTMELER
+
+Sesli mesaj ve belge gönderme yeniden çalışıyor. WhatsApp Web bu gönderimlerin başarısız olmasına yol açacak şekilde değişti; WinZapp artık bunu karşılayan güncel WPPConnect kütüphanelerini (WPPConnect 2.3.5 ve WA-JS 4.7.1) kullanıyor.
+
+WPPConnect sunucusu 2.10.55 destekleniyor. En yeni sunucuyu kurmak veya ona güncellemek artık "npm run build failed" hatasıyla bitmiyor ve sunucu güncel ayarlarla başlatılıyor.
+
+Hesap bağlarken eşleştirme iptal edildiğinde eski bir QR kodu döngüsü artık çalışmaya devam etmiyor; yüklenmeyi hiç bitirmeyen bir WhatsApp Web sayfası da WinZapp'ı bekletmek yerine 60 saniye sonra bırakılıyor.
+
+Önceki bir sürümü kullanıyorsanız ve güncellemeden sonra sesli mesajlar hâlâ başarısız oluyorsa, WinZapp açılışta WPPConnect'i yeniden kurmayı önerir; bir kez kabul edin, yeni kütüphaneler kurulur.
+
 V2.0.0.0
 
 Bu sürümün en büyük yeniliği aramalardır: Telefona ihtiyaç duymadan doğrudan WinZapp üzerinden sesli ve görüntülü arama başlatabilir, gelen aramaları yanıtlayabilir veya reddedebilirsiniz. Bu yenilik; tam erişilebilir bir arama penceresi, pratik klavye kısayolları, aramalara özel ses ayarları ve yeni Aramalar sekmesindeki kapsamlı arama geçmişiyle birlikte sunulmaktadır. Ayrıca PIN korumalı kilitli sohbetler, arşivlenmiş sohbetlerde arama, resmi Türkçe ve Rumence dil destekleri ile çeşitli kullanım iyileştirmeleri eklendi; WinZapp'in gereksiz yere yeniden eşleştirme istediği durumlar da düzeltildi. Arka planda programın kod tabanı büyük bir yeniden yapılandırmadan (refactoring) geçti: Bu durum WinZapp'i kullanım şeklinizde hiçbir şeyi değiştirmez; ancak programın uzun vadeli kararlılığını, bakımını ve hata düzeltme süreçlerini önemli ölçüde kolaylaştırır.
