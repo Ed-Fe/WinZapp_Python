@@ -79,7 +79,6 @@ wx.CallAfter. No Python exception crosses into Objective-C: every method
 Sparkle calls refuses (and logs) instead.
 """
 
-import json
 import logging
 import os
 import signal
@@ -92,7 +91,7 @@ import objc
 import wx
 from Foundation import NSAttributedString, NSBundle, NSError, NSObject, NSSet, NSURL
 
-from . import (coord_mac, provenance, sparkle_notes, sparkle_policy as policy,
+from . import (coord_mac, install_on_quit, provenance, sparkle_notes, sparkle_policy as policy,
                update_accounts as accounts, updater_mac)
 
 ARCH = updater_mac.ARCH
@@ -290,99 +289,38 @@ def _update_abandoned():
 
 
 # -- an update that installs when the app ends -----------------------------------
+# The logic is in install_on_quit.py; these bind it to this module's state.
 
 def _armed_path(mw=None):
-    gd = getattr(mw or _state["mw"], "global_dir", None)
-    return os.path.join(gd, accounts.ARMED_FILE) if gd else ""
+    return install_on_quit.armed_path(mw or _state["mw"])
 
 
 def _record_armed(tag):
-    """Every account process reads this when it ends (_end_all_for_install);
-    without a global dir there is no other account to end."""
-    path = _armed_path()
-    if not path:
-        return
-    try:
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(accounts.armed_record(tag), fh)
-    except Exception:
-        logging.exception("[sparkle_mac] could not record the update armed for quit")
+    install_on_quit.record_armed(_state["mw"], tag)
 
 
 def _forget_armed(mw=None):
-    path = _armed_path(mw)
-    try:
-        if path and os.path.exists(path):
-            os.remove(path)
-    except Exception:
-        logging.exception("[sparkle_mac] could not remove %s", accounts.ARMED_FILE)
+    install_on_quit.forget_armed(mw or _state["mw"])
 
 
 def _installer_job():
-    return accounts.installer_job(updater_mac._info().get("CFBundleIdentifier", ""))
+    return install_on_quit.installer_job(updater_mac._info())
 
 
 def _installer_running():
-    """Whether Sparkle's installer job still runs: True/False, or None when
-    launchd could not be asked."""
-    try:
-        r = subprocess.run(["launchctl", "list", _installer_job()],
-                           capture_output=True, text=True, timeout=5)
-        return accounts.installer_running(r.returncode, r.stdout)
-    except Exception:
-        logging.exception("[sparkle_mac] could not ask launchd about Sparkle's installer")
-        return None
+    return install_on_quit.installer_running(_installer_job())
 
 
 def armed_install(mw=None):
-    """The tag of an update that installs when the app ends, or "". A record
-    that no longer holds (installed, cancelled) is removed."""
-    path = _armed_path(mw)
-    if not path or not os.path.exists(path):
-        return ""
-    try:
-        with open(path, encoding="utf-8") as fh:
-            record = json.load(fh)
-    except Exception:
-        record = None
-    tag = accounts.armed_tag(record, _running_tag(),
-                             _installer_running() if record is not None else False)
-    if not tag:
-        _forget_armed(mw)
-    return tag
+    """The tag of an update that installs when the app ends, or ""."""
+    return install_on_quit.armed_install(mw or _state["mw"], _running_tag(), _installer_running)
 
 
 def _end_all_for_install(mw):
-    """real_exit() of an account while an update is armed and other accounts
-    run: the installer may be watching any of them, and installs the moment
-    that one ends, under the others. So they are all ended
-    (quit_all_accounts(), which comes back to real_exit() once they are gone),
-    and the ones the user did not close are opened again after the install.
-    True when that took over this exit."""
-    try:
-        if getattr(mw, "_sparkle_ending_all", False):
-            return False
-        tag = armed_install(mw)
-        if not tag:
-            return False
-        others = _other_accounts(mw)
-        if not others:
-            return False
-        mw._sparkle_ending_all = True
-        logging.info("[sparkle_mac] %s installs on quit: ending %d other account(s) with this one",
-                     tag, len(others))
-        try:
-            mw.output(mw.i18n.t("update_closing_other_accounts"), interrupt=True)
-        except Exception:
-            logging.debug("[sparkle_mac] could not speak", exc_info=True)
-        command = accounts.relaunch_command(os.getpid(), _installer_job(), sys.argv[0], others)
-        subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        mw.quit_all_accounts()
-        return True
-    except Exception:
-        logging.exception("[sparkle_mac] could not end the other accounts for the update")
-        return False
+    """real_exit() of an account while an update is armed: True when ending
+    all the accounts took over this exit (install_on_quit.end_all)."""
+    return install_on_quit.end_all(mw, armed_install, _other_accounts,
+                                   _installer_job, lambda: sys.argv[0])
 
 
 # -- WinZapp's notes in Sparkle's window --------------------------------------------
