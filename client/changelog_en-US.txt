@@ -127,6 +127,7 @@ FIXES
 - Sending voice messages and documents failed with "Cannot read properties of undefined (reading 'prepRawMedia')" on a WhatsApp Web build released on 15 October, which moved that function. WinZapp now ships the matching version of its WhatsApp Web library (WA-JS 4.7.1). If sending still fails after updating, reinstall WPPConnect from the update window.
 
 - macOS: in the chat and message lists, VoiceOver no longer loses its place when a row changes, for example when an unread count changes, someone starts recording audio or a new message arrives. Opening a chat with VoiceOver now works at once and every time, instead of sometimes failing or acting only after a pause, and VoiceOver then moves to the message field; notices such as the one about pinned messages are spoken after the field instead of cutting it off.
+
 - macOS: Command shortcuts now do the same thing on every screen. A button's underlined letter used to take over Command and that letter: while "Read more" was shown, Command-R pressed it instead of recording a voice message, and other buttons took other shortcuts the same way. A button's underlined letter is now pressed with Command-Option and the letter, the Mac form of Alt and the letter on Windows, and a WinZapp shortcut on the same keys still comes first, as on Windows.
 
 - The buttons for recording in the other mode (stereo or mono) and for recording with the computer's audio told the screen reader their shortcut was Ctrl+R. They now announce their own, Ctrl+Shift+G and Ctrl+Shift+H, or the keys you assigned to them.
