@@ -126,6 +126,8 @@ NOVEDADES
 
 - Un chat personal nuevo o vacío indica ahora, en la línea de "no hay mensajes", que los mensajes y las llamadas están cifrados de extremo a extremo y, si hay mensajes temporales, su duración. La información del chat también menciona el cifrado.
 
+- El campo de pie de foto de los archivos adjuntos ahora admite varias líneas, como WhatsApp Desktop: Intro sigue enviando el adjunto con su pie de foto, y Mayús+Intro o Ctrl+Intro crean una línea nueva, como en el campo de mensaje.
+
 CORRECCIONES
 
 - El envío de mensajes de voz y de documentos fallaba con "Cannot read properties of undefined (reading 'prepRawMedia')" en una versión de WhatsApp Web publicada el 15 de octubre, que movió esa función. WinZapp ahora incluye la versión correspondiente de su biblioteca de WhatsApp Web (WA-JS 4.7.1). Si el envío sigue fallando tras actualizar, reinstala WPPConnect desde la ventana de actualización.
@@ -211,6 +213,8 @@ CORRECCIONES
 - Los archivos descargados cuyo tamaño es múltiplo de 16 bytes (un APK, por ejemplo) ya no terminan con 16 bytes de más. Android se negaba a instalarlos con "problema al analizar el paquete"; ahora el archivo guardado es idéntico al original.
 
 - macOS: instalar una actualización, y la primera apertura después de ella, son mucho más rápidos. La app tiene muchos menos archivos que descomprimir (unos 24.000 en lugar de 61.000), su servidor se coloca en su sitio en una fracción de segundo en lugar de varios segundos, la copia anterior se borra en segundo plano, y el navegador en el que funciona WhatsApp (unos 190 MB) se conserva en lugar de descargarse de nuevo con cada actualización.
+
+- Las vistas previas de enlaces ya no muestran códigos HTML como &amp; o &eacute; en la descripción. Cuando WinZapp envía una vista previa, y cuando se lee una, esos códigos ahora se convierten en los caracteres reales.
 
 V2.0.1.0
 

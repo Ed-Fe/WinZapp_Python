@@ -126,6 +126,8 @@ NOVIDADES
 
 - Uma conversa pessoal nova ou vazia passa a indicar, na linha de "nenhuma mensagem", que as mensagens e as chamadas são protegidas com encriptação de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações da conversa também referem a encriptação.
 
+- O campo de legenda dos anexos passa a aceitar várias linhas, como no WhatsApp Desktop: Enter continua a enviar o anexo com a legenda, e Shift+Enter ou Ctrl+Enter criam uma nova linha, como no campo de mensagem.
+
 CORREÇÕES
 
 - O envio de mensagens de voz e de documentos falhava com "Cannot read properties of undefined (reading 'prepRawMedia')" numa versão do WhatsApp Web lançada a 15 de outubro, que mudou essa função de sítio. O WinZapp passa a incluir a versão correspondente da sua biblioteca do WhatsApp Web (WA-JS 4.7.1). Se o envio continuar a falhar depois de atualizar, reinstale o WPPConnect na janela de atualização.
@@ -211,6 +213,8 @@ CORREÇÕES
 - Os ficheiros transferidos cujo tamanho é múltiplo de 16 bytes (um APK, por exemplo) deixam de terminar com 16 bytes a mais. O Android recusava-se a instalá-los com "problema ao analisar o pacote"; agora o ficheiro guardado é idêntico ao original.
 
 - macOS: instalar uma atualização, e a primeira abertura depois dela, ficaram muito mais rápidos. A app tem bastante menos ficheiros para descompactar (cerca de 24 000 em vez de 61 000), o servidor é colocado no lugar numa fração de segundo em vez de vários segundos, a cópia anterior é apagada em segundo plano, e o navegador em que o WhatsApp corre (cerca de 190 MB) é mantido em vez de ser transferido de novo a cada atualização.
+
+- As pré-visualizações de ligações já não mostram códigos HTML como &amp; ou &eacute; na descrição. Quando uma pré-visualização é enviada pelo WinZapp, e quando uma é lida, esses códigos passam a ser os caracteres verdadeiros.
 
 V2.0.1.0
 

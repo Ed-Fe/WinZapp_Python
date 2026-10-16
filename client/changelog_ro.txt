@@ -126,6 +126,8 @@ NOUTĂȚI
 
 - O conversație personală nouă sau goală indică acum, în rândul „nu există mesaje”, că mesajele și apelurile sunt criptate end-to-end și, dacă există mesaje care dispar, durata. Informațiile despre conversație menționează și criptarea.
 
+- Câmpul de descriere al atașamentelor acceptă acum mai multe rânduri, ca în WhatsApp Desktop: Enter trimite în continuare atașamentul cu descrierea, iar Shift+Enter sau Ctrl+Enter încep un rând nou, ca în câmpul de mesaj.
+
 CORECTĂRI
 
 - Trimiterea mesajelor vocale și a documentelor eșua cu "Cannot read properties of undefined (reading 'prepRawMedia')" pe o versiune de WhatsApp Web lansată pe 15 octombrie, care a mutat acea funcție. WinZapp include acum versiunea corespunzătoare a bibliotecii sale WhatsApp Web (WA-JS 4.7.1). Dacă trimiterea tot eșuează după actualizare, reinstalează WPPConnect din fereastra de actualizare.
@@ -211,6 +213,8 @@ CORECTĂRI
 - Fișierele descărcate a căror dimensiune este multiplu de 16 octeți (un APK, de exemplu) nu mai se termină cu 16 octeți în plus. Android refuza să le instaleze cu „problemă la analizarea pachetului”; acum fișierul salvat este identic cu originalul.
 
 - macOS: instalarea unei actualizări și prima pornire după ea sunt mult mai rapide. Aplicația are mult mai puține fișiere de dezarhivat (aproximativ 24.000 în loc de 61.000), serverul ei este pus la locul lui într-o fracțiune de secundă în loc de câteva secunde, copia anterioară este ștearsă în fundal, iar browserul în care rulează WhatsApp (aproximativ 190 MB) este păstrat în loc să fie descărcat din nou după fiecare actualizare.
+
+- Previzualizările linkurilor nu mai arată în descriere coduri HTML brute precum &amp; sau &eacute;. Când o previzualizare este trimisă din WinZapp și când este citită, aceste coduri devin acum caracterele reale.
 
 V2.0.1.0
 

@@ -126,6 +126,8 @@ NOWOŚCI
 
 - Nowy lub pusty czat prywatny podaje teraz w wierszu o braku wiadomości, że wiadomości i połączenia są szyfrowane end-to-end oraz, jeśli włączono znikające wiadomości, ich czas. Informacje o czacie także wspominają o szyfrowaniu.
 
+- Pole podpisu załączników przyjmuje teraz wiele wierszy, tak jak WhatsApp Desktop: Enter nadal wysyła załącznik z podpisem, a Shift+Enter lub Ctrl+Enter zaczynają nowy wiersz, tak jak w polu wiadomości.
+
 POPRAWKI
 
 - Wysyłanie wiadomości głosowych i dokumentów kończyło się błędem "Cannot read properties of undefined (reading 'prepRawMedia')" w wersji WhatsApp Web wydanej 15 października, która przeniosła tę funkcję. WinZapp zawiera teraz odpowiednią wersję swojej biblioteki WhatsApp Web (WA-JS 4.7.1). Jeśli wysyłanie nadal nie działa po aktualizacji, zainstaluj ponownie WPPConnect z okna aktualizacji.
@@ -211,6 +213,8 @@ POPRAWKI
 - Pobrane pliki, których rozmiar jest wielokrotnością 16 bajtów (na przykład APK), nie kończą się już 16 dodatkowymi bajtami. Android odmawiał ich instalacji z komunikatem „problem podczas analizowania pakietu”; teraz zapisany plik jest identyczny z oryginałem.
 
 - macOS: instalacja aktualizacji i pierwsze uruchomienie po niej są znacznie szybsze. Aplikacja ma dużo mniej plików do rozpakowania (około 24 000 zamiast 61 000), jej serwer trafia na miejsce w ułamku sekundy zamiast w kilka sekund, poprzednia kopia jest usuwana w tle, a przeglądarka, w której działa WhatsApp (około 190 MB), jest zachowywana zamiast pobierania jej ponownie po każdej aktualizacji.
+
+- Podglądy linków nie pokazują już w opisie surowych kodów HTML, takich jak &amp; czy &eacute;. Gdy podgląd jest wysyłany z WinZapp i gdy jest odczytywany, te kody zamieniają się teraz w prawdziwe znaki.
 
 V2.0.1.0
 
