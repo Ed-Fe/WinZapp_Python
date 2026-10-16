@@ -214,6 +214,8 @@ FIXES
 
 - Link previews no longer show raw HTML codes such as &amp; or &eacute; in the description. When a preview is sent from WinZapp, and when one is read, those codes now become the real characters.
 
+- Echo cancellation in voice and video calls now works on calls you answer. The speaker had been playing since the call rang, so the canceller compared your microphone with audio from before it opened and never found the echo: the other person kept hearing their own voice even with the option on. The reference now starts when the microphone opens.
+
 V2.0.1.0
 
 This is a maintenance release for the stable version. It only updates the WPPConnect libraries WinZapp uses to talk to WhatsApp, after a WhatsApp Web change broke sending voice messages and documents.

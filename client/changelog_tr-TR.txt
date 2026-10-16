@@ -214,6 +214,8 @@ DÜZELTMELER
 
 - Bağlantı önizlemelerinin açıklamasında artık &amp; veya &eacute; gibi ham HTML kodları görünmüyor. Bir önizleme WinZapp'tan gönderilirken ve okunurken bu kodlar artık gerçek karakterlere dönüşüyor.
 
+- Sesli ve görüntülü aramalarda yankı giderme artık yanıtladığınız aramalarda çalışıyor. Hoparlör arama çalmaya başladığından beri çalıyordu; bu yüzden yankı giderici mikrofonunuzu açılmadan önceki sesle karşılaştırıyor ve yankıyı hiç bulamıyordu: seçenek açıkken bile karşı taraf kendi sesini duymaya devam ediyordu. Referans artık mikrofon açıldığı anda başlıyor.
+
 V2.0.1.0
 
 Bu, kararlı sürümün bakım sürümüdür. Yalnızca WinZapp'ın WhatsApp ile konuşmak için kullandığı WPPConnect kütüphanelerini günceller; WhatsApp Web'deki bir değişiklik sesli mesaj ve belge göndermeyi bozmuştu.
