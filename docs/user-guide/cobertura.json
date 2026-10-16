@@ -103,6 +103,7 @@
     "977a5ed9bc89": "WPPConnect Server atualizado para a 2.10.55. Além das correções da biblioteca pa",
     "5c4937c4b6b0": "Sair de uma sessão que ficou pela metade (por exemplo, uma conta que nunca termi",
     "0f6146dcd9a7": "Arquivos baixados cujo tamanho é múltiplo de 16 bytes (um APK, por exemplo) deix",
-    "6f9902356772": "macOS: instalar uma atualização, e a primeira abertura depois dela, ficaram muit"
+    "6f9902356772": "macOS: instalar uma atualização, e a primeira abertura depois dela, ficaram muit",
+    "57b84955fa7b": "As prévias de links não mostram mais códigos HTML como &amp; ou &eacute; na desc"
   }
 }
