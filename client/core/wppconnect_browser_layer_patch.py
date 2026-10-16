@@ -31,6 +31,12 @@ route, the faster of the two, does not wait on it.
 Only this wait changes. `page.setDefaultTimeout()` would have reached it
 without a patch, but it moves every other puppeteer wait on the page with it.
 
+wppconnect 2.3.5 made the wait its own: `injectApi()` takes `injectionTimeout`
+(default 120 s, `InjectionTimeoutError`), so there is nothing left to patch and
+the file is recognised as STATUS_UPSTREAM, never reported as a mismatch. The
+60 s this module chose is then passed as `createOptions.injectionTimeout`
+(api_patches/config.json and src/config.ts); wppconnect 2.3.4 ignores that key.
+
 Matched by structure, not by one literal, so indentation and line endings do
 not matter. Like the wa-js bundle patch, this module owns the file handling:
 the three call sites (setup_api.py, build_api.py and
@@ -63,6 +69,8 @@ _UNTIMED_WAIT = re.compile(
 STATUS_APPLIED = "applied"
 STATUS_ALREADY = "already"
 STATUS_NO_MATCH = "no_match"
+#: wppconnect >= 2.3.5: the wait is upstream's own, with an `injectionTimeout` option.
+STATUS_UPSTREAM = "upstream"
 
 
 def patch_browser_source(content: str) -> tuple[str, str]:
@@ -82,6 +90,8 @@ def patch_browser_source(content: str) -> tuple[str, str]:
         return patched, STATUS_APPLIED
     if _MARKER in content:
         return content, STATUS_ALREADY
+    if "class InjectionTimeoutError" in content:
+        return content, STATUS_UPSTREAM
     return content, STATUS_NO_MATCH
 
 
@@ -109,6 +119,11 @@ def patch_browser_controller(api_dir: str) -> tuple[bool, str]:
         )
     if status == STATUS_ALREADY:
         return True, "browser.js injectApi readiness timeout patch already applied."
+    if status == STATUS_UPSTREAM:
+        return True, (
+            "browser.js: no patch needed — wppconnect 2.3.5 and later bound the "
+            "injectApi readiness wait themselves (injectionTimeout)."
+        )
     return False, (
         "browser.js: the injectApi readiness wait did not match the expected "
         "upstream source — skipping (the installed @wppconnect-team/wppconnect "

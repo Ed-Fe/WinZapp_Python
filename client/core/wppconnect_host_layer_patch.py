@@ -1277,6 +1277,25 @@ MANAGED_V233_CHECK_QR_CODE = (
 )
 
 
+# wppconnect 2.3.5's checkQrCode(): 2.3.3's, plus a `qrLoopCancelled`/closed-page
+# guard at the top and after each await (upstream's new cancelQrLoop()). The
+# auth-probe fix is still there, so it is RECOGNISED, never rewritten - see
+# MANAGED_V233_CHECK_QR_CODE for why.
+MANAGED_V235_CHECK_QR_CODE = (
+    "    async checkQrCode() {\n"
+    "        if (this.qrLoopCancelled || this.page.isClosed())\n"
+    "            return;\n"
+    "        const needScan = await (0, auth_1.needsToScan)(this.page).catch(() => null);\n"
+    "        if (this.qrLoopCancelled || this.page.isClosed())\n"
+    "            return;\n"
+    "        // A navigation can invalidate the execution context while waiting for QR.\n"
+    "        // An unknown result is not proof that the session has registered.\n"
+    "        if (needScan === null)\n"
+    "            return;\n"
+    "        this.isLogged = !needScan;\n"
+)
+
+
 MANAGED_ORIGINAL_LOGIN_BY_CODE = (
     "    async loginByCode(phone) {\n"
     "        await (0, helpers_1.evaluateAndReturn)(this.page, async ({ phone }) => {\n"
@@ -1681,7 +1700,7 @@ def _patch_managed_link_flow(content: str, notes: list) -> str:
     starts it once. See the v9 entry in the module docstring."""
     if MANAGED_PATCHED_CHECK_QR_CODE in content:
         notes.append("checkQrCode: already carries the auth-probe fix.")
-    elif MANAGED_V233_CHECK_QR_CODE in content:
+    elif MANAGED_V233_CHECK_QR_CODE in content or MANAGED_V235_CHECK_QR_CODE in content:
         # Left as upstream ships it — see the v10 entry in the module
         # docstring. Recognised rather than ignored so this never reads as
         # DID NOT MATCH, which is the alarm meaning a pairing fix stopped

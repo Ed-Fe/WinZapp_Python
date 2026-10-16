@@ -24,7 +24,7 @@ import pytest
 
 from core.wppconnect_browser_layer_patch import (
     BROWSER_JS_PARTS, INJECT_API_READY_TIMEOUT_MS, STATUS_ALREADY, STATUS_APPLIED,
-    STATUS_NO_MATCH, patch_browser_controller, patch_browser_source,
+    STATUS_NO_MATCH, STATUS_UPSTREAM, patch_browser_controller, patch_browser_source,
 )
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -116,6 +116,30 @@ class TestSourcePatch:
         assert status == STATUS_NO_MATCH
         assert patched == content
 
+    def test_wppconnect_2_3_5_own_injection_timeout_needs_no_patch(self):
+        """2.3.5 rewrote injectApi() around an `injectionTimeout` option, so the
+        file is recognised as upstream's, not reported as a mismatch."""
+        content = _browser_js(
+            "class InjectionTimeoutError extends Error {}\n"
+            "async function injectApi(page) {\n"
+            "    await page.waitForFunction(() => !!window.WPP?.isReady, { timeout: 0 });\n}\n")
+
+        patched, status = patch_browser_source(content)
+
+        assert status == STATUS_UPSTREAM
+        assert patched == content
+
+    def test_the_upstream_timeout_is_set_to_the_same_value_in_both_configs(self):
+        """2.3.5 defaults to 120 s, past the resume path's grace; 2.3.4 ignores
+        the key and gets INJECT_API_READY_TIMEOUT_MS from the patch."""
+        config_json = json.loads(
+            (ROOT / "client" / "api_patches" / "config.json").read_text(encoding="utf-8"))
+        config_ts = (ROOT / "client" / "api_patches" / "src" / "config.ts").read_text(
+            encoding="utf-8")
+
+        assert config_json["createOptions"]["injectionTimeout"] == INJECT_API_READY_TIMEOUT_MS
+        assert f"injectionTimeout: {INJECT_API_READY_TIMEOUT_MS}," in config_ts
+
     def test_stays_under_the_resume_paths_no_progress_grace(self):
         """A start may not wait on this alone for as long as the power-resume
         path waits before restarting a session stuck in INITIALIZING."""
@@ -186,6 +210,17 @@ class TestInjectApiUnderNode:
 
 
 class TestFile:
+    def test_a_2_3_5_file_is_ok_and_left_alone(self, tmp_path):
+        browser_js = tmp_path.joinpath(*BROWSER_JS_PARTS)
+        browser_js.parent.mkdir(parents=True)
+        original = b"class InjectionTimeoutError extends Error {}\n"
+        browser_js.write_bytes(original)
+
+        ok, note = patch_browser_controller(str(tmp_path))
+
+        assert ok is True and "no patch needed" in note
+        assert browser_js.read_bytes() == original
+
     def test_patches_the_file_in_place(self, fake_api_dir):
         api_dir, browser_js = fake_api_dir
 
