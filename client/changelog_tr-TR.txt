@@ -122,6 +122,8 @@ YENİLİKLER
 
 - Mesaj satırında çevrimiçi yazıya dökme ve betimleme, otomatik olarak: yapay zekâ sonuç penceresine "Yazıya dökmeyi mesaj satırına koy" (sesli mesajlar) ve "Betimlemeyi mesaj satırına koy" (resimler, çıkartmalar ve videolar) eklendi. Ayarlar > Yazıya Dökmeler ve Betimlemeler içinde, varsayılan olarak kapalı iki yeni seçenek, alınan sesli mesajları otomatik olarak yazıya döker ve alınan resim, çıkartma ve videoları çevrimiçi sağlayıcılarla betimler; her mesaj için pencere veya ses çıkmaz. Birini açmak olağan onayı ister ve yerel otomatik yazıya dökmeyi kapatır, tersi de geçerlidir. Her konuşmanın veri penceresinde "yazıya dök" ve "betimle" kutuları vardır (yerel otomatik yazıya dökme için de geçerlidir); "Kapattıklarım dışında tüm konuşmalar" ile "Yalnızca açtığım konuşmalar" arasında seçim yapılır. API kotanızı korumak için alınan bir mesajın işlenebilmesi için en fazla ne kadar eski olabileceğini (5 dakika, 15, 30 veya 1 saat) seçebilir ve otomatik çevrimiçi isteklere günlük bir üst sınır koyabilirsiniz (varsayılan 50, 0 sınır yok); tüm sağlayıcılar kota veya anahtar gibi yinelenen bir nedenle reddederse otomatik kuyruk bir saat duraklar ve bunu bir kez bildirir.
 
+- Yeni veya boş bir kişisel sohbet artık "mesaj yok" satırında mesajların ve aramaların uçtan uca şifreli olduğunu ve kaybolan mesajlar açıksa süresini belirtiyor. Sohbet bilgileri de şifrelemeden söz ediyor.
+
 - Ek dosyaların açıklama alanı artık WhatsApp Desktop gibi birden çok satır kabul ediyor: Enter eki açıklamasıyla göndermeye devam eder, Shift+Enter veya Ctrl+Enter ise mesaj alanındaki gibi yeni satır açar.
 
 DÜZELTMELER
@@ -129,6 +131,8 @@ DÜZELTMELER
 - Sesli mesajların ve belgelerin gönderimi, 15 Ekim'de yayımlanan ve bu işlevi taşıyan bir WhatsApp Web sürümünde "Cannot read properties of undefined (reading 'prepRawMedia')" hatasıyla başarısız oluyordu. WinZapp artık WhatsApp Web kitaplığının uyumlu sürümünü (WA-JS 4.7.1) içeriyor. Güncellemeden sonra gönderim hâlâ başarısız olursa WPPConnect'i güncelleme penceresinden yeniden yükleyin.
 
 - macOS: sohbet ve mesaj listelerinde, bir satır değiştiğinde (örneğin okunmamış sayısı değiştiğinde, biri ses kaydetmeye başladığında veya yeni bir mesaj geldiğinde) VoiceOver artık yerini kaybetmiyor. VoiceOver ile bir sohbeti açmak artık bazen başarısız olmak veya ancak bir duraklamadan sonra çalışmak yerine hemen ve her seferinde çalışıyor ve VoiceOver ardından mesaj alanına geçiyor; sabitlenmiş mesajlarla ilgili olan gibi bildirimler alanı kesmek yerine alandan sonra okunuyor.
+
+- macOS: Command kısayolları artık her ekranda aynı işi yapıyor. Bir düğmenin altı çizili harfi, Command ve o harfi ele geçiriyordu: "Devamını oku" görünürken Command-O onu tetikliyordu ve diğer düğmeler de aynı şekilde başka kısayolları alıyordu. Bir düğmenin altı çizili harfi artık Command-Option ve harfle, Windows'taki Alt ve harfin Mac karşılığıyla, tetikleniyor ve aynı tuşlardaki bir WinZapp kısayolu, Windows'ta olduğu gibi, yine önce geliyor.
 
 - Diğer modda (stereo veya mono) kayıt ve bilgisayar sesiyle kayıt düğmeleri ekran okuyucuya kısayol olarak Ctrl+R bildiriyordu. Artık her biri kendi kısayolunu, Ctrl+Shift+G ve Ctrl+Shift+H'yi ya da onlara atadığınız tuşları bildiriyor.
 
