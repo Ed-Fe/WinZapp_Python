@@ -5,9 +5,11 @@ guarantee the releases repository cannot fake is the official repository's:
 the release is an existing tag of gabrielhhaber/WinZapp_Python pointing at
 its declared commit, newer than the running tag. So an appcast item reaches
 the user only when it stands for exactly such a release (its versions name
-the tag, its enclosure is that tag's zip, no deltas, an application), and
-Sparkle installs it only when the official repository says so again just
-before; every other answer at that step cancels the prepared installer.
+the tag, its enclosure is that tag's zip, no deltas, an application). An
+update downloaded in the background installs when the app quits, gated by
+that offer-time check; at "Ready to Install", after a download the user
+started, the official repository is asked again and every other answer than
+a fresh yes cancels the prepared installer.
 Each test below is one way past that. The module is pure standard library
 and is tested on every platform; the Cocoa side is
 macos/tests/test_sparkle_mac.py.
@@ -112,7 +114,7 @@ class TestTheLastStepBeforeInstalling:
         assert S.install_choice(S.CHOICE_INSTALL, verdict) == S.CHOICE_SKIP
 
     @pytest.mark.parametrize("choice", [S.CHOICE_DISMISS, S.CHOICE_SKIP, 7])
-    def test_later_or_anything_else_cancels_rather_than_installing_on_quit(self, choice):
+    def test_anything_but_install_cancels(self, choice):
         assert S.install_choice(choice, (True, "ok")) == S.CHOICE_SKIP
 
     def test_sparkles_enum_values(self):
@@ -156,8 +158,9 @@ class TestInfoPlist:
         # that never expires into trusting an unsigned one.
         assert keys["SURequireSignedFeed"] is True and keys["SUVerifyUpdateBeforeExtraction"] is True
         assert keys["SUSignedFeedFailureExpirationInterval"] == 0
-        # WinZapp asks before every install, as before Sparkle.
-        assert keys["SUAllowsAutomaticUpdates"] is False and keys["SUAutomaticallyUpdate"] is False
+        # Downloaded in the background and installed on quit, by default:
+        # sparkle_mac applies WinZapp's own setting to both at run time.
+        assert keys["SUAllowsAutomaticUpdates"] is True and keys["SUAutomaticallyUpdate"] is True
         assert keys["SUScheduledCheckInterval"] == 3 * 60 * 60
 
     @pytest.mark.parametrize("key", ["", "not base64!", "Zm9v", KEY + "AAAA", None, "é" * 44])

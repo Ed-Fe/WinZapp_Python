@@ -12,7 +12,8 @@ Steps
      headless Chrome).
   4. PyInstaller -> macos/dist/WinZapp.app (runtime hook installs winzapp_mac).
   5. The server runtime (api/ + node/) into Contents/Resources/runtime with a
-     STAMP; the app installs it into Application Support at launch
+     STAMP, without the server's development packages (runtime_prune.py);
+     the app installs it into Application Support at launch
      (winzapp_mac/paths_mac.py).
   6. Sparkle.framework (pinned below, SHA-256 checked) into Contents/Frameworks;
      Info.plist keys (mic/camera prompts; the Sparkle feed and key when
@@ -44,6 +45,12 @@ import time
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Also when loaded as a module by path (appcast.py's sign_update_tool(), the
+# stamping scripts): sys.path then lacks this script's directory.
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+import runtime_prune     # noqa: E402  (macos/, beside this script)
 ROOT = os.path.dirname(HERE)
 CLIENT = os.path.join(ROOT, "client")
 PYDEPS = os.path.join(ROOT, ".pydeps")
@@ -500,9 +507,10 @@ def pyinstaller():
 
 
 # 5 ------------------------------------------------------------------------
-# api/ entries the server writes at run time, or that a runtime never needs.
+# api/ entries the server writes at run time, or that a runtime never needs
+# (upstream's git hooks and editor settings included).
 API_SKIP = {"log", "uploads", "WhatsAppImages", "wppconnect_tokens", "tokens", "userDataDir",
-            "src", "docs", ".git", ".github"}
+            "src", "docs", ".git", ".github", ".husky", ".vscode"}
 
 
 def bundle_runtime(node_dir):
@@ -525,6 +533,13 @@ def bundle_runtime(node_dir):
             run(["ditto", src, dst])
         else:
             shutil.copy2(src, dst, follow_symlinks=False)
+    # Development packages leave the copy only: client/api keeps them for the
+    # next build (runtime_prune.py).
+    removed, missing = runtime_prune.prune_dev_modules(os.path.join(rt, "api"),
+                                                        os.path.join(node_dir, "bin", "node"))
+    if missing:
+        sys.exit(f"the pruned runtime cannot load: {', '.join(missing)}")
+    print(f"   {removed} development packages left out")
     # Identifies this runtime: the app reinstalls it into Application Support
     # whenever the stamp differs (winzapp_mac/paths_mac.py).
     h = hashlib.sha256()

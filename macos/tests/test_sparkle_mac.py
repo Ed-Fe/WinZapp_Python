@@ -8,14 +8,17 @@ objc_msgSend with the C types of Sparkle 2.10.0's headers, not through
 Python, and the tests check what Objective-C receives: the veto refuses each
 failure, a download request is only ever the release's https zip (never a
 file:// URL, which SPUDownloader.m:65-81 would refuse after nothing but
-waste), the last step before installing asks the official repository again
-and answers Skip (cancel) on anything but a fresh yes, quitting cancels a
-pending install, and an exception refuses. No window is created; the user
+waste), "Ready to Install" asks the official repository again and answers
+Skip (cancel) on anything but a fresh yes, quitting leaves a ready update to
+install on quit, a background download ending one account ends them all, the
+update window carries WinZapp's own release notes, and an exception refuses.
+No window is created; the user
 driver subclass is exercised against the real framework only when the build
 has unpacked it (macos/cache), with its windows replaced.
 """
 
 import ctypes
+import json
 import os
 import signal
 import sys
@@ -30,7 +33,8 @@ sys.path[:0] = [os.path.join(ROOT, "macos"), os.path.join(ROOT, "client"), os.pa
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="macOS layer")
 
 import objc  # noqa: E402
-from Foundation import NSBundle, NSDictionary, NSMutableURLRequest, NSObject, NSURL  # noqa: E402
+from Foundation import (NSAttributedString, NSBundle, NSDictionary, NSMutableURLRequest,  # noqa: E402
+                        NSObject, NSString, NSURL)
 
 from winzapp_mac import provenance as P, sparkle_mac as sm, sparkle_policy as S  # noqa: E402
 
@@ -43,6 +47,7 @@ FRAMEWORK = os.path.join(ROOT, "macos", "cache", "sparkle-2.10.0", "Sparkle.fram
 
 _RealThread = threading.Thread      # the fixture makes sm's threads run inline
 _RealBarrier = threading.Barrier
+_REAL_MAKE_NOTES = sm._make_notes   # the fixture stubs it: no network in tests
 
 _lib = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
 _lib.sel_registerName.restype = ctypes.c_void_p
@@ -126,11 +131,14 @@ def bridge(monkeypatch):
                                        "delegate": None, "checking": "", "user_waiting": False,
                                        "offered": "", "offered_item": None, "outstanding": None,
                                        "slot": None, "installing": False, "closed_accounts": [],
-                                       "quitting": False, "cancel_deadline": None,
-                                       "driver_delegate": None, "immediate_focus": False,
-                                       "user_initiated": False})
+                                       "quitting": False, "driver_delegate": None,
+                                       "immediate_focus": False, "user_initiated": False})
     monkeypatch.setattr(sm, "SLOT_WAIT", 0)
     monkeypatch.setattr(sm, "_verdicts", {})
+    # No network: WinZapp's notes are made empty unless a test says otherwise.
+    monkeypatch.setattr(sm, "_notes", {})
+    monkeypatch.setattr(sm, "_pending_show", {"token": None})
+    monkeypatch.setattr(sm, "_make_notes", lambda tag, locale: "")
     sm._state["shown"] = shown
     return sm.WinZappSparkleDelegate.alloc().init()
 
@@ -343,11 +351,42 @@ class TestInstallChosenInTheUpdateWindow:
         replies, shown = _found(item())
         assert replies == [S.CHOICE_DISMISS] and shown == []
 
-    def test_an_install_prepared_by_another_process_is_left_alone(self, bridge):
-        """Never Skip there: it would cancel that process's installer and hide
-        the release from every account's scheduled checks."""
+    def test_an_update_downloaded_in_the_background_is_offered_to_install_now(self, bridge, monkeypatch):
+        """Sparkle's next check after a background download shows it as
+        downloaded (SPUUIBasedUpdateDriver.m:236-237); Install there installs
+        and relaunches at once, after the other accounts quit."""
+        monkeypatch.setattr(sm, "_other_accounts", lambda mw: [])
+        monkeypatch.setattr(sm, "_claim_update_slot", lambda mw: {"owner_token": "t"})
         replies, shown = [], []
         sm.on_update_found(_item(), S.STAGE_INSTALLING, replies.append, shown.append)
+        assert replies == [] and len(shown) == 1
+        shown[0](S.CHOICE_INSTALL)
+        assert replies == [S.CHOICE_INSTALL]
+        # installing: the slot stays held through the quit Sparkle sends next
+        assert sm._state["installing"] is True and sm._state["mw"].spoken[-1] == "update_installing"
+
+    def test_skipping_a_downloaded_update_forgets_it(self, bridge, tmp_path):
+        """Skip there cancels its installer (SPUUIBasedUpdateDriver.m:297-298):
+        no account must end the others for it any more."""
+        sm._state["mw"].global_dir = str(tmp_path)
+        sm._record_armed(TAG)
+        replies, shown = [], []
+        sm.on_update_found(_item(), S.STAGE_INSTALLING, replies.append, shown.append)
+        shown[0](S.CHOICE_SKIP)
+        assert replies == [S.CHOICE_SKIP]
+        assert not (tmp_path / sm.accounts.ARMED_FILE).exists()
+
+    def test_later_on_a_downloaded_update_keeps_it_for_the_quit(self, bridge, tmp_path):
+        sm._state["mw"].global_dir = str(tmp_path)
+        sm._record_armed(TAG)
+        replies, shown = [], []
+        sm.on_update_found(_item(), S.STAGE_INSTALLING, replies.append, shown.append)
+        shown[0](S.CHOICE_DISMISS)
+        assert replies == [S.CHOICE_DISMISS] and (tmp_path / sm.accounts.ARMED_FILE).exists()
+
+    def test_a_state_sparkle_could_not_give_is_refused_not_offered_to_install_now(self, bridge):
+        replies, shown = [], []
+        sm.on_update_found(_item(), None, replies.append, shown.append)
         assert replies == [S.CHOICE_DISMISS] and shown == []
 
     def test_a_window_that_cannot_be_shown_refuses(self, bridge):
@@ -423,16 +462,15 @@ class TestReadyToInstall:
         assert replies == [S.CHOICE_SKIP]
 
     def test_two_answers_race_and_sparkle_gets_exactly_one(self, bridge, monkeypatch):
-        """A quit (shutdown thread) and the check's end (main thread) answer
-        the same reply: the lock lets one through."""
-        monkeypatch.setattr(sm, "CANCEL_CONFIRM_SECONDS", 0)
+        """A cancel and the check's end answer the same reply from two
+        threads: the lock lets one through."""
         replies, user, released = self._ready(monkeypatch, (True, "ok"))
         reply = sm._state["outstanding"]
         barrier = _RealBarrier(2, timeout=5)
 
         def quit_now():
             barrier.wait()
-            sm.cancel_pending_install()
+            sm.on_ready_choice(S.CHOICE_SKIP, reply)
 
         def check_ends():
             barrier.wait()
@@ -495,86 +533,41 @@ class TestReadyToInstallIsHeard:
 
 
 class TestQuitting:
-    def _sparkle_ends_the_cycle(self, delegate, replies):
-        """What Sparkle does with Skip at Ready to Install: ends the update
-        cycle, which reaches the delegate (SPUUpdater.m:781-812)."""
-        def reply(choice):
-            replies.append(choice)
-            _send(None, delegate, b"updater:didFinishUpdateCycleForUpdateCheck:error:",
-                  _obj(delegate), (ctypes.c_long, 0), (_ID, None))
-        return reply
-
-    def test_quitting_at_ready_to_install_cancels_and_waits_for_sparkle(self, bridge, monkeypatch):
-        replies = []
-        sm._state["offered"] = TAG
+    def test_quitting_at_ready_to_install_leaves_the_install_to_sparkle(self, bridge, monkeypatch, caplog):
+        """Sparkle installs a prepared update when the app ends
+        (AppInstaller.m:731-744): nothing is answered, and the slot stays
+        held until this process is gone, so no account starts under it."""
+        import logging as _logging
+        caplog.set_level(_logging.INFO)
+        released, replies = [], []
+        monkeypatch.setattr(sm, "_release_update_slot", lambda: released.append(True))
+        sm._state["slot"], sm._state["offered"] = {"owner_token": "t"}, TAG
         sm.on_ready_to_install(replies.append, lambda r: None)
-        sm._cycle_done.set()                             # a stale confirmation must not count
-        sm._state["outstanding"] = self._sparkle_ends_the_cycle(bridge, replies)
-        started = sm.time.monotonic()
         sm.on_quit()
-        assert replies == [S.CHOICE_SKIP] and sm._state["outstanding"] is None
-        assert sm._cycle_done.is_set()
-        assert sm.time.monotonic() - started < sm.CANCEL_CONFIRM_SECONDS
-        sm.cancel_pending_install()                      # answered once only
-        assert replies == [S.CHOICE_SKIP]
+        assert replies == [] and released == [] and sm._state["outstanding"] is not None
+        assert "Sparkle installs v2.1.0.4258alpha on quit" in caplog.text
 
     def test_quitting_at_ready_to_install_reopens_nothing(self, bridge, monkeypatch):
-        """The review's repro: the cycle Sparkle ends during the quit must
-        not start the closed accounts again, nor speak, during a shutdown."""
-        spawned, released = [], []
+        """The cycle Sparkle ends during the quit must not start the closed
+        accounts again, nor speak, during a shutdown."""
+        spawned = []
         monkeypatch.setattr(sm.subprocess, "Popen", lambda cmd, **kw: spawned.append(cmd))
-        monkeypatch.setattr(sm, "_release_update_slot",
-                            lambda: released.append(True) or sm._state.update(slot=None))
         sm._state["closed_accounts"] = ["acc2"]
         sm._state["slot"] = {"owner_token": "t"}
         sm._state["offered"] = TAG
-        sm._state["outstanding"] = self._sparkle_ends_the_cycle(bridge, [])
+        sm._state["outstanding"] = lambda choice: None
         sm.on_quit()                                     # Cmd+Q / logout / SIGTERM
+        sm._update_abandoned()
         assert spawned == []
         assert "mac_update_reopened_other_accounts" not in sm._state["mw"].spoken
-        assert released                                  # the slot still goes back
 
-    def test_a_second_quit_waits_for_the_first_ones_cancel(self, bridge, monkeypatch):
-        """A signal during the first quit's wait: the second on_quit (after
-        which main.py os._exits) returns only once Sparkle confirmed."""
-        replies, seen = [], []
-        sm._state["offered"] = TAG
-        sm._state["outstanding"] = replies.append       # Sparkle has not confirmed yet
-
-        def second_quit_mid_wait(choice):
-            replies.append(choice)
-            _RealThread(target=lambda: (time.sleep(0.3), sm._cycle_done.set())).start()
-            sm.on_quit()                                 # re-entrant, as from a signal handler
-            seen.append(sm._cycle_done.is_set())
-        sm._state["outstanding"] = second_quit_mid_wait
-        sm.on_quit()
-        assert replies == [S.CHOICE_SKIP] and seen == [True]
-
-    def test_no_confirmation_is_logged_and_the_quit_goes_on(self, bridge, monkeypatch, caplog):
-        monkeypatch.setattr(sm, "CANCEL_CONFIRM_SECONDS", 0.05)
-        replies = []
-        sm._state["outstanding"] = replies.append
-        sm.cancel_pending_install()
-        assert replies == [S.CHOICE_SKIP]
-        assert "did not confirm the cancel" in caplog.text
-
-    def test_a_late_answer_after_the_quit_is_dropped(self, bridge, monkeypatch):
-        monkeypatch.setattr(sm, "CANCEL_CONFIRM_SECONDS", 0)
-        replies = []
-        sm._state["outstanding"] = replies.append
-        reply = sm._state["outstanding"]
-        sm.cancel_pending_install()
-        sm._ready_checked(reply, TAG, sm._item(_item()), (True, "ok"))
-        assert replies == [S.CHOICE_SKIP]
-
-    def test_the_cycle_end_confirms_and_gives_an_unused_slot_back(self, bridge, monkeypatch):
+    def test_the_cycle_end_gives_an_unused_slot_back(self, bridge, monkeypatch):
         released = []
         monkeypatch.setattr(sm, "_release_update_slot", lambda: released.append(True))
         sm._state["slot"] = {"owner_token": "t"}
-        sm._cycle_done.clear()
         _send(None, bridge, b"updater:didFinishUpdateCycleForUpdateCheck:error:",
               _obj(bridge), (ctypes.c_long, 0), (_ID, None))
-        assert sm._cycle_done.is_set() and released == [True]
+        assert released == [True]
         released.clear()
         sm._state["installing"] = True                   # Install confirmed: held until we exit
         _send(None, bridge, b"updater:didFinishUpdateCycleForUpdateCheck:error:",
@@ -582,25 +575,245 @@ class TestQuitting:
         assert released == []
 
     def test_every_quit_path_goes_through_on_quit_first(self, bridge, monkeypatch):
-        from main_window import session_lifecycle, settings, updates, window_lifecycle
+        from main_window import session_lifecycle, settings, updates, window_chrome, window_lifecycle
         for owner, name in ((updates.UpdatesMixin, "_start_update_checker"),
                             (updates.UpdatesMixin, "_on_force_update"),
                             (window_lifecycle.WindowLifecycleMixin, "_perform_shutdown"),
+                            (window_lifecycle.WindowLifecycleMixin, "real_exit"),
+                            (window_chrome.WindowChromeMixin, "quit_all_accounts"),
                             (session_lifecycle.SessionLifecycleMixin, "_on_query_end_session"),
                             (settings.SettingsMixin, "choose_global_settings"),
                             (settings.SettingsMixin, "_apply_pulled_global_settings")):
             monkeypatch.setattr(owner, name, getattr(owner, name))      # restored after the test
+        monkeypatch.setattr(window_chrome.WindowChromeMixin, "quit_all_accounts",
+                            lambda self: order.append("quit all"))
         order = []
         monkeypatch.setattr(window_lifecycle.WindowLifecycleMixin, "_perform_shutdown",
                             lambda self: order.append("teardown") or True)
+        monkeypatch.setattr(window_lifecycle.WindowLifecycleMixin, "real_exit",
+                            lambda self: order.append("real_exit"))
         monkeypatch.setattr(session_lifecycle.SessionLifecycleMixin, "_on_query_end_session",
                             lambda self, event: order.append("query"))
         monkeypatch.setattr(sm, "enabled", lambda: True)
         monkeypatch.setattr(sm, "on_quit", lambda: order.append("on_quit"))
+        ends_all = [False]
+        monkeypatch.setattr(sm, "_end_all_for_install",
+                            lambda mw: order.append("end all?") or ends_all[0])
         sm.install()
         window_lifecycle.WindowLifecycleMixin._perform_shutdown(object())
         session_lifecycle.SessionLifecycleMixin._on_query_end_session(object(), None)
-        assert order == ["on_quit", "teardown", "on_quit", "query"]
+        window_lifecycle.WindowLifecycleMixin.real_exit(object())
+        ends_all[0] = True                               # it took this exit over
+        window_lifecycle.WindowLifecycleMixin.real_exit(object())
+        assert order == ["on_quit", "teardown", "on_quit", "query",
+                         "end all?", "real_exit", "end all?"]
+        # Exit / Cmd-Q already asks every account: its real_exit() does not
+        # ask (and wait for) one that did not answer a second time.
+        account = type("Account", (), {})()
+        window_chrome.WindowChromeMixin.quit_all_accounts(account)
+        assert order[-1] == "quit all" and account._sparkle_ending_all is True
+
+
+class _Ending:
+    """The account calling real_exit(): what _end_all_for_install uses of it."""
+
+    def __init__(self, gd):
+        self.global_dir, self.account_id = gd, "acc1"
+        self.spoken, self.quit_all = [], []
+
+        class I18n:
+            def t(self, key):
+                return key
+        self.i18n = I18n()
+
+    def output(self, text, interrupt=False):
+        self.spoken.append(text)
+
+    def quit_all_accounts(self):
+        self.quit_all.append(True)
+
+
+class TestAnUpdateDownloadedInTheBackground:
+    """Sparkle's automatic driver downloads a release that passed the veto and
+    leaves its installer waiting for the app to end; that installer watches
+    one account process only (InstallerProgressAppController.m:298)."""
+
+    def _will_install_on_quit(self, delegate, item):
+        return _send(ctypes.c_bool, delegate,
+                     b"updater:willInstallUpdateOnQuit:immediateInstallationBlock:",
+                     _obj(delegate), _obj(item), (_ID, None))
+
+    def test_it_is_recorded_for_every_account_and_sparkle_ends_the_cycle(self, bridge, tmp_path):
+        sm._state["mw"].global_dir = str(tmp_path)
+        item = _item()
+        # NO: Sparkle ends the cycle, its next check shows the update.
+        assert self._will_install_on_quit(bridge, item) is False
+        record = json.loads((tmp_path / sm.accounts.ARMED_FILE).read_text())
+        assert record == {"tag": TAG}
+
+    def test_an_item_that_names_no_tag_is_not_recorded(self, bridge, tmp_path):
+        sm._state["mw"].global_dir = str(tmp_path)
+        item = _item()
+        item._display = "not a version"
+        assert self._will_install_on_quit(bridge, item) is False
+        assert not (tmp_path / sm.accounts.ARMED_FILE).exists()
+
+    @pytest.mark.parametrize("tag, running, want", [
+        (TAG, True, TAG),
+        (TAG, None, TAG),               # launchd could not be asked: the record counts
+        (TAG, False, ""),               # cancelled or finished
+        (RUNNING, True, ""),            # installed: the app runs it now
+    ])
+    def test_a_record_counts_only_while_it_holds(self, bridge, tmp_path, monkeypatch, tag, running, want):
+        sm._state["mw"].global_dir = str(tmp_path)
+        monkeypatch.setattr(sm, "_installer_running", lambda: running)
+        sm._record_armed(tag)
+        assert sm.armed_install() == want
+        assert (tmp_path / sm.accounts.ARMED_FILE).exists() is bool(want)
+
+    def test_launchd_is_asked_about_sparkles_installer_job(self, bridge, monkeypatch):
+        monkeypatch.setattr(sm.updater_mac, "_info",
+                            lambda: dict(INFO, CFBundleIdentifier="com.example.winzapp"))
+        asked = []
+
+        class Done:
+            returncode, stdout = 0, '{\n\t"PID" = 4242;\n};'
+        monkeypatch.setattr(sm.subprocess, "run", lambda cmd, **kw: asked.append(cmd) or Done())
+        assert sm._installer_running() is True
+        assert asked == [["launchctl", "list", "com.example.winzapp-sparkle-updater"]]
+        monkeypatch.setattr(sm.subprocess, "run", lambda cmd, **kw: 1 / 0)
+        assert sm._installer_running() is None
+
+    def test_ending_one_account_ends_them_all_and_reopens_the_others(self, bridge, tmp_path, monkeypatch):
+        mw = _Ending(str(tmp_path))
+        spawned = []
+        monkeypatch.setattr(sm, "armed_install", lambda mw=None: TAG)
+        monkeypatch.setattr(sm, "_other_accounts", lambda mw: ["acc2", "acc3"])
+        monkeypatch.setattr(sm, "_installer_job", lambda: "com.example.winzapp-sparkle-updater")
+        monkeypatch.setattr(sm.subprocess, "Popen",
+                            lambda cmd, **kw: spawned.append((cmd, kw.get("start_new_session"))))
+        assert sm._end_all_for_install(mw) is True
+        assert mw.quit_all == [True] and mw.spoken == ["update_closing_other_accounts"]
+        (cmd, detached), = spawned
+        assert detached is True and cmd[:2] == ["/bin/sh", "-c"]
+        assert cmd[-2:] == ["acc2", "acc3"] and "com.example.winzapp-sparkle-updater" in cmd
+        assert str(os.getpid()) in cmd
+        # quit_all_accounts() comes back to real_exit() once the others are gone
+        assert sm._end_all_for_install(mw) is False and len(spawned) == 1
+
+    @pytest.mark.parametrize("armed, others", [("", ["acc2"]), (TAG, [])])
+    def test_otherwise_only_this_account_ends(self, bridge, tmp_path, monkeypatch, armed, others):
+        mw = _Ending(str(tmp_path))
+        monkeypatch.setattr(sm, "armed_install", lambda mw=None: armed)
+        monkeypatch.setattr(sm, "_other_accounts", lambda mw: others)
+        monkeypatch.setattr(sm.subprocess, "Popen", lambda cmd, **kw: pytest.fail("spawned"))
+        assert sm._end_all_for_install(mw) is False and mw.quit_all == []
+
+    def test_a_failure_lets_this_account_end_as_it_would(self, bridge, tmp_path, monkeypatch):
+        monkeypatch.setattr(sm, "armed_install", lambda mw=None: 1 / 0)
+        assert sm._end_all_for_install(_Ending(str(tmp_path))) is False
+
+
+class TestReleaseNotes:
+    """WinZapp's own notes in Sparkle's window (sparkle_notes.py)."""
+
+    def test_the_window_opens_with_winzapps_notes_ready(self, bridge, monkeypatch):
+        made = []
+        monkeypatch.setattr(sm, "_make_notes", lambda tag, locale: made.append((tag, locale)) or "What changed")
+        replies, shown = _found()
+        assert made == [(TAG, "en-US")] and len(shown) == 1
+        assert sm._notes[(TAG, "en-US")] == "What changed"
+        _found()                                         # made once per tag and language
+        assert len(made) == 1
+
+    def test_notes_that_are_late_do_not_hold_the_window_or_open_it_twice(self, bridge, monkeypatch):
+        monkeypatch.setattr(sm, "_make_notes", lambda tag, locale: "late notes")
+        later = []
+        monkeypatch.setattr(sm.wx, "CallLater", lambda ms, fn, *a: later.append(fn))
+        works = []
+        monkeypatch.setattr(sm.threading, "Thread",
+                            lambda target, **kw: type("T", (), {"start": lambda self: works.append(target)})())
+        replies, shown = _found()
+        assert shown == []
+        later[0]()                                       # NOTES_WAIT_MS passed
+        assert len(shown) == 1
+        works[0]()                                       # the notes arrive after all
+        assert len(shown) == 1 and (TAG, "en-US") in sm._notes
+
+    def test_a_check_that_ended_while_its_notes_were_fetched_opens_no_window(self, bridge, monkeypatch):
+        """The user closed "Checking for updates" (or Sparkle aborted) during
+        the wait: no window for a dead check, its reply left alone, and so no
+        Install that would close the other accounts and hold the slot."""
+        later = []
+        monkeypatch.setattr(sm.wx, "CallLater", lambda ms, fn, *a: later.append(fn))
+        works = []
+        monkeypatch.setattr(sm.threading, "Thread",
+                            lambda target, **kw: type("T", (), {"start": lambda self: works.append(target)})())
+        replies, shown = _found()
+        _send(None, bridge, b"updater:didFinishUpdateCycleForUpdateCheck:error:",
+              _obj(bridge), (ctypes.c_long, 0), (_ID, None))
+        later[0]()
+        works[0]()
+        assert shown == [] and replies == []
+
+    def test_sparkle_dismissing_the_session_drops_the_waiting_window(self, bridge, monkeypatch):
+        monkeypatch.setattr(sm.wx, "CallLater", lambda ms, fn, *a: None)
+        works = []
+        monkeypatch.setattr(sm.threading, "Thread",
+                            lambda target, **kw: type("T", (), {"start": lambda self: works.append(target)})())
+        replies, shown = _found()
+        sm._forget_pending_show("Sparkle ended the update session")   # dismissUpdateInstallation
+        works[0]()
+        assert shown == [] and replies == []
+        replies, shown = _found()                        # the next check opens its window
+        works[1]()
+        assert len(shown) == 1
+
+    def test_notes_that_could_not_be_made_are_asked_for_again(self, bridge, monkeypatch):
+        made = []
+        monkeypatch.setattr(sm, "_make_notes", lambda tag, locale: made.append(tag) or "")
+        _found()
+        _found()
+        assert made == [TAG, TAG] and sm._notes == {}
+
+    def _driver_delegate_says(self, original, item):
+        driver_delegate = sm.WinZappSparkleUserDriverDelegate.alloc().init()
+        display = NSString.stringWithString_("2.1.0.4250alpha").nsstring()
+        version = NSString.stringWithString_("2.1.0.42501").nsstring()
+        got = _send(_ID, driver_delegate,
+                    b"standardUserDriverWillShowReleaseNotesText:forUpdate:withBundleDisplayVersion:bundleVersion:",
+                    _obj(original), _obj(item), _obj(display), _obj(version))
+        return objc.objc_object(c_void_p=got) if got else None
+
+    def test_sparkle_gets_winzapps_notes_in_its_own_font(self, bridge):
+        from AppKit import NSFont, NSFontAttributeName
+        font = NSFont.systemFontOfSize_(13)
+        original = NSAttributedString.alloc().initWithString_attributes_(
+            "V2.1.0.0 the appcast's", {NSFontAttributeName: font})
+        sm._notes[(TAG, "en-US")] = "Release notes:\n\n- Calls."
+        item = _item()
+        got = self._driver_delegate_says(original, item)
+        assert got.string() == "Release notes:\n\n- Calls."
+        assert got.attributesAtIndex_effectiveRange_(0, None)[0][NSFontAttributeName] == font
+
+    def test_without_them_the_appcasts_notes_stay(self, bridge):
+        original = NSAttributedString.alloc().initWithString_("the appcast's")
+        item = _item()
+        assert self._driver_delegate_says(original, item) is None
+        sm._notes[(TAG, "en-US")] = ""                   # made, but nothing to say
+        assert self._driver_delegate_says(original, item) is None
+
+    def test_notes_are_made_from_the_running_tag_and_the_users_language(self, bridge, monkeypatch):
+        monkeypatch.setattr(sm, "_make_notes", _REAL_MAKE_NOTES)
+        calls = []
+        monkeypatch.setattr(sm.sparkle_notes, "offer_notes",
+                            lambda running, tag, locale, t, fetch, installed:
+                            calls.append((running, tag, locale)) or "x")
+        sm._state["mw"].i18n.language = "pl"
+        assert sm._make_notes(TAG, sm._locale()) == "x"
+        assert calls == [(RUNNING, TAG, "pl")]
+        monkeypatch.setattr(sm.sparkle_notes, "offer_notes", lambda *a: 1 / 0)
+        assert sm._make_notes(TAG, "pl") == ""
 
 
 class TestWhenTheUpdateDoesNotInstall:
@@ -690,6 +903,9 @@ class FakeUpdateState(NSObject):
     def userInitiated(self):
         return self._user
 
+    def stage(self):
+        return getattr(self, "_stage", S.STAGE_NOT_DOWNLOADED)
+
 
 class TestScheduledUpdateReminders:
     """Sparkle's standard window waits for WinZapp to be activated
@@ -706,13 +922,13 @@ class TestScheduledUpdateReminders:
         sm._state["mw"].i18n.t = lambda key: {"mac_update_available_reminder": "new {new_version}"}.get(key, key)
         return sm.WinZappSparkleUserDriverDelegate.alloc().init(), posted, removed
 
-    def _will_show(self, driver_delegate, user, immediate):
+    def _will_show(self, driver_delegate, user, immediate, stage=S.STAGE_NOT_DOWNLOADED):
         item = _item()          # held: _obj() passes a bare pointer
         _send(ctypes.c_bool, driver_delegate,
               b"standardUserDriverShouldHandleShowingScheduledUpdate:andInImmediateFocus:",
               _obj(item), (ctypes.c_bool, immediate))
         state = FakeUpdateState.alloc().init()
-        state._user = user
+        state._user, state._stage = user, stage
         _send(None, driver_delegate, b"standardUserDriverWillHandleShowingUpdate:forUpdate:state:",
               (ctypes.c_bool, True), _obj(item), _obj(state))
 
@@ -735,6 +951,14 @@ class TestScheduledUpdateReminders:
         assert (ident, title, body) == (sm.UPDATE_NOTIFICATION, "update_available_title", "new 2.1.0.4258alpha")
         on_open()                               # activating it opens Sparkle's window
         assert rechecks == [True]
+
+    def test_an_update_downloaded_in_the_background_says_it_installs_on_quit(self, reminders):
+        driver_delegate, posted, _ = reminders
+        sm._state["mw"].i18n.t = lambda key: {
+            "mac_update_downloaded_reminder": "downloaded {new_version}"}.get(key, key)
+        self._will_show(driver_delegate, user=False, immediate=False, stage=S.STAGE_INSTALLING)
+        assert sm._state["mw"].spoken == ["downloaded 2.1.0.4258alpha"]
+        assert posted[0][2] == "downloaded 2.1.0.4258alpha"
 
     def test_a_check_the_user_asked_for_is_not_announced(self, reminders):
         driver_delegate, posted, _ = reminders
@@ -811,21 +1035,28 @@ class TestScheduledChecks:
         assert set(got) == set()
 
     def test_turning_automatic_checks_on_or_off_applies_at_once(self, bridge, monkeypatch):
+        """The one switch: scheduled checks and their background download."""
         class Updater:
-            auto = False
+            auto = downloads = False
 
             def automaticallyChecksForUpdates(self):
                 return self.auto
 
             def setAutomaticallyChecksForUpdates_(self, value):
                 self.auto = value
+
+            def automaticallyDownloadsUpdates(self):
+                return self.downloads
+
+            def setAutomaticallyDownloadsUpdates_(self, value):
+                self.downloads = value
         sm._state["updater"] = Updater()
         sm._state["mw"].settings = {"general": {"updates_enabled": True}}
         sm._sync_automatic_checks()
-        assert sm._state["updater"].auto is True
+        assert sm._state["updater"].auto is True and sm._state["updater"].downloads is True
         sm._state["mw"].settings = {"general": {"updates_enabled": False}}
         sm._sync_automatic_checks()
-        assert sm._state["updater"].auto is False
+        assert sm._state["updater"].auto is False and sm._state["updater"].downloads is False
 
 
 @pytest.mark.skipif(not os.path.isdir(FRAMEWORK), reason="Sparkle not unpacked (run build_app.py)")
@@ -857,6 +1088,38 @@ def test_the_user_driver_subclass_receives_and_answers_sparkles_blocks(bridge, m
         assert got == [S.CHOICE_SKIP, (S.STAGE_INSTALLING, True), S.CHOICE_DISMISS]
 
 
+@pytest.mark.skipif(not os.path.isdir(FRAMEWORK), reason="Sparkle not unpacked (run build_app.py)")
+@pytest.mark.parametrize("protocol, owner, selector", [
+    ("SPUUpdaterDelegate", sm.WinZappSparkleDelegate,
+     b"updater:willInstallUpdateOnQuit:immediateInstallationBlock:"),
+    ("SPUStandardUserDriverDelegate", sm.WinZappSparkleUserDriverDelegate,
+     b"standardUserDriverWillShowReleaseNotesText:forUpdate:withBundleDisplayVersion:bundleVersion:"),
+])
+def test_the_new_delegate_methods_have_sparkles_own_types(protocol, owner, selector):
+    """Sparkle calls these with the types its protocols declare; a method
+    PyObjC registered with others would read its arguments wrongly. (BOOL is
+    "B" in Sparkle's build and "Z" in PyObjC's spelling, the same C type.)"""
+    assert NSBundle.bundleWithPath_(FRAMEWORK).load()
+    _, want = objc.protocolNamed(protocol).descriptionForInstanceMethod_(selector)
+    got = owner.instanceMethodSignatureForSelector_(selector)
+    types = [got.methodReturnType()] + [got.getArgumentTypeAtIndex_(i) for i in range(got.numberOfArguments())]
+    assert b"".join(types).replace(b"Z", b"B") == want.replace(b"Z", b"B")
+
+
+@pytest.mark.skipif(not os.path.isdir(FRAMEWORK), reason="Sparkle not unpacked (run build_app.py)")
+def test_the_user_driver_subclass_drops_a_waiting_window_when_sparkle_dismisses(bridge):
+    """dismissUpdateInstallation reaches the override, then Sparkle's own."""
+    assert NSBundle.bundleWithPath_(FRAMEWORK).load()
+    try:            # made once per process: the class may exist from another test
+        cls = objc.lookUpClass("WinZappSparkleUserDriver")
+    except objc.nosuchclass_error:
+        cls = sm._user_driver_class()
+    driver = cls.alloc().initWithHostBundle_delegate_(NSBundle.mainBundle(), None)
+    sm._pending_show["token"] = object()
+    driver.dismissUpdateInstallation()
+    assert sm._pending_show["token"] is None
+
+
 def test_off_without_sparkle_keys(monkeypatch):
     """A build without the keys (every build until the release workflow sets
     WINZAPP_SPARKLE_PUBLIC_KEY) keeps updater_mac, untouched."""
@@ -871,7 +1134,10 @@ def test_off_without_sparkle_keys(monkeypatch):
 
 def test_a_sparkle_that_cannot_start_falls_back_to_winzapps_updater(monkeypatch):
     from main_window import session_lifecycle, settings, updates, window_lifecycle
+    from main_window import window_chrome
     for owner, name in ((window_lifecycle.WindowLifecycleMixin, "_perform_shutdown"),
+                        (window_lifecycle.WindowLifecycleMixin, "real_exit"),
+                        (window_chrome.WindowChromeMixin, "quit_all_accounts"),
                         (session_lifecycle.SessionLifecycleMixin, "_on_query_end_session"),
                         (settings.SettingsMixin, "choose_global_settings"),
                         (settings.SettingsMixin, "_apply_pulled_global_settings")):
