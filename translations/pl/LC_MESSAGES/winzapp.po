@@ -14855,7 +14855,7 @@ msgid ""
 "Precede names of unsaved contacts with a tilde (~) in conversations and "
 "messages"
 msgstr ""
-"Poprzedzaj nazwy niezapisanych kontaktów znakiem tyldy (~) w rozmowach i "
+"Poprzedzaj nazwy niezapisanych kontaktów znakiem tyldy (~) w czatach i "
 "wiadomościach"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
