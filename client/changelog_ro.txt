@@ -104,7 +104,7 @@ NOUTĂȚI
 
 - WinZapp se deschide mai repede. Când contul este deja conectat, fereastra principală și conversațiile apar imediat, în timp ce WPPConnect pornește și WhatsApp se conectează în fundal, în loc să apară abia după fereastra "Se pornește WPPConnect, așteptați...". Mesajele trimise între timp așteaptă și pleacă de îndată ce WhatsApp este conectat. Prima pornire și un cont care încă trebuie asociat afișează fereastra respectivă ca înainte. Titlul ferestrei arată „se pornește WPPConnect...” până când este gata. Același lucru este valabil pentru actualizările WPPConnect și reinstalările forțate: nicio fereastră nu vă stă în cale.
 
-- macOS: versiunile de lansare se actualizează acum prin ferestrele standard Sparkle 2, pe care VoiceOver le citește bine. „Verificați actualizările”, verificarea automată la fiecare 3 ore și „Verificați actualizările alfa” deschid Sparkle. Înainte de a oferi o versiune, când alegeți Instalează și încă o dată la „Gata de instalare”, WinZapp verifică dacă eticheta versiunii există în depozitul oficial, indică commitul declarat și este mai nouă decât versiunea utilizată; dacă oricare dintre acestea eșuează sau GitHub nu poate fi contactat, actualizarea este anulată și motivul este afișat. Când alegeți Instalează, celelalte conturi se închid și niciun cont nu poate porni până la sfârșitul actualizării; dacă actualizarea nu se instalează, ele se redeschid. O actualizare găsită în fundal este anunțată vocal și printr-o notificare, iar „Gata de instalare” este de asemenea anunțat. Blocările de cont rămase de la închideri anterioare nu mai împiedică actualizările și pornirea pe Mac.
+- macOS: versiunile de lansare se actualizează acum prin ferestrele standard Sparkle 2, pe care VoiceOver le citește bine. „Verificați actualizările” (în meniul WinZapp, sub Despre WinZapp, și în Ajutor), verificarea automată la fiecare 3 ore și „Verificați actualizările alfa” deschid Sparkle. Cu verificarea automată activată, actualizarea este descărcată în fundal și instalată când ieșiți din WinZapp, ca în alte aplicații Mac; cât timp WinZapp rămâne deschis, Sparkle oferă „Instalează și Redeschide” la următoarea verificare, iar actualizarea este anunțată vocal și printr-o notificare. Fereastra de actualizare spune ce s-a schimbat față de versiunea utilizată, ca „Ce este nou?” din Windows, iar pentru o versiune alfa enumeră pull requesturile fiecărei versiuni alfa de la a dumneavoastră. Înainte de a oferi sau descărca o versiune, WinZapp verifică dacă eticheta versiunii există în depozitul oficial, indică commitul declarat și este mai nouă decât versiunea utilizată; dacă oricare dintre acestea eșuează sau GitHub nu poate fi contactat, actualizarea nu este oferită, iar când ați verificat dumneavoastră motivul este afișat. Celelalte conturi se închid înainte de instalarea actualizării și se redeschid după aceea. Blocările de cont rămase de la închideri anterioare nu mai împiedică actualizările și pornirea pe Mac.
 
 - Progres rostit pentru sincronizare și descărcarea media: în timpul unei sincronizări (a celei complete, la prima asociere sau la F5, dar și, la deschiderea WinZapp, a actualizării conversațiilor modificate) și al descărcării media care urmează, WinZapp afișează în titlul ferestrei și rostește, cam la fiecare 5 secunde, cât a făcut: „Se sincronizează conversațiile: 12 din 80” și „Descărcare media: 30 din 120 procesate (8 descărcate)”. Înainte nu se auzea nimic între anunțul de început și cel de sfârșit, iar o sincronizare lungă părea blocată. „Procesate” include și fișierele media care nu au trebuit descărcate (erau deja pe computer, de exemplu), iar totalul cuprinde doar ce mai permit setările de Stocare să fie descărcat, nu tot istoricul. Progresul respectă opțiunea „Anunțați sincronizarea, descărcări media și modul offline automat” din Setări > Generale și nu este rostit când WinZapp pornește în fundal sau în timpul unui apel vocal; verificarea automată care rulează în fiecare minut rămâne silențioasă. În Setări > Conținut vorbit, casetele „Anunțați la câteva secunde progresul sincronizării conversațiilor” și „Anunțați la câteva secunde progresul descărcării media”, bifate implicit, dezactivează separat fiecare dintre aceste anunțuri; titlul ferestrei continuă să afișeze numerele.
 
@@ -118,9 +118,17 @@ NOUTĂȚI
 
 - Ajutor > "Ghid de utilizare" deschide, în browserul implicit, ghidul complet de folosire a programului, în limba aleasă: unde se află fiecare funcție, comenzile rapide și ce spune cititorul de ecran. Are căutare și meniu de secțiuni, iar tabelele de comenzi rapide vin direct din program.
 
+- Curățarea fișierelor media: Setări > Stocare > „Curățarea fișierelor media" eliberează spațiu pe disc ștergând fișierele media descărcate din conversațiile alese; mesajele rămân. Alegi conversațiile, tipurile de media și o dimensiune minimă, „Adună datele" arată câte fișiere și MB corespund fără a șterge nimic, iar „Continuă curățarea" cere confirmare și șterge exact ce a fost afișat. Fișierele salvate cu Salvează ca și media mesajelor netrimise nu sunt atinse niciodată, iar fișierele curățate nu mai sunt descărcate de descărcările automate sau de sincronizări până când te deconectezi sau asociezi din nou.
+
+- Transcriere și descriere online în linia mesajului, în mod automat: fereastra de rezultat al AI are acum "Pune transcrierea în linia mesajului" (mesaje vocale) și "Pune descrierea în linia mesajului" (imagini, stickere și videoclipuri). În Setări > Transcrieri și Descrieri, două opțiuni noi, dezactivate implicit, transcriu automat mesajele vocale primite și descriu imaginile, stickerele și videoclipurile primite cu furnizorii online, fără fereastră sau sunet la fiecare mesaj; activarea uneia cere consimțământul obișnuit și dezactivează transcrierea automată locală, și invers. Fereastra de date a fiecărei conversații are casetele "transcrie" și "descrie" (se aplică și transcrierii automate locale), cu alegerea între "Toate conversațiile, cu excepția celor pe care le dezactivez" și "Numai conversațiile pe care le activez". Pentru a-ți proteja cota API, alegi cât de vechi poate fi un mesaj primit ca să fie procesat (5 minute, 15, 30 sau 1 oră) și stabilești o limită zilnică de cereri online automate (50 implicit, 0 pentru nicio limită); când toți furnizorii refuză dintr-un motiv care se repetă, cum ar fi cota sau cheia, coada automată se oprește o oră și anunță o singură dată.
+
 - O conversație personală nouă sau goală indică acum, în rândul „nu există mesaje”, că mesajele și apelurile sunt criptate end-to-end și, dacă există mesaje care dispar, durata. Informațiile despre conversație menționează și criptarea.
 
 CORECTĂRI
+
+- Trimiterea mesajelor vocale și a documentelor eșua cu "Cannot read properties of undefined (reading 'prepRawMedia')" pe o versiune de WhatsApp Web lansată pe 15 octombrie, care a mutat acea funcție. WinZapp include acum versiunea corespunzătoare a bibliotecii sale WhatsApp Web (WA-JS 4.7.1). Dacă trimiterea tot eșuează după actualizare, reinstalează WPPConnect din fereastra de actualizare.
+
+- macOS: în listele de conversații și de mesaje, VoiceOver nu își mai pierde locul când un rând se schimbă, de exemplu când se schimbă numărul de mesaje necitite, cineva începe să înregistreze audio sau sosește un mesaj nou. Deschiderea unei conversații cu VoiceOver funcționează acum imediat și de fiecare dată, în loc să eșueze uneori sau să acționeze abia după o pauză, iar VoiceOver trece apoi la câmpul de mesaj; anunțuri precum cel despre mesajele fixate sunt rostite după câmp în loc să îl întrerupă.
 
 - Butoanele de înregistrare în celălalt mod (stereo sau mono) și de înregistrare cu sunetul computerului anunțau cititorului de ecran comanda rapidă Ctrl+R. Acum fiecare o anunță pe a sa, Ctrl+Shift+G și Ctrl+Shift+H, sau tastele pe care le-ați atribuit.
 
@@ -197,6 +205,22 @@ CORECTĂRI
 - Deconectarea dintr-o sesiune rămasă neterminată (de exemplu un cont care nu a terminat niciodată asocierea) primește acum un răspuns, în loc să eșueze în tăcere.
 
 - Fișierele descărcate a căror dimensiune este multiplu de 16 octeți (un APK, de exemplu) nu mai se termină cu 16 octeți în plus. Android refuza să le instaleze cu „problemă la analizarea pachetului”; acum fișierul salvat este identic cu originalul.
+
+- macOS: instalarea unei actualizări și prima pornire după ea sunt mult mai rapide. Aplicația are mult mai puține fișiere de dezarhivat (aproximativ 24.000 în loc de 61.000), serverul ei este pus la locul lui într-o fracțiune de secundă în loc de câteva secunde, copia anterioară este ștearsă în fundal, iar browserul în care rulează WhatsApp (aproximativ 190 MB) este păstrat în loc să fie descărcat din nou după fiecare actualizare.
+
+V2.0.1.0
+
+Aceasta este o versiune de întreținere a celei stabile. Actualizează doar bibliotecile WPPConnect pe care WinZapp le folosește pentru a comunica cu WhatsApp, după o schimbare în WhatsApp Web care a stricat trimiterea mesajelor vocale și a documentelor.
+
+CORECTĂRI
+
+Trimiterea mesajelor vocale și a documentelor funcționează din nou. WhatsApp Web s-a schimbat într-un mod care făcea aceste trimiteri să eșueze; WinZapp folosește acum bibliotecile WPPConnect actualizate (WPPConnect 2.3.5 și WA-JS 4.7.1), care tratează această schimbare.
+
+Serverul WPPConnect 2.10.55 este acceptat. Instalarea sau actualizarea la cel mai recent server nu se mai termină cu "npm run build failed", iar serverul pornește cu setările curente.
+
+La asocierea contului, anularea împerecherii nu mai lasă în funcțiune o buclă veche de cod QR, iar o pagină WhatsApp Web care nu termină niciodată de încărcat este abandonată acum după 60 de secunde, în loc să lase WinZapp în așteptare.
+
+Dacă ați folosit o versiune anterioară și mesajele vocale tot eșuează după actualizare, WinZapp oferă reinstalarea WPPConnect la pornire; acceptați o singură dată și noile biblioteci sunt instalate.
 
 V2.0.0.0
 

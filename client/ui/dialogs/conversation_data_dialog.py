@@ -23,7 +23,7 @@ import threading
 from datetime import datetime
 import wx
 import wx.adv
-from core import phone_contacts
+from core import conversation_auto_ai, phone_contacts
 from core.chat_notices import encryption_lines
 from core.chat_settings import chat_settings_lines
 from core.contact_identity import contact_identity_lines
@@ -329,6 +329,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         ov_sizer.Add(add_to_group_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         self._build_sound_picker(overview_page, ov_sizer)
+        self._build_auto_ai_options(overview_page, ov_sizer)
 
         overview_page.SetSizer(ov_sizer)
         self._notebook.AddPage(overview_page, self._i18n.t("group_overview_tab"))
@@ -411,6 +412,39 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
         self._sound_combo.Bind(wx.EVT_COMBOBOX, self._on_conv_sound_changed)
         self._sound_custom_field.Bind(wx.EVT_TEXT, self._on_conv_sound_custom_path_changed)
+
+    def _build_auto_ai_options(self, panel, sizer):
+        """The conversation's own say over the automatic transcription and
+        description (Settings > Transcription / Transcriptions & Descriptions).
+        Checked means "may act here"; a box only matters while the matching
+        install-wide option is on. Saved at once, like the sound."""
+        i18n = self._i18n
+        jid = self._mw._normalize_jid(self._jid)
+        self._auto_transcribe_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_transcribe_check"))
+        self._auto_transcribe_check.SetValue(
+            conversation_auto_ai.allowed(
+                self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE))
+        sizer.Add(self._auto_transcribe_check, 0, wx.ALL, 8)
+        self._auto_describe_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_describe_check"))
+        self._auto_describe_check.SetValue(
+            conversation_auto_ai.allowed(
+                self._mw.settings, jid, conversation_auto_ai.DESCRIBE))
+        sizer.Add(self._auto_describe_check, 0, wx.ALL, 8)
+        self._auto_transcribe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
+        self._auto_describe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
+
+    def _on_auto_ai_changed(self, event):
+        jid = self._mw._normalize_jid(self._jid)
+        conversation_auto_ai.set_allowed(
+            self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE,
+            self._auto_transcribe_check.GetValue())
+        conversation_auto_ai.set_allowed(
+            self._mw.settings, jid, conversation_auto_ai.DESCRIBE,
+            self._auto_describe_check.GetValue())
+        self._mw._schedule_save_settings()
+        event.Skip()
 
     def _resolve_conv_sound_preview_path(self) -> str:
         """Resolve whatever the sound combo currently has selected to an
@@ -529,6 +563,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         self._add_members_btn_overview.Bind(wx.EVT_BUTTON, self._on_add_members)
         ov_sizer.Add(self._add_members_btn_overview, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self._build_sound_picker(overview_page, ov_sizer)
+        self._build_auto_ai_options(overview_page, ov_sizer)
         overview_page.SetSizer(ov_sizer)
         self._notebook.AddPage(overview_page, self._i18n.t("group_overview_tab"))
 

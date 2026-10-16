@@ -155,7 +155,7 @@ class TestWhichCopyWins:
         assert _text_of(stored.with_known_transcription(own, None)) == "da copia"
 
     def test_a_known_other_kind_is_left_as_it_came(self):
-        image = _audio(msg_type="imageMessage")
+        image = _audio(msg_type="contactMessage")
         assert stored.with_known_transcription(image, {TRANSCRIPTION_KEY: _value()}) is image
 
     @pytest.mark.parametrize("junk", [None, "texto", 42, {"text": "sem data"}, {"at": True}])
@@ -555,7 +555,7 @@ class TestTheDatabaseKeepsIt:
         kind cannot be the same message and costs no read."""
         selects = _count_message_selects(in_memory_db, monkeypatch)
         await in_memory_db.insert_messages_batch(_JID, [
-            _audio("IMG", msg_type="imageMessage"), _audio("CIPHER", msg_type="ciphertext"),
+            _audio("IMG", msg_type="contactMessage"), _audio("CIPHER", msg_type="ciphertext"),
             _audio("DOC", msg_type="documentMessage"), _audio("GONE", msg_type="protocolMessage"),
         ])
         monkeypatch.undo()

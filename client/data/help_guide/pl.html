@@ -212,9 +212,10 @@
     <a href="#configuracoes" class="nav-link">14. Ustawienia</a>
     <a href="#privacidade" class="nav-link">15. Ustawienia WhatsApp</a>
     <a href="#copias-registros" class="nav-link">16. Kopie zapasowe i dzienniki</a>
-    <a href="#atalhos" class="nav-link">17. Skróty klawiszowe</a>
-    <a href="#solucao-problemas" class="nav-link">18. Rozwiązywanie problemów</a>
-    <a href="#registro" class="nav-link">19. Dziennik zmian przewodnika</a>
+    <a href="#mac" class="nav-link">17. WinZapp na Macu</a>
+    <a href="#atalhos" class="nav-link">18. Skróty klawiszowe</a>
+    <a href="#solucao-problemas" class="nav-link">19. Rozwiązywanie problemów</a>
+    <a href="#registro" class="nav-link">20. Dziennik zmian przewodnika</a>
   </div>
 </nav>
 
@@ -243,6 +244,7 @@
         <li><a href="#configuracoes">Ustawienia</a></li>
         <li><a href="#privacidade">Ustawienia WhatsApp</a></li>
         <li><a href="#copias-registros">Kopie zapasowe i dzienniki</a></li>
+        <li><a href="#mac">WinZapp na Macu</a></li>
         <li><a href="#atalhos">Skróty klawiszowe</a></li>
         <li><a href="#solucao-problemas">Rozwiązywanie problemów</a></li>
         <li><a href="#registro">Dziennik zmian przewodnika</a></li>
@@ -551,6 +553,7 @@
 
 <h3>Automatyczne pobieranie</h3>
 <p>W Ustawienia &gt; Pamięć opcja "Automatycznie pobieraj multimedia" włącza pobieranie multimediów, a ty wybierasz rodzaje. Odznaczenie jej zatrzymuje to, co trwa; zaznaczenie (lub zaznaczenie jeszcze jednego rodzaju) od razu zaczyna pobieranie i dotyczy też multimediów wiadomości, które przychodzą, gdy WinZapp jest otwarty. Nawet przy wszystkim wyłączonym ręczne otwarcie multimedium pobiera je w tej chwili. "Synchronizuj multimedia" (menu Synchronizacja, Ctrl+Alt+Shift+B) uruchamia pobieranie, kiedy chcesz. WinZapp ogłasza postęp głosem, na przykład "Pobieranie multimediów: 30 z 120 przetworzonych (8 pobranych)".</p>
+<p>W Ustawienia &gt; Pamięć "Czyszczenie multimediów" zwalnia miejsce na dysku, usuwając pobrane pliki multimedialne z wybranych czatów; wiadomości zostają. Wybierasz czaty (z wierszem „Zaznacz wszystkie" i filtrem grup/indywidualnych), rodzaje multimediów (zdjęcia i naklejki, filmy, nagrania audio, wiadomości głosowe, dokumenty) i minimalny rozmiar w MB. „Zbierz dane" tylko odczytuje i podaje, ile plików i ile MB pasuje, według rodzaju; „Kontynuuj czyszczenie" prosi o potwierdzenie (domyślnie Nie), a potem usuwa dokładnie to, co pokazano. Pliki zapisane przez Zapisz jako nigdy nie są ruszane, tak samo jak multimedia niewysłanych wiadomości i zabezpieczonych czatów. Wyczyszczone pliki są zapamiętywane: pobieranie automatyczne i synchronizacja nie pobierają ich ponownie, a pobranie na żądanie o tym informuje; zapomina je tylko wylogowanie lub nowe parowanie, nie F5.</p>
 
   </section>
 
@@ -632,6 +635,7 @@
   <tr><td>PDF: "Konwertuj na dostępny tekst"</td><td>Zamienia na prosty, czytelny tekst.</td></tr>
 </table>
 <p><kbd>Ctrl+Shift+I</kbd> robi to wszystko na wiadomości z fokusem. Wynik otwiera się w oknie z tekstem; przy zdjęciach i filmach możesz zadawać dodatkowe pytania (Ctrl+Enter pyta). Na karcie Status (Alt+5) przycisk "Opisz" opisuje statusy ze zdjęciem i filmem.</p>
+<p>W wyniku transkrypcji lub opisu polecenia "Umieść transkrypcję w wierszu wiadomości" i "Umieść opis w wierszu wiadomości" zachowują tekst razem z wiadomością, która pokazuje go potem w swoim wierszu na liście. W Ustawienia &gt; Transkrypcje i opisy opcje "Automatycznie transkrybuj odebrane wiadomości głosowe" i "Automatycznie opisuj odebrane obrazy, naklejki i filmy" (domyślnie wyłączone) robią to u dostawców online, bez okna, dźwięku i mowy przy każdej wiadomości; używani są tylko dostawcy już autoryzowani, a włączenie jednej opcji wyłącza lokalną transkrypcję automatyczną. Okno danych każdej rozmowy ma pola "transkrybuj" i "opisuj", a możesz wybrać wszystkie rozmowy oprócz wyłączonych albo tylko włączone. Aby oszczędzać limit, wybierasz, jak stara może być odebrana wiadomość, by została przetworzona (5 minut, 15, 30 lub 1 godzina), oraz dzienny limit automatycznych zapytań (domyślnie 50, 0 oznacza brak limitu); jeśli wszyscy dostawcy odmówią z powodu limitu lub klucza, kolejka zatrzymuje się na godzinę i informuje o tym raz.</p>
 <div class="callout warn">
   <div class="callout-title">🔒 Prywatność</div>
   WinZapp pyta przed wysłaniem multimediów do dostawcy, a w zabezpieczonych czatach pyta za każdym razem. Twoje klucze są przechowywane w postaci zaszyfrowanej na twoim komputerze i wysyłane tylko do dostawcy, do którego należą. Zresetowanie wszystkich kluczy czyści także zapamiętane zgody na wysyłanie. Podczas pracy dostawcy odtwarzany jest dźwięk oczekiwania; odpowiedzi mogą być odczytywane automatycznie na głos; tekst jest w języku aplikacji. Bardzo długie teksty transkrypcji i PDF zgłaszają błąd limitu tekstu.
@@ -835,8 +839,18 @@
 
   </section>
 
+  <section id="mac" class="wiki-section" aria-labelledby="h-mac">
+    <h2 id="h-mac">🍎 17. WinZapp na Macu</h2>
+<p class="lead">W systemie macOS WinZapp działa z VoiceOver. Listy czatów i wiadomości to tabele, które VoiceOver odczytuje, a skróty działają według zasady Maca: Ctrl staje się Command, Alt staje się Command-Option, a Ctrl+Alt staje się Control-Command.</p>
+<ul>
+  <li><strong>Listy:</strong> VO+Spacja na wierszu działa tak samo jak Enter; na czacie otwiera go, a VoiceOver przechodzi do pola wiadomości. Pozycje menu kontekstowego wiersza są czynnościami VoiceOver (VO+Command+Spacja), a VO+Shift+M otwiera menu kontekstowe. VoiceOver zachowuje swoje miejsce, gdy wiersz się zmienia, na przykład gdy przychodzi nowa wiadomość.</li>
+  <li><strong>Aktualizacje:</strong> „Sprawdź aktualizacje” znajduje się w menu WinZapp pod O programie WinZapp oraz w menu „Pomoc”. Gdy w ustawieniach włączone jest „Automatycznie sprawdzaj aktualizacje”, aktualizacja jest pobierana w tle i instalowana po zamknięciu WinZapp; jeśli WinZapp pozostaje otwarty, okno aktualizacji proponuje instalację i ponowne uruchomienie, a WinZapp zapowiada to głosowo i powiadomieniem. Okno aktualizacji podaje, co się zmieniło od Twojej wersji. Instalacja aktualizacji trwa kilka sekund, a pierwsze uruchomienie po niej jest tak samo szybkie jak każde inne.</li>
+</ul>
+
+  </section>
+
   <section id="atalhos" class="wiki-section" aria-labelledby="h-atalhos">
-    <h2 id="h-atalhos">⌨️ 17. Skróty klawiszowe</h2>
+    <h2 id="h-atalhos">⌨️ 18. Skróty klawiszowe</h2>
 <div class="callout info">
   <div class="callout-title">ℹ️ Lista wygenerowana z kodu</div>
   Poniższe tabele są generowane automatycznie z katalogu skrótów WinZapp i pokazują klawisze fabryczne. Pojawiają się też w programie, pod F1 lub w Pomoc &gt; Skróty klawiszowe. Każdy klawisz można zmienić na karcie Skróty klawiszowe w ustawieniach.
@@ -1178,7 +1192,7 @@
   </section>
 
   <section id="solucao-problemas" class="wiki-section" aria-labelledby="h-solucao-problemas">
-    <h2 id="h-solucao-problemas">🧰 18. Rozwiązywanie problemów</h2>
+    <h2 id="h-solucao-problemas">🧰 19. Rozwiązywanie problemów</h2>
 <table class="field-table">
   <tr><th>Sytuacja</th><th>Co zrobić</th></tr>
   <tr><td>WinZapp prosi o ponowne sparowanie</td><td>Sparuj za pomocą numeru lub kodu QR. Twoje czaty są usuwane tylko wtedy, gdy połączysz inny numer. Jeśli stało się to bez powodu, zachowaj <code>log.log</code> i <code>shutdown_audit.log</code> przed ponownym otwarciem.</td></tr>
@@ -1194,7 +1208,7 @@
   </section>
 
   <section id="registro" class="wiki-section" aria-labelledby="h-registro">
-    <h2 id="h-registro">📝 19. Dziennik zmian przewodnika</h2>
+    <h2 id="h-registro">📝 20. Dziennik zmian przewodnika</h2>
 <p class="lead">Każda nowa alpha, która wnosi funkcje, jest dodawana do przewodnika. Ta lista pokazuje, do której alphy przewodnik jest kompletny i co dodano w każdej rundzie.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Co trafiło do przewodnika</th></tr>

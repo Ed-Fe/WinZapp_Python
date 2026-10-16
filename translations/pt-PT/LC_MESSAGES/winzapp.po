@@ -507,6 +507,80 @@ msgid "{provider}: {reason}"
 msgstr "{provider}: {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_age_hour"
+msgid "1 hour ago"
+msgstr "1 hora atrás"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_age_minutes"
+msgid "{minutes} minutes ago"
+msgstr "{minutes} minutos atrás"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_auto_consent"
+msgid ""
+"Every voice message, picture, sticker or video you receive in a conversation"
+" that is not locked will be sent automatically to: {providers}. Do you "
+"agree?"
+msgstr ""
+"Toda a mensagem de voz, imagem, autocolante ou vídeo que receber numa "
+"conversa não trancada será enviada automaticamente a: {providers}. Concorda?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_consent_title"
+msgid "Send media automatically?"
+msgstr "Enviar multimédia automaticamente?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_daily_limit"
+msgid "Daily limit of automatic requests (0 for no limit):"
+msgstr "Limite diário de pedidos automáticos (0 para sem limite):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_describe"
+msgid ""
+"Describe received pictures, stickers and videos automatically, with the "
+"online providers"
+msgstr ""
+"Descrever automaticamente as imagens, autocolantes e vídeos recebidos, com "
+"os fornecedores online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_max_age"
+msgid "Process automatically the messages received up to:"
+msgstr "Processar automaticamente as mensagens recebidas até:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope"
+msgid "Conversations the automatic options apply to:"
+msgstr "Conversas às quais as opções automáticas se aplicam:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_all"
+msgid "All conversations, except the ones I turn off"
+msgstr "Todas as conversas, exceto as que eu desativar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_scope_selected"
+msgid "Only the conversations I turn on"
+msgstr "Apenas as conversas que eu ativar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_transcribe"
+msgid ""
+"Transcribe received voice messages automatically, with the online providers"
+msgstr ""
+"Transcrever automaticamente as mensagens de voz recebidas, com os "
+"fornecedores online"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_auto_used_today"
+msgid "Automatic requests made today:"
+msgstr "Pedidos automáticos feitos hoje:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
 msgid "Balanced"
 msgstr "Equilibrada"
@@ -1042,6 +1116,16 @@ msgstr "Ativado"
 msgctxt "ai_provider_supports"
 msgid "Handles: {kinds}."
 msgstr "Aceita: {kinds}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_description_in_line"
+msgid "Put description in the message line"
+msgstr "Colocar descrição na linha da mensagem"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_put_in_line"
+msgid "Put transcription in the message line"
+msgstr "Colocar transcrição na linha da mensagem"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1788,6 +1872,27 @@ msgstr "&Velocidade de reprodução de áudio predefinida"
 msgctxt "auto_download_media_label"
 msgid "Automatically download media"
 msgstr "Descarregar ficheiros multimédia automaticamente"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+#, python-brace-format
+msgctxt "auto_media_limit_reached"
+msgid ""
+"Automatic transcription and description stopped for today: the limit of "
+"{limit} requests was reached."
+msgstr ""
+"Transcrição e descrição automáticas paradas por hoje: o limite de {limit} "
+"pedidos foi atingido."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/auto_ai_media.py
+msgctxt "auto_media_paused_provider"
+msgid ""
+"Automatic transcription and description paused for one hour: the provider "
+"refused the requests (quota or key)."
+msgstr ""
+"Transcrição e descrição automáticas em pausa durante uma hora: o fornecedor "
+"recusou os pedidos (quota ou chave)."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_ask_message"
@@ -2846,11 +2951,200 @@ msgctxt "chat_notifications_not_muted"
 msgid "Not muted"
 msgstr "Não silenciada"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/chat_picker.py
+msgctxt "chat_picker_column_label"
+msgid "Chat"
+msgstr "Conversa"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_empty"
+msgid "No chats match these filters."
+msgstr "Nenhuma conversa encontrada com esses filtros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_loading"
+msgid "Loading chats…"
+msgstr "A carregar conversas…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "chat_picker_select_all"
+msgid "Select all"
+msgstr "Marcar todas"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 #: client/main_window/sync.py
 msgctxt "chat_retrieval_failed"
 msgid "Failed to retrieve the chat list from the server."
 msgstr "Não foi possível recuperar a lista de conversas do servidor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_audios"
+msgid "Audio"
+msgstr "Áudios"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_documents"
+msgid "Documents"
+msgstr "Documentos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_photos"
+msgid "Photos and stickers"
+msgstr "Fotos e autocolantes"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_videos"
+msgid "Videos"
+msgstr "Vídeos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "cleanup_cat_voice_messages"
+msgid "Voice messages"
+msgstr "Mensagens de voz"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_chats_label"
+msgid "Chats:"
+msgstr "Conversas:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_confirm_msg"
+msgid ""
+"This will delete {files} media file(s) ({mb:.1f} MB), freeing disk space. "
+"The messages stay, but the deleted media will not be downloaded again, by "
+"itself or by hand, unless this account is paired again. This cannot be "
+"undone. Continue?"
+msgstr ""
+"Isto vai apagar {files} ficheiro(s) multimédia ({mb:.1f} MB), libertando "
+"espaço em disco. As mensagens ficam, mas o multimédia apagado não será "
+"descarregado de novo, nem automaticamente nem à mão, a não ser que esta "
+"conta seja emparelhada novamente. Esta ação não pode ser desfeita. "
+"Continuar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_confirm_title"
+msgid "Confirm cleanup"
+msgstr "Confirmar limpeza"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_deleting"
+msgid "Deleting files…"
+msgstr "A apagar ficheiros…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_deleting_count"
+msgid "Deleting file {done} of {total}…"
+msgstr "A apagar ficheiro {done} de {total}…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done"
+msgid ""
+"Cleanup complete.\n"
+"\n"
+"Files deleted: {files}\n"
+"Space freed: {mb:.1f} MB"
+msgstr ""
+"Limpeza concluída.\n"
+"\n"
+"Ficheiros apagados: {files}\n"
+"Espaço libertado: {mb:.1f} MB"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_done_failed"
+msgid "Files that could not be deleted: {files}"
+msgstr "Ficheiros que não puderam ser apagados: {files}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_min_size_label"
+msgid "Minimum size (MB):"
+msgstr "Tamanho mínimo (MB):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_categories_selected"
+msgid "Select at least one media type."
+msgstr "Selecione pelo menos um tipo de multimédia."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_no_chats_selected"
+msgid "Select at least one chat."
+msgstr "Selecione pelo menos uma conversa."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_nothing_found"
+msgid "No files matched these filters."
+msgstr "Nenhum ficheiro encontrado com estes filtros."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "cleanup_open_button"
+msgid "Media cleanup…"
+msgstr "Limpeza de multimédia…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_proceed_button"
+msgid "Proceed with cleanup"
+msgstr "Continuar com a limpeza"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scan_button"
+msgid "Gather data"
+msgstr "Reunir dados"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_scanning"
+msgid "Gathering data…"
+msgstr "A reunir dados…"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_header"
+msgid "{chats} chat(s) affected, {files} file(s), {mb:.1f} MB total:"
+msgstr ""
+"{chats} conversa(s) afetada(s), {files} ficheiro(s), {mb:.1f} MB no total:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_summary_label"
+msgid "Overview:"
+msgstr "Panorama:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+#, python-brace-format
+msgctxt "cleanup_summary_line"
+msgid "{category}: {files} ({mb:.1f} MB)"
+msgstr "{category}: {files} ({mb:.1f} MB)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_title"
+msgid "Media cleanup"
+msgstr "Limpeza de multimédia"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/media_cleanup_dialog.py
+msgctxt "cleanup_types_label"
+msgid "Media types to delete:"
+msgstr "Tipos de multimédia a apagar:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -2914,6 +3208,7 @@ msgstr "Limpar conversas selecionadas"
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
+#: client/ui/dialogs/media_cleanup_dialog.py
 #: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
@@ -4071,24 +4366,28 @@ msgstr "&Continuar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_all"
 msgid "All"
 msgstr "Todas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_groups"
 msgid "Groups"
 msgstr "Grupos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_individual"
 msgid "Individual"
 msgstr "Individuais"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py client/ui/conversations.py
+#: client/ui/dialogs/chat_picker.py
 msgctxt "conv_filter_label"
 msgid "Filter chats"
 msgstr "Filtrar conversas"
@@ -4103,6 +4402,26 @@ msgstr "Não lidas"
 msgctxt "conv_preview_you"
 msgid "you:"
 msgstr "eu:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_describe_check"
+msgid ""
+"Describe this conversation's pictures, stickers and videos automatically "
+"(when turned on in Settings)"
+msgstr ""
+"Descrever automaticamente as imagens, autocolantes e vídeos desta conversa "
+"(quando ativado nas definições)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_transcribe_check"
+msgid ""
+"Transcribe this conversation's voice messages and videos automatically (when"
+" turned on in Settings)"
+msgstr ""
+"Transcrever automaticamente as mensagens de voz e vídeos desta conversa "
+"(quando ativado nas definições)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -4531,6 +4850,18 @@ msgstr "Não foi possível remover {name} como administrador: {error}"
 msgctxt "demote_from_admin"
 msgid "Remove as group admin"
 msgstr "Remover como administrador do grupo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/ai_result_dialog.py
+#, python-brace-format
+msgctxt "description_inline_spoken"
+msgid "Description: {text}"
+msgstr "Descrição: {text}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "description_row_label"
+msgid "description"
+msgstr "descrição"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/websocket_client.py
 #: client/main.py client/main_window/account_link.py
@@ -6151,6 +6482,18 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
+msgctxt "mac_update_downloaded_reminder"
+msgid ""
+"WinZapp update v{new_version} has been downloaded and will be installed when"
+" you quit WinZapp. To install it now, choose Help > Check for updates, or "
+"switch to WinZapp."
+msgstr ""
+"A atualização v{new_version} do WinZapp foi descarregada e será instalada "
+"quando sair do WinZapp. Para a instalar agora, escolha Ajuda > Verificar "
+"atualizações ou mude para o WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
 msgctxt "mac_update_ready_to_install"
 msgid ""
 "WinZapp update v{new_version} has been downloaded and is ready to install. "
@@ -6258,6 +6601,15 @@ msgid "Could not convert the audio to an Opus format accepted by WhatsApp."
 msgstr ""
 "Não foi possível converter o áudio para um formato Opus aceite pelo "
 "WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/media.py
+msgctxt "media_cleaned_not_restored"
+msgid ""
+"This media was removed by the cleanup and will not be downloaded again "
+"unless this account is paired again."
+msgstr ""
+"Este multimédia foi removido pela limpeza e não será descarregado de novo, a"
+" não ser que esta conta seja emparelhada novamente."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -11568,6 +11920,17 @@ msgid "Automatic transcription was paused for a while. {reason}"
 msgstr "A transcrição automática foi pausada durante algum tempo. {reason}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_auto_replaces_online"
+msgid ""
+"Turning this on turns off the automatic transcription with the online "
+"providers (Transcriptions && Descriptions tab), so a voice message is not "
+"transcribed twice. Continue?"
+msgstr ""
+"Ativar isto desativa a transcrição automática com os fornecedores online "
+"(separador Transcrições e Descrições), para que uma mensagem de voz não seja"
+" transcrita duas vezes. Continuar?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
@@ -13427,6 +13790,16 @@ msgid ""
 msgstr ""
 "A precisão de cálculo escolhida, {chosen}, não pode ser utilizada onde a "
 "transcrição vai ser executada; em vez dela será utilizada {used}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_online_auto_replaces_local"
+msgid ""
+"Turning this on turns off the automatic transcription with the local models "
+"(Transcription tab), so a voice message is not transcribed twice. Continue?"
+msgstr ""
+"Ativar isto desativa a transcrição automática com os modelos locais "
+"(separador Transcrição), para que uma mensagem de voz não seja transcrita "
+"duas vezes. Continuar?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
 msgctxt "transcription_open_settings_question"

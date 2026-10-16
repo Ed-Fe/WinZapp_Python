@@ -14,7 +14,7 @@ membership request accepts at most 500 addresses.
 
 ## Linked-device contract
 
-The implementation targets the repository's pinned WA-JS **4.6.1**:
+The implementation targets the repository's pinned WA-JS (**4.7.1**; the native contract below was measured on 4.6.1 and is the same on 4.7.1, see `docs/traps/wppconnect-upgrade.md`):
 
 - [lists.list](https://github.com/wppconnect-team/wa-js/blob/v4.6.1/src/lists/functions/list.ts)
   returns CUSTOM labels (type 5), with identifiers and names but no members.

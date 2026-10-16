@@ -4,7 +4,9 @@
 The decisions are plain functions that take the client collaborators as
 arguments, so they are tested here on every platform with fakes; sparkle_mac
 (Cocoa, tested on the Mac in macos/tests/test_sparkle_mac.py) passes the real
-ones. Nothing here touches a process, a file or a window.
+ones. Nothing here touches a window, or a process or file of WinZapp's; the
+one exception is the reopening script, run once in /bin/sh against a fake
+executable in a temporary folder.
 """
 
 import pathlib
@@ -149,3 +151,62 @@ class TestPopVerdict:
         verdicts = {"v2": (100.0, (True, "ok"))}
         assert A.pop_verdict(verdicts, "v1", 100.0, 600) is None
         assert "v2" in verdicts
+
+
+class TestAnUpdateThatInstallsOnQuit:
+    """Sparkle's background download leaves its installer waiting for one
+    account process to end; the record of it and the reopening afterwards."""
+
+    @pytest.mark.parametrize("record, installer, want", [
+        ({"tag": "v2.1.0.4258alpha"}, True, "v2.1.0.4258alpha"),
+        ({"tag": "v2.1.0.4258alpha"}, None, "v2.1.0.4258alpha"),   # launchd not asked: it counts
+        ({"tag": "v2.1.0.4258alpha"}, False, ""),                  # the installer is gone
+        ({"tag": "v2.1.0.4250alpha"}, True, ""),                   # installed: it is running
+        ({"tag": "v2.1.0.4249alpha"}, True, ""),
+        ({"tag": "not a tag"}, True, ""), ({}, True, ""), (None, True, ""), (["x"], True, ""),
+    ])
+    def test_a_record_counts_only_for_a_newer_tag_with_its_installer_waiting(self, record, installer, want):
+        assert A.armed_tag(record, "v2.1.0.4250alpha", installer) == want
+
+    def test_the_record_is_the_tag(self):
+        assert A.armed_record("v2.1.0.4258alpha") == {"tag": "v2.1.0.4258alpha"}
+
+    def test_sparkles_installer_job_and_whether_it_runs(self):
+        # SUInstallerLauncher.m:259
+        assert A.installer_job("com.example.winzapp") == "com.example.winzapp-sparkle-updater"
+        assert A.installer_job("") == ""
+        assert A.installer_running(0, '{\n\t"LimitLoadToSessionType" = "Aqua";\n\t"PID" = 812;\n};') is True
+        assert A.installer_running(0, '{\n\t"LastExitStatus" = 0;\n};') is False   # loaded, ended
+        assert A.installer_running(113, "Could not find service") is False
+
+    def test_the_reopening_waits_for_the_installer_then_starts_each_account_in_the_background(self):
+        cmd = A.relaunch_command(4242, "job", "/Applications/WinZapp.app/Contents/MacOS/WinZapp",
+                                 ["acc2", "acc3"])
+        assert cmd[:2] == ["/bin/sh", "-c"] and cmd[2] == A.RELAUNCH_SCRIPT
+        assert cmd[4:] == ["4242", "job", str(A.RELAUNCH_WAIT_STEPS),
+                           "/Applications/WinZapp.app/Contents/MacOS/WinZapp", "acc2", "acc3"]
+
+    def test_each_account_starts_as_account_launcher_starts_one(self):
+        import account_launcher
+        want = account_launcher.build_launch_command("$exe", "python", "$account", True,
+                                                     startup_source="user", background=True)
+        assert " ".join(f'"{w}"' if w.startswith("$") else w for w in want) in A.RELAUNCH_SCRIPT
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="the script runs in /bin/sh")
+    def test_the_script_itself_runs_once_this_process_and_the_installer_are_gone(self, tmp_path):
+        import subprocess
+        import time
+        done = subprocess.Popen(["/bin/sh", "-c", "exit 0"])
+        done.wait()
+        log = tmp_path / "started.txt"
+        exe = tmp_path / "WinZapp"
+        exe.write_text(f'#!/bin/sh\necho "$@" >> "{log}"\n')
+        exe.chmod(0o755)
+        subprocess.run(A.relaunch_command(done.pid, "com.example.no-such-job-sparkle-updater",
+                                          str(exe), ["acc2", "acc3"], steps=2), timeout=20)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and len(log.read_text().splitlines() if log.exists() else []) < 2:
+            time.sleep(0.05)
+        assert sorted(log.read_text().splitlines()) == [
+            "--account acc2 --startup-source user --background",
+            "--account acc3 --startup-source user --background"]

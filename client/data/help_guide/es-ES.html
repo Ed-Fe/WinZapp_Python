@@ -212,9 +212,10 @@
     <a href="#configuracoes" class="nav-link">14. Configuración</a>
     <a href="#privacidade" class="nav-link">15. Configuración de WhatsApp</a>
     <a href="#copias-registros" class="nav-link">16. Copias de seguridad y registros</a>
-    <a href="#atalhos" class="nav-link">17. Atajos de teclado</a>
-    <a href="#solucao-problemas" class="nav-link">18. Solución de problemas</a>
-    <a href="#registro" class="nav-link">19. Registro de la guía</a>
+    <a href="#mac" class="nav-link">17. WinZapp en el Mac</a>
+    <a href="#atalhos" class="nav-link">18. Atajos de teclado</a>
+    <a href="#solucao-problemas" class="nav-link">19. Solución de problemas</a>
+    <a href="#registro" class="nav-link">20. Registro de la guía</a>
   </div>
 </nav>
 
@@ -243,6 +244,7 @@
         <li><a href="#configuracoes">Configuración</a></li>
         <li><a href="#privacidade">Configuración de WhatsApp</a></li>
         <li><a href="#copias-registros">Copias de seguridad y registros</a></li>
+        <li><a href="#mac">WinZapp en el Mac</a></li>
         <li><a href="#atalhos">Atajos de teclado</a></li>
         <li><a href="#solucao-problemas">Solución de problemas</a></li>
         <li><a href="#registro">Registro de la guía</a></li>
@@ -551,6 +553,7 @@
 
 <h3>Descarga automática</h3>
 <p>En Configuración &gt; Almacenamiento, "Descargar medios automáticamente" activa la descarga de medios y eliges los tipos. Al desmarcarla se detiene lo que está en curso; al marcarla (o al marcar un tipo más) empieza a descargar al instante y también se aplica a los medios de los mensajes que llegan mientras WinZapp está abierto. Aunque todo esté desactivado, abrir un medio manualmente lo descarga en ese momento. "Descargar medios" (menú Sincronización, Ctrl+Alt+Shift+B) lanza la descarga cuando quieras. WinZapp anuncia el progreso con voz, como "Descargando medios: 30 de 120 procesados (8 descargados)".</p>
+<p>En Ajustes &gt; Almacenamiento, "Limpieza de multimedia" libera espacio en disco borrando los archivos multimedia descargados de las conversaciones que elijas; los mensajes se quedan. Eliges las conversaciones (con una fila "Seleccionar todo" y un filtro de grupos/individuales), los tipos de multimedia (fotos y stickers, vídeos, audios, mensajes de voz, documentos) y un tamaño mínimo en MB. "Reunir datos" solo lee e indica cuántos archivos y cuántos MB coinciden, por tipo; "Continuar con la limpieza" pide confirmación (No es la opción por defecto) y luego borra exactamente lo mostrado. Los archivos que guardaste con Guardar como nunca se tocan, ni el contenido de mensajes sin enviar o de conversaciones bloqueadas. Los archivos limpiados se recuerdan: las descargas automáticas y las sincronizaciones no los vuelven a bajar, y una descarga explícita lo avisa; solo cerrar sesión o emparejar de nuevo los olvida, F5 no.</p>
 
   </section>
 
@@ -632,6 +635,7 @@
   <tr><td>PDF: "Convertir en texto accesible"</td><td>Lo convierte en texto simple y legible.</td></tr>
 </table>
 <p><kbd>Ctrl+Shift+I</kbd> hace todo esto en el mensaje con el foco. El resultado se abre en una ventana con el texto; en fotos y vídeos puedes hacer preguntas de seguimiento (Ctrl+Intro pregunta). En la pestaña Estado (Alt+5), el botón "Describir" describe los estados de foto y de vídeo.</p>
+<p>En el resultado de una transcripción o descripción, "Poner la transcripción en la línea del mensaje" y "Poner la descripción en la línea del mensaje" guardan el texto con el mensaje, que pasa a mostrarlo en su propia línea de la lista. En Ajustes &gt; Transcripciones y Descripciones, "Transcribir automáticamente los mensajes de voz recibidos" y "Describir automáticamente las imágenes, stickers y vídeos recibidos" (desactivadas por defecto) lo hacen con los proveedores en línea, sin ventana, sonido ni voz por mensaje; solo se usan los proveedores ya autorizados, y activar una desactiva la transcripción automática local. La ventana de datos de cada conversación tiene las casillas "transcribir" y "describir", y puedes elegir entre todas las conversaciones salvo las desactivadas, o solo las activadas. Para ahorrar cuota, eliges hasta qué antigüedad se procesa un mensaje recibido (5 minutos, 15, 30 o 1 hora) y un límite diario de solicitudes automáticas (50 por defecto, 0 para ninguno); si todos los proveedores rechazan por cuota o clave, la cola se pausa una hora y lo avisa una vez.</p>
 <div class="callout warn">
   <div class="callout-title">🔒 Privacidad</div>
   WinZapp pregunta antes de enviar un medio a un proveedor, y vuelve a preguntar cada vez en las conversaciones bloqueadas. Tus claves se guardan cifradas en tu ordenador y solo se envían al proveedor al que pertenecen. Restablecer todas las claves también borra las autorizaciones de envío recordadas. Suena un sonido de espera mientras el proveedor trabaja; las respuestas se pueden leer en voz alta automáticamente; el texto sigue el idioma de la aplicación. Los textos de transcripción y de PDF muy largos informan de un error de límite de texto.
@@ -835,8 +839,18 @@
 
   </section>
 
+  <section id="mac" class="wiki-section" aria-labelledby="h-mac">
+    <h2 id="h-mac">🍎 17. WinZapp en el Mac</h2>
+<p class="lead">En macOS, WinZapp funciona con VoiceOver. Las listas de chats y de mensajes son tablas que VoiceOver lee, y los atajos siguen la regla del Mac: Ctrl pasa a ser Command, Alt pasa a ser Command-Option y Ctrl+Alt pasa a ser Control-Command.</p>
+<ul>
+  <li><strong>Listas:</strong> VO+Espacio en una fila hace lo mismo que Intro; en un chat, este se abre y VoiceOver pasa al campo de mensaje. Los elementos del menú contextual de la fila son acciones de VoiceOver (VO+Command+Espacio), y VO+Shift+M abre el menú contextual. VoiceOver mantiene su sitio cuando cambia una fila, por ejemplo cuando llega un mensaje nuevo.</li>
+  <li><strong>Actualizaciones:</strong> "Comprobar actualizaciones" está en el menú WinZapp, debajo de Acerca de WinZapp, y en "Ayuda". Con "Buscar actualizaciones automáticamente" activado en la configuración, la actualización se descarga en segundo plano y se instala al cerrar WinZapp; si WinZapp sigue abierto, la ventana de actualización ofrece instalar y volver a abrir, y WinZapp lo anuncia por voz y con una notificación. La ventana de actualización indica qué ha cambiado desde tu versión. Instalar una actualización lleva pocos segundos, y la primera apertura después es tan rápida como cualquier otra.</li>
+</ul>
+
+  </section>
+
   <section id="atalhos" class="wiki-section" aria-labelledby="h-atalhos">
-    <h2 id="h-atalhos">⌨️ 17. Atajos de teclado</h2>
+    <h2 id="h-atalhos">⌨️ 18. Atajos de teclado</h2>
 <div class="callout info">
   <div class="callout-title">ℹ️ Lista generada a partir del código</div>
   Las tablas siguientes se generan automáticamente a partir del catálogo de atajos de WinZapp y muestran las teclas de fábrica. También aparecen en el programa, con F1 o en Ayuda &gt; Atajos de teclado. Cualquier tecla se puede cambiar en la pestaña Atajos de teclado de la configuración.
@@ -1178,7 +1192,7 @@
   </section>
 
   <section id="solucao-problemas" class="wiki-section" aria-labelledby="h-solucao-problemas">
-    <h2 id="h-solucao-problemas">🧰 18. Solución de problemas</h2>
+    <h2 id="h-solucao-problemas">🧰 19. Solución de problemas</h2>
 <table class="field-table">
   <tr><th>Situación</th><th>Qué hacer</th></tr>
   <tr><td>WinZapp te pide emparejar de nuevo</td><td>Empareja con número o código QR. Tus chats solo se borran si conectas un número distinto. Si ocurrió sin motivo, guarda <code>log.log</code> y <code>shutdown_audit.log</code> antes de volver a abrirlo.</td></tr>
@@ -1194,7 +1208,7 @@
   </section>
 
   <section id="registro" class="wiki-section" aria-labelledby="h-registro">
-    <h2 id="h-registro">📝 19. Registro de la guía</h2>
+    <h2 id="h-registro">📝 20. Registro de la guía</h2>
 <p class="lead">Cada alpha nueva que trae funciones se añade a la guía. Esta lista muestra hasta qué alpha está completa la guía y qué se añadió en cada ronda.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Qué entró en la guía</th></tr>

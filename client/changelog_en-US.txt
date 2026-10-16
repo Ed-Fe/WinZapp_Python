@@ -104,7 +104,7 @@ WHAT'S NEW
 
 - WinZapp opens faster. When your account is already connected, the main window and your chats appear right away, while WPPConnect starts and WhatsApp connects in the background, instead of after the "Starting WPPConnect, please wait..." window. Messages you send in the meantime wait and go out once WhatsApp is connected. The first start, and an account that still has to be paired, show that window as before. The window title says "starting WPPConnect..." until it is ready. The same goes for WPPConnect updates and forced reinstalls: no window gets in your way.
 
-- macOS: release builds now update through Sparkle 2's standard windows, which VoiceOver reads well. "Check for updates", the automatic check every 3 hours and "Check for alpha updates" open Sparkle. Before a release is offered, when you choose Install and once more at "Ready to Install", WinZapp checks that the release's tag exists in the official repository, points at its declared commit and is newer than the version you are running; if any of that fails, or GitHub cannot be reached, the update is cancelled and the reason is shown. When you choose Install, your other accounts close and no account can start until the update ends; if the update does not install, they open again. An update found in the background is announced by speech and by a notification, and "Ready to Install" is announced too. Account locks left behind by past quits no longer block updates or start-up on the Mac.
+- macOS: release builds now update through Sparkle 2's standard windows, which VoiceOver reads well. "Check for updates" (in the WinZapp menu under About WinZapp, and in Help), the automatic check every 3 hours and "Check for alpha updates" open Sparkle. With automatic checks on, an update is downloaded in the background and installed when you quit WinZapp, as in other Mac apps; while WinZapp stays open, Sparkle offers "Install and Relaunch" at its next check, and the update is announced by speech and by a notification. The update window says what changed since the version you are running, as the Windows "What's new?" does, and for an alpha it lists the pull requests of every alpha since yours. Before a release is offered or downloaded, WinZapp checks that the release's tag exists in the official repository, points at its declared commit and is newer than the version you are running; if any of that fails, or GitHub cannot be reached, the update is not offered, and when you checked yourself the reason is shown. Your other accounts close before an update installs and open again afterwards. Account locks left behind by past quits no longer block updates or start-up on the Mac.
 
 - Spoken progress for sync and media downloads: during a sync (the full one on first pairing or F5, and also the update of changed chats when WinZapp opens) and the media download that follows it, WinZapp shows in the window title and speaks, roughly every 5 seconds, how far it has got: "Syncing chats: 12 of 80" and "Downloading media: 30 of 120 processed (8 downloaded)". Before, nothing was heard between the start and finish announcements, and a long sync sounded stuck. "Processed" also counts media that did not need downloading (already on the computer, for example), and the total only includes media your Storage settings still allow downloading, not the whole history. The progress follows the "Announce sync, media downloads and automatic offline mode" option in Settings > General and is not spoken when WinZapp starts in the background or during a voice call; the automatic check that runs every minute stays silent. In Settings > Spoken content, the "Announce chat sync progress every few seconds" and "Announce media download progress every few seconds" boxes, checked by default, turn each of these announcements off separately; the window title still shows the numbers.
 
@@ -118,9 +118,17 @@ WHAT'S NEW
 
 - Help > "Usage guide" opens, in the default browser, the complete guide to using the program, in the chosen language: where each feature is, the shortcuts and what the screen reader says. It has search and a section menu, and the shortcut tables come straight from the program.
 
+- Media cleanup: Settings > Storage > "Media cleanup" frees disk space by deleting the downloaded media files of the conversations you choose; the messages stay. You pick the conversations, the media types and a minimum size, "Gather data" shows how many files and MB match without deleting anything, and "Proceed with cleanup" asks for confirmation and deletes exactly what was shown. Files you saved with Save As and the media of unsent messages are never touched, and cleaned files are not downloaded again by automatic downloads or syncs until you log out or pair again.
+
+- Online transcription and description in the message line, automatic: the AI result window gets "Put transcription in the message line" (voice messages) and "Put description in the message line" (pictures, stickers and videos). In Settings > Transcriptions & Descriptions, two new options, both off by default, transcribe received voice messages and describe received pictures, stickers and videos automatically with the online providers, without a window or sound per message; turning one on asks for the usual consent and turns off the local automatic transcription, and the other way round. The conversation data window of each chat has "transcribe" and "describe" boxes (they also apply to the local automatic transcription), with a choice between "All conversations, except the ones I turn off" and "Only the conversations I turn on". To protect your API quota you can choose how old a received message may be and still be processed (5 minutes, 15, 30 or 1 hour) and set a daily ceiling on automatic online requests (50 by default, 0 for none); when every provider refuses for a reason that repeats, such as quota or key, the automatic queue pauses for an hour and says so once.
+
 - A new or empty personal chat now extends the "no messages" line with a notice that messages and calls are end-to-end encrypted and, if the chat has a disappearing messages timer, its duration. The chat info also states the encryption.
 
 FIXES
+
+- Sending voice messages and documents failed with "Cannot read properties of undefined (reading 'prepRawMedia')" on a WhatsApp Web build released on 15 October, which moved that function. WinZapp now ships the matching version of its WhatsApp Web library (WA-JS 4.7.1). If sending still fails after updating, reinstall WPPConnect from the update window.
+
+- macOS: in the chat and message lists, VoiceOver no longer loses its place when a row changes, for example when an unread count changes, someone starts recording audio or a new message arrives. Opening a chat with VoiceOver now works at once and every time, instead of sometimes failing or acting only after a pause, and VoiceOver then moves to the message field; notices such as the one about pinned messages are spoken after the field instead of cutting it off.
 
 - The buttons for recording in the other mode (stereo or mono) and for recording with the computer's audio told the screen reader their shortcut was Ctrl+R. They now announce their own, Ctrl+Shift+G and Ctrl+Shift+H, or the keys you assigned to them.
 
@@ -197,6 +205,22 @@ FIXES
 - Logging out of a session that was left unfinished (for example an account that never finished pairing) now gets an answer instead of failing silently.
 
 - Downloaded files whose size is a multiple of 16 bytes (an APK, for example) no longer end with 16 extra bytes. Android refused to install them with "problem parsing the package"; now the saved file is identical to the original.
+
+- macOS: installing an update, and the first launch after it, are much faster. The app has far fewer files to unpack (about 24,000 instead of 61,000), its server is put in place in a fraction of a second instead of several seconds, the previous copy is deleted in the background, and the browser WhatsApp runs in (about 190 MB) is kept instead of being downloaded again after every update.
+
+V2.0.1.0
+
+This is a maintenance release for the stable version. It only updates the WPPConnect libraries WinZapp uses to talk to WhatsApp, after a WhatsApp Web change broke sending voice messages and documents.
+
+FIXES
+
+Sending voice messages and documents works again. WhatsApp Web changed in a way that made these sends fail; WinZapp now uses the updated WPPConnect libraries (WPPConnect 2.3.5 and WA-JS 4.7.1) that handle it.
+
+WPPConnect server 2.10.55 is supported. Installing or updating to the latest server no longer ends with "npm run build failed", and the server is now started with the current settings.
+
+Linking your account no longer leaves a stale QR code loop running when pairing is cancelled, and a WhatsApp Web page that never finishes loading is now given up on after 60 seconds instead of leaving WinZapp waiting.
+
+If you used a previous version and voice messages still fail after updating, WinZapp offers to reinstall WPPConnect on startup; accept it once and the new libraries are installed.
 
 V2.0.0.0
 

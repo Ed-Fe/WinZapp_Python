@@ -9,8 +9,11 @@ export async function executeListCommand(input) {
   if (typeof lists?.list !== 'function' || typeof store?.getModelsArray !== 'function'
       || typeof labels?.get !== 'function') fail('lists_not_available');
   // WA-JS 4.6.1 still expects labelsEditingEnabled, removed from the current
-  // consumer Lists UI. Select its verified native contract before any write;
-  // never replace a false legacy gate or retry a failed write by another path.
+  // consumer Lists UI; 4.7.1 only tolerates its absence for its own calls, and
+  // WinZapp's native contract below is the same on both. Select it before any
+  // write; never replace a false legacy gate or retry a failed write by
+  // another path.
+  const nativeContractVersions = ['4.6.1', '4.7.1'];
   const resolveEditing = () => {
     const result = (reason) => ({reason, nativeActions: null});
     try {
@@ -21,10 +24,11 @@ export async function executeListCommand(input) {
       const gate = wpp.whatsapp.labelsEditingEnabled;
       if (typeof gate !== 'function') {
         // Not ready yet is transient: "refresh and try again", not "this version lacks".
-        if (gate === undefined && wpp.version === '4.6.1' && wpp.isReady !== true) {
+        if (gate === undefined && nativeContractVersions.includes(wpp.version)
+            && wpp.isReady !== true) {
           return result('capability_check_failed');
         }
-        if (gate !== undefined || wpp.version !== '4.6.1'
+        if (gate !== undefined || !nativeContractVersions.includes(wpp.version)
             || wpp.loader?.loaderType !== 'meta'
             || typeof wpp.loader.loadModule !== 'function') return result('runtime_incomplete');
         const actions = wpp.loader.loadModule('WAWebBizLabelEditingAction');

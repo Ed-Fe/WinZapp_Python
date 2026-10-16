@@ -78,7 +78,8 @@ from core.wppconnect_host_layer_patch import (
     MANAGED_ORIGINAL_ON_LINK_CODE, MANAGED_PATCHED_ON_LINK_CODE,
     MANAGED_ORIGINAL_LINK_CODE_HOOKS, MANAGED_PATCHED_LINK_CODE_HOOKS,
     MANAGED_ORIGINAL_LINK_CODE_LISTENER, MANAGED_PATCHED_LINK_CODE_LISTENER,
-    MANAGED_V233_CHECK_QR_CODE, V233_ORIGINAL_WAIT_FOR_QR_CODE_SCAN,
+    MANAGED_V233_CHECK_QR_CODE, MANAGED_V235_CHECK_QR_CODE,
+    V233_ORIGINAL_WAIT_FOR_QR_CODE_SCAN,
 )
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1761,3 +1762,32 @@ class TestWppconnect233FixedTwoOfTheseUpstream:
         content = host_layer.read_text(encoding="utf-8")
         assert MANAGED_PATCHED_CHECK_QR_CODE in content
         assert PATCHED_WAIT_FOR_QR_CODE_SCAN in content
+
+
+class TestWppconnect235CancellableCheckQrCode:
+    """2.3.5 added `cancelQrLoop()` and a `qrLoopCancelled`/closed-page guard
+    around every await of checkQrCode(). The auth-probe fix is still upstream's,
+    so the function is recognised, not rewritten; before this the head no longer
+    matched any known text and the pairing fix was reported DID NOT MATCH."""
+
+    def test_is_recognised_as_carrying_the_fix(self):
+        from core.wppconnect_host_layer_patch import patch_host_layer_source
+
+        # The head of 2.3.5's function stands in for the whole of it.
+        content = _managed_source(checkqrcode_text=MANAGED_V235_CHECK_QR_CODE)
+        _, notes, ok = patch_host_layer_source(content)
+
+        assert ok is True
+        assert any("no patch needed" in note for note in notes)
+        assert not any("DID NOT MATCH" in note for note in notes)
+
+    def test_is_left_untouched_by_the_file_patch(self, fake_wppconnect_dist):
+        setup_api = _load_setup_api()
+        api_dir, host_layer = fake_wppconnect_dist
+        _write_managed(host_layer, checkqrcode_text=MANAGED_V235_CHECK_QR_CODE)
+
+        assert setup_api._patch_wppconnect_host_layer(str(api_dir)) is True
+
+        content = host_layer.read_text(encoding="utf-8")
+        assert MANAGED_V235_CHECK_QR_CODE in content
+        assert MANAGED_PATCHED_CHECK_QR_CODE not in content

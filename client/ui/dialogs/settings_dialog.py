@@ -1215,6 +1215,14 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         storage_sizer.Add(self._probe_video_duration_check, 0, wx.ALL, 8)
 
+        # Frees disk space by deleting downloaded media files of chosen
+        # conversations; the messages stay (ui/dialogs/media_cleanup_dialog.py).
+        self._media_cleanup_btn = wx.Button(
+            self._storage_page, label=i18n.t("cleanup_open_button")
+        )
+        self._media_cleanup_btn.Bind(wx.EVT_BUTTON, self._on_media_cleanup)
+        storage_sizer.Add(self._media_cleanup_btn, 0, wx.ALL, 8)
+
         self._storage_page.SetSizer(storage_sizer)
         self._notebook.AddPage(self._storage_page, i18n.t("tab_storage"))
 
@@ -2835,6 +2843,16 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._update_fields_state()
         event.Skip()
 
+    def _on_media_cleanup(self, event):
+        """Open the media cleanup window over Settings."""
+        from ui.dialogs.media_cleanup_dialog import MediaCleanupDialog
+
+        dialog = MediaCleanupDialog(self, self.main_window)
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+
     def _on_call_audio_settings(self, event):
         """Open the call microphone/speaker chooser, if the app can.
 
@@ -3958,6 +3976,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._extended_sr_compat_check.SetLabel(i18n.t("accessibility_extended_sr_compat_label"))
         self._sapi_fallback_check.SetLabel(i18n.t("accessibility_sapi_fallback_label"))
         self._probe_video_duration_check.SetLabel(i18n.t("probe_video_duration_on_download_label"))
+        self._media_cleanup_btn.SetLabel(i18n.t("cleanup_open_button"))
         self._focus_box.SetLabel(i18n.t("ui_focus_label"))
         self._focus_message_field_rb.SetLabel(i18n.t("ui_focus_message_field"))
         self._focus_unread_or_last_rb.SetLabel(i18n.t("ui_focus_unread_or_last"))

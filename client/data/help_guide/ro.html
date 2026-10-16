@@ -212,9 +212,10 @@
     <a href="#configuracoes" class="nav-link">14. Setări</a>
     <a href="#privacidade" class="nav-link">15. Setări WhatsApp</a>
     <a href="#copias-registros" class="nav-link">16. Copii de siguranță și jurnale</a>
-    <a href="#atalhos" class="nav-link">17. Comenzi rapide de la tastatură</a>
-    <a href="#solucao-problemas" class="nav-link">18. Depanare</a>
-    <a href="#registro" class="nav-link">19. Jurnalul actualizărilor ghidului</a>
+    <a href="#mac" class="nav-link">17. WinZapp pe Mac</a>
+    <a href="#atalhos" class="nav-link">18. Comenzi rapide de la tastatură</a>
+    <a href="#solucao-problemas" class="nav-link">19. Depanare</a>
+    <a href="#registro" class="nav-link">20. Jurnalul actualizărilor ghidului</a>
   </div>
 </nav>
 
@@ -243,6 +244,7 @@
         <li><a href="#configuracoes">Setări</a></li>
         <li><a href="#privacidade">Setări WhatsApp</a></li>
         <li><a href="#copias-registros">Copii de siguranță și jurnale</a></li>
+        <li><a href="#mac">WinZapp pe Mac</a></li>
         <li><a href="#atalhos">Comenzi rapide de la tastatură</a></li>
         <li><a href="#solucao-problemas">Depanare</a></li>
         <li><a href="#registro">Jurnalul actualizărilor ghidului</a></li>
@@ -551,6 +553,7 @@
 
 <h3>Descărcare automată</h3>
 <p>În Setări &gt; Stocare, "Descărcați automat media" activează descărcarea media, iar tu alegi tipurile. Debifarea ei oprește ce este în curs; bifarea (sau bifarea încă unui tip) începe imediat descărcarea și se aplică și media mesajelor care sosesc cât WinZapp este deschis. Chiar cu totul dezactivat, deschiderea manuală a unui element media îl descarcă pe loc. "Descărcați media" (meniul Sincronizare, Ctrl+Alt+Shift+B) declanșează descărcarea oricând vrei. WinZapp anunță progresul vocal, de exemplu "Descărcare media: 30 din 120 procesate (8 descărcate)".</p>
+<p>În Setări &gt; Stocare, "Curățarea fișierelor media" eliberează spațiu pe disc ștergând fișierele media descărcate din conversațiile alese; mesajele rămân. Alegi conversațiile (cu un rând „Selectează tot" și un filtru de grupuri/individuale), tipurile de media (fotografii și stickere, videoclipuri, audio, mesaje vocale, documente) și o dimensiune minimă în MB. "Adună datele" doar citește și spune câte fișiere și câți MB corespund, pe tipuri; "Continuă curățarea" cere confirmare (Nu este implicit) și apoi șterge exact ce a fost afișat. Fișierele salvate cu Salvează ca nu sunt atinse niciodată, nici media mesajelor netrimise sau a conversațiilor blocate. Fișierele curățate sunt ținute minte: descărcările automate și sincronizările nu le mai descarcă, iar o descărcare explicită anunță asta; doar deconectarea sau o nouă asociere le uită, nu F5.</p>
 
   </section>
 
@@ -632,6 +635,7 @@
   <tr><td>PDF: "Convertiți în text accesibil"</td><td>Îl transformă în text simplu, ușor de citit.</td></tr>
 </table>
 <p><kbd>Ctrl+Shift+I</kbd> face toate acestea pe mesajul cu focalizarea. Rezultatul se deschide într-o fereastră cu textul; pentru fotografii și videoclipuri, poți pune întrebări suplimentare (Ctrl+Enter întreabă). În fila Stare (Alt+5), butonul "Descrieți" descrie stările cu fotografie și videoclip.</p>
+<p>În rezultatul unei transcrieri sau descrieri, "Pune transcrierea în linia mesajului" și "Pune descrierea în linia mesajului" păstrează textul împreună cu mesajul, care îl arată apoi în propria linie din listă. În Setări &gt; Transcrieri și Descrieri, "Transcrie automat mesajele vocale primite" și "Descrie automat imaginile, stickerele și videoclipurile primite" (dezactivate implicit) fac asta cu furnizorii online, fără fereastră, sunet sau vorbire la fiecare mesaj; sunt folosiți doar furnizorii deja autorizați, iar activarea uneia dezactivează transcrierea automată locală. Fereastra de date a fiecărei conversații are casetele "transcrie" și "descrie", iar poți alege între toate conversațiile, cu excepția celor dezactivate, sau numai cele activate. Ca să economisești cota, alegi cât de vechi poate fi un mesaj primit ca să fie procesat (5 minute, 15, 30 sau 1 oră) și o limită zilnică de cereri automate (50 implicit, 0 pentru nicio limită); dacă toți furnizorii refuză din cauza cotei sau a cheii, coada se oprește o oră și anunță o singură dată.</p>
 <div class="callout warn">
   <div class="callout-title">🔒 Confidențialitate</div>
   WinZapp întreabă înainte de a trimite media unui furnizor și întreabă din nou de fiecare dată în conversațiile blocate. Cheile tale sunt stocate criptat pe calculatorul tău și sunt trimise doar furnizorului căruia îi aparțin. Resetarea tuturor cheilor șterge și autorizațiile de trimitere reținute. Se aude un sunet de așteptare cât timp furnizorul lucrează; răspunsurile pot fi citite automat cu voce tare; textul urmează limba aplicației. Textele foarte lungi de transcriere și de PDF raportează o eroare de limită de text.
@@ -835,8 +839,18 @@
 
   </section>
 
+  <section id="mac" class="wiki-section" aria-labelledby="h-mac">
+    <h2 id="h-mac">🍎 17. WinZapp pe Mac</h2>
+<p class="lead">Pe macOS, WinZapp funcționează cu VoiceOver. Listele de conversații și de mesaje sunt tabele pe care VoiceOver le citește, iar comenzile rapide urmează regula Mac: Ctrl devine Command, Alt devine Command-Option, iar Ctrl+Alt devine Control-Command.</p>
+<ul>
+  <li><strong>Liste:</strong> VO+Spațiu pe un rând face același lucru ca Enter; pe o conversație, aceasta se deschide și VoiceOver trece la câmpul de mesaj. Elementele meniului contextual al rândului sunt acțiuni VoiceOver (VO+Command+Spațiu), iar VO+Shift+M deschide meniul contextual. VoiceOver își păstrează locul când un rând se schimbă, de exemplu când sosește un mesaj nou.</li>
+  <li><strong>Actualizări:</strong> „Verificați actualizările” se află în meniul WinZapp, sub Despre WinZapp, și în „Ajutor”. Cu „Verificați automat actualizările” activat în setări, actualizarea este descărcată în fundal și instalată când ieșiți din WinZapp; dacă WinZapp rămâne deschis, fereastra de actualizare propune instalarea și repornirea, iar WinZapp anunță acest lucru vocal și printr-o notificare. Fereastra de actualizare spune ce s-a schimbat față de versiunea dumneavoastră. Instalarea unei actualizări durează câteva secunde, iar prima pornire după ea este la fel de rapidă ca oricare alta.</li>
+</ul>
+
+  </section>
+
   <section id="atalhos" class="wiki-section" aria-labelledby="h-atalhos">
-    <h2 id="h-atalhos">⌨️ 17. Comenzi rapide de la tastatură</h2>
+    <h2 id="h-atalhos">⌨️ 18. Comenzi rapide de la tastatură</h2>
 <div class="callout info">
   <div class="callout-title">ℹ️ Listă generată din cod</div>
   Tabelele de mai jos sunt generate automat din catalogul de comenzi rapide al WinZapp și arată tastele din fabrică. Apar și în program, la F1 sau Ajutor &gt; Comenzi rapide de la tastatură. Orice tastă poate fi schimbată în fila Comenzi rapide de la tastatură din Setări.
@@ -1178,7 +1192,7 @@
   </section>
 
   <section id="solucao-problemas" class="wiki-section" aria-labelledby="h-solucao-problemas">
-    <h2 id="h-solucao-problemas">🧰 18. Depanare</h2>
+    <h2 id="h-solucao-problemas">🧰 19. Depanare</h2>
 <table class="field-table">
   <tr><th>Situație</th><th>Ce să faci</th></tr>
   <tr><td>WinZapp îți cere să asociezi din nou</td><td>Asociază cu număr sau cod QR. Conversațiile tale sunt șterse doar dacă te conectezi cu alt număr. Dacă s-a întâmplat fără motiv, păstrează <code>log.log</code> și <code>shutdown_audit.log</code> înainte de a-l deschide din nou.</td></tr>
@@ -1194,7 +1208,7 @@
   </section>
 
   <section id="registro" class="wiki-section" aria-labelledby="h-registro">
-    <h2 id="h-registro">📝 19. Jurnalul actualizărilor ghidului</h2>
+    <h2 id="h-registro">📝 20. Jurnalul actualizărilor ghidului</h2>
 <p class="lead">Fiecare alfa nou care aduce funcții este adăugat în ghid. Această listă arată până la ce alfa este complet ghidul și ce a intrat în fiecare rundă.</p>
 <table class="field-table">
   <tr><th>Alfa</th><th>Ce a intrat în ghid</th></tr>

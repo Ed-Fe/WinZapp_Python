@@ -167,7 +167,7 @@ def test_the_plist_a_sparkle_build_writes_turns_sparkle_on_at_run_time(monkeypat
     keys = build_app.sparkle_plist(SOURCE, arch="arm64")
     assert keys["SUFeedURL"] == "https://rocco-labs.github.io/WinZapp_Python/appcast-arm64.xml"
     assert keys["SURequireSignedFeed"] and keys["SUVerifyUpdateBeforeExtraction"]
-    assert keys["SUAllowsAutomaticUpdates"] is False
+    assert keys["SUAllowsAutomaticUpdates"] is True and keys["SUAutomaticallyUpdate"] is True
     # Sparkle's windows in WinZapp's languages, read from language_map.json.
     assert keys["CFBundleLocalizations"][0] == "en"
     assert {"pt-BR", "pt-PT", "es", "pl", "tr", "ro"} <= set(keys["CFBundleLocalizations"])

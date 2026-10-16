@@ -1122,6 +1122,8 @@ class MessageEventsMixin:
             if not from_me:
                 # Off unless Settings > Local transcription asks for it.
                 self._maybe_auto_transcribe(remote_jid, msg)
+                # Off unless Settings > Transcriptions & Descriptions asks.
+                self._maybe_auto_ai_media(remote_jid, msg)
 
         # ── Send notification ─────────────────────────────────────────────────
         if from_me:

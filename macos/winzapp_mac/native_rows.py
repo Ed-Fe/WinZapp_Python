@@ -16,6 +16,18 @@ a WZRowCell (an NSTableCellView) that
     EVT_CONTEXT_MENU handler — so new menu items upstream appear as actions
     with no Mac-side change.
 
+A row whose text changes is updated in place. wx.ListBox.SetString ends in
+wxListWidgetCocoaImpl::UpdateLine, which reloads the WHOLE table ("TODO
+optimize", src/osx/cocoa/listbox.mm); every row view, and the accessibility
+cell VoiceOver is on, is thrown away. The chat list rewrites rows all the
+time (unread counts, "recording audio…", previews), so VO-Space landed on
+dead cells ("no action available", then VoiceOver's slow fallback click) and
+VoiceOver re-found itself in the table instead of following focus to the
+message field. MacListCtrl wraps its writes in change(): the reloadData wx does for a
+SetString, an Insert or a Delete becomes that one row's change (inserted
+and removed rows likewise leave every other row and VoiceOver's cursor
+alone). Clears, Set() and anything that does not line up still reload.
+
 How: wx's own methods look up their "super" implementation by walking the
 class chain, so giving a wx view a subclass (isa-swizzling) loops forever.
 Instead two methods are added to wxNSTableView itself, and they only change
@@ -30,6 +42,7 @@ import objc
 import wx
 from AppKit import (
     NSAccessibilityCustomAction,
+    NSIndexSet,
     NSMakeRect,
     NSTableCellView,
     NSTextField,
@@ -39,9 +52,57 @@ _VIEW_FOR = b"tableView:viewForTableColumn:row:"
 _owners = {}  # NSTableView pointer -> weakref(MacListCtrl)
 _installed = False
 _collecting = []  # stack of capture lists while building menus silently
+_pending = {}     # NSTableView pointer -> [kind, row, done] of the write in progress
+
+ROW, INSERT, DELETE = "row", "insert", "delete"
 
 
-# ---------------------------------------------------------------- menus ----
+class change:
+    """Around one MacListCtrl write to the native table: the reloadData wx
+    does for it (src/osx/cocoa/listbox.mm: SetString -> UpdateLine, Insert ->
+    ListInsert + UpdateLineToEnd, Delete -> ListDelete, each a full reload)
+    becomes the single-row change instead: set one row's text, insert one
+    row, or remove one row. Later reloads inside the same write (Insert's
+    UpdateLineToEnd) have nothing left to do."""
+
+    def __init__(self, ctrl, kind, row):
+        self.ptr = getattr(ctrl, "_wz_table_ptr", None)
+        self.entry = [kind, row, False]
+
+    def __enter__(self):
+        if self.ptr is not None:
+            _pending[self.ptr] = self.entry
+        return self
+
+    def __exit__(self, *exc):
+        if self.ptr is not None:
+            _pending.pop(self.ptr, None)
+        return False
+
+
+def row_only(ctrl, row):
+    return change(ctrl, ROW, row)
+
+
+def reload_plan(entry, owned, columns, table_rows, data_rows):
+    """What one reloadData does: ("full",), ("none",) or (kind, row).
+
+    *table_rows* is the count the table still has cached, *data_rows* what
+    its data source now holds. A single-row change is used only when those
+    two agree with it exactly; anything else is AppKit's full reload."""
+    if not owned or entry is None or columns != 1:
+        return ("full",)
+    kind, row, done = entry
+    if done:
+        return ("none",) if table_rows == data_rows else ("full",)
+    if kind == ROW and table_rows == data_rows and 0 <= row < data_rows:
+        return (ROW, row)
+    if kind == INSERT and data_rows == table_rows + 1 and 0 <= row < data_rows:
+        return (INSERT, row)
+    if kind == DELETE and data_rows == table_rows - 1 and 0 <= row < table_rows:
+        return (DELETE, row)
+    return ("full",)
+
 
 def _flatten(menu, prefix=""):
     items = []
@@ -266,6 +327,49 @@ def _prepared_cell(self, column, row):
         return None
 
 
+def _set_row_text(table, row):
+    """Set the visible view of *row* to the data source's text; False when
+    that cannot be done (the caller then reloads)."""
+    if not (0 <= row < table.numberOfRows()):
+        return False
+    view = table.viewAtColumn_row_makeIfNecessary_(0, row, False)
+    if view is None:
+        return True   # not on screen: the next viewFor reads the new text
+    tf = view.textField() if hasattr(view, "textField") else None
+    if tf is None:
+        return False
+    col = table.tableColumns()[0]
+    value = table.dataSource().tableView_objectValueForTableColumn_row_(table, col, row)
+    tf.setStringValue_("" if value is None else str(value))
+    return True
+
+
+def _reload(self):
+    ptr = objc.pyobjc_id(self)
+    try:
+        entry = _pending.get(ptr)
+        if entry is not None:
+            data_rows = self.dataSource().numberOfRowsInTableView_(self)
+            plan = reload_plan(entry, ptr in _owners, len(self.tableColumns()),
+                               self.numberOfRows(), data_rows)
+            if plan[0] == "none":
+                return
+            if plan[0] == ROW and _set_row_text(self, plan[1]):
+                entry[2] = True
+                return
+            if plan[0] in (INSERT, DELETE):
+                rows = NSIndexSet.indexSetWithIndex_(plan[1])
+                if plan[0] == INSERT:
+                    self.insertRowsAtIndexes_withAnimation_(rows, 0)
+                else:
+                    self.removeRowsAtIndexes_withAnimation_(rows, 0)
+                entry[2] = True
+                return
+    except Exception:
+        logging.debug("[mac-rows] single-row change failed; reloading", exc_info=True)
+    objc.super(objc.lookUpClass("wxNSTableView"), self).reloadData()
+
+
 def _install():
     global _installed
     if _installed:
@@ -275,6 +379,7 @@ def _install():
         objc.selector(_view_for, selector=_VIEW_FOR, signature=b"@@:@@q"),
         objc.selector(_responds, selector=b"respondsToSelector:", signature=b"Z@::"),
         objc.selector(_prepared_cell, selector=b"preparedCellAtColumn:row:", signature=b"@@:qq"),
+        objc.selector(_reload, selector=b"reloadData", signature=b"v@:"),
     ])
     wx.Window.PopupMenu = _patched_popup
     wx.EvtHandler.Bind = _patched_bind
@@ -290,6 +395,7 @@ def adopt(ctrl):
         if table is None or table.className() != "wxNSTableView":
             return
         _owners[objc.pyobjc_id(table)] = weakref.ref(ctrl)
+        ctrl._wz_table_ptr = objc.pyobjc_id(table)
         delegate = table.delegate()
         table.setDelegate_(None)
         table.setDelegate_(delegate)

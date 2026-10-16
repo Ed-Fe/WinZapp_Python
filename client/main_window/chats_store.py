@@ -284,6 +284,11 @@ class ChatsStoreMixin:
             # and keeps nothing else here either), so this line touches only
             # the account switch.
             self._forget_media_failures()
+            # What the media cleanup removed: only a logout or a new pairing
+            # (this block) lets it come back, never F5.
+            forget_cleaned = getattr(self, "_forget_cleaned_media", None)
+            if callable(forget_cleaned):
+                forget_cleaned()
             # Same family by origin as everything above (fed by
             # _note_verified_activity(), consulted by
             # local_history_behind_server() as a floor), inert here today

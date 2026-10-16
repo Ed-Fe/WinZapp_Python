@@ -212,9 +212,10 @@
     <a href="#configuracoes" class="nav-link">14. Settings</a>
     <a href="#privacidade" class="nav-link">15. WhatsApp settings</a>
     <a href="#copias-registros" class="nav-link">16. Backups and logs</a>
-    <a href="#atalhos" class="nav-link">17. Keyboard shortcuts</a>
-    <a href="#solucao-problemas" class="nav-link">18. Troubleshooting</a>
-    <a href="#registro" class="nav-link">19. Guide update log</a>
+    <a href="#mac" class="nav-link">17. WinZapp on the Mac</a>
+    <a href="#atalhos" class="nav-link">18. Keyboard shortcuts</a>
+    <a href="#solucao-problemas" class="nav-link">19. Troubleshooting</a>
+    <a href="#registro" class="nav-link">20. Guide update log</a>
   </div>
 </nav>
 
@@ -243,6 +244,7 @@
         <li><a href="#configuracoes">Settings</a></li>
         <li><a href="#privacidade">WhatsApp settings</a></li>
         <li><a href="#copias-registros">Backups and logs</a></li>
+        <li><a href="#mac">WinZapp on the Mac</a></li>
         <li><a href="#atalhos">Keyboard shortcuts</a></li>
         <li><a href="#solucao-problemas">Troubleshooting</a></li>
         <li><a href="#registro">Guide update log</a></li>
@@ -551,6 +553,7 @@
 
 <h3>Automatic download</h3>
 <p>In Settings &gt; Storage, "Automatically download media" turns on media download, and you choose the types. Unchecking it stops what is in progress; checking it (or checking one more type) starts downloading right away and also applies to the media of messages that arrive while WinZapp is open. Even with everything off, opening a media item manually downloads it right then. "Download media" (Sync menu, Ctrl+Alt+Shift+B) triggers the download whenever you want. WinZapp announces progress by voice, such as "Downloading media: 30 of 120 processed (8 downloaded)".</p>
+<p>Settings &gt; Storage &gt; "Media cleanup" frees disk space by deleting the downloaded media files of the conversations you choose; the messages stay. You pick the conversations (with a "Select all" row and a groups/individual filter), the media types (photos and stickers, videos, audios, voice messages, documents) and a minimum size in MB. "Gather data" only reads and tells how many files and how many MB match, per type; "Proceed with cleanup" asks for confirmation (No is the default) and then deletes exactly what was previewed. Files you saved with Save As are never touched, nor are the media of unsent messages or locked chats. The cleaned files are remembered, so automatic downloads and syncs do not fetch them again, and an explicit download says so; only a logout or a new pairing forgets them, not F5.</p>
 
   </section>
 
@@ -632,6 +635,7 @@
   <tr><td>PDF: "Convert to accessible text"</td><td>Turns it into plain, readable text.</td></tr>
 </table>
 <p><kbd>Ctrl+Shift+I</kbd> does all of this on the focused message. The result opens in a window with the text; for photos and videos, you can ask follow-up questions (Ctrl+Enter asks). In the Status tab (Alt+5), the "Describe" button describes photo and video statuses.</p>
+<p>In the result of a transcription or description, "Put transcription in the message line" and "Put description in the message line" keep the text with the message, which then shows it in its own line in the list. In Settings &gt; Transcriptions &amp; Descriptions, "Transcribe received voice messages automatically" and "Describe received pictures, stickers and videos automatically" (both off by default) do this with the online providers, with no window, sound or speech per message; only providers you already authorized are used, and turning one on turns off the local automatic transcription. Each conversation's data window has "transcribe" and "describe" boxes, and you can choose between all conversations except the ones turned off, or only the ones turned on. To save your quota, you choose how old a received message may be and still be processed (5 minutes, 15, 30 or 1 hour) and a daily ceiling on automatic requests (50 by default, 0 for none); if every provider refuses because of quota or key, the queue pauses for an hour and says so once.</p>
 <div class="callout warn">
   <div class="callout-title">🔒 Privacy</div>
   WinZapp asks before sending media to a provider, and asks again each time in locked chats. Your keys are stored encrypted on your computer and are only sent to the provider they belong to. Resetting all keys also clears the remembered send authorizations. A waiting sound plays while the provider works; answers can be read aloud automatically; the text follows the app's language. Very long transcription and PDF texts report a text limit error.
@@ -835,8 +839,18 @@
 
   </section>
 
+  <section id="mac" class="wiki-section" aria-labelledby="h-mac">
+    <h2 id="h-mac">🍎 17. WinZapp on the Mac</h2>
+<p class="lead">On macOS, WinZapp works with VoiceOver. The chat and message lists are tables VoiceOver reads, and shortcuts follow the Mac rule: Ctrl becomes Command, Alt becomes Command-Option and Ctrl+Alt becomes Control-Command.</p>
+<ul>
+  <li><strong>Lists:</strong> VO+Space on a row does what Enter does; on a chat, the chat opens and VoiceOver moves to the message field. The items of the row's context menu are VoiceOver actions (VO+Command+Space), and VO+Shift+M opens the context menu. VoiceOver keeps its place when a row changes, for example when a new message arrives.</li>
+  <li><strong>Updates:</strong> "Check for updates" is in the WinZapp menu, under About WinZapp, and in "Help". With "Automatically check for updates" on in Settings, an update is downloaded in the background and installed when you quit WinZapp; if WinZapp stays open, the update window offers to install and relaunch, and WinZapp announces it by speech and by a notification. The update window says what changed since your version. Installing an update takes a few seconds, and the first launch after it is as quick as any other.</li>
+</ul>
+
+  </section>
+
   <section id="atalhos" class="wiki-section" aria-labelledby="h-atalhos">
-    <h2 id="h-atalhos">⌨️ 17. Keyboard shortcuts</h2>
+    <h2 id="h-atalhos">⌨️ 18. Keyboard shortcuts</h2>
 <div class="callout info">
   <div class="callout-title">ℹ️ List generated from the code</div>
   The tables below are generated automatically from WinZapp's shortcut catalog and show the factory keys. They also appear in the program, on F1 or Help &gt; Keyboard shortcuts. Any key can be changed in the Keyboard shortcuts tab of Settings.
@@ -1178,7 +1192,7 @@
   </section>
 
   <section id="solucao-problemas" class="wiki-section" aria-labelledby="h-solucao-problemas">
-    <h2 id="h-solucao-problemas">🧰 18. Troubleshooting</h2>
+    <h2 id="h-solucao-problemas">🧰 19. Troubleshooting</h2>
 <table class="field-table">
   <tr><th>Situation</th><th>What to do</th></tr>
   <tr><td>WinZapp asks you to pair again</td><td>Pair with number or QR code. Your chats are only deleted if you connect a different number. If it happened for no reason, keep <code>log.log</code> and <code>shutdown_audit.log</code> before opening it again.</td></tr>
@@ -1194,7 +1208,7 @@
   </section>
 
   <section id="registro" class="wiki-section" aria-labelledby="h-registro">
-    <h2 id="h-registro">📝 19. Guide update log</h2>
+    <h2 id="h-registro">📝 20. Guide update log</h2>
 <p class="lead">Every new alpha that brings features is added to the guide. This list shows up to which alpha the guide is complete and what was added in each round.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
