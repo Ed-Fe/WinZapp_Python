@@ -130,6 +130,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Naprawiono powtarzającą się synchronizację rozmów, gdy lista czatów WhatsApp była dostępna, ale nie można jej było przekazać do lokalnego serwera. Istniejące rozmowy są zachowywane, a synchronizacja listy może się zakończyć.
+
 - Wysyłanie wiadomości głosowych i dokumentów kończyło się błędem "Cannot read properties of undefined (reading 'prepRawMedia')" w wersji WhatsApp Web wydanej 15 października, która przeniosła tę funkcję. WinZapp zawiera teraz odpowiednią wersję swojej biblioteki WhatsApp Web (WA-JS 4.7.1). Jeśli wysyłanie nadal nie działa po aktualizacji, zainstaluj ponownie WPPConnect z okna aktualizacji.
 
 - macOS: na listach czatów i wiadomości VoiceOver nie gubi już swojego miejsca, gdy zmienia się wiersz, na przykład gdy zmienia się licznik nieprzeczytanych, ktoś zaczyna nagrywać audio albo przychodzi nowa wiadomość. Otwieranie czatu za pomocą VoiceOver działa teraz od razu i za każdym razem, zamiast czasem zawodzić albo działać dopiero po przerwie, a VoiceOver przechodzi potem do pola wiadomości; komunikaty takie jak ten o przypiętych wiadomościach są odczytywane po polu, zamiast mu przerywać.
