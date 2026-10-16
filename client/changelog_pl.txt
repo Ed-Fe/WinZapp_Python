@@ -124,6 +124,8 @@ NOWOŚCI
 
 POPRAWKI
 
+- Wysyłanie wiadomości głosowych i dokumentów kończyło się błędem "Cannot read properties of undefined (reading 'prepRawMedia')" w wersji WhatsApp Web wydanej 15 października, która przeniosła tę funkcję. WinZapp zawiera teraz odpowiednią wersję swojej biblioteki WhatsApp Web (WA-JS 4.7.1). Jeśli wysyłanie nadal nie działa po aktualizacji, zainstaluj ponownie WPPConnect z okna aktualizacji.
+
 - Przyciski nagrywania w drugim trybie (stereo lub mono) i nagrywania z dźwiękiem komputera podawały czytnikowi ekranu skrót Ctrl+R. Teraz każdy podaje swój, Ctrl+Shift+G i Ctrl+Shift+H, albo klawisze, które im przypisano.
 
 - Okna Informacje o grupie, Informacje o czacie, Zaproszenie do grupy i Dołącz do grupy przez link mają teraz literę skrótu (Alt+litera) na każdym przycisku i na każdej etykiecie pola lub listy. Wcześniej przyciski okna Informacje o grupie, część przycisków okna Informacje o czacie i wszystkie kontrolki zaproszenia nie miały żadnej. Przycisk zamykający okno zaproszenia, który był po angielsku, jest teraz w języku WinZappa.

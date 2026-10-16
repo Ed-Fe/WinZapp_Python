@@ -124,6 +124,8 @@ WHAT'S NEW
 
 FIXES
 
+- Sending voice messages and documents failed with "Cannot read properties of undefined (reading 'prepRawMedia')" on a WhatsApp Web build released on 15 October, which moved that function. WinZapp now ships the matching version of its WhatsApp Web library (WA-JS 4.7.1). If sending still fails after updating, reinstall WPPConnect from the update window.
+
 - The buttons for recording in the other mode (stereo or mono) and for recording with the computer's audio told the screen reader their shortcut was Ctrl+R. They now announce their own, Ctrl+Shift+G and Ctrl+Shift+H, or the keys you assigned to them.
 
 - The Group info, Chat info, Group invitation and Join group by link windows now have an access key (Alt+letter) on every button and on every label of a field or list. Before, the buttons of Group info, some of Chat info and every control of the invitation had none. The button that closes the invitation window, which was shown in English, now follows WinZapp's language.

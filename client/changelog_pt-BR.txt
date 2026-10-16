@@ -124,6 +124,8 @@ NOVIDADES
 
 CORREÇÕES
 
+- O envio de mensagens de voz e de documentos falhava com "Cannot read properties of undefined (reading 'prepRawMedia')" numa versão do WhatsApp Web lançada em 15 de outubro, que mudou essa função de lugar. O WinZapp agora traz a versão correspondente da sua biblioteca do WhatsApp Web (WA-JS 4.7.1). Se o envio continuar falhando depois de atualizar, reinstale o WPPConnect pela janela de atualização.
+
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.
 
 - As janelas Dados do grupo, Dados da conversa, Convite para o grupo e Entrar no grupo por link agora têm uma letra de atalho (Alt+letra) em cada botão e em cada rótulo de campo ou lista. Antes, os botões de Dados do grupo, alguns de Dados da conversa e todos os controles do convite não tinham nenhuma. O botão de fechar a janela do convite, que aparecia em inglês, agora segue o idioma do WinZapp.

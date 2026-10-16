@@ -75,3 +75,18 @@ Verified on a scratch checkout of 2.10.52 with the patches laid over it as `setu
 
 `update_keeps_server.py` still says the gap is nothing with the bundled tag: it is, again, because the overridden files above were ported.
 
+
+## wa-js 4.6.1 -> 4.7.1 on wppconnect 2.3.4 (2026-10-15), and why wppconnect did not move with it
+
+**Symptom.** Voice messages and documents failed to send: `send-voice-base64 failed: Cannot read properties of undefined (reading 'prepRawMedia')`, HTTP 201 from the server with the error in the body, so the client's "invalid success response" path. Texts, and a source tree installed hours earlier, kept working: `@wppconnect/wa-version` is reached only through WPPConnect's own `^1.5.4472`, so a fresh install resolves whatever WhatsApp Web build is newest (1.5.5046, published 21:28Z) and `start.js` serves exactly that build. It moved `prepRawMedia` out of the object wa-js 4.6.1 reads it from. wa-js 4.7.1 (22:34Z) is "split MediaPrep bindings after WhatsApp moved prepRawMedia and uploadProductImage".
+
+**What was bumped: wa-js only.** `@wppconnect/wa-js` 4.6.1 -> 4.7.1 in `api_patches/package.json`. `@wppconnect-team/wppconnect` stays 2.3.4: its dependency range `^4.6.1` already admits 4.7.1, and 2.3.5 (published the same night, "bump wa-js version to 4.7.1") also rewrote `host.layer.js` and `browser.js`, two of the four `node_modules` patch targets. Run against the 2.3.5 tarball, `patch_host_layer_source()` reports `checkQrCode: DID NOT MATCH` (the pairing fix) and `patch_browser_source()` returns `no_match` (the injectApi wait; 2.3.5 has its own `injectionTimeout` option). Moving wppconnect is a separate change that has to redo those two patches; it is not needed for this bug.
+
+**What was checked, in the order of the worked example above.**
+
+- wa-js bundle, per webpack module id: 769 -> 786 modules, 27 changed, 17 new, none gone. Of the 27, most differ only by renamed locals (same byte length); the real ones are `prepareMessageButtons`/native-flow buttons, `sendPixKeyMessage`/`sendChargeMessage`, `sendFileMessage` (+0.4 KB), the MediaPrep split, the lists modules (`create`, `addChats`, `getColorPalette`, ordering) and the loader's `IGNORE_FAIL_MODULES`/`LAZY_MODULES`.
+- `patch_wa_js_source()` (the Meta AI `personaId` guard) reports `applied` on the 4.7.1 bundle.
+- `chatListsRuntime.ts` compared `wpp.version` with the literal `'4.6.1'`: on any other version a missing legacy `labelsEditingEnabled` gate meant `runtime_incomplete`, i.e. no list editing. 4.7.1 makes that gate optional for its own calls (it is in `IGNORE_FAIL_MODULES`) and exposes the same native modules, so `'4.7.1'` joins `'4.6.1'` in `nativeContractVersions`; every other version still fails closed (tests pin 4.7.0, 4.7.2, 4.8.0).
+- The drift gate (`library_drifts()`) needed no change: it reads exact pins, so an installed 4.6.1 against a pinned 4.7.1 asks for the reinstall, and "Continue without updating" keeps the old libraries with the old pin text.
+
+**Trap.** Anyone who reinstalls or updates WPPConnect gets the newest WhatsApp Web build, whatever the app version. When a send route answers 201 with `failed:` in its text, look at what changed in WhatsApp Web (`npm view @wppconnect/wa-version time`) before looking at the client.
