@@ -128,6 +128,8 @@ CORECTĂRI
 
 - macOS: în listele de conversații și de mesaje, VoiceOver nu își mai pierde locul când un rând se schimbă, de exemplu când se schimbă numărul de mesaje necitite, cineva începe să înregistreze audio sau sosește un mesaj nou. Deschiderea unei conversații cu VoiceOver funcționează acum imediat și de fiecare dată, în loc să eșueze uneori sau să acționeze abia după o pauză, iar VoiceOver trece apoi la câmpul de mesaj; anunțuri precum cel despre mesajele fixate sunt rostite după câmp în loc să îl întrerupă.
 
+- macOS: comenzile rapide cu Command fac acum același lucru pe orice ecran. Litera subliniată a unui buton prelua Command cu acea literă: cât timp era afișat „Citiți mai multe”, Command-C îl apăsa în loc să copieze, iar alte butoane preluau în același fel alte comenzi rapide. Litera subliniată a unui buton se apasă acum cu Command-Option și litera, forma de Mac a lui Alt și litera din Windows, iar o comandă rapidă WinZapp pe aceleași taste are în continuare prioritate, ca în Windows.
+
 - Butoanele de înregistrare în celălalt mod (stereo sau mono) și de înregistrare cu sunetul computerului anunțau cititorului de ecran comanda rapidă Ctrl+R. Acum fiecare o anunță pe a sa, Ctrl+Shift+G și Ctrl+Shift+H, sau tastele pe care le-ați atribuit.
 
 - Ferestrele Informații despre grup, Informații despre conversație, Invitație în grup și Alăturare la grup prin link au acum o literă de acces (Alt+literă) pe fiecare buton și pe fiecare etichetă de câmp sau de listă. Înainte, butoanele din Informații despre grup, unele din Informații despre conversație și toate controalele invitației nu aveau niciuna. Butonul care închide fereastra invitației, care apărea în engleză, urmează acum limba din WinZapp.

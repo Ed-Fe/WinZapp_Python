@@ -128,6 +128,8 @@ DÜZELTMELER
 
 - macOS: sohbet ve mesaj listelerinde, bir satır değiştiğinde (örneğin okunmamış sayısı değiştiğinde, biri ses kaydetmeye başladığında veya yeni bir mesaj geldiğinde) VoiceOver artık yerini kaybetmiyor. VoiceOver ile bir sohbeti açmak artık bazen başarısız olmak veya ancak bir duraklamadan sonra çalışmak yerine hemen ve her seferinde çalışıyor ve VoiceOver ardından mesaj alanına geçiyor; sabitlenmiş mesajlarla ilgili olan gibi bildirimler alanı kesmek yerine alandan sonra okunuyor.
 
+- macOS: Command kısayolları artık her ekranda aynı işi yapıyor. Bir düğmenin altı çizili harfi, Command ve o harfi ele geçiriyordu: "Devamını oku" görünürken Command-O onu tetikliyordu ve diğer düğmeler de aynı şekilde başka kısayolları alıyordu. Bir düğmenin altı çizili harfi artık Command-Option ve harfle, Windows'taki Alt ve harfin Mac karşılığıyla, tetikleniyor ve aynı tuşlardaki bir WinZapp kısayolu, Windows'ta olduğu gibi, yine önce geliyor.
+
 - Diğer modda (stereo veya mono) kayıt ve bilgisayar sesiyle kayıt düğmeleri ekran okuyucuya kısayol olarak Ctrl+R bildiriyordu. Artık her biri kendi kısayolunu, Ctrl+Shift+G ve Ctrl+Shift+H'yi ya da onlara atadığınız tuşları bildiriyor.
 
 - Grup bilgisi, Sohbet bilgisi, Grup daveti ve Gruba bağlantıyla katıl pencerelerinde artık her düğmenin ve her alan ya da liste etiketinin bir kısayol harfi (Alt+harf) var. Önceden Grup bilgisi penceresinin düğmelerinde, Sohbet bilgisi penceresinin bazı düğmelerinde ve davet penceresinin hiçbir denetiminde kısayol harfi yoktu. Davet penceresini kapatan düğme İngilizce görünüyordu; artık WinZapp'in dilinde.

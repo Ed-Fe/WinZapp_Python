@@ -128,6 +128,8 @@ CORREÇÕES
 
 - macOS: nas listas de conversas e de mensagens, o VoiceOver não perde mais o lugar quando uma linha muda, por exemplo quando um contador de não lidas muda, alguém começa a gravar áudio ou chega uma mensagem nova. Abrir uma conversa com o VoiceOver agora funciona na hora e sempre, em vez de às vezes falhar ou só agir depois de uma pausa, e o VoiceOver vai em seguida para o campo de mensagem; avisos como o das mensagens fixadas são falados depois do campo em vez de interrompê-lo.
 
+- macOS: os atalhos com Command agora fazem a mesma coisa em todas as telas. A letra sublinhada de um botão tomava o Command com essa letra: enquanto "Ler mais" aparecia, Command-L o acionava, e outros botões tomavam outros atalhos do mesmo jeito. A letra sublinhada de um botão agora é acionada com Command-Option e a letra, a forma Mac de Alt e a letra no Windows, e um atalho do WinZapp nas mesmas teclas continua tendo prioridade, como no Windows.
+
 - Os botões de gravar no outro modo (estéreo ou mono) e de gravar com o áudio do computador informavam ao leitor de tela o atalho Ctrl+R. Agora cada um informa o seu, Ctrl+Shift+G e Ctrl+Shift+H, ou as teclas que você definiu para eles.
 
 - As janelas Dados do grupo, Dados da conversa, Convite para o grupo e Entrar no grupo por link agora têm uma letra de atalho (Alt+letra) em cada botão e em cada rótulo de campo ou lista. Antes, os botões de Dados do grupo, alguns de Dados da conversa e todos os controles do convite não tinham nenhuma. O botão de fechar a janela do convite, que aparecia em inglês, agora segue o idioma do WinZapp.
