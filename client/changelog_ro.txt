@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Transcriere locală cu faster-whisper: s-a corectat încărcarea bibliotecilor CUDA în Windows, care putea împiedica utilizarea plăcii grafice și bloca transcrierile ulterioare. Dacă bibliotecile nu pot fi încărcate, WinZapp anunță problema înainte de a începe calculele pe placa grafică.
+
 - Starea dumneavoastră online corespunde acum stării actuale a ferestrei chiar și atunci când treceți rapid la alt program, ascundeți WinZapp în zona de notificare sau vă reconectați în fundal. O actualizare online întârziată nu mai poate ajunge după cea offline, iar o încercare nereușită de a seta starea offline este repetată.
 
 - Comenzi rapide noi, fiecare modificabilă în fila Comenzi rapide din setări: Alt+8 deschide comunitățile de oriunde din fereastră; Alt+Shift+B deschide catalogul și coșul firmei din conversația selectată sau deschisă; iar într-un cont WhatsApp Business, Ctrl+Shift+N creează o comandă pentru contactul din conversație. Acolo unde nu se aplică, WinZapp spune motivul. Enter pe un mesaj de comandă deschide comanda.
