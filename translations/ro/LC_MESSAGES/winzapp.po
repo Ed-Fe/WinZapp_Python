@@ -179,7 +179,7 @@ msgid ""
 msgstr ""
 "„{name}” este singurul cont. Îl ștergeți definitiv, împreună cu toate "
 "mesajele, fișierele media, preferințele și copiile de siguranță ale "
-"profilului, și închizi WinZapp? Această acțiune nu poate fi anulată."
+"profilului, și închideți WinZapp? Această acțiune nu poate fi anulată."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "acc_err_archive_current"
