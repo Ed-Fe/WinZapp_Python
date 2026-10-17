@@ -166,3 +166,44 @@ class TestTheAccountInUse:
         assert can_hard_delete(account, account["id"])[0] is False
         assert can_hard_delete(account, account["id"], only_account=True)[0] is True
         assert can_hard_delete(other, account["id"])[0] is True
+
+
+class TestPurgeOnExit:
+    """WindowLifecycleMixin._purge_account_if_requested, on a plain stub."""
+
+    @staticmethod
+    def _call(stub):
+        pytest.importorskip("wx")
+        from main_window.window_lifecycle import WindowLifecycleMixin
+        WindowLifecycleMixin._purge_account_if_requested(stub)
+
+    def test_the_account_marked_for_removal_is_purged(self, install):
+        registry, global_dir, _tmp = install
+        account = registry.add("one", state="paired")
+        _write_sessions(registry, account["id"], [{"name": SESSION_A, "status": "active"}])
+        profile = _make_profile(global_dir, SESSION_A)
+        stub = type("Stub", (), {})()
+        stub.registry, stub.global_dir = registry, global_dir
+        stub._purge_account_on_exit = account["id"]
+
+        self._call(stub)
+
+        assert registry.get(account["id"]) is None
+        assert not any(os.path.exists(path) for path in profile)
+
+    def test_nothing_is_removed_when_no_removal_was_requested(self, install):
+        registry, global_dir, _tmp = install
+        account = registry.add("one", state="paired")
+        stub = type("Stub", (), {})()
+        stub.registry, stub.global_dir = registry, global_dir
+
+        self._call(stub)
+
+        assert registry.get(account["id"]) is not None
+
+    def test_a_failure_does_not_stop_the_shutdown(self):
+        stub = type("Stub", (), {})()
+        stub.registry, stub.global_dir = None, None
+        stub._purge_account_on_exit = "x" * 32
+
+        self._call(stub)  # must not raise
