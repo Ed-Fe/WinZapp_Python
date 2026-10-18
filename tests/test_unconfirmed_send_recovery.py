@@ -494,10 +494,12 @@ class TestResendMenuItemIsGatedCorrectly:
     tests/test_lid_merge_keeps_messages.py's own structural test for a
     method too large to exercise every branch of directly."""
 
-    def test_resend_is_gated_on_text_type_and_unconfirmed_flag(self):
+    def test_resend_is_gated_on_something_to_send_again(self):
+        """Failed or unconfirmed, text or attachment: core/message_resend.py
+        decides (tests/test_message_resend.py), and the menu only asks it."""
         src = inspect.getsource(ConversationsPanel.on_messages_context_menu)
-        assert 'if _is_text and msg.get("_send_unconfirmed"):' in src
-        assert "resend_message" in src
+        assert "if resend_request(msg) is not None:" in src
+        assert "resend_message" in src and "\\tCtrl+Shift+Y" in src
 
 
 class TestTheResendCarriesTheWireTextNotTheDisplayText:

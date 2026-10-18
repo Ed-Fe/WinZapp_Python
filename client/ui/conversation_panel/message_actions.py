@@ -17,6 +17,7 @@ from core.message_edit import (
     edit_window_open,
 )
 from core.message_queue import PendingMessage
+from core.message_resend import resend_request
 from core.reply_failure import is_missing_quote_failure
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from app_paths import data_path
@@ -808,11 +809,26 @@ class MessageActionsMixin:
         self._cancel_edit_btn.Show()
         self.conversation_panel.Layout()
 
+    def _on_accel_resend_message(self, event=None):
+        """Ctrl+Shift+Y (configurable): Try sending again, on the focused
+        message — said when that message has nothing to send again, rather
+        than a key that silently does nothing."""
+        index = self.messages_list.GetFirstSelected()
+        if index < 0 or index >= len(self._sorted_messages):
+            return
+        msg = self._sorted_messages[index]
+        if self._is_separator(msg) or resend_request(msg) is None:
+            self.main_window.output(self.main_window.i18n.t("resend_not_available"), interrupt=True)
+            return
+        self._on_menu_resend_message(msg)
+
     def _on_menu_resend_message(self, msg: dict):
-        """Manually re-send a text message WinZapp itself never confirmed —
-        the other recovery option besides dismissing it outright (see
-        _on_menu_delete_message's cancelled_pending branch, which already
-        treats this state as nothing-to-revoke).
+        """Manually send again an own message whose send failed or WinZapp
+        never confirmed — the other recovery option besides dismissing it
+        outright (see _on_menu_delete_message's cancelled_pending branch,
+        which already treats this state as nothing-to-revoke). A text goes
+        as its wire text; an attachment as the file it was sent from
+        (core/message_resend.py), through the attachment panel's own path.
 
         Deliberately does not attempt to preserve a quote or @mentions the
         original had: rebuilding those faithfully from contextInfo is more
@@ -823,6 +839,9 @@ class MessageActionsMixin:
         goes out as plain text; if the quote mattered, the user can reply
         again themselves.
         """
+        request = resend_request(msg)
+        if request is None:
+            return
         remote_jid = msg.get("key", {}).get("remoteJid", "") or (
             self.conversation.get("remoteJid", "") if self.conversation else ""
         )
@@ -843,14 +862,7 @@ class MessageActionsMixin:
         # prefix into message.conversation) — and doing it would silently
         # truncate a message from a user who legitimately types quote-style
         # lines.
-        body = msg.get("message") or {}
-        content = (
-            body.get("conversation")
-            or (body.get("extendedTextMessage") or {}).get("text")
-            or ""
-        )
-        if not content:
-            return
+        content = request[1] if request[0] == "text" else ""
 
         old_local_id = str(msg.get("_local_id") or "")
         if old_local_id:
@@ -860,6 +872,12 @@ class MessageActionsMixin:
             self.main_window.message_queue.cancel(old_local_id)
             self._outgoing_virtual_messages.pop(old_local_id, None)
             self.remove_messages_by_id({old_local_id}, focus_previous=True)
+
+        if request[0] == "media":
+            _kind, path, media_type, caption = request
+            if self._send_attachment_file(remote_jid, path, media_type, caption, None):
+                self.main_window._schedule_set_chats()
+            return
 
         local_id = str(uuid.uuid4())
         virtual_msg = {

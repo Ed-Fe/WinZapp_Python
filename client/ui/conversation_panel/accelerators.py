@@ -152,6 +152,7 @@ class AcceleratorsMixin:
         self.ID_CTRL_R          = wx.NewIdRef()  # record voice            (Ctrl+R)
         self.ID_CTRL_SHIFT_G    = wx.NewIdRef()  # record, other mode      (Ctrl+Shift+G)
         self.ID_CTRL_SHIFT_H    = wx.NewIdRef()  # microphone + system     (Ctrl+Shift+H)
+        self.ID_CTRL_SHIFT_Y    = wx.NewIdRef()  # try sending again       (Ctrl+Shift+Y)
         self.ID_CATALOG         = wx.NewIdRef()  # business catalog/cart   (Alt+Shift+B)
         self.ID_ORDER_CREATE    = wx.NewIdRef()  # create an order         (Ctrl+Shift+N)
         self.ID_ALT_2           = wx.NewIdRef()  # jump to last message    (Alt+2)
@@ -298,6 +299,7 @@ class AcceleratorsMixin:
             # types "®" on US-International and would be taken from the editor.
             (CS,               ord("G"),          self.ID_CTRL_SHIFT_G),
             (CS,               ord("H"),          self.ID_CTRL_SHIFT_H),
+            (CS,               ord("Y"),          self.ID_CTRL_SHIFT_Y),
             (AS,               ord("B"),          self.ID_CATALOG),
             (CS,               ord("N"),          self.ID_ORDER_CREATE),
             (wx.ACCEL_NORMAL,  wx.WXK_DELETE,     self.ID_DELETE_MSG),
@@ -374,6 +376,7 @@ class AcceleratorsMixin:
         self.Bind(wx.EVT_MENU, self.on_record_voice_message,       id=self.ID_CTRL_R)
         self.Bind(wx.EVT_MENU, self._on_record_alternate_mode,     id=self.ID_CTRL_SHIFT_G)
         self.Bind(wx.EVT_MENU, self._on_record_system_audio,       id=self.ID_CTRL_SHIFT_H)
+        self.Bind(wx.EVT_MENU, self._on_accel_resend_message,      id=self.ID_CTRL_SHIFT_Y)
         self.Bind(wx.EVT_MENU, self._on_accel_catalog,             id=self.ID_CATALOG)
         self.Bind(wx.EVT_MENU, self._on_accel_order_create,        id=self.ID_ORDER_CREATE)
         self.Bind(wx.EVT_MENU, self._on_accel_jump_last,           id=self.ID_ALT_2)

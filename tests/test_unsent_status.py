@@ -1,0 +1,208 @@
+"""A status post that failed or went unconfirmed stays in the Status list,
+right after "My status", with a context menu and Ctrl+Shift+Y (configurable
+as status.ID_CTRL_SHIFT_Y) to try posting it again. Never posted again by
+itself."""
+
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+import pytest
+import wx
+
+from core.shortcut_catalog import SHORTCUTS
+from status_tab import status_composer, unsent_status
+from status_tab.status_composer import StatusComposerMixin
+from status_tab.status_list import StatusListMixin
+from status_tab.unsent_status import (FAILED, MEDIA, TEXT, UNCONFIRMED, UnsentStatusMixin,
+                                      can_retry, unsent_post, unsent_row_label)
+
+I18N = SimpleNamespace(t=lambda key: {"status_unsent_row": "{what} | {state}"}.get(key, key))
+
+
+class TestTheRow:
+    def test_the_row_says_what_and_how_it_ended(self, tmp_path):
+        video = unsent_post(MEDIA, FAILED, path=str(tmp_path / "clip.mp4"))
+        assert unsent_row_label(video, I18N) == "clip.mp4 | status_unsent_failed"
+        text = unsent_post(TEXT, UNCONFIRMED, text="a long private text")
+        assert unsent_row_label(text, I18N) == "status_unsent_text | status_unsent_unconfirmed"
+
+    def test_a_media_post_can_be_retried_while_its_file_is_there(self, tmp_path):
+        clip = tmp_path / "clip.mp4"
+        clip.write_bytes(b"x")
+        post = unsent_post(MEDIA, FAILED, path=str(clip))
+        assert can_retry(post)
+        clip.unlink()
+        assert not can_retry(post)
+        assert can_retry(unsent_post(TEXT, FAILED, text="t"))
+
+
+class _List:
+    def __init__(self):
+        self.rows, self.focused = [], 0
+
+    def DeleteAllItems(self):
+        self.rows = []
+
+    def Append(self, row):
+        self.rows.append(row[0])
+
+    def GetItemCount(self):
+        return len(self.rows)
+
+    def GetFocusedItem(self):
+        return self.focused
+
+    def Focus(self, row):
+        self.focused = row
+
+    def Select(self, row):
+        pass
+
+
+class _Panel(UnsentStatusMixin):
+    _populate_list = StatusListMixin._populate_list
+    _latest_ts = staticmethod(StatusListMixin._latest_ts)
+    _begin_status_post = StatusComposerMixin._begin_status_post
+    _end_status_post = StatusComposerMixin._end_status_post
+
+    def __init__(self):
+        self.main_window = SimpleNamespace(i18n=I18N, output=Mock())
+        self._status_list = _List()
+        self._viewer_panel = SimpleNamespace(Hide=lambda: None)
+        self._my_statuses, self._status_contacts = [], []
+        self._send_text_status_bg = Mock()
+        self._send_all_media_statuses_bg = Mock()
+
+    def _my_status_label(self, i18n):
+        return "My status"
+
+    def Layout(self):
+        pass
+
+
+@pytest.fixture
+def inline(monkeypatch):
+    class _Thread:
+        def __init__(self, target, args=(), daemon=True):
+            self._run = lambda: target(*args)
+
+        def start(self):
+            self._run()
+
+    monkeypatch.setattr(unsent_status.threading, "Thread", _Thread)
+
+
+class TestTheList:
+    def test_unsent_posts_follow_my_status(self):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(TEXT, FAILED, text="t"))
+        assert panel._status_list.rows == ["My status", "status_unsent_text | status_unsent_failed"]
+        assert panel._unsent_post_at(1)["text"] == "t" and panel._unsent_post_at(0) is None
+
+    def test_retry_sends_once_and_takes_the_row_out(self, inline):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(TEXT, UNCONFIRMED, text="t"))
+        panel._status_list.focused = 1
+        panel._on_accel_retry_status_post()
+        panel._send_text_status_bg.assert_called_once_with("t")
+        assert panel._status_list.rows == ["My status"]
+        panel._on_accel_retry_status_post()   # nothing left on that row
+        panel._send_text_status_bg.assert_called_once()
+
+    def test_a_media_retry_goes_through_the_batch_path(self, inline, tmp_path):
+        clip = tmp_path / "clip.mp4"
+        clip.write_bytes(b"x")
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(MEDIA, FAILED, path=str(clip), caption="c"))
+        panel._retry_unsent_status(panel._unsent_status_posts[0]["id"])
+        panel._send_all_media_statuses_bg.assert_called_once_with([str(clip)], "c")
+
+    def test_a_retry_while_posting_waits(self, inline):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(TEXT, FAILED, text="t"))
+        panel._status_post_in_flight = True
+        panel._retry_unsent_status(panel._unsent_status_posts[0]["id"])
+        panel._send_text_status_bg.assert_not_called()
+        assert len(panel._unsent_status_posts) == 1
+
+    def test_a_missing_file_is_said_and_kept(self, inline, tmp_path):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(MEDIA, FAILED, path=str(tmp_path / "gone.mp4")))
+        panel._retry_unsent_status(panel._unsent_status_posts[0]["id"])
+        panel._send_all_media_statuses_bg.assert_not_called()
+        panel.main_window.output.assert_called_with("status_retry_file_missing", interrupt=True)
+
+    def test_discard_drops_the_row(self):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._remember_unsent_status(unsent_post(TEXT, FAILED, text="t"))
+        panel._discard_unsent_status(panel._unsent_status_posts[0]["id"])
+        assert panel._status_list.rows == ["My status"] and panel._unsent_status_posts == []
+
+    def test_the_key_on_another_row_says_so(self):
+        panel = _Panel()
+        panel._populate_list([], [])
+        panel._on_accel_retry_status_post()
+        panel.main_window.output.assert_called_once_with("status_retry_not_available", interrupt=True)
+
+    def test_the_menu_is_only_for_unsent_rows(self):
+        panel = _Panel()
+        panel._populate_list([], [])
+        event = SimpleNamespace(Skip=Mock())
+        panel._on_status_list_context_menu(event)
+        event.Skip.assert_called_once()
+
+    def test_it_is_catalogued_and_configurable(self):
+        [shortcut] = [s for s in SHORTCUTS if s.id == "status.ID_CTRL_SHIFT_Y"]
+        assert (shortcut.scope, shortcut.mod, shortcut.key) == ("status", 6, ord("Y"))
+
+
+class _Composer:
+    _send_text_status_bg = StatusComposerMixin._send_text_status_bg
+    _send_all_media_statuses_bg = StatusComposerMixin._send_all_media_statuses_bg
+    _end_status_post = StatusComposerMixin._end_status_post
+
+    def __init__(self):
+        self.main_window = SimpleNamespace(
+            i18n=SimpleNamespace(t=lambda key: key), app_name="WinZapp",
+            wpp_server="http://localhost", wpp_port=6300, token="token")
+        self.remembered = []
+        self._remember_unsent_status = self.remembered.append
+        self._on_status_sent = Mock()
+
+
+class TestThePostPathsRecordIt:
+    @pytest.fixture(autouse=True)
+    def _inline(self, monkeypatch):
+        monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+        monkeypatch.setattr(wx, "MessageBox", Mock())
+
+    def test_a_failed_text_post_is_kept(self, monkeypatch):
+        monkeypatch.setattr(status_composer, "api_post", Mock(side_effect=ConnectionError("down")))
+        composer = _Composer()
+        composer._send_text_status_bg("hello")
+        [post] = composer.remembered
+        assert (post["kind"], post["state"], post["text"]) == (TEXT, FAILED, "hello")
+
+    def test_a_posted_text_is_not(self, monkeypatch):
+        # The answer of a status WhatsApp accepted (status_rules._post_was_rejected).
+        accepted = {"response": [{"sendMsgResult": {"messageSendResult": "OK"}}]}
+        monkeypatch.setattr(status_composer, "api_post", Mock(return_value=SimpleNamespace(
+            status_code=201, text="", json=lambda: accepted)))
+        composer = _Composer()
+        composer._send_text_status_bg("hello")
+        assert composer.remembered == []
+        composer._on_status_sent.assert_called_once()
+
+    def test_an_unconfirmed_media_post_is_kept_as_unconfirmed(self, tmp_path):
+        composer = _Composer()
+        composer._send_media_status_bg = lambda path, caption, **kw: status_composer.STATUS_POST_UNCONFIRMED
+        clip = str(tmp_path / "clip.mp4")
+        composer._send_all_media_statuses_bg([clip], "c")
+        [post] = composer.remembered
+        assert (post["kind"], post["state"], post["path"], post["caption"]) == (MEDIA, UNCONFIRMED, clip, "c")

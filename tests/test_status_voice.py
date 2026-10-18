@@ -144,6 +144,9 @@ class _Stub:
     _send_media_status_bg     = StatusPanel._send_media_status_bg
     _send_all_media_statuses_bg = StatusPanel._send_all_media_statuses_bg
     _end_status_post          = StatusPanel._end_status_post
+
+    def _remember_unsent_status(self, post):
+        """status_tab/unsent_status.py keeps it in the list (tests/test_unsent_status.py)."""
     _send_status_voice_bg     = StatusPanel._send_status_voice_bg
     _stop_recorded_audio_preview = StatusPanel._stop_recorded_audio_preview
     _cleanup_recorded_audio_temp_file = StatusPanel._cleanup_recorded_audio_temp_file

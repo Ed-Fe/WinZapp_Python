@@ -258,6 +258,7 @@ class _Stub:
     _mark_status_viewed           = StatusPanel._mark_status_viewed
     _MAX_REMEMBERED_VIEWED        = StatusPanel._MAX_REMEMBERED_VIEWED
     _populate_list                = StatusPanel._populate_list
+    _unsent_rows                  = StatusPanel._unsent_rows
     _my_status_label              = StatusPanel._my_status_label
     _set_list_loading             = StatusPanel._set_list_loading
     _status_row_text              = StatusPanel._status_row_text

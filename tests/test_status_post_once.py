@@ -38,6 +38,11 @@ class _Panel:
         self._post_text_field = SimpleNamespace(GetValue=lambda: "text")
         self._caption_field = SimpleNamespace(GetValue=lambda: "")
         self._on_status_sent = Mock()
+        self.unsent = []
+
+    def _remember_unsent_status(self, post):
+        """status_tab/unsent_status.py keeps it in the list (tests/test_unsent_status.py)."""
+        self.unsent.append(post)
 
 
 @pytest.fixture

@@ -52,6 +52,7 @@ from status_tab.status_media import StatusMediaMixin
 from status_tab.status_composer import StatusComposerMixin
 from status_tab.status_voice import StatusVoiceMixin
 from status_tab.status_ai import StatusAIMixin
+from status_tab.unsent_status import UnsentStatusMixin
 from status_tab.status_transcription import StatusTranscriptionPanelMixin
 
 try:
@@ -78,6 +79,7 @@ class StatusPanel(
     StatusVoiceMixin,
     StatusAIMixin,
     StatusTranscriptionPanelMixin,
+    UnsentStatusMixin,
     wx.Panel,
 ):
     def __init__(self, main_window, parent):
@@ -160,6 +162,7 @@ class StatusPanel(
         self._status_list.Bind(wx.EVT_LIST_ITEM_SELECTED,  self._on_status_contact_selected)
         self._status_list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_status_contact_activated)
         self._status_list.Bind(wx.EVT_KEY_DOWN, self._on_status_list_key_down)
+        self._status_list.Bind(wx.EVT_CONTEXT_MENU, self._on_status_list_context_menu)
         sizer.Add(self._status_list, 1, wx.EXPAND | wx.ALL, 5)
 
         # ── Status viewer panel (hidden until a contact is selected) ──────
@@ -420,6 +423,7 @@ class StatusPanel(
         self.ID_ALT_SHIFT_T   = wx.NewIdRef()
         self.ID_ALT_SHIFT_N   = wx.NewIdRef()
         self.ID_ALT_SHIFT_DELETE = wx.NewIdRef()
+        self.ID_CTRL_SHIFT_Y  = wx.NewIdRef()
         accel_tbl = make_shortcut_table(self, 'status', [
             (wx.ACCEL_CTRL,                    wx.WXK_LEFT,   self.ID_CTRL_LEFT),
             (wx.ACCEL_CTRL,                    wx.WXK_RIGHT,  self.ID_CTRL_RIGHT),
@@ -441,6 +445,8 @@ class StatusPanel(
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT,    ord("T"),      self.ID_ALT_SHIFT_T),
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT,    ord("N"),      self.ID_ALT_SHIFT_N),
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT,    wx.WXK_DELETE, self.ID_ALT_SHIFT_DELETE),
+            # Try sending again a post that failed (status_tab/unsent_status.py).
+            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT,   ord("Y"),      self.ID_CTRL_SHIFT_Y),
         ])
         self.SetAcceleratorTable(accel_tbl)
         self.Bind(wx.EVT_MENU, self._on_prev_status,          id=self.ID_CTRL_LEFT)
@@ -452,6 +458,7 @@ class StatusPanel(
         self.Bind(wx.EVT_MENU, self._on_transcribe_status,    id=self.ID_ALT_SHIFT_T)
         self.Bind(wx.EVT_MENU, self._on_transcribe_status_inline_key, id=self.ID_ALT_SHIFT_N)
         self.Bind(wx.EVT_MENU, self._on_delete_status_transcription, id=self.ID_ALT_SHIFT_DELETE)
+        self.Bind(wx.EVT_MENU, self._on_accel_retry_status_post, id=self.ID_CTRL_SHIFT_Y)
         self.Bind(wx.EVT_MENU, self._on_ctrl_r_shortcut,      id=self.ID_CTRL_R)
         self.Bind(wx.EVT_MENU, self._on_ctrl_p_shortcut,      id=self.ID_CTRL_P)
         self.Bind(wx.EVT_MENU, self._on_ctrl_shift_p_shortcut,id=self.ID_CTRL_SHIFT_P)

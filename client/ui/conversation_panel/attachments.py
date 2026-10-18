@@ -19,6 +19,7 @@ from core.utils import (
     normalize_line_separators,
 )
 from core.message_queue import PendingMessage
+from core.message_resend import RESEND_PATH_KEY
 from core.coalesced_callback import CoalescedCallback
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from core.attachment_types import classify_attachment_media_type
@@ -437,6 +438,9 @@ class AttachmentsMixin:
             "message": {vtype: _body},
             "messageTimestamp": int(time.time()),
             "pushName": "",
+            # What Try sending again sends, should this fail or go unconfirmed
+            # (core/message_resend.py).
+            RESEND_PATH_KEY: path,
         }
         if quoted:
             _qk = quoted.get("key", {})

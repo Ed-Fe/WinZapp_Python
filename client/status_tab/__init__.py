@@ -20,6 +20,7 @@ Where to look (and where new code goes):
     status_voice         recording, previewing and posting a voice status
     status_ai            describing a photo or video status with the AI providers
     status_transcription transcribing an audio or video status on this computer
+    unsent_status        posts that failed or went unconfirmed: their rows, Try sending again
     my_status_transcription  the same keys in MyStatusDialog (a base class of that dialog)
 
   Plain modules

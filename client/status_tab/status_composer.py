@@ -17,6 +17,7 @@ from status_tab.status_rules import (
     _post_was_rejected,
     status_upload_timeout,
 )
+from status_tab.unsent_status import FAILED, MEDIA, TEXT, UNCONFIRMED, unsent_post
 from core.api_client import (
     api_post,
     redact_api_url,
@@ -255,6 +256,10 @@ class StatusComposerMixin:
             logging.warning("[status_post] POST failed for %s: %s",
                             redact_api_url(url), exc)
         wx.CallAfter(self._end_status_post)
+        if not ok:
+            # Kept in the Status list to try again (status_tab/unsent_status.py).
+            wx.CallAfter(self._remember_unsent_status, unsent_post(
+                TEXT, UNCONFIRMED if unconfirmed else FAILED, text=text))
         if ok:
             wx.CallAfter(self._on_status_sent)
         elif unconfirmed:
@@ -385,6 +390,11 @@ class StatusComposerMixin:
                 unconfirmed += 1
             elif ok is not True:
                 failures += 1
+            if ok is not True:
+                # Kept in the Status list to try again (status_tab/unsent_status.py).
+                wx.CallAfter(self._remember_unsent_status, unsent_post(
+                    MEDIA, UNCONFIRMED if ok == STATUS_POST_UNCONFIRMED else FAILED,
+                    path=path, caption=caption))
         wx.CallAfter(self._end_status_post)
         if unconfirmed:
             # It may be up already: look before posting again.

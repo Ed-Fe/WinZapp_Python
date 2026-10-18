@@ -1,0 +1,120 @@
+"""Try sending again: an own message whose send failed or was never
+confirmed, text or attachment, from the message menu or Ctrl+Shift+Y
+(configurable as messages.ID_CTRL_SHIFT_Y). Never sent again by itself."""
+
+import inspect
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+from core.message_resend import RESEND_PATH_KEY, needs_resend, resend_request
+from core.shortcut_catalog import SHORTCUTS
+from tests.test_unconfirmed_send_recovery import REMOTE, _ResendStub
+from ui.conversations import ConversationsPanel
+
+
+def _msg(msg_type="conversation", body=None, **state):
+    msg = {"key": {"id": "loc-1", "fromMe": True, "remoteJid": REMOTE}, "_local_id": "loc-1",
+           "messageType": msg_type, "message": body or {"conversation": "oi"}}
+    msg.update(state)
+    return msg
+
+
+def _video(path, **state):
+    return _msg("videoMessage", {"videoMessage": {"caption": "legenda", "fileName": "clip.mp4"}},
+                **{RESEND_PATH_KEY: path}, **state)
+
+
+class TestWhatCanBeSentAgain:
+    def test_failed_and_unconfirmed_both_count(self):
+        assert needs_resend(_msg(_send_failed=True))
+        assert needs_resend(_msg(_send_unconfirmed=True))
+        assert not needs_resend(_msg())
+        assert not needs_resend(_msg(_local_pending=True))
+
+    def test_never_someone_elses_message(self):
+        received = _msg(_send_failed=True)
+        received["key"]["fromMe"] = False
+        assert resend_request(received) is None
+
+    def test_a_text_sends_its_wire_text(self):
+        assert resend_request(_msg(_send_failed=True)) == ("text", "oi")
+        extended = _msg("extendedTextMessage", {"extendedTextMessage": {"text": "link"}},
+                        _send_unconfirmed=True)
+        assert resend_request(extended) == ("text", "link")
+
+    def test_an_attachment_sends_its_file_while_it_is_there(self, tmp_path):
+        clip = tmp_path / "clip.mp4"
+        clip.write_bytes(b"x")
+        assert resend_request(_video(str(clip), _send_failed=True)) == \
+            ("media", str(clip), "video", "legenda")
+        clip.unlink()
+        assert resend_request(_video(str(clip), _send_failed=True)) is None
+
+    def test_an_attachment_with_no_recorded_file_cannot(self):
+        no_path = _msg("imageMessage", {"imageMessage": {}}, _send_failed=True)
+        assert resend_request(no_path) is None
+
+
+class _MediaStub(_ResendStub):
+    def __init__(self, messages):
+        super().__init__(messages)
+        self.sent_files = []
+
+    def _send_attachment_file(self, remote_jid, path, media_type, caption, quoted):
+        self.sent_files.append((remote_jid, path, media_type, caption, quoted))
+        return True
+
+
+class TestSendingAgain:
+    def test_a_failed_text_is_sent_again(self):
+        stub = _ResendStub([_msg(_send_failed=True)])
+        stub._on_menu_resend_message(stub._sorted_messages[0])
+        [pending] = stub.main_window.message_queue.enqueued
+        assert pending.text == "oi" and pending.local_id != "loc-1"
+        assert stub.removed_ids == [{"loc-1"}]
+
+    def test_an_attachment_goes_through_the_attachment_path(self, tmp_path):
+        clip = tmp_path / "clip.mp4"
+        clip.write_bytes(b"x")
+        stub = _MediaStub([_video(str(clip), _send_unconfirmed=True)])
+        stub._on_menu_resend_message(stub._sorted_messages[0])
+        assert stub.sent_files == [(REMOTE, str(clip), "video", "legenda", None)]
+        assert stub.removed_ids == [{"loc-1"}]
+        assert stub.main_window.message_queue.enqueued == []
+
+    def test_nothing_to_send_again_sends_nothing(self):
+        stub = _ResendStub([_msg()])
+        stub._on_menu_resend_message(stub._sorted_messages[0])
+        assert stub.main_window.message_queue.enqueued == [] and stub.removed_ids == []
+
+
+class _KeyStub:
+    _on_accel_resend_message = ConversationsPanel._on_accel_resend_message
+    _is_separator = ConversationsPanel._is_separator
+
+    def __init__(self, msg):
+        self._sorted_messages = [msg]
+        self.messages_list = SimpleNamespace(GetFirstSelected=lambda: 0)
+        self.main_window = SimpleNamespace(output=Mock(), i18n=SimpleNamespace(t=lambda key: key))
+        self._on_menu_resend_message = Mock()
+
+
+class TestTheKey:
+    def test_the_key_sends_the_focused_message_again(self):
+        stub = _KeyStub(_msg(_send_failed=True))
+        stub._on_accel_resend_message()
+        stub._on_menu_resend_message.assert_called_once_with(stub._sorted_messages[0])
+
+    def test_the_key_on_a_message_with_nothing_to_send_says_so(self):
+        stub = _KeyStub(_msg())
+        stub._on_accel_resend_message()
+        stub._on_menu_resend_message.assert_not_called()
+        stub.main_window.output.assert_called_once_with("resend_not_available", interrupt=True)
+
+    def test_it_is_catalogued_and_configurable(self):
+        [shortcut] = [s for s in SHORTCUTS if s.id == "messages.ID_CTRL_SHIFT_Y"]
+        assert (shortcut.scope, shortcut.mod, shortcut.key) == ("messages", 6, ord("Y"))
+
+    def test_the_attachment_row_records_its_file(self):
+        src = inspect.getsource(ConversationsPanel._send_attachment_file)
+        assert "RESEND_PATH_KEY: path" in src

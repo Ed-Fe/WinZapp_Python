@@ -9019,8 +9019,14 @@ msgstr "răspunzând la {name}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "resend_message"
-msgid "Resend"
-msgstr "Retrimiteți"
+msgid "Try sending again"
+msgstr "Încercați să trimiteți din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_actions.py
+msgctxt "resend_not_available"
+msgid "This message has nothing to send again."
+msgstr "Acest mesaj nu are o trimitere de reîncercat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -10535,6 +10541,15 @@ msgid "Remove shortcut"
 msgstr "Elimină comanda rapidă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_resend_message_label"
+msgid ""
+"Ctrl+Shift+Y: on a message whose send failed or was not confirmed, try "
+"sending it again"
+msgstr ""
+"Ctrl+Shift+Y: la un mesaj a cărui trimitere a eșuat sau nu a fost "
+"confirmată, încearcă să-l trimiți din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_reset"
 msgid "Restore default"
 msgstr "Restabilește valoarea implicită"
@@ -10543,6 +10558,13 @@ msgstr "Restabilește valoarea implicită"
 msgctxt "shortcut_reset_all"
 msgid "Restore all defaults"
 msgstr "Restabilește toate valorile implicite"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_retry_status_label"
+msgid "Ctrl+Shift+Y: on a status that was not posted, try posting it again"
+msgstr ""
+"Ctrl+Shift+Y: la o stare care nu a fost publicată, încearcă să o publici din"
+" nou"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_review_message_label"
@@ -11443,6 +11465,12 @@ msgid "Delivered"
 msgstr "Livrat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_discard_unsent"
+msgid "Discard"
+msgstr "Renunțați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "status_edited"
 msgid "Edited"
@@ -11655,6 +11683,26 @@ msgctxt "status_reply_sent"
 msgid "Reply sent."
 msgstr "Răspuns trimis."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_file_missing"
+msgid ""
+"The file of this status is no longer there, so it cannot be posted again."
+msgstr ""
+"Fișierul acestei stări nu mai există, așa că nu poate fi publicată din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_not_available"
+msgid "This row has no status to post again."
+msgstr "Acest rând nu are o stare de publicat din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_post"
+msgid "Try posting again"
+msgstr "Încercați să publicați din nou"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_media.py
 msgctxt "status_save_media"
@@ -11700,6 +11748,35 @@ msgstr "Livrare neconfirmată"
 msgctxt "status_unlike"
 msgid "Unlike"
 msgstr "Retrage aprecierea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_unsent_discarded"
+msgid "Discarded."
+msgstr "S-a renunțat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "status_unsent_failed"
+msgid "failed"
+msgstr "a eșuat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+#, python-brace-format
+msgctxt "status_unsent_row"
+msgid "Status not sent: {what}, {state}"
+msgstr "Stare netrimisă: {what}, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_unsent_text"
+msgid "text status"
+msgstr "stare text"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "status_unsent_unconfirmed"
+msgid "not confirmed, it may have been posted"
+msgstr "neconfirmată, este posibil să fi fost publicată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/status_dialogs.py client/status_tab/status_media.py

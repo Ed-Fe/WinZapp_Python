@@ -72,10 +72,19 @@ class StatusListMixin:
         self._status_list.DeleteAllItems()
         self._status_row_contact = {}
         self._status_contact_row = {}
+        self._status_row_unsent = {}
 
         # ── Row 0: always "My Status" ─────────────────────────────────────
         self._status_list.Append((self._my_status_label(i18n),))
         self._status_row_contact[0] = -1
+
+        # Posts that did not go out, or were not confirmed, right after it
+        # (status_tab/unsent_status.py): a row each, with Try sending again.
+        for label, post_id in self._unsent_rows(i18n):
+            row = self._status_list.GetItemCount()
+            self._status_list.Append((label,))
+            self._status_row_contact[row] = -1
+            self._status_row_unsent[row] = post_id
 
         def _add_section(section_contacts: list, header: str, start_contact_idx: int):
             """Appends one "--- header ---" row followed by one row per
