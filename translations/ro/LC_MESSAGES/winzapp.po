@@ -5683,7 +5683,7 @@ msgid "You joined the group."
 msgstr "Te-ai alăturat grupului."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/links.py client/ui/dialogs/new_conversation.py
+#: client/ui/conversation_panel/links.py
 msgctxt "group_join_title"
 msgid "Join group by link"
 msgstr "Alăturare la grup prin link"
@@ -7423,6 +7423,12 @@ msgstr "WinZapp | Contact nou"
 msgctxt "new_conversation"
 msgid "New chat"
 msgstr "Conversație nouă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_conversation.py
+msgctxt "new_conversation_join_by_link"
+msgid "Join group by lin&k"
+msgstr "Alăturare la grup prin lin&k"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/new_conversation.py

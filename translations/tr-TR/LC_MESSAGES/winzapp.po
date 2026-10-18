@@ -5645,7 +5645,7 @@ msgid "You joined the group."
 msgstr "Gruba katıldınız."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/links.py client/ui/dialogs/new_conversation.py
+#: client/ui/conversation_panel/links.py
 msgctxt "group_join_title"
 msgid "Join group by link"
 msgstr "Gruba bağlantıyla katıl"
@@ -7356,6 +7356,12 @@ msgstr "WinZapp | Yeni kişi"
 msgctxt "new_conversation"
 msgid "New chat"
 msgstr "Yeni sohbet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_conversation.py
+msgctxt "new_conversation_join_by_link"
+msgid "Join group by lin&k"
+msgstr "Gruba &bağlantıyla katıl"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/new_conversation.py

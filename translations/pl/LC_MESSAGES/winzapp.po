@@ -5696,7 +5696,7 @@ msgid "You joined the group."
 msgstr "Dołączono do grupy."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/links.py client/ui/dialogs/new_conversation.py
+#: client/ui/conversation_panel/links.py
 msgctxt "group_join_title"
 msgid "Join group by link"
 msgstr "Dołącz do grupy przez link"
@@ -7429,6 +7429,12 @@ msgstr "WinZapp | Nowy kontakt lokalny"
 msgctxt "new_conversation"
 msgid "New chat"
 msgstr "Nowy czat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_conversation.py
+msgctxt "new_conversation_join_by_link"
+msgid "Join group by lin&k"
+msgstr "Dołącz do grupy przez lin&k"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/new_conversation.py
