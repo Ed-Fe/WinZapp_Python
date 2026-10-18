@@ -14768,6 +14768,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_auto_play_voice_in_sequence"
+msgid "Automatically play voice messages in sequence"
+msgstr "Automatycznie odtwarzaj wiadomości głosowe po kolei"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_bulk_action_shortcuts"
 msgid "Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr ""
@@ -16376,11 +16382,12 @@ msgstr ""
 msgctxt "wpp_force_reinstall_confirm_msg"
 msgid ""
 "This will temporarily interrupt WPPConnect and download and reinstall the "
-"latest version (v{version}), even if it is already installed. Continue?"
+"version this WinZapp supports (v{version}), even if it is already installed."
+" Continue?"
 msgstr ""
 "Spowoduje to tymczasowe przerwanie działania WPPConnect oraz pobranie i "
-"ponowną instalację najnowszej wersji (v{version}), nawet jeśli jest już "
-"zainstalowana. Kontynuować?"
+"ponowną instalację wersji obsługiwanej przez ten WinZapp (v{version}), nawet"
+" jeśli jest już zainstalowana. Kontynuować?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "wpp_force_reinstall_confirm_title"
