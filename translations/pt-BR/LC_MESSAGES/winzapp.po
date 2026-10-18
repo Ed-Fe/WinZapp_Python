@@ -4579,6 +4579,12 @@ msgctxt "created_at"
 msgid "Created on {date}"
 msgstr "Criado em {date}"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "customization_confirmations"
+msgid "&Confirmations"
+msgstr "&Confirmações"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
 msgid "An error occurred while saving the message file:"
@@ -5274,6 +5280,12 @@ msgstr "Encaminhar selecionadas"
 msgctxt "forward_selected_messages_title"
 msgid "Forward selected messages"
 msgstr "Encaminhar mensagens selecionadas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "general_notifications_button"
+msgid "Notifications"
+msgstr "Notificações"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
@@ -7757,6 +7769,7 @@ msgstr "Modo offline ativado. Algumas funções podem estar indisponíveis."
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
 #: client/ui/dialogs/whatsapp_settings_dialog.py
 msgctxt "ok"
@@ -11682,43 +11695,17 @@ msgid "Online AI: Transcriptions and Descriptions"
 msgstr "IA online: Transcrições e Descrições"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_alert_tones"
 msgid "Alert Tones"
 msgstr "Toques de Alerta"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio"
 msgid "Audio"
 msgstr "Áudio"
 
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_chats_button"
-msgid "Chats"
-msgstr "Conversas"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_messages_button"
-msgid "Messages"
-msgstr "Mensagens"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "general_notifications_button"
-msgid "Notifications"
-msgstr "Notificações"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "customization_confirmations"
-msgid "&Confirmations"
-msgstr "&Confirmações"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_event_sounds"
-msgid "Event sounds"
-msgstr "Sons de eventos"
-
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_devices"
 msgid "Audio Devices"
 msgstr "Dispositivos de áudio"
@@ -11743,6 +11730,11 @@ msgstr "Conexão"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_event_sounds"
+msgid "Event sounds"
+msgstr "Sons de eventos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "tab_files_saving"
 msgid "Files and saving"
 msgstr "Arquivos e salvamento"
@@ -11772,7 +11764,6 @@ msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_sound_events"
 msgid "Sound Events"
 msgstr "Eventos de Som"
@@ -14598,6 +14589,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_chats_button"
+msgid "Chats"
+msgstr "Conversas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
 msgid "Ask for confirmation before clearing chats"
 msgstr "Pedir confirmação antes de limpar conversas"
@@ -14774,6 +14771,12 @@ msgid ""
 msgstr ""
 "Caixa de lista (mensagens completas, leitor de tela não anuncia posição nem "
 "quantidade de itens)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_messages_button"
+msgid "Messages"
+msgstr "Mensagens"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
