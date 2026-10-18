@@ -76,8 +76,8 @@ def test_default_wx_names_are_dropped():
 
 
 def test_hidden_controls_are_skipped():
-    assert _collect(_Check("Hidden", shown=False), _Check("Shown")) != []
-    assert [e.label for e in _collect(_Check("Hidden", shown=False))] == []
+    entries = _collect(_Check("Hidden", shown=False), _Check("Shown"))
+    assert [e.label for e in entries] == ["Shown"]
 
 
 def test_nested_panels_are_walked():

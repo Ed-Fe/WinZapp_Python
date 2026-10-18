@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Fereastra de setări a fost reorganizată. În loc de optsprezece file, are un câmp de căutare, o listă de categorii (se schimbă cu săgețile, ca în setările NVDA) și opțiunile categoriei alese. Căutarea găsește o opțiune după ceea ce spune cititorul de ecran despre ea și vă duce direct la ea. Mai multe grupuri de opțiuni se deschid acum dintr-un buton din categoria lor: Conținut vorbit, Redare audio, Copie de siguranță a profilului, Comenzi rapide de la tastatură, Notificări, Mesaje, Reacții, Conversații, Chat-uri blocate și Confirmări. Dispozitivele audio, opțiunile mesajelor vocale și amuțirea în timpul înregistrării formează o singură categorie, Audio, iar Conexiunea a trecut la sfârșit.
+
 - Transcriere locală cu faster-whisper: s-a corectat încărcarea bibliotecilor CUDA în Windows, care putea împiedica utilizarea plăcii grafice și bloca transcrierile ulterioare. Dacă bibliotecile nu pot fi încărcate, WinZapp anunță problema înainte de a începe calculele pe placa grafică.
 
 - Starea dumneavoastră online corespunde acum stării actuale a ferestrei chiar și atunci când treceți rapid la alt program, ascundeți WinZapp în zona de notificare sau vă reconectați în fundal. O actualizare online întârziată nu mai poate ajunge după cea offline, iar o încercare nereușită de a seta starea offline este repetată.

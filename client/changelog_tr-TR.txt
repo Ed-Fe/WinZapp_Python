@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- Ayarlar penceresi yeniden düzenlendi. On sekiz sekme yerine bir arama alanı, bir kategori listesi (NVDA ayarlarındaki gibi ok tuşlarıyla değişir) ve seçilen kategorinin seçenekleri var. Arama, bir seçeneği ekran okuyucunun onun için söylediğine göre bulur ve sizi doğrudan oraya götürür. Birkaç seçenek grubu artık kendi kategorisindeki bir düğmeden açılıyor: Sesli içerik, Ses oynatma, Profil yedeği, Klavye kısayolları, Bildirimler, İletiler, Tepkiler, Sohbetler, Kilitli sohbetler ve Onaylar. Ses aygıtları, sesli mesaj seçenekleri ve kayıt sırasında sessize alma tek bir kategori olan Ses'te toplandı, Bağlantı ise sona taşındı.
+
 - faster-whisper ile yerel yazıya dökme: Windows'ta ekran kartının kullanılmasını engelleyebilen ve sonraki yazıya dökme işlemlerinin takılmasına neden olabilen CUDA kitaplıklarını yükleme sorunu düzeltildi. Kitaplıklar yüklenemezse WinZapp, ekran kartında hesaplamaya başlamadan önce sorunu bildirir.
 
 - Çevrimiçi durumunuz artık başka bir programa hızla geçtiğinizde, WinZapp'ı sistem tepsisine gizlediğinizde veya arka planda yeniden bağlandığınızda da pencerenin güncel durumunu izler. Gecikmiş bir çevrimiçi güncellemesi artık çevrimdışı güncellemesinden sonra uygulanmaz; çevrimdışı durumunu bildirme başarısız olursa yeniden denenir.

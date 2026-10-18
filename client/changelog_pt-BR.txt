@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- A janela de configurações foi reorganizada. No lugar de dezoito abas, ela tem um campo de busca, uma lista de categorias (troque com as setas, como nas configurações do NVDA) e as opções da categoria escolhida. A busca encontra uma opção pelo que o leitor de tela diz dela e leva você direto até ela. Vários grupos de opções agora abrem a partir de um botão na sua categoria: Conteúdo falado, Reprodução de áudio, Backup do perfil, Atalhos de teclado, Notificações, Mensagens, Reações, Conversas, Conversas bloqueadas e Confirmações. Dispositivos de áudio, opções de mensagens de voz e silenciamento durante a gravação formam uma só categoria, Áudio, e Conexão foi para o final.
+
 - Transcrição local com faster-whisper: corrigido o carregamento das bibliotecas CUDA no Windows, que podia impedir o uso da placa de vídeo e travar as transcrições seguintes. Se as bibliotecas não puderem ser carregadas, o WinZapp informa o problema antes de iniciar os cálculos na placa de vídeo.
 
 - Seu estado online agora acompanha a janela atual mesmo ao alternar rapidamente para outro programa, ocultar o WinZapp na bandeja ou reconectar em segundo plano. Uma atualização atrasada de online não passa mais à frente da de offline, e uma falha ao informar offline é tentada novamente.

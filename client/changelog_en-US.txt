@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- The settings window is reorganized. Instead of eighteen tabs it has a search field, a list of categories (use the arrow keys, as in NVDA's settings) and the options of the chosen category. Search finds an option by what a screen reader says for it and takes you straight to it. Several groups of options now open from a button in their category: Spoken content, Audio playback, Profile backup, Keyboard shortcuts, Notifications, Messages, Reactions, Conversations, Locked chats and Confirmations. Audio devices, voice message options and silencing while recording are one Audio category, and Connection moved to the end.
+
 - Local transcription with faster-whisper: fixed CUDA library loading on Windows that could prevent graphics-card use and leave later transcriptions stuck. If the libraries cannot be loaded, WinZapp reports the problem before starting GPU inference.
 
 - Your online status now follows the current window even when you switch away quickly, hide WinZapp to the tray or reconnect in the background. A delayed online update can no longer overtake the offline update, and a failed offline update is retried.
