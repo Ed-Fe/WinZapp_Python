@@ -4,6 +4,8 @@ Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră
 
 NOUTĂȚI
 
+- Transcriere locală cu faster-whisper: s-a corectat încărcarea bibliotecilor CUDA în Windows, care putea împiedica utilizarea plăcii grafice și bloca transcrierile ulterioare. Dacă bibliotecile nu pot fi încărcate, WinZapp anunță problema înainte de a începe calculele pe placa grafică.
+
 - Starea dumneavoastră online corespunde acum stării actuale a ferestrei chiar și atunci când treceți rapid la alt program, ascundeți WinZapp în zona de notificare sau vă reconectați în fundal. O actualizare online întârziată nu mai poate ajunge după cea offline, iar o încercare nereușită de a seta starea offline este repetată.
 
 - Comenzi rapide noi, fiecare modificabilă în fila Comenzi rapide din setări: Alt+8 deschide comunitățile de oriunde din fereastră; Alt+Shift+B deschide catalogul și coșul firmei din conversația selectată sau deschisă; iar într-un cont WhatsApp Business, Ctrl+Shift+N creează o comandă pentru contactul din conversație. Acolo unde nu se aplică, WinZapp spune motivul. Enter pe un mesaj de comandă deschide comanda.
@@ -129,6 +131,10 @@ NOUTĂȚI
 - O conversație personală nouă sau goală indică acum, în rândul „nu există mesaje”, că mesajele și apelurile sunt criptate end-to-end și, dacă există mesaje care dispar, durata. Informațiile despre conversație menționează și criptarea.
 
 - Câmpul de descriere al atașamentelor acceptă acum mai multe rânduri, ca în WhatsApp Desktop: Enter trimite în continuare atașamentul cu descrierea, iar Shift+Enter sau Ctrl+Enter încep un rând nou, ca în câmpul de mesaj.
+
+- Ștergerea unui cont elimină acum tot ce îi aparține: pe lângă mesaje și setări, sunt șterse și profilul browserului care păstrează autentificarea WhatsApp și copiile de siguranță ale acelui profil, iar ce nu a putut fi eliminat este finalizat la următoarea pornire a WinZapp. Când contul este singurul, îl poți șterge acum din Conturi > Gestionați conturile: WinZapp cere confirmare, se închide, iar următoarea pornire este o primă rulare.
+
+- În Setări > Interfața utilizatorului, noua opțiune "Redă automat mesajele vocale în secvență", bifată implicit, stabilește dacă următorul mesaj vocal începe singur când se termină unul. Debifați-o ca fiecare mesaj vocal să se termine de la sine. Opțiunea "Mutați automat focalizarea la următorul sunet atunci când redați audio în secvență" continuă să controleze doar dacă focalizarea tastaturii urmărește audio.
 
 CORECTĂRI
 

@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Transcrição local com faster-whisper: corrigido o carregamento das bibliotecas CUDA no Windows, que podia impedir o uso da placa de vídeo e travar as transcrições seguintes. Se as bibliotecas não puderem ser carregadas, o WinZapp informa o problema antes de iniciar os cálculos na placa de vídeo.
+
 - Seu estado online agora acompanha a janela atual mesmo ao alternar rapidamente para outro programa, ocultar o WinZapp na bandeja ou reconectar em segundo plano. Uma atualização atrasada de online não passa mais à frente da de offline, e uma falha ao informar offline é tentada novamente.
 
 - Novos atalhos, cada um alterável na aba Atalhos de teclado das configurações: Alt+8 abre as comunidades de qualquer lugar da janela; Alt+Shift+B abre o catálogo e o carrinho da empresa da conversa selecionada ou aberta; e numa conta do WhatsApp Business, Ctrl+Shift+N cria um pedido para o contato da conversa. Onde não se aplicam, o WinZapp diz o motivo. Enter numa mensagem de pedido abre o pedido.
@@ -129,6 +131,10 @@ NOVIDADES
 - Um chat pessoal novo ou vazio agora informa, na linha de "nenhuma mensagem", que as mensagens e ligações são protegidas com criptografia de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações do chat também mencionam a criptografia.
 
 - O campo de legenda dos anexos agora aceita várias linhas, como no WhatsApp Desktop: Enter continua enviando o anexo com a legenda, e Shift+Enter ou Ctrl+Enter criam uma nova linha, como no campo de mensagem.
+
+- Excluir uma conta agora remove tudo o que ela possui: além das mensagens e das configurações, o perfil do navegador que guarda o login do WhatsApp e as cópias de segurança desse perfil também são apagados, e o que não puder ser removido é concluído na próxima vez que o WinZapp iniciar. Quando a conta é a única, agora é possível excluí-la em Contas > Gerenciar contas: o WinZapp pede confirmação, fecha, e a próxima abertura é uma primeira execução.
+
+- Em Configurações > Interface do usuário, a nova opção "Reproduzir mensagens de voz em sequência automaticamente", marcada por padrão, define se a próxima mensagem de voz começa sozinha quando uma termina. Desmarque para que cada mensagem de voz termine por conta própria. A opção "Mover o foco automaticamente para o próximo áudio ao reproduzir áudios em sequência" continua controlando só se o foco do teclado acompanha o áudio.
 
 CORREÇÕES
 

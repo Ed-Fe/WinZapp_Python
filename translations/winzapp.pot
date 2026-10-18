@@ -148,11 +148,20 @@ msgctxt "acc_default_name"
 msgid "Default"
 msgstr ""
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "acc_delete_confirm"
 msgid ""
 "Permanently delete the account \"{name}\" and all its data? This cannot be "
+"undone."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "acc_delete_last_confirm"
+msgid ""
+"\"{name}\" is the only account. Permanently delete it with all its messages,"
+" media, preferences and profile backups, and close WinZapp? This cannot be "
 "undone."
 msgstr ""
 
@@ -13501,6 +13510,12 @@ msgstr ""
 msgctxt "ui_auto_focus_next_audio"
 msgid ""
 "Automatically move focus to the next audio when playing audios in sequence"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_auto_play_voice_in_sequence"
+msgid "Automatically play voice messages in sequence"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

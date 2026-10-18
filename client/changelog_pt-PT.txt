@@ -4,6 +4,8 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Transcrição local com faster-whisper: corrigido o carregamento das bibliotecas CUDA no Windows, que podia impedir o uso da placa gráfica e bloquear as transcrições seguintes. Se as bibliotecas não puderem ser carregadas, o WinZapp informa o problema antes de iniciar os cálculos na placa gráfica.
+
 - O seu estado online passa a acompanhar a janela atual mesmo ao mudar rapidamente para outro programa, ocultar o WinZapp na área de notificação ou voltar a ligar em segundo plano. Uma atualização atrasada de online já não passa à frente da de offline, e uma falha ao informar offline é tentada novamente.
 
 - Novos atalhos, cada um alterável no separador Atalhos de teclado das definições: Alt+8 abre as comunidades a partir de qualquer ponto da janela; Alt+Shift+B abre o catálogo e o carrinho da empresa da conversa selecionada ou aberta; e numa conta do WhatsApp Business, Ctrl+Shift+N cria uma encomenda para o contacto da conversa. Onde não se aplicam, o WinZapp diz o motivo. Enter numa mensagem de encomenda abre a encomenda.
@@ -129,6 +131,10 @@ NOVIDADES
 - Uma conversa pessoal nova ou vazia passa a indicar, na linha de "nenhuma mensagem", que as mensagens e as chamadas são protegidas com encriptação de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações da conversa também referem a encriptação.
 
 - O campo de legenda dos anexos passa a aceitar várias linhas, como no WhatsApp Desktop: Enter continua a enviar o anexo com a legenda, e Shift+Enter ou Ctrl+Enter criam uma nova linha, como no campo de mensagem.
+
+- Eliminar uma conta passa a remover tudo o que ela possui: além das mensagens e das definições, o perfil do navegador que guarda o início de sessão do WhatsApp e as cópias de segurança desse perfil também são apagados, e o que não puder ser removido é concluído na próxima vez que o WinZapp arrancar. Quando a conta é a única, já é possível eliminá-la em Contas > Gerir contas: o WinZapp pede confirmação, fecha, e o arranque seguinte é uma primeira execução.
+
+- Em Definições > Interface do utilizador, a nova opção "Reproduzir mensagens de voz em sequência automaticamente", marcada por predefinição, define se a mensagem de voz seguinte começa sozinha quando uma termina. Desmarque para que cada mensagem de voz termine por si. A opção "Mover o foco automaticamente para o áudio seguinte ao reproduzir áudios em sequência" continua a controlar apenas se o foco do teclado acompanha o áudio.
 
 CORREÇÕES
 

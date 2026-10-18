@@ -4,6 +4,8 @@ This release brings transcription of voice messages on your own computer, with n
 
 WHAT'S NEW
 
+- Local transcription with faster-whisper: fixed CUDA library loading on Windows that could prevent graphics-card use and leave later transcriptions stuck. If the libraries cannot be loaded, WinZapp reports the problem before starting GPU inference.
+
 - Your online status now follows the current window even when you switch away quickly, hide WinZapp to the tray or reconnect in the background. A delayed online update can no longer overtake the offline update, and a failed offline update is retried.
 
 - New shortcuts, each one changeable on the Keyboard shortcuts tab of Settings: Alt+8 opens communities from anywhere in the window; Alt+Shift+B opens the catalog and cart of the business in the selected or open chat; and on a WhatsApp Business account, Ctrl+Shift+N creates an order for the contact of the chat. Where they do not apply, WinZapp says why. Enter on an order message opens the order.
@@ -129,6 +131,10 @@ WHAT'S NEW
 - A new or empty personal chat now extends the "no messages" line with a notice that messages and calls are end-to-end encrypted and, if the chat has a disappearing messages timer, its duration. The chat info also states the encryption.
 
 - The caption field of attachments now takes several lines, like WhatsApp Desktop: Enter still sends the attachment with its caption, and Shift+Enter or Ctrl+Enter start a new line, as in the message field.
+
+- Removing an account now removes everything it owns: besides its messages and settings, the browser profile that holds its WhatsApp login and that profile's backups are deleted too, and anything that could not be removed is finished the next time WinZapp starts. When the account is the only one, you can now remove it from Accounts > Manage accounts: WinZapp asks for confirmation, closes, and the next start is a first run.
+
+- Settings > User interface: the new "Automatically play voice messages in sequence" option, on by default, controls whether the next voice message starts on its own when one ends. Turn it off to have each voice message end by itself. The option "Automatically move focus to the next audio when playing audios in sequence" still only controls whether the keyboard focus follows the audio.
 
 FIXES
 
