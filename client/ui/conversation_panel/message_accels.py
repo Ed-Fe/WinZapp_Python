@@ -400,6 +400,9 @@ class MessageAccelsMixin:
             if msg.get("messageType") == "videoMessage":
                 self._video_default_action(msg)
                 return
+            if msg.get("messageType") == "documentMessage":
+                self.open_media_message(msg)
+                return
         self._on_menu_transcribe_inline(msg)
 
     def _on_menu_transcribe_inline(self, msg: dict):

@@ -41,6 +41,7 @@ from core.locale_format import get_datetime_format
 # and renames those files. conversations.py only imports this module inside a
 # function, so this direction of the pair is not a cycle.
 from ui.conversations import local_media_cache_paths
+from ui.conversation_panel.message_list import enter_transcribes
 from app_paths import data_path
 from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
 from core.sound_system import (
@@ -1480,8 +1481,10 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         if msg is None or panel is None or not self._panel_is_on_this_chat():
             return
         msg_type = msg.get("messageType", "")
-        if msg_type in ("imageMessage", "videoMessage") and hasattr(
-                panel, "open_media_viewer_for_message"):
+        # A video set to be transcribed by Enter is, here too: the viewer
+        # branch below ran first and played it whatever the setting said.
+        if msg_type in ("imageMessage", "videoMessage") and not enter_transcribes(
+                panel, msg) and hasattr(panel, "open_media_viewer_for_message"):
             self._invoke(lambda: panel.open_media_viewer_for_message(msg))
             return
         # By message, never by row index. This tab lists the conversation's
