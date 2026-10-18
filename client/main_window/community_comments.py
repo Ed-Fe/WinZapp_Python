@@ -4,7 +4,10 @@ from urllib.parse import quote
 
 from core.api_client import api_get, api_post
 from core.community_comments import (CommunityCommentsError, apply_reply_count,
-                                     comment_send_confirmed, parse_comments)
+                                     comment_send_confirmed, latest_reply_preview,
+                                     parse_comments)
+from core.incremental_sync import timestamp_seconds
+from core.locale_format import preview_time_text
 
 
 class CommunityCommentsMixin:
@@ -64,3 +67,37 @@ class CommunityCommentsMixin:
         apply_reply_count((getattr(self, "chats", None) or {}).get(jid), event["key_id"], count)
         for dialog in list(getattr(self, "_announcement_comment_dialogs", ())):
             dialog.on_reply_count_changed(event["parent"], count)
+
+    def on_announcement_reply_preview(self, event):
+        """UI thread: WhatsApp changed a group's chat-list preview. A reply
+        becomes the preview at once and lifts the chat in the list, as it does
+        on the phone, instead of waiting for the next list-chats poll."""
+        chat = (getattr(self, "chats", None) or {}).get(event["chat"])
+        if not isinstance(chat, dict):
+            return
+        preview = event["preview"]
+        chat["chatlistPreview"] = preview
+        if preview and preview["timestamp"] > timestamp_seconds(chat.get("t")):
+            chat["t"] = preview["timestamp"]
+        self._schedule_set_chats()
+
+    def _announcement_reply_preview_text(self, chat, newer_than):
+        """ "Fulano respondeu a um aviso 14:32" when a reply to an
+        announcement is the newest thing in *chat* (strictly newer than
+        *newer_than*, in seconds), else "". The sender is a name, never an
+        identifier."""
+        reply = latest_reply_preview(chat)
+        if reply is None or reply["timestamp"] <= newer_than:
+            return ""
+        i18n = self.i18n
+        sender = self._normalize_jid(reply["sender"])
+        if reply["from_me"] or self._is_self_jid(sender):
+            label = i18n.t("announcement_reply_preview_you")
+        else:
+            name = (self._resolve_contact_name({"remoteJid": sender})
+                    or self._preview_sender_from_jid(sender))
+            if not name or "@" in name:
+                name = i18n.t("unnamed_participant")
+            label = i18n.t("announcement_reply_preview_them").format(name=name)
+        time_text = preview_time_text(reply["timestamp"], i18n)
+        return f"{label} {time_text}" if time_text else label

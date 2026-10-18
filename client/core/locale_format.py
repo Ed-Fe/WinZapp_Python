@@ -222,3 +222,18 @@ def get_datetime_format(fallback: str) -> str:
     if not date_fmt or not time_fmt:
         return fallback
     return f"{date_fmt} {time_fmt}"
+
+
+def preview_time_text(seconds, i18n, today=None) -> str:
+    """The time a chat-list preview ends with: the hour for today, date and
+    hour before that; "" without a usable timestamp."""
+    if not seconds:
+        return ""
+    from datetime import date, datetime
+    try:
+        moment = datetime.fromtimestamp(seconds)
+    except (ValueError, OSError, OverflowError, TypeError):
+        return ""
+    if moment.date() == (today or date.today()):
+        return moment.strftime(get_time_format(i18n.t("time_fmt")))
+    return moment.strftime(get_datetime_format(i18n.t("datetime_fmt")))

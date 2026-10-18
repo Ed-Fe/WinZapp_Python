@@ -31,7 +31,8 @@ const msg = (remote, replyCount) => ({
   // The page side waits for WA-JS and the binding, then installs once per store.
   const sent = [];
   const msgStore = store();
-  const window = {WPP: {isFullReady: false, whatsapp: {MsgStore: msgStore}}};
+  const chatStore = store();
+  const window = {WPP: {isFullReady: false, whatsapp: {MsgStore: msgStore, ChatStore: chatStore}}};
   const api = load(window);
   assert.equal(api.installAnnouncementReplyBridgeInPage(), false);
   window.WPP.isFullReady = true;
@@ -40,6 +41,7 @@ const msg = (remote, replyCount) => ({
   assert.equal(api.installAnnouncementReplyBridgeInPage(), true);
   assert.equal(api.installAnnouncementReplyBridgeInPage(), true);
   assert.equal(msgStore.handlers['change:replyCount'].length, 1);
+  assert.equal(chatStore.handlers['change:chatlistPreview'].length, 1);
 
   const fire = (m) => msgStore.handlers['change:replyCount'][0](m);
   fire(msg('123@g.us', 3));
@@ -48,19 +50,45 @@ const msg = (remote, replyCount) => ({
   fire(msg('123@g.us', 1.5));
   fire(null);                    // never throws into WhatsApp's event loop
   assert.equal(sent.length, 1);
-  const payload = JSON.parse(sent[0]);
+  const countRaw = sent[0];
+  const payload = JSON.parse(countRaw);
   assert.deepEqual(Object.keys(payload).sort(), ['chatId', 'id', 'replyCount']);
   assert.equal(payload.id, 'false_123@g.us_PARENT_456@lid');
   assert.equal(payload.replyCount, 3);
   assert.ok(!sent[0].includes('private text') && !sent[0].includes('secret'));
 
-  // A reload brings a new MsgStore: it gets its own listener.
+  // The chat list preview: a reply is forwarded with who and when, never its
+  // text; anything else only says a reply is no longer the preview.
+  const preview = (chat) => chatStore.handlers['change:chatlistPreview'][0](chat);
+  sent.length = 0;
+  preview({id: wid('123@g.us'), chatlistPreview: {type: 'comment', msgKey: wid('false_123@g.us_C_456@lid'),
+    parentMsgKey: wid('false_123@g.us_PARENT_456@lid'), sender: wid('456@lid'), timestamp: 1790000000000,
+    body: 'private text'}});
+  preview({id: wid('123@g.us'), chatlistPreview: {type: 'reaction', reactionText: 'x'}});
+  preview({id: wid('123@g.us'), chatlistPreview: null});
+  preview({id: wid('5511@c.us'), chatlistPreview: {type: 'comment'}});
+  preview(null);
+  assert.deepEqual(sent.map((raw) => JSON.parse(raw)), [
+    {kind: 'preview', chatId: '123@g.us', preview: {type: 'comment', msgKey: 'false_123@g.us_C_456@lid',
+      sender: '456@lid', timestamp: 1790000000000}},
+    {kind: 'preview', chatId: '123@g.us', preview: {type: 'reaction'}},
+    {kind: 'preview', chatId: '123@g.us', preview: {type: ''}},
+  ]);
+  assert.ok(!sent.join('').includes('private text') && !sent.join('').includes('"x"'));
+  assert.deepEqual(plain(api.announcementRepliesPayload(sent[0], 's1')),
+                   {session: 's1', ...JSON.parse(sent[0])});
+  assert.equal(api.announcementRepliesPayload(JSON.stringify({kind: 'preview', chatId: '1@lid',
+                                                              preview: {type: ''}}), 's1'), null);
+
+  // A reload brings new stores: each gets its own listener.
+  window.WPP.whatsapp.ChatStore = store();
   window.WPP.whatsapp.MsgStore = store();
   assert.equal(api.installAnnouncementReplyBridgeInPage(), true);
   assert.equal(window.WPP.whatsapp.MsgStore.handlers['change:replyCount'].length, 1);
+  assert.equal(window.WPP.whatsapp.ChatStore.handlers['change:chatlistPreview'].length, 1);
 
   // The Node side forwards only well-formed payloads, to this session's room.
-  assert.deepEqual(plain(api.announcementRepliesPayload(sent[0], 's1')),
+  assert.deepEqual(plain(api.announcementRepliesPayload(countRaw, 's1')),
                    {session: 's1', ...payload});
   for (const bad of [42, 'not json', JSON.stringify({id: '', chatId: '1@g.us', replyCount: 1}),
                      JSON.stringify({id: 'x', chatId: '1@lid', replyCount: 1}),
@@ -80,7 +108,7 @@ const msg = (remote, replyCount) => ({
   const io = {to: (room) => ({emit: (event, data) => emitted.push({room, event, data})})};
   await api.installAnnouncementReplyBridge({page, session: 's1'}, io, null);
   assert.deepEqual(loads, ['load']);
-  binding(sent[0]);
+  binding(countRaw);
   binding('garbage');
   assert.deepEqual(plain(emitted), [{room: 'session:s1', event: 'announcement-replies',
                               data: {session: 's1', ...payload}}]);

@@ -118,3 +118,46 @@ def apply_reply_count(chat, key_id, count):
             row["replyCount"] = count
             changed = True
     return changed
+
+
+def _preview_seconds(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) \
+            or value <= 0:
+        return 0
+    value = int(value)
+    return value // 1000 if value > 1_000_000_000_000 else value
+
+
+def _clean_reply_preview(preview):
+    """WhatsApp's chatlistPreview when it is a reply, trimmed to what WinZapp
+    reads; None for any other preview (a reaction) or a malformed one."""
+    if not isinstance(preview, dict) or preview.get("type") != "comment":
+        return None
+    msg_key, sender = preview.get("msgKey"), preview.get("sender")
+    seconds = _preview_seconds(preview.get("timestamp"))
+    if not isinstance(msg_key, str) or not isinstance(sender, str) or not seconds:
+        return None
+    return {"type": "comment", "msgKey": msg_key, "sender": sender, "timestamp": seconds}
+
+
+def parse_reply_preview_event(data):
+    """A `kind: preview` announcement-replies event as {chat, preview}, preview
+    being None when a reply is no longer the chat's preview; None when it is
+    not such an event."""
+    if not isinstance(data, dict) or data.get("kind") != "preview":
+        return None
+    chat = data.get("chatId")
+    if not isinstance(chat, str) or not chat.endswith("@g.us"):
+        return None
+    return {"chat": chat, "preview": _clean_reply_preview(data.get("preview"))}
+
+
+def latest_reply_preview(chat):
+    """The announcement reply WhatsApp shows as *chat*'s list preview, as
+    {sender, from_me, timestamp in seconds}, or None. chat["chatlistPreview"]
+    comes from list-chats (chat.toJSON()) or the live preview event."""
+    preview = _clean_reply_preview(chat.get("chatlistPreview") if isinstance(chat, dict) else None)
+    if preview is None:
+        return None
+    return {"sender": preview["sender"], "from_me": preview["msgKey"].startswith("true_"),
+            "timestamp": preview["timestamp"]}

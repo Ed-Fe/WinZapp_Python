@@ -8,8 +8,14 @@
 // attribute). CommentCollection is no help: it only fills while that modal is
 // open. Measured over CDP on WhatsApp Web with WA-JS 4.7.1, 2026-10-18.
 //
-// Only the parent id, its chat and the new count leave the page: never the
-// reply text, its author or the message secret.
+// The chat list preview ("Fulano respondeu a um aviso") is the chat's own
+// `chatlistPreview` ({type: 'comment', msgKey, parentMsgKey, sender,
+// timestamp in ms}), set by afterUpsert's filterAndUpdateChatPreviews. list-chats
+// already serializes it (chat.toJSON()); `change:chatlistPreview` on ChatStore
+// sends it right away instead of at the next 60 s chat-list poll.
+//
+// Only ids, the sender's id, a timestamp and a count leave the page: never
+// the reply text or the message secret.
 
 const BINDING = '__winzappOnAnnouncementReplies';
 const MAX_PAYLOAD = 512;
@@ -19,9 +25,31 @@ export function installAnnouncementReplyBridgeInPage(): boolean {
   const win = window as any;
   const wpp = win.WPP;
   const store = wpp && wpp.isFullReady && wpp.whatsapp && wpp.whatsapp.MsgStore;
+  const chats = wpp && wpp.whatsapp && wpp.whatsapp.ChatStore;
   const notify = win.__winzappOnAnnouncementReplies;
-  if (!store || typeof store.on !== 'function' || typeof notify !== 'function') {
+  if (!store || typeof store.on !== 'function' || !chats || typeof chats.on !== 'function'
+      || typeof notify !== 'function') {
     return false;
+  }
+  const text = (value: any) => (value == null ? '' : String(value._serialized || value));
+  if (!chats.__winzappAnnouncementReplies) {
+    chats.__winzappAnnouncementReplies = true;
+    chats.on('change:chatlistPreview', (chat: any) => {
+      try {
+        const chatId = text(chat && chat.id);
+        if (!chatId.endsWith('@g.us')) return;
+        const preview = chat.chatlistPreview;
+        // Any other kind (a reaction) or none only tells Python that a reply
+        // is no longer the preview; WinZapp tracks reactions itself.
+        const value = preview && preview.type === 'comment'
+          ? { type: 'comment', msgKey: text(preview.msgKey), sender: text(preview.sender),
+              timestamp: Number(preview.timestamp) || 0 }
+          : { type: preview ? String(preview.type || '') : '' };
+        notify(JSON.stringify({ kind: 'preview', chatId, preview: value }));
+      } catch {
+        // Never let a listener exception reach WhatsApp's own event loop.
+      }
+    });
   }
   // A WhatsApp Web reload is a new document and a new MsgStore: the guard
   // lives on the store, so a reload installs again and a repeat does not.
@@ -51,6 +79,14 @@ export function announcementRepliesPayload(raw: unknown, session: string) {
   if (typeof raw !== 'string' || raw.length > MAX_PAYLOAD) return null;
   try {
     const value = JSON.parse(raw);
+    if (value && value.kind === 'preview') {
+      const { chatId, preview } = value;
+      if (typeof chatId !== 'string' || !chatId.endsWith('@g.us') || !preview
+          || typeof preview.type !== 'string') {
+        return null;
+      }
+      return { session, kind: 'preview', chatId, preview };
+    }
     const { id, chatId, replyCount } = value || {};
     if (typeof id !== 'string' || !id || typeof chatId !== 'string' || !chatId.endsWith('@g.us')
         || !Number.isInteger(replyCount) || replyCount < 0) {
