@@ -1521,7 +1521,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         panel = self._conversation_panel()
         if msg is None or panel is None or not self._panel_is_on_this_chat():
             return
-        self._invoke(lambda: panel.save_media_message(msg))
+        self._invoke(lambda: panel.save_media_message(msg, parent=self))
 
     def _delete_selected_media(self):
         """Delete the selected row through the panel's own delete flow.
@@ -1586,7 +1586,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         key = chr(code) if 32 < code < 127 else ""
         method = None
         if ctrl and shift and key == "S":
-            self._invoke(lambda: panel.save_media_message(msg))
+            self._invoke(lambda: panel.save_media_message(msg, parent=self))
             return
         elif alt and shift and key == "D":
             method = "_on_menu_message_data"
@@ -1656,7 +1656,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
                 wx.ID_ANY, f"{i18n.t('save_as')}	Ctrl+Shift+S")
             self.Bind(
                 wx.EVT_MENU,
-                lambda _e: self._invoke(lambda: panel.save_media_message(msg)),
+                lambda _e: self._invoke(lambda: panel.save_media_message(msg, parent=self)),
                 save_item,
             )
             added_any[0] = True
