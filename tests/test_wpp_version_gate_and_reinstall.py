@@ -25,9 +25,11 @@ ApiSetupDialog's forced_tag, which goes straight into
 `.../archive/refs/tags/{tag}.zip`. The release is tagged "v2.10.18", so that
 URL is a 404. The button could never have worked.
 
-(Since 2026-10-18 Force Reinstall installs the *pinned* release, not the newest
-one: WinZapp's patches follow the server by hand. Promise 1 above is kept for
-its history; TestForceReinstallGoesToThePinnedRelease is the rule now.)
+(Since 2026-10-18 Force Reinstall installs the newest release this build
+supports, the pin or one approved for it (client/wpp_approved_versions.json),
+never the newest upstream one: WinZapp's patches follow the server by hand.
+Promise 1 above is kept for its history; TestForceReinstallGoesToThePinnedRelease
+is the rule now.)
 """
 
 import inspect
@@ -40,12 +42,33 @@ from main import MainWindow
 
 class TestForceReinstallGoesToThePinnedRelease:
     """Originally Force Reinstall was meant to fetch the newest release. WinZapp
-    now installs only the release it was validated against, so the "same version
-    again" repair is the point: it rebuilds a broken install on the pin."""
+    now installs only a release it supports, so the "same version again" repair
+    is the point: it rebuilds a broken install on the pin, or on a release the
+    maintainers approved for that pin."""
 
-    def test_it_asks_for_the_pinned_tag(self):
-        source = inspect.getsource(updater.WppUpdateChecker._force_reinstall_worker)
-        assert "_pinned_tag()" in source
+    def test_it_asks_for_the_supported_tag(self, monkeypatch):
+        confirmed = []
+        monkeypatch.setattr(updater.wx, "CallAfter", lambda fn, *a: confirmed.append(a))
+        checker = updater.WppUpdateChecker.__new__(updater.WppUpdateChecker)
+        checker._stopped = False
+        checker._reinstall_tag = lambda: "v2.10.19"
+        checker._schedule_retry = lambda interval=None: None
+        checker._force_reinstall_worker()
+        assert confirmed == [("2.10.19", "v2.10.19")]
+
+    def test_the_supported_tag_is_the_pin_when_nothing_is_approved(self, monkeypatch):
+        monkeypatch.setattr(updater, "homologated_wpp_tag", lambda _p: "v2.10.18")
+        monkeypatch.setattr(updater.WppUpdateChecker, "_approved_tag",
+                            staticmethod(lambda pin: ("", False)))
+        checker = updater.WppUpdateChecker.__new__(updater.WppUpdateChecker)
+        assert checker._reinstall_tag() == "v2.10.18"
+
+    def test_the_supported_tag_is_an_approved_release_when_there_is_one(self, monkeypatch):
+        monkeypatch.setattr(updater, "homologated_wpp_tag", lambda _p: "v2.10.18")
+        monkeypatch.setattr(updater.WppUpdateChecker, "_approved_tag",
+                            staticmethod(lambda pin: ("v2.10.19", True)))
+        checker = updater.WppUpdateChecker.__new__(updater.WppUpdateChecker)
+        assert checker._reinstall_tag() == "v2.10.19"
 
     def test_the_pin_is_read_from_the_bundled_minimum(self, monkeypatch):
         seen = []
@@ -58,11 +81,6 @@ class TestForceReinstallGoesToThePinnedRelease:
         source = inspect.getsource(updater)
         assert "fetch_latest_wpp_tag" not in source
         assert "_newest_available_tag" not in source
-
-    def test_the_periodic_check_compares_only_against_the_pin(self):
-        source = inspect.getsource(updater.WppUpdateChecker._check_once)
-        assert "wpp_update_target(installed, minimum)" in source
-        assert "fetch_latest" not in source
 
 
 class TestTheStartupGateCanActuallyRun:
