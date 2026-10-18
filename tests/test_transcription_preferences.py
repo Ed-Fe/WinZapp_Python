@@ -1153,3 +1153,44 @@ class TestEveryStringThisModuleNamesIsTranslated:
         for reason in (preferences.MODEL_NONE_NOTHING_FITS,
                        preferences.MODEL_NONE_UNMEASURED):
             assert preferences.MODEL_NONE_I18N_KEYS[reason]
+
+
+class TestAutomaticBackendFollowsTheModelsOnDisk:
+    """Reported with several accounts: the models folder is install-wide but
+    the backend choice is each account's. An account left on "automatic"
+    resolved to faster-whisper while the only model on disk was a whisper.cpp
+    file another account had downloaded, and the run asked to download small."""
+
+    BOTH = (_FASTER, _CPP)
+
+    def test_only_a_whisper_cpp_model_on_disk_picks_whisper_cpp(self):
+        resolved = preferences.resolve(
+            {}, _CPU_ONLY, installed_ids=("ggml-small",), available_backends=self.BOTH)
+        assert resolved.backend_id == _CPP
+        assert resolved.model_id == "ggml-small"
+
+    def test_a_faster_whisper_model_on_disk_keeps_faster_whisper_first(self):
+        resolved = preferences.resolve(
+            {}, _CPU_ONLY, installed_ids=("small", "ggml-small"), available_backends=self.BOTH)
+        assert resolved.backend_id == _FASTER and resolved.model_id == "small"
+
+    def test_nothing_on_disk_keeps_the_first_available(self):
+        resolved = preferences.resolve({}, _CPU_ONLY, installed_ids=(), available_backends=self.BOTH)
+        assert resolved.backend_id == _FASTER
+
+    def test_a_picked_model_decides_the_automatic_backend(self):
+        resolved = preferences.resolve(
+            _settings(model="ggml-small"), _CPU_ONLY, installed_ids=("small",),
+            available_backends=self.BOTH)
+        assert resolved.backend_id == _CPP and resolved.model_id == "ggml-small"
+
+    def test_an_unavailable_backend_is_never_chosen_for_its_models(self):
+        resolved = preferences.resolve(
+            {}, _CPU_ONLY, installed_ids=("ggml-small",), available_backends=(_FASTER,))
+        assert resolved.backend_id == _FASTER
+
+    def test_an_explicit_backend_is_left_alone(self):
+        resolved = preferences.resolve(
+            _settings(backend=_FASTER), _CPU_ONLY, installed_ids=("ggml-small",),
+            available_backends=self.BOTH)
+        assert resolved.backend_id == _FASTER

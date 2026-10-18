@@ -463,7 +463,7 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     section = read_section(settings)
     substitutions = []
 
-    backend_id = _resolve_backend(section, available_backends, substitutions)
+    backend_id = _resolve_backend(section, available_backends, substitutions, installed_ids)
     preference = _resolve_device_preference(section, substitutions)
     compute_preference = _resolve_compute_type(section, substitutions)
     # The model is chosen against the device this preference resolves to right
@@ -774,12 +774,21 @@ def resolve_models_dir(stored=None) -> str:
 # ── Internals ────────────────────────────────────────────────────────────────
 
 
-def _resolve_backend(section, available_backends, substitutions):
+def _resolve_backend(section, available_backends, substitutions, installed_ids=()):
     """The backend id to run with, or None when nothing here can run.
 
     A configured backend that this install does not have falls through to the
     automatic choice rather than failing, for the reason `resolve_backend()`
     gives: a settings value outlives the installation it was written on.
+
+    The automatic choice is the backend that can load what is already there:
+    the one whose catalogue holds the model the user picked, else the first
+    with a model on disk, else the first available. It used to be the first
+    available one, full stop. The models folder is install-wide but this
+    choice is each account's, so an account that had never opened the tab
+    resolved to faster-whisper while every model on disk was a whisper.cpp
+    file another account had downloaded, and was told to download `small`.
+    Reported as "transcription has nothing available with several accounts".
     """
     known = tuple(available_backends) if available_backends is not None \
         else backend_module.BACKEND_IDS
@@ -788,7 +797,27 @@ def _resolve_backend(section, available_backends, substitutions):
         if stored in known:
             return stored
         substitutions.append(Substitution(SETTING_BACKEND, str(stored)))
-    return known[0] if known else None
+    return _automatic_backend(known, section[SETTING_MODEL], installed_ids)
+
+
+def _automatic_backend(known, stored_model, installed_ids):
+    """See _resolve_backend(): the picked model's backend, else the first one
+    with a model on disk, else the first available; None with none."""
+    if not known:
+        return None
+
+    def ids_of(backend_id):
+        return {model.id for model in catalogue_models(backend_id)}
+
+    if isinstance(stored_model, str) and stored_model != AUTO:
+        for backend_id in known:
+            if stored_model in ids_of(backend_id):
+                return backend_id
+    installed = set(installed_ids or ())
+    for backend_id in known:
+        if installed & ids_of(backend_id):
+            return backend_id
+    return known[0]
 
 
 def _resolve_device_preference(section, substitutions):
