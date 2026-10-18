@@ -4106,12 +4106,6 @@ msgstr "This message is not in a community announcement group."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "&Refresh replies"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_send"
 msgid "&Send reply"
 msgstr "&Send reply"
@@ -4139,11 +4133,11 @@ msgstr "Community announcement replies..."
 #: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_unconfirmed"
 msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 msgstr ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py

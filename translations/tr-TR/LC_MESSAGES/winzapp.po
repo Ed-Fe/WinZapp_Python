@@ -4115,12 +4115,6 @@ msgstr "Bu mesaj bir topluluğun duyuru grubunda değil."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "Yanıtları ye&nile"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_send"
 msgid "&Send reply"
 msgstr "Yanıt &gönder"
@@ -4148,11 +4142,11 @@ msgstr "Topluluk duyurusunun yanıtları..."
 #: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_unconfirmed"
 msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 msgstr ""
-"Gönderim doğrulanamadı. Tekrar denemeden önce yanıtları yenileyip kontrol "
-"edin. Metniniz korundu."
+"Gönderim doğrulanamadı. Tekrar denemeden önce yanıt listesini kontrol edin: "
+"liste kendiliğinden güncellenir. Metniniz korundu."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py

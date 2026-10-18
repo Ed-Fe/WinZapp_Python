@@ -186,6 +186,7 @@ _CUSTOM_SRC_FILES = [
     "src/util/pollRuntime.ts",
     "src/controller/pollController.ts",
     "src/util/communityCommentsRuntime.ts",
+    "src/util/announcementReplyBridge.ts",
     "src/controller/communityCommentsController.ts",
     "src/tests/controller/communityCommentsController.test.ts",
     "src/controller/communityOverviewController.ts",

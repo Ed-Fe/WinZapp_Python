@@ -4135,12 +4135,6 @@ msgstr "Acest mesaj nu se află în grupul de anunțuri al unei comunități."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "&Actualizează răspunsurile"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_send"
 msgid "&Send reply"
 msgstr "&Trimite răspunsul"
@@ -4168,11 +4162,11 @@ msgstr "Răspunsuri la anunțul comunității..."
 #: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_unconfirmed"
 msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 msgstr ""
-"Trimiterea nu a fost confirmată. Actualizează și verifică răspunsurile "
-"înainte de a încerca din nou. Textul tău a fost păstrat."
+"Trimiterea nu a fost confirmată. Verifică lista de răspunsuri înainte de a "
+"încerca din nou: se actualizează singură. Textul tău a fost păstrat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py

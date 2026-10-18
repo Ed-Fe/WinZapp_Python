@@ -1,4 +1,8 @@
-"""Native announcement thread, with explicit refresh and a single-attempt composer."""
+"""Native announcement thread, with a single-attempt composer.
+
+The thread reads itself again when WhatsApp counts a new or deleted reply
+(MainWindow.on_announcement_reply_count), as a conversation does for its
+messages: there is no Refresh button to press."""
 
 import copy
 import logging
@@ -21,7 +25,9 @@ class CommunityCommentsDialog(wx.Dialog):
         self._message = copy.deepcopy(message)
         self._token = main_window.token
         self._closed = self._busy = self._loaded = self._uncertain = False
+        self._refresh_pending = False
         self._rows = []
+        self._register()
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(wx.StaticText(self, label=i18n.t("community_comments_list")), 0, wx.ALL, 8)
         self._list = wx.ListBox(self)
@@ -37,14 +43,12 @@ class CommunityCommentsDialog(wx.Dialog):
         sizer.Add(self._text, 0, wx.EXPAND | wx.ALL, 8)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
         self._send = wx.Button(self, label=i18n.t("community_comments_send"))
-        self._reload = wx.Button(self, label=i18n.t("community_comments_refresh"))
         close = wx.Button(self, wx.ID_CANCEL, i18n.t("close"))
         self._send.Bind(wx.EVT_BUTTON, self._on_send)
-        self._reload.Bind(wx.EVT_BUTTON, self._on_refresh)
         close.Bind(wx.EVT_BUTTON, self._on_close)
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
-        for button in (self._send, self._reload, close):
+        for button in (self._send, close):
             buttons.Add(button, 0, wx.RIGHT, 8)
         sizer.Add(buttons, 0, wx.ALL, 8)
         self.SetSizer(sizer)
@@ -52,8 +56,39 @@ class CommunityCommentsDialog(wx.Dialog):
         self._list.SetFocus()
         wx.CallAfter(self._on_refresh, None)
 
+    def _register(self):
+        dialogs = getattr(self._mw, "_announcement_comment_dialogs", None)
+        if dialogs is None:
+            dialogs = self._mw._announcement_comment_dialogs = set()
+        dialogs.add(self)
+
     def close_comments(self):
         self._closed = True
+        getattr(self._mw, "_announcement_comment_dialogs", set()).discard(self)
+
+    def _parent_id(self):
+        try:
+            return self._mw._announcement_comment_id(self._jid, self._message)
+        except Exception:
+            return None
+
+    def on_reply_count_changed(self, parent, count):
+        """WhatsApp counted a reply to some announcement: read again when it is
+        this one. A count already shown (the reply just sent from here, read
+        back by _finish_send) is not read twice."""
+        if not self._active() or parent != self._parent_id():
+            return
+        if self._busy:
+            self._refresh_pending = True
+            return
+        if self._loaded and count == len(self._rows):
+            return
+        self._on_refresh(None)
+
+    def _run_pending_refresh(self):
+        if self._refresh_pending and not self._busy:
+            self._refresh_pending = False
+            self._on_refresh(None)
 
     def _on_close(self, event):
         self.close_comments()
@@ -73,9 +108,6 @@ class CommunityCommentsDialog(wx.Dialog):
 
     def _update_buttons(self):
         active = self._active() and not self._busy
-        # Keep a focused Refresh button enabled during a read; its handler
-        # rejects overlap without Windows moving focus to another control.
-        self._reload.Enable(self._active())
         self._send.Enable(active and self._loaded and not self._uncertain
                           and bool(self._text.GetValue().strip()))
         # Never read-only while a read or a send runs: the screen reader said
@@ -161,6 +193,7 @@ class CommunityCommentsDialog(wx.Dialog):
         self._status.SetLabel(text)
         self._update_buttons()
         self._mw.speak_output.output(text)
+        self._run_pending_refresh()
 
     def _on_send(self, event):
         if not self._active() or self._busy or not self._loaded or self._uncertain:
@@ -200,5 +233,8 @@ class CommunityCommentsDialog(wx.Dialog):
         self._update_buttons()
         self._mw.speak_output.output(text)
         self._text.SetFocus()
-        if confirmed:
-            self._on_refresh(None)
+        # Read the thread either way. After an unconfirmed send the reply may
+        # or may not have gone; what the thread now shows is what lets the
+        # user decide whether to send again (it is never resent from here).
+        self._refresh_pending = False
+        self._on_refresh(None)

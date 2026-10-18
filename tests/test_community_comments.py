@@ -48,6 +48,10 @@ class Dialog:
     _row_label = CommunityCommentsDialog._row_label
     close_comments = CommunityCommentsDialog.close_comments
     _on_text_key = CommunityCommentsDialog._on_text_key
+    _register = CommunityCommentsDialog._register
+    _parent_id = CommunityCommentsDialog._parent_id
+    on_reply_count_changed = CommunityCommentsDialog.on_reply_count_changed
+    _run_pending_refresh = CommunityCommentsDialog._run_pending_refresh
     def __init__(self):
         self.work = []
         self._mw = SimpleNamespace(token="session", _shutting_down=False,
@@ -57,12 +61,14 @@ class Dialog:
             _msg_bg_executor=SimpleNamespace(submit=lambda fn: self.work.append(fn)),
             get_announcement_comments=Mock(return_value=[row()]),
             send_announcement_comment=Mock(return_value=True),
-            _resolve_jid_name=Mock(return_value="Author"), _normalize_jid=lambda value:value)
+            _resolve_jid_name=Mock(return_value="Author"), _normalize_jid=lambda value:value,
+            _announcement_comment_id=lambda jid, message: message["key"]["id"])
         self._jid, self._message, self._token = JID, {"key":{"id":PARENT}}, "session"
         self._closed = self._busy = self._loaded = self._uncertain = False
+        self._refresh_pending = False
         self._rows = []
         self._list, self._text = Widget(), Widget(" exact text ")
-        self._send, self._reload, self._status = Widget(), Widget(), Widget()
+        self._send, self._status = Widget(), Widget()
 
 @pytest.fixture(autouse=True)
 def callbacks_inline(monkeypatch):
@@ -161,13 +167,15 @@ class TestCommentWindow:
         dlg.work.pop()()
         dlg._mw.send_announcement_comment.assert_called_once_with(JID,dlg._message," exact text ")
         assert dlg._text.value=="" and len(dlg.work)==1  # background refresh
-    def test_ambiguous_send_keeps_draft_and_blocks_retry_until_explicit_refresh(self):
+    def test_ambiguous_send_keeps_draft_and_blocks_retry_until_the_thread_is_read(self):
         dlg=Dialog();dlg._loaded=True;dlg._mw.send_announcement_comment.side_effect=TimeoutError()
         dlg._on_send(None);dlg.work.pop()()
         assert dlg._text.value==" exact text " and dlg._uncertain
-        dlg._on_send(None);assert not dlg.work
-        dlg._on_refresh(None);dlg.work.pop()()
+        assert len(dlg.work)==1   # the thread is read again on its own, never resent
+        dlg._on_send(None);assert len(dlg.work)==1
+        dlg.work.pop()()
         assert not dlg._uncertain and dlg._text.value==" exact text "
+        dlg._mw.send_announcement_comment.assert_called_once()
     def test_unavailable_read_does_not_enable_sending(self):
         dlg=Dialog();dlg._finish_refresh(None,"not_announcement")
         assert not dlg._loaded
@@ -190,10 +198,15 @@ def test_native_community_comments_adapter():
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
-def test_refresh_does_not_disable_its_focused_button():
+def test_refresh_does_not_move_focus():
     dlg=Dialog();dlg._on_refresh(None)
-    dlg._reload.Enable.assert_called_with(True)
     assert not dlg._text.SetFocus.called
+
+
+def test_there_is_no_refresh_button():
+    import inspect
+    src = inspect.getsource(CommunityCommentsDialog)
+    assert "community_comments_refresh" not in src and "_reload" not in src
 
 
 def test_reply_field_stays_editable_while_reading_and_sending():
@@ -286,3 +299,93 @@ class TestReplyNamesAndCounts:
         panel._repaint_or_repopulate.assert_called_once_with(["parent"])
         CommunityCommentsPanelMixin._update_announcement_reply_count(panel,JID,original,7)
         panel._repaint_or_repopulate.assert_called_once()
+
+
+class TestLiveReplyCount:
+    def test_event_parsing_keeps_parent_identity_and_rejects_anything_else(self):
+        from core.community_comments import parse_reply_count_event
+        assert parse_reply_count_event({"id": PARENT, "chatId": JID, "replyCount": 2}) == {
+            "chat": JID, "parent": PARENT, "key_id": "PARENT", "count": 2}
+        for bad in [None, {"id": PARENT, "chatId": "123@lid", "replyCount": 2},
+                    {"id": PARENT, "chatId": JID, "replyCount": True},
+                    {"id": PARENT, "chatId": JID, "replyCount": -1},
+                    {"id": "false_999@g.us_X", "chatId": JID, "replyCount": 1},
+                    {"id": "broken", "chatId": JID, "replyCount": 1}]:
+            assert parse_reply_count_event(bad) is None
+
+    def test_cached_announcement_gets_the_new_count(self):
+        from core.community_comments import apply_reply_count
+        chat = {"messages": {"messages": {"records": [{"key": {"id": "PARENT"}},
+                                                      {"key": {"id": "other"}}]}}}
+        assert apply_reply_count(chat, "PARENT", 3) is True
+        assert chat["messages"]["messages"]["records"][0]["replyCount"] == 3
+        assert "replyCount" not in chat["messages"]["messages"]["records"][1]
+        assert apply_reply_count(chat, "PARENT", 3) is False
+        assert apply_reply_count(None, "PARENT", 3) is False
+
+    def test_open_window_reads_itself_again_for_its_own_announcement(self):
+        dlg = Dialog(); dlg._finish_refresh([row()], None)
+        dlg.on_reply_count_changed("false_123@g.us_OTHER_456@lid", 2)
+        assert not dlg.work
+        dlg.on_reply_count_changed(PARENT, 1)   # already showing one reply
+        assert not dlg.work
+        dlg.on_reply_count_changed(PARENT, 2)
+        assert len(dlg.work) == 1
+        dlg.work.pop()()
+        dlg._list.SetFocus.assert_not_called()
+
+    def test_event_during_a_read_is_read_after_it(self):
+        dlg = Dialog(); dlg._on_refresh(None)
+        dlg.on_reply_count_changed(PARENT, 5)
+        assert len(dlg.work) == 1 and dlg._refresh_pending
+        dlg.work.pop()()
+        assert len(dlg.work) == 1 and not dlg._refresh_pending
+
+    def test_closed_window_ignores_events_and_leaves_the_registry(self):
+        dlg = Dialog(); dlg._register()
+        assert dlg in dlg._mw._announcement_comment_dialogs
+        dlg.close_comments()
+        assert dlg not in dlg._mw._announcement_comment_dialogs
+        dlg.on_reply_count_changed(PARENT, 5)
+        assert not dlg.work
+
+    def test_main_window_updates_row_cache_and_open_windows(self):
+        from main_window.community_comments import CommunityCommentsMixin
+        dialog = Mock()
+        record = {"key": {"id": "PARENT"}}
+        mw = SimpleNamespace(
+            conversations_panel=SimpleNamespace(_update_announcement_reply_count=Mock()),
+            chats={JID: {"messages": {"messages": {"records": [record]}}}},
+            _announcement_comment_dialogs={dialog})
+        CommunityCommentsMixin.on_announcement_reply_count(
+            mw, {"chat": JID, "parent": PARENT, "key_id": "PARENT", "count": 4})
+        args = mw.conversations_panel._update_announcement_reply_count.call_args.args
+        assert args[0] == JID and args[1]["key"]["id"] == "PARENT" and args[2] == 4
+        assert record["replyCount"] == 4
+        dialog.on_reply_count_changed.assert_called_once_with(PARENT, 4)
+
+
+def test_socket_event_reaches_the_main_window_on_the_ui_thread(monkeypatch):
+    from core.websocket_client import WebSocketClient
+    calls = []
+    monkeypatch.setattr(wx, "CallAfter", lambda fn, *args: calls.append((fn, args)))
+    mw = SimpleNamespace(on_announcement_reply_count=Mock())
+    client = SimpleNamespace(main_window=mw, _belongs_to_this_session=lambda data: True)
+    WebSocketClient.on_announcement_replies(
+        client, {"session": "s", "id": PARENT, "chatId": JID, "replyCount": 2})
+    WebSocketClient.on_announcement_replies(client, {"session": "s", "id": "bad"})
+    assert calls == [(mw.on_announcement_reply_count,
+                      ({"chat": JID, "parent": PARENT, "key_id": "PARENT", "count": 2},))]
+
+
+def test_announcement_reply_bridge_runtime():
+    from pathlib import Path
+    import shutil
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    node = shutil.which("node") or str(root / "client/node/node.exe")
+    if not (root / "client/api/node_modules/typescript").is_dir():
+        pytest.skip("Node API not installed in this checkout")
+    completed = subprocess.run([node, str(root / "tests/announcement_reply_bridge_runtime.cjs")],
+                               capture_output=True, text=True, timeout=20)
+    assert completed.returncode == 0, completed.stdout + completed.stderr

@@ -87,3 +87,34 @@ def comment_author_label(row, main_window, jid):
 def comment_count(value):
     """An explicit count only; missing metadata must not become a false zero."""
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def parse_reply_count_event(data):
+    """An `announcement-replies` socket event as {chat, parent, key_id, count},
+    or None when it is not one. *parent* is the serialized parent message id
+    (fromMe_chat_id[_participant]); *key_id* is the id part a stored message
+    carries as key.id."""
+    if not isinstance(data, dict):
+        return None
+    parent, chat, count = data.get("id"), data.get("chatId"), data.get("replyCount")
+    if (not isinstance(parent, str) or not isinstance(chat, str) or not chat.endswith("@g.us")
+            or isinstance(count, bool) or not isinstance(count, int) or count < 0):
+        return None
+    parts = parent.split("_", 3)
+    if len(parts) < 3 or parts[1] != chat or not parts[2]:
+        return None
+    return {"chat": chat, "parent": parent, "key_id": parts[2], "count": count}
+
+
+def apply_reply_count(chat, key_id, count):
+    """Store *count* on the cached copy of the announcement *key_id* in *chat*.
+    True when a stored message changed."""
+    wrapper = (chat.get("messages") or {}) if isinstance(chat, dict) else {}
+    records = (wrapper.get("messages") or {}).get("records") if isinstance(wrapper, dict) else None
+    changed = False
+    for row in records if isinstance(records, list) else ():
+        if (isinstance(row, dict) and (row.get("key") or {}).get("id") == key_id
+                and row.get("replyCount") != count):
+            row["replyCount"] = count
+            changed = True
+    return changed

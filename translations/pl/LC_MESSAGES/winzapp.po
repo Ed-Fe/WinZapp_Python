@@ -4158,12 +4158,6 @@ msgstr "Ta wiadomość nie znajduje się w grupie ogłoszeń społeczności."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "O&dśwież odpowiedzi"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_send"
 msgid "&Send reply"
 msgstr "&Wyślij odpowiedź"
@@ -4191,11 +4185,11 @@ msgstr "Odpowiedzi na ogłoszenie społeczności..."
 #: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_unconfirmed"
 msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 msgstr ""
-"Wysłanie nie zostało potwierdzone. Odśwież i sprawdź odpowiedzi przed "
-"ponowną próbą. Twój tekst został zachowany."
+"Wysłanie nie zostało potwierdzone. Przed ponowną próbą sprawdź listę "
+"odpowiedzi: aktualizuje się sama. Twój tekst został zachowany."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py

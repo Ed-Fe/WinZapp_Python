@@ -3,7 +3,8 @@
 from urllib.parse import quote
 
 from core.api_client import api_get, api_post
-from core.community_comments import CommunityCommentsError, comment_send_confirmed, parse_comments
+from core.community_comments import (CommunityCommentsError, apply_reply_count,
+                                     comment_send_confirmed, parse_comments)
 
 
 class CommunityCommentsMixin:
@@ -49,3 +50,17 @@ class CommunityCommentsMixin:
             pass
         # A timeout or a failed verdict may follow an actual delivery.
         raise CommunityCommentsError("unconfirmed")
+
+    def on_announcement_reply_count(self, event):
+        """UI thread: WhatsApp counted a reply to an announcement arriving or
+        being deleted (`announcement-replies`, parsed by
+        parse_reply_count_event). Updates the count the message row shows and
+        has an open replies window for that announcement read itself again,
+        so nobody has to press Refresh."""
+        jid, count = event["chat"], event["count"]
+        panel = getattr(self, "conversations_panel", None)
+        if panel is not None:
+            panel._update_announcement_reply_count(jid, {"key": {"id": event["key_id"]}}, count)
+        apply_reply_count((getattr(self, "chats", None) or {}).get(jid), event["key_id"], count)
+        for dialog in list(getattr(self, "_announcement_comment_dialogs", ())):
+            dialog.on_reply_count_changed(event["parent"], count)
