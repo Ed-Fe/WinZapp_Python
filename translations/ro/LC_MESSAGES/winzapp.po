@@ -10406,6 +10406,7 @@ msgid "Ctrl"
 msgstr "Ctrl"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr "Delete"
@@ -10712,6 +10713,15 @@ msgstr ""
 "există deja o selecție, selectează/deselectează în schimb conversația sau "
 "mesajul focalizat, dacă opțiunea este activată în Setări, Interfață "
 "utilizator"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
+msgstr ""
+"Delete: în Starea mea, șterge starea afișată, pentru toți cei care au "
+"primit-o"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_status_delete_transcription_label"
@@ -11372,6 +11382,59 @@ msgstr "Nu există text de copiat în această stare."
 msgctxt "status_copy_text"
 msgid "Copy status text"
 msgstr "Copiați textul de stare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr "Ștergeți starea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr ""
+"Ștergeți această actualizare de stare? Va fi ștearsă și pentru toți cei care"
+" au primit-o."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr "Ștergeți 1 actualizare de stare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+"Nu s-a putut confirma ștergerea stării. Verificați conexiunea și uitați-vă "
+"din nou la stările dvs. înainte de a încerca iar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr ""
+"Această stare nu mai este printre ale dvs.: a expirat sau a fost deja "
+"ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr "Starea a fost ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
+msgstr "Se șterge starea..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py

@@ -9742,6 +9742,7 @@ msgid "Ctrl"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr ""
@@ -10021,6 +10022,13 @@ msgid ""
 "Space: play/pause the focused audio or video. Whenever a selection already "
 "exists it selects/deselects the focused chat or message instead, if the "
 "option is enabled in Settings, User Interface"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -10632,6 +10640,53 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 msgctxt "status_copy_text"
 msgid "Copy status text"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

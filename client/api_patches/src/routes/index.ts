@@ -36,6 +36,7 @@ import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
 import * as CommunityOverviewController from '../controller/communityOverviewController';
 import * as CommunityJoinController from '../controller/communityJoinController';
+import * as StatusDeleteController from '../controller/statusDeleteController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
 import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
@@ -1002,6 +1003,14 @@ routes.get(
   verifyToken,
   statusConnection,
   StatusController.getStatuses
+);
+// Delete one of the account's own statuses for everyone who received it
+// (statusDeleteController.ts).
+routes.post(
+  '/api/:session/status/:statusId/delete',
+  verifyToken,
+  statusConnection,
+  StatusDeleteController.deleteStatus
 );
 
 // Labels

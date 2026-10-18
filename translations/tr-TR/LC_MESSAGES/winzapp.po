@@ -10306,6 +10306,7 @@ msgid "Ctrl"
 msgstr "Kontrol"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr "Sil"
@@ -10604,6 +10605,13 @@ msgstr ""
 "Boşluk: odaklanılan ses veya videoyu oynat/duraklat. Ayarlar > Kullanıcı "
 "Arayüzü bölümünde seçenek etkinse, önceden bir seçim varsa bunun yerine "
 "odaklanılan sohbeti veya mesajı seçer/seçimini kaldırır"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
+msgstr "Delete: Durumum'da gösterilen durumu, onu alan herkes için sil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_status_delete_transcription_label"
@@ -11246,6 +11254,56 @@ msgstr "Bu durumda kopyalanacak metin yok."
 msgctxt "status_copy_text"
 msgid "Copy status text"
 msgstr "Durum metnini kopyala"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr "Durumu sil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr "Bu durum güncellemesi silinsin mi? Onu alan herkes için de silinecek."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr "1 durum güncellemesini sil"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+"Durumun silindiği doğrulanamadı. Bağlantıyı kontrol edin ve tekrar denemeden"
+" önce durumlarınıza yeniden bakın."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr ""
+"Bu durum artık sizinkiler arasında değil: süresi doldu veya zaten silindi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr "Durum silindi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
+msgstr "Durum siliniyor..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py

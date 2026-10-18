@@ -10383,6 +10383,7 @@ msgid "Ctrl"
 msgstr "Ctrl"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr "Delete"
@@ -10685,6 +10686,14 @@ msgstr ""
 "Espaço: reproduzir/pausar o áudio ou vídeo focado. Quando já houver algo "
 "marcado, passa a marcar/desmarcar a conversa ou mensagem focada, se a opção "
 "estiver ativada em Configurações, Interface do usuário"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
+msgstr ""
+"Delete: em Meu status, apagar o status mostrado, para todos que o receberam"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_status_delete_transcription_label"
@@ -11342,6 +11351,58 @@ msgstr "Não há texto para copiar neste status."
 msgctxt "status_copy_text"
 msgid "Copy status text"
 msgstr "Copiar texto do status"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr "Apagar status"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr ""
+"Apagar esta atualização de status? Ela também será apagada para todos que a "
+"receberam."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr "Apagar 1 atualização de status"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+"Não foi possível confirmar que o status foi apagado. Confira a conexão e "
+"veja seus status de novo antes de tentar outra vez."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr ""
+"Este status não está mais entre os seus: ele expirou ou já foi apagado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr "Status apagado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
+msgstr "Apagando o status..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py

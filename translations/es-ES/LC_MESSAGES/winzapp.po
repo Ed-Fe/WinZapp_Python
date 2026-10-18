@@ -10415,6 +10415,7 @@ msgid "Ctrl"
 msgstr "Control"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr "Supr"
@@ -10718,6 +10719,15 @@ msgstr ""
 "Espacio: reproducir/pausar el audio o vídeo enfocado. Cuando ya haya algo "
 "marcado, pasa a marcar/desmarcar el chat o mensaje enfocado, si la opción "
 "está activada en Configuración, Interfaz de usuario"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
+msgstr ""
+"Delete: en Mi estado, eliminar el estado que se muestra, para todos los que "
+"lo recibieron"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_status_delete_transcription_label"
@@ -11376,6 +11386,57 @@ msgstr "No hay texto para copiar en este estado."
 msgctxt "status_copy_text"
 msgid "Copy status text"
 msgstr "Copiar texto del estado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr "Eliminar estado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr ""
+"¿Eliminar esta actualización de estado? También se eliminará para todos los "
+"que la recibieron."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr "Eliminar 1 actualización de estado"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+"No se pudo confirmar que el estado se eliminó. Comprueba la conexión y "
+"vuelve a mirar tus estados antes de intentarlo otra vez."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr "Este estado ya no está entre los tuyos: caducó o ya se eliminó."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr "Estado eliminado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
+msgstr "Eliminando el estado..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py

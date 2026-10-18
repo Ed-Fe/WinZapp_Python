@@ -40,7 +40,9 @@ class MyStatusTranscriptionKeys:
     def main_window(self):
         return self._mw
 
-    def _create_transcription_accelerators(self):
+    def _create_transcription_accelerators(self, extra=()):
+        """The transcription keys, plus the dialog's own *extra* entries: a
+        window has one accelerator table, so every key goes into this one."""
         self.ID_ALT_SHIFT_T = wx.NewIdRef()
         self.ID_ALT_SHIFT_N = wx.NewIdRef()
         self.ID_ALT_SHIFT_DELETE = wx.NewIdRef()
@@ -48,6 +50,7 @@ class MyStatusTranscriptionKeys:
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord("T"),      self.ID_ALT_SHIFT_T),
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord("N"),      self.ID_ALT_SHIFT_N),
             (wx.ACCEL_ALT | wx.ACCEL_SHIFT, wx.WXK_DELETE, self.ID_ALT_SHIFT_DELETE),
+            *extra,
         ]))
         self.Bind(wx.EVT_MENU, self._on_transcribe_own_status, id=self.ID_ALT_SHIFT_T)
         self.Bind(wx.EVT_MENU, self._on_transcribe_own_status_inline, id=self.ID_ALT_SHIFT_N)

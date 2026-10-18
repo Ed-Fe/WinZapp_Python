@@ -130,6 +130,18 @@ class AccessibleStatusPrev(wx.Accessible):
         return (wx.ACC_OK, accessible_shortcut(self, self.shortcut, ('status.ID_CTRL_LEFT',)))
 
 
+class AccessibleStatusDelete(wx.Accessible):
+    """Reports the keyboard shortcut for My status's "Delete status" button,
+    as it is configured (Delete by default). See AccessibleStatusPrev."""
+
+    def __init__(self, shortcut="Delete"):
+        super().__init__()
+        self.shortcut = shortcut
+
+    def GetKeyboardShortcut(self, childId):
+        return (wx.ACC_OK, accessible_shortcut(self, self.shortcut, ('status.ID_DELETE',)))
+
+
 class AccessibleStatusNext(wx.Accessible):
     """Reports the keyboard shortcut for the next-status button.
 

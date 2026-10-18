@@ -207,6 +207,7 @@ SHORTCUTS = (
     Shortcut('status.ID_ALT_SHIFT_T', 'status', 'ID_ALT_SHIFT_T', 'shortcut_status_transcribe_label', 5, 84, 0),
     Shortcut('status.ID_ALT_SHIFT_N', 'status', 'ID_ALT_SHIFT_N', 'shortcut_status_transcribe_inline_label', 5, 78, 0),
     Shortcut('status.ID_ALT_SHIFT_DELETE', 'status', 'ID_ALT_SHIFT_DELETE', 'shortcut_status_delete_transcription_label', 5, 127, 0),
+    Shortcut('status.ID_DELETE', 'status', 'ID_DELETE', 'shortcut_status_delete_label', 0, 127, 0),
     Shortcut('calls.ID_ALT_L', 'calls', 'ID_ALT_L', 'shortcut_calls_alt_l_label', 1, 76, 0),
     Shortcut('calls.ID_CTRL_SHIFT_R', 'calls', 'ID_CTRL_SHIFT_R', 'shortcut_calls_ctrl_shift_r_label', 6, 82, 0),
     Shortcut('calls.ID_F5', 'calls', 'ID_F5', 'shortcut_calls_f5_label', 0, 344, 0),
