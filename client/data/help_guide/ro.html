@@ -752,6 +752,7 @@
     <h2 id="h-contas">👤 13. Conturi, zona de notificări și sincronizare</h2>
 <h3>Mai multe conturi</h3>
 <p>Fiecare cont are propria fereastră și propriul server local. Meniul <strong>Conturi</strong> comută între ele; la fel și Ctrl+Alt+1 până la 9. "Închideți contul curent" (Ctrl+F4) încheie doar contul în care ești, eliberează memoria și conexiunea lui și trece la alt cont deschis. Pentru a-l redeschide, alege-l din meniul Conturi al altui cont sau folosește Ctrl+Alt cu numărul lui. Dacă este singurul deschis, WinZapp întreabă mai întâi, pentru că închiderea lui încheie programul.</p>
+<p>Ștergerea unui cont (Conturi &gt; Gestionați conturile, butonul Șterge) elimină tot ce îi aparține: mesaje, fișiere media, setări, profilul browserului care păstrează autentificarea WhatsApp și copiile de siguranță ale acelui profil. Ce nu poate fi eliminat imediat este finalizat la următoarea pornire a WinZapp. Când contul este singurul, poate fi șters și el: WinZapp cere confirmare (Nu este implicit), se închide, iar următoarea pornire este o primă rulare.</p>
 
 <h3>Sincronizare</h3>
 <ul>
@@ -1199,6 +1200,7 @@
   <tr><th>Situație</th><th>Ce să faci</th></tr>
   <tr><td>WinZapp îți cere să asociezi din nou</td><td>Asociază cu număr sau cod QR. Conversațiile tale sunt șterse doar dacă te conectezi cu alt număr. Dacă s-a întâmplat fără motiv, păstrează <code>log.log</code> și <code>shutdown_audit.log</code> înainte de a-l deschide din nou.</td></tr>
   <tr><td>Mesajele nu sosesc sau lista pare blocată</td><td>Așteaptă progresul sincronizării; folosește Shift+F5 în conversație sau F5 pentru toate. Verifică și că modul offline nu este activ. Dacă lista se sincronizează mereu de la capăt, actualizează WinZapp: o corectare permite listei de conversații să își termine sincronizarea.</td></tr>
+  <tr><td>Transcrierea locală pe placa grafică NVIDIA eșuează sau se blochează</td><td>Actualizați WinZapp: o corecție încarcă bibliotecile CUDA în Windows înainte de folosirea plăcii grafice. Dacă nu pot fi încărcate, WinZapp anunță problema și propune transcrierea pe procesor.</td></tr>
   <tr><td>WinZapp se blochează la trimiterea sau primirea fișierelor mari</td><td>Actualizează WinZapp: o corectare împiedică descărcarea unui fișier primit odată cu notificarea mesajului și acumularea actualizărilor ecranului de către progresul trimiterii și descărcării.</td></tr>
   <tr><td>Contul meu apare în continuare online după ce părăsesc fereastra</td><td>Actualizează WinZapp: starea online corespunde acum ferestrei (focus, minimizată, ascunsă în zona de notificare, pornire în fundal), iar o încercare nereușită de a seta starea offline este repetată la fiecare 20 de secunde.</td></tr>
   <tr><td>Apelurile nu pornesc</td><td>Repornește WinZapp sau folosește Ajutor &gt; Forțați reinstalarea WPPConnect. WinZapp ține singur la zi lista versiunilor WhatsApp Web.</td></tr>

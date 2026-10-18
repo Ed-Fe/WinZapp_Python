@@ -752,6 +752,7 @@
     <h2 id="h-contas">👤 13. Konta, zasobnik i synchronizacja</h2>
 <h3>Wiele kont</h3>
 <p>Każde konto ma własne okno i własny serwer lokalny. Menu <strong>Konta</strong> przełącza między nimi; tak samo Ctrl+Alt+1 do 9. "Zamknij bieżące konto" (Ctrl+F4) kończy tylko konto, w którym jesteś, zwalnia jego pamięć i połączenie oraz przechodzi do innego otwartego konta. Aby otworzyć je ponownie, wybierz je w menu Konta innego konta lub użyj Ctrl+Alt z jego numerem. Jeśli jest jedynym otwartym, WinZapp najpierw pyta, bo jego zamknięcie kończy program.</p>
+<p>Usunięcie konta (Konta &gt; Zarządzaj kontami, przycisk Usuń) kasuje wszystko, co do niego należy: wiadomości, multimedia, ustawienia, profil przeglądarki z logowaniem do WhatsApp i kopie zapasowe tego profilu. To, czego nie da się usunąć od razu, zostanie dokończone przy następnym uruchomieniu WinZapp. Gdy konto jest jedyne, również można je usunąć: WinZapp prosi o potwierdzenie (domyślnie Nie), zamyka się, a następne uruchomienie jest pierwszym uruchomieniem.</p>
 
 <h3>Synchronizacja</h3>
 <ul>
@@ -1199,6 +1200,7 @@
   <tr><th>Sytuacja</th><th>Co zrobić</th></tr>
   <tr><td>WinZapp prosi o ponowne sparowanie</td><td>Sparuj za pomocą numeru lub kodu QR. Twoje czaty są usuwane tylko wtedy, gdy połączysz inny numer. Jeśli stało się to bez powodu, zachowaj <code>log.log</code> i <code>shutdown_audit.log</code> przed ponownym otwarciem.</td></tr>
   <tr><td>Wiadomości nie przychodzą lub lista wygląda na zawieszoną</td><td>Poczekaj na postęp synchronizacji; użyj Shift+F5 w czacie albo F5 dla wszystkich. Sprawdź też, czy tryb offline nie jest włączony. Jeśli lista synchronizuje się w kółko, zaktualizuj WinZapp: poprawka pozwala zakończyć synchronizację listy czatów.</td></tr>
+  <tr><td>Lokalna transkrypcja na karcie graficznej NVIDIA kończy się błędem lub zawiesza</td><td>Zaktualizuj WinZapp: poprawka ładuje biblioteki CUDA w systemie Windows przed użyciem karty graficznej. Jeśli nie można ich załadować, WinZapp informuje o tym i proponuje transkrypcję na procesorze.</td></tr>
   <tr><td>WinZapp zawiesza się przy wysyłaniu lub odbieraniu dużych plików</td><td>Zaktualizuj WinZapp: poprawka zapobiega pobieraniu odebranego pliku razem z powiadomieniem o wiadomości oraz gromadzeniu aktualizacji ekranu przez postęp wysyłania i pobierania.</td></tr>
   <tr><td>Moje konto nadal wygląda na online po opuszczeniu okna</td><td>Zaktualizuj WinZapp: status online odpowiada teraz oknu (fokus, zminimalizowane, ukryte w zasobniku, uruchomienie w tle), a nieudane ustawienie statusu offline jest ponawiane co 20 sekund.</td></tr>
   <tr><td>Połączenia się nie zaczynają</td><td>Uruchom WinZapp ponownie lub użyj Pomoc &gt; Wymuś ponowną instalację WPPConnect. WinZapp sam utrzymuje aktualną listę wersji WhatsApp Web.</td></tr>

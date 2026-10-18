@@ -4,6 +4,8 @@ Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisa
 
 YENİLİKLER
 
+- faster-whisper ile yerel yazıya dökme: Windows'ta ekran kartının kullanılmasını engelleyebilen ve sonraki yazıya dökme işlemlerinin takılmasına neden olabilen CUDA kitaplıklarını yükleme sorunu düzeltildi. Kitaplıklar yüklenemezse WinZapp, ekran kartında hesaplamaya başlamadan önce sorunu bildirir.
+
 - Çevrimiçi durumunuz artık başka bir programa hızla geçtiğinizde, WinZapp'ı sistem tepsisine gizlediğinizde veya arka planda yeniden bağlandığınızda da pencerenin güncel durumunu izler. Gecikmiş bir çevrimiçi güncellemesi artık çevrimdışı güncellemesinden sonra uygulanmaz; çevrimdışı durumunu bildirme başarısız olursa yeniden denenir.
 
 - Her biri Ayarlar'daki Kısayollar sekmesinden değiştirilebilen yeni kısayollar: Alt+8 pencerenin her yerinden toplulukları açar; Alt+Shift+B seçili veya açık sohbetteki işletmenin kataloğunu ve sepetini açar; WhatsApp Business hesabında Ctrl+Shift+N sohbetteki kişi için sipariş oluşturur. Uygulanamadıkları yerde WinZapp nedenini söyler. Bir sipariş mesajında Enter siparişi açar.
@@ -129,6 +131,8 @@ YENİLİKLER
 - Yeni veya boş bir kişisel sohbet artık "mesaj yok" satırında mesajların ve aramaların uçtan uca şifreli olduğunu ve kaybolan mesajlar açıksa süresini belirtiyor. Sohbet bilgileri de şifrelemeden söz ediyor.
 
 - Ek dosyaların açıklama alanı artık WhatsApp Desktop gibi birden çok satır kabul ediyor: Enter eki açıklamasıyla göndermeye devam eder, Shift+Enter veya Ctrl+Enter ise mesaj alanındaki gibi yeni satır açar.
+
+- Bir hesabı kaldırmak artık ona ait her şeyi kaldırıyor: mesajlara ve ayarlara ek olarak WhatsApp oturumunu tutan tarayıcı profili ve bu profilin yedekleri de siliniyor, kaldırılamayan her şey WinZapp'ın bir sonraki başlatılışında tamamlanıyor. Hesap tek hesapsa artık Hesaplar > Hesapları yönet bölümünden kaldırılabilir: WinZapp onay ister, kapanır ve sonraki başlatma ilk çalıştırma olur.
 
 DÜZELTMELER
 
