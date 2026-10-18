@@ -148,11 +148,20 @@ msgctxt "acc_default_name"
 msgid "Default"
 msgstr ""
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "acc_delete_confirm"
 msgid ""
 "Permanently delete the account \"{name}\" and all its data? This cannot be "
+"undone."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "acc_delete_last_confirm"
+msgid ""
+"\"{name}\" is the only account. Permanently delete it with all its messages,"
+" media, preferences and profile backups, and close WinZapp? This cannot be "
 "undone."
 msgstr ""
 
@@ -4272,6 +4281,12 @@ msgctxt "created_at"
 msgid "Created on {date}"
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "customization_confirmations"
+msgid "&Confirmations"
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
 msgid "An error occurred while saving the message file:"
@@ -4933,6 +4948,12 @@ msgstr ""
 #: client/ui/conversation_panel/forwarding.py
 msgctxt "forward_selected_messages_title"
 msgid "Forward selected messages"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "general_notifications_button"
+msgid "Notifications"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
@@ -7263,6 +7284,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
 #: client/ui/dialogs/whatsapp_settings_dialog.py
 msgctxt "ok"
@@ -10958,43 +10980,17 @@ msgid "Online AI: Transcriptions and Descriptions"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_alert_tones"
 msgid "Alert Tones"
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio"
 msgid "Audio"
 msgstr ""
 
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_chats_button"
-msgid "Chats"
-msgstr ""
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_messages_button"
-msgid "Messages"
-msgstr ""
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "general_notifications_button"
-msgid "Notifications"
-msgstr ""
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "customization_confirmations"
-msgid "&Confirmations"
-msgstr ""
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_event_sounds"
-msgid "Event sounds"
-msgstr ""
-
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_devices"
 msgid "Audio Devices"
 msgstr ""
@@ -11019,6 +11015,11 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_event_sounds"
+msgid "Event sounds"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "tab_files_saving"
 msgid "Files and saving"
 msgstr ""
@@ -11048,7 +11049,6 @@ msgid "Keyboard shortcuts"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_sound_events"
 msgid "Sound Events"
 msgstr ""
@@ -13566,6 +13566,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_chats_button"
+msgid "Chats"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
 msgid "Ask for confirmation before clearing chats"
 msgstr ""
@@ -13723,6 +13729,12 @@ msgctxt "ui_message_list_mode_listbox"
 msgid ""
 "List box (full messages, screen reader does not announce position or item "
 "count)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_messages_button"
+msgid "Messages"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

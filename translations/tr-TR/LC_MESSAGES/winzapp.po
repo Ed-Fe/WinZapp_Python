@@ -158,7 +158,7 @@ msgctxt "acc_default_name"
 msgid "Default"
 msgstr "Varsayılan"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "acc_delete_confirm"
 msgid ""
@@ -167,6 +167,18 @@ msgid ""
 msgstr ""
 "\"{name}\" hesabını ve tüm verilerini kalıcı olarak silmek istiyor musunuz? "
 "Bu eylem geri alınamaz."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "acc_delete_last_confirm"
+msgid ""
+"\"{name}\" is the only account. Permanently delete it with all its messages,"
+" media, preferences and profile backups, and close WinZapp? This cannot be "
+"undone."
+msgstr ""
+"\"{name}\" tek hesaptır. Tüm mesajları, medyası, tercihleri ve profil "
+"yedekleriyle birlikte kalıcı olarak silinsin ve WinZapp kapatılsın mı? Bu "
+"işlem geri alınamaz."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "acc_err_archive_current"
@@ -4540,6 +4552,12 @@ msgctxt "created_at"
 msgid "Created on {date}"
 msgstr "Oluşturulma: {date}"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "customization_confirmations"
+msgid "&Confirmations"
+msgstr "&Onaylar"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
 msgid "An error occurred while saving the message file:"
@@ -5233,6 +5251,12 @@ msgstr "Seçilenleri ilet"
 msgctxt "forward_selected_messages_title"
 msgid "Forward selected messages"
 msgstr "Seçili mesajları ilet"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "general_notifications_button"
+msgid "Notifications"
+msgstr "Bildirimler"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
@@ -7683,6 +7707,7 @@ msgstr "Çevrimdışı mod etkinleştirildi. Bazı özellikler kullanılamayabil
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
 #: client/ui/dialogs/whatsapp_settings_dialog.py
 msgctxt "ok"
@@ -11573,43 +11598,17 @@ msgid "Online AI: Transcriptions and Descriptions"
 msgstr "Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_alert_tones"
 msgid "Alert Tones"
 msgstr "Uyarı Tonları"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio"
 msgid "Audio"
 msgstr "Ses"
 
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_chats_button"
-msgid "Chats"
-msgstr "Sohbetler"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "ui_messages_button"
-msgid "Messages"
-msgstr "Mesajlar"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "general_notifications_button"
-msgid "Notifications"
-msgstr "Bildirimler"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "customization_confirmations"
-msgid "&Confirmations"
-msgstr "&Onaylar"
-
-#: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_event_sounds"
-msgid "Event sounds"
-msgstr "Olay sesleri"
-
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_devices"
 msgid "Audio Devices"
 msgstr "Ses Cihazları"
@@ -11634,6 +11633,11 @@ msgstr "Bağlantı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_event_sounds"
+msgid "Event sounds"
+msgstr "Olay sesleri"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "tab_files_saving"
 msgid "Files and saving"
 msgstr "Dosyalar ve kaydetme"
@@ -11663,7 +11667,6 @@ msgid "Keyboard shortcuts"
 msgstr "Kısayollar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_sound_events"
 msgid "Sound Events"
 msgstr "Ses Olayları"
@@ -14439,6 +14442,12 @@ msgstr "Sohbet ve mesaj seçerken kısayolları toplu işlemlerle değiştir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_chats_button"
+msgid "Chats"
+msgstr "Sohbetler"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
 msgid "Ask for confirmation before clearing chats"
 msgstr "Sohbetleri temizlemeden önce onay iste"
@@ -14616,6 +14625,12 @@ msgid ""
 "count)"
 msgstr ""
 "Liste kutusu (tam mesajlar, ekran okuyucu konum veya öğe sayısı duyurmaz)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_messages_button"
+msgid "Messages"
+msgstr "Mesajlar"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -4,6 +4,8 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
+- Lokalna transkrypcja z faster-whisper: naprawiono ładowanie bibliotek CUDA w systemie Windows, które mogło uniemożliwiać korzystanie z karty graficznej i powodować zawieszanie się kolejnych transkrypcji. Jeśli bibliotek nie można załadować, WinZapp informuje o problemie przed rozpoczęciem obliczeń na karcie graficznej.
+
 - Twój status online odpowiada teraz bieżącemu stanowi okna także po szybkim przełączeniu do innego programu, ukryciu WinZapp w zasobniku lub ponownym połączeniu w tle. Opóźniona aktualizacja statusu online nie wyprzedza już aktualizacji statusu offline, a nieudana próba ustawienia statusu offline jest ponawiana.
 
 - Nowe skróty, każdy do zmiany na karcie Skróty klawiszowe w ustawieniach: Alt+8 otwiera społeczności z dowolnego miejsca okna; Alt+Shift+B otwiera katalog i koszyk firmy z zaznaczonego lub otwartego czatu; a na koncie WhatsApp Business Ctrl+Shift+N tworzy zamówienie dla kontaktu z czatu. Tam, gdzie nie mają zastosowania, WinZapp mówi dlaczego. Enter na wiadomości z zamówieniem otwiera zamówienie.
@@ -129,6 +131,8 @@ NOWOŚCI
 - Nowy lub pusty czat prywatny podaje teraz w wierszu o braku wiadomości, że wiadomości i połączenia są szyfrowane end-to-end oraz, jeśli włączono znikające wiadomości, ich czas. Informacje o czacie także wspominają o szyfrowaniu.
 
 - Pole podpisu załączników przyjmuje teraz wiele wierszy, tak jak WhatsApp Desktop: Enter nadal wysyła załącznik z podpisem, a Shift+Enter lub Ctrl+Enter zaczynają nowy wiersz, tak jak w polu wiadomości.
+
+- Usunięcie konta usuwa teraz wszystko, co do niego należy: oprócz wiadomości i ustawień kasowany jest także profil przeglądarki z logowaniem do WhatsApp oraz kopie zapasowe tego profilu, a to, czego nie udało się usunąć, zostanie dokończone przy następnym uruchomieniu WinZapp. Gdy konto jest jedyne, można je teraz usunąć w menu Konta > Zarządzaj kontami: WinZapp prosi o potwierdzenie, zamyka się, a następne uruchomienie jest pierwszym uruchomieniem.
 
 POPRAWKI
 
