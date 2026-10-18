@@ -11555,6 +11555,12 @@ msgid "Played"
 msgstr "Redat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_post_in_progress"
+msgid "The status is still being posted. Please wait."
+msgstr "Starea încă se publică. Așteptați."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "status_post_media"
 msgid "Send media as status"
 msgstr "Trimiteți media ca stare"
@@ -11566,9 +11572,25 @@ msgstr "Postați text ca stare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/status_composer.py
+msgctxt "status_post_unconfirmed"
+msgid ""
+"Posting the status was not confirmed in time; it may have been posted. Look "
+"at My status before posting it again."
+msgstr ""
+"Publicarea stării nu a fost confirmată la timp; este posibil să fi fost "
+"publicată. Verificați Starea mea înainte de a o publica din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
 msgctxt "status_posted"
 msgid "Status posted successfully."
 msgstr "Starea a fost publicată cu succes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_posting"
+msgid "Posting the status..."
+msgstr "Se publică starea..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py

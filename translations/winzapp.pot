@@ -10808,6 +10808,12 @@ msgid "Played"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_post_in_progress"
+msgid "The status is still being posted. Please wait."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "status_post_media"
 msgid "Send media as status"
 msgstr ""
@@ -10819,8 +10825,22 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/status_composer.py
+msgctxt "status_post_unconfirmed"
+msgid ""
+"Posting the status was not confirmed in time; it may have been posted. Look "
+"at My status before posting it again."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
 msgctxt "status_posted"
 msgid "Status posted successfully."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_posting"
+msgid "Posting the status..."
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py

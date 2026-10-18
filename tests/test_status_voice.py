@@ -34,6 +34,8 @@ of this test suite (test_status_panel.py).
 import os
 import types
 
+import pytest
+
 import status_panel as status_panel_module
 from status_panel import StatusPanel
 from tests.god_modules import patch_status_panel_global
@@ -141,6 +143,7 @@ class _Stub:
     _start_voice_recording    = StatusPanel._start_voice_recording
     _send_media_status_bg     = StatusPanel._send_media_status_bg
     _send_all_media_statuses_bg = StatusPanel._send_all_media_statuses_bg
+    _end_status_post          = StatusPanel._end_status_post
     _send_status_voice_bg     = StatusPanel._send_status_voice_bg
     _stop_recorded_audio_preview = StatusPanel._stop_recorded_audio_preview
     _cleanup_recorded_audio_temp_file = StatusPanel._cleanup_recorded_audio_temp_file
@@ -281,6 +284,11 @@ class TestSendMediaStatusUsesThePathField:
 
 
 class TestAudioFilesAreRoutedToTheVoiceStatusPath:
+    @pytest.fixture(autouse=True)
+    def _call_after_inline(self, monkeypatch):
+        # The batch frees Post through wx.CallAfter whatever its outcome.
+        monkeypatch.setattr(status_panel_module.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+
     def test_audio_extension_calls_send_status_voice_bg_not_media(self, tmp_path, monkeypatch):
         stub = _Stub()
         audio = _touch(tmp_path, "note.mp3")
