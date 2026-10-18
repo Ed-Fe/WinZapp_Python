@@ -78,7 +78,10 @@ class CommunityCommentsDialog(wx.Dialog):
         self._reload.Enable(self._active())
         self._send.Enable(active and self._loaded and not self._uncertain
                           and bool(self._text.GetValue().strip()))
-        self._text.SetEditable(active)
+        # Never read-only while a read or a send runs: the screen reader said
+        # "somente leitura" whenever the field was reached during one, which
+        # is every time the dialog opens. Send is what waits, not typing.
+        self._text.SetEditable(self._active())
 
     def _on_text(self, event):
         self._update_buttons()
@@ -166,6 +169,7 @@ class CommunityCommentsDialog(wx.Dialog):
         if not text.strip():
             return
         self._busy = True
+        self._sent_text = text
         self._update_buttons()
         self._status.SetLabel(self._mw.i18n.t("community_comments_sending"))
 
@@ -188,7 +192,8 @@ class CommunityCommentsDialog(wx.Dialog):
         self._uncertain = not confirmed
         if not confirmed:
             logging.warning("[community_comments] send_failed code=unconfirmed")
-        if confirmed:
+        # Clear only what was sent: anything typed meanwhile is a new draft.
+        if confirmed and self._text.GetValue() == getattr(self, "_sent_text", None):
             self._text.ChangeValue("")
         text = self._mw.i18n.t("community_comments_sent") if confirmed else self._mw.i18n.t("community_comments_unconfirmed")
         self._status.SetLabel(text)

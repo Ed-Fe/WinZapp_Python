@@ -193,8 +193,29 @@ def test_native_community_comments_adapter():
 def test_refresh_does_not_disable_its_focused_button():
     dlg=Dialog();dlg._on_refresh(None)
     dlg._reload.Enable.assert_called_with(True)
-    dlg._text.SetEditable.assert_called_with(False)
     assert not dlg._text.SetFocus.called
+
+
+def test_reply_field_stays_editable_while_reading_and_sending():
+    dlg=Dialog();dlg._on_refresh(None)
+    dlg._text.SetEditable.assert_called_with(True)
+    dlg.work.pop()()
+    dlg._on_send(None)
+    dlg._text.SetEditable.assert_called_with(True)
+    dlg._send.Enable.assert_called_with(False)
+    assert {call.args[0] for call in dlg._text.SetEditable.call_args_list} == {True}
+
+
+def test_text_typed_during_a_send_is_kept():
+    dlg=Dialog();dlg._loaded=True;dlg._on_send(None)
+    dlg._text.value=" exact text and more"
+    dlg.work.pop()()
+    assert dlg._text.value==" exact text and more"
+
+
+def test_closed_dialog_makes_the_field_read_only():
+    dlg=Dialog();dlg.close_comments();dlg._update_buttons()
+    dlg._text.SetEditable.assert_called_with(False)
 
 
 def test_closed_dialog_ignores_in_flight_send_completion():
