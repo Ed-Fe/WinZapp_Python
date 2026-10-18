@@ -3993,6 +3993,17 @@ msgctxt "communities_open_group"
 msgid "&Open group"
 msgstr "Deschideți g&rupul"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_open_recent_group"
+msgid "Open the mo&st recent group"
+msgstr "Deschideți grupul cu activitatea cea mai re&centă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_open_recent_group_named"
+msgid "Open the mo&st recent group: {name}"
+msgstr "Deschideți grupul cu activitatea cea mai re&centă: {name}"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_admin.py
 msgctxt "communities_participants_unavailable"

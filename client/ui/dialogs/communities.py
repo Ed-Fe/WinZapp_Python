@@ -6,7 +6,7 @@ and opens.
 
 import logging
 import wx
-from core.communities import list_communities
+from core.communities import list_communities, most_recent_group
 from core.participant_names import person_name
 from ui.dialogs.labelled_control import add_labelled
 from ui.dialogs.background_work import BackgroundWork
@@ -63,6 +63,12 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
 
         self._list = labelled("communities_list", lambda: wx.ListBox(self, style=wx.LB_SINGLE), 2)
         self._list.Bind(wx.EVT_LISTBOX, self._on_select)
+        # Straight after the list in the Tab order: the quick way into a
+        # community is its group with the newest message. Enter on the list
+        # moves to the community's groups instead (_on_enter).
+        self._open_recent = wx.Button(self, label=i18n.t("communities_open_recent_group"))
+        self._open_recent.Bind(wx.EVT_BUTTON, self._on_open_recent)
+        sizer.Add(self._open_recent, 0, wx.LEFT | wx.RIGHT, 8)
         self._groups = labelled("communities_groups_list", lambda: wx.ListBox(self, style=wx.LB_SINGLE), 2)
         self._groups.Bind(wx.EVT_LISTBOX, lambda event: self._update_buttons())
         self._groups.Bind(wx.EVT_LISTBOX_DCLICK, self._on_open)
@@ -90,8 +96,8 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         button("close", self._on_close, wx.ID_CANCEL)
         sizer.Add(buttons, 0, wx.EXPAND | wx.ALL, 4)
         self.SetSizer(sizer)
-        # Enter anywhere but on a button opens the selected group.
-        self._open.SetDefault()
+        # No default button: Enter means something different on each list.
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
         self._update_buttons()
@@ -110,6 +116,20 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         index = self._groups.GetSelection()
         return community.subgroups[index] if community and 0 <= index < len(community.subgroups) else None
 
+    def _recent_group(self):
+        """The selected community's group with the newest message, by the
+        same timestamp the conversations list sorts by. A locked group is
+        never offered, as in every other picker."""
+        mw = self._mw
+
+        def last_activity(jid):
+            chat = mw.chats.get(jid)
+            if not isinstance(chat, dict) or mw.is_chat_locked(jid):
+                return 0
+            return mw._chat_last_ts(chat)
+
+        return most_recent_group(self._selected(), last_activity)
+
     def _set_busy(self, busy):
         self._busy = busy
         self._update_buttons()
@@ -122,6 +142,12 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         self._refresh.Enable(free)
         self._new.Enable(free and self._loaded)
         self._open.Enable(group is not None)
+        recent = self._recent_group() if free else None
+        self._open_recent.Enable(recent is not None)
+        self._open_recent.SetLabel(
+            self._i18n.t("communities_open_recent_group_named").format(
+                name=subgroup_label(recent, self._i18n).replace("&", "&&"))
+            if recent else self._i18n.t("communities_open_recent_group"))
         self._add_groups.Enable(admin)
         # The announcement group is the community itself: it is not unlinked.
         self._remove_group.Enable(admin and group is not None and not group.announcement)
@@ -200,8 +226,37 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
             lines.append(i18n.t("communities_view_only"))
         return "\n\n".join(line for line in lines if line)
 
+    # ── keyboard ──────────────────────────────────────────────────────────
+
+    def _on_char_hook(self, event):
+        if (event.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
+                and not event.HasAnyModifiers() and self._on_enter(wx.Window.FindFocus())):
+            return
+        event.Skip()
+
+    def _on_enter(self, focus):
+        """Enter on a community shows its groups (focus moves to them); Enter
+        on a group opens it. True when Enter was handled here."""
+        if focus is self._list:
+            if self._groups.GetCount():
+                self._groups.SetFocus()
+            elif self._selected() is not None:
+                self._announce(self._i18n.t("communities_no_groups"))
+            return True
+        if focus is self._groups:
+            self._on_open(None)
+            return True
+        return False
+
+    # ── opening ───────────────────────────────────────────────────────────
+
     def _on_open(self, event):
-        group = self._selected_group()
+        self._open_group(self._selected_group())
+
+    def _on_open_recent(self, event):
+        self._open_group(self._recent_group())
+
+    def _open_group(self, group):
         if self._busy or group is None:
             return
         self.result = group

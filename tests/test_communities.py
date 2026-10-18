@@ -242,7 +242,7 @@ def test_groups_offered_for_linking_are_named_groups_in_no_community():
 class ListBox:
     def __init__(self):
         self.items, self.selection = [], -1
-        self.Freeze, self.Thaw = Mock(), Mock()
+        self.Freeze, self.Thaw, self.SetFocus = Mock(), Mock(), Mock()
 
     def Set(self, items):
         self.items, self.selection = list(items), -1
@@ -253,6 +253,9 @@ class ListBox:
     def GetSelection(self):
         return self.selection
 
+    def GetCount(self):
+        return len(self.items)
+
 
 STRINGS = load_strings("en-US")
 
@@ -260,7 +263,8 @@ STRINGS = load_strings("en-US")
 class Dialog:
     for _name in ("_selected", "_selected_group", "_set_busy", "_update_buttons", "_announce",
                   "_reload", "_finish_reload", "_show", "_show_selected", "_on_select", "_describe",
-                  "_on_open", "_deliver"):
+                  "_on_open", "_on_open_recent", "_open_group", "_recent_group", "_on_enter",
+                  "_deliver"):
         locals()[_name] = getattr(CommunitiesDialog, _name)
     for _name in ("_admin_community", "_name_of", "_perform", "_finish_action", "_on_add_groups",
                   "_on_remove_group", "_on_demote", "_on_promote", "_promotion_candidates",
@@ -277,12 +281,14 @@ class Dialog:
                  "444@lid": "444@lid"}
         self._mw = SimpleNamespace(
             i18n=self._i18n, chats={}, speak_output=SimpleNamespace(output=Mock()),
+            _chat_last_ts=lambda chat: chat.get("t", 0) or 1,
             is_chat_locked=lambda jid: False,
             _normalize_jid=lambda jid: jid.replace("@c.us", "@s.whatsapp.net"),
             _is_self_jid=lambda jid: jid == "999@lid", self_reference_label=lambda: "Me",
             _resolve_jid_name=lambda jid, resolve_missing=True: names.get(jid, ""),
             get_group_info_recent=Mock(return_value={}))
         self._list, self._groups = ListBox(), ListBox()
+        self._open_recent = SimpleNamespace(Enable=Mock(), SetLabel=Mock())
         self._details = SimpleNamespace(ChangeValue=Mock())
         self._status = SimpleNamespace(SetLabel=Mock())
         for name in ("_open", "_add_groups", "_remove_group", "_promote", "_demote", "_deactivate",
@@ -404,6 +410,52 @@ def test_opening_a_group_closes_the_dialog_with_it():
     dialog.select(SCHOOL, PLAIN)
     dialog._on_open(None)
     assert dialog.result == PLAIN and dialog.EndModal.called
+
+
+def test_most_recent_group_is_the_one_with_the_newest_activity():
+    activity = {ANNOUNCEMENTS.jid: 100, PLAIN.jid: 200}
+    assert api.most_recent_group(SCHOOL, lambda jid: activity.get(jid, 0)) == PLAIN
+    activity[ANNOUNCEMENTS.jid] = 200  # a tie: the group listed first
+    assert api.most_recent_group(SCHOOL, lambda jid: activity.get(jid, 0)) == ANNOUNCEMENTS
+    assert api.most_recent_group(SCHOOL, lambda jid: 0) is None
+    assert api.most_recent_group(CLUB, lambda jid: 100) is None
+    assert api.most_recent_group(None, lambda jid: 100) is None
+
+
+def test_the_recent_group_button_names_and_opens_the_newest_group():
+    dialog = Dialog()
+    dialog._mw.chats = {ANNOUNCEMENTS.jid: {"t": 100}, PLAIN.jid: {"t": 200}}
+    dialog.select(SCHOOL)
+    assert dialog.enabled("_open_recent") is True
+    assert dialog._open_recent.SetLabel.call_args.args[0] == "Open the most recent group: Study"
+    dialog._on_open_recent(None)
+    assert dialog.result == PLAIN and dialog.EndModal.called
+
+
+def test_the_recent_group_button_never_offers_a_locked_or_unknown_group():
+    dialog = Dialog()
+    dialog._mw.chats = {PLAIN.jid: {"t": 200}}
+    dialog._mw.is_chat_locked = lambda jid: jid == PLAIN.jid
+    dialog.select(SCHOOL)
+    assert dialog.enabled("_open_recent") is False
+    assert dialog._open_recent.SetLabel.call_args.args[0] == "Open the most recent group"
+    dialog._on_open_recent(None)
+    dialog.EndModal.assert_not_called()
+
+
+def test_enter_on_a_community_shows_its_groups_and_on_a_group_opens_it():
+    dialog = Dialog()
+    dialog._announce = Mock()
+    assert dialog._on_enter(dialog._list) is True  # Club: no groups to move to
+    dialog._groups.SetFocus.assert_not_called()
+    assert "not joined any group" in dialog._announce.call_args.args[0]
+    dialog.select(SCHOOL, PLAIN)
+    assert dialog._on_enter(dialog._list) is True
+    dialog._groups.SetFocus.assert_called_once()
+    dialog.EndModal.assert_not_called()
+    assert dialog._on_enter(dialog._groups) is True
+    assert dialog.result == PLAIN and dialog.EndModal.called
+    assert dialog._on_enter(object()) is False  # a button handles its own Enter
 
 
 def finish(dialog, state, communities):

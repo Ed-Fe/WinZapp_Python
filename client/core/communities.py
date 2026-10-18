@@ -210,6 +210,18 @@ def admin(jid, person_key, key, present=True):
     return achieved
 
 
+def most_recent_group(community, last_activity):
+    """The group of *community* with the newest activity, or None when none
+    of them has any. *last_activity(jid)* is 0 for a group with nothing on
+    file; on a tie the group listed first wins."""
+    best, best_ts = None, 0
+    for group in community.subgroups if community else ():
+        ts = last_activity(group.jid)
+        if ts > best_ts:
+            best, best_ts = group, ts
+    return best
+
+
 def linkable_groups(chats, communities, is_locked=lambda jid: False):
     """(jid, name) of the groups that can be offered for linking, by name:
     the account's named groups that are not a community nor in one already.

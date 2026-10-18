@@ -3966,6 +3966,17 @@ msgctxt "communities_open_group"
 msgid "&Open group"
 msgstr "&Open group"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_open_recent_group"
+msgid "Open the mo&st recent group"
+msgstr "Open the mo&st recent group"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_open_recent_group_named"
+msgid "Open the mo&st recent group: {name}"
+msgstr "Open the mo&st recent group: {name}"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_admin.py
 msgctxt "communities_participants_unavailable"
