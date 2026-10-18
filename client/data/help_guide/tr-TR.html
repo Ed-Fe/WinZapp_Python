@@ -752,9 +752,7 @@
     <h2 id="h-contas">👤 13. Hesaplar, tepsi ve eşitleme</h2>
 <h3>Birden fazla hesap</h3>
 <p>Her hesabın kendi penceresi ve kendi yerel sunucusu vardır. <strong>Hesaplar</strong> menüsü aralarında geçiş yapar; Ctrl+Alt+1 ile 9 da öyle. "Geçerli hesabı kapat" (Ctrl+F4) yalnızca içinde olduğunuz hesabı sonlandırır, belleğini ve bağlantısını serbest bırakır ve başka bir açık hesaba geçer. Yeniden açmak için onu başka bir hesabın Hesaplar menüsünden seçin ya da numarasıyla Ctrl+Alt kullanın. Açık tek hesap buysa WinZapp önce sorar, çünkü kapatmak programı sonlandırır.</p>
-
-<h3>Hesapları yönetme ve silme</h3>
-<p><strong>Hesaplar</strong> menüsünde, hesaplarınızı yönettiğiniz "Hesapları yönet..." vardır. "Sil", hesabı kendisine ait her şeyle birlikte siler: iletileri, medyayı, sesli mesajları, tercihleri ve ayrıca WhatsApp oturumunu taşıyan dahili tarayıcının profilini ve bu profilin yedeklerini. Arşivleme hiçbir şeyi silmez. Kullanımdaki hesap silinemez; önce başka bir hesaba geçin. Tek hesap buysa WinZapp silmenize izin verir: bir sorudan sonra (varsayılan yanıt Hayır), kapanır ve kapanırken her şeyi siler. Bir sonraki açılışta WinZapp sıfırdan başlar ve eşleştirme ister.</p>
+<p>Bir hesabı silmek (Hesaplar &gt; Hesapları yönet, Sil düğmesi) ona ait her şeyi kaldırır: mesajlar, medya, ayarlar, WhatsApp oturumunu tutan tarayıcı profili ve bu profilin yedekleri. Hemen kaldırılamayan her şey WinZapp'ın bir sonraki başlatılışında tamamlanır. Hesap tek hesapsa o da silinebilir: WinZapp onay ister (varsayılan Hayır), kapanır ve sonraki başlatma ilk çalıştırma olur.</p>
 
 <h3>Eşitleme</h3>
 <ul>
@@ -1205,6 +1203,7 @@
   <tr><th>Durum</th><th>Ne yapmalı</th></tr>
   <tr><td>WinZapp yeniden eşleştirmenizi istiyor</td><td>Numara veya QR koduyla eşleştirin. Sohbetleriniz yalnızca farklı bir numara bağlarsanız silinir. Sebepsiz yere olduysa, yeniden açmadan önce <code>log.log</code> ve <code>shutdown_audit.log</code> dosyalarını saklayın.</td></tr>
   <tr><td>Mesajlar gelmiyor ya da liste takılmış gibi görünüyor</td><td>Eşitleme ilerlemesini bekleyin; sohbette Shift+F5, tümü için F5 kullanın. Çevrimdışı modun açık olmadığını da kontrol edin. Liste sürekli yeniden eşitleniyorsa WinZapp'i güncelleyin: bir düzeltme sohbet listesinin eşitlemesini tamamlamasını sağlar.</td></tr>
+  <tr><td>NVIDIA ekran kartında yerel yazıya dökme hata veriyor veya takılıyor</td><td>WinZapp'ı güncelleyin: bir düzeltme, ekran kartı kullanılmadan önce Windows'ta CUDA kitaplıklarını yükler. Yüklenemezlerse WinZapp bunu bildirir ve işlemci üzerinde yazıya dökmeyi önerir.</td></tr>
   <tr><td>WinZapp büyük dosyalar gönderilirken veya alınırken donuyor</td><td>WinZapp'i güncelleyin: bir düzeltme, alınan dosyanın mesaj bildirimiyle birlikte indirilmesini ve gönderme ile indirme ilerlemesinin ekran güncellemelerini biriktirmesini önler.</td></tr>
   <tr><td>Pencereden çıktıktan sonra hesabım hâlâ çevrimiçi görünüyor</td><td>WinZapp'ı güncelleyin: çevrimiçi durumu artık pencereyi izler (odak, simge durumu, tepsiye gizleme, arka planda başlatma) ve başarısız bir çevrimdışı güncellemesi her 20 saniyede yeniden denenir.</td></tr>
   <tr><td>Aramalar başlamıyor</td><td>WinZapp'ı yeniden başlatın ya da Yardım &gt; WPPConnect'i yeniden yüklemeye zorla kullanın. WinZapp, WhatsApp Web sürümleri listesini kendisi güncel tutar.</td></tr>

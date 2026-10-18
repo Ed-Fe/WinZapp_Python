@@ -4,11 +4,11 @@ Esta versão traz a transcrição de mensagens de voz no seu próprio computador
 
 NOVIDADES
 
+- Transcrição local com faster-whisper: corrigido o carregamento das bibliotecas CUDA no Windows, que podia impedir o uso da placa de vídeo e travar as transcrições seguintes. Se as bibliotecas não puderem ser carregadas, o WinZapp informa o problema antes de iniciar os cálculos na placa de vídeo.
+
 - A janela de Configurações agora tem um campo de busca e uma lista de categorias: as setas trocam de categoria, Tab entra nas opções dela e, na busca, a seta para baixo vai aos resultados, onde Enter ou Espaço abre a opção encontrada, mesmo quando ela fica na janela de um botão. Várias categorias foram reunidas: Áudio (dispositivos, áudios colados com Ctrl+V, mensagens de voz e silenciar ao gravar), Sons de eventos (eventos de som e toques de alerta) e Armazenamento (com a pasta de salvamento). Conteúdo falado, Reprodução de áudio, Cópia de segurança, Atalhos de teclado, Reações, Notificações, Mensagens, Conversas, Conversas trancadas e Confirmações viraram botões que abrem a janela de cada assunto. "Interface do usuário" agora se chama "Interface", e Conexão passou para o fim da lista.
 
 - Configurações do WhatsApp (menu Arquivo) agora abre as Configurações já na categoria Configurações do WhatsApp, com os botões Privacidade e Perfil; a janela separada deixou de existir. O WinZapp só consulta o WhatsApp quando você abre cada botão, e Ctrl+Shift+, continua abrindo essa categoria.
-
-- Excluir uma conta em Contas > Gerenciar contas agora apaga também o perfil do navegador interno, com o login do WhatsApp, e as cópias de segurança desse perfil, e não só as mensagens, as mídias e as preferências. Se for a única conta, ela pode ser excluída mesmo em uso: depois de uma pergunta, o WinZapp fecha e apaga tudo ao encerrar, e na próxima abertura começa do zero.
 
 - Seu estado online agora acompanha a janela atual mesmo ao alternar rapidamente para outro programa, ocultar o WinZapp na bandeja ou reconectar em segundo plano. Uma atualização atrasada de online não passa mais à frente da de offline, e uma falha ao informar offline é tentada novamente.
 
@@ -135,6 +135,8 @@ NOVIDADES
 - Um chat pessoal novo ou vazio agora informa, na linha de "nenhuma mensagem", que as mensagens e ligações são protegidas com criptografia de ponta a ponta e, se houver mensagens temporárias, o prazo. As informações do chat também mencionam a criptografia.
 
 - O campo de legenda dos anexos agora aceita várias linhas, como no WhatsApp Desktop: Enter continua enviando o anexo com a legenda, e Shift+Enter ou Ctrl+Enter criam uma nova linha, como no campo de mensagem.
+
+- Excluir uma conta agora remove tudo o que ela possui: além das mensagens e das configurações, o perfil do navegador que guarda o login do WhatsApp e as cópias de segurança desse perfil também são apagados, e o que não puder ser removido é concluído na próxima vez que o WinZapp iniciar. Quando a conta é a única, agora é possível excluí-la em Contas > Gerenciar contas: o WinZapp pede confirmação, fecha, e a próxima abertura é uma primeira execução.
 
 CORREÇÕES
 

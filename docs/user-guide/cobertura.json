@@ -4,9 +4,9 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "d133959e5ffa": "Transcrição local com faster-whisper: corrigido o carregamento das bibliotecas C",
     "4c6f7722e289": "A janela de Configurações agora tem um campo de busca e uma lista de categorias:",
     "97b3099fb6e0": "Configurações do WhatsApp (menu Arquivo) agora abre as Configurações já na categ",
-    "4bbf9da8a414": "Excluir uma conta em Contas > Gerenciar contas agora apaga também o perfil do na",
     "ccbecffbe1e9": "Seu estado online agora acompanha a janela atual mesmo ao alternar rapidamente p",
     "033d14e653c7": "Novos atalhos, cada um alterável na aba Atalhos de teclado das configurações: Al",
     "f7a52c055d6d": "Ajuda > \"Novidades desde a última vez que você viu\" diz o que mudou nestas novid",
@@ -70,6 +70,7 @@
     "489d9d400af5": "Conversas e mensagens de contatos que você não salvou agora mostram um sinal de ",
     "08473eb4e590": "Um chat pessoal novo ou vazio agora informa, na linha de \"nenhuma mensagem\", que",
     "8eabb77763b3": "O campo de legenda dos anexos agora aceita várias linhas, como no WhatsApp Deskt",
+    "27a8e1859b23": "Excluir uma conta agora remove tudo o que ela possui: além das mensagens e das c",
     "86e09a9d33c1": "Receber um arquivo deixa de baixá-lo dentro da notificação da mensagem por causa",
     "5586071669a5": "Corrigida a sincronização repetida de conversas quando a lista do WhatsApp estav",
     "b5e98f0d03bb": "O envio de mensagens de voz e de documentos falhava com \"Cannot read properties ",
