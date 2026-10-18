@@ -44,10 +44,11 @@ class SubPageDialog(wx.Dialog):
     settings dialog reads and writes them the same way. Closing only hides it.
     """
 
-    def __init__(self, parent, title, ok_label, on_change=None):
+    def __init__(self, parent, title, ok_label, on_change=None, first_open=None):
         super().__init__(parent, title=title,
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self._body = None
+        self._first_open = first_open   # called once, the first time it opens
         self._sizer = wx.BoxSizer(wx.VERTICAL)
         ok = wx.Button(self, wx.ID_OK, ok_label)
         ok.SetDefault()
@@ -86,6 +87,9 @@ class SubPageDialog(wx.Dialog):
             # After the window is up: a hidden window takes no focus.
             wx.CallAfter(self._focus, control)
         self.CentreOnParent()
+        if self._first_open is not None:
+            first, self._first_open = self._first_open, None
+            first()
         self.ShowModal()
 
 
