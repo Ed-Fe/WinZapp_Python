@@ -67,6 +67,7 @@
     "489d9d400af5": "Conversas e mensagens de contatos que você não salvou agora mostram um sinal de ",
     "08473eb4e590": "Um chat pessoal novo ou vazio agora informa, na linha de \"nenhuma mensagem\", que",
     "8eabb77763b3": "O campo de legenda dos anexos agora aceita várias linhas, como no WhatsApp Deskt",
+    "0dc6ff8ad759": "Corrigido um erro de \"chat not found\" ao enviar mensagens ou anexos para uma con",
     "86e09a9d33c1": "Receber um arquivo deixa de baixá-lo dentro da notificação da mensagem por causa",
     "5586071669a5": "Corrigida a sincronização repetida de conversas quando a lista do WhatsApp estav",
     "b5e98f0d03bb": "O envio de mensagens de voz e de documentos falhava com \"Cannot read properties ",
