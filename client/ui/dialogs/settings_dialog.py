@@ -1334,6 +1334,49 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # at index 14 or 15 and this one at 15 or 16.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
+        # ── WhatsApp settings ────────────────────────────────────────────────
+        # What is kept on the paired WhatsApp account, not in WinZapp's own
+        # settings. Two buttons, each opening its window; each window reads
+        # the server the first time it is opened and applies with its own
+        # button (so closing it never discards anything).
+        from ui.dialogs.whatsapp_privacy_panel import WhatsAppPrivacyPanel
+        from ui.dialogs.whatsapp_profile_panel import WhatsAppProfilePanel
+        self._whatsapp_page = wx.Panel(self._notebook)
+        whatsapp_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._whatsapp_page.SetSizer(whatsapp_sizer)
+        self._whatsapp_privacy_dialog = SubPageDialog(
+            self, i18n.t("wa_settings_tab_privacy").replace("&", ""), i18n.t("ok"),
+            first_open=lambda: self._whatsapp_privacy_panel.load())
+        self._whatsapp_privacy_panel = WhatsAppPrivacyPanel(
+            self._whatsapp_privacy_dialog, self.main_window)
+        self._whatsapp_privacy_dialog.set_body(self._whatsapp_privacy_panel)
+        self._whatsapp_profile_dialog = SubPageDialog(
+            self, i18n.t("wa_settings_tab_profile").replace("&", ""), i18n.t("ok"),
+            first_open=lambda: self._whatsapp_profile_panel.load())
+        self._whatsapp_profile_panel = WhatsAppProfilePanel(
+            self._whatsapp_profile_dialog, self.main_window)
+        self._whatsapp_profile_dialog.set_body(self._whatsapp_profile_panel)
+        self._whatsapp_privacy_btn = wx.Button(
+            self._whatsapp_page, label=i18n.t("wa_settings_tab_privacy"))
+        self._whatsapp_profile_btn = wx.Button(
+            self._whatsapp_page, label=i18n.t("wa_settings_tab_profile"))
+        whatsapp_sizer.Add(self._whatsapp_privacy_btn, 0, wx.ALL, 8)
+        whatsapp_sizer.Add(self._whatsapp_profile_btn, 0, wx.ALL, 8)
+        self._whatsapp_privacy_btn.Bind(
+            wx.EVT_BUTTON, lambda e: self._whatsapp_privacy_dialog.open())
+        self._whatsapp_profile_btn.Bind(
+            wx.EVT_BUTTON, lambda e: self._whatsapp_profile_dialog.open())
+        self._notebook.AddPage(self._whatsapp_page, i18n.t("wa_settings_dialog_title"))
+        whatsapp_index = self._notebook.GetPageCount() - 1
+        self._notebook.add_subpage(
+            whatsapp_index, i18n.t("wa_settings_tab_privacy").replace("&", ""),
+            self._whatsapp_privacy_panel,
+            lambda control=None: self._whatsapp_privacy_dialog.open(control))
+        self._notebook.add_subpage(
+            whatsapp_index, i18n.t("wa_settings_tab_profile").replace("&", ""),
+            self._whatsapp_profile_panel,
+            lambda control=None: self._whatsapp_profile_dialog.open(control))
+
         # Connection is the last category: rarely needed, so out of the way.
         # Its controls are built above, where they were; only the page is added here.
         self._notebook.AddPage(self._conn_page, i18n.t("tab_connection"))
@@ -4049,6 +4092,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         column.SetText(text.replace("&", ""))
         list_ctrl.SetColumn(0, column)
 
+    def show_whatsapp_settings(self):
+        """Open on the WhatsApp settings category, with the list focused
+        (File > WhatsApp settings)."""
+        self._notebook.SetSelection(self._notebook.FindPage(self._whatsapp_page))
+        wx.CallAfter(self._notebook.category_list.SetFocus)
+
     def _show_page(self, page, control=None):
         """Bring `page` into view, whether it is a category of its own or the
         window of a button on one; with `control`, put the focus on it."""
@@ -4097,6 +4146,10 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._notebook.SetPageText(6, i18n.t("tab_calls"))
         self._chat_lock_btn.SetLabel(i18n.t("locked_chats"))
         self._chat_lock_dialog.SetTitle(i18n.t("locked_chats").replace("&", ""))
+        self._notebook.SetPageText(
+            self._notebook.FindPage(self._whatsapp_page), i18n.t("wa_settings_dialog_title"))
+        self._whatsapp_privacy_btn.SetLabel(i18n.t("wa_settings_tab_privacy"))
+        self._whatsapp_profile_btn.SetLabel(i18n.t("wa_settings_tab_profile"))
         self._notebook.SetPageText(
             self._notebook.FindPage(self._conn_page), i18n.t("tab_connection"))
         self._profile_backup_btn.SetLabel(i18n.t("tab_profile_backup"))

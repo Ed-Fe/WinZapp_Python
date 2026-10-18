@@ -141,7 +141,7 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         assert dialog._chat_lock_btn.IsShown()
         assert dialog._notebook.FindPage(dialog._ai_page) == 7
         assert dialog._notebook.FindPage(dialog._transcription_page) == 8
-        assert dialog._notebook.GetPageCount() == 10
+        assert dialog._notebook.GetPageCount() == 11
 
     def test_a_hidden_vault_leaves_the_locked_chats_button_out(self, make_dialog):
         """A vault the user chose to hide must not be advertised by Settings."""
@@ -150,15 +150,24 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         vault.set_hide_navigation(True)
         dialog = make_dialog(vault=vault)
         assert not dialog._chat_lock_btn.IsShown()
-        assert dialog._notebook.GetPageCount() == 10
+        assert dialog._notebook.GetPageCount() == 11
 
     def test_connection_is_the_last_page(self, make_dialog):
         dialog = make_dialog()
         assert dialog._transcription_page_seen is False
         last = dialog._notebook.GetPageCount() - 1
-        assert last == 9
+        assert last == 10
         assert dialog._notebook.FindPage(dialog._conn_page) == last
-        assert dialog._notebook.FindPage(dialog._transcription_page) == last - 1
+        assert dialog._notebook.FindPage(dialog._whatsapp_page) == last - 1
+        assert dialog._notebook.FindPage(dialog._transcription_page) == last - 2
+
+    def test_whatsapp_settings_are_two_buttons_in_one_category(self, make_dialog):
+        dialog = make_dialog()
+        assert dialog._whatsapp_privacy_btn.GetParent() is dialog._whatsapp_page
+        assert dialog._whatsapp_profile_btn.GetParent() is dialog._whatsapp_page
+        # nothing is read from WhatsApp until a window is opened
+        assert dialog._whatsapp_privacy_dialog._first_open is not None
+        assert dialog._whatsapp_profile_dialog._first_open is not None
 
     def test_every_page_has_a_translated_title(self, make_dialog):
         """SetPageText() is driven by index; an off-by-one shows up as a tab
@@ -168,7 +177,7 @@ class TestTheTabIsWhereTheIndicesSayItIs:
         titles = ["tab_general", "tab_ui", "tab_accessibility",
                   "tab_audio", "tab_event_sounds", "tab_storage", "tab_calls",
                   "tab_ai_accessibility",
-                  "tab_transcription", "tab_connection"]
+                  "tab_transcription", "wa_settings_dialog_title", "tab_connection"]
         for index, key in enumerate(titles):
             assert dialog._notebook.GetPageText(index) == i18n.t(key)
         dialog._refresh_dialog_labels()
