@@ -1,4 +1,4 @@
-V2.1.0.0
+V3.0.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.
 
