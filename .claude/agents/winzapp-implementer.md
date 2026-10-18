@@ -83,8 +83,10 @@ uv run pytest tests/test_<what you touched>.py
 ```
 
 Run the test files for what you changed. CI runs the whole suite on every PR;
-run `uv run pytest` serially, at most once, locally only for a cross-cutting change. Never pass
-`--run-wx-gui`.
+in a local session run `uv run pytest` serially, at most once, only for a
+cross-cutting change, never with `-n`. In a cloud session (no WinZapp running
+next to you) `-n auto` and `--shard K/N` are fine (CLAUDE.md, rule 7). Never
+pass `--run-wx-gui`.
 
 Hand the diff to `winzapp-reviewer` before opening a PR. Report what you did,
 what you tested and what you left out. Commit only when the user asks.

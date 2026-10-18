@@ -228,7 +228,10 @@ Vale saber antes de alguém pedir "roda o code-review" e receber outra coisa:
 
 ## Testes: local e CI
 
-O `ci.yml` roda a suíte completa em todo PR para a `main`. Localmente rode só
-os arquivos de teste do que você mudou (`uv run pytest tests/test_x.py`); a
-suíte inteira (`uv run pytest`, serial, no máximo uma execução local) fica para mudanças transversais. Os testes
+O `ci.yml` roda a suíte completa em todo PR para a `main`, em 4 shards com
+`-n auto`. Numa sessão local rode só os arquivos de teste do que você mudou
+(`uv run pytest tests/test_x.py`); a suíte inteira (`uv run pytest`, serial, no
+máximo uma execução local, um agente por vez) fica para mudanças transversais.
+Numa sessão na nuvem dá para rodar em paralelo (`-n auto`, `--shard K/N`) e
+com vários agentes. Os testes
 `load` só rodam no CI ou com `--run-load`. Nunca `--run-wx-gui`.

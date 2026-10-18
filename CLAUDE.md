@@ -40,14 +40,20 @@ you open a matching file; the reasoning is in `docs/traps/` and
    is a plain function with a direct test. A feature over ~150 lines is its
    own module. Delete dead helpers with the feature. Size budgets
    (`tests/test_god_file_split_structure.py`): split, don't raise.
-7. **One agent at a time, one test run at a time.** Agents run on the
-   maintainer's own machine next to a live WinZapp (Chrome + Node). Several
-   agents, or any agent running `pytest -n auto`, froze it (68 orphan xdist
-   workers, 2026-10-02). Start the next agent only when the previous one is
-   done; agents use the repo's `.venv` (no `uv sync`/new `.venv` in a
-   worktree), run only the touched test files serially plus at most one serial
-   full run, leave no background process, and commit WIP early. After an
-   interruption look for stray `python.exe` under `.claude\worktrees\`.
+7. **Local sessions: one agent at a time, one serial test run at a time.**
+   A local session runs on the maintainer's own machine, next to a live
+   WinZapp (Chrome + Node). Several agents, or any agent running
+   `pytest -n auto`, froze it (68 orphan xdist workers, 2026-10-02). Start the
+   next agent only when the previous one is done; agents use the repo's
+   `.venv` (no `uv sync`/new `.venv` in a worktree), run only the touched test
+   files serially plus at most one serial full run, leave no background
+   process, and commit WIP early. After an interruption look for stray
+   `python.exe` under `.claude\worktrees\`.
+   **Cloud sessions are exempt** (Claude Code on the web: a remote machine
+   with no WinZapp and no screen reader to disturb). There, parallelize to go
+   faster: several agents at once, `pytest -n auto` (with `--shard K/N` to
+   split further, as CI does), and `uv sync` when the environment needs it.
+   Rule 1 still holds there.
 
 ## What this is
 
@@ -75,7 +81,8 @@ uv run translations-check               # release-ready catalog validation
   only for a cross-cutting change. `load` tests need `--run-load` (CI runs
   them).
 - CI splits the suite into 4 jobs (`--shard K/N`) with `-n auto` in each
-  (`tests/ci_shards.py`). The `-n` is CI-only: never locally (rule 7).
+  (`tests/ci_shards.py`). `-n` is for CI and cloud sessions, never a local
+  session (rule 7).
 - A dependency change goes into `pyproject.toml` and `requirements.txt`, then
   `uv lock` (`tests/test_requirements_in_sync.py`).
 - `client/api/` and `client/node/` are git-ignored and must exist before

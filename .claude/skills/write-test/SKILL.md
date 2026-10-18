@@ -86,6 +86,8 @@ The module docstring names the bug the file pins and its mechanism.
 uv run pytest tests/test_<subject>.py
 ```
 
-Run the files for what you touched. CI runs the whole suite on every PR; run
-`uv run pytest` serially, at most once, locally only for a cross-cutting change (`tests/conftest.py`,
-a shared helper, a module split). Never pass `--run-wx-gui`.
+Run the files for what you touched. CI runs the whole suite on every PR; in a
+local session run `uv run pytest` serially, at most once, only for a
+cross-cutting change (`tests/conftest.py`, a shared helper, a module split),
+never with `-n`. A cloud session may run in parallel (`-n auto`,
+`--shard K/N`; CLAUDE.md, rule 7). Never pass `--run-wx-gui`.

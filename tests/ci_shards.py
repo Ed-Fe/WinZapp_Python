@@ -18,8 +18,10 @@ at a time. Two things now split that work, without leaving any test out:
   processes at once would race for the desktop's focus, and a test that
   checks focus would pass or fail by luck.
 
-``-n`` is for CI only. On a developer's machine, next to a live WinZapp, an
-``-n auto`` run froze it (CLAUDE.md, rule 7).
+``-n`` is for CI and cloud sessions only. In a local session, on a developer's
+machine next to a live WinZapp, an ``-n auto`` run froze it (CLAUDE.md,
+rule 7); a cloud session has nothing to freeze and may use it, with
+``--shard`` too.
 """
 
 import re
