@@ -4281,6 +4281,12 @@ msgctxt "created_at"
 msgid "Created on {date}"
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "customization_confirmations"
+msgid "&Confirmations"
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
 msgid "An error occurred while saving the message file:"
@@ -4942,6 +4948,12 @@ msgstr ""
 #: client/ui/conversation_panel/forwarding.py
 msgctxt "forward_selected_messages_title"
 msgid "Forward selected messages"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "general_notifications_button"
+msgid "Notifications"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
@@ -7272,6 +7284,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
 #: client/ui/dialogs/whatsapp_settings_dialog.py
 msgctxt "ok"
@@ -8844,6 +8857,31 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "settings_save_failed"
 msgid "An error occurred while saving the settings:"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_label"
+msgid "&Search settings"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_none"
+msgid "No setting found."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+#, python-brace-format
+msgctxt "settings_search_results"
+msgid "Search results: {count}"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_results_list"
+msgid "Results"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/navigation.py
@@ -10943,12 +10981,11 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_alert_tones"
-msgid "Alert Tones"
+msgctxt "tab_audio"
+msgid "Audio"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_devices"
 msgid "Audio Devices"
 msgstr ""
@@ -10973,6 +11010,11 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_event_sounds"
+msgid "Event sounds"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "tab_files_saving"
 msgid "Files and saving"
 msgstr ""
@@ -11003,12 +11045,6 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_sound_events"
-msgid "Sound Events"
-msgstr ""
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_speech_content"
 msgid "Spoken content"
 msgstr ""
@@ -11028,7 +11064,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ui"
-msgid "User Interface"
+msgid "Interface"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -13526,6 +13562,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_chats_button"
+msgid "Chats"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
 msgid "Ask for confirmation before clearing chats"
 msgstr ""
@@ -13683,6 +13725,12 @@ msgctxt "ui_message_list_mode_listbox"
 msgid ""
 "List box (full messages, screen reader does not announce position or item "
 "count)"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_messages_button"
+msgid "Messages"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

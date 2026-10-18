@@ -4595,6 +4595,12 @@ msgctxt "created_at"
 msgid "Created on {date}"
 msgstr "Utworzono {date}"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "customization_confirmations"
+msgid "&Confirmations"
+msgstr "&Potwierdzenia"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
 msgid "An error occurred while saving the message file:"
@@ -5288,6 +5294,12 @@ msgstr "Przekaż zaznaczone"
 msgctxt "forward_selected_messages_title"
 msgid "Forward selected messages"
 msgstr "Przekaż zaznaczone wiadomości"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "general_notifications_button"
+msgid "Notifications"
+msgstr "Powiadomienia"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
@@ -7768,6 +7780,7 @@ msgstr "Tryb offline włączony. Niektóre funkcje mogą być niedostępne."
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
+#: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
 #: client/ui/dialogs/whatsapp_settings_dialog.py
 msgctxt "ok"
@@ -9455,6 +9468,31 @@ msgstr "Nie udało się wczytać pliku konfiguracji:"
 msgctxt "settings_save_failed"
 msgid "An error occurred while saving the settings:"
 msgstr "Wystąpił błąd podczas zapisywania ustawień:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_label"
+msgid "&Search settings"
+msgstr "&Szukaj w ustawieniach"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_none"
+msgid "No setting found."
+msgstr "Nie znaleziono żadnych ustawień."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+#, python-brace-format
+msgctxt "settings_search_results"
+msgid "Search results: {count}"
+msgstr "Wyniki wyszukiwania: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "settings_search_results_list"
+msgid "Results"
+msgstr "Wyniki"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/navigation.py
 #: client/ui/shortcut_bindings.py
@@ -11693,12 +11731,11 @@ msgstr "AI online: transkrypcje i opisy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_alert_tones"
-msgid "Alert Tones"
-msgstr "Dźwięki powiadomień"
+msgctxt "tab_audio"
+msgid "Audio"
+msgstr "Dźwięk"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_devices"
 msgid "Audio Devices"
 msgstr "Urządzenia audio"
@@ -11723,6 +11760,11 @@ msgstr "Połączenie"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "tab_event_sounds"
+msgid "Event sounds"
+msgstr "Dźwięki zdarzeń"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "tab_files_saving"
 msgid "Files and saving"
 msgstr "Pliki i zapisywanie"
@@ -11753,12 +11795,6 @@ msgstr "Skróty klawiszowe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
-msgctxt "tab_sound_events"
-msgid "Sound Events"
-msgstr "Zdarzenia dźwiękowe"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_speech_content"
 msgid "Spoken content"
 msgstr "Zawartość mówiona"
@@ -11780,8 +11816,8 @@ msgstr "Transkrypcja lokalna"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ui"
-msgid "User Interface"
-msgstr "Interfejs użytkownika"
+msgid "Interface"
+msgstr "Interfejs"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bookmarks.py
@@ -14735,6 +14771,12 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_chats_button"
+msgid "Chats"
+msgstr "Rozmowy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
 msgid "Ask for confirmation before clearing chats"
 msgstr "Pytaj o potwierdzenie przed wyczyszczeniem czatów"
@@ -14917,6 +14959,12 @@ msgid ""
 msgstr ""
 "Pole listy (pełne wiadomości, czytnik ekranu nie odczytuje pozycji ani "
 "liczby elementów)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_messages_button"
+msgid "Messages"
+msgstr "Wiadomości"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
