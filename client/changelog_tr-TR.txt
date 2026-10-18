@@ -134,6 +134,8 @@ YENİLİKLER
 
 - Bir hesabı kaldırmak artık ona ait her şeyi kaldırıyor: mesajlara ve ayarlara ek olarak WhatsApp oturumunu tutan tarayıcı profili ve bu profilin yedekleri de siliniyor, kaldırılamayan her şey WinZapp'ın bir sonraki başlatılışında tamamlanıyor. Hesap tek hesapsa artık Hesaplar > Hesapları yönet bölümünden kaldırılabilir: WinZapp onay ister, kapanır ve sonraki başlatma ilk çalıştırma olur.
 
+- Ayarlar > Kullanıcı arayüzü bölümündeki yeni "Sesli mesajları otomatik olarak sırayla çal" seçeneği, varsayılan olarak işaretlidir ve bir sesli mesaj bitince sonrakinin kendiliğinden başlayıp başlamayacağını belirler. Her sesli mesajın kendi başına bitmesi için işareti kaldırın. "Sesler sırayla çalınırken odağı otomatik olarak sonraki sese taşı" seçeneği ise yalnızca klavye odağının sesi izleyip izlemeyeceğini belirlemeye devam eder.
+
 DÜZELTMELER
 
 - Kullanılmayan bir webhook ayarı nedeniyle gelen dosyanın mesaj bildiriminin içine indirilmesi önlendi. Gönderme ve indirme ilerlemesi güncellemeleri artık yalnızca bekleyen en son değeri tutarak hızlı aktarımlarda ekran güncellemelerinin birikmesini önlüyor.

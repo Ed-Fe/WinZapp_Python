@@ -134,6 +134,8 @@ WHAT'S NEW
 
 - Removing an account now removes everything it owns: besides its messages and settings, the browser profile that holds its WhatsApp login and that profile's backups are deleted too, and anything that could not be removed is finished the next time WinZapp starts. When the account is the only one, you can now remove it from Accounts > Manage accounts: WinZapp asks for confirmation, closes, and the next start is a first run.
 
+- Settings > User interface: the new "Automatically play voice messages in sequence" option, on by default, controls whether the next voice message starts on its own when one ends. Turn it off to have each voice message end by itself. The option "Automatically move focus to the next audio when playing audios in sequence" still only controls whether the keyboard focus follows the audio.
+
 FIXES
 
 - Receiving a file no longer downloads it into the message notification because of an unused webhook setting. Upload and download progress updates now keep only the latest pending value, avoiding a buildup of screen updates during fast transfers.
