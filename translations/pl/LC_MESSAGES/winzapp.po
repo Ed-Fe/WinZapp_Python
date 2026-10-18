@@ -11729,11 +11729,6 @@ msgid "Online AI: Transcriptions and Descriptions"
 msgstr "AI online: transkrypcje i opisy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "tab_alert_tones"
-msgid "Alert Tones"
-msgstr "Dźwięki powiadomień"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio"
 msgid "Audio"
@@ -11796,11 +11791,6 @@ msgstr "Reakcje"
 msgctxt "tab_shortcuts"
 msgid "Keyboard shortcuts"
 msgstr "Skróty klawiszowe"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "tab_sound_events"
-msgid "Sound Events"
-msgstr "Zdarzenia dźwiękowe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

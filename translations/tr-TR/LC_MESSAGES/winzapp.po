@@ -11597,11 +11597,6 @@ msgid "Online AI: Transcriptions and Descriptions"
 msgstr "Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "tab_alert_tones"
-msgid "Alert Tones"
-msgstr "Uyarı Tonları"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio"
 msgid "Audio"
@@ -11664,11 +11659,6 @@ msgstr "Tepkiler"
 msgctxt "tab_shortcuts"
 msgid "Keyboard shortcuts"
 msgstr "Kısayollar"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "tab_sound_events"
-msgid "Sound Events"
-msgstr "Ses Olayları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
