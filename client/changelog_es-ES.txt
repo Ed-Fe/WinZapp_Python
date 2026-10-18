@@ -234,6 +234,8 @@ CORRECCIONES
 
 - WPPConnect Server actualizado a la 2.10.58. La biblioteca ahora se niega a iniciar una sesión mientras se hace una copia de seguridad o una restauración de las sesiones, guarda el archivo de token de cada sesión de forma atómica para que un fallo no lo deje a medias, y reutiliza durante un minuto un token de acceso ya comprobado en lugar de comprobarlo de nuevo en cada petición. Si WinZapp ofrece la actualización de WPPConnect al iniciar, acéptala para instalar la nueva versión.
 
+- Las actualizaciones de WPPConnect Server ya no se sugieren por sí solas. WinZapp buscaba una versión más reciente del proyecto original y la ofrecía, pero sus correcciones se portan a mano a cada versión, así que una actualización podía acabar en una versión que aún no admite. Ahora el servidor solo cambia a la versión con la que se probó este WinZapp, y únicamente cuando es más antiguo que ella (o cuando las bibliotecas ya no coinciden). Ayuda > Forzar reinstalación de WPPConnect y cualquier instalación nueva también usan esa versión en lugar de la más reciente.
+
 V2.0.1.0
 
 Esta es una versión de mantenimiento de la estable. Solo actualiza las bibliotecas WPPConnect que WinZapp usa para comunicarse con WhatsApp, después de un cambio en WhatsApp Web que rompió el envío de mensajes de voz y de documentos.

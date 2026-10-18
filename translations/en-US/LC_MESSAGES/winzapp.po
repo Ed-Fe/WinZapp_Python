@@ -15989,10 +15989,12 @@ msgstr "Let Windows open WhatsApp group invitation links with WinZapp"
 msgctxt "wpp_force_reinstall_confirm_msg"
 msgid ""
 "This will temporarily interrupt WPPConnect and download and reinstall the "
-"latest version (v{version}), even if it is already installed. Continue?"
+"version this WinZapp supports (v{version}), even if it is already installed."
+" Continue?"
 msgstr ""
 "This will temporarily interrupt WPPConnect and download and reinstall the "
-"latest version (v{version}), even if it is already installed. Continue?"
+"version this WinZapp supports (v{version}), even if it is already installed."
+" Continue?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 msgctxt "wpp_force_reinstall_confirm_title"
@@ -16022,23 +16024,6 @@ msgstr ""
 msgctxt "wpp_reinstall_notice_title"
 msgid "WPPConnect update recommended"
 msgstr "WPPConnect update recommended"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
-#, python-brace-format
-msgctxt "wpp_update_available_msg"
-msgid ""
-"A recommended update for WPPConnect Server is available (current: {current},"
-" new: {new}). It is not mandatory. Update now? WinZapp will stop the API, "
-"install the new version, and restart it automatically."
-msgstr ""
-"A recommended update for WPPConnect Server is available (current: {current},"
-" new: {new}). It is not mandatory. Update now? WinZapp will stop the API, "
-"install the new version, and restart it automatically."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
-msgctxt "wpp_update_available_title"
-msgid "WPPConnect update available"
-msgstr "WPPConnect update available"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/wpp_background_update.py
