@@ -24,6 +24,7 @@ from datetime import datetime
 import wx
 import wx.adv
 from core import conversation_auto_ai, phone_contacts
+from core.transcription import auto_queue
 from core.chat_notices import encryption_lines
 from core.chat_settings import chat_settings_lines
 from core.contact_identity import contact_identity_lines
@@ -416,33 +417,62 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
     def _build_auto_ai_options(self, panel, sizer):
         """The conversation's own say over the automatic transcription and
-        description (Settings > Transcription / Transcriptions & Descriptions).
-        Checked means "may act here"; a box only matters while the matching
-        install-wide option is on. Saved at once, like the sound."""
+        description. Saved at once, like the sound.
+
+        The two transcription boxes (local, online) show what the conversation
+        does now: the install-wide option (Settings > Transcription, Settings >
+        Transcriptions & Descriptions) until the user sets the box here, which
+        then is this conversation's choice for good, and can turn the
+        automatic transcription on for it while the option is off
+        (core/conversation_auto_ai.transcription_wanted()). The describe box
+        keeps its old meaning: "may act here" while the option is on."""
         i18n = self._i18n
         jid = self._mw._normalize_jid(self._jid)
-        self._auto_transcribe_check = wx.CheckBox(
-            panel, label=i18n.t("conversation_auto_transcribe_check"))
-        self._auto_transcribe_check.SetValue(
-            conversation_auto_ai.allowed(
-                self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE))
-        sizer.Add(self._auto_transcribe_check, 0, wx.ALL, 8)
+        settings = self._mw.settings
+        self._auto_transcribe_local_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_transcribe_local_check"))
+        self._auto_transcribe_local_check.SetValue(conversation_auto_ai.transcription_wanted(
+            settings, jid, conversation_auto_ai.TRANSCRIBE_LOCAL, auto_queue.enabled(settings)))
+        sizer.Add(self._auto_transcribe_local_check, 0, wx.ALL, 8)
+        self._auto_transcribe_online_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_transcribe_online_check"))
+        self._auto_transcribe_online_check.SetValue(conversation_auto_ai.transcription_wanted(
+            settings, jid, conversation_auto_ai.TRANSCRIBE_ONLINE, self._online_auto_transcribe()))
+        sizer.Add(self._auto_transcribe_online_check, 0, wx.ALL, 8)
         self._auto_describe_check = wx.CheckBox(
             panel, label=i18n.t("conversation_auto_describe_check"))
         self._auto_describe_check.SetValue(
-            conversation_auto_ai.allowed(
-                self._mw.settings, jid, conversation_auto_ai.DESCRIBE))
+            conversation_auto_ai.allowed(settings, jid, conversation_auto_ai.DESCRIBE))
         sizer.Add(self._auto_describe_check, 0, wx.ALL, 8)
-        self._auto_transcribe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
+        # One handler per box: only the box the user changed becomes a choice,
+        # the other keeps following its install-wide option.
+        self._auto_transcribe_local_check.Bind(
+            wx.EVT_CHECKBOX, lambda event: self._on_auto_transcription_changed(
+                event, conversation_auto_ai.TRANSCRIBE_LOCAL))
+        self._auto_transcribe_online_check.Bind(
+            wx.EVT_CHECKBOX, lambda event: self._on_auto_transcription_changed(
+                event, conversation_auto_ai.TRANSCRIBE_ONLINE))
         self._auto_describe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
 
+    def _online_auto_transcribe(self) -> bool:
+        """Settings > Transcriptions & Descriptions > "transcribe automatically"
+        (install-wide); False when it cannot be read."""
+        try:
+            return bool(self._mw._ai_media_preferences().get("auto_transcribe"))
+        except Exception:
+            return False
+
+    def _on_auto_transcription_changed(self, event, which):
+        box = (self._auto_transcribe_local_check if which == conversation_auto_ai.TRANSCRIBE_LOCAL
+               else self._auto_transcribe_online_check)
+        conversation_auto_ai.set_transcription(
+            self._mw.settings, self._mw._normalize_jid(self._jid), which, box.GetValue())
+        self._mw._schedule_save_settings()
+        event.Skip()
+
     def _on_auto_ai_changed(self, event):
-        jid = self._mw._normalize_jid(self._jid)
         conversation_auto_ai.set_allowed(
-            self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE,
-            self._auto_transcribe_check.GetValue())
-        conversation_auto_ai.set_allowed(
-            self._mw.settings, jid, conversation_auto_ai.DESCRIBE,
+            self._mw.settings, self._mw._normalize_jid(self._jid), conversation_auto_ai.DESCRIBE,
             self._auto_describe_check.GetValue())
         self._mw._schedule_save_settings()
         event.Skip()

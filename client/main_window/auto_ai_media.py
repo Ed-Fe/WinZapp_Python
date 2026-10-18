@@ -48,22 +48,33 @@ class AutoAIMediaMixin:
         return ai_config.preferences(app)
 
     def _conversation_allows_auto_ai(self, remote_jid: str, kind: str) -> bool:
-        """The conversation's boxes (data window): voice is "transcribe",
-        pictures, stickers and videos are "describe"."""
-        which = (conversation_auto_ai.TRANSCRIBE if kind == "audio"
-                 else conversation_auto_ai.DESCRIBE)
+        """The conversation's "describe" box (data window) for pictures,
+        stickers and videos. Voice is decided by _auto_ai_config_for(): its
+        box can turn the online transcription on, not only let it act."""
+        if kind == "audio":
+            return True
         return conversation_auto_ai.allowed(
-            self.settings, self._normalize_jid(remote_jid), which)
+            self.settings, self._normalize_jid(remote_jid), conversation_auto_ai.DESCRIBE)
+
+    def _auto_ai_config_for(self, remote_jid: str, config: dict):
+        """(config, local) for one conversation: the online options with
+        "transcribe automatically" replaced by the conversation's own box
+        when the user set it, and whether the local automatic transcription
+        runs there (it wins over the online one, as it does install-wide)."""
+        wanted = conversation_auto_ai.transcription_wanted(
+            self.settings, self._normalize_jid(remote_jid),
+            conversation_auto_ai.TRANSCRIBE_ONLINE, config.get("auto_transcribe"))
+        return dict(config, auto_transcribe=wanted), self._local_auto_transcription_for(remote_jid)
 
     def _maybe_auto_ai_media(self, remote_jid: str, msg: dict) -> None:
         """Queue *msg* if the online automatic options ask for it (wx thread,
         for messages that just arrived; cheap when both are off)."""
         try:
-            config = self._ai_media_preferences()
+            config, local = self._auto_ai_config_for(remote_jid, self._ai_media_preferences())
             if not (config["auto_transcribe"] or config["auto_describe"]):
                 return
             kind = ai_auto.wanted_kind(
-                msg, config, auto_queue.enabled(self.settings),
+                msg, config, local,
                 max_age=auto_queue.max_age_seconds(self.settings))
             if kind is None or self.is_chat_locked(remote_jid):
                 return
@@ -142,12 +153,11 @@ class AutoAIMediaMixin:
         try:
             # Checked again: the queue may have held this for a while, and the
             # options or the chat's lock may have changed since.
-            config = self._ai_media_preferences()
+            config, local = self._auto_ai_config_for(remote_jid, self._ai_media_preferences())
             if self.is_chat_locked(remote_jid) \
                     or not self._conversation_allows_auto_ai(remote_jid, kind):
                 return
-            if ai_auto.wanted_kind(dict(msg, messageTimestamp=0), config,
-                                   auto_queue.enabled(self.settings)) != kind:
+            if ai_auto.wanted_kind(dict(msg, messageTimestamp=0), config, local) != kind:
                 return
             store = CredentialStore(global_dir())
             providers = ai_auto.usable_providers(config, kind, store.saved())

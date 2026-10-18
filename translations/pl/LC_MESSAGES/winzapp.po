@@ -4540,13 +4540,23 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
-msgctxt "conversation_auto_transcribe_check"
+msgctxt "conversation_auto_transcribe_local_check"
 msgid ""
-"Transcribe this conversation's voice messages and videos automatically (when"
-" turned on in Settings)"
+"Transcribe the voice messages, audio and videos received in this "
+"conversation automatically, locally with Whisper"
 msgstr ""
-"Automatycznie transkrybuj wiadomości głosowe i filmy tej rozmowy (gdy "
-"włączono w ustawieniach)"
+"Automatycznie transkrybuj lokalnie za pomocą Whisper odebrane w tym czacie "
+"wiadomości głosowe, nagrania audio i filmy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_transcribe_online_check"
+msgid ""
+"Transcribe the voice messages and audio received in this conversation "
+"automatically, with the online providers"
+msgstr ""
+"Automatycznie transkrybuj u dostawców online odebrane w tym czacie "
+"wiadomości głosowe i nagrania audio"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
