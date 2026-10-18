@@ -4171,6 +4171,10 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._speech_dialog.SetTitle(i18n.t("tab_speech_content").replace("&", ""))
         self._audio_playback_btn.SetLabel(i18n.t("tab_audio_playback"))
         self._audio_dialog.SetTitle(i18n.t("tab_audio_playback").replace("&", ""))
+        self._whatsapp_privacy_dialog.SetTitle(
+            i18n.t("wa_settings_tab_privacy").replace("&", ""))
+        self._whatsapp_profile_dialog.SetTitle(
+            i18n.t("wa_settings_tab_profile").replace("&", ""))
         self._ai_page.refresh_labels()
         self._notebook.SetPageText(self._notebook.FindPage(self._ai_page), i18n.t("tab_ai_accessibility"))
         # Transcription is appended after the conditional "Locked chats" tab
