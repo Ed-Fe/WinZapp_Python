@@ -1937,7 +1937,10 @@ class TestTheMenuOffersWhatIsStored:
         assert inline_toggle_menu_key(video, False) == "transcribe_inline_menu"
         assert inline_toggle_menu_key(voice, True) == "play_voice_message_menu"
         assert inline_toggle_menu_key(video, True) == "open_video_menu"
-        assert inline_toggle_menu_key({"messageType": "documentMessage"}, True) == (
+        # An audio or video file sent as a document follows the setting too:
+        # Enter transcribes it, so Alt+Shift+N opens it (9c357f94).
+        assert inline_toggle_menu_key({"messageType": "documentMessage"}, True) == "open"
+        assert inline_toggle_menu_key({"messageType": "documentMessage"}, False) == (
             "transcribe_inline_menu")
 
     @pytest.mark.parametrize("handler, entry", [
