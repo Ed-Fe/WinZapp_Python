@@ -4,8 +4,6 @@ W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym 
 
 NOWOŚCI
 
-- Okno ustawień zostało zreorganizowane. Zamiast osiemnastu kart ma pole wyszukiwania, listę kategorii (zmienianą strzałkami, jak w ustawieniach NVDA) i opcje wybranej kategorii. Wyszukiwanie znajduje opcję po tym, co o niej mówi czytnik ekranu, i przenosi Cię prosto do niej. Kilka grup opcji otwiera się teraz przyciskiem w swojej kategorii: Treść mówiona, Odtwarzanie dźwięku, Kopia zapasowa profilu, Skróty klawiszowe, Powiadomienia, Wiadomości, Reakcje, Rozmowy, Zablokowane czaty i Potwierdzenia. Urządzenia audio, opcje wiadomości głosowych i wyciszanie podczas nagrywania tworzą jedną kategorię, Audio, a Połączenie przeniesiono na koniec.
-
 - Lokalna transkrypcja z faster-whisper: naprawiono ładowanie bibliotek CUDA w systemie Windows, które mogło uniemożliwiać korzystanie z karty graficznej i powodować zawieszanie się kolejnych transkrypcji. Jeśli bibliotek nie można załadować, WinZapp informuje o problemie przed rozpoczęciem obliczeń na karcie graficznej.
 
 - Twój status online odpowiada teraz bieżącemu stanowi okna także po szybkim przełączeniu do innego programu, ukryciu WinZapp w zasobniku lub ponownym połączeniu w tle. Opóźniona aktualizacja statusu online nie wyprzedza już aktualizacji statusu offline, a nieudana próba ustawienia statusu offline jest ponawiana.
