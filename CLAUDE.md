@@ -166,8 +166,8 @@ The `mattpocock-skills` plugin provides `/grill-with-docs` → `/to-spec` →
   open a new draft PR that credits the original author, links the old PR and
   thanks them. Run the reviewer on it and check its CI. The maintainer has
   authorised this flow in advance: once the reviewer approves and CI is green,
-  merge the new PR, then close the old one with a comment saying it was moved
-  to the new one. Start as soon as the corrections are ready, without waiting
+  merge the new PR (the old one is closed as soon as the new one is opened,
+  see the next rule). Start as soon as the corrections are ready, without waiting
   for a push to be authorised. A missing changelog entry is not a reason for
   this flow; it follows the changelog rule above.
 - **Close the old PR as soon as you open the one derived from it.** When a PR
