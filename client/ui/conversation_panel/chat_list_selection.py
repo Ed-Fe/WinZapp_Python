@@ -150,9 +150,9 @@ class ChatListSelectionMixin:
         )
 
     def _escape_clears_selection_enabled(self) -> bool:
-        """Settings > User Interface > "Esc desmarca as mensagens marcadas
-        antes de fechar a conversa" (default on) — see
-        _on_escape_conversation()."""
+        """Settings > User Interface > "Esc desmarca as mensagens e as
+        conversas marcadas" (default on): in a conversation see
+        _on_escape_conversation(), in a chat list _handle_chat_selection_key()."""
         return self.main_window.settings.get("user_interface", {}).get(
             "escape_clears_selection", True
         )
@@ -198,7 +198,9 @@ class ChatListSelectionMixin:
         Shift+Up/Down extend the selection to the previous/next row;
         Shift+Home/Shift+End select every row above/below the focused one and
         move focus to the first/last row; Ctrl+Shift+Space selects every chat,
-        or clears the selection if everything is already selected.
+        or clears the selection if everything is already selected. Esc clears
+        the selection when "Esc desmarca" is on, as it does for messages;
+        with nothing selected it keeps whatever it did before.
         """
         event = command_key_event(self, 'chat_selection', event)
         key   = event.GetKeyCode()
@@ -243,6 +245,17 @@ class ChatListSelectionMixin:
                 if selected_any:
                     self._repaint_chat_selection()
                     self._announce_chat_selected(was_active)
+            return True
+
+        if (key == wx.WXK_ESCAPE and not ctrl and not shift and not event.AltDown()
+                and self.selected_chats and self._escape_clears_selection_enabled()):
+            was_active = self._chat_selection_visible()
+            self.selected_chats.clear()
+            self._repaint_chat_selection()
+            self.main_window.output(
+                self._selection_mode_announcement(
+                    self.main_window.i18n.t("all_unselected"), was_active, False),
+                interrupt=True)
             return True
 
         if ctrl and shift and key == wx.WXK_SPACE:

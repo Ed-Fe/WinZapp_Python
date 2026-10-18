@@ -14498,8 +14498,12 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_escape_clears_selection"
-msgid "Esc deselects the selected messages before closing the chat"
-msgstr "Esc deselects the selected messages before closing the chat"
+msgid ""
+"Esc deselects the selected messages before closing the chat, and the "
+"selected chats in a list of chats"
+msgstr ""
+"Esc deselects the selected messages before closing the chat, and the "
+"selected chats in a list of chats"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
