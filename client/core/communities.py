@@ -30,6 +30,11 @@ class Subgroup:
     name: str
     announcement: bool
     general: bool
+    # A group of the community the account is not in (WhatsApp lists those
+    # once asked: refresh_community()), and whether joining it needs an
+    # admin's approval. An older API sends neither: everything it lists is joined.
+    joined: bool = True
+    approval: bool = False
 
 
 @dataclass(frozen=True)
@@ -75,7 +80,8 @@ def parse_communities(body):
             and _PERSON.fullmatch(admin["id"]))
         subgroups = tuple(
             Subgroup(group_jid(group.get("id")), _name(group.get("subject")),
-                     group.get("announcement") is True, group.get("general") is True)
+                     group.get("announcement") is True, group.get("general") is True,
+                     group.get("joined") is not False, group.get("approval") is True)
             for group in item.get("subgroups") or ()
             if isinstance(group, dict) and group_jid(group.get("id")))
         description = item.get("description")
@@ -96,6 +102,31 @@ def list_communities(connection):
     if response.status_code != 200:
         raise ValueError("communities_unavailable")
     return parse_communities(response.json())
+
+
+def refresh_community(connection, jid):
+    """*jid*'s community after asking WhatsApp for the groups the account is
+    not in, as WhatsApp Web does when a community is opened (a read); None
+    when it could not be read."""
+    url, headers = _url(connection, f"community-subgroups/{jid}")
+    response = api_get(url, headers=headers, timeout=20)
+    if response.status_code != 200:
+        return None
+    return find(parse_communities(response.json()), jid)
+
+
+SUBGROUP_FILTERS = ("all", "joined", "not_joined")
+
+
+def filter_subgroups(community, which):
+    """The groups of *community* the dialog's filter shows: every one, the
+    ones the account is in, or the ones it is not in."""
+    groups = community.subgroups if community else ()
+    if which == "joined":
+        return tuple(group for group in groups if group.joined)
+    if which == "not_joined":
+        return tuple(group for group in groups if not group.joined)
+    return tuple(groups)
 
 
 def _act(connection, endpoint, payload):

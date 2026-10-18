@@ -3960,6 +3960,21 @@ msgid "You are not in any community."
 msgstr "No estás en ninguna comunidad."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_all"
+msgid "All groups"
+msgstr "Todos los grupos"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_joined"
+msgid "Groups I'm in"
+msgstr "Grupos en los que participo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_not_joined"
+msgid "Groups I'm not in"
+msgstr "Grupos en los que no participo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format
 msgctxt "communities_group_announcements"
 msgid "{name}, announcement group"
@@ -3970,6 +3985,28 @@ msgstr "{name}, grupo de anuncios"
 msgctxt "communities_group_general"
 msgid "{name}, general group"
 msgstr "{name}, grupo general"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined"
+msgid "{label}, you are not in it"
+msgstr "{label}, no participas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined_approval"
+msgid "{label}, you are not in it, joining needs approval"
+msgstr "{label}, no participas, la entrada requiere aprobación"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_group_not_joined_open"
+msgid "You are not in this group, so it cannot be opened here."
+msgstr "No participas en este grupo, así que no se puede abrir aquí."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_groups_filter"
+msgid "F&ilter groups"
+msgstr "F&iltrar grupos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_groups_list"

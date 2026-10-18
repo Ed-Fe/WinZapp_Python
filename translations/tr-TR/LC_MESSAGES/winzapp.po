@@ -3933,6 +3933,21 @@ msgid "You are not in any community."
 msgstr "Hiçbir toplulukta değilsiniz."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_all"
+msgid "All groups"
+msgstr "Tüm gruplar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_joined"
+msgid "Groups I'm in"
+msgstr "Katıldığım gruplar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_not_joined"
+msgid "Groups I'm not in"
+msgstr "Katılmadığım gruplar"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format
 msgctxt "communities_group_announcements"
 msgid "{name}, announcement group"
@@ -3943,6 +3958,28 @@ msgstr "{name}, duyuru grubu"
 msgctxt "communities_group_general"
 msgid "{name}, general group"
 msgstr "{name}, genel grup"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined"
+msgid "{label}, you are not in it"
+msgstr "{label}, katılmadınız"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined_approval"
+msgid "{label}, you are not in it, joining needs approval"
+msgstr "{label}, katılmadınız, katılım onay gerektirir"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_group_not_joined_open"
+msgid "You are not in this group, so it cannot be opened here."
+msgstr "Bu grubun üyesi değilsiniz, bu yüzden burada açılamaz."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_groups_filter"
+msgid "F&ilter groups"
+msgstr "Grupları &filtrele"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_groups_list"

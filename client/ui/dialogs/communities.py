@@ -6,7 +6,8 @@ and opens.
 
 import logging
 import wx
-from core.communities import list_communities, most_recent_group
+from core.communities import (SUBGROUP_FILTERS, filter_subgroups, list_communities,
+                              most_recent_group, refresh_community)
 from core.participant_names import person_name
 from ui.dialogs.labelled_control import add_labelled
 from ui.dialogs.background_work import BackgroundWork
@@ -43,8 +44,13 @@ def community_label(community, i18n):
 def subgroup_label(group, i18n):
     name = group.name or i18n.t("unknown_group")
     if group.announcement:
-        return i18n.t("communities_group_announcements").format(name=name)
-    return i18n.t("communities_group_general").format(name=name) if group.general else name
+        label = i18n.t("communities_group_announcements").format(name=name)
+    else:
+        label = i18n.t("communities_group_general").format(name=name) if group.general else name
+    if group.joined:
+        return label
+    key = "communities_group_not_joined_approval" if group.approval else "communities_group_not_joined"
+    return i18n.t(key).format(label=label)
 
 
 class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
@@ -53,6 +59,10 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         i18n = self._i18n
         self._loaded = False
         self._communities = []
+        # Which of the community's groups the list shows (SUBGROUP_FILTERS),
+        # and the communities whose other groups were already asked for.
+        self._filter = SUBGROUP_FILTERS[0]
+        self._refreshed = set()
         self.result = None
         super().__init__(parent, title=i18n.t("communities_title"), size=(620, 620),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
@@ -69,6 +79,15 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         self._open_recent = wx.Button(self, label=i18n.t("communities_open_recent_group"))
         self._open_recent.Bind(wx.EVT_BUTTON, self._on_open_recent)
         sizer.Add(self._open_recent, 0, wx.LEFT | wx.RIGHT, 8)
+        # The same kind of control, in the same place before its list, as
+        # the chat list's filters.
+        self._filter_radio = wx.RadioBox(
+            self, label=i18n.t("communities_groups_filter"),
+            choices=[i18n.t("communities_filter_all"), i18n.t("communities_filter_joined"),
+                     i18n.t("communities_filter_not_joined")],
+            majorDimension=1, style=wx.RA_SPECIFY_ROWS)
+        self._filter_radio.Bind(wx.EVT_RADIOBOX, self._on_filter)
+        sizer.Add(self._filter_radio, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self._groups = labelled("communities_groups_list", lambda: wx.ListBox(self, style=wx.LB_SINGLE), 2)
         self._groups.Bind(wx.EVT_LISTBOX, lambda event: self._update_buttons())
         self._groups.Bind(wx.EVT_LISTBOX_DCLICK, self._on_open)
@@ -111,10 +130,15 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         index = self._list.GetSelection()
         return self._communities[index] if 0 <= index < len(self._communities) else None
 
+    def _shown_groups(self):
+        """The selected community's groups the filter lets through, in the
+        list's order."""
+        return filter_subgroups(self._selected(), self._filter)
+
     def _selected_group(self):
-        community = self._selected()
+        groups = self._shown_groups()
         index = self._groups.GetSelection()
-        return community.subgroups[index] if community and 0 <= index < len(community.subgroups) else None
+        return groups[index] if 0 <= index < len(groups) else None
 
     def _recent_group(self):
         """The selected community's group with the newest message, by the
@@ -141,7 +165,7 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         admin = bool(community and community.i_am_admin)
         self._refresh.Enable(free)
         self._new.Enable(free and self._loaded)
-        self._open.Enable(group is not None)
+        self._open.Enable(group is not None and group.joined)
         recent = self._recent_group() if free else None
         self._open_recent.Enable(recent is not None)
         self._open_recent.SetLabel(
@@ -201,7 +225,7 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
     def _show_selected(self, group_jid):
         i18n = self._i18n
         community = self._selected()
-        groups = community.subgroups if community else ()
+        groups = self._shown_groups()
         self._groups.Freeze()
         try:
             self._groups.Set([subgroup_label(group, i18n) for group in groups])
@@ -212,6 +236,37 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
             self._groups.Thaw()
         self._details.ChangeValue(self._describe(community) if community else "")
         self._update_buttons()
+        self._ask_for_other_groups(community)
+
+    def _on_filter(self, event):
+        index = self._filter_radio.GetSelection()
+        self._filter = SUBGROUP_FILTERS[index] if 0 <= index < len(SUBGROUP_FILTERS) else SUBGROUP_FILTERS[0]
+        kept = self._selected_group()
+        self._show_selected(kept.jid if kept else "")
+
+    def _ask_for_other_groups(self, community):
+        """Ask WhatsApp, once per community while the dialog is open, for the
+        community's groups the account is not in: WhatsApp only knows them
+        after being asked, as when a community is opened in WhatsApp Web.
+        Quiet: the groups already listed stay usable meanwhile, and a failure
+        leaves the list as it was, to be asked again the next time."""
+        if community is None or community.jid in self._refreshed or not self._current():
+            return
+        jid = community.jid
+        self._refreshed.add(jid)
+        connection = self._connection
+        self._run_async(lambda: refresh_community(connection, jid),
+                        lambda refreshed: self._finish_other_groups(jid, refreshed))
+
+    def _finish_other_groups(self, jid, refreshed):
+        if refreshed is None or self._busy or not self._current():
+            # Not now: an action is reading the list itself, or this failed.
+            self._refreshed.discard(jid)
+            return
+        current = next((c for c in self._communities if c.jid == jid), None)
+        if current is None or current.subgroups == refreshed.subgroups:
+            return
+        self._show([refreshed if c.jid == jid else c for c in self._communities])
 
     def _describe(self, community):
         i18n = self._i18n
@@ -220,7 +275,7 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
             names = sorted({person_name(self._mw, member.jid) for member in community.admins},
                            key=str.casefold)
             lines.append(i18n.t("communities_admins_line").format(names=", ".join(names)))
-        if not community.subgroups:
+        if not any(group.joined for group in community.subgroups):
             lines.append(i18n.t("communities_no_groups"))
         if not community.i_am_admin:
             lines.append(i18n.t("communities_view_only"))
@@ -258,6 +313,10 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
 
     def _open_group(self, group):
         if self._busy or group is None:
+            return
+        if not group.joined:
+            # Not a conversation of this account: there is nothing to open.
+            self._announce(self._i18n.t("communities_group_not_joined_open"))
             return
         self.result = group
         self._closed.set()

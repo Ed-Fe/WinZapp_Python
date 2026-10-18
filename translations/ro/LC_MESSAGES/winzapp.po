@@ -3949,6 +3949,21 @@ msgid "You are not in any community."
 msgstr "Nu faceți parte din nicio comunitate."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_all"
+msgid "All groups"
+msgstr "Toate grupurile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_joined"
+msgid "Groups I'm in"
+msgstr "Grupurile din care fac parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_not_joined"
+msgid "Groups I'm not in"
+msgstr "Grupurile din care nu fac parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format
 msgctxt "communities_group_announcements"
 msgid "{name}, announcement group"
@@ -3959,6 +3974,28 @@ msgstr "{name}, grup de anunțuri"
 msgctxt "communities_group_general"
 msgid "{name}, general group"
 msgstr "{name}, grup general"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined"
+msgid "{label}, you are not in it"
+msgstr "{label}, nu faceți parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined_approval"
+msgid "{label}, you are not in it, joining needs approval"
+msgstr "{label}, nu faceți parte, aderarea necesită aprobare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_group_not_joined_open"
+msgid "You are not in this group, so it cannot be opened here."
+msgstr "Nu faceți parte din acest grup, așa că nu poate fi deschis aici."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_groups_filter"
+msgid "F&ilter groups"
+msgstr "&Filtrați grupurile"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_groups_list"

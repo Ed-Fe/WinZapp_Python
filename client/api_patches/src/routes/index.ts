@@ -1214,6 +1214,14 @@ routes.get(
   statusConnection,
   CommunityOverviewController.listCommunities
 );
+// One community with the groups the account is not in, asked of WhatsApp the
+// way WhatsApp Web asks when the community is opened (a read).
+routes.get(
+  '/api/:session/community-subgroups/:communityId',
+  verifyToken,
+  statusConnection,
+  CommunityOverviewController.refreshCommunity
+);
 routes.post(
   '/api/:session/community-admin/:communityId/promote',
   verifyToken,
