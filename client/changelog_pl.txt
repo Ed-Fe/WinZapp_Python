@@ -134,6 +134,8 @@ NOWOŚCI
 
 - Usunięcie konta usuwa teraz wszystko, co do niego należy: oprócz wiadomości i ustawień kasowany jest także profil przeglądarki z logowaniem do WhatsApp oraz kopie zapasowe tego profilu, a to, czego nie udało się usunąć, zostanie dokończone przy następnym uruchomieniu WinZapp. Gdy konto jest jedyne, można je teraz usunąć w menu Konta > Zarządzaj kontami: WinZapp prosi o potwierdzenie, zamyka się, a następne uruchomienie jest pierwszym uruchomieniem.
 
+- W Ustawienia > Interfejs użytkownika nowa opcja "Automatycznie odtwarzaj wiadomości głosowe po kolei", domyślnie zaznaczona, określa, czy następna wiadomość głosowa zaczyna się sama po zakończeniu poprzedniej. Odznacz ją, aby każda wiadomość głosowa kończyła się samodzielnie. Opcja "Automatycznie przenoś fokus na następne audio podczas odtwarzania audio po kolei" nadal decyduje tylko o tym, czy fokus klawiatury podąża za dźwiękiem.
+
 POPRAWKI
 
 - Otrzymanie pliku nie powoduje już pobierania go do powiadomienia o wiadomości z powodu nieużywanego ustawienia webhooka. Aktualizacje postępu wysyłania i pobierania zachowują tylko najnowszą oczekującą wartość, zapobiegając gromadzeniu aktualizacji ekranu podczas szybkich transferów.

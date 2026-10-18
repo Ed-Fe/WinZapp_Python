@@ -14390,6 +14390,12 @@ msgstr "Sesler sırayla çalınırken odağı otomatik olarak sonraki sese taş�
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_auto_play_voice_in_sequence"
+msgid "Automatically play voice messages in sequence"
+msgstr "Sesli mesajları otomatik olarak sırayla çal"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_bulk_action_shortcuts"
 msgid "Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr "Sohbet ve mesaj seçerken kısayolları toplu işlemlerle değiştir"

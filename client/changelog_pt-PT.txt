@@ -134,6 +134,8 @@ NOVIDADES
 
 - Eliminar uma conta passa a remover tudo o que ela possui: além das mensagens e das definições, o perfil do navegador que guarda o início de sessão do WhatsApp e as cópias de segurança desse perfil também são apagados, e o que não puder ser removido é concluído na próxima vez que o WinZapp arrancar. Quando a conta é a única, já é possível eliminá-la em Contas > Gerir contas: o WinZapp pede confirmação, fecha, e o arranque seguinte é uma primeira execução.
 
+- Em Definições > Interface do utilizador, a nova opção "Reproduzir mensagens de voz em sequência automaticamente", marcada por predefinição, define se a mensagem de voz seguinte começa sozinha quando uma termina. Desmarque para que cada mensagem de voz termine por si. A opção "Mover o foco automaticamente para o áudio seguinte ao reproduzir áudios em sequência" continua a controlar apenas se o foco do teclado acompanha o áudio.
+
 CORREÇÕES
 
 - Receber um ficheiro deixa de o descarregar dentro da notificação da mensagem devido a uma configuração de webhook sem utilização. As atualizações de progresso de envio e descarga passam a manter apenas o valor mais recente pendente, evitando a acumulação de atualizações do ecrã nas transferências rápidas.
