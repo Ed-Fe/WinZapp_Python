@@ -6,6 +6,10 @@ NOWOŚCI
 
 - Lokalna transkrypcja z faster-whisper: naprawiono ładowanie bibliotek CUDA w systemie Windows, które mogło uniemożliwiać korzystanie z karty graficznej i powodować zawieszanie się kolejnych transkrypcji. Jeśli bibliotek nie można załadować, WinZapp informuje o problemie przed rozpoczęciem obliczeń na karcie graficznej.
 
+- Okno Ustawienia ma teraz pole wyszukiwania i listę kategorii: strzałki zmieniają kategorię, Tab przechodzi do jej opcji, a w wyszukiwaniu strzałka w dół prowadzi do wyników, gdzie Enter lub Spacja otwiera znalezioną opcję, nawet gdy jest w oknie przycisku. Kilka kategorii połączono: Dźwięk (urządzenia, audio wklejone Ctrl+V, wiadomości głosowe i wyciszanie podczas nagrywania), Dźwięki zdarzeń (zdarzenia dźwiękowe i dźwięki powiadomień) i Pamięć (z folderem zapisu). Zawartość mówiona, Odtwarzanie audio, Kopia zapasowa, Skróty klawiszowe, Reakcje, Powiadomienia, Wiadomości, Rozmowy, Zabezpieczone czaty i Potwierdzenia stały się przyciskami, które otwierają okno każdego tematu. „Interfejs użytkownika” nazywa się teraz „Interfejs”, a Połączenie przeniesiono na koniec listy.
+
+- Ustawienia WhatsApp (menu Plik) otwiera teraz ustawienia od razu w kategorii Ustawienia WhatsApp, z przyciskami Prywatność i Profil; osobne okno zniknęło. WinZapp pyta WhatsApp dopiero po otwarciu każdego przycisku, a Ctrl+Shift+, nadal otwiera tę kategorię.
+
 - Twój status online odpowiada teraz bieżącemu stanowi okna także po szybkim przełączeniu do innego programu, ukryciu WinZapp w zasobniku lub ponownym połączeniu w tle. Opóźniona aktualizacja statusu online nie wyprzedza już aktualizacji statusu offline, a nieudana próba ustawienia statusu offline jest ponawiana.
 
 - Nowe skróty, każdy do zmiany na karcie Skróty klawiszowe w ustawieniach: Alt+8 otwiera społeczności z dowolnego miejsca okna; Alt+Shift+B otwiera katalog i koszyk firmy z zaznaczonego lub otwartego czatu; a na koncie WhatsApp Business Ctrl+Shift+N tworzy zamówienie dla kontaktu z czatu. Tam, gdzie nie mają zastosowania, WinZapp mówi dlaczego. Enter na wiadomości z zamówieniem otwiera zamówienie.
