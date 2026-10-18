@@ -30,8 +30,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Run test suite
+  # The suite in 4 jobs at once, each with one pytest worker per vCPU
+  # (-n auto). Every test module lands in exactly one shard, and the modules
+  # that put real wx windows up run one after another on a single worker
+  # (tests/ci_shards.py). --durations lists each shard's slowest tests, so
+  # the next slowdown has a name. One job ran ~22,000 tests in ~25 minutes.
+  test-shard:
+    name: Run test suite (shard ${{ matrix.shard }}/4)
+    strategy:
+      # Every shard to the end: one run reports every failure, not the first.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -57,7 +67,18 @@ jobs:
       # pulam sozinhos — vide test_api_patches_in_sync.py. Isso é esperado: a
       # deriva que eles pegam só é detectável numa máquina de dev.
       - name: Run pytest
-        run: uv run pytest --run-wx-gui
+        run: uv run pytest --run-wx-gui -n auto --shard ${{ matrix.shard }}/4 --durations=20
+
+  # The suite's single verdict, under the name every `needs: test` and the
+  # branch ruleset already use: it fails when any shard did not pass.
+  test:
+    name: Run test suite
+    needs: test-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed
+        run: test "${{ needs.test-shard.result }}" = "success"
 
   # O fluxo venv + pip continua suportado ao lado do uv: checkouts antigos,
   # forks e scripts instalam só `requirements.txt`. O job `test` acima usa uv,

@@ -74,6 +74,8 @@ uv run translations-check               # release-ready catalog validation
 - Run only the test files for what you changed; run the whole suite locally
   only for a cross-cutting change. `load` tests need `--run-load` (CI runs
   them).
+- CI splits the suite into 4 jobs (`--shard K/N`) with `-n auto` in each
+  (`tests/ci_shards.py`). The `-n` is CI-only: never locally (rule 7).
 - A dependency change goes into `pyproject.toml` and `requirements.txt`, then
   `uv lock` (`tests/test_requirements_in_sync.py`).
 - `client/api/` and `client/node/` are git-ignored and must exist before

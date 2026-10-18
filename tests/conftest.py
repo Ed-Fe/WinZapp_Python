@@ -13,6 +13,8 @@ import pytest
 import pytest_asyncio
 from cryptography.fernet import Fernet
 
+from tests.ci_shards import WX_DESKTOP_GROUP, creates_real_windows, parse_shard, shard_of
+
 # ── Fixtures: wx ────────────────────────────────────────────────────────────
 
 
@@ -110,6 +112,14 @@ def pytest_addoption(parser):
              "~45 s). Skipped by default on a developer machine; always run "
              "when the CI environment variable is set.",
     )
+    parser.addoption(
+        "--shard",
+        default=None,
+        metavar="K/N",
+        help="Run only shard K of N: the test modules whose stable hash lands "
+             "on K (tests/ci_shards.py). CI runs every shard in its own job; "
+             "without this option every module runs, as always.",
+    )
     # pytest.ini carries `--dist loadgroup` (only meaningful with -n). Without
     # pytest-xdist installed — a stale venv, a bare `pip install pytest` — that
     # option would not exist and even a plain `pytest` would refuse to start.
@@ -134,7 +144,42 @@ def _load_requested(config) -> bool:
     )
 
 
+def pytest_ignore_collect(collection_path, config):
+    """--shard K/N: a test module of another shard is never collected, so it
+    is not imported either — collection is split across the CI jobs, not only
+    the run. Everything that is not a tests/test_*.py module (conftest,
+    helpers, other folders) is left to pytest, as it always was."""
+    shard = parse_shard(config.getoption("--shard"))
+    if shard is None or collection_path.suffix != ".py" or not collection_path.name.startswith("test_"):
+        return None
+    index, count = shard
+    return True if shard_of(collection_path.name, count) != index else None
+
+
+_REAL_WINDOW_MODULES = {}
+
+
+def _module_creates_real_windows(path) -> bool:
+    key = str(path)
+    if key not in _REAL_WINDOW_MODULES:
+        try:
+            _REAL_WINDOW_MODULES[key] = creates_real_windows(Path(path).read_text(encoding="utf-8"))
+        except OSError:
+            _REAL_WINDOW_MODULES[key] = False
+    return _REAL_WINDOW_MODULES[key]
+
+
+# tryfirst: pytest-xdist reads the xdist_group marker in its own
+# collection_modifyitems, so the group has to be on the item before that runs.
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
+    # With -n (CI only): every module that puts real wx windows up runs on one
+    # worker, one test after another (tests/ci_shards.py). Harmless without -n.
+    # It overrides a module's own group: both "clipboard" modules put windows
+    # up too, and they stay together, one after the other, in this one.
+    for item in items:
+        if _module_creates_real_windows(item.path):
+            item.add_marker(pytest.mark.xdist_group(WX_DESKTOP_GROUP))
     if not _load_requested(config):
         skip_load = pytest.mark.skip(
             reason="synthetic load test - pass --run-load to run it (CI does)"
