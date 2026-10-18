@@ -4,10 +4,13 @@ The admin actions live in community_admin.py; this module lists, describes
 and opens.
 """
 
+import dataclasses
 import logging
 import wx
-from core.communities import (SUBGROUP_FILTERS, filter_subgroups, list_communities,
-                              most_recent_group, refresh_community)
+from core.communities import (CANCELLED, JOINED, REQUEST_PENDING, REQUESTED, SUBGROUP_FILTERS,
+                              cancel_join_request, filter_subgroups, join_action,
+                              join_subgroup, list_communities, most_recent_group,
+                              refresh_community)
 from core.participant_names import person_name
 from ui.dialogs.labelled_control import add_labelled
 from ui.dialogs.background_work import BackgroundWork
@@ -34,6 +37,22 @@ def open_communities(owner, event=None):
     opened from here."""
     if show_communities(owner._mw, owner):
         owner.EndModal(wx.ID_OK)
+
+
+#: The join button's label for each join_action().
+_JOIN_LABELS = {"join": "communities_join_group", "request": "communities_request_join",
+                "cancel": "communities_cancel_join_request"}
+
+#: What each join or cancel outcome says, and whether a request is pending after it.
+_JOIN_OUTCOMES = {
+    REQUESTED: ("communities_join_requested", True),
+    REQUEST_PENDING: ("communities_join_request_pending", True),
+    CANCELLED: ("communities_join_cancelled", False),
+}
+
+#: A refusal WhatsApp gave a reason for; anything else is a plain failure.
+_JOIN_REFUSALS = {"hidden_group": "communities_join_hidden",
+                  "group_unavailable": "communities_join_unavailable"}
 
 
 def community_label(community, i18n):
@@ -105,6 +124,9 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
             return control
 
         self._open = button("communities_open_group", self._on_open)
+        # Join, ask to join, or withdraw that request: whichever WhatsApp's
+        # own button would offer on the selected group (join_action()).
+        self._join = button("communities_join_group", self._on_join)
         self._add_groups = button("communities_add_groups", self._on_add_groups)
         self._remove_group = button("communities_remove_group", self._on_remove_group)
         self._promote = button("communities_promote", self._on_promote)
@@ -166,6 +188,9 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
         self._refresh.Enable(free)
         self._new.Enable(free and self._loaded)
         self._open.Enable(group is not None and group.joined)
+        action = join_action(group) if free else None
+        self._join.Enable(action is not None)
+        self._join.SetLabel(self._i18n.t(_JOIN_LABELS.get(action, "communities_join_group")))
         recent = self._recent_group() if free else None
         self._open_recent.Enable(recent is not None)
         self._open_recent.SetLabel(
@@ -310,6 +335,56 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
 
     def _on_open_recent(self, event):
         self._open_group(self._recent_group())
+
+    # ── joining ───────────────────────────────────────────────────────────
+
+    def _on_join(self, event):
+        community, group = self._selected(), self._selected_group()
+        action = join_action(group)
+        if self._busy or community is None or action is None or not self._current():
+            return
+        self._set_busy(True)
+        self._status.SetLabel(self._i18n.t("loading"))
+        connection, community_jid, group_jid = self._connection, community.jid, group.jid
+        call = cancel_join_request if action == "cancel" else join_subgroup
+
+        def work():
+            try:
+                return "state", call(connection, community_jid, group_jid)
+            except ValueError as exc:
+                return "error", str(exc)
+
+        self._run_async(work, lambda result: self._finish_join(community_jid, group, action, result))
+
+    def _finish_join(self, community_jid, group, action, result):
+        self._set_busy(False)
+        if not self._current():
+            return
+        kind, value = result if isinstance(result, tuple) else ("error", "unavailable")
+        if kind == "error":
+            # A static code only: never the group, never the account.
+            logging.warning("[communities] join_failed action=%s code=%s", action, value)
+            fallback = "communities_join_cancel_failed" if action == "cancel" else "communities_join_failed"
+            self._announce(self._i18n.t(_JOIN_REFUSALS.get(value, fallback)))
+            return
+        if value == JOINED:
+            self._announce(self._i18n.t("communities_joined"))
+            self._open_group(dataclasses.replace(group, joined=True, requested=False))
+            return
+        key, requested = _JOIN_OUTCOMES[value]
+        self._replace_group(community_jid, dataclasses.replace(group, requested=requested))
+        self._announce(self._i18n.t(key))
+
+    def _replace_group(self, community_jid, group):
+        """Show *group* as it now is, in place, keeping the selection."""
+        communities = []
+        for community in self._communities:
+            if community.jid == community_jid:
+                community = dataclasses.replace(community, subgroups=tuple(
+                    group if existing.jid == group.jid else existing
+                    for existing in community.subgroups))
+            communities.append(community)
+        self._show(communities)
 
     def _open_group(self, group):
         if self._busy or group is None:

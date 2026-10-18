@@ -191,6 +191,8 @@ _CUSTOM_SRC_FILES = [
     "src/tests/controller/communityCommentsController.test.ts",
     "src/controller/communityOverviewController.ts",
     "src/tests/controller/communityOverviewController.test.ts",
+    "src/controller/communityJoinController.ts",
+    "src/tests/controller/communityJoinController.test.ts",
     "src/controller/communityAdminController.ts",
     "src/tests/controller/communityAdminController.test.ts",
     "src/controller/groupMembershipRequestsController.ts",

@@ -35,6 +35,7 @@ import * as PrivacyController from '../controller/privacyController';
 import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
 import * as CommunityOverviewController from '../controller/communityOverviewController';
+import * as CommunityJoinController from '../controller/communityJoinController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
 import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
@@ -1221,6 +1222,20 @@ routes.get(
   verifyToken,
   statusConnection,
   CommunityOverviewController.refreshCommunity
+);
+// Join a group of the community the account is not in, or ask to when an
+// admin has to approve; and withdraw that request (communityJoinController.ts).
+routes.post(
+  '/api/:session/community-subgroups/:communityId/:subgroupId/join',
+  verifyToken,
+  statusConnection,
+  CommunityJoinController.joinSubgroup
+);
+routes.post(
+  '/api/:session/community-subgroups/:communityId/:subgroupId/cancel-request',
+  verifyToken,
+  statusConnection,
+  CommunityJoinController.cancelJoinRequest
 );
 routes.post(
   '/api/:session/community-admin/:communityId/promote',

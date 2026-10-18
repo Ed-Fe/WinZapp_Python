@@ -126,10 +126,10 @@ test('the groups the account is not in are listed after the joined ones', () => 
     readCommunities);
   const others = result[0].subgroups.filter((group: any) => !group.joined);
   expect(others).toEqual([
-    { id: '111-5@g.us', subject: 'Esportes', announcement: false, general: false, joined: false, approval: false },
-    { id: '111-6@g.us', subject: 'Diretoria', announcement: false, general: false, joined: false, approval: true },
+    { id: '111-5@g.us', subject: 'Esportes', announcement: false, general: false, joined: false, approval: false, requested: false },
+    { id: '111-6@g.us', subject: 'Diretoria', announcement: false, general: false, joined: false, approval: true, requested: false },
     // Hidden: shown to admins only, and this account is one.
-    { id: '111-7@g.us', subject: 'Oculto', announcement: false, general: false, joined: false, approval: false },
+    { id: '111-7@g.us', subject: 'Oculto', announcement: false, general: false, joined: false, approval: false, requested: false },
   ]);
 });
 

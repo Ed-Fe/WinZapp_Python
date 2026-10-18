@@ -3886,6 +3886,11 @@ msgid "Co&mmunities"
 msgstr "Co&munidades"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_cancel_join_request"
+msgid "Cancel &join request"
+msgstr "Cancelar pedido para entrar n&o grupo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "communities_confirm_deactivate"
 msgid ""
@@ -4029,6 +4034,54 @@ msgid "&Groups of the community"
 msgstr "&Grupos da comunidade"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_cancel_failed"
+msgid "Could not cancel the request. Check the connection and try again."
+msgstr ""
+"Não foi possível cancelar o pedido. Verifique a ligação e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_cancelled"
+msgid "Request cancelled."
+msgstr "Pedido cancelado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_failed"
+msgid "Could not join the group. Check the connection and try again."
+msgstr ""
+"Não foi possível entrar no grupo. Verifique a ligação e tente novamente."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_group"
+msgid "&Join group"
+msgstr "Entrar n&o grupo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_hidden"
+msgid "This group is hidden: only its owner can add you."
+msgstr "Este grupo está oculto: só o dono o pode adicionar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_request_pending"
+msgid ""
+"You already asked to join this group; an admin still has to approve it."
+msgstr "Já pediu para entrar neste grupo; falta um administrador aprovar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_requested"
+msgid "Request sent. An admin of the group has to approve it."
+msgstr "Pedido enviado. Um administrador do grupo tem de o aprovar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_unavailable"
+msgid "This group is no longer available."
+msgstr "Este grupo já não está disponível."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_joined"
+msgid "You joined the group."
+msgstr "Entrou no grupo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_list"
 msgid "Co&mmunities"
 msgstr "Co&munidades"
@@ -4125,6 +4178,11 @@ msgstr "At&ualizar"
 msgctxt "communities_remove_group"
 msgid "&Remove group from the community"
 msgstr "&Remover grupo da comunidade"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_request_join"
+msgid "Request to &join"
+msgstr "Pedir para entrar n&o grupo"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format

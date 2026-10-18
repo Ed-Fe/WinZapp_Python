@@ -92,6 +92,8 @@ export function readCommunities(): unknown {
         general: meta?.generalSubgroup === true,
         joined: false,
         approval: meta?.membershipApprovalMode === true,
+        // A request to join this account sent and an admin has not answered.
+        requested: meta?.membershipApprovalRequest === true,
       });
     }
     communities.push({

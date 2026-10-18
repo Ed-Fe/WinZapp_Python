@@ -35,6 +35,8 @@ class Subgroup:
     # admin's approval. An older API sends neither: everything it lists is joined.
     joined: bool = True
     approval: bool = False
+    # A request to join sent from this account that no admin has answered.
+    requested: bool = False
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,8 @@ def parse_communities(body):
         subgroups = tuple(
             Subgroup(group_jid(group.get("id")), _name(group.get("subject")),
                      group.get("announcement") is True, group.get("general") is True,
-                     group.get("joined") is not False, group.get("approval") is True)
+                     group.get("joined") is not False, group.get("approval") is True,
+                     group.get("requested") is True)
             for group in item.get("subgroups") or ()
             if isinstance(group, dict) and group_jid(group.get("id")))
         description = item.get("description")
@@ -113,6 +116,51 @@ def refresh_community(connection, jid):
     if response.status_code != 200:
         return None
     return find(parse_communities(response.json()), jid)
+
+
+#: What a join or a cancel can end in (communityJoinController.ts).
+JOINED, REQUESTED, REQUEST_PENDING, CANCELLED = "joined", "requested", "request_pending", "cancelled"
+_MEMBERSHIP_STATES = (JOINED, REQUESTED, REQUEST_PENDING, CANCELLED)
+
+
+def _membership(connection, community_jid, subgroup_jid, action):
+    """One join or cancel, never retried: a request that timed out may have
+    reached WhatsApp. The state it ended in, or ValueError with the server's
+    code ("unavailable" when there was none)."""
+    url, headers = _url(connection, f"community-subgroups/{community_jid}/{subgroup_jid}/{action}")
+    try:
+        response = api_post(url, json={}, headers=headers, timeout=60)
+        body = response.json()
+    except Exception:
+        raise ValueError("unavailable") from None
+    state = (body.get("response") or {}).get("state") if isinstance(body, dict) else None
+    if response.status_code == 200 and state in _MEMBERSHIP_STATES:
+        return state
+    code = body.get("code") if isinstance(body, dict) else None
+    raise ValueError(code if isinstance(code, str) and code else "unavailable")
+
+
+def join_subgroup(connection, community_jid, subgroup_jid):
+    """Join the group, or ask to when an admin has to approve: JOINED,
+    REQUESTED or REQUEST_PENDING."""
+    return _membership(connection, community_jid, subgroup_jid, "join")
+
+
+def cancel_join_request(connection, community_jid, subgroup_jid):
+    """Withdraw a request to join: CANCELLED."""
+    return _membership(connection, community_jid, subgroup_jid, "cancel-request")
+
+
+def join_action(group):
+    """What the join button offers on *group*, as WhatsApp Web's own button
+    does (WAWebGroupJoinModalUtils.getGroupInviteActionText): "cancel" a
+    request already sent, "request" when an admin approves who joins, "join"
+    otherwise; None on a group the account is already in."""
+    if group is None or group.joined:
+        return None
+    if group.requested:
+        return "cancel"
+    return "request" if group.approval else "join"
 
 
 SUBGROUP_FILTERS = ("all", "joined", "not_joined")
