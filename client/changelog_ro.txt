@@ -18,6 +18,8 @@ NOUTĂȚI
 
 - O conversație nouă începută cu un număr brazilian scris cu cifra 9 în plus nu mai apare dublată în lista de conversații după ce trimiți primul mesaj: WinZapp păstrează conversația sub numărul pe care îl folosește WhatsApp.
 
+- Mesajele video (videoclipurile rotunde trimise în loc de un mesaj vocal) sunt acum afișate ca videoclipuri, în loc de „Mesaj incompatibil”, și se numesc „mesaj video” în listă, cu aceeași durată, redare și Salvează ca ca orice videoclip.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

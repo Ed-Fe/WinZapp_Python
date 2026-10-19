@@ -18,6 +18,8 @@ NOVIDADES
 
 - Uma conversa nova iniciada com um número brasileiro escrito com o 9 extra deixa de aparecer duplicada na lista de conversas depois de enviar a primeira mensagem: o WinZapp mantém a conversa no número que o próprio WhatsApp usa.
 
+- As mensagens de vídeo (os vídeos redondos enviados em vez de uma mensagem de voz) passam a aparecer como vídeos, em vez de "Mensagem incompatível", e chamam-se "mensagem de vídeo" na lista, com a mesma duração, reprodução e Guardar como de qualquer vídeo.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.

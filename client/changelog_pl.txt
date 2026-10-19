@@ -18,6 +18,8 @@ NOWOŚCI
 
 - Nowa rozmowa rozpoczęta z brazylijskim numerem wpisanym z dodatkową dziewiątką nie pojawia się już dwa razy na liście rozmów po wysłaniu pierwszej wiadomości: WinZapp zachowuje rozmowę pod numerem, którego używa sam WhatsApp.
 
+- Wiadomości wideo (okrągłe filmy wysyłane zamiast wiadomości głosowej) są teraz wyświetlane jako filmy, zamiast „Niezgodna wiadomość”, i są nazwane „wiadomość wideo” na liście, z tym samym czasem trwania, odtwarzaniem i opcją Zapisz jako co każdy film.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
