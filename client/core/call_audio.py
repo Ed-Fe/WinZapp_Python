@@ -21,6 +21,7 @@ import numpy as np
 
 from core.audio_devices import repair_device_name
 from core.call_audio_processing import CallAudioProcessor
+from core.call_audio_resampling import MicrophonePCMEncoder, StreamingMonoResampler
 
 try:
     import sounddevice as sd
@@ -98,20 +99,6 @@ class CallAudioConfig:
 
 class CallAudioUnavailable(RuntimeError):
     """Raised when the local call audio devices cannot be opened."""
-
-
-def _resample_mono(samples: np.ndarray, source_rate: int, target_rate: int) -> np.ndarray:
-    """Return mono float32 audio at ``target_rate`` using linear interpolation."""
-    data = np.asarray(samples, dtype=np.float32)
-    if data.ndim > 1:
-        data = data.mean(axis=1, dtype=np.float32)
-    data = data.reshape(-1)
-    if not data.size or source_rate == target_rate:
-        return data.astype(np.float32, copy=False)
-    target_len = max(1, int(round(data.size * target_rate / source_rate)))
-    source_x = np.linspace(0.0, 1.0, num=data.size, endpoint=False)
-    target_x = np.linspace(0.0, 1.0, num=target_len, endpoint=False)
-    return np.interp(target_x, source_x, data).astype(np.float32)
 
 
 class _ReferenceResampler:
@@ -388,12 +375,13 @@ class CallAudioSession:
         self._output_stream = None
         self._input_rate = CALL_SAMPLE_RATE
         self._output_rate = CALL_SAMPLE_RATE
-        self._mic_queue: "queue.Queue[bytes]" = queue.Queue(maxsize=CALL_MIC_QUEUE_LIMIT)
+        self._mic_queue: "queue.Queue[np.ndarray]" = queue.Queue(maxsize=CALL_MIC_QUEUE_LIMIT)
         self._output_queue: "queue.Queue[tuple[bytes, int]]" = queue.Queue(
             maxsize=CALL_OUTPUT_QUEUE_LIMIT
         )
         # The reservoir the output callback drains; the player thread fills it.
         self._output_buffer = _OutputJitterBuffer(self._output_rate)
+        self._output_resampler = StreamingMonoResampler()
         self._output_underruns_logged = 0
         self._stop_event = threading.Event()
         # Held around every write to the output stream and around replacing
@@ -459,6 +447,7 @@ class CallAudioSession:
         # Before start(): the callback begins pulling the moment the stream
         # runs, and it must find an empty, correctly scaled reservoir.
         self._output_buffer.configure(self._output_rate)
+        self._output_resampler.reset()
         try:
             self._output_stream.start()
         except Exception:
@@ -573,6 +562,7 @@ class CallAudioSession:
             # The ring's audio is gone with its stream; the new device may
             # even run at a different rate.
             self._output_buffer.configure(rate)
+            self._output_resampler.reset()
             try:
                 stream.start()
             except Exception:
@@ -600,6 +590,7 @@ class CallAudioSession:
         with self._output_lock:
             self._close_stream(self._output_stream)
             self._output_stream = None
+            self._output_resampler.reset()
         self._drain_queue(self._mic_queue)
         self._drain_queue(self._output_queue)
         self._output_buffer.reset()
@@ -1002,35 +993,44 @@ class CallAudioSession:
                 logging.debug("[call_audio] microphone status: %s", status)
             if self._stop_event.is_set() or indata is None:
                 return
-            samples = _resample_mono(np.asarray(indata), source_rate, CALL_SAMPLE_RATE)
+            # Copy PortAudio's borrowed buffer only. Rate conversion and
+            # PCM16 encoding run on the sender, not its realtime callback.
+            samples = np.array(indata, dtype=np.float32, copy=True).reshape(-1)
             if samples.size:
-                self._put_drop_oldest(self._mic_queue, _pcm16_bytes(samples))
+                self._put_drop_oldest(self._mic_queue, samples)
 
         return _callback
 
-    def _dequeue_fresh_microphone_frame(self) -> tuple[bytes, int]:
+    def _dequeue_fresh_microphone_frame(self) -> tuple[np.ndarray, int, int]:
         """Return current microphone audio instead of replaying stale backlog."""
-        pcm = self._mic_queue.get(timeout=0.1)
+        samples = self._mic_queue.get(timeout=0.1)
         dropped = 0
+        dropped_samples = 0
         while self._mic_queue.qsize() > CALL_MIC_TARGET_BACKLOG_FRAMES:
             try:
-                pcm = self._mic_queue.get_nowait()
+                next_samples = self._mic_queue.get_nowait()
+                dropped_samples += samples.size
+                samples = next_samples
                 dropped += 1
             except queue.Empty:
                 break
-        return pcm, dropped
+        return samples, dropped, dropped_samples
 
     def _send_microphone_loop(self) -> None:
+        encoder = MicrophonePCMEncoder(CALL_SAMPLE_RATE, CALL_FRAME_SAMPLES)
         while not self._stop_event.is_set():
             try:
-                pcm, dropped = self._dequeue_fresh_microphone_frame()
+                samples, dropped, dropped_source_samples = self._dequeue_fresh_microphone_frame()
             except queue.Empty:
                 continue
 
             if dropped:
-                # Nothing to tell the processor: AEC3 tracks the echo delay
-                # itself, so a jump in the microphone stream is just a delay
-                # change it re-estimates.
+                # Do not join old filter history/partial audio onto the fresh
+                # capture after a backlog is deliberately discarded. Nothing to
+                # tell the processor: AEC3 tracks the echo delay itself, so a
+                # jump in the microphone stream is just a delay change it
+                # re-estimates.
+                encoder.skip(dropped_source_samples, self._input_rate)
                 previous_dropped = self._mic_frames_dropped_for_latency
                 self._mic_frames_dropped_for_latency += dropped
                 if previous_dropped == 0 or (
@@ -1044,43 +1044,53 @@ class CallAudioSession:
                         self._mic_queue.qsize(),
                     )
 
-            # Before the mute check, so the processor keeps consuming audio (and
-            # its reference) while muted and stays continuous on unmute. Whole
-            # 10 ms frames only: an empty result means the chunk is buffered.
-            processor = self._processor
-            if processor is not None:
-                try:
-                    pcm = self._process_microphone(processor, pcm)
-                except Exception:
-                    logging.exception("[call_audio] microphone processing failed")
-                if not pcm:
-                    continue
-
             try:
-                if self._microphone_muted:
-                    pcm = b"\x00" * len(pcm)
-                self._sio.emit(
-                    "call:audio:mic",
-                    {
-                        "session": self._config.session,
-                        "sampleRate": CALL_SAMPLE_RATE,
-                        "encoding": "base64",
-                        "pcm": base64.b64encode(pcm).decode("ascii"),
-                    },
-                )
-                self._mic_frames_sent += 1
-                self._mic_bytes_sent += len(pcm)
-                if processor is not None and self._mic_frames_sent % 250 == 0:
-                    logging.info("[call_audio] microphone processing: %s",
-                                 processor.diagnostics())
-                if self._mic_frames_sent == 1 or self._mic_frames_sent % 50 == 0:
-                    logging.info(
-                        "[call_audio] microphone sent session=%s frames=%s bytes=%s",
-                        self._config.session, self._mic_frames_sent, self._mic_bytes_sent,
-                    )
+                frames = encoder.process(samples, self._input_rate)
             except Exception:
-                logging.exception("[call_audio] failed to send microphone audio")
-                time.sleep(0.05)
+                logging.exception("[call_audio] failed to convert microphone audio")
+                encoder.reset()
+                continue
+            for frame in frames:
+                if self._stop_event.is_set():
+                    break
+                pcm = _pcm16_bytes(frame)
+                # Before the mute check, so the processor keeps consuming audio (and
+                # its reference) while muted and stays continuous on unmute. Whole
+                # 10 ms frames only: an empty result means the chunk is buffered.
+                processor = self._processor
+                if processor is not None:
+                    try:
+                        pcm = self._process_microphone(processor, pcm)
+                    except Exception:
+                        logging.exception("[call_audio] microphone processing failed")
+                    if not pcm:
+                        continue
+
+                try:
+                    if self._microphone_muted:
+                        pcm = b"\x00" * len(pcm)
+                    self._sio.emit(
+                        "call:audio:mic",
+                        {
+                            "session": self._config.session,
+                            "sampleRate": CALL_SAMPLE_RATE,
+                            "encoding": "base64",
+                            "pcm": base64.b64encode(pcm).decode("ascii"),
+                        },
+                    )
+                    self._mic_frames_sent += 1
+                    self._mic_bytes_sent += len(pcm)
+                    if processor is not None and self._mic_frames_sent % 250 == 0:
+                        logging.info("[call_audio] microphone processing: %s",
+                                     processor.diagnostics())
+                    if self._mic_frames_sent == 1 or self._mic_frames_sent % 50 == 0:
+                        logging.info(
+                            "[call_audio] microphone sent session=%s frames=%s bytes=%s",
+                            self._config.session, self._mic_frames_sent, self._mic_bytes_sent,
+                        )
+                except Exception:
+                    logging.exception("[call_audio] failed to send microphone audio")
+                    time.sleep(0.05)
 
     def _process_microphone(self, processor: CallAudioProcessor, pcm: bytes) -> bytes:
         """Run one microphone chunk through the processor.
@@ -1165,9 +1175,11 @@ class CallAudioSession:
                     if self._output_stream is None:
                         continue
                     target_rate = self._output_rate
-                samples = _resample_mono(samples, source_rate, target_rate)
-                if samples.size:
-                    self._output_buffer.push(samples)
+                    # Share stream-swap ownership with the FIR history and
+                    # reservoir push: no old-rate packet may enter a new sink.
+                    samples = self._output_resampler.process(samples, source_rate, target_rate)
+                    if samples.size:
+                        self._output_buffer.push(samples)
             except Exception:
                 logging.exception("[call_audio] failed to play remote call audio")
                 time.sleep(0.05)

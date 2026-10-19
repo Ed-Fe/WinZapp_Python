@@ -11,7 +11,7 @@ import threading
 import numpy as np
 
 from core.call_audio import (
-    CALL_FRAME_SAMPLES, CALL_SAMPLE_RATE, CallAudioConfig, CallAudioSession, _pcm16_bytes,
+    CALL_FRAME_SAMPLES, CALL_SAMPLE_RATE, CallAudioConfig, CallAudioSession,
 )
 from core.call_audio_processing import CallAudioProcessor
 from tests.test_call_audio_session import _SoundDevice, _Socket, _wait_for
@@ -36,7 +36,7 @@ def _send(config, mic, far=None):
     for i in range(0, len(mic), CALL_FRAME_SAMPLES):
         if far is not None:
             session._echo_reference_tap.append((far[i:i + CALL_FRAME_SAMPLES], CALL_SAMPLE_RATE))
-        session._mic_queue.put(_pcm16_bytes(mic[i:i + CALL_FRAME_SAMPLES]))
+        session._mic_queue.put(mic[i:i + CALL_FRAME_SAMPLES].copy())
         _wait_for(lambda: session._mic_queue.qsize() == 0)
     session._stop_event.set()
     thread.join(timeout=2)
