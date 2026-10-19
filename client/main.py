@@ -1910,11 +1910,15 @@ if __name__ == "__main__":
         #    progress, don't start into a file-swap; otherwise claim a runtime
         #    lease so the updater won't swap files under us (plan Zad 2.2/2.-1).
         os.makedirs(gd, exist_ok=True)
-        if update_coord.is_update_in_progress(gd):
-            sys.exit(0)
-        _runtime_lease = update_coord.try_create_runtime_lease(gd)
-        if _runtime_lease is None:
-            sys.exit(0)  # an update slipped in between the check and the claim
+        import startup_exit_notice
+        # Not silent: a stuck updater left WinZapp "not opening" with no
+        # message and no log line (startup_exit_notice.py).
+        _runtime_lease = None
+        if not update_coord.is_update_in_progress(gd):
+            _runtime_lease = update_coord.try_create_runtime_lease(gd)
+        if _runtime_lease is None:  # in progress, or one slipped in before the claim
+            startup_exit_notice.leave_startup(startup_exit_notice.UPDATE_IN_PROGRESS,
+                                              background=background)
         atexit.register(update_coord.release_runtime_lease, gd, _runtime_lease)
 
         # 2) One-time legacy flat-data migration, then resolve which account.
@@ -1982,17 +1986,21 @@ if __name__ == "__main__":
         if not first_instance:
             # Another process already runs THIS account: ask it to come to the
             # foreground via account-scoped IPC (not a title match), then exit.
+            _reason = startup_exit_notice.ALREADY_RUNNING_BACKGROUND
             if not background:
+                _reason = startup_exit_notice.ACCOUNT_NOT_ANSWERING
                 try:
                     import ipc
                     # The running process comes to the foreground either way;
                     # with a link it also opens the join dialog.
-                    if not (_invitation_link and ipc.request_open_link(
-                            gd, _account_id, _invitation_link)):
-                        ipc.request_activate(gd, _account_id, source=startup_source)
+                    if ((_invitation_link and ipc.request_open_link(
+                            gd, _account_id, _invitation_link))
+                            or ipc.request_activate(gd, _account_id, source=startup_source)):
+                        _reason = startup_exit_notice.ACTIVATED
                 except Exception:
                     pass
-            sys.exit(0)
+            startup_exit_notice.leave_startup(_reason, background=background,
+                                              account_id=_account_id)
 
         setup_logging()
         logging.info("Instance lock acquired for account %s (%s).", _account_id, _account_name)

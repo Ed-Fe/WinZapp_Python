@@ -11382,6 +11382,17 @@ msgstr ""
 "Nu există conturi disponibile pentru a începe. Managerul de cont nu este "
 "încă disponibil."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_account_not_answering"
+msgid ""
+"This WinZapp account is already running but did not answer, possibly because"
+" it is still closing. Wait a few seconds and open it again. If it keeps "
+"happening, end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"Acest cont WinZapp rulează deja, dar nu a răspuns; poate că încă se închide."
+" Așteptați câteva secunde și deschideți-l din nou. Dacă se repetă, închideți"
+" WinZapp.exe din Managerul de activități și deschideți din nou WinZapp."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #, python-brace-format
 msgctxt "startup_critical_message"
@@ -11414,6 +11425,18 @@ msgid ""
 msgstr ""
 "WinZapp nu a putut deschide contul solicitat ({account}): nu există, a fost "
 "arhivat sau este în curs de ștergere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_update_in_progress"
+msgid ""
+"WinZapp is still finishing an update and cannot open yet. It opens by itself"
+" when the installation is done. If it has not opened within a few minutes, "
+"end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"WinZapp încă termină instalarea unei actualizări și nu se poate deschide "
+"acum. Se va deschide singur când instalarea se încheie. Dacă nu s-a deschis "
+"în câteva minute, închideți WinZapp.exe din Managerul de activități și "
+"deschideți din nou WinZapp."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/ui/ai_media_demo.py client/ui/dialogs/ai_result_dialog.py

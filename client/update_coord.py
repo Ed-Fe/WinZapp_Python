@@ -509,6 +509,24 @@ def other_live_leases(global_dir: str, pid: Optional[int] = None,
                 if not _is_own_lease(l, pid, create_time)]
 
 
+def peer_pids(runtime_leases, node_leases, own_account: str, own_pid: int) -> list[int]:
+    """The pids the installer must wait on: every other account's process.
+
+    Runtime leases alone missed one: with two accounts open, the update ran
+    "also waiting on no other account" while the second account's process,
+    named in its node lease, was still running (2026-10-18). The two lists
+    describe the same processes, so either one naming a pid is enough; a
+    corrupt entry, our own account or our own pid is never waited on."""
+    pids: list[int] = []
+    for lease in list(runtime_leases or ()) + [
+            l for l in (node_leases or ()) if l.get("account_id") != own_account]:
+        pid = lease.get("pid")
+        if lease.get("_corrupt") or not _valid_pid(pid) or pid == own_pid or pid in pids:
+            continue
+        pids.append(int(pid))
+    return pids
+
+
 class UpdateClaim(NamedTuple):
     token: Optional[dict]
     reason: str = ""

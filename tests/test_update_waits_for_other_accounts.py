@@ -130,6 +130,41 @@ class TestQuitOtherAccounts:
         stub._quit_other_accounts()
         assert asked == ["b", "c"]
 
+    def test_a_peer_named_only_by_its_node_lease_is_still_waited_on(self, monkeypatch, tmp_path):
+        """Reported 2026-10-18: two accounts open, the update ran "also waiting
+        on no other account" while the second account (pid in its node lease)
+        was still running, so the installer did not wait for it."""
+        import ipc
+        import node_coord
+        import update_coord
+
+        monkeypatch.setattr(wx_call_after_module(), "CallAfter", lambda fn, *a: fn(*a))
+        monkeypatch.setattr(update_coord, "other_live_leases", lambda _gd: [])
+        monkeypatch.setattr(node_coord, "live_node_leases", lambda _gd, is_alive: [
+            {"account_id": "me", "pid": os.getpid()}, {"account_id": "b", "pid": 43216}])
+        monkeypatch.setattr(ipc, "request_quit", lambda _gd, acc: True)
+
+        assert _stub(_mw(str(tmp_path), "me"))._quit_other_accounts() == [43216]
+
+
+class TestPeerPids:
+    def test_both_sources_are_merged_without_repeating_a_pid(self):
+        import update_coord
+        runtime = [{"pid": 5151}, {"pid": 6161}]
+        node = [{"account_id": "b", "pid": 6161}, {"account_id": "c", "pid": 7171}]
+        assert update_coord.peer_pids(runtime, node, "me", 4242) == [5151, 6161, 7171]
+
+    def test_our_own_account_pid_and_corrupt_entries_are_never_waited_on(self):
+        import update_coord
+        runtime = [{"pid": 4242}, {"pid": None, "_corrupt": True}, {"pid": True}]
+        node = [{"account_id": "me", "pid": 9999}, {"account_id": "b", "_corrupt": True},
+                {"account_id": "c", "pid": "123"}]
+        assert update_coord.peer_pids(runtime, node, "me", 4242) == []
+
+    def test_nothing_to_wait_on(self):
+        import update_coord
+        assert update_coord.peer_pids([], None, "me", 4242) == []
+
 
 class TestClaimInstallSlot:
     def test_refuses_while_another_account_is_still_alive(self, monkeypatch, tmp_path):

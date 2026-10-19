@@ -1179,12 +1179,10 @@ class UpdateProgressDialog(UpdateProgressLifecycle, wx.Dialog):
             import ipc
             import node_coord
             import update_coord
-            pids = [
-                int(l["pid"]) for l in update_coord.other_live_leases(gd)
-                if not l.get("_corrupt") and l.get("pid")
-            ]
-            others = [l.get("account_id") for l in node_coord.live_node_leases(
-                gd, is_alive=update_coord.lease_alive) if not l.get("_corrupt")]
+            node_leases = node_coord.live_node_leases(gd, is_alive=update_coord.lease_alive)
+            pids = update_coord.peer_pids(update_coord.other_live_leases(gd), node_leases,
+                                          acc_id, os.getpid())
+            others = [l.get("account_id") for l in node_leases if not l.get("_corrupt")]
             others = [a for a in others if a and a != acc_id]
             if others:
                 wx.CallAfter(

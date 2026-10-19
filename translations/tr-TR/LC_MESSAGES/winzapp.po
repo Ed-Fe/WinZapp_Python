@@ -11252,6 +11252,17 @@ msgid ""
 "available yet."
 msgstr "Başlatılacak hesap yok. Hesap yöneticisi henüz kullanılamıyor."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_account_not_answering"
+msgid ""
+"This WinZapp account is already running but did not answer, possibly because"
+" it is still closing. Wait a few seconds and open it again. If it keeps "
+"happening, end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"Bu WinZapp hesabı zaten çalışıyor ancak yanıt vermedi; hâlâ kapanıyor "
+"olabilir. Birkaç saniye bekleyip yeniden açın. Bu durum devam ederse Görev "
+"Yöneticisi'nde WinZapp.exe'yi sonlandırıp WinZapp'ı yeniden açın."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #, python-brace-format
 msgctxt "startup_critical_message"
@@ -11284,6 +11295,18 @@ msgid ""
 msgstr ""
 "WinZapp istenen hesabı ({account}) açamadı: hesap mevcut değil, arşivlendi "
 "veya siliniyor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_update_in_progress"
+msgid ""
+"WinZapp is still finishing an update and cannot open yet. It opens by itself"
+" when the installation is done. If it has not opened within a few minutes, "
+"end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"WinZapp hâlâ bir güncellemenin yüklenmesini tamamlıyor ve şu anda "
+"açılamıyor. Yükleme bittiğinde kendiliğinden açılacak. Birkaç dakika içinde "
+"açılmazsa Görev Yöneticisi'nde WinZapp.exe'yi sonlandırıp WinZapp'ı yeniden "
+"açın."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/ui/ai_media_demo.py client/ui/dialogs/ai_result_dialog.py
