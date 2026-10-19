@@ -293,7 +293,7 @@ def test_a_sellers_follow_up_is_recognised_by_its_flow_and_its_reference():
     assert message["messageType"] == ORDER_UPDATE_MESSAGE_TYPE
     assert message["message"][ORDER_UPDATE_MESSAGE_TYPE] == {
         "reference": "REF1", "status": "payment_requested", "payment": "pending", "total": 15000, "currency": "BRL",
-        "subtotal": None, "items": []}
+        "subtotal": None, "items": [], "method": ""}
 
 
 def test_an_order_the_seller_created_keeps_its_items_for_its_details():
@@ -362,7 +362,7 @@ def test_unknown_statuses_are_not_repeated_to_the_user():
         "reference_id": "R", "order": {"status": "<b>hacked</b>"}, "payment_status": "free",
         "total_amount": {"value": -1, "offset": 0}}))
     assert payload == {"reference": "R", "status": "", "payment": "", "total": None, "currency": "",
-                       "subtotal": None, "items": []}
+                       "subtotal": None, "items": [], "method": ""}
 
 
 def test_a_row_says_whose_cart_it_is_how_much_and_its_state():
@@ -622,7 +622,7 @@ def test_an_order_opens_from_its_message_in_a_one_to_one_chat(monkeypatch):
     assert panel._can_view_order(update)
     assert not _ChatPanel(None, jid="111-0@g.us")._can_view_order(update)
     panel._show_order(update)
-    update_opened.assert_called_once_with(panel.main_window, panel.main_window, update, "Bakery")
+    update_opened.assert_called_once_with(panel.main_window, panel.main_window, update, ORDER_ID, "Bakery")
     assert opened.call_count == 1, "an order update never asks the server for a cart's order"
     creating = Mock()
     monkeypatch.setattr("ui.dialogs.order_create_dialog.OrderCreateDialog", creating)

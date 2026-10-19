@@ -3237,7 +3237,8 @@ msgstr "Limpar conversas selecionadas"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/media_cleanup_dialog.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
+#: client/ui/dialogs/new_conversation.py
+#: client/ui/dialogs/order_update_dialog.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 #: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
@@ -3523,6 +3524,59 @@ msgstr ""
 "de momentos para confirmar."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm"
+msgid "C&onfirm order info"
+msgstr "C&onfirmar informações da encomenda"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_already"
+msgid "You have already confirmed the information of this order."
+msgstr "Já confirmou as informações desta encomenda."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_done"
+msgid ""
+"Order information confirmed. The business has received your confirmation."
+msgstr ""
+"Informações da encomenda confirmadas. A empresa recebeu a sua confirmação."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_failed"
+msgid "This order can no longer be confirmed."
+msgstr "Esta encomenda já não pode ser confirmada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+#, python-brace-format
+msgctxt "commerce_order_confirm_question"
+msgid ""
+"Confirm the information of this order to {name}? {name} receives your "
+"confirmation in the chat. Payment is arranged outside WhatsApp."
+msgstr ""
+"Confirmar as informações desta encomenda a {name}? {name} recebe a sua "
+"confirmação na conversa. O pagamento é combinado fora do WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_title"
+msgid "Confirm order info"
+msgstr "Confirmar informações da encomenda"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_unconfirmed"
+msgid ""
+"The confirmation may or may not have been sent. Check the chat before trying"
+" again."
+msgstr ""
+"A confirmação pode ou não ter sido enviada. Verifique a conversa antes de "
+"tentar de novo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/commerce.py
 msgctxt "commerce_order_create_unavailable"
 msgid ""
@@ -3552,11 +3606,18 @@ msgid "Order declined."
 msgstr "Encomenda recusada."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
 msgctxt "commerce_order_details"
 msgid "&Details"
 msgstr "&Detalhes"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "commerce_order_info_confirmed"
+msgid "Order information confirmed"
+msgstr "Informações da encomenda confirmadas"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
 msgctxt "commerce_order_items"
 msgid "&Items of the order"
 msgstr "&Itens da encomenda"
@@ -3633,6 +3694,7 @@ msgid "WhatsApp accepted the status update for sending."
 msgstr "O WhatsApp aceitou a atualização de estado para envio."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/order_dialog.py
+#: client/ui/dialogs/order_update_dialog.py
 #, python-brace-format
 msgctxt "commerce_order_title"
 msgid "Order - {name}"
@@ -3646,7 +3708,7 @@ msgstr ""
 "Não foi possível ler esta encomenda. Abra a conversa nesta mensagem e tente "
 "de novo."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/core/commerce.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "commerce_order_update"
 msgid "Order update"
 msgstr "Atualização de encomenda"
@@ -3799,7 +3861,7 @@ msgctxt "commerce_status_shipped"
 msgid "Shipped"
 msgstr "Enviada"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/commerce.py
 #, python-brace-format
 msgctxt "commerce_subtotal"
 msgid "subtotal {amount}"
@@ -6593,6 +6655,7 @@ msgstr "seleção de lista"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
 #: client/ui/dialogs/cart_dialog.py client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
+#: client/ui/dialogs/order_update_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."

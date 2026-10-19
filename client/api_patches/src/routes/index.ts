@@ -40,6 +40,7 @@ import * as PageHeapController from '../controller/pageHeapController';
 import * as StatusDeleteController from '../controller/statusDeleteController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
+import * as OrderConfirmController from '../controller/orderConfirmController';
 import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
@@ -979,6 +980,12 @@ routes.post('/api/:session/commerce/order/:messageId/decline', verifyToken, stat
   CommerceController.orderDecline);
 routes.post('/api/:session/commerce/order/:messageId/status', verifyToken, statusConnection,
   CommerceController.orderUpdate);
+// The buyer's "Confirm order info" for an order a seller created, when it is
+// paid outside the app (orderConfirmController.ts).
+routes.get('/api/:session/commerce/order-details/:messageId', verifyToken, statusConnection,
+  OrderConfirmController.readBuyerOrder);
+routes.post('/api/:session/commerce/order-details/:messageId/confirm', verifyToken, statusConnection,
+  OrderConfirmController.confirmBuyerOrder);
 routes.post(
   '/api/:session/set-cart-enabled',
   verifyToken,

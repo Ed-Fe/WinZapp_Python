@@ -197,6 +197,8 @@ _CUSTOM_SRC_FILES = [
     "src/tests/controller/statusDeleteController.test.ts",
     "src/controller/pageHeapController.ts",
     "src/tests/controller/pageHeapController.test.ts",
+    "src/controller/orderConfirmController.ts",
+    "src/tests/controller/orderConfirmController.test.ts",
     "src/controller/communityAdminController.ts",
     "src/tests/controller/communityAdminController.test.ts",
     "src/controller/groupMembershipRequestsController.ts",

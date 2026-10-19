@@ -105,13 +105,13 @@ class CommercePanelMixin:
         if not self._can_view_order(msg):
             return
         mw = self.main_window
+        jid = self.conversation.get("remoteJid", "")
+        message_id = mw._serialize_msg_id(jid, msg.get("key") or {}, msg)
         if is_order_update_message(msg):
             # An order the seller created or updated: everything it says is in
             # the message itself (ui/dialogs/order_update_dialog.py).
             from ui.dialogs.order_update_dialog import OrderUpdateDialog
-            self._show_modal(OrderUpdateDialog(mw, mw, msg, self._chat_name(self.conversation)))
+            self._show_modal(OrderUpdateDialog(mw, mw, msg, message_id, self._chat_name(self.conversation)))
             return
         from ui.dialogs.order_dialog import OrderDialog
-        jid = self.conversation.get("remoteJid", "")
-        message_id = mw._serialize_msg_id(jid, msg.get("key") or {}, msg)
         self._show_modal(OrderDialog(mw, mw, message_id, self._chat_name(self.conversation)))

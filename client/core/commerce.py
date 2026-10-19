@@ -26,7 +26,11 @@ ORDER_MESSAGE_TYPE = "orderMessage"
 # each change of status. WhatsApp sends them as interactive "native flow"
 # messages whose only button carries the data as JSON.
 ORDER_UPDATE_MESSAGE_TYPE = "orderUpdateMessage"
-ORDER_FLOWS = frozenset({"order_details", "order_status", "payment_info", "payment_status"})
+ORDER_FLOWS = frozenset({"order_details", "order_status", "payment_info", "payment_status",
+                         # The buyer's answer: "confirm" for an order paid outside
+                         # the app (api_patches orderConfirmController.ts).
+                         "payment_method"})
+PAYMENT_METHODS = ("confirm", "payment_instruction")
 # One item of a business's catalog, sent as a message.
 PRODUCT_MESSAGE_TYPE = "productMessage"
 
@@ -305,6 +309,31 @@ def _answered(data):
     return status if status in (INQUIRY, ACCEPTED, DECLINED) else None
 
 
+@dataclass(frozen=True)
+class BuyerOrder:
+    """What the buyer may do with an order a seller created."""
+    can_confirm: bool       # WhatsApp Web's "Confirm order info" applies
+    confirmed: bool         # the account already sent that confirmation
+
+
+def parse_buyer_order(data):
+    if not isinstance(data, dict):
+        raise CommerceError()
+    return BuyerOrder(data.get("canConfirm") is True, data.get("confirmed") is True)
+
+
+def read_buyer_order(connection, message_id):
+    return parse_buyer_order(_call(connection, f"order-details/{_message(message_id)}"))
+
+
+def confirm_buyer_order(connection, message_id):
+    """Confirm the order's information to the seller, once. Never retried: a
+    lost answer may follow a confirmation that was sent."""
+    data = _call(connection, f"order-details/{_message(message_id)}/confirm", {}, timeout=90)
+    if not isinstance(data, dict) or data.get("confirmed") is not True:
+        raise CommerceError("unconfirmed")
+
+
 def accept_order(connection, message_id):
     """Returns the order message's state as the page then holds it."""
     return _answered(_call(connection, f"order/{_message(message_id)}/accept", {}, timeout=90))
@@ -463,6 +492,7 @@ def order_update_payload(wpp_msg):
         "currency": _text(data.get("currency")),
         "subtotal": _scaled(order.get("subtotal")),
         "items": _update_items(order),
+        "method": data.get("payment_method") if data.get("payment_method") in PAYMENT_METHODS else "",
     }
 
 
@@ -511,7 +541,8 @@ def order_update_label(msg, i18n):
     money = format_money(data.get("total"), data.get("currency"), _decimal(i18n))
     if money:
         parts.append(i18n.t("commerce_total").format(amount=money))
-    head = i18n.t("commerce_order_update")
+    head = i18n.t("commerce_order_info_confirmed" if data.get("method") == "confirm"
+                  else "commerce_order_update")
     reference = _text(data.get("reference"))
     if reference:
         head = f"{head}, {i18n.t('commerce_order_reference').format(reference=reference)}"
