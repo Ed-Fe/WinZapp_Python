@@ -4,6 +4,10 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Actualizări: instalarea păstrează exclusivitatea după închiderea WinZapp, iar pachetul descărcat care așteaptă instalarea este păstrat. Doar o copiere completă înseamnă succes; o actualizare reușită elimină avertizarea despre un eșec anterior. Redeschiderea automată așteaptă terminarea programului de instalare și nu are loc la atingerea limitei de așteptare. După o copiere incompletă sau neconfirmată, WinZapp rămâne închis și deschide instrucțiuni de reparare în Notepad.
+
+- Apelurile vocale păstrează continuitatea temporală între pachetele audio și folosesc conversie cu bandă limitată când microfonul sau difuzorul necesită altă rată de eșantionare. Sunetul care are deja rata apelului continuă pe calea directă.
+
 - Fereastra Setări are acum un câmp de căutare și o listă de categorii: săgețile schimbă categoria, Tab intră în opțiunile ei, iar în căutare săgeata în jos merge la rezultate, unde Enter sau Spațiu deschide opțiunea găsită, chiar dacă este în fereastra unui buton. Mai multe categorii au fost reunite: Audio (dispozitive, audio lipit cu Ctrl+V, mesaje vocale și amuțire la înregistrare), Sunete de evenimente (evenimente sonore și tonuri de alertă) și Stocare (cu dosarul de salvare). Conținut vorbit, Redare audio, Copie de siguranță a profilului, Comenzi rapide, Reacții, Notificări, Mesaje, Conversații, Conversații blocate și Confirmări au devenit butoane care deschid fereastra fiecărui subiect. „Interfață utilizator” se numește acum „Interfață”, iar Conexiune a trecut la sfârșitul listei.
 
 - Setări WhatsApp (meniul Fișier) deschide acum Setările direct la categoria Setări WhatsApp, cu butoanele Confidențialitate și Profil; fereastra separată a dispărut. WinZapp întreabă WhatsApp doar când deschizi fiecare buton, iar Ctrl+Shift+, deschide în continuare această categorie.
@@ -17,6 +21,10 @@ NOUTĂȚI
 - Blocarea unui număr care nu este salvat în contacte nu mai eșuează cu „Nu s-a putut bloca acest contact”: WinZapp deschide acum conversația pe care WhatsApp o cere înainte de blocare.
 
 - O conversație nouă începută cu un număr brazilian scris cu cifra 9 în plus nu mai apare dublată în lista de conversații după ce trimiți primul mesaj: WinZapp păstrează conversația sub numărul pe care îl folosește WhatsApp.
+
+- Mesajele video (videoclipurile rotunde trimise în loc de un mesaj vocal) sunt acum afișate ca videoclipuri, în loc de „Mesaj incompatibil”, și se numesc „mesaj video” în listă, cu aceeași durată, redare și Salvează ca ca orice videoclip.
+
+- Anularea ecoului în apelurile vocale și video a fost refăcută cu același motor pe care îl folosesc Google Meet și WhatsApp însuși (anulatorul de ecou WebRTC): vorbitul prin difuzorul laptopului sau cu reluarea (loopback) mixerului activată nu mai face ca cealaltă persoană să își audă propria voce. Opțiunea este acum activată, inclusiv pentru cei care foloseau deja WinZapp; pentru a o dezactiva, debifează "Activează anularea ecoului" în "Setări audio pentru apeluri". Reducerea zgomotului microfonului în apel folosește acum și ea acest motor.
 
 V2.1.0.0
 

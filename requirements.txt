@@ -8,6 +8,7 @@
 # they disagree. This file still carries the test/build tools (pytest,
 # pyinstaller...) because scripts and forks install only it.
 accessible-output2==0.17
+aiofiles==25.1.0
 aiosqlite==0.22.1
 altgraph==0.17.5
 annotated-doc==0.0.4
@@ -42,6 +43,11 @@ huggingface_hub==1.30.0
 idna==3.11
 iniconfig==2.3.0
 libloader==1.4.2
+# WebRTC's audio processing module (AEC3 echo cancellation and noise
+# suppression) for the call microphone -- core/call_audio_processing.py. Only
+# livekit.rtc.AudioProcessingModule is used; aiofiles and types-protobuf
+# below are its own requirements.
+livekit==1.1.20
 numpy==2.3.5
 # onnxruntime 1.29 has no macOS x86_64 wheel (1.23.2 is the last), so an Intel
 # Mac gets that one, pinned like every other dependency.
@@ -88,6 +94,7 @@ tqdm==4.70.0
 # Pure Python, needs 3.10+, and degrades to the old behaviour when
 # absent — see client/core/tls_trust.py.
 truststore==0.10.4
+types-protobuf==7.35.1.20260906
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.5.0

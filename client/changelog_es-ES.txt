@@ -4,6 +4,10 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
+- Actualizaciones: la instalación mantiene la exclusividad después de que WinZapp se cierre y conserva el paquete descargado que espera para instalarse. Solo una copia completa cuenta como éxito; una actualización correcta elimina el aviso de un fallo anterior. La reapertura automática espera a que termine el instalador y no se produce al alcanzar el límite de espera. Tras una copia incompleta o no confirmada, WinZapp permanece cerrado y abre instrucciones de recuperación en el Bloc de notas.
+
+- Las llamadas de voz conservan la temporización entre los paquetes de audio y usan conversión con limitación de banda cuando el micrófono o el altavoz necesita otra frecuencia de muestreo. El audio que ya tiene la frecuencia de la llamada sigue por la ruta directa.
+
 - La ventana de Configuración ahora tiene un campo de búsqueda y una lista de categorías: las flechas cambian de categoría, Tab entra en sus opciones y, en la búsqueda, la flecha abajo va a los resultados, donde Enter o Espacio abre la opción encontrada, incluso cuando está en la ventana de un botón. Se reunieron varias categorías: Audio (dispositivos, audios pegados con Ctrl+V, mensajes de voz y silenciar al grabar), Sonidos de eventos (eventos de sonido y tonos de alerta) y Almacenamiento (con la carpeta de guardado). Contenido hablado, Reproducción de audio, Copia de seguridad, Atajos de teclado, Reacciones, Notificaciones, Mensajes, Conversaciones, Chats bloqueados y Confirmaciones pasaron a ser botones que abren la ventana de cada tema. "Interfaz de usuario" ahora se llama "Interfaz", y Conexión pasó al final de la lista.
 
 - Configuración de WhatsApp (menú Archivo) ahora abre la configuración ya en la categoría Configuración de WhatsApp, con los botones Privacidad y Perfil; la ventana separada ya no existe. WinZapp solo consulta a WhatsApp cuando abres cada botón, y Ctrl+Shift+, sigue abriendo esa categoría.
@@ -17,6 +21,10 @@ NOVEDADES
 - Bloquear un número que no está guardado en tus contactos ya no falla con "No se pudo bloquear este contacto": WinZapp ahora abre el chat que WhatsApp exige antes de bloquear.
 
 - Una conversación nueva iniciada con un número brasileño escrito con el 9 extra ya no aparece duplicada en la lista de conversaciones después de enviar el primer mensaje: WinZapp mantiene la conversación con el número que usa el propio WhatsApp.
+
+- Los mensajes de video (los videos redondos que se envían en lugar de un mensaje de voz) ahora se muestran como videos, en lugar de "Mensaje incompatible", y se llaman "mensaje de vídeo" en la lista, con la misma duración, reproducción y Guardar como que cualquier vídeo.
+
+- La cancelación de eco en las llamadas de voz y vídeo se rehízo con el mismo motor que usan Google Meet y el propio WhatsApp (el cancelador de eco de WebRTC): hablar por el altavoz del portátil o con el retorno (loopback) de la mesa de mezclas activado ya no hace que la otra persona oiga su propia voz. La opción ahora viene activada, también para quien ya usaba WinZapp; para desactivarla, desmarca "Activar cancelación de eco" en "Configuración de audio de la llamada". La reducción de ruido del micrófono en la llamada también usa ahora este motor.
 
 V2.1.0.0
 

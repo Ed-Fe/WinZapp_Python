@@ -300,6 +300,7 @@
 <ul>
   <li>Przy włączonej opcji "Pobieraj aktualizacje i pliki potrzebne do transkrypcji w tle, bez okna postępu" (Ustawienia &gt; Ogólne) nadal korzystasz z programu, połączony, podczas gdy aktualizacja się pobiera; dopiero gdy jest gotowa, WinZapp mówi, że zamierza ją zainstalować. Jeśli prowadzisz rozmowę, komunikat czeka do jej zakończenia.</li>
   <li>Anulowanie okna postępu przed rozpoczęciem instalacji bezpiecznie zatrzymuje aktualizację.</li>
+  <li>Pobrany pakiet jest zachowywany podczas oczekiwania na instalację. Po zamknięciu WinZapp zaczekaj na zakończenie instalatora, zanim ponownie otworzysz program. Jeśli instalacja się nie zakończy, przekroczenie limitu oczekiwania nie otworzy WinZapp automatycznie. Niepełna kopia oznacza błąd; późniejsza udana aktualizacja usuwa ostrzeżenie o wcześniejszym błędzie. Jeśli kopiowanie się nie powiedzie lub nie można potwierdzić jego zakończenia, WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku. Zaczekaj na zakończenie instalatora przed rozpoczęciem naprawy. Utwórz kopię zapasową swojego obecnego folderu data, napraw pliki programu za pomocą oficjalnego instalatora lub ZIP i zachowaj swój folder data. Notatka zawiera folder instalacji i lokalizację dziennika aktualizacji.</li>
   <li>Przy więcej niż jednym otwartym koncie aktualizacja otwiera jedno okno i przed instalacją zamyka pozostałe konta.</li>
   <li>Pomoc &gt; Wymuś ponowną instalację WPPConnect i Wymuś ponowną instalację z pliku ZIP służą do sytuacji, gdy coś w serwerze lokalnym przestaje działać poprawnie.</li>
   <li>Pomoc &gt; Nowości pokazuje, co zmieniło się w każdej wersji, a Pomoc &gt; "Nowości od ostatniego przeglądania..." podsumowuje tylko to, co jest nowe dla ciebie, prostymi zdaniami. Przycisk "Co nowego?" w oknie aktualizacji pokazuje, co zmienia oferowana wersja; w przypadku alphy wymienia też zmiany każdej alphy od twojej.</li>
@@ -547,6 +548,7 @@
 
 <h3>Otwieranie, zapisywanie i opisywanie</h3>
 <p>Na wiadomości z multimediami Enter ją otwiera (zdjęcie w przeglądarce, audio i film się odtwarzają, dokument otwiera się w domyślnym programie). Spacja odtwarza i wstrzymuje audio i film, ale nigdy nie otwiera linków, dokumentów ani przeglądarki. Po "Otwórz" są przyciski, dostępne klawiszem Tab: "Zapisz jako..." (Ctrl+Shift+S), "Pokaż w folderze" (Ctrl+Enter, gdy zapisałeś kopię) i "Opisz" (Ctrl+Shift+I, gdy funkcje AI są włączone). Menu kontekstowe ma te same pozycje.</p>
+<p>Wiadomość wideo (film nagrany przyciskiem aparatu w WhatsApp, wysłany zamiast wiadomości głosowej) pojawia się na liście jako „wiadomość wideo” i działa jak każdy film: Enter go odtwarza, a Zapisz jako, czas trwania i reszta menu są takie same.</p>
 <p>Folder, w którym otwierają się okna zapisu, wybiera się w Ustawienia &gt; Pamięć: ostatnio używany, Pobrane lub własny folder.</p>
 
 <h3>Przeglądarka multimediów</h3>
@@ -689,6 +691,8 @@
 
 <h3>Ustawienia połączeń</h3>
 <p>W Ustawienia &gt; Połączenia "Ustawienia dźwięku połączenia" wybiera mikrofon i głośnik, a "Ustawienia wideo połączenia" wybiera kamerę. Tam znajdziesz też usuwanie echa (zmniejsza powrót własnego dźwięku, gdy używasz głośnika), redukcję szumów mikrofonu i tryb wyłączny dla mikrofonu i głośnika.</p>
+<p>Usuwanie echa jest domyślnie włączone. Korzysta z tego samego eliminatora echa co Google Meet i WhatsApp (z WebRTC), więc możesz mówić przez głośnik laptopa lub z włączonym odsłuchem (loopback) miksera, a druga osoba nie usłyszy własnego głosu. Ze słuchawkami nie przeszkadza; odznacz je tylko wtedy, gdy wolisz.</p>
+<p>WinZapp automatycznie konwertuje dźwięk połączenia, gdy wybrany mikrofon lub głośnik używa innej częstotliwości próbkowania niż połączenie. Ciągłość czasowa między pakietami audio jest zachowana; nie trzeba włączać dodatkowej opcji.</p>
 <div class="callout tip">
   <div class="callout-title">💡 Jeśli połączenie się nie zaczyna</div>
   Gdy używana wersja WhatsApp Web nie obsługuje połączeń, WinZapp mówi o tym i co spróbować: uruchomić WinZapp ponownie albo wybrać Pomoc &gt; Wymuś ponowną instalację WPPConnect.
@@ -1224,6 +1228,8 @@
 <p class="lead">Każda nowa alpha, która wnosi funkcje, jest dodawana do przewodnika. Ta lista pokazuje, do której alphy przewodnik jest kompletny i co dodano w każdej rundzie.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Co trafiło do przewodnika</th></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Zachowywanie pakietu aktualizacji, wyłączność instalacji, wynik kopiowania i bezpieczne ponowne otwarcie. Po niepełnym lub niepotwierdzonym kopiowaniu WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Automatyczne dostosowanie dźwięku połączeń do częstotliwości próbkowania mikrofonu i głośnika.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>Karta Profil w ustawieniach WhatsApp (wyświetlana nazwa, Informacje i zdjęcie); Społeczności na liście nawigacji, po Połączeniach.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>Pierwsza wersja przewodnika: wszystkie funkcje wersji 1.1.0.0, 1.1.1.0, 2.0.0.0 i cyklu 2.1.0.0 do tej alphy.</td></tr>
 </table>

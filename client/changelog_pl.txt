@@ -4,6 +4,10 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
+- Aktualizacje: instalacja zachowuje wyłączność po zamknięciu WinZapp, a pobrany pakiet oczekujący na instalację jest zachowywany. Tylko pełna kopia oznacza sukces; udana aktualizacja usuwa ostrzeżenie o wcześniejszym błędzie. Automatyczne ponowne otwarcie czeka na zakończenie instalatora i nie następuje po przekroczeniu limitu oczekiwania. Po niepełnym lub niepotwierdzonym kopiowaniu WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku.
+
+- Połączenia głosowe zachowują ciągłość czasową między pakietami audio i używają konwersji z ograniczeniem pasma, gdy mikrofon lub głośnik wymaga innej częstotliwości próbkowania. Dźwięk o częstotliwości używanej w połączeniu nadal trafia bezpośrednio do dalszego przetwarzania.
+
 - Okno Ustawienia ma teraz pole wyszukiwania i listę kategorii: strzałki zmieniają kategorię, Tab przechodzi do jej opcji, a w wyszukiwaniu strzałka w dół prowadzi do wyników, gdzie Enter lub Spacja otwiera znalezioną opcję, nawet gdy jest w oknie przycisku. Kilka kategorii połączono: Dźwięk (urządzenia, audio wklejone Ctrl+V, wiadomości głosowe i wyciszanie podczas nagrywania), Dźwięki zdarzeń (zdarzenia dźwiękowe i dźwięki powiadomień) i Pamięć (z folderem zapisu). Zawartość mówiona, Odtwarzanie audio, Kopia zapasowa, Skróty klawiszowe, Reakcje, Powiadomienia, Wiadomości, Rozmowy, Zabezpieczone czaty i Potwierdzenia stały się przyciskami, które otwierają okno każdego tematu. „Interfejs użytkownika” nazywa się teraz „Interfejs”, a Połączenie przeniesiono na koniec listy.
 
 - Ustawienia WhatsApp (menu Plik) otwiera teraz ustawienia od razu w kategorii Ustawienia WhatsApp, z przyciskami Prywatność i Profil; osobne okno zniknęło. WinZapp pyta WhatsApp dopiero po otwarciu każdego przycisku, a Ctrl+Shift+, nadal otwiera tę kategorię.
@@ -17,6 +21,10 @@ NOWOŚCI
 - Blokowanie numeru, którego nie ma w zapisanych kontaktach, nie kończy się już błędem „Nie można zablokować tego kontaktu”: WinZapp otwiera teraz czat, którego WhatsApp wymaga przed zablokowaniem.
 
 - Nowa rozmowa rozpoczęta z brazylijskim numerem wpisanym z dodatkową dziewiątką nie pojawia się już dwa razy na liście rozmów po wysłaniu pierwszej wiadomości: WinZapp zachowuje rozmowę pod numerem, którego używa sam WhatsApp.
+
+- Wiadomości wideo (okrągłe filmy wysyłane zamiast wiadomości głosowej) są teraz wyświetlane jako filmy, zamiast „Niezgodna wiadomość”, i są nazwane „wiadomość wideo” na liście, z tym samym czasem trwania, odtwarzaniem i opcją Zapisz jako co każdy film.
+
+- Eliminacja echa w połączeniach głosowych i wideo została przebudowana na tym samym silniku, którego używają Google Meet i sam WhatsApp (eliminator echa WebRTC): rozmowa przez głośnik laptopa lub z włączonym odsłuchem (loopback) miksera nie sprawia już, że druga osoba słyszy własny głos. Opcja jest teraz włączona, także dla osób, które już używały WinZapp; aby ją wyłączyć, odznacz "Włącz eliminację echa" w "Ustawienia dźwięku połączenia". Redukcja szumów mikrofonu podczas połączenia również korzysta teraz z tego silnika.
 
 V2.1.0.0
 

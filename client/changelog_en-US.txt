@@ -4,6 +4,10 @@ This release brings communities and a reorganized settings window, on top of eve
 
 WHAT'S NEW
 
+- Updates: installation keeps ownership after WinZapp closes, and a downloaded package waiting to install is kept. Only a complete copy counts as success; a successful update clears an earlier failure warning. Automatic reopening waits for the installer to finish and does not proceed when its wait limit is reached. After an incomplete or unconfirmed copy, WinZapp stays closed and opens recovery instructions in Notepad.
+
+- Voice calls preserve timing across audio packets and use band-limited conversion when the microphone or speaker needs a different sample rate. Audio already at the call rate keeps the direct path.
+
 - The Settings window now has a search field and a list of categories: the arrow keys change category, Tab enters its options and, in the search, the down arrow goes to the results, where Enter or Space opens the option found, even when it is in the window of a button. Several categories were merged: Audio (devices, audio pasted with Ctrl+V, voice messages and silencing while recording), Event sounds (sound events and alert tones) and Storage (with the save folder). Spoken content, Audio playback, Profile backup, Keyboard shortcuts, Reactions, Notifications, Messages, Chats, Locked chats and Confirmations became buttons that open the window of each subject. "User Interface" is now called "Interface", and Connection moved to the end of the list.
 
 - WhatsApp settings (File menu) now opens Settings already on the WhatsApp settings category, with the Privacy and Profile buttons; the separate window is gone. WinZapp only asks WhatsApp when you open each button, and Ctrl+Shift+, still opens that category.
@@ -17,6 +21,10 @@ WHAT'S NEW
 - Blocking a number that is not saved in your contacts no longer fails with "Could not block this contact": WinZapp now opens the chat WhatsApp requires before blocking.
 
 - A new conversation started with a Brazilian number typed with the extra 9 no longer shows up twice in the conversation list after you send the first message: WinZapp keeps the conversation under the number WhatsApp itself uses.
+
+- Video messages (the round videos sent instead of a voice message) are now shown as videos, instead of "Incompatible message", and are named "video message" in the list, with the same duration, playback and Save as as any video.
+
+- Echo cancellation in voice and video calls was rebuilt on the same engine Google Meet and WhatsApp itself use (WebRTC's echo canceller): talking through a laptop speaker or with a mixer's loopback turned on no longer makes the other person hear their own voice. The option is now on, also for people who already used WinZapp; to turn it off, uncheck "Enable echo cancellation" in "Call audio settings". Microphone noise reduction during calls now uses this engine too.
 
 V2.1.0.0
 

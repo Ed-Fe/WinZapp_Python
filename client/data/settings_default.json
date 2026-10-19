@@ -115,7 +115,7 @@
         "input_device_name": "",
         "exclusive_input": false,
         "exclusive_output": false,
-        "echo_cancellation": false,
+        "echo_cancellation": true,
         "noise_suppression": false
     },
     "call_video_devices": {
