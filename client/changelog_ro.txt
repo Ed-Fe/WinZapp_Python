@@ -28,6 +28,8 @@ NOUTĂȚI
 
 - Jurnalul apelurilor (log.log) arată acum, la fiecare 5 secunde, cât din sunetul difuzorului ajunge la microfon înainte de anularea ecoului și cât mai rămâne în ce se trimite, cu întârzierea acelui ecou. Dacă cineva încă își aude propria voce, jurnalul spune dacă ecoul a trecut prin anulator sau a sosit pe altă cale.
 
+- Anularea ecoului funcționează acum și când ecoul revine cu mare întârziere, ca la reluarea (loopback) unor mixere, care putea dura peste o jumătate de secundă și ajungea întreg la cealaltă persoană. WinZapp măsoară cât îi ia vocii celeilalte persoane să revină prin microfonul tău și ajustează anulatorul la această întârziere, până la 1,5 secunde.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

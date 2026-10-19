@@ -28,6 +28,8 @@ WHAT'S NEW
 
 - The call log (log.log) now shows, every 5 seconds, how much of the speaker's sound reaches the microphone before echo cancellation and how much is still left in what is sent, with that echo's delay. If someone still hears their own voice, the log tells whether the echo went through the canceller or arrived by another path.
 
+- Echo cancellation now also works when the echo comes back very late, as with the loopback of some mixers, which could take more than half a second and reached the other person in full. WinZapp measures how long the other person's voice takes to come back through your microphone and adjusts the canceller to that delay, up to 1.5 seconds.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

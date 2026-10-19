@@ -28,6 +28,8 @@ NOVIDADES
 
 - O registro das chamadas (log.log) agora mostra, a cada 5 segundos, quanto do som do alto-falante chega ao microfone antes do cancelamento de eco e quanto ainda sobra no que é enviado, com o atraso desse eco. Se alguém ainda ouvir a própria voz, o log diz se o eco passou pelo cancelador ou chegou por outro caminho.
 
+- O cancelamento de eco agora também funciona quando o eco volta com muito atraso, como no retorno (loopback) de algumas mesas de som, que podia levar mais de meio segundo e passava inteiro para a outra pessoa. O WinZapp mede quanto tempo a voz da outra pessoa leva para voltar pelo seu microfone e ajusta o cancelador para esse atraso, até 1,5 segundo.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada a lugar nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, figurinhas e PDFs.

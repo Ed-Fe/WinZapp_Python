@@ -28,6 +28,8 @@ NOWOŚCI
 
 - Dziennik połączeń (log.log) pokazuje teraz co 5 sekund, ile dźwięku z głośnika trafia do mikrofonu przed eliminacją echa i ile jeszcze zostaje w tym, co jest wysyłane, wraz z opóźnieniem tego echa. Jeśli ktoś nadal słyszy własny głos, dziennik mówi, czy echo przeszło przez eliminator, czy dotarło inną drogą.
 
+- Eliminacja echa działa teraz także wtedy, gdy echo wraca z dużym opóźnieniem, jak w odsłuchu (loopback) niektórych mikserów, który potrafił trwać ponad pół sekundy i w całości docierał do drugiej osoby. WinZapp mierzy, ile czasu głos drugiej osoby potrzebuje, by wrócić przez twój mikrofon, i dostosowuje eliminator do tego opóźnienia, do 1,5 sekundy.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.

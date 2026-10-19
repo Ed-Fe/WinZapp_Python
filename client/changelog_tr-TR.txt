@@ -28,6 +28,8 @@ YENİLİKLER
 
 - Arama günlüğü (log.log) artık her 5 saniyede bir, hoparlör sesinin ne kadarının yankı önlemeden önce mikrofona ulaştığını ve gönderilen seste ne kadarının kaldığını, bu yankının gecikmesiyle birlikte gösteriyor. Biri hâlâ kendi sesini duyuyorsa günlük, yankının önleyiciden geçip geçmediğini ya da başka bir yoldan gelip gelmediğini söyler.
 
+- Yankı önleme artık yankı çok gecikmeli döndüğünde de çalışıyor; bazı mikserlerin geri dönüşünde (loopback) olduğu gibi yarım saniyeyi aşabilen ve karşıdaki kişiye olduğu gibi ulaşan yankılar dahil. WinZapp karşıdaki kişinin sesinin mikrofonunuzdan geri dönmesinin ne kadar sürdüğünü ölçer ve önleyiciyi bu gecikmeye göre, 1,5 saniyeye kadar ayarlar.
+
 V2.1.0.0
 
 Bu sürüm, hiçbir yere bir şey gönderilmeden sesli mesajların kendi bilgisayarınızda yazıya dökülmesini ve sesli mesajların, görsellerin, videoların, çıkartmaların ve PDF'lerin çevrimiçi yapay zekâ ile yazıya dökülmesini ve betimlenmesini getiriyor.

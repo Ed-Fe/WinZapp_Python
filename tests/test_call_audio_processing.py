@@ -72,7 +72,20 @@ def test_reference_reaches_the_module_in_10ms_frames_before_the_microphone():
     processor.push_reference(np.zeros(APM_FRAME + 100, dtype=np.float32))
     processor.process(np.zeros(APM_FRAME, dtype=np.float32))
     processor.push_reference(np.zeros(APM_FRAME - 100, dtype=np.float32))
-    assert log == ["ref", "mic", "ref"]
+    processor.process(np.zeros(APM_FRAME, dtype=np.float32))
+    assert log == ["ref", "mic", "ref", "mic"]
+
+
+def test_a_held_back_reference_reaches_the_module_that_much_later():
+    log = []
+    processor, _ = _processor(log)
+    processor._reference_delay = APM_FRAME * 3
+    processor.push_reference(np.zeros(APM_FRAME * 4, dtype=np.float32))
+    processor.process(np.zeros(APM_FRAME, dtype=np.float32))
+    assert log == ["ref", "mic"]
+    processor.push_reference(np.zeros(APM_FRAME, dtype=np.float32))
+    processor.process(np.zeros(APM_FRAME, dtype=np.float32))
+    assert log == ["ref", "mic", "ref", "mic"]
 
 
 def test_reference_is_ignored_when_only_noise_suppression_is_on():
