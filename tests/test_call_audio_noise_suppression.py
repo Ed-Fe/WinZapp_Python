@@ -6,7 +6,7 @@ import threading
 import numpy as np
 
 from core.call_audio import (
-    CALL_FRAME_SAMPLES, CALL_SAMPLE_RATE, CallAudioConfig, CallAudioSession, _pcm16_bytes,
+    CALL_FRAME_SAMPLES, CALL_SAMPLE_RATE, CallAudioConfig, CallAudioSession,
 )
 from tests.test_call_audio_session import _Socket, _wait_for
 
@@ -26,7 +26,7 @@ def _send(noise_suppression):
     thread = threading.Thread(target=session._send_microphone_loop, daemon=True)
     thread.start()
     for i in range(0, len(noise), CALL_FRAME_SAMPLES):
-        session._mic_queue.put(_pcm16_bytes(noise[i:i + CALL_FRAME_SAMPLES]))
+        session._mic_queue.put(noise[i:i + CALL_FRAME_SAMPLES].copy())
         _wait_for(lambda: session._mic_queue.qsize() == 0)
     session._stop_event.set()
     thread.join(timeout=2)
@@ -48,7 +48,7 @@ def test_frames_dropped_for_latency_are_reported_to_the_echo_canceller():
     session._echo_canceller.skip_microphone = skipped.append
     # A backlog deeper than the target makes the sender drop the stale frames.
     for _ in range(6):
-        session._mic_queue.put(_pcm16_bytes(np.zeros(CALL_FRAME_SAMPLES, dtype=np.float32)))
+        session._mic_queue.put(np.zeros(CALL_FRAME_SAMPLES, dtype=np.float32))
     thread = threading.Thread(target=session._send_microphone_loop, daemon=True)
     thread.start()
     _wait_for(lambda: session._mic_queue.qsize() == 0)
@@ -86,7 +86,7 @@ def test_reference_played_before_a_drop_reaches_the_canceller_first():
     session._echo_canceller.skip_microphone = lambda samples: order.append("skip")
     session._echo_reference_tap.append((np.zeros(480, dtype=np.float32), CALL_SAMPLE_RATE))
     for _ in range(6):
-        session._mic_queue.put(_pcm16_bytes(np.zeros(CALL_FRAME_SAMPLES, dtype=np.float32)))
+        session._mic_queue.put(np.zeros(CALL_FRAME_SAMPLES, dtype=np.float32))
     thread = threading.Thread(target=session._send_microphone_loop, daemon=True)
     thread.start()
     _wait_for(lambda: session._mic_queue.qsize() == 0)

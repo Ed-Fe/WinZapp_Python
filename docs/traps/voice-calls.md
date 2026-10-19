@@ -1,5 +1,28 @@
 # Voice calls — Python owns the audio, the page owns everything else
 
+## Streaming device-rate conversion (2026-10-19)
+
+The call ends now use `core/call_audio_resampling.py` rather than per-packet
+linear interpolation. Rounding 1024 samples from 48 kHz to 44.1 kHz separately
+produced 941 samples each time instead of preserving the cumulative 940.8;
+this is a source-derived count defect, not a measured live-call diagnosis.
+The causal windowed-sinc FIR keeps integer rational clock position and sample
+history, suppressing alias/image frequencies. Its fixed delay is at most 4 ms
+at the supported 8–384 kHz rates; the equal-rate path does no filtering.
+
+Microphone callbacks copy float32 only; the sender does conversion and PCM16
+encoding. Converted input is packetized at 960 samples so dropping a stale
+20 ms capture still has the existing call-frame meaning. Discarding backlog
+also discards FIR/partial-frame history and accounts for the partial samples
+in existing echo bookkeeping. The remote player's FIR, rate snapshot and
+reservoir push share the output-swap lock; reopen/stop discard old FIR history,
+even when the new stream's rate is unchanged. Do not reset the FIR at every
+packet or flush its old tail into a replacement stream. Device/rate selection,
+exclusive access, buffer targets and all enhancement settings are unchanged.
+
+Synthetic contracts are in `tests/test_call_audio_resampling.py`. They do not
+establish live-provider, hardware, phone or packaged-NVDA acceptance.
+
 > The audio bridge, peer matching across JID forms, why the sync stand-down is bounded, call controls, PulseAudio for remote hosts, Socket.IO auth.
 >
 > Moved verbatim out of `CLAUDE.md` so it is read when the area is touched, not on every session. Keep it here: this is measured history, not a summary.

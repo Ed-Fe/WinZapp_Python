@@ -448,14 +448,15 @@ def test_microphone_backlog_skips_old_audio_instead_of_adding_delay():
         CallAudioConfig(session="winzapp"),
         sounddevice_module=_SoundDevice(),
     )
-    frames = [bytes([marker]) * 8 for marker in range(8)]
+    frames = [np.full(CALL_FRAME_SAMPLES, marker, dtype=np.float32) for marker in range(8)]
     for frame in frames:
         session._mic_queue.put_nowait(frame)
 
-    pcm, dropped = session._dequeue_fresh_microphone_frame()
+    samples, dropped, dropped_samples = session._dequeue_fresh_microphone_frame()
 
-    assert pcm == frames[5]
+    np.testing.assert_array_equal(samples, frames[5])
     assert dropped == 5
+    assert dropped_samples == 5 * CALL_FRAME_SAMPLES
     assert session._mic_queue.qsize() == CALL_MIC_TARGET_BACKLOG_FRAMES
 
 
@@ -1365,7 +1366,7 @@ def test_send_loop_runs_microphone_through_the_echo_canceller():
         thread.start()
         for i in range(0, len(far), 960):
             session._echo_reference_tap.append((far[i:i + 960], CALL_SAMPLE_RATE))
-            session._mic_queue.put(_pcm16_bytes(mic[i:i + 960]))
+            session._mic_queue.put(mic[i:i + 960].copy())
             _wait_for(lambda: session._mic_queue.qsize() == 0)
         session._stop_event.set()
         thread.join(timeout=2)

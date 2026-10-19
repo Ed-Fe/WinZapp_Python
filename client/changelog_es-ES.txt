@@ -4,6 +4,8 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
+- Las llamadas de voz conservan la temporización entre los paquetes de audio y usan conversión con limitación de banda cuando el micrófono o el altavoz necesita otra frecuencia de muestreo. El audio que ya tiene la frecuencia de la llamada sigue por la ruta directa.
+
 - La ventana de Configuración ahora tiene un campo de búsqueda y una lista de categorías: las flechas cambian de categoría, Tab entra en sus opciones y, en la búsqueda, la flecha abajo va a los resultados, donde Enter o Espacio abre la opción encontrada, incluso cuando está en la ventana de un botón. Se reunieron varias categorías: Audio (dispositivos, audios pegados con Ctrl+V, mensajes de voz y silenciar al grabar), Sonidos de eventos (eventos de sonido y tonos de alerta) y Almacenamiento (con la carpeta de guardado). Contenido hablado, Reproducción de audio, Copia de seguridad, Atajos de teclado, Reacciones, Notificaciones, Mensajes, Conversaciones, Chats bloqueados y Confirmaciones pasaron a ser botones que abren la ventana de cada tema. "Interfaz de usuario" ahora se llama "Interfaz", y Conexión pasó al final de la lista.
 
 - Configuración de WhatsApp (menú Archivo) ahora abre la configuración ya en la categoría Configuración de WhatsApp, con los botones Privacidad y Perfil; la ventana separada ya no existe. WinZapp solo consulta a WhatsApp cuando abres cada botón, y Ctrl+Shift+, sigue abriendo esa categoría.
