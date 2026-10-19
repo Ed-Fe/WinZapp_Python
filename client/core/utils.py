@@ -23,6 +23,11 @@ SEARCH_NORMALIZATION_MODES = ("off", "nfd", "nfkd")
 MEASURED_SECONDS_KEY = "_measured_seconds"
 
 
+def video_label(video: dict, i18n) -> str:
+    """The word naming a video: a video message (``ptv``) is not a plain video."""
+    return i18n.t("video_message") if (video or {}).get("ptv") else i18n.t("video")
+
+
 def video_seconds(video: dict):
     """A video's length in whole seconds, or None when it isn't known.
 
