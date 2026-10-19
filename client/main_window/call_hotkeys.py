@@ -41,6 +41,10 @@ from core.call_logic import (
 from core.dialog_foreground import force_foreground
 from main_window.win32_helpers import _HotkeyManager
 
+# A call key exists only while a call rings, so a key another account has
+# just let go of is retried every second, not on the 15 s of the show key.
+_CALL_KEY_RETRY_SECONDS = 1.0
+
 
 class CallHotkeysMixin:
     def _wanted_call_hotkeys(self) -> dict:
@@ -95,7 +99,10 @@ class CallHotkeysMixin:
             if name in managers:
                 continue
             try:
-                managers[name] = (_HotkeyManager(key[0], key[1], callback), key)
+                managers[name] = (
+                    _HotkeyManager(key[0], key[1], callback,
+                                   retry_seconds=_CALL_KEY_RETRY_SECONDS),
+                    key)
             except Exception:
                 logging.exception("[call_hotkeys] could not register the %s key", name)
 

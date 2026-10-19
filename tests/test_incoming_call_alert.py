@@ -774,12 +774,36 @@ class TestIncomingCallPopupDoesNotPinItselfOnTop:
     def test_the_popup_is_not_created_stay_on_top(self):
         assert "wx.STAY_ON_TOP" not in self._init_call()
 
-    def test_raising_the_popup_drops_topmost_straight_after(self):
+    def test_raising_the_popup_drops_topmost_straight_after(self, monkeypatch):
         """It must still appear over whatever app the user is in when the call
         arrives -- that is how a blind user learns of it -- but only once:
         HWND_TOPMOST (-1) followed by HWND_NOTOPMOST (-2), which the shared
         helper does when asked for ``topmost`` (tested below)."""
-        assert "force_foreground(int(self.GetHandle()), topmost=True)" in self.SOURCE
+        import ui.dialogs.incoming_call as incoming_call
+
+        fronted = []
+        monkeypatch.setattr(incoming_call, "force_foreground",
+                            lambda hwnd, topmost=False: fronted.append((hwnd, topmost)))
+
+        class _Focus:
+            focused = False
+
+            def SetFocus(self):
+                self.focused = True
+
+        class _Popup:
+            _default_focus = _Focus()
+
+            def Raise(self):
+                pass
+
+            def GetHandle(self):
+                return 0x1234
+
+        popup = _Popup()
+        incoming_call.IncomingCallDialog._force_foreground(popup)
+        assert fronted == [(0x1234, True)]
+        assert popup._default_focus.focused
 
     def test_topmost_is_dropped_straight_after_it_is_set(self, monkeypatch):
         import ctypes

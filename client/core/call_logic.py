@@ -49,7 +49,7 @@ def call_hotkey_is_valid(value) -> bool:
     return bool(mod & (_MOD_CONTROL | _MOD_ALT))
 
 
-def call_hotkey_setting(general, key):
+def saved_call_hotkey(general, key):
     """The (vk, mod) saved under ``general[key]``; the shipped key when nothing
     usable is saved; None once the user removed the shortcut."""
     value = (general or {}).get(key)
@@ -58,6 +58,22 @@ def call_hotkey_setting(general, key):
     if not value["vk"]:
         return None
     return value["vk"], value["mod"]
+
+
+def call_hotkey_setting(general, key):
+    """The call key in use: ``saved_call_hotkey``, but None while the "show
+    WinZapp" key is that same combination.
+
+    Someone could have put the show key on Ctrl+Alt+Shift+Enter before the call
+    keys shipped on it. The older key keeps it: Windows gives a combination to
+    one registration, so the call key could never work, and Settings would
+    refuse every OK over the clash.
+    """
+    pair = saved_call_hotkey(general, key)
+    show = (general or {}).get("global_hotkey")
+    if pair and isinstance(show, dict) and (show.get("vk"), show.get("mod")) == pair:
+        return None
+    return pair
 
 
 def first_answerable_call(active_calls, details_map) -> str:

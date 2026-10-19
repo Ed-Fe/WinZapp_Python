@@ -31,7 +31,7 @@ making the imported settings take effect.
 import copy
 from urllib.parse import urlsplit
 
-from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_is_valid, call_hotkey_setting
+from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_is_valid, saved_call_hotkey
 from core.utils import DEFAULT_SETTINGS
 
 #: What the first line of an exported file says it is. Checked on import so a
@@ -524,13 +524,13 @@ def _undo_clashing_call_hotkeys(current, merged, incoming, ignored):
         taken.add((show_key["vk"], show_key["mod"]))
     previous = (current or {}).get("general") or {}
     for key in CALL_HOTKEY_DEFAULTS:
-        pair = call_hotkey_setting(general, key)
+        pair = saved_call_hotkey(general, key)
         if pair in taken and key in imported and f"general.{key}" not in ignored:
             if key in previous:
                 general[key] = copy.deepcopy(previous[key])
             else:
                 general.pop(key, None)
             ignored.append(f"general.{key}")
-            pair = call_hotkey_setting(general, key)
+            pair = saved_call_hotkey(general, key)
         if pair:
             taken.add(pair)

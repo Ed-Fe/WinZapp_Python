@@ -80,10 +80,12 @@ class _HotkeyManager:
     _REFRESH_INTERVAL_SECONDS = 5 * 60
     _RETRY_INTERVAL_SECONDS = 15
 
-    def __init__(self, vk: int, mod: int, callback):
+    def __init__(self, vk: int, mod: int, callback, *, retry_seconds: float | None = None):
         self._vk       = vk
         self._mod      = mod
         self._callback = callback
+        # A key held only for a moment (a ringing call) retries sooner.
+        self._retry_seconds = retry_seconds or self._RETRY_INTERVAL_SECONDS
         self._stop     = threading.Event()
         self._thread_id = 0  # Win32 id of the loop's thread, for stop() to wake it
         self._thread   = threading.Thread(target=self._run, daemon=True)
@@ -123,7 +125,7 @@ class _HotkeyManager:
             logging.error(
                 "[HotkeyManager] RegisterHotKey failed (error=%s) — will keep "
                 "retrying every %ds instead of giving up silently.",
-                kernel32.GetLastError(), self._RETRY_INTERVAL_SECONDS,
+                kernel32.GetLastError(), self._retry_seconds,
             )
 
         msg = _MSG()
@@ -150,7 +152,7 @@ class _HotkeyManager:
                 logging.exception("[HotkeyManager] Error in hotkey message loop")
 
             now = time.time()
-            if not registered and now - last_retry >= self._RETRY_INTERVAL_SECONDS:
+            if not registered and now - last_retry >= self._retry_seconds:
                 last_retry = now
                 registered = self._register()
                 if registered:

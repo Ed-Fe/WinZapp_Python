@@ -21,6 +21,7 @@ from core.call_logic import (
     call_hotkey_is_valid,
     call_hotkey_setting,
     first_answerable_call,
+    saved_call_hotkey,
 )
 from main_window.call_hotkeys import CallHotkeysMixin
 from main_window.calls import CallsMixin
@@ -29,8 +30,9 @@ from main_window.calls import CallsMixin
 class _Manager:
     created = []
 
-    def __init__(self, vk, mod, callback):
+    def __init__(self, vk, mod, callback, *, retry_seconds=None):
         self.vk, self.mod, self.callback = vk, mod, callback
+        self.retry_seconds = retry_seconds
         self.stopped = False
         _Manager.created.append(self)
 
@@ -203,6 +205,18 @@ class TestTheSavedKeys:
         assert call_hotkey_setting({"call_answer_hotkey": junk}, "call_answer_hotkey") \
             == CALL_ANSWER_HOTKEY
 
+    def test_a_show_winzapp_key_on_the_same_keys_keeps_them(self):
+        """Set before the call keys shipped on that combination: the older key
+        keeps it, the call key is off rather than never registering."""
+        general = {"global_hotkey": {"vk": 0x0D, "mod": 0x0007}}
+        assert call_hotkey_setting(general, "call_answer_hotkey") is None
+        assert call_hotkey_setting(general, "call_end_hotkey") == CALL_END_HOTKEY
+        assert saved_call_hotkey(general, "call_answer_hotkey") == CALL_ANSWER_HOTKEY
+
+    def test_a_show_winzapp_key_elsewhere_changes_nothing(self):
+        general = {"global_hotkey": {"vk": 0x57, "mod": 0x0003}}
+        assert call_hotkey_setting(general, "call_answer_hotkey") == CALL_ANSWER_HOTKEY
+
     def test_every_shipped_key_is_valid(self):
         for vk, mod in CALL_HOTKEY_DEFAULTS.values():
             assert call_hotkey_is_valid({"vk": vk, "mod": mod})
@@ -250,6 +264,19 @@ class TestHoldingTheKeys:
         _drain(queued)
         window._request_call_hotkey_sync()
         assert len(queued) == 1      # a later change is synced again
+
+    def test_a_call_key_taken_elsewhere_is_retried_every_second(self, recorder):
+        """Another account lets go of the key as soon as its call is decided."""
+        window = _Window()
+        window.ring("a")
+        window._sync_call_hotkeys()
+        assert {m.retry_seconds for m in recorder.created} == {1.0}
+
+    def test_the_call_key_on_the_show_winzapp_key_is_not_registered(self, recorder):
+        window = _Window({"global_hotkey": {"vk": 0x0D, "mod": 0x0007}})
+        window.ring("a")
+        window._sync_call_hotkeys()
+        assert _held(window) == {"end": CALL_END_HOTKEY}
 
     def test_a_second_sync_does_not_register_again(self, recorder):
         window = _Window()
