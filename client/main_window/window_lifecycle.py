@@ -557,6 +557,11 @@ class WindowLifecycleMixin:
             # just stopped above.
             if getattr(self, "_presence_debounce_timer", None) is not None and self._presence_debounce_timer.IsRunning():
                 self._presence_debounce_timer.Stop()
+            # The global call keys first: pressed while the session is being
+            # stopped, answer would open call audio into a closing server.
+            release_call_keys = getattr(self, "_release_call_hotkeys", None)
+            if release_call_keys is not None:
+                release_call_keys()
             for identity in list(getattr(self, "_incoming_call_watchdogs", {})):
                 self._cancel_incoming_call_watchdog(identity)
             for identity in list(getattr(self, "_incoming_call_dialogs", {})):

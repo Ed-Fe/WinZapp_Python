@@ -85,6 +85,7 @@ class _HotkeyManager:
         self._mod      = mod
         self._callback = callback
         self._stop     = threading.Event()
+        self._thread_id = 0  # Win32 id of the loop's thread, for stop() to wake it
         self._thread   = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -116,6 +117,7 @@ class _HotkeyManager:
                 ("pt",      _POINT),
             ]
 
+        self._thread_id = kernel32.GetCurrentThreadId()
         registered = self._register()
         if not registered:
             logging.error(
@@ -178,48 +180,16 @@ class _HotkeyManager:
         """Unregister the key. With ``wait`` it is free again on return, for a
         caller about to register the same combination straight away."""
         self._stop.set()
-        if wait and self._thread is not threading.current_thread():
-            self._thread.join(timeout=1.0)
-
-
-def _bring_window_to_front(hwnd: int) -> None:
-    """Make *hwnd* the foreground window even when another program has it.
-
-    SetForegroundWindow() alone is refused while another program holds the
-    foreground, so the input queue is attached to that program's thread for the
-    call (the same trick restore_window() and the incoming-call popup use).
-    """
-    user32 = ctypes.windll.user32
-    user32.GetForegroundWindow.restype = ctypes.wintypes.HWND
-    user32.GetWindowThreadProcessId.argtypes = [
-        ctypes.wintypes.HWND, ctypes.POINTER(ctypes.wintypes.DWORD)]
-    user32.GetWindowThreadProcessId.restype = ctypes.wintypes.DWORD
-    user32.AttachThreadInput.argtypes = [
-        ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.BOOL]
-    user32.SetWindowPos.argtypes = [
-        ctypes.wintypes.HWND, ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_int,
-        ctypes.c_int, ctypes.c_int, ctypes.wintypes.UINT]
-    user32.BringWindowToTop.argtypes = [ctypes.wintypes.HWND]
-    user32.SetForegroundWindow.argtypes = [ctypes.wintypes.HWND]
-    handle = ctypes.wintypes.HWND(int(hwnd))
-    foreground = user32.GetForegroundWindow()
-    current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
-    foreground_thread = (
-        user32.GetWindowThreadProcessId(foreground, None) if foreground else 0)
-    attached = bool(
-        foreground_thread and foreground_thread != current_thread
-        and user32.AttachThreadInput(current_thread, foreground_thread, True))
-    try:
-        # HWND_TOPMOST puts it above whatever is in front now; HWND_NOTOPMOST
-        # straight after keeps it from staying pinned there.
-        flags = 0x0001 | 0x0002 | 0x0040  # NOSIZE | NOMOVE | SHOWWINDOW
-        user32.SetWindowPos(handle, ctypes.wintypes.HWND(-1), 0, 0, 0, 0, flags)
-        user32.SetWindowPos(handle, ctypes.wintypes.HWND(-2), 0, 0, 0, 0, flags)
-        user32.BringWindowToTop(handle)
-        user32.SetForegroundWindow(handle)
-    finally:
-        if attached:
-            user32.AttachThreadInput(current_thread, foreground_thread, False)
+        if not wait or self._thread is threading.current_thread():
+            return
+        if self._thread_id:
+            # WM_NULL wakes the loop's wait at once instead of at its next
+            # 200 ms timeout, so the UI thread waiting here is not held up.
+            try:
+                ctypes.windll.user32.PostThreadMessageW(self._thread_id, 0, 0, 0)
+            except Exception:
+                pass
+        self._thread.join(timeout=1.0)
 
 
 def _vk_mod_to_str(vk: int, mod: int) -> str:

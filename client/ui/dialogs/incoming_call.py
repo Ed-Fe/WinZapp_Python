@@ -1,10 +1,7 @@
 """Accessible modeless dialog for an incoming WhatsApp call."""
 
-import ctypes
-import sys
-from ctypes import wintypes
-
 import wx
+from core.dialog_foreground import force_foreground
 from core.keyboard_shortcuts import SECTION, binding_for
 from core.shortcut_catalog import SHORTCUTS
 from ui.shortcut_names import shortcut_name
@@ -227,51 +224,10 @@ class IncomingCallDialog(wx.Dialog):
         """Use Win32 focus attachment when ordinary Raise() is insufficient."""
         try:
             self.Raise()
-            if sys.platform == "win32":
-                user32 = ctypes.windll.user32
-                user32.GetForegroundWindow.restype = wintypes.HWND
-                user32.GetWindowThreadProcessId.argtypes = [
-                    wintypes.HWND, ctypes.POINTER(wintypes.DWORD)
-                ]
-                user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-                user32.AttachThreadInput.argtypes = [
-                    wintypes.DWORD, wintypes.DWORD, wintypes.BOOL
-                ]
-                user32.SetWindowPos.argtypes = [
-                    wintypes.HWND,
-                    wintypes.HWND,
-                    ctypes.c_int,
-                    ctypes.c_int,
-                    ctypes.c_int,
-                    ctypes.c_int,
-                    wintypes.UINT,
-                ]
-                user32.BringWindowToTop.argtypes = [wintypes.HWND]
-                user32.SetForegroundWindow.argtypes = [wintypes.HWND]
-                hwnd = wintypes.HWND(int(self.GetHandle()))
-                foreground = user32.GetForegroundWindow()
-                current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
-                foreground_thread = (
-                    user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
-                )
-                attached = bool(
-                    foreground_thread
-                    and foreground_thread != current_thread
-                    and user32.AttachThreadInput(current_thread, foreground_thread, True)
-                )
-                try:
-                    # HWND_TOPMOST gets it above whatever app is in front right
-                    # now; HWND_NOTOPMOST straight after keeps it at the top of
-                    # the ordinary Z-order without pinning it there, so Alt+Tab
-                    # to another window -- WinZapp's own included -- works.
-                    swp_flags = 0x0001 | 0x0002 | 0x0040  # NOSIZE|NOMOVE|SHOWWINDOW
-                    user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, swp_flags)
-                    user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, swp_flags)
-                    user32.BringWindowToTop(hwnd)
-                    user32.SetForegroundWindow(hwnd)
-                finally:
-                    if attached:
-                        user32.AttachThreadInput(current_thread, foreground_thread, False)
+            # Topmost for a moment: the popup has to come up over whatever
+            # program the user is in, then stays an ordinary window so Alt+Tab
+            # -- to WinZapp's own windows included -- works.
+            force_foreground(int(self.GetHandle()), topmost=True)
             self._default_focus.SetFocus()
         except Exception:
             try:

@@ -26,7 +26,7 @@ WHAT'S NEW
 
 - Echo cancellation in voice and video calls was rebuilt on the same engine Google Meet and WhatsApp itself use (WebRTC's echo canceller): talking through a laptop speaker or with a mixer's loopback turned on no longer makes the other person hear their own voice. The option is now on, also for people who already used WinZapp; to turn it off, uncheck "Enable echo cancellation" in "Call audio settings". Microphone noise reduction during calls now uses this engine too.
 
-- Answering calls from any window: while a one-to-one call is ringing, Ctrl+Alt+Shift+Enter answers it, brings the call window in front of any program and puts the focus in it, and Ctrl+Alt+Shift+Backspace rejects it; with no call ringing, Ctrl+Alt+Shift+Backspace hangs up the call in progress. A video call is answered with the camera on, like its Answer button. Both keys can be changed in the Keyboard shortcuts of Settings, and belong to WinZapp only while they can act, so other programs keep them the rest of the time.
+- Answering calls from any window: while a one-to-one call is ringing, Ctrl+Alt+Shift+Enter answers it, brings the call window in front of any program and puts the focus in it, and Ctrl+Alt+Shift+Backspace rejects it, as it does a ringing group call; with no call ringing, Ctrl+Alt+Shift+Backspace hangs up the call in progress. With several accounts open, a call ringing in any of them is rejected first. A video call is answered with the camera on, like its Answer button. Both keys can be changed in the Keyboard shortcuts of Settings, and belong to WinZapp only while they can act, so other programs keep them the rest of the time.
 
 V2.1.0.0
 

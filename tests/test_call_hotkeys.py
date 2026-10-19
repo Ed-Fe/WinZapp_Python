@@ -6,11 +6,14 @@ progress. Nothing here registers a real hotkey or opens a window: the manager
 is replaced by a recorder and the mixin runs on a plain stub.
 """
 
-import inspect
+import threading
+import types
 
 import pytest
 
+import ipc
 import main_window.call_hotkeys as call_hotkeys
+import main_window.calls as calls_module
 from core.call_logic import (
     CALL_ANSWER_HOTKEY,
     CALL_END_HOTKEY,
@@ -63,8 +66,25 @@ class _CallWindow:
         self.raised = True
 
 
+class _NoThread:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def start(self):
+        pass
+
+
+class _RunNow:
+    def __init__(self, target=None, **kwargs):
+        self._target = target
+
+    def start(self):
+        self._target()
+
+
 class _Window(CallHotkeysMixin):
     _has_answerable_incoming_call = CallsMixin._has_answerable_incoming_call
+    _first_incoming_call_identity = CallsMixin._first_incoming_call_identity
 
     def __init__(self, general=None):
         self._active_incoming_calls = {}
@@ -93,6 +113,26 @@ class _Window(CallHotkeysMixin):
         self.spoken.append((text, interrupt))
 
 
+class _AnsweringWindow(_Window):
+    """The real answer path: the alert stops, then the call is recorded."""
+    accept_incoming_call = CallsMixin.accept_incoming_call
+    stop_incoming_call_alert = CallsMixin.stop_incoming_call_alert
+    _sync_incoming_call_bar = CallsMixin._sync_incoming_call_bar
+    _call_control_payload = CallsMixin._call_control_payload
+
+    def _cancel_incoming_call_watchdog(self, identity):
+        pass
+
+    def _close_incoming_call_dialog(self, identity):
+        pass
+
+    def _stop_incoming_call_audio_monitor(self):
+        pass
+
+    def _sync_voice_call_bar(self):
+        self._request_call_hotkey_sync()
+
+
 @pytest.fixture(autouse=True)
 def recorder(monkeypatch):
     _Manager.created = []
@@ -102,6 +142,21 @@ def recorder(monkeypatch):
 
 def _held(window):
     return {name: key for name, (_m, key) in window._call_hotkey_managers.items()}
+
+
+@pytest.fixture
+def queued(monkeypatch):
+    """wx.CallAfter recorded instead of posted; ``_drain`` runs it."""
+    calls = []
+    monkeypatch.setattr(call_hotkeys.wx, "CallAfter",
+                        lambda fn, *a: calls.append((fn, a)))
+    return calls
+
+
+def _drain(queued):
+    while queued:
+        fn, args = queued.pop(0)
+        fn(*args)
 
 
 class TestWhichCall:
@@ -171,17 +226,30 @@ class TestHoldingTheKeys:
         window._sync_call_hotkeys()
         assert _held(window) == {"end": CALL_END_HOTKEY}
 
-    def test_answering_leaves_the_end_key_in_place(self, recorder):
-        window = _Window()
+    def test_answering_leaves_the_end_key_in_place(self, recorder, queued, monkeypatch):
+        """The real answer path stops the alert (nothing rings) before it
+        records the call; the key must not be dropped and taken again."""
+        monkeypatch.setattr(calls_module, "threading",
+                            types.SimpleNamespace(Thread=_NoThread))
+        window = _AnsweringWindow()
         window.ring("a")
         window._sync_call_hotkeys()
         end_manager = window._call_hotkey_managers["end"][0]
-        window._active_incoming_calls.clear()
-        window._active_voice_call = {"call_id": "a"}
-        window._sync_call_hotkeys()
+        window.accept_incoming_call("a")
+        _drain(queued)
         assert _held(window) == {"end": CALL_END_HOTKEY}
         assert window._call_hotkey_managers["end"][0] is end_manager
         assert not end_manager.stopped
+        assert len(recorder.created) == 2
+
+    def test_a_burst_of_changes_costs_one_sync(self, queued):
+        window = _Window()
+        window._request_call_hotkey_sync()
+        window._request_call_hotkey_sync()
+        assert len(queued) == 1
+        _drain(queued)
+        window._request_call_hotkey_sync()
+        assert len(queued) == 1      # a later change is synced again
 
     def test_a_second_sync_does_not_register_again(self, recorder):
         window = _Window()
@@ -199,11 +267,12 @@ class TestHoldingTheKeys:
         assert all(m.stopped for m in recorder.created)
         assert _held(window) == {}
 
-    def test_a_group_offer_alone_takes_nothing(self, recorder):
+    def test_a_group_offer_alone_takes_only_the_end_key(self, recorder):
+        """It cannot be answered, but it can be rejected."""
         window = _Window()
         window.ring("g", is_group=True)
         window._sync_call_hotkeys()
-        assert recorder.created == []
+        assert _held(window) == {"end": CALL_END_HOTKEY}
 
     def test_changed_settings_move_the_key_of_a_call_that_rings(self, recorder):
         window = _Window()
@@ -221,6 +290,24 @@ class TestHoldingTheKeys:
         window._sync_call_hotkeys()
         assert _held(window) == {"end": CALL_END_HOTKEY}
 
+    def test_shutting_down_releases_every_key(self, recorder):
+        window = _Window()
+        window.ring("a")
+        window._sync_call_hotkeys()
+        window._release_call_hotkeys()
+        assert all(m.stopped for m in recorder.created)
+        assert _held(window) == {}
+
+    def test_nothing_is_taken_again_while_shutting_down(self, recorder):
+        window = _Window()
+        window.ring("a")
+        window._shutting_down = True
+        window._sync_call_hotkeys()
+        assert recorder.created == []
+
+    def test_release_before_any_sync_is_harmless(self):
+        _Window()._release_call_hotkeys()
+
     def test_a_registration_error_does_not_break_the_call_alert(self, monkeypatch):
         def boom(*_args):
             raise OSError("no message loop")
@@ -234,7 +321,8 @@ class TestPressingTheKeys:
     @pytest.fixture(autouse=True)
     def _no_win32(self, monkeypatch):
         self.fronted = []
-        monkeypatch.setattr(call_hotkeys, "_bring_window_to_front", self.fronted.append)
+        monkeypatch.setattr(call_hotkeys, "force_foreground",
+                            lambda hwnd, topmost=False: self.fronted.append((hwnd, topmost)))
         self.queued = []
         monkeypatch.setattr(call_hotkeys.wx, "CallAfter",
                             lambda fn, *a: self.queued.append((fn, a)))
@@ -258,7 +346,7 @@ class TestPressingTheKeys:
         window._answer_call_from_hotkey()
         assert [fn.__name__ for fn, _a in self.queued] == ["_focus_call_window"]
         window._focus_call_window()
-        assert self.fronted == [0x1234]
+        assert self.fronted == [(0x1234, True)]
         assert window.voice_call_window_mute_button.focused
 
     def test_a_hidden_call_window_is_left_alone(self):
@@ -299,17 +387,189 @@ class TestPressingTheKeys:
         window._end_call_from_hotkey()
         assert window.rejected == ["a"] and window.ended == []
 
+    def test_a_group_offer_ringing_during_a_call_is_rejected_not_the_call(self):
+        window = _Window()
+        window._active_voice_call = {"call_id": "c"}
+        window.ring("g", is_group=True)
+        window._end_call_from_hotkey()
+        assert window.rejected == ["g"] and window.ended == []
+
+    def test_a_lone_group_offer_is_rejected(self):
+        window = _Window()
+        window.ring("g", is_group=True)
+        window._end_call_from_hotkey()
+        assert window.rejected == ["g"]
+
+    def test_the_keys_do_nothing_once_shutting_down(self):
+        window = _Window()
+        window.ring("a")
+        window._active_voice_call = {"call_id": "c"}
+        window._shutting_down = True
+        window._answer_call_from_hotkey()
+        window._end_call_from_hotkey()
+        assert window.accepted == [] and window.rejected == [] and window.ended == []
+        assert self.queued == []
+
     def test_end_with_no_call_at_all_does_nothing(self):
         window = _Window()
         window._end_call_from_hotkey()
         assert window.rejected == [] and window.ended == [] and window.spoken == []
 
 
-def test_every_change_of_the_calls_syncs_the_keys():
-    """The funnels every change of the ringing set / the call in progress passes through."""
-    assert "_sync_call_hotkeys" in inspect.getsource(CallsMixin._sync_incoming_call_bar)
-    assert "_sync_call_hotkeys" in inspect.getsource(CallsMixin._sync_voice_call_bar)
-    assert "_sync_call_hotkeys" in inspect.getsource(CallsMixin._stop_voice_call_audio)
+class TestSeveralAccounts:
+    """Each account is its own process and Windows gives a combination to one
+    registration: while account A holds the end key for its call, account B
+    ringing cannot take it, and the press meant for B arrives at A."""
+
+    @pytest.fixture(autouse=True)
+    def _accounts(self, monkeypatch):
+        self.queued = []
+        monkeypatch.setattr(call_hotkeys.wx, "CallAfter",
+                            lambda fn, *a: self.queued.append((fn, a)))
+        monkeypatch.setattr(call_hotkeys, "threading",
+                            types.SimpleNamespace(Thread=_RunNow))
+        self.asked = []
+        self.ringing_in = set()
+
+        def ask(gd, account_id, timeout=1.0):
+            self.asked.append(account_id)
+            return account_id in self.ringing_in
+
+        monkeypatch.setattr(ipc, "request_reject_ringing_call", ask)
+
+    def _window(self, others=("b", "c")):
+        window = _Window()
+        window.global_dir, window.account_id = "gd", "a"
+        window._other_running_account_ids = lambda: list(others)
+        window._active_voice_call = {"call_id": "c1"}
+        return window
+
+    def test_another_account_ringing_is_rejected_there_not_the_call_here(self):
+        self.ringing_in = {"b"}
+        window = self._window()
+        window._end_call_from_hotkey()
+        _drain(self.queued)
+        assert self.asked == ["b"]
+        assert window.ended == []
+
+    def test_with_nothing_ringing_anywhere_the_call_here_is_hung_up(self):
+        window = self._window()
+        window._end_call_from_hotkey()
+        _drain(self.queued)
+        assert self.asked == ["b", "c"]
+        assert window.ended == [True]
+
+    def test_a_call_that_ended_meanwhile_is_not_followed_by_another(self):
+        window = self._window()
+        window._end_call_from_hotkey()
+        window._active_voice_call = {"call_id": "c2"}
+        _drain(self.queued)
+        assert window.ended == []
+
+    def test_a_call_ringing_here_is_rejected_without_asking_anyone(self):
+        window = self._window()
+        window.ring("x")
+        window._end_call_from_hotkey()
+        assert window.rejected == ["x"] and self.asked == []
+
+    def test_an_unreachable_account_still_lets_the_call_be_hung_up(self, monkeypatch):
+        def boom(*_a, **_k):
+            raise OSError("pipe")
+        monkeypatch.setattr(ipc, "request_reject_ringing_call", boom)
+        window = self._window(others=("b",))
+        window._end_call_from_hotkey()
+        _drain(self.queued)
+        assert window.ended == [True]
+
+    def test_asked_by_another_account_a_ringing_call_is_rejected(self):
+        window = _Window()
+        window.ring("x")
+        assert window._ipc_reject_ringing_call() is True
+        _drain(self.queued)
+        assert window.rejected == ["x"]
+        assert window.spoken == [("<incoming_call_rejected>", True)]
+
+    def test_asked_with_nothing_ringing_the_answer_is_no(self):
+        window = _Window()
+        assert window._ipc_reject_ringing_call() is False
+        assert self.queued == []
+
+    def test_asked_while_shutting_down_the_answer_is_no(self):
+        window = _Window()
+        window.ring("x")
+        window._shutting_down = True
+        assert window._ipc_reject_ringing_call() is False
+
+
+class _FunnelWindow(_Window):
+    """Records the sync requests the call code makes."""
+    _sync_incoming_call_bar = CallsMixin._sync_incoming_call_bar
+    _sync_voice_call_bar = CallsMixin._sync_voice_call_bar
+    _stop_voice_call_audio = CallsMixin._stop_voice_call_audio
+
+    def __init__(self):
+        super().__init__()
+        self.requests = 0
+        self.voice_call_window = None
+
+    def _request_call_hotkey_sync(self):
+        self.requests += 1
+
+    def _stop_incoming_call_audio_monitor(self):
+        pass
+
+    def _stop_call_camera(self, reset_availability=False):
+        pass
+
+
+class TestEveryChangeOfTheCallsAsksForASync:
+    def test_a_change_of_the_ringing_set(self):
+        window = _FunnelWindow()
+        window._sync_incoming_call_bar()
+        assert window.requests == 1
+
+    def test_a_change_of_the_call_in_progress(self):
+        window = _FunnelWindow()
+        window._sync_voice_call_bar()
+        assert window.requests == 1
+
+    def test_the_end_of_a_call(self, queued):
+        window = _FunnelWindow()
+        window._active_voice_call = {"call_id": "c"}
+        window._stop_voice_call_audio()
+        _drain(queued)
+        assert window._active_voice_call is None
+        assert window.requests == 1
+
+
+def test_shutdown_releases_the_call_keys_before_stopping_anything():
+    from main import MainWindow
+
+    order = []
+
+    class _Stub:
+        _perform_shutdown = MainWindow._perform_shutdown
+
+        def __init__(self):
+            self._teardown_started_lock = threading.Lock()
+            self._teardown_complete_event = threading.Event()
+            self._shutting_down = False
+
+        def _release_call_hotkeys(self):
+            order.append("release keys")
+
+        def _stop_voice_call_audio(self, grace_seconds=0.0):
+            order.append("stop call audio")
+
+        def _stop_wpp_server(self):
+            order.append("stop server")
+
+        def _flush_pending_debounced_saves(self):
+            pass
+
+    _Stub()._perform_shutdown()
+    assert order[0] == "release keys"
+    assert {"stop call audio", "stop server"} <= set(order)
 
 
 def test_the_bar_sync_still_works_on_a_window_without_the_mixin():

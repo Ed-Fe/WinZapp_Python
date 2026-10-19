@@ -777,11 +777,44 @@ class TestIncomingCallPopupDoesNotPinItselfOnTop:
     def test_raising_the_popup_drops_topmost_straight_after(self):
         """It must still appear over whatever app the user is in when the call
         arrives -- that is how a blind user learns of it -- but only once:
-        HWND_TOPMOST (-1) followed by HWND_NOTOPMOST (-2)."""
-        topmost = self.SOURCE.index("wintypes.HWND(-1)")
-        notopmost = self.SOURCE.index("wintypes.HWND(-2)")
-        assert topmost < notopmost
-        assert self.SOURCE.count("wintypes.HWND(-1)") == 1
+        HWND_TOPMOST (-1) followed by HWND_NOTOPMOST (-2), which the shared
+        helper does when asked for ``topmost`` (tested below)."""
+        assert "force_foreground(int(self.GetHandle()), topmost=True)" in self.SOURCE
+
+    def test_topmost_is_dropped_straight_after_it_is_set(self, monkeypatch):
+        import ctypes
+        import sys
+
+        import core.dialog_foreground as front
+
+        calls = []
+
+        class _Func:
+            def __init__(self, name):
+                self.name = name
+
+            def __call__(self, *args):
+                calls.append((self.name, args))
+                return 0
+
+        class _Dll:
+            def __init__(self, *_a, **_k):
+                pass
+
+            def __getattr__(self, name):
+                func = _Func(name)
+                setattr(self, name, func)
+                return func
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(front.ctypes, "WinDLL", _Dll)
+        front.force_foreground(0x1234, topmost=True)
+        inserts = [args[1].value for name, args in calls if name == "SetWindowPos"]
+        assert inserts == [ctypes.c_void_p(-1).value, ctypes.c_void_p(-2).value]
+
+        calls.clear()
+        front.force_foreground(0x1234)
+        assert not any(name == "SetWindowPos" for name, _a in calls)
 
 
 def test_an_offer_that_stops_ringing_has_its_call_record_looked_up():

@@ -26,7 +26,7 @@ YENİLİKLER
 
 - Sesli ve görüntülü aramalardaki yankı önleme, Google Meet'in ve WhatsApp'ın kendisinin kullandığı motorla (WebRTC yankı gidericisi) yeniden yapıldı: dizüstü bilgisayarın hoparlöründen ya da mikserin geri dönüşü (loopback) açıkken konuşmak artık karşıdaki kişinin kendi sesini duymasına yol açmıyor. Seçenek artık açık geliyor, WinZapp'ı zaten kullananlar için de; kapatmak için "Arama ses ayarları" içinde "Yankı önlemeyi etkinleştir" kutusunun işaretini kaldırın. Aramadaki mikrofon gürültü azaltma da artık bu motoru kullanıyor.
 
-- Aramaları herhangi bir pencereden yanıtlama: tek kişilik bir arama çalarken Ctrl+Alt+Shift+Enter onu yanıtlar, arama penceresini her programın önüne getirir ve odağı ona verir; Ctrl+Alt+Shift+Geri sil ise reddeder. Hiçbir arama çalmıyorken Ctrl+Alt+Shift+Geri sil sürmekte olan aramayı kapatır. Görüntülü arama, yanıtlama düğmesinde olduğu gibi kamera açık yanıtlanır. İki tuş Ayarlar'daki Kısayollar bölümünden değiştirilebilir ve yalnızca işe yarayabildikleri sürece WinZapp'a aittir; geri kalan zamanda diğer programlarda kalır.
+- Aramaları herhangi bir pencereden yanıtlama: tek kişilik bir arama çalarken Ctrl+Alt+Shift+Enter onu yanıtlar, arama penceresini her programın önüne getirir ve odağı ona verir; Ctrl+Alt+Shift+Geri sil ise onu ve çalan bir grup aramasını reddeder. Hiçbir arama çalmıyorken Ctrl+Alt+Shift+Geri sil sürmekte olan aramayı kapatır. Birden fazla hesap açıksa önce herhangi birinde çalan arama reddedilir. Görüntülü arama, yanıtlama düğmesinde olduğu gibi kamera açık yanıtlanır. İki tuş Ayarlar'daki Kısayollar bölümünden değiştirilebilir ve yalnızca işe yarayabildikleri sürece WinZapp'a aittir; geri kalan zamanda diğer programlarda kalır.
 
 V2.1.0.0
 
