@@ -14,6 +14,10 @@ NOVIDADES
 
 - As comunidades passam a ser um item da lista de navegação, depois de Chamadas, com o atalho Alt+8 no nome do item; pode chegar-se lá descendo pela lista e não só com Alt+8.
 
+- Bloquear um número que não está guardado nos seus contactos já não falha com "Não foi possível bloquear este contacto": o WinZapp passa a abrir a conversa que o WhatsApp exige antes de bloquear.
+
+- Uma conversa nova iniciada com um número brasileiro escrito com o 9 extra deixa de aparecer duplicada na lista de conversas depois de enviar a primeira mensagem: o WinZapp mantém a conversa no número que o próprio WhatsApp usa.
+
 - As mensagens de vídeo (os vídeos redondos enviados em vez de uma mensagem de voz) passam a aparecer como vídeos, em vez de "Mensagem incompatível", e chamam-se "mensagem de vídeo" na lista, com a mesma duração, reprodução e Guardar como de qualquer vídeo.
 
 V2.1.0.0

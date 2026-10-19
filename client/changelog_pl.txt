@@ -14,6 +14,10 @@ NOWOŚCI
 
 - Społeczności są teraz pozycją listy nawigacji, po Połączeniach, ze skrótem Alt+8 w nazwie pozycji; można do nich dojść strzałkami po liście, a nie tylko skrótem Alt+8.
 
+- Blokowanie numeru, którego nie ma w zapisanych kontaktach, nie kończy się już błędem „Nie można zablokować tego kontaktu”: WinZapp otwiera teraz czat, którego WhatsApp wymaga przed zablokowaniem.
+
+- Nowa rozmowa rozpoczęta z brazylijskim numerem wpisanym z dodatkową dziewiątką nie pojawia się już dwa razy na liście rozmów po wysłaniu pierwszej wiadomości: WinZapp zachowuje rozmowę pod numerem, którego używa sam WhatsApp.
+
 - Wiadomości wideo (okrągłe filmy wysyłane zamiast wiadomości głosowej) są teraz wyświetlane jako filmy, zamiast „Niezgodna wiadomość”, i są nazwane „wiadomość wideo” na liście, z tym samym czasem trwania, odtwarzaniem i opcją Zapisz jako co każdy film.
 
 V2.1.0.0
