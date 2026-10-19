@@ -21,7 +21,7 @@ MEASURE_WINDOW_S = 2.0
 # milliseconds, up to about a second through a software loopback.
 MEASURE_MAX_LAG_S = 1.0
 # ...and the reference may reach the module a little late (sender batching).
-MEASURE_MIN_LAG_S = 0.1
+MEASURE_MAX_LEAD_S = 0.1
 
 
 def decimate(samples: np.ndarray) -> np.ndarray:
@@ -32,12 +32,12 @@ def decimate(samples: np.ndarray) -> np.ndarray:
 
 def echo_coupling(reference: np.ndarray, signal: np.ndarray, *, rate: int = MEASURE_RATE,
                   max_lag_s: float = MEASURE_MAX_LAG_S,
-                  min_lag_s: float = MEASURE_MIN_LAG_S):
+                  max_lead_s: float = MEASURE_MAX_LEAD_S):
     """How much of *reference* *signal* carries, and how late.
 
     Both arrays end at the same moment; *reference* may be longer (it holds the
     past the lag search needs). Returns (coefficient, lag_ms): the peak of the
-    normalised cross-correlation over lags [-min_lag, max_lag], 0..1, where
+    normalised cross-correlation over lags [-max_lead, max_lag], 0..1, where
     ~0.9 means the signal is essentially a copy of the reference (a loopback)
     and under ~0.1 means no echo worth hearing. (0.0, None) when either side
     is silent.
@@ -46,7 +46,7 @@ def echo_coupling(reference: np.ndarray, signal: np.ndarray, *, rate: int = MEAS
     reference = np.asarray(reference, dtype=np.float64)
     n = signal.size
     back = int(max_lag_s * rate)
-    ahead = int(min_lag_s * rate)
+    ahead = int(max_lead_s * rate)
     if n == 0 or reference.size < n:
         return 0.0, None
     # ref[back] pairs with signal[0] at lag 0; the `ahead` zeros at the end let
