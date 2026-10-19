@@ -19,7 +19,13 @@ def test_text_status_has_bounded_ack_wait():
 
 
 def test_status_http_timeout_allows_ack_fallback_to_finish():
+    """Every status post waits longer than the server's 10 s ack fallback:
+    text and voice for 60 s, a photo or video for as long as its upload
+    needs, never less (status_rules.status_upload_timeout())."""
+    from status_tab.status_rules import status_upload_timeout
     source = status_panel_source()
     assert source.count(
         "api_post(url, json=payload, headers=headers, timeout=60)"
-    ) >= 3
+    ) >= 2
+    assert "timeout=status_upload_timeout(" in source
+    assert status_upload_timeout(0) >= 60

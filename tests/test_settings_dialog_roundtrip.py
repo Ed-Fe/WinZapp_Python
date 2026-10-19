@@ -40,6 +40,12 @@ def _write(path):
 # tmp_path when the value depends on it), how to set the controls, and how to
 # tell the reopened dialog shows it. Every function receives (dialog, tmp_path).
 SCENARIOS = {
+    # Settings > Advanced (ui/dialogs/advanced_tab.py).
+    "advanced_wpp_all_updates": dict(
+        saves={("general", "wpp_all_updates"): True},
+        set=lambda d, t: d._wpp_all_updates_check.SetValue(True),
+        shows=lambda d, t: d._wpp_all_updates_check.GetValue() is True,
+    ),
     "language": dict(
         saves={("general", "language"): "en-US"},
         set=lambda d, t: d._lang_combo.SetSelection(d._lang_codes.index("en-US")),

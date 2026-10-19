@@ -2114,7 +2114,7 @@ class WppUpdateChecker:
         release. "" when there is none; wpp_update_target() still never
         offers anything below the pin."""
         from core import wpp_upstream
-        if not wpp_upstream.enabled(getattr(self._mw, "settings", None)):
+        if not wpp_upstream.enabled(getattr(getattr(self, "_mw", None), "settings", None)):
             return approved
         latest = wpp_upstream.fetch_latest_tag(f"WinZapp/{__version__}")
         return wpp_upstream.newest_tag(approved, latest) or approved
