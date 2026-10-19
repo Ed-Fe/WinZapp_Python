@@ -14,6 +14,8 @@ NOWOŚCI
 
 - Społeczności są teraz pozycją listy nawigacji, po Połączeniach, ze skrótem Alt+8 w nazwie pozycji; można do nich dojść strzałkami po liście, a nie tylko skrótem Alt+8.
 
+- Wiadomości wideo (okrągłe filmy wysyłane zamiast wiadomości głosowej) są teraz wyświetlane jako filmy, z czasem trwania, odtwarzaniem i opcją Zapisz jako, zamiast „Niezgodna wiadomość”.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
