@@ -105,6 +105,7 @@ from core.transcription import (
     precision,
     preferences,
     stored as stored_transcription,
+    waiting_runs,
 )
 from core.utils import is_phone_like
 from ui.dialogs.transcription_progress import TranscriptionProgressDialog
@@ -555,27 +556,37 @@ class MessageTranscriptionFlow:
     # the user stays where they are, and the result arrives when it is ready.
     # One such run at a time, kept on the main window so the same shortcut can
     # cancel it and quitting can stop it (MainWindow.stop_transcription_runs).
+    # An inline one asked for meanwhile waits its turn (core/transcription/
+    # waiting_runs.py); one that ends in a window is refused.
 
     def _runs_without_dialog(self):
         section = self._main_window.settings.get("transcription")
         return isinstance(section, dict) and section.get("run_without_dialog") is True
 
-    def _start_in_background(self):
+    def _start_in_background(self, announce=True):
         mw = self._main_window
         i18n = self._i18n
         active = getattr(mw, "_background_transcription", None)
         if active is not None:
+            waiting = waiting_runs.of(mw)
             if active.targets(self):
                 # The same shortcut on the same message: that is Cancel.
                 active.cancel_background()
                 mw.output(i18n.t("transcription_background_cancelling"))
+            elif waiting.withdraw(self):
+                # The same shortcut on a message waiting its turn: out of the queue.
+                mw.output(i18n.t("transcription_queue_removed"))
+            elif self._inline and waiting.add(self):
+                # Its text goes into the message's line, no window: it waits.
+                mw.output(i18n.t("transcription_queue_added").format(position=len(waiting)))
             else:
                 mw.output(i18n.t("transcription_background_busy"))
             return
         self._background = True
         self._prepare()
         mw._background_transcription = self
-        mw.output(i18n.t("transcription_background_started"))
+        if announce:
+            mw.output(i18n.t("transcription_background_started"))
         try:
             self._make_first_run(lambda tick: None, self._background_done).start()
         except Exception as exc:
@@ -608,6 +619,29 @@ class MessageTranscriptionFlow:
             self._finish(self._run, result, error)
         finally:
             self._cleanup()
+            self._start_next_waiting()
+
+    def _start_next_waiting(self):
+        """The oldest inline transcription waiting for this one, started now.
+
+        Said only by its result: "it continues in the background" was said when
+        it was queued. Not while quitting (stop_transcription_runs() empties
+        the queue, this guards the run that ends in between), and not while
+        another run took the slot meanwhile.
+        """
+        mw = self._main_window
+        if getattr(mw, "_shutting_down", False):
+            return
+        if getattr(mw, "_background_transcription", None) is not None:
+            return
+        waiting = getattr(mw, "_waiting_transcriptions", None)
+        while waiting is not None and len(waiting):
+            flow = waiting.next()
+            if flow._hidden_by_vault():
+                # Its chat was locked meanwhile: nothing it produced could be shown.
+                continue
+            flow._start_in_background(announce=False)
+            return
 
     # ── Running ──────────────────────────────────────────────────────────────
 

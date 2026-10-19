@@ -18,17 +18,20 @@ from ui.status_transcription_flow import StatusTranscriptionFlow
 from ui.transcription_flow import MessageTranscriptionFlow
 
 STRINGS = {"transcription_background_started": "started", "transcription_background_busy": "busy",
-           "transcription_background_cancelling": "cancelling", "transcription_no_audio": "no audio"}
+           "transcription_background_cancelling": "cancelling", "transcription_no_audio": "no audio",
+           "transcription_queue_added": "queued {position}", "transcription_queue_removed": "unqueued"}
 
 
 class Flow:
     for _name in ("start", "_prepare", "_cleanup", "_runs_without_dialog", "_start_in_background", "targets",
-                  "cancel_background", "_background_done", "_background_finished", "_say_after_focus"):
+                  "cancel_background", "_background_done", "_background_finished", "_say_after_focus",
+                  "_start_next_waiting"):
         locals()[_name] = getattr(MessageTranscriptionFlow, _name)
     del _name
 
-    def __init__(self, window, message_id="A", without_dialog=True):
+    def __init__(self, window, message_id="A", without_dialog=True, inline=False):
         self._main_window = window
+        self._inline = inline
         window.settings = {"transcription": {"run_without_dialog": without_dialog}}
         self._i18n = SimpleNamespace(t=lambda key: STRINGS[key])
         self._msg, self._msg_id = {"id": message_id}, message_id
@@ -177,3 +180,97 @@ def test_quitting_cancels_a_run_without_the_window_and_waits_for_it():
 
 def test_the_setting_is_off_by_default_and_a_damaged_value_is_reset():
     assert preferences.DEFAULTS[preferences.SETTING_RUN_WITHOUT_DIALOG] is False
+
+
+# ── Inline transcriptions wait their turn ───────────────────────────────────
+
+
+def _inline(window, message_id):
+    flow = Flow(window, message_id, inline=True)
+    window.settings = {"transcription": {"run_without_dialog": True}}
+    return flow
+
+
+def test_an_inline_transcription_meanwhile_waits_instead_of_being_refused(window):
+    first = Flow(window, "A")
+    first.start()
+    second, third = _inline(window, "B"), _inline(window, "C")
+    second.start()
+    assert window.output.call_args.args == ("queued 1",)
+    third.start()
+    assert window.output.call_args.args == ("queued 2",)
+    second.run.start.assert_not_called()
+    first.run.cancel.assert_not_called()
+
+    first.on_finished("text A", None)
+    second.run.start.assert_called_once_with()
+    assert window._background_transcription is second
+    assert window.output.call_args.args == ("queued 2",), "the next one starts in silence"
+    third.run.start.assert_not_called()
+
+    second.on_finished("text B", None)
+    third.run.start.assert_called_once_with()
+    third.on_finished("text C", None)
+    assert window._background_transcription is None and len(window._waiting_transcriptions) == 0
+
+
+def test_one_that_ends_in_a_window_is_still_refused(window):
+    Flow(window, "A").start()
+    windowed = Flow(window, "B")
+    windowed.start()
+    assert window.output.call_args.args == ("busy",)
+    assert not getattr(window, "_waiting_transcriptions", None)
+
+
+def test_the_same_shortcut_on_a_waiting_message_takes_it_out(window):
+    first = Flow(window, "A")
+    first.start()
+    _inline(window, "B").start()
+    again = _inline(window, "B")
+    again.start()
+    assert window.output.call_args.args == ("unqueued",)
+    first.on_finished("text A", None)
+    assert window._background_transcription is None
+
+
+def test_cancelling_the_running_one_moves_on_to_the_next(window):
+    first = Flow(window, "A")
+    first.start()
+    waiting = _inline(window, "B")
+    waiting.start()
+    Flow(window, "A").start()  # Cancel
+    first.on_finished(None, errors.TranscriptionError(errors.CANCELLED, "cancelled"))
+    waiting.run.start.assert_called_once_with()
+
+
+def test_a_waiting_message_whose_chat_was_locked_is_skipped(window):
+    first = Flow(window, "A")
+    first.start()
+    locked, after = _inline(window, "B"), _inline(window, "C")
+    locked._hidden_by_vault = lambda: True
+    locked.start()
+    after.start()
+    first.on_finished("text", None)
+    locked.run.start.assert_not_called()
+    after.run.start.assert_called_once_with()
+
+
+def test_nothing_waiting_starts_while_quitting(window):
+    first = Flow(window, "A")
+    first.start()
+    waiting = _inline(window, "B")
+    waiting.start()
+    window._shutting_down = True
+    first.on_finished("text", None)
+    waiting.run.start.assert_not_called()
+
+
+def test_quitting_empties_the_queue_before_cancelling_the_run():
+    from core.transcription.waiting_runs import WaitingRuns
+    queue = WaitingRuns()
+    queue.add(SimpleNamespace(targets=lambda other: False))
+    run = SimpleNamespace(join=Mock())
+    window = SimpleNamespace(_waiting_transcriptions=queue,
+                             _background_transcription=SimpleNamespace(cancel_background=Mock(return_value=run)))
+    AutoTranscriptionMixin.stop_transcription_runs(window, timeout=1)
+    assert len(queue) == 0
