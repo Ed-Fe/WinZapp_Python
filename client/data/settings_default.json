@@ -30,6 +30,8 @@
         "terms_alert_displayed": false,
         "quick_tip_shown": false,
         "global_hotkey": null,
+        "call_answer_hotkey": {"vk": 13, "mod": 7},
+        "call_end_hotkey": {"vk": 8, "mod": 7},
         "switch_behavior": "single",
         "announce_sync_events": true,
         "search_normalization": "off",

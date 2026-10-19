@@ -180,6 +180,11 @@ class CallsMixin:
 
     def _sync_incoming_call_bar(self, message: str = ""):
         """Show the local stop control while a non-popup call alert is active."""
+        # Every change of the ringing set passes through here, which is what
+        # keeps the global answer/decline keys alive exactly while a call rings.
+        sync_hotkeys = getattr(self, "_sync_call_hotkeys", None)
+        if sync_hotkeys is not None:
+            sync_hotkeys()
         bar = getattr(self, "incoming_call_bar", None)
         label = getattr(self, "incoming_call_label", None)
         if bar is None or label is None:
@@ -498,6 +503,10 @@ class CallsMixin:
             self._stop_call_camera(reset_availability=True)
             self._active_voice_call = None
             self._voice_call_last_announced_state = ""
+            # May run on a worker thread: the end-call key goes with the call.
+            sync_hotkeys = getattr(self, "_sync_call_hotkeys", None)
+            if sync_hotkeys is not None:
+                wx.CallAfter(sync_hotkeys)
         if session is not None:
             try:
                 session.stop(notify_bridge=not keep_call)
@@ -1500,6 +1509,9 @@ class CallsMixin:
 
     def _sync_voice_call_bar(self):
         """Keep the modeless call window in step without repeatedly stealing focus."""
+        sync_hotkeys = getattr(self, "_sync_call_hotkeys", None)
+        if sync_hotkeys is not None:
+            sync_hotkeys()
         window = getattr(self, "voice_call_window", None)
         if window is None:
             return

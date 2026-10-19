@@ -2231,6 +2231,19 @@ msgid "&Yes"
 msgstr "&Da"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "call_answer_hotkey_label"
+msgid "Global hotkey to answer an incoming call from any window"
+msgstr ""
+"Tasta rapidă globală pentru a răspunde la un apel primit din orice fereastră"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "call_end_hotkey_label"
+msgid "Global hotkey to reject an incoming call or end the call in progress"
+msgstr ""
+"Tasta rapidă globală pentru a respinge un apel primit sau a încheia apelul "
+"în curs"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bulk_messages.py
 msgctxt "call_log_action_unavailable"
 msgid "This action is not available for calls."
@@ -6210,6 +6223,12 @@ msgstr "R&espingeți"
 msgctxt "incoming_call_reject_failed"
 msgid "Could not reject the call: {error}"
 msgstr "Nu s-a putut respinge apelul: {error}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/call_hotkeys.py
+msgctxt "incoming_call_rejected"
+msgid "Call rejected."
+msgstr "Apel respins."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/main_window/shortcuts.py

@@ -5,7 +5,10 @@ import wx
 from core.keyboard_shortcuts import SECTION, binding_for, conflicts, default_binding, logical_key
 from core.shortcut_catalog import SHORTCUTS
 from ui import shortcut_bindings as keys
-from ui.dialogs.shortcuts_tab import GLOBAL, ShortcutsTabMixin, visible_shortcuts
+from core.call_logic import CALL_ANSWER_HOTKEY, CALL_END_HOTKEY, CALL_HOTKEY_DEFAULTS
+from ui.dialogs.shortcuts_tab import (
+    CALL_ANSWER, CALL_END, GLOBAL, ShortcutsTabMixin, shortcuts_help_text, visible_shortcuts,
+)
 from ui.conversation_panel.composer import ComposerMixin
 from ui.conversation_panel.chat_selection import ChatSelectionMixin
 from ui.conversation_panel.archived_panel import ArchivedConversationsPanel
@@ -31,7 +34,8 @@ def spec(shortcut_id):
 
 def window(overrides=None):
     return SimpleNamespace(settings={SECTION: dict(overrides or {})},
-                           i18n=SimpleNamespace(t=translate, language='en-US'))
+                           i18n=SimpleNamespace(t=translate, language='en-US'),
+                           _sync_call_hotkeys=lambda: None)
 
 
 class Event:
@@ -180,6 +184,7 @@ def settings_stub(overrides=None, global_vk=0):
         def __init__(self):
             self.main_window = window()
             self._shortcut_overrides = dict(overrides or {})
+            self._call_hotkeys = dict(CALL_HOTKEY_DEFAULTS)
             self._hotkey_field = SimpleNamespace(_vk=global_vk, _mod=2,
                                                  SetValue=lambda _: None)
             self._lang_combo = SimpleNamespace(GetSelection=lambda: 0)
@@ -371,3 +376,66 @@ def test_incoming_call_table_removes_or_replaces_original_answer_key(monkeypatch
         assert tables == [((2, ord('J'), 101),)]
         incoming.IncomingCallDialog._on_accelerator(owner, SimpleNamespace(GetId=lambda: 101))
         assert answered == [True]
+
+
+def test_the_call_keys_are_listed_with_the_show_winzapp_key():
+    rows = visible_shortcuts(window())
+    assert rows[:3] == [GLOBAL, CALL_ANSWER, CALL_END]
+
+
+def test_the_call_keys_start_on_their_shipped_keys():
+    dialog = settings_stub()
+    assert dialog._shortcut_binding(CALL_ANSWER) == (7, wx.WXK_RETURN)
+    assert dialog._shortcut_binding(CALL_END) == (7, wx.WXK_BACK)
+
+
+def test_the_help_text_names_the_call_keys():
+    text = shortcuts_help_text(window(), SimpleNamespace(t=translate))
+    assert 'call_answer_hotkey_label' in text and 'call_end_hotkey_label' in text
+
+
+def test_removing_a_call_key_stages_none_and_applying_saves_it(monkeypatch):
+    monkeypatch.setattr('ui.dialogs.shortcuts_tab.refresh_shortcuts', lambda _: None)
+    dialog = settings_stub()
+    dialog.main_window.settings['general'] = {}
+    dialog._shortcut_list = SimpleNamespace(GetSelection=lambda: 1)
+    dialog._shortcut_rows = visible_shortcuts(dialog.main_window)
+    dialog._remove_shortcut()
+    assert dialog._shortcut_binding(CALL_ANSWER) is None
+    dialog._apply_shortcut_values()
+    general = dialog.main_window.settings['general']
+    assert general['call_answer_hotkey'] == {'vk': 0, 'mod': 0}
+    assert general['call_end_hotkey'] == {'vk': CALL_END_HOTKEY[0], 'mod': CALL_END_HOTKEY[1]}
+
+
+def test_resetting_a_call_key_brings_back_the_shipped_key():
+    dialog = settings_stub()
+    dialog._call_hotkeys['call_end_hotkey'] = (ord('Q'), 3)
+    dialog._shortcut_list = SimpleNamespace(GetSelection=lambda: 2)
+    dialog._shortcut_rows = visible_shortcuts(dialog.main_window)
+    dialog._reset_shortcut()
+    assert dialog._call_hotkeys['call_end_hotkey'] == CALL_END_HOTKEY
+
+
+def test_the_two_call_keys_cannot_share_a_key(monkeypatch):
+    warnings = []
+    monkeypatch.setattr(wx, 'MessageBox', lambda *args: warnings.append(args))
+    dialog = settings_stub()
+    assert not dialog._accept_shortcut(CALL_END, dialog._shortcut_binding(CALL_ANSWER))
+    assert warnings
+
+
+def test_a_command_cannot_take_a_call_key(monkeypatch):
+    warnings = []
+    monkeypatch.setattr(wx, 'MessageBox', lambda *args: warnings.append(args))
+    dialog = settings_stub()
+    assert not dialog._accept_shortcut(spec('main.ID_ALT_1'), dialog._shortcut_binding(CALL_ANSWER))
+    assert warnings
+
+
+def test_a_call_key_cannot_take_the_show_winzapp_key(monkeypatch):
+    warnings = []
+    monkeypatch.setattr(wx, 'MessageBox', lambda *args: warnings.append(args))
+    dialog = settings_stub(global_vk=ord('R'))
+    assert not dialog._accept_shortcut(CALL_ANSWER, (2, ord('R')))
+    assert warnings

@@ -31,6 +31,7 @@ making the imported settings take effect.
 import copy
 from urllib.parse import urlsplit
 
+from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_is_valid
 from core.utils import DEFAULT_SETTINGS
 
 #: What the first line of an exported file says it is. Checked on import so a
@@ -487,6 +488,10 @@ def merge_settings(current, incoming, include_connection=True):
                 ignored.append(f"{section}.{key}")
                 continue
             if section == "general" and key == "global_hotkey" and not global_hotkey_is_valid(item):
+                ignored.append(f"{section}.{key}")
+                continue
+            if (section == "general" and key in CALL_HOTKEY_DEFAULTS
+                    and not call_hotkey_is_valid(item)):
                 ignored.append(f"{section}.{key}")
                 continue
             if section == "general" and key == "language" and not _language_is_usable(

@@ -174,8 +174,52 @@ class _HotkeyManager:
         if registered:
             user32.UnregisterHotKey(None, self._HOTKEY_ID)
 
-    def stop(self):
+    def stop(self, wait: bool = False):
+        """Unregister the key. With ``wait`` it is free again on return, for a
+        caller about to register the same combination straight away."""
         self._stop.set()
+        if wait and self._thread is not threading.current_thread():
+            self._thread.join(timeout=1.0)
+
+
+def _bring_window_to_front(hwnd: int) -> None:
+    """Make *hwnd* the foreground window even when another program has it.
+
+    SetForegroundWindow() alone is refused while another program holds the
+    foreground, so the input queue is attached to that program's thread for the
+    call (the same trick restore_window() and the incoming-call popup use).
+    """
+    user32 = ctypes.windll.user32
+    user32.GetForegroundWindow.restype = ctypes.wintypes.HWND
+    user32.GetWindowThreadProcessId.argtypes = [
+        ctypes.wintypes.HWND, ctypes.POINTER(ctypes.wintypes.DWORD)]
+    user32.GetWindowThreadProcessId.restype = ctypes.wintypes.DWORD
+    user32.AttachThreadInput.argtypes = [
+        ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.BOOL]
+    user32.SetWindowPos.argtypes = [
+        ctypes.wintypes.HWND, ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_int,
+        ctypes.c_int, ctypes.c_int, ctypes.wintypes.UINT]
+    user32.BringWindowToTop.argtypes = [ctypes.wintypes.HWND]
+    user32.SetForegroundWindow.argtypes = [ctypes.wintypes.HWND]
+    handle = ctypes.wintypes.HWND(int(hwnd))
+    foreground = user32.GetForegroundWindow()
+    current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+    foreground_thread = (
+        user32.GetWindowThreadProcessId(foreground, None) if foreground else 0)
+    attached = bool(
+        foreground_thread and foreground_thread != current_thread
+        and user32.AttachThreadInput(current_thread, foreground_thread, True))
+    try:
+        # HWND_TOPMOST puts it above whatever is in front now; HWND_NOTOPMOST
+        # straight after keeps it from staying pinned there.
+        flags = 0x0001 | 0x0002 | 0x0040  # NOSIZE | NOMOVE | SHOWWINDOW
+        user32.SetWindowPos(handle, ctypes.wintypes.HWND(-1), 0, 0, 0, 0, flags)
+        user32.SetWindowPos(handle, ctypes.wintypes.HWND(-2), 0, 0, 0, 0, flags)
+        user32.BringWindowToTop(handle)
+        user32.SetForegroundWindow(handle)
+    finally:
+        if attached:
+            user32.AttachThreadInput(current_thread, foreground_thread, False)
 
 
 def _vk_mod_to_str(vk: int, mod: int) -> str:
