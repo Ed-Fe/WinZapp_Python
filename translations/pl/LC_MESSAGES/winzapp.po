@@ -368,8 +368,8 @@ msgstr "&Używaj głosu SAPI, gdy czytnik ekranu jest niedostępny"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "Używaj głosu systemowego, gdy VoiceOver nie jest uruchomiony"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "&Używaj głosu systemowego, gdy VoiceOver nie jest uruchomiony"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -576,6 +576,12 @@ msgid "{minutes} minutes ago"
 msgstr "{minutes} minut temu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Automatyczna transkrypc&ja i opisy..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -767,7 +773,7 @@ msgstr "Opisz"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr "Opisuj otrzyman&e zdjęcia"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -777,7 +783,7 @@ msgstr "Opisz naklejkę"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr "Opisuj otrzymane &naklejki"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1113,7 +1119,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
 msgstr "Konwertuj otrzymane &pliki PDF na dostępny tekst"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1159,7 +1165,7 @@ msgstr "Dostawc&y AI (w kolejności użycia)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr "Przenieś w &dół"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1238,7 +1244,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_keys"
 msgid "Reset all saved AI &keys"
-msgstr "Zr&esetuj wszystkie zapisane klucze AI"
+msgstr "Zresetuj wszystkie zapisane &klucze AI"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1327,7 +1333,7 @@ msgstr "Sprawdź połączenie &bez wysyłania pliku"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_label"
 msgid "Transcribe &voice messages"
-msgstr "&Transkrybuj wiadomości głosowe"
+msgstr "Transkrybuj wiadomości &głosowe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_transcribe_audio_menu"
@@ -2013,8 +2019,8 @@ msgstr "&Uruchamiaj WinZapp w tle przy starcie systemu Windows"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Uruchamiaj WinZapp w tle po zalogowaniu na Macu"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "&Uruchamiaj WinZapp w tle po zalogowaniu na Macu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"

@@ -124,8 +124,13 @@ SETTINGS_PAGE = (
     "ai_accessibility_enabled_label", "ai_provider_list_label", "ai_provider_configure_button",
     "ai_provider_move_up_button", "ai_provider_move_down_button", "ai_describe_images_label",
     "ai_describe_stickers_label", "ai_describe_videos_label", "ai_transcribe_audio_label",
-    "ai_pdf_accessible_label", "ai_profile", "ai_read_answers", "ai_settings_help",
+    "ai_pdf_accessible_label", "ai_profile", "ai_read_answers", "ai_auto_button", "ai_settings_help",
     "ai_technical_info", "ai_reset_keys", "ai_status_label",
+)
+#: The window of the automatic options, opened from the page (ai_auto_options.py).
+AUTO_WINDOW = (
+    "ai_auto_transcribe", "ai_auto_describe", "ai_auto_scope", "ai_auto_max_age",
+    "ai_auto_daily_limit", "ai_auto_used_today",
 )
 PROVIDER_WINDOW = (
     "ai_provider_enabled_checkbox", "ai_api_key", "ai_key_readable", "ai_show_key", "ai_delete_key",
@@ -143,9 +148,10 @@ def mnemonic(text):
 @pytest.mark.parametrize("name", LOCALES)
 def test_only_the_keyboard_reachable_windows_carry_mnemonics_and_never_a_shortcut(name):
     """Shortcuts are announced by ui/accessible.py objects. Mnemonics belong to
-    the consent window, the settings page and the provider window only; the
+    the consent window, the settings page, its automatic options window and
+    the provider window only; the
     result window and the menus stay free of them."""
-    allowed = {*CONSENT_WINDOW, *SETTINGS_PAGE, *PROVIDER_WINDOW}
+    allowed = {*CONSENT_WINDOW, *SETTINGS_PAGE, *PROVIDER_WINDOW, *AUTO_WINDOW}
     for key, value in locale(name).items():
         if OWNED.match(key) and key != "ai_demo_notice":
             if key not in allowed:
@@ -156,7 +162,8 @@ def test_only_the_keyboard_reachable_windows_carry_mnemonics_and_never_a_shortcu
 @pytest.mark.parametrize("name", LOCALES)
 @pytest.mark.parametrize("keys,fixed", [
     (CONSENT_WINDOW, ("cancel",)),
-    (SETTINGS_PAGE, ("ok", "apply", "cancel")),
+    (SETTINGS_PAGE, ("ok", "apply", "cancel", "settings_search_label")),
+    (AUTO_WINDOW, ("ok",)),
     (PROVIDER_WINDOW, ("ok", "cancel")),
 ])
 def test_every_control_of_a_window_has_its_own_mnemonic_letter(name, keys, fixed):

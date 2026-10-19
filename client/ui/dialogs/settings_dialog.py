@@ -1326,6 +1326,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # index, for the same reason.
         self._ai_page = AISettingsPage(self._notebook, self.main_window, on_change=self._mark_dirty)
         self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
+        self._notebook.add_subpage(
+            self._notebook.GetPageCount() - 1, i18n.t("ai_auto_button").replace("&", "").rstrip(".… "),
+            self._ai_page.auto_panel, self._ai_page.open_auto)
 
         # ── Transcription tab ────────────────────────────────────────────────
         # Appended, never inserted, and the last tab of all. Every hardcoded

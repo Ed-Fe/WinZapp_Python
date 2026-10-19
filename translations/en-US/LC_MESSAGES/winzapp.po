@@ -358,8 +358,8 @@ msgstr "&Use SAPI voice when the screen reader is not available"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "Use the system voice when VoiceOver is not running"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "&Use the system voice when VoiceOver is not running"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -564,6 +564,12 @@ msgid "{minutes} minutes ago"
 msgstr "{minutes} minutes ago"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Automatic transcri&ption and description..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -750,8 +756,8 @@ msgstr "Describe"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
-msgstr "Describe received &images"
+msgid "Describe received ima&ges"
+msgstr "Describe received ima&ges"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_sticker_menu"
@@ -760,8 +766,8 @@ msgstr "Describe sticker"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
-msgstr "Describe received &stickers"
+msgid "&Describe received stickers"
+msgstr "&Describe received stickers"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_video_menu"
@@ -1085,8 +1091,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
-msgstr "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
+msgstr "Convert received PDFs to accessib&le text"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_menu"
@@ -1131,8 +1137,8 @@ msgstr "AI providers (order = tr&y order)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
-msgstr "Move &down"
+msgid "Move do&wn"
+msgstr "Move do&wn"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_up_button"
@@ -1976,8 +1982,8 @@ msgstr "Start WinZapp &in the background when Windows starts"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Start WinZapp in the background when you log in"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "Start WinZapp &in the background when you log in"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"

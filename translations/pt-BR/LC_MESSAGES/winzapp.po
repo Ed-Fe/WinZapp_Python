@@ -362,8 +362,8 @@ msgstr "&Usar voz SAPI quando o leitor de tela não estiver disponível"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "Usar a voz do sistema quando o VoiceOver não estiver ativo"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "&Usar a voz do sistema quando o VoiceOver não estiver ativo"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -570,6 +570,12 @@ msgid "{minutes} minutes ago"
 msgstr "{minutes} minutos atrás"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Transcr&ição e descrição automáticas..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -760,7 +766,7 @@ msgstr "Descrever"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr "Descrever ima&gens recebidas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -770,7 +776,7 @@ msgstr "Descrever figurinha"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr "Descrever &figurinhas recebidas"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1099,8 +1105,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
-msgstr "Converter PDFs recebidos &em texto acessível"
+msgid "Convert received PDFs to accessib&le text"
+msgstr "Converter &PDFs recebidos em texto acessível"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_menu"
@@ -1120,7 +1126,7 @@ msgstr "Processando com IA, aguarde..."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_profile"
 msgid "Descr&iption detail"
-msgstr "&Detalhe da descrição"
+msgstr "Detal&he da descrição"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -1131,7 +1137,7 @@ msgstr "Configurar {provider}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_configure_button"
 msgid "S&et up selected provider"
-msgstr "Confi&gurar provedor selecionado"
+msgstr "Configurar provedor se&lecionado"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_enabled_checkbox"
@@ -1145,7 +1151,7 @@ msgstr "Provedores de IA (ordem = ordem de te&ntativa)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr "Mover para bai&xo"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1997,8 +2003,8 @@ msgstr "Iniciar o &WinZapp em segundo plano ao entrar no Windows"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Iniciar o WinZapp em segundo plano ao iniciar sessão no Mac"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "Iniciar o &WinZapp em segundo plano ao iniciar sessão no Mac"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"

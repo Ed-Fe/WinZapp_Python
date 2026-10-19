@@ -339,7 +339,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
+msgid "&Use the system voice when VoiceOver is not running"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
@@ -541,6 +541,12 @@ msgid "{minutes} minutes ago"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -706,7 +712,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -716,7 +722,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -999,7 +1005,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1045,7 +1051,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1816,7 +1822,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
+msgid "Start WinZapp &in the background when you log in"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py

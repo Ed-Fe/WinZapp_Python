@@ -357,8 +357,8 @@ msgstr "&Ekran okuyucu kullanılamadığında SAPI sesini kullan"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "VoiceOver çalışmadığında sistem sesini kullan"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "VoiceOver çalışmadığında sist&em sesini kullan"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -565,6 +565,12 @@ msgid "{minutes} minutes ago"
 msgstr "{minutes} dakika önce"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Otomatik döküm ve &betimleme..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -751,7 +757,7 @@ msgstr "Betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr "Alınan &fotoğrafları betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -761,7 +767,7 @@ msgstr "Çıkartmayı betimle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr "Alınan çıkartmaları bet&imle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1088,7 +1094,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
 msgstr "Alınan &PDF'leri erişilebilir metne dönüştür"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1130,11 +1136,11 @@ msgstr "&Etkin (otomatik olarak denenir)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_list_label"
 msgid "AI providers (order = tr&y order)"
-msgstr "Ya&pay zekâ sağlayıcıları (sıra = deneme sırası)"
+msgstr "Yapay zekâ &sağlayıcıları (sıra = deneme sırası)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr "Aşağ&ı taşı"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1982,8 +1988,8 @@ msgstr "Windows &başladığında WinZapp'i arka planda başlat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Mac'te oturum açtığınızda WinZapp'i arka planda başlat"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "Mac'te oturum açtığınızda WinZapp'i arka planda &başlat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"

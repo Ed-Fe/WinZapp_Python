@@ -363,8 +363,8 @@ msgstr "&Utilizați vocea SAPI când cititorul de ecran nu este disponibil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "Utilizați vocea sistemului când VoiceOver nu rulează"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "&Utilizați vocea sistemului când VoiceOver nu rulează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -531,7 +531,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_accessibility_enabled_label"
 msgid "Ena&ble AI features (transcription and description)"
-msgstr "Activați funcțiile AI (&transcriere și descriere)"
+msgstr "Activați &funcțiile AI (transcriere și descriere)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -567,6 +567,12 @@ msgstr "acum 1 oră"
 msgctxt "ai_auto_age_minutes"
 msgid "{minutes} minutes ago"
 msgstr "acum {minutes} minute"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Transcriere &și descriere automată..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -755,7 +761,7 @@ msgstr "Descrieți"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr "&Descrieți fotografiile primite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -765,7 +771,7 @@ msgstr "Descrieți autocolantul"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr "Descrieți autocolantele &primite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1093,7 +1099,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
 msgstr "Convertiți PDF-&urile primite în text accesibil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1139,13 +1145,13 @@ msgstr "Fu&rnizori AI (ordine = ordinea încercărilor)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr "Mutați în &jos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_up_button"
 msgid "&Move up"
-msgstr "M&utați în sus"
+msgstr "&Mutați în sus"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_state_disabled"
@@ -1219,7 +1225,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_keys"
 msgid "Reset all saved AI &keys"
-msgstr "Resetează toate cheile AI sal&vate"
+msgstr "Resetează toate cheile AI &salvate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1251,7 +1257,7 @@ msgstr "Trimite &conținutul"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_help"
 msgid "&Usage and privacy information"
-msgstr "Informații &despre utilizare și confidențialitate"
+msgstr "&Informații despre utilizare și confidențialitate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_notice"
@@ -1988,8 +1994,8 @@ msgstr "Porniți &WinZapp în fundal când Windows pornește"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Porniți WinZapp în fundal când vă conectați la Mac"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "Porniți &WinZapp în fundal când vă conectați la Mac"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"

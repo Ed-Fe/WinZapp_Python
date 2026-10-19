@@ -46,7 +46,7 @@ FILES = (
     "transcription_model_marks.py", "transcription_options.py", "transcription_precision.py",
     "transcription_queue.py", "transcription_result_field.py", "transcription_reuse.py",
     "transcription_tab.py", "transcription_whisper_cpp.py", "transcription_windows.py",
-    "advanced_tab.py",
+    "advanced_tab.py", "ai_auto_options.py",
 )
 
 LABELLED = {"Button", "CheckBox", "RadioButton", "ToggleButton", "RadioBox", "StaticText",
@@ -176,9 +176,11 @@ class _Source:
 
         def loop_keys(variable):
             """("keys", [...]) for a loop over a table this file states, or
-            ("param", "scope:param", element index) for one over an argument."""
+            ("param", "scope:param", element index) for one over an argument.
+            A comprehension counts as a loop ({kind: self._check(label) for
+            kind, label in KIND_TOGGLES}, ai_settings_page.py)."""
             for node in ast.walk(func):
-                if not isinstance(node, ast.For):
+                if not isinstance(node, (ast.For, ast.comprehension)):
                     continue
                 target = node.target
                 flat = [target] if isinstance(target, ast.Name) else (
@@ -293,7 +295,12 @@ class _Source:
                     self.controls.append((key_spec(argument), ctor, name(node.args[0]), where))
             elif ctor in HELPERS:
                 literal = [a for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str)]
-                if literal:
+                if not literal and node.args and isinstance(node.args[0], ast.Name):
+                    # self._check(label, ...) with the key from a loop variable.
+                    spec = key_spec(node.args[0])
+                    if spec[0] == "keys" and spec[1]:
+                        self.controls.append((spec, ctor, f"{namespace}:self", where))
+                elif literal:
                     body = (node.args[0] if ctor in ("_caption", "_text", "_choice", "_button")
                             and len(node.args) > 1 and not isinstance(node.args[0], ast.Constant) else None)
                     parent = name(body) if body is not None else f"{namespace}:self"

@@ -735,22 +735,31 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
             self.selection = value
         def GetCount(self):
             return 0
+    from ui.dialogs.ai_auto_options import AIAutoOptionsPanel
     page = SimpleNamespace(_labels=[], _t=lambda key: key, _plain=lambda key: key,
                            _profile_labels=lambda: ["quick", "balanced", "detailed"],
                            _scope_labels=lambda: ["all", "selected"],
-                           auto_scope=NamedControl(selection=1),
                            _age_labels=lambda: ["5", "15", "30", "60"],
-                           auto_max_age=NamedControl(selection=2),
-                           auto_limit=NamedControl(), auto_used=NamedControl(),
                            profile=NamedControl(selection=2), providers=NamedControl(selection=-1),
                            notice=NamedControl(), status=NamedControl(),
+                           auto_dialog=SimpleNamespace(SetTitle=lambda title: setattr(page, "title", title)),
                            _refresh_list=lambda selection: None)
+    # The automatic options live in their own window (ai_auto_options.py).
+    panel = SimpleNamespace(_page=page, transcribe=NamedControl(), describe=NamedControl(),
+                            scope_label=NamedControl(), scope=NamedControl(selection=1),
+                            max_age_label=NamedControl(), max_age=NamedControl(selection=2),
+                            limit_label=NamedControl(), limit=NamedControl(),
+                            used_label=NamedControl(), used=NamedControl())
+    panel.refresh_labels = lambda: AIAutoOptionsPanel.refresh_labels(panel)
+    page.auto_panel = panel
     AISettingsPage.refresh_labels(page)
     assert page.notice.name == "ai_settings_help" and page.notice.value == "ai_settings_notice"
     assert page.status.name == "ai_status_label" and page.profile.selection == 2
     assert page.profile.items == ["quick", "balanced", "detailed"]
-    assert page.auto_scope.items == ["all", "selected"] and page.auto_scope.selection == 1
-    assert page.auto_max_age.items == ["5", "15", "30", "60"] and page.auto_max_age.selection == 2
+    assert panel.scope.items == ["all", "selected"] and panel.scope.selection == 1
+    assert panel.max_age.items == ["5", "15", "30", "60"] and panel.max_age.selection == 2
+    assert panel.limit.name == "ai_auto_daily_limit" and panel.transcribe.value == "ai_auto_transcribe"
+    assert page.title == "ai_auto_button"
     assert page.providers.name == "ai_provider_list_label"
 
 
