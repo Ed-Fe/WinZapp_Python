@@ -26,6 +26,8 @@ NOVEDADES
 
 - La cancelación de eco en las llamadas de voz y vídeo se rehízo con el mismo motor que usan Google Meet y el propio WhatsApp (el cancelador de eco de WebRTC): hablar por el altavoz del portátil o con el retorno (loopback) de la mesa de mezclas activado ya no hace que la otra persona oiga su propia voz. La opción ahora viene activada, también para quien ya usaba WinZapp; para desactivarla, desmarca "Activar cancelación de eco" en "Configuración de audio de la llamada". La reducción de ruido del micrófono en la llamada también usa ahora este motor.
 
+- El registro de las llamadas (log.log) ahora muestra, cada 5 segundos, cuánto del sonido del altavoz llega al micrófono antes de la cancelación de eco y cuánto queda todavía en lo que se envía, con el retraso de ese eco. Si alguien sigue oyendo su propia voz, el registro dice si el eco pasó por el cancelador o llegó por otro camino.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.

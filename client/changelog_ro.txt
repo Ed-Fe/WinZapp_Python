@@ -26,6 +26,8 @@ NOUTĂȚI
 
 - Anularea ecoului în apelurile vocale și video a fost refăcută cu același motor pe care îl folosesc Google Meet și WhatsApp însuși (anulatorul de ecou WebRTC): vorbitul prin difuzorul laptopului sau cu reluarea (loopback) mixerului activată nu mai face ca cealaltă persoană să își audă propria voce. Opțiunea este acum activată, inclusiv pentru cei care foloseau deja WinZapp; pentru a o dezactiva, debifează "Activează anularea ecoului" în "Setări audio pentru apeluri". Reducerea zgomotului microfonului în apel folosește acum și ea acest motor.
 
+- Jurnalul apelurilor (log.log) arată acum, la fiecare 5 secunde, cât din sunetul difuzorului ajunge la microfon înainte de anularea ecoului și cât mai rămâne în ce se trimite, cu întârzierea acelui ecou. Dacă cineva încă își aude propria voce, jurnalul spune dacă ecoul a trecut prin anulator sau a sosit pe altă cale.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.
