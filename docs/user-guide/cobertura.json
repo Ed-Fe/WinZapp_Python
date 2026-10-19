@@ -126,6 +126,7 @@
     "329cb39b3860": "O cancelamento de eco nas chamadas de voz e vídeo agora funciona nas chamadas qu",
     "37a18225b15e": "WPPConnect Server atualizado para a 2.10.58. A biblioteca agora recusa iniciar u",
     "e3d4b07f51f4": "As atualizações do WPPConnect Server não são mais sugeridas por conta própria. O",
-    "227d631afa96": "O cancelamento de eco nas chamadas de voz e vídeo foi refeito com o mesmo motor "
+    "227d631afa96": "O cancelamento de eco nas chamadas de voz e vídeo foi refeito com o mesmo motor ",
+    "17ee1eb215b2": "O registro das chamadas (log.log) agora mostra, a cada 5 segundos, quanto do som"
   }
 }
