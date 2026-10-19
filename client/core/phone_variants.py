@@ -18,7 +18,7 @@ def other_brazilian_mobile_jid(jid: str) -> str:
         return ""
     if len(digits) == 13 and digits[4] == "9":
         return digits[:4] + digits[5:] + PHONE_JID_SUFFIX
-    if len(digits) == 12:
+    if len(digits) == 12 and digits[4] in "6789":  # landlines start with 2-5
         return digits[:4] + "9" + digits[4:] + PHONE_JID_SUFFIX
     return ""
 

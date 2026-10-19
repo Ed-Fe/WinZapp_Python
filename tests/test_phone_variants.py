@@ -25,3 +25,7 @@ def test_variant_chat_is_found_only_when_it_exists():
         == "5511987654321@s.whatsapp.net"
     )
     assert brazilian_variant_chat_jid({}, "551187654321@s.whatsapp.net") == ""
+
+
+def test_a_landline_has_no_nine_digit_variant():
+    assert other_brazilian_mobile_jid("551133334444@s.whatsapp.net") == ""
