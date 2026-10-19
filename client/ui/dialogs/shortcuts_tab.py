@@ -80,6 +80,10 @@ class ShortcutsTabMixin:
             copy.deepcopy(self.main_window.settings.get(SECTION, {})), SHORTCUTS)
         general = self.main_window.settings.get('general', {})
         self._call_hotkeys = {key: call_hotkey_setting(general, key) for key in CALL_HOTKEY_DEFAULTS}
+        # What the rows started from: a key left alone is not saved, so one
+        # shown as off only because the show-WinZapp key has its combination
+        # comes back by itself once that key moves.
+        self._call_hotkeys_loaded = dict(self._call_hotkeys)
         # A button on the Interface page opens these options in a window.
         self._shortcuts_dialog = SubPageDialog(
             self, i18n.t('tab_shortcuts').replace('&', ''), i18n.t('ok'),
@@ -235,7 +239,10 @@ class ShortcutsTabMixin:
     def _apply_shortcut_values(self):
         self.main_window.settings[SECTION] = copy.deepcopy(self._shortcut_overrides)
         general = self.main_window.settings.setdefault('general', {})
+        loaded = getattr(self, '_call_hotkeys_loaded', None) or {}
         for key, pair in self._call_hotkeys.items():
+            if key in loaded and loaded[key] == pair:
+                continue
             general[key] = {'vk': pair[0], 'mod': pair[1]} if pair else {'vk': 0, 'mod': 0}
         refresh_shortcuts(self.main_window)
         # A call that is ringing right now picks up the keys just chosen.

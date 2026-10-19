@@ -408,6 +408,21 @@ def test_removing_a_call_key_stages_none_and_applying_saves_it(monkeypatch):
     assert general['call_end_hotkey'] == {'vk': CALL_END_HOTKEY[0], 'mod': CALL_END_HOTKEY[1]}
 
 
+def test_a_call_key_off_only_for_the_show_key_clash_is_not_saved_as_removed(monkeypatch):
+    """OK in Settings for something else must not turn the clash into a
+    removal: once the show-WinZapp key moves, the call key comes back."""
+    monkeypatch.setattr('ui.dialogs.shortcuts_tab.refresh_shortcuts', lambda _: None)
+    dialog = settings_stub()
+    dialog.main_window.settings['general'] = {
+        'global_hotkey': {'vk': CALL_ANSWER_HOTKEY[0], 'mod': CALL_ANSWER_HOTKEY[1]}}
+    dialog._call_hotkeys = {'call_answer_hotkey': None, 'call_end_hotkey': CALL_END_HOTKEY}
+    dialog._call_hotkeys_loaded = dict(dialog._call_hotkeys)
+    dialog._apply_shortcut_values()
+    general = dialog.main_window.settings['general']
+    assert 'call_answer_hotkey' not in general
+    assert 'call_end_hotkey' not in general
+
+
 def test_resetting_a_call_key_brings_back_the_shipped_key():
     dialog = settings_stub()
     dialog._call_hotkeys['call_end_hotkey'] = (ord('Q'), 3)
