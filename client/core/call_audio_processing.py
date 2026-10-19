@@ -28,7 +28,7 @@ import logging
 import numpy as np
 
 from core.call_echo_measure import (
-    MEASURE_MAX_LAG_S, MEASURE_RATE, MEASURE_WINDOW_S, decimate, dbfs, echo_coupling,
+    MEASURE_DECIMATION, MEASURE_MAX_LAG_S, MEASURE_RATE, MEASURE_WINDOW_S, decimate, dbfs, echo_coupling,
 )
 
 APM_SAMPLE_RATE = 48_000
@@ -47,6 +47,7 @@ ADAPT_EVERY_FRAMES = 100  # once a second of microphone audio
 ADAPT_MIN_COUPLING = 0.4  # a clear echo; double talk and silence stay below
 ADAPT_CONSISTENT_MS = 20  # two estimates in a row must agree this closely
 ADAPT_MIN_STEP_MS = 30
+HOLD_HYSTERESIS_MS = 50
 REFERENCE_BUFFER_MAX = APM_SAMPLE_RATE * 2
 
 
@@ -113,6 +114,11 @@ class CallAudioProcessor:
         self._history_out = np.empty(0)
         # Reference held back from the module, in samples (see DIRECT_ECHO_MAX_MS).
         self._reference_delay = 0
+        # Speaker samples not yet decimated into _history_ref: device periods
+        # (441, 448...) are not multiples of the decimation factor, and
+        # dropping the remainder of every chunk shrank the history against the
+        # microphone's until no echo correlated any more.
+        self._ref_undecimated = np.empty(0, dtype=np.float32)
         self._last_lag_ms = None
         self._apm = None
         if self._unavailable:
@@ -158,8 +164,12 @@ class CallAudioProcessor:
         data = np.asarray(samples, dtype=np.float32).reshape(-1)
         if not data.size:
             return
-        self._history_ref = self._remember(self._history_ref, data,
-                                           MEASURE_WINDOW_S + MEASURE_MAX_LAG_S)
+        pending = np.concatenate((self._ref_undecimated, data))
+        whole = pending.size - pending.size % MEASURE_DECIMATION
+        self._ref_undecimated = pending[whole:]
+        if whole:
+            self._history_ref = self._remember(self._history_ref, pending[:whole],
+                                               MEASURE_WINDOW_S + MEASURE_MAX_LAG_S)
         self._ref = np.concatenate((self._ref, data))
         if self._ref.size > REFERENCE_BUFFER_MAX:
             self._ref = self._ref[self._ref.size - REFERENCE_BUFFER_MAX:]
@@ -182,13 +192,22 @@ class CallAudioProcessor:
         previous, self._last_lag_ms = self._last_lag_ms, lag_ms
         if previous is None or abs(lag_ms - previous) > ADAPT_CONSISTENT_MS:
             return
-        target_ms = 0
-        if lag_ms > DIRECT_ECHO_MAX_MS:
-            target_ms = (lag_ms - ECHO_TARGET_MS) // 10 * 10
         current_ms = self._reference_delay * 1000 // APM_SAMPLE_RATE
+        # Hysteresis: a path sitting right at the threshold must not toggle
+        # the hold on and off, each toggle making AEC3 find the delay again.
+        threshold = DIRECT_ECHO_MAX_MS - HOLD_HYSTERESIS_MS if current_ms else DIRECT_ECHO_MAX_MS
+        target_ms = 0
+        if lag_ms > threshold:
+            target_ms = max(0, (lag_ms - ECHO_TARGET_MS) // 10 * 10)
         if abs(target_ms - current_ms) < ADAPT_MIN_STEP_MS:
             return
-        self._reference_delay = target_ms * APM_SAMPLE_RATE // 1000
+        new_delay = target_ms * APM_SAMPLE_RATE // 1000
+        if new_delay < self._reference_delay:
+            # The audio no longer held back has already been echoed: drop it
+            # rather than burst it into AEC3's render buffer.
+            keep = new_delay + self._ref.size - self._reference_delay
+            self._ref = self._ref[max(0, self._ref.size - max(keep, new_delay)):]
+        self._reference_delay = new_delay
         logging.info("[call_audio] echo returns %s ms late (coupling %s); "
                      "speaker reference now held back %s ms", lag_ms, coupling, target_ms)
 

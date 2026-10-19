@@ -30,10 +30,13 @@ def _speech(seconds, seed):
     return (x * envelope * 0.5).astype(np.float32)
 
 
-def _call(far, mic, processor):
-    out = []
+def _call(far, mic, processor, speaker_period=960):
+    """The microphone in 20 ms frames; the speaker in its own device periods."""
+    out, pushed = [], 0
     for i in range(0, len(far) - 960, 960):
-        processor.push_reference(far[i:i + 960])
+        while pushed < i + 960:
+            processor.push_reference(far[pushed:pushed + speaker_period])
+            pushed += speaker_period
         out.append(processor.process(mic[i:i + 960]))
     return np.concatenate(out)
 
@@ -58,6 +61,20 @@ def test_a_loopback_900ms_late_is_cancelled():
     assert _reduction_db(mic, out) > 40
     held = processor.diagnostics()["reference_held_ms"]
     assert abs(held - (900 - ECHO_TARGET_MS)) <= 20
+
+
+def test_odd_speaker_periods_still_measure_and_cancel_the_late_echo():
+    # 441 and 448 sample periods are not multiples of the 48->8 kHz factor;
+    # dropping each chunk's remainder broke the measure (review of #563).
+    for period in (441, 448, 487):
+        far = _speech(14, 1)
+        mic = _loopback(far, 900)
+        processor = CallAudioProcessor(echo_cancellation=True, noise_suppression=False)
+        out = _call(far, mic, processor, speaker_period=period)
+        measured = processor.diagnostics()
+        assert abs(measured["reference_held_ms"] - (900 - ECHO_TARGET_MS)) <= 20, period
+        assert measured["echo_in"] > 0.9, period
+        assert _reduction_db(mic, out) > 40, period
 
 
 def test_an_echo_within_reach_is_not_held_back():
