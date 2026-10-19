@@ -18,7 +18,7 @@ YENİLİKLER
 
 - Fazladan 9 ile yazılmış bir Brezilya numarasıyla başlatılan yeni sohbet, ilk mesajı gönderdikten sonra sohbet listesinde artık iki kez görünmüyor: WinZapp sohbeti WhatsApp'ın kendisinin kullandığı numara altında tutar.
 
-- Sesli ve görüntülü aramalardaki yankı engelleme, Google Meet'in ve WhatsApp'ın kendisinin kullandığı motorla (WebRTC yankı gidericisi) yeniden yapıldı: dizüstü bilgisayarın hoparlöründen ya da mikserin geri dönüşü (loopback) açıkken konuşmak artık karşıdaki kişinin kendi sesini duymasına yol açmıyor. Seçenek artık açık geliyor, WinZapp'ı zaten kullananlar için de; kapatmak için "Arama ses ayarları" içinde yankı engelleme kutusunun işaretini kaldırın. Aramadaki mikrofon gürültü azaltma da artık bu motoru kullanıyor.
+- Sesli ve görüntülü aramalardaki yankı önleme, Google Meet'in ve WhatsApp'ın kendisinin kullandığı motorla (WebRTC yankı gidericisi) yeniden yapıldı: dizüstü bilgisayarın hoparlöründen ya da mikserin geri dönüşü (loopback) açıkken konuşmak artık karşıdaki kişinin kendi sesini duymasına yol açmıyor. Seçenek artık açık geliyor, WinZapp'ı zaten kullananlar için de; kapatmak için "Arama ses ayarları" içinde "Yankı önlemeyi etkinleştir" kutusunun işaretini kaldırın. Aramadaki mikrofon gürültü azaltma da artık bu motoru kullanıyor.
 
 V2.1.0.0
 
