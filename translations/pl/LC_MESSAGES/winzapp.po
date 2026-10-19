@@ -13418,7 +13418,6 @@ msgid "Searching the Hugging Face cache..."
 msgstr "Wyszukiwanie w pamięci podręcznej Hugging Face..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_external_forget_btn"
 msgid "&Forget"
 msgstr "&Usuń"
@@ -14116,7 +14115,6 @@ msgid "Verif&y"
 msgstr "Spraw&dź"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 #| msgctxt "save_folder_browse_btn"
 #| msgid "&Browse..."
@@ -14695,7 +14693,6 @@ msgstr ""
 "WinZapp przestanie używać tego folderu po naciśnięciu Zastosuj lub OK."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_reuse_group"
 msgid "Reuse downloads from another folder"
 msgstr "Użyj ponownie plików pobranych do innego folderu"

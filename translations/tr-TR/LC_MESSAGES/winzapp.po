@@ -13212,7 +13212,6 @@ msgid "Searching the Hugging Face cache..."
 msgstr "Hugging Face önbelleğinde aranıyor..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_external_forget_btn"
 msgid "&Forget"
 msgstr "U&nut"
@@ -13870,7 +13869,6 @@ msgid "Verif&y"
 msgstr "D&oğrula"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_models_dir_browse_btn"
 msgid "&Browse..."
@@ -14397,7 +14395,6 @@ msgstr ""
 "Uygula'ya veya Tamam'a bastığınızda WinZapp bu klasörü kullanmayı bırakacak."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_reuse_group"
 msgid "Reuse downloads from another folder"
 msgstr "Başka bir klasörden indirilenleri yeniden kullan"
