@@ -8,6 +8,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "accessible-output2==0.17",
+    "aiofiles==25.1.0",
     "aiosqlite==0.22.1",
     "altgraph==0.17.5",
     "annotated-doc==0.0.4",
@@ -37,6 +38,7 @@ dependencies = [
     "idna==3.11",
     "iniconfig==2.3.0",
     "libloader==1.4.2",
+    "livekit==1.1.20",
     "numpy==2.3.5",
     "onnxruntime==1.29.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "onnxruntime==1.23.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
@@ -69,6 +71,7 @@ dependencies = [
     "tokenizers==0.23.2",
     "tqdm==4.70.0",
     "truststore==0.10.4",
+    "types-protobuf==7.35.1.20260906",
     "typing-inspection==0.4.2",
     "typing-extensions==4.15.0",
     "urllib3==2.5.0",

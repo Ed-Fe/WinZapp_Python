@@ -806,6 +806,12 @@ def pyinstaller_compile():
         # HTTPS that verifies through the Windows certificate store — see
         # client/core/tls_trust.py. Pure Python, and small.
         "truststore",
+        # WebRTC echo cancellation and noise suppression for calls
+        # (core/call_audio_processing.py). The module lives in
+        # livekit/rtc/resources/livekit_ffi.dll (~25 MB), a data file that
+        # livekit loads through importlib.resources, so only --collect-all
+        # ships it; without it calls go out with no echo cancellation at all.
+        "livekit",
     ]
 
     cmd = [
