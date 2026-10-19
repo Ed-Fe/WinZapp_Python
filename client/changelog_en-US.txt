@@ -14,6 +14,10 @@ WHAT'S NEW
 
 - Communities is now a row of the navigation list, after Calls, with its Alt+8 shortcut in the row's name, so it can be reached by arrowing through the list as well as with Alt+8.
 
+- Blocking a number that is not saved in your contacts no longer fails with "Could not block this contact": WinZapp now opens the chat WhatsApp requires before blocking.
+
+- A new conversation started with a Brazilian number typed with the extra 9 no longer shows up twice in the conversation list after you send the first message: WinZapp keeps the conversation under the number WhatsApp itself uses.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.
