@@ -292,7 +292,32 @@ def test_a_sellers_follow_up_is_recognised_by_its_flow_and_its_reference():
         "order": {"status": "payment_requested"}, "payment": {"status": "pending"}}, flow="order_details"))
     assert message["messageType"] == ORDER_UPDATE_MESSAGE_TYPE
     assert message["message"][ORDER_UPDATE_MESSAGE_TYPE] == {
-        "reference": "REF1", "status": "payment_requested", "payment": "pending", "total": 15000, "currency": "BRL"}
+        "reference": "REF1", "status": "payment_requested", "payment": "pending", "total": 15000, "currency": "BRL",
+        "subtotal": None, "items": []}
+
+
+def test_an_order_the_seller_created_keeps_its_items_for_its_details():
+    """Reported: Enter on such an order opened nothing. Its items arrive in the
+    message itself (WAWebOrderDetails.paramsJsonToOrderInfo reads the same)."""
+    payload = commerce.order_update_payload(raw_update(flow="order_details", params={
+        "reference_id": "REF1", "currency": "BRL", "total_amount": {"value": 2500, "offset": 100},
+        "order": {"status": "pending", "subtotal": {"value": 2000, "offset": 100}, "items": [
+            {"retailer_id": "custom-item-1", "name": "Bread", "amount": {"value": 750, "offset": 100},
+             "quantity": 2},
+            {"name": "Cake", "amount": {"value": 500, "offset": 100}, "quantity": "1"},
+            {"name": "<odd>", "amount": "free", "quantity": -3},
+            "not an item"]}}))
+    assert payload["subtotal"] == 20000
+    assert payload["items"] == [
+        {"name": "Bread", "price": 7500, "quantity": 2},
+        {"name": "Cake", "price": 5000, "quantity": 1},
+        {"name": "<odd>", "price": None, "quantity": None}]
+
+
+def test_an_order_update_keeps_at_most_its_limit_of_items():
+    rows = [{"name": f"Item {n}", "amount": {"value": 1, "offset": 1}, "quantity": 1} for n in range(80)]
+    payload = commerce.order_update_payload(raw_update(params={"reference_id": "R", "order": {"items": rows}}))
+    assert len(payload["items"]) == commerce.UPDATE_ITEMS_LIMIT
 
 
 @pytest.mark.parametrize("raw", [
@@ -336,7 +361,8 @@ def test_unknown_statuses_are_not_repeated_to_the_user():
     payload = commerce.order_update_payload(raw_update(params={
         "reference_id": "R", "order": {"status": "<b>hacked</b>"}, "payment_status": "free",
         "total_amount": {"value": -1, "offset": 0}}))
-    assert payload == {"reference": "R", "status": "", "payment": "", "total": None, "currency": ""}
+    assert payload == {"reference": "R", "status": "", "payment": "", "total": None, "currency": "",
+                       "subtotal": None, "items": []}
 
 
 def test_a_row_says_whose_cart_it_is_how_much_and_its_state():
@@ -354,6 +380,26 @@ def test_a_row_says_whose_cart_it_is_how_much_and_its_state():
     bare = {"messageType": ORDER_UPDATE_MESSAGE_TYPE, "message": {ORDER_UPDATE_MESSAGE_TYPE: {}}}
     assert commerce.order_update_label(bare, I18N) == "Order update"
     assert commerce.message_label({"messageType": "conversation"}, I18N) is None
+
+
+def test_an_order_updates_details_list_its_items_and_say_what_its_row_says():
+    update = normalized(raw_update(flow="order_details", params={
+        "reference_id": "REF1", "currency": "BRL", "total_amount": {"value": 2500, "offset": 100},
+        "order": {"status": "pending", "subtotal": {"value": 2000, "offset": 100}, "items": [
+            {"name": "Bread", "amount": {"value": 750, "offset": 100}, "quantity": 2},
+            {"name": "", "amount": {"value": 500, "offset": 100}, "quantity": 1},
+            {"name": "Gift", "quantity": 0}]}}))
+    assert commerce.order_update_item_labels(update, I18N) == [
+        "2 × Bread, R$ 7.50 each", "1 × Unnamed product, R$ 5.00 each", "Gift"]
+    assert commerce.order_update_description(update, I18N).split("\n") == [
+        commerce.order_update_label(update, I18N), "4 items", "subtotal R$ 20.00"]
+
+
+def test_an_order_update_stored_before_its_items_were_kept_still_has_details():
+    bare = {"messageType": ORDER_UPDATE_MESSAGE_TYPE, "message": {ORDER_UPDATE_MESSAGE_TYPE: {
+        "reference": "REF1", "status": "shipped", "payment": "", "total": 15000, "currency": "BRL"}}}
+    assert commerce.order_update_item_labels(bare, I18N) == []
+    assert commerce.order_update_description(bare, I18N) == commerce.order_update_label(bare, I18N)
 
 
 class _Panel:
@@ -570,6 +616,14 @@ def test_an_order_opens_from_its_message_in_a_one_to_one_chat(monkeypatch):
     panel._show_order(order)
     opened.assert_called_once_with(panel.main_window, panel.main_window, ORDER_ID, "Bakery")
     panel._show_modal.assert_called_once()
+    update_opened = Mock()
+    monkeypatch.setattr("ui.dialogs.order_update_dialog.OrderUpdateDialog", update_opened)
+    update = normalized(raw_update(flow="order_details"))
+    assert panel._can_view_order(update)
+    assert not _ChatPanel(None, jid="111-0@g.us")._can_view_order(update)
+    panel._show_order(update)
+    update_opened.assert_called_once_with(panel.main_window, panel.main_window, update, "Bakery")
+    assert opened.call_count == 1, "an order update never asks the server for a cart's order"
     creating = Mock()
     monkeypatch.setattr("ui.dialogs.order_create_dialog.OrderCreateDialog", creating)
     panel._show_order_create(panel.conversation)

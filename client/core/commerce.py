@@ -412,6 +412,31 @@ def _scaled(node):
     return round(value * 1000 / offset)
 
 
+#: Items of an order update kept for its details (WhatsApp's own limit is far
+#: below anything a row could show).
+UPDATE_ITEMS_LIMIT = 50
+
+
+def _update_items(order):
+    """The order's items as the seller wrote them: name, unit price in
+    thousandths and quantity. WhatsApp Web reads `amount` as the unit price
+    and multiplies by `quantity` (WAWebOrderDetails.paramsJsonToOrderInfo)."""
+    rows = order.get("items") if isinstance(order.get("items"), list) else []
+    items = []
+    for row in rows[:UPDATE_ITEMS_LIMIT]:
+        if not isinstance(row, dict):
+            continue
+        quantity = row.get("quantity")
+        if isinstance(quantity, str) and quantity.strip().isdigit():
+            quantity = int(quantity.strip())
+        items.append({
+            "name": _text(row.get("name"))[:120],
+            "price": _scaled(row.get("amount")),
+            "quantity": quantity if type(quantity) is int and 0 < quantity <= 10 ** 6 else None,
+        })
+    return items
+
+
 def order_update_payload(wpp_msg):
     """What is kept of a seller's order follow-up, or None when the message is
     not one (any other interactive message is left to its own handling)."""
@@ -436,11 +461,17 @@ def order_update_payload(wpp_msg):
         "payment": paid if paid in PAYMENT_STATUSES else "",
         "total": _scaled(data.get("total_amount")),
         "currency": _text(data.get("currency")),
+        "subtotal": _scaled(order.get("subtotal")),
+        "items": _update_items(order),
     }
 
 
 def is_order_message(msg):
     return isinstance(msg, dict) and msg.get("messageType") == ORDER_MESSAGE_TYPE
+
+
+def is_order_update_message(msg):
+    return isinstance(msg, dict) and msg.get("messageType") == ORDER_UPDATE_MESSAGE_TYPE
 
 
 def _decimal(i18n):
@@ -485,6 +516,40 @@ def order_update_label(msg, i18n):
     if reference:
         head = f"{head}, {i18n.t('commerce_order_reference').format(reference=reference)}"
     return f"{head}: {', '.join(parts)}" if parts else head
+
+
+def order_update_item_labels(msg, i18n):
+    """ "2 × Bread, R$ 7,50 each" for each item an order update carries. One
+    stored before the items were kept has none."""
+    data = (msg.get("message") or {}).get(ORDER_UPDATE_MESSAGE_TYPE) or {}
+    labels = []
+    for item in data.get("items") or ():
+        if not isinstance(item, dict):
+            continue
+        name = _text(item.get("name")) or i18n.t("commerce_unnamed_product")
+        quantity = item.get("quantity")
+        parts = [f"{quantity} × {name}" if type(quantity) is int else name]
+        money = format_money(item.get("price"), data.get("currency"), _decimal(i18n))
+        if money:
+            parts.append(i18n.t("commerce_each").format(amount=money))
+        labels.append(", ".join(parts))
+    return labels
+
+
+def order_update_description(msg, i18n):
+    """The details of an order update, one fact per line: what the row says,
+    then how many items and the subtotal when it differs from the total."""
+    data = (msg.get("message") or {}).get(ORDER_UPDATE_MESSAGE_TYPE) or {}
+    lines = [order_update_label(msg, i18n)]
+    items = [item for item in data.get("items") or () if isinstance(item, dict)]
+    if items:
+        count = sum(item["quantity"] if type(item.get("quantity")) is int else 1 for item in items)
+        lines.append(items_label(count, i18n))
+    subtotal = data.get("subtotal")
+    money = format_money(subtotal, data.get("currency"), _decimal(i18n))
+    if money and subtotal != data.get("total"):
+        lines.append(i18n.t("commerce_subtotal").format(amount=money))
+    return "\n".join(lines)
 
 
 def message_label(msg, i18n):
