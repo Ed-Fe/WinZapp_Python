@@ -1194,3 +1194,53 @@ class TestAutomaticBackendFollowsTheModelsOnDisk:
             _settings(backend=_FASTER), _CPU_ONLY, installed_ids=("ggml-small",),
             available_backends=self.BOTH)
         assert resolved.backend_id == _FASTER
+
+
+class TestAnInstalledModelOnTheProcessorBeatsADownloadForTheCard:
+    """Reported 2026-10-19: "no model is ready" for a user whose large-v3-turbo
+    was installed. A 2 GB card (compute 6.1) with the CUDA libraries in place
+    holds none of the models on disk, so the automatic choice fell to a small
+    model that was not downloaded; the processor had room for the installed one
+    several times over."""
+
+    SMALL_CARD = device.HardwareProbe(
+        cuda_available=True, cuda_device_count=1, compute_capability=(6, 1),
+        total_vram_mb=2048, free_vram_mb=1968, cuda_libraries_ok=True,
+        total_ram_mb=16_110, available_ram_mb=9_746,
+        cpu_compute_types=("float32", "int16", "int8", "int8_float32"),
+        cuda_compute_types=("float32", "int8", "int8_float32"),
+    )
+
+    def _resolve(self, **values):
+        return preferences.resolve(_settings(**values), self.SMALL_CARD, ("large-v3-turbo",),
+                                   available_backends=(backend_module.BACKEND_FASTER_WHISPER,))
+
+    def test_automatic_runs_the_installed_model_on_the_processor(self):
+        resolved = self._resolve()
+        assert resolved.model_id == "large-v3-turbo"
+        assert resolved.device_preference == device.PREFERENCE_CPU
+        assert resolved.substitutions == ()
+
+    def test_a_chosen_device_is_never_moved(self):
+        resolved = self._resolve(device=device.PREFERENCE_CUDA)
+        assert resolved.device_preference == device.PREFERENCE_CUDA
+        assert resolved.model_id != "large-v3-turbo"
+
+    def test_a_chosen_model_is_never_moved(self):
+        resolved = self._resolve(model="base")
+        assert resolved.model_id == "base"
+        assert resolved.device_preference == device.PREFERENCE_AUTO
+
+    def test_an_installed_model_that_fits_the_card_stays_on_the_card(self):
+        resolved = preferences.resolve(
+            _settings(), self.SMALL_CARD, ("large-v3-turbo", "base"),
+            available_backends=(backend_module.BACKEND_FASTER_WHISPER,))
+        assert resolved.model_id == "base"
+        assert resolved.device_preference == device.PREFERENCE_AUTO
+
+    def test_nothing_installed_still_offers_the_download_for_the_card(self):
+        resolved = preferences.resolve(
+            _settings(), self.SMALL_CARD, (),
+            available_backends=(backend_module.BACKEND_FASTER_WHISPER,))
+        assert resolved.model_id is not None
+        assert resolved.device_preference == device.PREFERENCE_AUTO

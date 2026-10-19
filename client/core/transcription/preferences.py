@@ -491,6 +491,11 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
         section, probe, device_id, installed_ids, substitutions, custom_model_ids,
         backend_id, language, memory_compute,
     )
+    cpu_model = _installed_model_on_cpu(
+        section, preference, device_id, model_id, probe, installed_ids, custom_model_ids,
+        backend_id, language, compute_preference)
+    if cpu_model is not None:
+        model_id, preference = cpu_model, device.PREFERENCE_CPU
     only = model_language(model_id)
     forced = only is not None and language != only
     overridden = language if forced else None
@@ -878,6 +883,36 @@ def _resolve_model(section, probe, device_id, installed_ids, substitutions,
         probe, device_id, installed_ids, catalog=catalogue_models(backend_id),
         language=language, compute_type=compute_type,
     )
+
+
+def _installed_model_on_cpu(section, preference, device_id, model_id, probe, installed_ids,
+                            custom_model_ids, backend_id, language, compute_preference):
+    """The installed model to run on the processor instead, or None.
+
+    Only when both the model and the device are automatic and the card won:
+    a small card (2 GB) holds none of the models on disk, so the automatic
+    choice fell to a smaller model that is not downloaded, and the run
+    stopped with "no model is ready" for a user whose large-v3-turbo fits the
+    processor's memory several times over. A model already here, on the
+    processor, beats a download nobody asked for: the rule
+    auto_select_model() already applies within one device.
+    """
+    if section[SETTING_MODEL] != AUTO or device_id != device.DEVICE_CUDA:
+        return None
+    if preference != device.PREFERENCE_AUTO:
+        return None
+    installed = set(installed_ids or ())
+    if model_id in installed:
+        return None
+    compute = (
+        None if backend_id == backend_module.BACKEND_WHISPER_CPP
+        else precision.memory_compute_type(compute_preference, device.DEVICE_CPU, probe)
+    )
+    candidate = _resolve_model(
+        section, probe, device.DEVICE_CPU, installed_ids, [], custom_model_ids,
+        backend_id, language, compute,
+    )
+    return candidate if candidate in installed else None
 
 
 def _model_choice_exists(stored, custom_model_ids, backend_id=None) -> bool:
