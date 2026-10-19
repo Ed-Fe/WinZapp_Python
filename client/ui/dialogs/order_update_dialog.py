@@ -2,8 +2,10 @@
 
 The seller's order details and each later status arrive as one message
 (core/commerce.py, ORDER_UPDATE_MESSAGE_TYPE) that already carries everything
-shown here, so nothing is asked of the server. Read only: WhatsApp Web gives
-the buyer no answer to an order of this kind beyond paying it.
+shown here, so nothing is asked of the server. Read only: the one answer
+WhatsApp Web gives the buyer (confirming an order to be paid off-site by card,
+WAWebBizSendOrderAction.sendOrderPaymentMethodUpdate with "confirm") is not
+offered here.
 """
 
 import wx
