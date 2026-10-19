@@ -239,7 +239,8 @@ class ShortcutsTabMixin:
             return
         i18n = self.main_window.i18n
         dialog = ShortcutCaptureDialog(self._shortcuts_dialog, action_text(shortcut, i18n.t),
-                                       self._shortcut_binding(shortcut), shortcut.id == GLOBAL.id)
+                                       self._shortcut_binding(shortcut), shortcut.id == GLOBAL.id,
+                                       main_window=self.main_window)
         try:
             if dialog.ShowModal() != wx.ID_OK:
                 return

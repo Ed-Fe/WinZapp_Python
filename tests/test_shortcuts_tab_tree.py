@@ -125,3 +125,40 @@ def test_up_from_another_row_moves_in_the_tree():
     tab, key = _Tab(previous_ok=True), _Key(wx.WXK_UP)
     tab._on_shortcut_tree_key(key)
     assert key.skipped and not tab.search_focused
+
+
+# ── Change: the capture window ──────────────────────────────────────────────
+
+def test_change_hands_the_main_window_to_the_capture_window(monkeypatch):
+    """Reported from an installed build: Change raised AttributeError
+    ('SubPageDialog' object has no attribute 'main_window'), because the
+    capture window read it off its parent, the Shortcuts window."""
+    made = []
+
+    class _Capture:
+        def __init__(self, *args, **kwargs):
+            made.append((args, kwargs))
+
+        def ShowModal(self):
+            return wx.ID_CANCEL
+
+        def Destroy(self):
+            pass
+
+    monkeypatch.setattr("ui.dialogs.shortcuts_tab.ShortcutCaptureDialog", _Capture)
+    main_window = SimpleNamespace(i18n=SimpleNamespace(t=lambda key: key), settings={})
+    tab = SimpleNamespace(main_window=main_window, _shortcuts_dialog=object(),
+                          _selected_shortcut=lambda: A, _shortcut_binding=lambda s: None)
+    ShortcutsTabMixin._change_shortcut(tab)
+    [(args, kwargs)] = made
+    assert args[0] is tab._shortcuts_dialog
+    assert kwargs["main_window"] is main_window
+
+
+def test_the_capture_window_takes_the_main_window_it_is_given():
+    """Built without a window: its constructor reads main_window from the
+    argument first."""
+    import inspect
+    from ui.dialogs.shortcut_capture import ShortcutCaptureDialog
+    source = inspect.getsource(ShortcutCaptureDialog.__init__)
+    assert "main_window if main_window is not None else parent.main_window" in source
