@@ -75,6 +75,8 @@ MIRRORED_FILES = [
     "src/tests/controller/communityJoinController.test.ts",
     "src/controller/statusDeleteController.ts",
     "src/tests/controller/statusDeleteController.test.ts",
+    "src/controller/pageHeapController.ts",
+    "src/tests/controller/pageHeapController.test.ts",
     "src/controller/communityAdminController.ts",
     "src/tests/controller/communityAdminController.test.ts",
     "src/controller/groupMembershipRequestsController.ts",

@@ -36,6 +36,7 @@ import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
 import * as CommunityOverviewController from '../controller/communityOverviewController';
 import * as CommunityJoinController from '../controller/communityJoinController';
+import * as PageHeapController from '../controller/pageHeapController';
 import * as StatusDeleteController from '../controller/statusDeleteController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
@@ -293,6 +294,14 @@ routes.get(
   '/api/:session/status-session',
   verifyToken,
   SessionController.getSessionState
+);
+// A full V8 garbage collection of the WhatsApp Web page, asked for after a
+// large sync batch (issue #379; pageHeapController.ts). No connection probe:
+// it needs only the page, and the probe would be one more evaluation in it.
+routes.post(
+  '/api/:session/collect-page-garbage',
+  verifyToken,
+  PageHeapController.collectGarbage
 );
 routes.post(
   '/api/:session/send-status',

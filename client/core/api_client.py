@@ -358,7 +358,21 @@ def api_request(method: str, url: str, **kwargs) -> requests.Response:
     if not _gate_applies(method, url):
         return _api_request(method, url, **kwargs)
     with _sync_gate():
-        return _api_request(method, url, **kwargs)
+        response = _api_request(method, url, **kwargs)
+    _note_sync_payload(response)
+    return response
+
+
+def _note_sync_payload(response) -> None:
+    """The size of one sync or backfill answer, for core/page_heap.py's
+    decision of when the page's heap is worth a collection. Never raises."""
+    try:
+        from core.page_heap import note_sync_payload
+        content = getattr(response, "content", None)
+        if isinstance(content, (bytes, bytearray)):
+            note_sync_payload(len(content))
+    except Exception:
+        pass
 
 
 def _api_request(method: str, url: str, *, token: str = "", request_id: str = "",

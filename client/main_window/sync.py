@@ -28,6 +28,7 @@ from core.incremental_sync import (
     select_stale_rechecks as _select_stale_rechecks,
 )
 from core.api_client import api_post, sync_throttled
+from core.page_heap import collect_after_batch
 from core.sync_progress import ProgressThrottle
 from core.resume_message_sync import promote_resume_rechecks
 from ui.dialogs.checkbox_confirm import confirm_with_checkbox
@@ -2627,6 +2628,10 @@ class SyncMixin:
                             done=progress.done, total=progress.total),
                         "announce_sync_progress",
                     )
+
+        # The batch is answered: if it carried enough, the page's heap gets one
+        # garbage collection now, on its own thread (core/page_heap.py).
+        collect_after_batch(self)
 
         if _superseded():
             # Every chat skipped by the stale check above came back False, which

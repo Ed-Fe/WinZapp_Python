@@ -162,7 +162,7 @@ two pools — and only those — pass through one shared gate
 is the first experiment the maintainers and the reporter agreed on, with the
 launch flags and the V8 heap cap **left out on purpose** (a 350 MB cap was once
 removed because it made the renderer run out of memory during heavy history
-loads) and no forced garbage collection.
+loads). Forced garbage collection came next, as part 2 (below).
 
 - **The pools are unchanged**: same workers, order, run-id checks, retries. A
   worker waits at the gate for its turn and holds nothing while it waits, and
@@ -178,3 +178,24 @@ loads) and no forced garbage collection.
   (`SYNC_GATE_MAX_WAIT_SECONDS`): past it the request goes out unthrottled, which
   is what it did before.
 - To try another number, change the constant; nothing else depends on it.
+
+## One V8 garbage collection after a large batch (issue #379, part 2)
+
+`core/page_heap.py` asks WinZapp's own route (`collect-page-garbage`,
+`api_patches/src/controller/pageHeapController.ts`) for `HeapProfiler.collectGarbage`
+in the WhatsApp Web page. It reclaims only unreferenced objects, so no WhatsApp
+Web state is lost; its cost is a pause of the page's JavaScript.
+
+- **Only between batches.** `collect_after_batch(self)` runs once a sync pass's
+  pool or a backfill pass's pool has finished, never inside a worker and never
+  for anything a person is waiting on.
+- **Only after a large one.** api_client meters the size of the get-messages
+  answers inside the gate (the same calls part 1 throttles); below
+  `GC_PAYLOAD_BYTES` since the last collection nothing happens, so the
+  once-a-minute rounds never trigger one. At most one every
+  `GC_MIN_INTERVAL_SECONDS`, one at a time, on its own thread, only with
+  WhatsApp connected and WinZapp not shutting down.
+- **Never a sync failure.** Whatever the route answers, nothing reaches
+  `message_failures`. A 404 (a server without the route) stops the requests
+  for the rest of the run.
+- The V8 heap cap of part 3 stays out: see the start of this section.
