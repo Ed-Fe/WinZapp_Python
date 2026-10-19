@@ -14,7 +14,7 @@ NOUTĂȚI
 
 - Comunitățile sunt acum un element al listei de navigare, după Apeluri, cu scurtătura Alt+8 în numele elementului; se poate ajunge la ele coborând prin listă, nu doar cu Alt+8.
 
-- Mesajele video (videoclipurile rotunde trimise în loc de un mesaj vocal) sunt acum afișate ca videoclipuri, cu durată, redare și Salvează ca, în loc de „Mesaj incompatibil”.
+- Mesajele video (videoclipurile rotunde trimise în loc de un mesaj vocal) sunt acum afișate ca videoclipuri, în loc de „Mesaj incompatibil”, și se numesc „mesaj video” în listă, cu aceeași durată, redare și Salvează ca ca orice videoclip.
 
 V2.1.0.0
 

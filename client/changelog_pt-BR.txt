@@ -14,7 +14,7 @@ NOVIDADES
 
 - Comunidades agora é um item da lista de navegação, depois de Ligações, com o atalho Alt+8 no nome do item; dá para chegar nela descendo pela lista e não só com Alt+8.
 
-- As mensagens de vídeo (os vídeos redondos enviados no lugar de uma mensagem de voz) agora aparecem como vídeos, com duração, reprodução e Salvar como, em vez de "Mensagem incompatível".
+- As mensagens de vídeo (os vídeos redondos enviados no lugar de uma mensagem de voz) agora aparecem como vídeos, em vez de "Mensagem incompatível", e se chamam "mensagem de vídeo" na lista, com a mesma duração, reprodução e Salvar como de qualquer vídeo.
 
 V2.1.0.0
 

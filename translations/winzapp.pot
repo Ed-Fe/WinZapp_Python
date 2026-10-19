@@ -14266,10 +14266,9 @@ msgctxt "uploading_progress"
 msgid "uploading, {pct}% done"
 msgstr ""
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/core/notification_manager.py client/main_window/chat_list.py
-#: client/status_tab/status_rules.py
-#: client/ui/conversation_panel/message_rendering.py client/ui/media_viewer.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/utils.py
+#: client/main_window/chat_list.py client/status_tab/status_rules.py
+#: client/ui/media_viewer.py
 msgctxt "video"
 msgid "video"
 msgstr ""
@@ -14288,6 +14287,11 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "video_call_window_title"
 msgid "Video call"
+msgstr ""
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/utils.py
+msgctxt "video_message"
+msgid "video message"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

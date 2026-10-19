@@ -22,3 +22,23 @@ def test_ptv_is_normalized_as_a_video_message():
     result = _Normalizer()._normalize_wpp_message(_raw_ptv())
     assert result["messageType"] == "videoMessage"
     assert "videoMessage" in result["message"]
+    assert result["message"]["videoMessage"]["ptv"] is True
+
+
+def test_plain_video_is_not_a_video_message():
+    raw = _raw_ptv()
+    raw["type"] = "video"
+    result = _Normalizer()._normalize_wpp_message(raw)
+    assert result["message"]["videoMessage"]["ptv"] is False
+
+
+def test_label_key():
+    from client.core.utils import video_label
+
+    class _I18n:
+        def t(self, key):
+            return f"[{key}]"
+
+    assert video_label({"ptv": True}, _I18n()) == "[video_message]"
+    assert video_label({"ptv": False}, _I18n()) == "[video]"
+    assert video_label({}, _I18n()) == "[video]"

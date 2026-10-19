@@ -14,7 +14,7 @@ NOVIDADES
 
 - As comunidades passam a ser um item da lista de navegação, depois de Chamadas, com o atalho Alt+8 no nome do item; pode chegar-se lá descendo pela lista e não só com Alt+8.
 
-- As mensagens de vídeo (os vídeos redondos enviados em vez de uma mensagem de voz) passam a aparecer como vídeos, com duração, reprodução e Guardar como, em vez de "Mensagem incompatível".
+- As mensagens de vídeo (os vídeos redondos enviados em vez de uma mensagem de voz) passam a aparecer como vídeos, em vez de "Mensagem incompatível", e chamam-se "mensagem de vídeo" na lista, com a mesma duração, reprodução e Guardar como de qualquer vídeo.
 
 V2.1.0.0
 

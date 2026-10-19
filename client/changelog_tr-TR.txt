@@ -14,7 +14,7 @@ YENİLİKLER
 
 - Topluluklar artık gezinme listesinde Aramalar'dan sonra gelen bir öğedir ve öğenin adında Alt+8 kısayolu yer alır; yalnızca Alt+8 ile değil, listede ilerleyerek de ulaşılabilir.
 
-- Video mesajlar (sesli mesaj yerine gönderilen yuvarlak videolar) artık "Uyumsuz mesaj" yerine süre, oynatma ve Farklı kaydet seçenekleriyle video olarak gösteriliyor.
+- Video mesajlar (sesli mesaj yerine gönderilen yuvarlak videolar) artık "Uyumsuz mesaj" yerine video olarak gösteriliyor, listede "video mesaj" adıyla görünüyor ve her videoyla aynı süre, oynatma ve Farklı kaydet seçeneklerine sahip.
 
 V2.1.0.0
 
