@@ -483,6 +483,51 @@ msgctxt "add_more_files"
 msgid "Add more &files"
 msgstr "Agregar más &archivos"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_fixed_port_check"
+msgid "Start the local API on a &fixed port"
+msgstr "Iniciar la API local en un puerto &fijo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_fixed_port_label"
+msgid "Local API &port (applies the next time WinZapp starts):"
+msgstr ""
+"&Puerto de la API local (se aplica la próxima vez que se abra WinZapp):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_debug"
+msgid "Debug: everything, to diagnose a problem"
+msgstr "Depuración: todo, para diagnosticar un problema"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_error"
+msgid "Errors only"
+msgstr "Solo errores"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_info"
+msgid "Information (default)"
+msgstr "Información (predeterminado)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_log_level_label"
+msgid "&Log level:"
+msgstr "Nive&l de registro:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_warning"
+msgid "Warnings and errors"
+msgstr "Avisos y errores"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_wpp_all_updates_check"
+msgid ""
+"Show &every WPPConnect Server update, not only the ones the WinZapp "
+"maintainers checked"
+msgstr ""
+"&Mostrar todas las actualizaciones de WPPConnect Server, no solo las "
+"revisadas por los mantenedores de WinZapp"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_accessibility_enabled_label"
 msgid "Ena&ble AI features (transcription and description)"
@@ -5334,7 +5379,7 @@ msgstr "&Introduce tu número de teléfono"
 #: client/main_window/wpp_server.py
 #: client/ui/conversation_panel/media_files.py
 #: client/ui/conversation_panel/voice_recording.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/advanced_tab.py client/ui/dialogs/settings_dialog.py
 #, python-brace-format
 msgctxt "error"
 msgid "{app_name} Error"
@@ -6501,7 +6546,7 @@ msgstr ""
 "El número de mensajes a saltar con Av Pág/Re Pág debe ser un entero "
 "positivo."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "invalid_port"
 msgid "The port must be an integer between 1024 and 65535."
@@ -12118,6 +12163,11 @@ msgctxt "tab_accessibility"
 msgid "Accessibility"
 msgstr "Accesibilidad"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "tab_advanced"
+msgid "Advanced"
+msgstr "Avanzadas"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ai_accessibility"
@@ -14434,6 +14484,16 @@ msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "Verificando el programa whisper.cpp ({build})..."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+#, python-brace-format
+msgctxt "transcription_queue_added"
+msgid ""
+"In the transcription queue, position {position}. It starts when the one "
+"before it finishes."
+msgstr ""
+"En la cola de transcripción, posición {position}. Empezará cuando termine la"
+" anterior."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
 #: client/ui/dialogs/transcription_queue.py
@@ -14441,6 +14501,11 @@ msgstr "Verificando el programa whisper.cpp ({build})..."
 msgctxt "transcription_queue_done"
 msgid "{count} models downloaded."
 msgstr "{count} modelos descargados."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_queue_removed"
+msgid "Removed from the transcription queue."
+msgstr "Quitada de la cola de transcripción."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
@@ -16765,7 +16830,7 @@ msgctxt "wpp_reinstall_notice_title"
 msgid "WPPConnect update recommended"
 msgstr "Actualización de WPPConnect recomendada"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "wpp_update_available_msg"
 msgid ""
@@ -16878,6 +16943,21 @@ msgstr "No se pudo restaurar o reiniciar la API anterior."
 msgctxt "wpp_update_start_failed"
 msgid "The updated API did not finish starting."
 msgstr "La API actualizada no terminó de iniciarse."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "wpp_update_unvetted_msg"
+msgid ""
+"A new WPPConnect Server version is available (current: {current}, new: "
+"{new}). The WinZapp maintainers have not checked it yet, so some features "
+"may not work with it. Update now? WinZapp will stop the API, install the new"
+" version, and restart it automatically."
+msgstr ""
+"Hay una nueva versión de WPPConnect Server disponible (actual: {current}, "
+"nueva: {new}). Los mantenedores de WinZapp aún no la han revisado, así que "
+"algunas funciones podrían no funcionar con ella. ¿Deseas actualizar ahora? "
+"WinZapp detendrá la API, instalará la nueva versión y la reiniciará "
+"automáticamente."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/wpp_server.py
 msgctxt "wpp_version_unpinned_warning"

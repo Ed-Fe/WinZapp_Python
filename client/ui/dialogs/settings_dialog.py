@@ -35,6 +35,7 @@ from ui.dialogs.transcription_options import TranscriptionOptionsMixin
 from ui.dialogs.transcription_queue import TranscriptionQueueMixin
 from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
 from ui.dialogs.transcription_windows import TranscriptionWindowsMixin
+from ui.dialogs.advanced_tab import AdvancedTabMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
@@ -217,7 +218,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                      TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
                      TranscriptionQueueMixin, TranscriptionCacheMixin,
                      TranscriptionOptionsMixin, TranscriptionReuseMixin,
-                     TranscriptionWindowsMixin, wx.Dialog):
+                     TranscriptionWindowsMixin, AdvancedTabMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]
@@ -1386,6 +1387,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # Connection is the last category: rarely needed, so out of the way.
         # Its controls are built above, where they were; only the page is added here.
         self._notebook.AddPage(self._conn_page, i18n.t("tab_connection"))
+        # Advanced comes after it: options most people never need (advanced_tab.py).
+        self._build_advanced_page()
 
         # ── Buttons at the end of the Interface page ─────────────────────────
         # Groups of options that open in a window of their own.
@@ -1919,6 +1922,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "updates_enabled": self._updates_check.GetValue(),
             "alpha_updates_enabled": self._alpha_updates_check.GetValue(),
             "background_update_downloads": self._background_updates_check.GetValue(),
+            "wpp_all_updates": self._wpp_all_updates_check.GetValue(),
             "show_tray_icon": self._tray_icon_check.GetValue(),
             "switch_behavior": (
                 "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
@@ -1986,6 +1990,10 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         self._background_updates_check.SetValue(background_updates)
 
+        # Settings > Advanced (advanced_tab.py): off, the approved releases only.
+        wpp_all_updates = install_wide.get("general", {}).get("wpp_all_updates", False)
+        self._wpp_all_updates_check.SetValue(wpp_all_updates)
+
         self._load_switch_behavior()
 
         conn = install_wide.get("connection", {})
@@ -2045,6 +2053,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         background_updates = self._background_updates_check.GetValue()
         if self._global_control_changed("background_update_downloads", background_updates):
             choices["background_update_downloads"] = background_updates
+        wpp_all_updates = self._wpp_all_updates_check.GetValue()
+        if self._global_control_changed("wpp_all_updates", wpp_all_updates):
+            choices["wpp_all_updates"] = wpp_all_updates
 
         # Account switch behavior
         self._apply_switch_behavior(choices)
@@ -2524,6 +2535,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._audio_speed_combo.SetSelection(speed_idx)
         self._load_chat_lock_values()
         self._load_transcription_values()
+        self._load_advanced_values()
 
     def _chat_lock_timeout_labels(self):
         i18n = self.main_window.i18n
@@ -2907,6 +2919,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._server_field.Enable(is_custom)
         self._ws_server_field.Enable(is_custom)
         self._api_key_field.Enable(is_custom)
+        # The bundled API's port is chosen per account at start, or fixed in
+        # Advanced (core/local_api_port.py); this one is the custom server's.
+        self._port_field.Enable(is_custom)
 
     def _update_self_reference_field_state(self):
         is_other = self._self_ref_other_rb.GetValue()
@@ -3608,6 +3623,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             return False
         if not self._validate():
             return False
+        if not self._validate_advanced_values():
+            return False
 
         if not self._ai_page.apply():
             self._notebook.SetSelection(self._notebook.FindPage(self._ai_page))
@@ -3844,6 +3861,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port
+        # Advanced: the log level (applied now) and the fixed local API port.
+        self._apply_advanced_values()
 
         # Audio devices — output was already switched live during _validate()
         # (that's the only way to test it); here we just persist the choice
@@ -4142,6 +4161,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
     def _refresh_dialog_labels(self):
         """Update this dialog's own title and notebook tab captions after a language change."""
         self._refresh_shortcut_labels()
+        self._refresh_advanced_labels()
         i18n = self.main_window.i18n
         self.SetTitle(i18n.t("settings_title"))
         self._refresh_search_texts()

@@ -99,13 +99,13 @@ def test_the_check_never_asks_github_for_the_newest_release():
 def test_below_the_pin_the_required_update_is_offered(monkeypatch):
     checker, prompts, _ = _checker(monkeypatch, "2.10.10", "v2.10.16")
     checker._check_once()
-    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True)]
+    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True, True)]
 
 
 def test_an_approved_release_is_recommended(monkeypatch):
     checker, prompts, _ = _checker(monkeypatch, "2.10.16", "v2.10.16", ("v2.10.18", True))
     checker._check_once()
-    assert prompts == [("2.10.16", "2.10.18", "v2.10.18", False)]
+    assert prompts == [("2.10.16", "2.10.18", "v2.10.18", False, True)]
 
 
 def test_nothing_approved_checks_again_later(monkeypatch):
@@ -125,7 +125,7 @@ def test_an_unreachable_list_is_read_again_sooner(monkeypatch):
 def test_an_unreachable_list_still_offers_the_pin(monkeypatch):
     checker, prompts, _ = _checker(monkeypatch, "2.10.10", "v2.10.16", ("", False))
     checker._check_once()
-    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True)]
+    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True, True)]
 
 
 def test_a_server_ahead_of_everything_is_not_touched(monkeypatch):
@@ -152,14 +152,14 @@ def test_a_required_update_whose_approved_target_failed_offers_the_pin(monkeypat
     checker, prompts, _ = _checker(monkeypatch, "2.10.10", "v2.10.16", ("v2.10.18", True))
     checker._declined_tag = "v2.10.18"
     checker._check_once()
-    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True)]
+    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True, True)]
 
 
 def test_a_failed_pin_is_still_asked_again(monkeypatch):
     checker, prompts, _ = _checker(monkeypatch, "2.10.10", "v2.10.16", ("", True))
     checker._declined_tag = "v2.10.16"
     checker._check_once()
-    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True)]
+    assert prompts == [("2.10.10", "2.10.16", "v2.10.16", True, True)]
 
 
 def _force_reinstall(monkeypatch, pending_timer):
@@ -305,3 +305,23 @@ def test_the_approved_lookup_selects_for_the_pin(monkeypatch):
     assert WppUpdateChecker._approved_tag("v2.10.16") == ("v2.10.18", True)
     assert WppUpdateChecker._approved_tag("v2.10.21") == ("v2.10.25", True)
     assert WppUpdateChecker._approved_tag("") == ("", True)
+
+
+def test_every_release_option_offers_upstream_with_its_own_warning(monkeypatch):
+    """Settings > Advanced > "Show every WPPConnect Server update": the newest
+    upstream release is offered past the approved one, flagged as unvetted."""
+    from core import wpp_upstream
+    monkeypatch.setattr(wpp_upstream, "fetch_latest_tag", lambda *a, **k: "v2.10.30")
+    checker, prompts, _ = _checker(monkeypatch, "2.10.16", "v2.10.16", ("v2.10.18", True))
+    checker._mw.settings = {"general": {"wpp_all_updates": True}}
+    checker._check_once()
+    assert prompts == [("2.10.16", "2.10.30", "v2.10.30", False, False)]
+
+
+def test_with_the_option_on_an_approved_newest_release_is_still_vetted(monkeypatch):
+    from core import wpp_upstream
+    monkeypatch.setattr(wpp_upstream, "fetch_latest_tag", lambda *a, **k: "v2.10.18")
+    checker, prompts, _ = _checker(monkeypatch, "2.10.16", "v2.10.16", ("v2.10.18", True))
+    checker._mw.settings = {"general": {"wpp_all_updates": True}}
+    checker._check_once()
+    assert prompts == [("2.10.16", "2.10.18", "v2.10.18", False, True)]

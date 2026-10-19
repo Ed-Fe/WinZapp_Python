@@ -186,7 +186,8 @@ def wpp_update_target(installed: str, minimum: str, approved: str = ""):
     """(tag, required) for the periodic WPPConnect check, or None.
 
     WinZapp's patches follow the server by hand, so the newest upstream release
-    is never offered. Two kinds exist:
+    is only offered to a user who asked for it, passed in as *approved* (see
+    WppUpdateChecker._offered_tag()). Two kinds exist:
 
     * *required* (True): the installed server is below the bundled minimum
       (wpp_minimum_version.txt), the case ensure_wpp_version() repairs at a
@@ -1957,10 +1958,13 @@ class WppUpdateChecker:
     and a newer release the maintainers approved for this build's pin
     (client/wpp_approved_versions.json on main, core/wpp_approved.py).
 
-    It never asks GitHub for the newest upstream release: that is a version the
-    patches may not have been ported to. Only the approved list can move a
-    server past the pin, and the check (the one the startup gate cannot make in
-    --background mode) offers the pin itself when the installed server is older.
+    By default it never asks GitHub for the newest upstream release: that is a
+    version the patches may not have been ported to. Only the approved list can
+    move a server past the pin, and the check (the one the startup gate cannot
+    make in --background mode) offers the pin itself when the installed server
+    is older. Settings > Advanced > "Show every WPPConnect Server update" opts
+    back into the newest upstream release (_offered_tag(), core/wpp_upstream.py),
+    asked about with a warning that the maintainers have not checked it.
 
     Unlike UpdateChecker above, accepting the prompt here doesn't just
     download a new WinZapp build — it stops the *running* API session,
@@ -2101,7 +2105,19 @@ class WppUpdateChecker:
         pin = self._pinned_tag()
         if not pin:
             return ""
-        return self._approved_tag(pin)[0] or pin
+        return self._offered_tag(pin, self._approved_tag(pin)[0]) or pin
+
+    def _offered_tag(self, pin: str, approved: str) -> str:
+        """The release this check may offer above the pin: the approved one,
+        or, with Settings > Advanced > "Show every WPPConnect Server update"
+        on (core/wpp_upstream.py), the newer of it and the newest upstream
+        release. "" when there is none; wpp_update_target() still never
+        offers anything below the pin."""
+        from core import wpp_upstream
+        if not wpp_upstream.enabled(getattr(self._mw, "settings", None)):
+            return approved
+        latest = wpp_upstream.fetch_latest_tag(f"WinZapp/{__version__}")
+        return wpp_upstream.newest_tag(approved, latest) or approved
 
     def _check_once(self):
         if getattr(self, "_stopped", False):
@@ -2121,7 +2137,8 @@ class WppUpdateChecker:
                 # A dev checkout: no pin, nothing to compare, nothing approved.
                 return
             approved, reachable = self._approved_tag(minimum)
-            target = wpp_update_target(installed, minimum, approved)
+            target = wpp_update_target(installed, minimum,
+                                       self._offered_tag(minimum, approved))
             if target is None:
                 # The approved list can grow while this process runs; an
                 # unreachable one (no network yet at a Windows login) is read
@@ -2150,17 +2167,23 @@ class WppUpdateChecker:
                 self._schedule_retry()
                 return
 
+            # Neither the pin nor an approved release: only offered because the
+            # user asked for every upstream release, and said so in the prompt.
+            vetted = tag in (minimum, approved)
             logging.info(
                 "[WppUpdateChecker] wppconnect-server %s: %s -> %s",
-                "update required" if required else "approved update available",
+                "update required" if required
+                else "approved update available" if vetted
+                else "unapproved upstream update available",
                 installed, remote_version,
             )
-            wx.CallAfter(self._prompt_update, installed, remote_version, tag, required)
+            wx.CallAfter(self._prompt_update, installed, remote_version, tag, required, vetted)
         except Exception:
             logging.exception("[WppUpdateChecker] Unexpected error during wppconnect-server update check")
             self._schedule_retry(self._ERROR_RETRY_INTERVAL)
 
-    def _prompt_update(self, installed: str, remote_version: str, tag: str, required: bool = True):
+    def _prompt_update(self, installed: str, remote_version: str, tag: str, required: bool = True,
+                       vetted: bool = True):
         if getattr(self._mw, "_shutting_down", False):
             return   # quitting: no dialog on a dying app (UpdateChecker does the same)
         if (getattr(self._mw, "_wpp_updating", False)
@@ -2205,8 +2228,9 @@ class WppUpdateChecker:
                     current=installed, required=remote_version)
             else:
                 title = i18n.t("wpp_update_available_title")
-                message = i18n.t("wpp_update_available_msg").format(
-                    current=installed, new=remote_version)
+                message = i18n.t(
+                    "wpp_update_available_msg" if vetted else "wpp_update_unvetted_msg"
+                ).format(current=installed, new=remote_version)
             # wx.NO_DEFAULT: this can pop up while the user is typing a message,
             # and Space is how NVDA/JAWS/Narrator users activate the focused
             # button — defaulting to Yes risked reinstalling the API session

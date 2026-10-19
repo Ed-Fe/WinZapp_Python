@@ -896,10 +896,20 @@ class WppServerMixin:
 
         import node_ports
         from coord_locks import node_port_lock
-        logging.warning(
-            "[node-port] port %s no longer free right before starting Node "
-            "— re-resolving", self.wpp_port,
-        )
+        from core import local_api_port
+        if local_api_port.fixed_port(self.settings) == self.wpp_port:
+            # The fixed port (Settings > Advanced) is held by something else:
+            # this run takes an automatic one rather than a Node that cannot
+            # bind; the next start tries the fixed port again.
+            logging.warning(
+                "[node-port] the fixed port %s is taken right before starting "
+                "Node — using an automatic port for this run", self.wpp_port,
+            )
+        else:
+            logging.warning(
+                "[node-port] port %s no longer free right before starting Node "
+                "— re-resolving", self.wpp_port,
+            )
         with node_port_lock(self.global_dir):
             # allocate_port_for_account(), not resolve_account_port(): the
             # latter deliberately keeps a valid saved port even when
@@ -951,10 +961,26 @@ class WppServerMixin:
         it never drifts. This is what gives each account its own isolated Node.
         """
         import node_ports
+        from core import local_api_port
         if conn.get("wpp_custom_api"):
             saved = conn.get("wpp_port")
             return saved if isinstance(saved, int) and not isinstance(saved, bool) else node_ports.BASE_PORT
+        # Settings > Advanced fixed this account's port: it wins over the
+        # allocation below. Saved as the connection port too, so the other
+        # accounts' allocation (_peer_node_ports()) keeps away from it.
+        fixed = local_api_port.fixed_port(self.settings)
+        if fixed is not None:
+            if conn.get("wpp_port") != fixed:
+                self.settings.setdefault("connection", {})["wpp_port"] = fixed
+                try:
+                    self.save_settings()
+                except Exception:
+                    logging.exception("[node-port] persisting the fixed port failed (non-fatal)")
+            logging.info("[node-port] account %s → fixed WPPConnect port %s",
+                         getattr(self, "account_id", None), fixed)
+            return fixed
         # Single-account / legacy fallback (no registry context): behave as before.
+        # (A fixed port, above, applies there too.)
         if getattr(self, "registry", None) is None or getattr(self, "account_id", None) is None:
             return node_ports.sanitize_saved_port(conn.get("wpp_port")) or node_ports.BASE_PORT
 

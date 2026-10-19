@@ -442,6 +442,7 @@ _ANOTHER_VALUE = {
     "updates_enabled": False,
     "alpha_updates_enabled": True,
     "background_update_downloads": True,
+    "wpp_all_updates": True,
     "show_tray_icon": False,
     "switch_behavior": "keep_open",
     "wpp_custom_api": True,
@@ -473,6 +474,7 @@ class _SettingsDialog(_Dialog):
         self._updates_check = _Radio()
         self._alpha_updates_check = _Radio()
         self._background_updates_check = _Radio()
+        self._wpp_all_updates_check = _Radio()
         self._tray_icon_check = _Radio()
         self._custom_api_check = _Radio()
         self._server_field = _Radio("")
@@ -519,6 +521,7 @@ def _set_control(dialog, key, value):
             "updates_enabled": dialog._updates_check,
             "alpha_updates_enabled": dialog._alpha_updates_check,
             "background_update_downloads": dialog._background_updates_check,
+            "wpp_all_updates": dialog._wpp_all_updates_check,
             "show_tray_icon": dialog._tray_icon_check,
             "wpp_custom_api": dialog._custom_api_check,
             "wpp_server": dialog._server_field,

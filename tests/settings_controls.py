@@ -46,6 +46,7 @@ FILES = (
     "transcription_model_marks.py", "transcription_options.py", "transcription_precision.py",
     "transcription_queue.py", "transcription_result_field.py", "transcription_reuse.py",
     "transcription_tab.py", "transcription_whisper_cpp.py", "transcription_windows.py",
+    "advanced_tab.py",
 )
 
 LABELLED = {"Button", "CheckBox", "RadioButton", "ToggleButton", "RadioBox", "StaticText",

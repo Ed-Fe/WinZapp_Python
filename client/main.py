@@ -72,6 +72,7 @@ from core.message_edit import (
     response_not_sent,
 )
 from core.i18n import I18n
+from core import log_level
 from core.remote_deletions import (
     comparable_local_ids,
     comparable_local_records,
@@ -500,6 +501,8 @@ class MainWindow(
         self.settings = {}
         logging.info("MainWindow: Loading settings...")
         self.load_settings()
+        # setup_logging() started at INFO, before there were settings to read.
+        log_level.apply_log_level(self.settings)
 
         # The CUDA libraries a previous session downloaded are on no loader
         # search path when this process starts, so without this call a user who

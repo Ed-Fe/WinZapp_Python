@@ -16,6 +16,7 @@
         "updates_enabled": true,
         "alpha_updates_enabled": false,
         "background_update_downloads": false,
+        "wpp_all_updates": false,
         "noise_reduction_enabled": false,
         "voice_message_stereo": false,
         "system_audio_recording_volume": 100,
@@ -182,5 +183,9 @@
         "media_max_days": 30,
         "media_max_mb": 100,
         "probe_video_duration_on_download": false
+    },
+    "advanced": {
+        "log_level": "info",
+        "local_api_port": 0
     }
 }

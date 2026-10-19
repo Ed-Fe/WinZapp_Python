@@ -1076,6 +1076,9 @@ DEFAULT_SETTINGS = {
         # interrupted to install them. Off: the long-standing behaviour, so no
         # migration.
         "background_update_downloads": False,
+        # Offer every WPPConnect Server release, not only the approved ones
+        # (core/wpp_upstream.py). Off: the approved list, as since it existed.
+        "wpp_all_updates": False,
         "noise_reduction_enabled": False,
         # Stereo voice messages (issue #82, core/voice_stereo.py). Off: a
         # stereo recording goes out as an audio message, not a voice message.
@@ -1339,6 +1342,13 @@ DEFAULT_SETTINGS = {
         "media_max_days": 30,
         "media_max_mb": 100,
         "probe_video_duration_on_download": False
+    },
+    # Settings > Advanced (ui/dialogs/advanced_tab.py). INFO is what log.log
+    # always recorded (core/log_level.py); 0 is the automatic per-account
+    # port of the bundled API (core/local_api_port.py).
+    "advanced": {
+        "log_level": "info",
+        "local_api_port": 0
     }
 }
 

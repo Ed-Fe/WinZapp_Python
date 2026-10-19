@@ -56,6 +56,7 @@ EXCLUDED_SECTIONS = frozenset({
 #: Keys inside a section that is otherwise worth carrying.
 EXCLUDED_KEYS = frozenset({
     ("general", "autostart"),          # a Windows registry entry of that machine
+    ("advanced", "local_api_port"),    # a port free on that machine, not this one
     ("general", "first_run"),          # the one-shot questions this install
     ("general", "api_type_first_run_asked"),   # has already answered
     ("general", "hotkey_first_run_asked"),
