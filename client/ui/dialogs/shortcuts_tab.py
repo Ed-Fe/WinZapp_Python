@@ -245,8 +245,11 @@ class ShortcutsTabMixin:
                 continue
             general[key] = {'vk': pair[0], 'mod': pair[1]} if pair else {'vk': 0, 'mod': 0}
         refresh_shortcuts(self.main_window)
-        # A call that is ringing right now picks up the keys just chosen.
-        self.main_window._sync_call_hotkeys()
+        # A call that is ringing right now picks up the keys just chosen. The
+        # dialog can also sit on a plain frame (its tests), without the mixin.
+        sync = getattr(self.main_window, '_request_call_hotkey_sync', None)
+        if sync is not None:
+            sync()
 
     def _validate_shortcut_values(self):
         """Also check General's legacy capture field before any settings mutate."""

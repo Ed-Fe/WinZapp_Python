@@ -35,7 +35,7 @@ def spec(shortcut_id):
 def window(overrides=None):
     return SimpleNamespace(settings={SECTION: dict(overrides or {})},
                            i18n=SimpleNamespace(t=translate, language='en-US'),
-                           _sync_call_hotkeys=lambda: None)
+                           _request_call_hotkey_sync=lambda: None)
 
 
 class Event:
