@@ -13,8 +13,8 @@ at the supported 8–384 kHz rates; the equal-rate path does no filtering.
 Microphone callbacks copy float32 only; the sender does conversion and PCM16
 encoding. Converted input is packetized at 960 samples so dropping a stale
 20 ms capture still has the existing call-frame meaning. Discarding backlog
-also discards FIR/partial-frame history and accounts for the partial samples
-in existing echo bookkeeping. The remote player's FIR, rate snapshot and
+also discards FIR/partial-frame history; the audio processor is not told,
+because AEC3 re-estimates the delay itself. The remote player's FIR, rate snapshot and
 reservoir push share the output-swap lock; reopen/stop discard old FIR history,
 even when the new stream's rate is unchanged. Do not reset the FIR at every
 packet or flush its old tail into a replacement stream. Device/rate selection,
