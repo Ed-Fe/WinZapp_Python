@@ -975,6 +975,15 @@ msgid "&Get models"
 msgstr "O&bter modelos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_hide_action_button"
+msgid ""
+"&Hide the online AI button after the message list (the message menu still "
+"offers it)"
+msgstr ""
+"Ocultar o botão de IA online &que fica depois da lista de mensagens (o menu "
+"da mensagem continua oferecendo)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_history_answer"
 msgid "Answer:"
@@ -1902,6 +1911,22 @@ msgstr "Saída de mensagem de voz (reprodução):"
 msgctxt "audio_effects_output_device_label"
 msgid "Effects output dev&ice (alerts / sounds)"
 msgstr "Dispositivo de &saída de efeitos (alertas / sons)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_progress_bar"
+msgid "&Hide the duration bar while media plays (Tab skips it)"
+msgstr ""
+"Ocultar a barra de &duração durante a reprodução (o Tab não passa por ela)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_speed_button"
+msgid ""
+"Hide the speed &button while media plays (the speed shortcuts still work)"
+msgstr ""
+"Ocultar o &botão de velocidade durante a reprodução (os atalhos de "
+"velocidade continuam funcionando)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

@@ -1221,7 +1221,11 @@ DEFAULT_SETTINGS = {
         # voice note is never flagged "played" in the message list when its
         # playback ends — which also means no row rewrite, and so no screen
         # reader announcement about a message the user has already moved off.
-        "mark_audio_played_in_list": True
+        "mark_audio_played_in_list": True,
+        # Leave the speed button and the duration bar out of the controls
+        # after the message list while media plays (core/playback_controls.py).
+        "hide_speed_button": False,
+        "hide_progress_bar": False
     },
     "audio_devices": {
         "output_device_name": "",

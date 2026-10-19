@@ -1075,6 +1075,17 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         audio_sizer.Add(self._auto_focus_next_audio_cb, 0, wx.ALL, 8)
 
+        # The controls after the message list while media plays, each one Tab
+        # stop fewer when hidden (core/playback_controls.py).
+        self._hide_audio_speed_cb = wx.CheckBox(
+            self._audio_page, label=i18n.t("audio_hide_speed_button")
+        )
+        audio_sizer.Add(self._hide_audio_speed_cb, 0, wx.ALL, 8)
+        self._hide_audio_progress_cb = wx.CheckBox(
+            self._audio_page, label=i18n.t("audio_hide_progress_bar")
+        )
+        audio_sizer.Add(self._hide_audio_progress_cb, 0, wx.ALL, 8)
+
         self._audio_page.SetSizer(audio_sizer)
         self._audio_dialog.set_body(self._audio_page)
         self._audio_playback_btn.Bind(wx.EVT_BUTTON, lambda e: self._audio_dialog.open())
@@ -2525,6 +2536,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._mark_audio_played_check.SetValue(
             audio_playback.get("mark_audio_played_in_list", True)
         )
+        self._hide_audio_speed_cb.SetValue(audio_playback.get("hide_speed_button", False))
+        self._hide_audio_progress_cb.SetValue(audio_playback.get("hide_progress_bar", False))
 
         # This load used to sit inside _on_custom_api_toggle() instead of here,
         # so opening Settings showed the Audio playback speed with nothing
@@ -4031,6 +4044,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("audio_playback", {})[
             "mark_audio_played_in_list"
         ] = self._mark_audio_played_check.GetValue()
+        self.main_window.settings.setdefault("audio_playback", {})[
+            "hide_speed_button"
+        ] = self._hide_audio_speed_cb.GetValue()
+        self.main_window.settings.setdefault("audio_playback", {})[
+            "hide_progress_bar"
+        ] = self._hide_audio_progress_cb.GetValue()
 
         # Transcription — the four per-account settings plus the install-wide
         # models folder, which goes to app_settings rather than settings.json.
@@ -4386,6 +4405,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._keep_search_after_open_cb.SetLabel(i18n.t("ui_keep_search_after_open"))
         self._auto_play_voice_in_sequence_cb.SetLabel(i18n.t("ui_auto_play_voice_in_sequence"))
         self._auto_focus_next_audio_cb.SetLabel(i18n.t("ui_auto_focus_next_audio"))
+        self._hide_audio_speed_cb.SetLabel(i18n.t("audio_hide_speed_button"))
+        self._hide_audio_progress_cb.SetLabel(i18n.t("audio_hide_progress_bar"))
         self._selected_announce_box.SetLabel(i18n.t("ui_selected_announce_position_label"))
         self._selected_announce_start_rb.SetLabel(i18n.t("ui_selected_announce_position_start"))
         self._selected_announce_end_rb.SetLabel(i18n.t("ui_selected_announce_position_end"))

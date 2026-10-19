@@ -52,7 +52,9 @@ class AIActionsMixin:
         """Show the Describe/Transcribe button under the same rule as the
         context-menu item: only on a message the feature offers an action for."""
         button = self._action_describe_btn
-        label = self._ai_menu_label(msg, self.main_window.i18n)
+        # Settings can leave the button out; the menu item stays.
+        hidden = self._ai_settings()[1].get("hide_action_button") is True
+        label = "" if hidden else self._ai_menu_label(msg, self.main_window.i18n)
         if label:
             button.SetLabel(label)
             button.Show()

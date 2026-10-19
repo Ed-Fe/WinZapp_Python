@@ -820,6 +820,7 @@ class PageStub:
         self.toggles = {kind: Control(True) for kind in ai_config.KINDS}
         self.profile = Control(selection=1)
         self.read_answers = Control(False)
+        self.hide_action_button = Control(False)
         self.auto_transcribe = Control(False)
         self.auto_describe = Control(False)
         self.auto_scope = Control(selection=0)
@@ -1433,6 +1434,29 @@ def test_the_describe_button_follows_the_menu_rule(ready):
     AIActionsMixin._update_ai_describe_button(panel, message("imageMessage", viewOnce=True))
     AIActionsMixin._update_ai_describe_button(panel, {"messageType": "conversation", "key": {"id": "m"}})
     assert shown == ["hide", "hide"]
+
+
+def test_the_describe_button_can_be_left_out_and_the_menu_keeps_the_item(ready):
+    """Settings > Online AI: one Tab stop fewer after the message list."""
+    shown = []
+    button = SimpleNamespace(SetLabel=lambda text: shown.append(("label", text)),
+                             Show=lambda: shown.append("show"), Hide=lambda: shown.append("hide"))
+    module, app = ready
+    app.update("ai_media", lambda old: dict(old or {}, hide_action_button=True))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
+                            _action_describe_btn=button)
+    panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
+    AIActionsMixin._update_ai_describe_button(panel, message("imageMessage"))
+    assert shown == ["hide"]
+    assert AIActionsMixin._ai_menu_label(panel, message("imageMessage"), panel.main_window.i18n)         == "ai_describe_image_menu"
+
+
+def test_the_describe_button_option_is_off_by_default_and_saved(tmp_path):
+    assert ai_config.preferences(AppSettings(str(tmp_path)))["hide_action_button"] is False
+    page = PageStub(tmp_path)
+    page.hide_action_button = Control(True)
+    assert page.apply()
+    assert ai_config.preferences(page.app)["hide_action_button"] is True
 
 
 def test_the_shortcut_and_the_button_act_on_the_selected_message_while_the_button_has_focus(monkeypatch):

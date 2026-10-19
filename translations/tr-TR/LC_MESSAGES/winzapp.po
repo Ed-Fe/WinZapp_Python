@@ -964,6 +964,15 @@ msgid "&Get models"
 msgstr "Modelleri &getir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_hide_action_button"
+msgid ""
+"&Hide the online AI button after the message list (the message menu still "
+"offers it)"
+msgstr ""
+"Mesa&j listesinden sonraki çevrim içi yapay zekâ düğmesini gizle (mesaj "
+"menüsü sunmaya devam eder)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_history_answer"
 msgid "Answer:"
@@ -1889,6 +1898,21 @@ msgstr "Sesli mesaj çıkışı (oynatma):"
 msgctxt "audio_effects_output_device_label"
 msgid "Effects output dev&ice (alerts / sounds)"
 msgstr "Efekt çıkış &cihazı (uyarılar / sesler)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_progress_bar"
+msgid "&Hide the duration bar while media plays (Tab skips it)"
+msgstr "Oynatma sırasında süre &çubuğunu gizle (Tab tuşu onu atlar)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_speed_button"
+msgid ""
+"Hide the speed &button while media plays (the speed shortcuts still work)"
+msgstr ""
+"Oynatma sırasında &hız düğmesini gizle (hız kısayolları çalışmaya devam "
+"eder)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
