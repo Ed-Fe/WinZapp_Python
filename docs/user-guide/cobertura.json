@@ -4,6 +4,7 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "b7cc16c47a10": "Atender chamadas em qualquer janela: enquanto uma chamada individual toca, Ctrl+",
     "08bdfe02f5a9": "Atualizações: a instalação mantém a exclusividade depois que o WinZapp fecha, e ",
     "a6171f430b5b": "As chamadas de voz preservam o tempo entre os pacotes de áudio e usam conversão ",
     "4c6f7722e289": "A janela de Configurações agora tem um campo de busca e uma lista de categorias:",
