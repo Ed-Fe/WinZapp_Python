@@ -1,10 +1,13 @@
 """Picking who a Status is hidden from, or shared only with.
 
 Opened from File > WhatsApp settings > Privacy (whatsapp_privacy_panel.py)
-when "My contacts except..." or "Only share with..." is chosen. The people come
-from the contacts WinZapp already synchronised with WhatsApp, one row per person
-(ui.dialogs.contact_list_picker.build_own_contact_rows, the same rows as the
-other contact pickers).
+when "My contacts except..." or "Only share with..." is chosen. WhatsApp shows
+a Status only to people saved in the phone's address book, so the people offered
+are the contacts saved there and synchronised with WhatsApp — the same test the
+contact data dialog uses (core.phone_contacts.is_phone_synced), over the rows of
+the other contact pickers (ui.dialogs.contact_list_picker.build_own_contact_rows),
+one row per person. A contact saved only in WinZapp, or a chat with no contact
+at all, is not offered: picking one would change nothing on WhatsApp.
 
 A list with checkboxes rather than the shared multi-select ContactListPicker: an
 audience is built over several searches ("Ana", then "Bruno"...), and a
@@ -26,6 +29,7 @@ an @lid.
 
 import wx
 
+from core import phone_contacts
 from core.utils import contact_dedup_key, contact_search_matches, format_number
 from core.whatsapp_privacy import AudienceSelection
 from ui.dialogs.contact_list_picker import build_own_contact_rows
@@ -58,6 +62,19 @@ def _outside_contact_label(main_window, jid: str) -> str:
     return i18n.t("unknown_contact")
 
 
+def saved_on_phone(main_window, jid: str) -> bool:
+    """Whether *jid* is a contact of the phone's address book, under any form
+    WinZapp keeps it: the flags may sit on the @lid record and not on the
+    phone one, or under the other Brazilian 8/9-digit form."""
+    normalize = getattr(main_window, "_normalize_jid", None) or (lambda j: j)
+    canonical = normalize(jid) or jid
+    forms = [jid, canonical,
+             (getattr(main_window, "_lid_to_phone", {}) or {}).get(canonical, ""),
+             (getattr(main_window, "_phone_to_lid", {}) or {}).get(canonical, "")]
+    return any(phone_contacts.is_phone_synced(phone_contacts.existing_contact(main_window, form))
+               for form in dict.fromkeys(f for f in forms if f))
+
+
 def audience_rows(main_window, current: "list | tuple") -> list:
     """(key, label, jid) for every pickable person, contacts first (sorted by
     name, as the other pickers), then the people of *current* that are not
@@ -67,7 +84,8 @@ def audience_rows(main_window, current: "list | tuple") -> list:
     for name, phone, entry in build_own_contact_rows(main_window):
         jid = entry["remoteJid"]
         key = contact_dedup_key(main_window, jid)
-        if key in seen:
+        if key in seen or not (phone_contacts.is_phone_synced(entry)
+                               or saved_on_phone(main_window, jid)):
             continue
         seen.add(key)
         label = name if name == phone else f"{name}, {phone}"

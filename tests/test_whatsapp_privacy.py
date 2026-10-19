@@ -7,6 +7,7 @@ counts as done (core/whatsapp_privacy.py), the server calls
 import pytest
 
 from core import whatsapp_privacy as privacy
+from core.phone_contacts import SYNCED_KEY
 from main_window import whatsapp_privacy as mixin_module
 from main_window.contacts import ContactsMixin
 from main_window.whatsapp_privacy import WhatsAppPrivacyMixin
@@ -318,8 +319,10 @@ class TestAudienceRows:
         from ui.dialogs.status_audience_dialog import audience_rows
 
         mw = _Mw({
-            "5551999998888@s.whatsapp.net": {"name": "Bruno", "isMyContact": True},
-            "5551988887777@s.whatsapp.net": {"name": "Ana", "isMyContact": True},
+            "5551999998888@s.whatsapp.net": {"name": "Bruno", "isMyContact": True,
+                                             "syncToAddressbook": True},
+            "5551988887777@s.whatsapp.net": {"name": "Ana", "isMyContact": True,
+                                             "syncToAddressbook": True},
         })
         rows = audience_rows(mw, ["999999999999999@lid", "5511912345678@c.us"])
         jids = [jid for _key, _label, jid in rows]
@@ -349,6 +352,42 @@ class TestAudienceRows:
                   "5551999998888@s.whatsapp.net": {"pushName": "Carla"}})
         [(_key, label, _jid)] = audience_rows(mw, ["999999999999999@lid"])
         assert label == "Carla"
+
+    def test_only_contacts_saved_on_the_phone_are_offered(self):
+        """WhatsApp shows a Status only to the phone's address book: a contact
+        saved only in WinZapp, one WhatsApp has but not on the phone, or a chat
+        with no contact at all would change nothing if picked."""
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({
+            "5551988887777@s.whatsapp.net": {"name": "Ana", "isMyContact": True,
+                                             "syncToAddressbook": True},
+            "5551977776666@s.whatsapp.net": {"name": "Bia", "isSaved": True},
+            "5551966665555@s.whatsapp.net": {"name": "Caio", "isMyContact": True},
+            "5551955554444@s.whatsapp.net": {"name": "Dani", "isMyContact": True, SYNCED_KEY: True},
+            "5551944443333@s.whatsapp.net": {"pushName": "Edu"},
+        })
+        mw.chats = {"5551944443333@s.whatsapp.net": {}}
+        labels = [label.split(",")[0] for _key, label, _jid in audience_rows(mw, [])]
+        assert labels == ["Ana", "Dani"]
+
+    def test_the_phone_flags_may_sit_on_the_lid_record(self):
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({
+            "5551999998888@s.whatsapp.net": {"name": "Bruno", "isMyContact": True},
+            "999999999999999@lid": {"isMyContact": True, "syncToAddressbook": True},
+        })
+        mw._phone_to_lid = {"5551999998888@s.whatsapp.net": "999999999999999@lid"}
+        rows = audience_rows(mw, [])
+        assert [jid for _key, _label, jid in rows] == ["5551999998888@s.whatsapp.net"]
+
+    def test_someone_already_on_whatsapps_list_is_never_dropped(self):
+        from ui.dialogs.status_audience_dialog import audience_rows
+
+        mw = _Mw({"5551977776666@s.whatsapp.net": {"name": "Bia", "isSaved": True}})
+        [(_key, label, jid)] = audience_rows(mw, ["5551977776666@c.us"])
+        assert label == "Bia" and jid == "5551977776666@c.us"
 
     def test_an_unbridged_lid_never_shows_its_digits(self):
         from ui.dialogs.status_audience_dialog import audience_rows
