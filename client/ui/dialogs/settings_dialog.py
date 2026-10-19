@@ -34,6 +34,7 @@ from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_options import TranscriptionOptionsMixin
 from ui.dialogs.transcription_queue import TranscriptionQueueMixin
 from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
+from ui.dialogs.transcription_windows import TranscriptionWindowsMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
@@ -87,6 +88,8 @@ class _HotkeyCapture(wx.TextCtrl):
         super().__init__(parent, style=wx.TE_PROCESS_ENTER)
         self._vk  = 0
         self._mod = 0
+        # The name is the label of the field, which may carry its Alt key.
+        accessible_name = accessible_name.replace("&", "")
         self._accessible = _HotkeyCaptureAccessible(self, accessible_name)
         self.SetName(accessible_name)
         self.SetAccessible(self._accessible)
@@ -95,6 +98,7 @@ class _HotkeyCapture(wx.TextCtrl):
         self.Bind(wx.EVT_SET_FOCUS, self._on_focus)
 
     def SetAccessibleName(self, name: str):
+        name = name.replace("&", "")
         self.SetName(name)
         self._accessible.SetNameText(name)
 
@@ -212,7 +216,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                      TranscriptionPrecisionMixin, TranscriptionResultFieldMixin,
                      TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
                      TranscriptionQueueMixin, TranscriptionCacheMixin,
-                     TranscriptionOptionsMixin, TranscriptionReuseMixin, wx.Dialog):
+                     TranscriptionOptionsMixin, TranscriptionReuseMixin,
+                     TranscriptionWindowsMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]
@@ -1334,6 +1339,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # at index 14 or 15 and this one at 15 or 16.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
+        self._register_transcription_windows()
         # ── WhatsApp settings ────────────────────────────────────────────────
         # What is kept on the paired WhatsApp account, not in WinZapp's own
         # settings. Two buttons, each opening its window; each window reads
@@ -1460,12 +1466,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self_ref_sizer = wx.StaticBoxSizer(self._self_ref_box, wx.VERTICAL)
 
         self._self_ref_eu_rb = wx.RadioButton(
-            self._messages_page, label=i18n.t("ui_self_reference_eu"), style=wx.RB_GROUP
+            self._messages_page, label=i18n.t("ui_self_reference_eu_option"), style=wx.RB_GROUP
         )
         self_ref_sizer.Add(self._self_ref_eu_rb, 0, wx.LEFT | wx.TOP, 5)
 
         self._self_ref_voce_rb = wx.RadioButton(
-            self._messages_page, label=i18n.t("ui_self_reference_voce")
+            self._messages_page, label=i18n.t("ui_self_reference_voce_option")
         )
         self_ref_sizer.Add(self._self_ref_voce_rb, 0, wx.LEFT | wx.TOP, 5)
 
@@ -1713,7 +1719,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         chats_sizer.Add(selected_announce_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         # The vault's settings, one level down: a button in this window.
-        self._chat_lock_btn = wx.Button(self._chats_page, label=i18n.t("locked_chats"))
+        # A key of its own: "locked_chats" also names the vault's list, where
+        # an Alt key would be read out.
+        self._chat_lock_btn = wx.Button(self._chats_page, label=i18n.t("chat_lock_settings_button"))
         self._chat_lock_btn.Show(self._chat_lock_tab_shown)
         chats_sizer.Add(self._chat_lock_btn, 0, wx.ALL, 8)
         self._chat_lock_btn.Bind(wx.EVT_BUTTON, lambda e: self._chat_lock_dialog.open())
@@ -3224,7 +3232,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         answer = wx.MessageBox(
             i18n.t("profile_backup_delete_question").format(
                 size=snapshot_size_text(size, i18n.t("decimal_separator"))),
-            i18n.t("tab_profile_backup"),
+            i18n.t("tab_profile_backup").replace("&", ""),
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
             self,
         )
@@ -4144,7 +4152,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._notebook.SetPageText(4, i18n.t("tab_event_sounds"))
         self._notebook.SetPageText(5, i18n.t("tab_storage"))
         self._notebook.SetPageText(6, i18n.t("tab_calls"))
-        self._chat_lock_btn.SetLabel(i18n.t("locked_chats"))
+        self._chat_lock_btn.SetLabel(i18n.t("chat_lock_settings_button"))
         self._chat_lock_dialog.SetTitle(i18n.t("locked_chats").replace("&", ""))
         self._notebook.SetPageText(
             self._notebook.FindPage(self._whatsapp_page), i18n.t("wa_settings_dialog_title"))
@@ -4295,8 +4303,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._show_listbox_count_cb.SetLabel(i18n.t("ui_show_listbox_item_count"))
         self._show_typing_row_cb.SetLabel(i18n.t("ui_show_typing_row"))
         self._self_ref_box.SetLabel(i18n.t("ui_self_reference_label"))
-        self._self_ref_eu_rb.SetLabel(i18n.t("ui_self_reference_eu"))
-        self._self_ref_voce_rb.SetLabel(i18n.t("ui_self_reference_voce"))
+        # Keys of their own: the plain words are what messages say for me.
+        self._self_ref_eu_rb.SetLabel(i18n.t("ui_self_reference_eu_option"))
+        self._self_ref_voce_rb.SetLabel(i18n.t("ui_self_reference_voce_option"))
         self._self_ref_other_rb.SetLabel(i18n.t("ui_self_reference_other"))
         self._self_ref_custom_label.SetLabel(i18n.t("ui_self_reference_custom_label"))
         self._hide_own_sender_cb.SetLabel(i18n.t("ui_hide_own_sender_in_message_list"))

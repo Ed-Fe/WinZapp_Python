@@ -151,7 +151,7 @@ class WhatsAppProfilePanel(wx.Panel):
     def _on_choose_photo(self, event):
         i18n = self._i18n
         dialog = wx.FileDialog(
-            self, i18n.t("profile_choose_photo_button"),
+            self, i18n.t("profile_choose_photo_button").replace("&", ""),
             wildcard=i18n.t("profile_photo_wildcard"),
             style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
         )
@@ -212,10 +212,11 @@ class WhatsAppProfilePanel(wx.Panel):
             self._show_photo_state()
 
         if errors:
+            # The field labels carry their Alt key ("&"); the message does not.
             labels = {
-                "name": i18n.t("profile_name_label"),
-                "status": i18n.t("profile_status_label"),
-                "photo": i18n.t("profile_photo_label"),
+                "name": i18n.t("profile_name_label").replace("&", ""),
+                "status": i18n.t("profile_status_label").replace("&", ""),
+                "photo": i18n.t("profile_photo_label").replace("&", ""),
             }
             lines = profile.failure_lines(errors, labels)
             self._show(i18n.t("profile_save_partial_error"))

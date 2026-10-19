@@ -1,7 +1,9 @@
 """Reusing CUDA libraries and whisper.cpp programs already downloaded elsewhere.
 
-The group at the end of the Local Transcription tab: two folders, each with a
-read-only field, a Browse button and a Forget button. The rules (what a folder
+Two folders, each with a read-only field, a Browse button and a Forget button,
+each in the window of what it holds (transcription_windows.py): the CUDA
+libraries' and the whisper.cpp program's. In one window the two rows' buttons
+shared their words and so their Alt keys. The rules (what a folder
 must hold, why it is only ever read) are core/transcription/reused_runtimes.py.
 
 A folder is checked the moment it is chosen — the CUDA one loads its libraries,
@@ -16,6 +18,12 @@ import threading
 import wx
 
 from core.transcription import management_text, reused_runtimes
+
+#: The words of each row, the same on both: relabelled by kind in
+#: _refresh_transcription_reuse_labels(), where the dicts below keep each control.
+_GROUP_KEY = "transcription_reuse_group"
+_BROWSE_KEY = "transcription_models_dir_browse_btn"
+_FORGET_KEY = "transcription_external_forget_btn"
 
 _CUDA = "cuda"
 _WHISPER_CPP = "whisper_cpp"
@@ -33,41 +41,50 @@ _KINDS = {
 class TranscriptionReuseMixin:
     """The reuse group, for `SettingsDialog`."""
 
-    def _build_transcription_reuse(self, page, sizer) -> None:
-        i18n = self.main_window.i18n
+    def _init_transcription_reuse(self) -> None:
+        if getattr(self, "_transcription_reuse_fields", None) is not None:
+            return
         self._transcription_reuse_dirs = {_CUDA: "", _WHISPER_CPP: ""}
         self._transcription_reuse_checking = set()
-        self._transcription_reuse_box = wx.StaticBox(
-            page, label=i18n.t("transcription_reuse_group")
-        )
-        box = self._transcription_reuse_box
-        group = wx.StaticBoxSizer(box, wx.VERTICAL)
+        self._transcription_reuse_boxes = {}
         self._transcription_reuse_labels = {}
         self._transcription_reuse_fields = {}
         self._transcription_reuse_choose = {}
         self._transcription_reuse_forget = {}
-        for kind, (label_key, _dialog_key, _setting) in _KINDS.items():
-            label = wx.StaticText(box, label=i18n.t(label_key))
-            group.Add(label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 4)
-            row = wx.BoxSizer(wx.HORIZONTAL)
-            field = wx.TextCtrl(box, style=wx.TE_DONTWRAP)
-            field.SetEditable(False)
-            # Labelled by _refresh_transcription_reuse_labels() below (called
-            # at the end of the build), the one place that names them: the two
-            # rows share these words.
-            choose = wx.Button(box)
-            forget = wx.Button(box)
-            choose.Bind(wx.EVT_BUTTON, lambda _e, k=kind: self._on_transcription_reuse_choose(k))
-            forget.Bind(wx.EVT_BUTTON, lambda _e, k=kind: self._on_transcription_reuse_forget(k))
-            row.Add(field, 1, wx.EXPAND | wx.RIGHT, 8)
-            row.Add(choose, 0, wx.RIGHT, 8)
-            row.Add(forget, 0)
-            group.Add(row, 0, wx.EXPAND | wx.ALL, 4)
-            self._transcription_reuse_labels[kind] = label
-            self._transcription_reuse_fields[kind] = field
-            self._transcription_reuse_choose[kind] = choose
-            self._transcription_reuse_forget[kind] = forget
+
+    def _build_transcription_reuse_cuda(self, page, sizer) -> None:
+        self._build_transcription_reuse_row(page, sizer, _CUDA, "transcription_reuse_cuda_label")
+
+    def _build_transcription_reuse_whisper_cpp(self, page, sizer) -> None:
+        self._build_transcription_reuse_row(page, sizer, _WHISPER_CPP,
+                                            "transcription_reuse_whisper_cpp_label")
+
+    def _build_transcription_reuse_row(self, page, sizer, kind, label_key) -> None:
+        """One folder's row. *label_key* is _KINDS[kind]'s, given by the
+        caller so tests/settings_controls.py can read it off the call."""
+        i18n = self.main_window.i18n
+        self._init_transcription_reuse()
+        box = wx.StaticBox(page, label=i18n.t(_GROUP_KEY))
+        group = wx.StaticBoxSizer(box, wx.VERTICAL)
+        label = wx.StaticText(box, label=i18n.t(label_key))
+        group.Add(label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 4)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        field = wx.TextCtrl(box, style=wx.TE_DONTWRAP)
+        field.SetEditable(False)
+        choose = wx.Button(box, label=i18n.t(_BROWSE_KEY))
+        forget = wx.Button(box, label=i18n.t(_FORGET_KEY))
+        choose.Bind(wx.EVT_BUTTON, lambda _e, k=kind: self._on_transcription_reuse_choose(k))
+        forget.Bind(wx.EVT_BUTTON, lambda _e, k=kind: self._on_transcription_reuse_forget(k))
+        row.Add(field, 1, wx.EXPAND | wx.RIGHT, 8)
+        row.Add(choose, 0, wx.RIGHT, 8)
+        row.Add(forget, 0)
+        group.Add(row, 0, wx.EXPAND | wx.ALL, 4)
         sizer.Add(group, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self._transcription_reuse_boxes[kind] = box
+        self._transcription_reuse_labels[kind] = label
+        self._transcription_reuse_fields[kind] = field
+        self._transcription_reuse_choose[kind] = choose
+        self._transcription_reuse_forget[kind] = forget
         self._refresh_transcription_reuse_labels()
 
     # ── Showing ──────────────────────────────────────────────────────────────
@@ -86,13 +103,11 @@ class TranscriptionReuseMixin:
 
     def _refresh_transcription_reuse_labels(self) -> None:
         i18n = self.main_window.i18n
-        self._transcription_reuse_box.SetLabel(i18n.t("transcription_reuse_group"))
-        for kind, (label_key, _dialog_key, _setting) in _KINDS.items():
-            self._transcription_reuse_labels[kind].SetLabel(i18n.t(label_key))
-            self._transcription_reuse_choose[kind].SetLabel(
-                i18n.t("transcription_models_dir_browse_btn"))
-            self._transcription_reuse_forget[kind].SetLabel(
-                i18n.t("transcription_external_forget_btn"))
+        for kind, label in self._transcription_reuse_labels.items():
+            self._transcription_reuse_boxes[kind].SetLabel(i18n.t(_GROUP_KEY))
+            label.SetLabel(i18n.t(_KINDS[kind][0]))
+            self._transcription_reuse_choose[kind].SetLabel(i18n.t(_BROWSE_KEY))
+            self._transcription_reuse_forget[kind].SetLabel(i18n.t(_FORGET_KEY))
         self._show_transcription_reuse()
 
     # ── Loading and applying ─────────────────────────────────────────────────

@@ -103,7 +103,7 @@ def _fold(text: str) -> str:
 # control that does not.
 _SELF_LABELLED = (wx.CheckBox, wx.RadioButton, wx.Button, wx.ToggleButton)
 _CAPTIONED = (wx.Choice, wx.ComboBox, wx.SpinCtrl, wx.SpinCtrlDouble, wx.TextCtrl,
-              wx.ListBox, wx.ListCtrl, wx.Slider, wx.CheckListBox)
+              wx.ListBox, wx.ListCtrl, wx.Slider, wx.CheckListBox, wx.TreeCtrl)
 # Names wx gives a control when nobody named it — worthless to search or read.
 _DEFAULT_NAMES = frozenset((
     "", "button", "check", "radioButton", "text", "choice", "comboBox", "listBox",

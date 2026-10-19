@@ -255,13 +255,16 @@ class WhatsAppPrivacyPanel(wx.ScrolledWindow):
             self._status_loaded = privacy.StatusPrivacy(status[0], tuple(status[1]))
             self._status_people = None
 
-        labels = {field.setting: i18n.t(field.label_key) for field in privacy.PRIVACY_FIELDS}
+        # The field labels carry their Alt key ("&"); a message does not.
+        labels = {field.setting: i18n.t(field.label_key).replace("&", "")
+                  for field in privacy.PRIVACY_FIELDS}
+        status_label = i18n.t("wa_privacy_status_label").replace("&", "")
         lines = [f"{labels.get(setting, setting)}: {error}" for setting, error in errors.items()]
         if status_error:
-            lines.append(f"{i18n.t('wa_privacy_status_label')}: {status_error}")
+            lines.append(f"{status_label}: {status_error}")
         not_taken = [labels.get(s, s) for s in unconfirmed]
         if status_unconfirmed:
-            not_taken.append(i18n.t("wa_privacy_status_label"))
+            not_taken.append(status_label)
         if not_taken:
             # No error, and still nothing changed on WhatsApp: the case that
             # looks exactly like success. Name what did not stick.

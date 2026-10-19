@@ -19,7 +19,9 @@ from core.transcription import stored as stored_transcription
 class TranscriptionOptionsMixin:
     """`keep_model_loaded` and `auto_transcribe_received` for `SettingsDialog`."""
 
-    def _build_transcription_options(self, page, sizer) -> None:
+    def _build_transcription_advanced_options(self, page, sizer) -> None:
+        """Keep the model loaded and transcribe without the progress window:
+        in the tab's Advanced options window (transcription_windows.py)."""
         i18n = self.main_window.i18n
         self._transcription_keep_loaded_check = wx.CheckBox(
             page, label=i18n.t("transcription_keep_loaded_check")
@@ -29,12 +31,25 @@ class TranscriptionOptionsMixin:
             page, label=i18n.t("transcription_no_dialog_check")
         )
         sizer.Add(self._transcription_no_dialog_check, 0, wx.ALL, 8)
+
+    def _build_transcription_options(self, page, sizer) -> None:
+        i18n = self.main_window.i18n
         self._transcription_auto_check = wx.CheckBox(
             page, label=i18n.t("transcription_auto_transcribe_check")
         )
         sizer.Add(self._transcription_auto_check, 0, wx.ALL, 8)
-        # Status updates: the conversation's options, mirrored. No Alt keys,
-        # like the cache controls: the tab has no free letter left.
+        # Automatic transcription with the online providers (Settings >
+        # Transcriptions & Descriptions) and this one would write two texts for
+        # the same message: turning either on turns the other off, after asking.
+        self._transcription_auto_check.Bind(wx.EVT_CHECKBOX, self._on_local_auto_toggle)
+        ai_page = getattr(self, "_ai_page", None)
+        if ai_page is not None:
+            ai_page.confirm_replaces_local = self._confirm_online_replaces_local
+
+    def _build_transcription_status_options(self, page, sizer) -> None:
+        """Status updates: the conversation's options, mirrored, in the tab's
+        Statuses window (transcription_windows.py)."""
+        i18n = self.main_window.i18n
         self._transcription_status_auto_check = wx.CheckBox(
             page, label=i18n.t("transcription_status_auto_check")
         )
@@ -54,13 +69,6 @@ class TranscriptionOptionsMixin:
             wx.EVT_BUTTON, self._on_transcription_clear_status_cache
         )
         sizer.Add(self._transcription_status_clear_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        # Automatic transcription with the online providers (Settings >
-        # Transcriptions & Descriptions) and this one would write two texts for
-        # the same message: turning either on turns the other off, after asking.
-        self._transcription_auto_check.Bind(wx.EVT_CHECKBOX, self._on_local_auto_toggle)
-        ai_page = getattr(self, "_ai_page", None)
-        if ai_page is not None:
-            ai_page.confirm_replaces_local = self._confirm_online_replaces_local
 
     def _ask_replace_automatic(self, key) -> bool:
         i18n = self.main_window.i18n
