@@ -20,8 +20,7 @@ from typing import Optional
 import numpy as np
 
 from core.audio_devices import repair_device_name
-from core.echo_canceller import EchoCanceller
-from core.noise_suppressor import NoiseSuppressor
+from core.call_audio_processing import CallAudioProcessor
 
 try:
     import sounddevice as sd
@@ -88,13 +87,12 @@ class CallAudioConfig:
     # off, and only the output one carries a spoken warning in the UI.
     exclusive_input: bool = False
     exclusive_output: bool = False
-    # Adaptive echo cancellation on the outgoing microphone, fed by what the
-    # output callback actually played. Off by default: it costs CPU and can
-    # slightly colour the voice, and a headset user has no echo to remove.
+    # WebRTC echo cancellation on the outgoing microphone, fed by what the
+    # output callback actually played (core/call_audio_processing.py). The
+    # saved setting is on by default; this field just carries it.
     echo_cancellation: bool = False
-    # Stationary-noise suppression (fans, hiss, hum) on the outgoing
-    # microphone, after the echo canceller. Off by default for the same reason:
-    # it colours the voice a little, and a quiet room has nothing to remove.
+    # WebRTC noise suppression (fans, hiss, hum) on the outgoing microphone,
+    # in the same module as the echo canceller.
     noise_suppression: bool = False
 
 
@@ -410,14 +408,11 @@ class CallAudioSession:
         self._mic_bytes_sent = 0
         self._mic_frames_dropped_for_latency = 0
         self._microphone_muted = False
-        self._echo_canceller: Optional[EchoCanceller] = (
-            EchoCanceller() if config.echo_cancellation else None
-        )
-        self._noise_suppressor: Optional[NoiseSuppressor] = (
-            NoiseSuppressor() if config.noise_suppression else None
-        )
+        # Built when the microphone opens (_restart_echo_reference), not here:
+        # the ringing monitor builds a session too and never captures.
+        self._processor: Optional[CallAudioProcessor] = None
         # (samples, rate) chunks copied out of the output callback; the sender
-        # thread resamples them into the canceller, so the realtime callback
+        # thread resamples them into the processor, so the realtime callback
         # only pays for a copy. Bounded: nobody drains it while ringing.
         self._echo_reference_tap: "deque[tuple[np.ndarray, int]]" = deque(maxlen=64)
         self._reference_resampler = _ReferenceResampler()
@@ -493,6 +488,10 @@ class CallAudioSession:
         try:
             self._input_stream, self._input_rate = self._open_input_stream()
             self._restart_echo_reference()
+            if self._processor is not None:
+                self._processor.set_stream_delay_ms(1000 * (
+                    self._stream_latency(self._output_stream)
+                    + self._stream_latency(self._input_stream)))
             self._input_stream.start()
         except Exception:
             self._close_stream(self._input_stream)
@@ -527,15 +526,36 @@ class CallAudioSession:
         opens the receive side first), and the tap keeps the last ~0.6 s of it.
         Left in, sample 0 of the reference is that old audio: the echo then
         arrives hundreds of milliseconds *before* its paired reference, beyond
-        the 0.3 s the canceller looks ahead, and it never found the echo at all
-        (measured: 0 dB of reduction whenever the receive side had run for more
-        than ~0.4 s before the microphone opened, i.e. on every answered call).
+        the window the old numpy canceller searched, and it never found the
+        echo at all (measured: 0 dB of reduction on every answered call). AEC3
+        tolerates more, but its render buffer is still meant to start with the
+        capture, so the rule stays.
+
+        This is also where the processor is built: a fresh one per microphone,
+        so a device switch mid-call does not carry over an echo path learned
+        on the old speaker.
         """
-        if self._echo_canceller is None:
-            return
         self._echo_reference_tap.clear()
         self._reference_resampler.reset()
-        self._echo_canceller.reset()
+        self._processor = None
+        if self._config.echo_cancellation or self._config.noise_suppression:
+            self._processor = CallAudioProcessor(
+                echo_cancellation=self._config.echo_cancellation,
+                noise_suppression=self._config.noise_suppression,
+            )
+            logging.info("[call_audio] microphone processing: %s",
+                         self._processor.diagnostics())
+
+    @staticmethod
+    def _stream_latency(stream) -> float:
+        """A PortAudio stream's reported latency in seconds, 0 when unknown."""
+        latency = getattr(stream, "latency", 0.0)
+        if isinstance(latency, (tuple, list)):
+            latency = latency[0] if latency else 0.0
+        try:
+            return max(0.0, float(latency))
+        except (TypeError, ValueError):
+            return 0.0
 
     def _reopen_output_exclusive(self) -> None:
         """Swap the ring's shared output for the exclusive one on answer.
@@ -585,10 +605,7 @@ class CallAudioSession:
         self._output_buffer.reset()
         self._echo_reference_tap.clear()
         self._reference_resampler.reset()
-        if self._echo_canceller is not None:
-            self._echo_canceller.reset()
-        if self._noise_suppressor is not None:
-            self._noise_suppressor.reset()
+        self._processor = None
 
     def enqueue_remote_audio(self, pcm: bytes, sample_rate: int) -> None:
         if self._stop_event.is_set() or not pcm:
@@ -1011,13 +1028,9 @@ class CallAudioSession:
                 continue
 
             if dropped:
-                if self._echo_canceller is not None:
-                    # Those frames were real time that went by: the canceller
-                    # pairs microphone and reference by sample index. The
-                    # reference played so far goes in first, so the history it
-                    # rebuilds for the skipped time is complete.
-                    self._drain_echo_reference()
-                    self._echo_canceller.skip_microphone(dropped * CALL_FRAME_SAMPLES)
+                # Nothing to tell the processor: AEC3 tracks the echo delay
+                # itself, so a jump in the microphone stream is just a delay
+                # change it re-estimates.
                 previous_dropped = self._mic_frames_dropped_for_latency
                 self._mic_frames_dropped_for_latency += dropped
                 if previous_dropped == 0 or (
@@ -1031,21 +1044,15 @@ class CallAudioSession:
                         self._mic_queue.qsize(),
                     )
 
-            # Before the mute check, so the canceller keeps consuming audio (and
+            # Before the mute check, so the processor keeps consuming audio (and
             # its reference) while muted and stays continuous on unmute. Whole
-            # blocks only: an empty result means the chunk is still buffered.
-            if self._echo_canceller is not None:
+            # 10 ms frames only: an empty result means the chunk is buffered.
+            processor = self._processor
+            if processor is not None:
                 try:
-                    pcm = self._cancel_echo(pcm)
+                    pcm = self._process_microphone(processor, pcm)
                 except Exception:
-                    logging.exception("[call_audio] echo cancellation failed")
-                if not pcm:
-                    continue
-            if self._noise_suppressor is not None:
-                try:
-                    pcm = _pcm16_bytes(self._noise_suppressor.process(_pcm16_float32(pcm)))
-                except Exception:
-                    logging.exception("[call_audio] noise suppression failed")
+                    logging.exception("[call_audio] microphone processing failed")
                 if not pcm:
                     continue
 
@@ -1063,9 +1070,9 @@ class CallAudioSession:
                 )
                 self._mic_frames_sent += 1
                 self._mic_bytes_sent += len(pcm)
-                if self._echo_canceller is not None and self._mic_frames_sent % 250 == 0:
-                    logging.info("[call_audio] echo canceller: %s",
-                                 self._echo_canceller.diagnostics())
+                if processor is not None and self._mic_frames_sent % 250 == 0:
+                    logging.info("[call_audio] microphone processing: %s",
+                                 processor.diagnostics())
                 if self._mic_frames_sent == 1 or self._mic_frames_sent % 50 == 0:
                     logging.info(
                         "[call_audio] microphone sent session=%s frames=%s bytes=%s",
@@ -1075,21 +1082,20 @@ class CallAudioSession:
                 logging.exception("[call_audio] failed to send microphone audio")
                 time.sleep(0.05)
 
-    def _cancel_echo(self, pcm: bytes) -> bytes:
-        """Run one microphone chunk through the canceller.
+    def _process_microphone(self, processor: CallAudioProcessor, pcm: bytes) -> bytes:
+        """Run one microphone chunk through the processor.
 
-        May return fewer bytes than it was given (whole blocks only) or none.
+        The speaker audio played so far goes in first: AEC3 needs the far end
+        before the near-end frame that carries its echo. May return fewer
+        bytes than it was given (whole 10 ms frames only) or none.
         """
-        self._drain_echo_reference()
-        return _pcm16_bytes(self._echo_canceller.process(_pcm16_float32(pcm)))
-
-    def _drain_echo_reference(self) -> None:
         while True:
             try:
                 chunk, rate = self._echo_reference_tap.popleft()
             except IndexError:
-                return
-            self._echo_canceller.push_reference(self._reference_resampler.process(chunk, rate))
+                break
+            processor.push_reference(self._reference_resampler.process(chunk, rate))
+        return _pcm16_bytes(processor.process(_pcm16_float32(pcm)))
 
     def _on_output_frames(self, outdata, _frames, _time_info, _status) -> None:
         """PortAudio's realtime thread asking for one device period.
@@ -1101,7 +1107,7 @@ class CallAudioSession:
         try:
             view = outdata[:, 0] if getattr(outdata, "ndim", 1) > 1 else outdata
             self._output_buffer.fill(view)
-            if self._echo_canceller is not None:
+            if self._config.echo_cancellation:
                 self._echo_reference_tap.append((view.copy(), self._output_rate))
         except Exception:
             # Silence is the only safe answer left; the underrun counter and

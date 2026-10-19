@@ -122,6 +122,7 @@
     "37a18225b15e": "WPPConnect Server atualizado para a 2.10.58. A biblioteca agora recusa iniciar u",
     "e3d4b07f51f4": "As atualizações do WPPConnect Server não são mais sugeridas por conta própria. O",
     "7480e963c932": "Bloquear um número que não está salvo nos seus contatos não falha mais com \"Não ",
-    "01f84a924bbe": "Uma conversa nova iniciada com um número brasileiro digitado com o 9 extra não a"
+    "01f84a924bbe": "Uma conversa nova iniciada com um número brasileiro digitado com o 9 extra não a",
+    "227d631afa96": "O cancelamento de eco nas chamadas de voz e vídeo foi refeito com o mesmo motor "
   }
 }
