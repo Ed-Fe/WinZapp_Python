@@ -84,7 +84,8 @@ class AdvancedTabMixin:
     def _validate_advanced_values(self) -> bool:
         """A ticked fixed port must be a usable one; the field is focused and
         the reason said otherwise."""
-        if not self._fixed_port_check.GetValue():
+        if not self._fixed_port_check.GetValue() or not self._fixed_port_check.IsEnabled():
+            # Unticked, or off because the custom API is on: nothing to check.
             return True
         if local_api_port.parse_port(self._fixed_port_field.GetValue()) is not None:
             return True

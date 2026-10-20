@@ -2988,14 +2988,27 @@ class TestVerifyingLandsOnTheResultField:
         """The CUDA and whisper.cpp checks run in windows of their own; the
         field is on the tab, behind the modal window, where a focus would be
         lost. The answer is spoken anyway."""
-        elsewhere = SimpleNamespace(GetTopLevelParent=lambda: object())
-        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: elsewhere))
         tab._load_transcription_values()
         tab._select_transcription_model("small")
         self._say(tab)
         taken = self._watch(tab)
+        # The button pressed decides, not FindFocus() (None while WinZapp is
+        # not the foreground app).
+        elsewhere = object()
+        tab._transcription_action_buttons[
+            management.ACTION_VERIFY_CUDA_RUNTIME].GetTopLevelParent = lambda: elsewhere
+        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: None))
         tab._restore_transcription_focus(management.ACTION_VERIFY_CUDA_RUNTIME)
         assert "result" not in taken
+
+    def test_a_check_on_the_tab_lands_on_the_field_even_in_the_background(self, tab, monkeypatch):
+        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: None))
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_VERIFY_MODEL)
+        assert taken == ["result"]
 
     def test_with_nothing_to_show_the_old_rule_still_applies(self, tab):
         tab._load_transcription_values()

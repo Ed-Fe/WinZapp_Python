@@ -52,16 +52,20 @@ def shares_window(control, other) -> bool:
 class TranscriptionResultFieldMixin:
     """Focus and expiry of the result field, for `SettingsDialog`."""
 
-    def _focus_transcription_result(self) -> bool:
+    def _focus_transcription_result(self, pressed=None) -> bool:
         """Move the focus to the result field. False when it is not showing.
 
         The field is hidden while it has nothing to say, and a hidden control
         cannot take the focus — the caller then keeps whatever rule it had.
+
+        *pressed* is the button the check was started from; its window, not
+        wherever the focus is now, decides (FindFocus() is None while WinZapp
+        is not the foreground app, and a long check can end then).
         """
         field = self._transcription_substituted_field
         if not field.IsShown():
             return False
-        if not shares_window(field, wx.Window.FindFocus()):
+        if not shares_window(field, pressed if pressed is not None else wx.Window.FindFocus()):
             # The check ran in another window (see shares_window()): the focus
             # stays there, under the caller's own rule.
             return False

@@ -215,7 +215,8 @@ class ExternalModelsMixin:
         reference was just forgotten), the first button that can still be
         pressed.
         """
-        if pressed == "check" and self._focus_transcription_result():
+        if pressed == "check" and self._focus_transcription_result(
+                self._transcription_external_buttons.get(pressed)):
             return
         button = self._transcription_external_buttons.get(pressed)
         if button is None or button.IsEnabled():

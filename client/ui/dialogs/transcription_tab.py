@@ -1414,7 +1414,8 @@ class TranscriptionTabMixin:
         button on the same row, and failing that the control the row belongs
         to.
         """
-        if action in VERIFY_ACTIONS and self._focus_transcription_result():
+        if action in VERIFY_ACTIONS and self._focus_transcription_result(
+                self._transcription_action_buttons.get(action)):
             return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():

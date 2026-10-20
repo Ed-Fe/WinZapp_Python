@@ -347,7 +347,8 @@ class WhisperCppMixin:
         """Never leave the focus on a button the action just switched off —
         the rule of _restore_transcription_focus(), for this row."""
         if (action == transcription_management.ACTION_VERIFY_WHISPER_CPP
-                and self._focus_transcription_result()):
+                and self._focus_transcription_result(
+                    self._transcription_action_buttons.get(action))):
             return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():

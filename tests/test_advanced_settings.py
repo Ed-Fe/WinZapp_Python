@@ -67,13 +67,15 @@ class TestLocalApiPort:
         assert (local_api_port.SECTION, local_api_port.KEY) in EXCLUDED_KEYS
 
 
-def _port_window(settings, conn, *, registry=True, free=True, ours=False):
+def _port_window(settings, conn, *, registry=True, free=True, ours=False, peers=()):
     saved = []
     window = types.SimpleNamespace(
         settings=settings, account_id="acc" if registry else None,
         registry=object() if registry else None, global_dir=None,
         save_settings=lambda: saved.append(dict(settings.get("connection", {}))),
-        _is_port_free=lambda port: free, _port_runs_our_api=lambda port: ours,
+        _is_port_free=(free if callable(free) else (lambda port: free)),
+        _port_runs_our_api=lambda port: ours,
+        _peer_node_ports=lambda any_port=False: list(peers),
     )
     from main_window.wpp_server import WppServerMixin
     window._resolve_wpp_port = WppServerMixin._resolve_wpp_port.__get__(window)
@@ -112,6 +114,25 @@ class TestResolveWithAFixedPort:
         window, _ = _port_window(settings, settings["connection"], registry=False,
                                  free=False, ours=True)
         assert window._resolve_wpp_port(settings["connection"]) == 7000
+
+    def test_a_rejected_fixed_port_inside_the_window_is_not_kept_as_the_saved_one(self):
+        """Reviewer, second round: the fixed port is also the saved
+        connection port, and inside 6300-6349 the automatic path kept it."""
+        settings = {"advanced": {"local_api_port": 6310}, "connection": {"wpp_port": 6310}}
+        window, _ = _port_window(settings, settings["connection"], registry=False,
+                                 free=lambda port: port != 6310)
+        assert window._resolve_wpp_port(settings["connection"]) not in (6310, None)
+
+    def test_keep_fixed_asks_for_the_identity_only_of_a_busy_port(self):
+        asked = []
+        ours = lambda port: asked.append(port) or True
+        assert local_api_port.keep_fixed(7000, (), lambda port: True, ours) and asked == []
+        assert local_api_port.keep_fixed(7000, (), lambda port: False, ours) and asked == [7000]
+        assert not local_api_port.keep_fixed(7000, (), lambda port: False, lambda port: False)
+
+    def test_another_accounts_port_is_never_kept(self):
+        """Its Node answers /winzapp/identity with our installation id too."""
+        assert not local_api_port.keep_fixed(6301, [6301], lambda port: True, lambda port: True)
 
     def test_identity_of_our_install_only(self):
         assert local_api_port.identity_is_ours(

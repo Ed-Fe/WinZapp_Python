@@ -12,12 +12,16 @@ only (a custom API keeps the Connection page's port). 0 means automatic. It
 takes effect the next time the account starts, since the Node of this run is
 already listening.
 
-Held by another program at start (`usable()`), it is not used for that run:
-WinZapp would otherwise "reuse" that program as its API (ensure_wpp_running()
-sees something listening) and, finding no process of its own on the port at
-exit, kill it if it is a node.exe. The automatic port is used instead and the
-fixed one is tried again at the next start. A WinZapp Node of this install on
-it (its /winzapp/identity answers with our installation id) is ours to reuse.
+Held by something else at start (`keep_fixed()`), it is not used for that
+run: WinZapp would otherwise "reuse" that program as its API
+(ensure_wpp_running() sees something listening) and, finding no process of its
+own on the port at exit, kill it if it is a node.exe. That includes another
+account of this install, whose Node answers /winzapp/identity just like ours:
+a port another account has saved is never taken. The automatic port is used
+instead (never the rejected one, even when it was saved last run) and the fixed
+one is tried again at the next start. A port that is busy but answers with our
+installation id, with no other account on it, is this account's own Node from
+a run still winding down: reused.
 """
 
 SECTION = "advanced"
@@ -44,10 +48,17 @@ def parse_port(value):
     return None
 
 
-def usable(port_free: bool, runs_our_api: bool) -> bool:
-    """Whether a fixed port can be used this run: free, or already running a
-    WinZapp API of this install."""
-    return bool(port_free or runs_our_api)
+def keep_fixed(port, peer_ports, is_free, runs_our_api) -> bool:
+    """Whether the fixed *port* can be used this run.
+
+    Not when another account of this install has it (*peer_ports*). Otherwise
+    when it is free, or busy with a WinZapp Node of this install. *is_free* and
+    *runs_our_api* are asked lazily, in that order: the identity request is
+    only made for a busy port (a refused localhost connect costs about a second
+    on Windows, at startup)."""
+    if port in set(peer_ports or ()):
+        return False
+    return bool(is_free(port) or runs_our_api(port))
 
 
 def identity_is_ours(identity, installation_id: str) -> bool:
