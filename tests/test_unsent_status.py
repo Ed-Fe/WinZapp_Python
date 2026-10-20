@@ -235,19 +235,20 @@ class TestTheUserKeepsTheirPlace:
         assert panel._status_contacts[panel._status_row_contact[row]] is bia
         assert panel._status_list.frozen == 0
 
-    def test_the_inline_viewer_comes_back_on_the_same_status(self):
-        panel, ana, _bia = self._with_contacts()
-        row = panel._status_contact_row[0]
-        panel._status_list.focused = row
-        panel._selected_contact_idx = 0
-        panel._current_status_idx = 3
-        panel._viewer_panel = SimpleNamespace(Hide=lambda: None, IsShown=lambda: True)
-        shown = []
-        panel._show_current_status = lambda announce=True: shown.append(
-            (panel._selected_contact_idx, panel._current_status_idx, announce))
+    def test_with_a_status_open_the_rows_wait_for_the_viewer_to_close(self):
+        """Rebuilding closes the inline viewer, and showing it again restarts
+        a video being watched: the unsent row waits instead."""
+        panel, _ana, _bia = self._with_contacts()
+        before = list(panel._status_list.rows)
+        shown = {"value": True}
+        panel._viewer_panel = SimpleNamespace(Hide=lambda: None, IsShown=lambda: shown["value"])
         panel._unsent_status_posts = [unsent_post(TEXT, FAILED, text="oi")]
         panel._redraw_unsent_rows()
-        assert shown == [(0, 3, False)]
+        assert panel._status_list.rows == before and panel._unsent_redraw_pending
+        shown["value"] = False
+        panel._flush_unsent_redraw()
+        assert len(panel._status_list.rows) == len(before) + 1
+        assert not panel._unsent_redraw_pending
 
 
 def test_restored_row_finds_the_row_by_what_it_is():

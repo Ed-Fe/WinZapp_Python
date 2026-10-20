@@ -65,7 +65,7 @@ class MessageDraftsMixin:
         clear_preview = getattr(self, "_clear_link_preview", None)
         if callable(clear_preview):
             clear_preview()
-        self._link_preview_dismissed_url = None
+        self._link_preview_dismissed_url = ""
         self._put_in_message_field("")
 
     def _restore_message_draft(self) -> None:

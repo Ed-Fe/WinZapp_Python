@@ -122,9 +122,12 @@ class MessageEventsMixin:
             records = chat.get("messages", {}).get("messages", {}).get("records", [])
             mark_copies_revoked(records, msg_id, message, drop_keys=drop)
             last = chat.get("lastMessage")
-            if not (isinstance(last, dict)
-                    and mark_copies_revoked([last], msg_id, message, drop_keys=drop)):
+            # By its id: a live message's lastMessage is the very record
+            # _apply_remote_revoke() already turned into the tombstone, so
+            # "did marking change it" would skip the write in the usual case.
+            if not (isinstance(last, dict) and (last.get("key") or {}).get("id") == msg_id):
                 continue
+            mark_copies_revoked([last], msg_id, message, drop_keys=drop)
             db = getattr(self, "db", None)
             if db is None:
                 continue

@@ -29,6 +29,7 @@ fake_delete_dialog (same comment there: "mirroring
 _on_menu_delete_message()'s single-message dialog").
 """
 
+import pytest
 import inspect
 
 import wx
@@ -41,6 +42,14 @@ REMOTE = "5511999999999@s.whatsapp.net"
 
 # ── Dismiss: _on_menu_delete_message()'s cancelled_pending branch ───────────
 
+
+
+@pytest.fixture(autouse=True)
+def _call_after_runs_now(monkeypatch):
+    """The resend announcement goes through wx.CallAfter (after the focus
+    move); there is no wx.App here, so run it inline."""
+    import wx
+    monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
 
 class _FakeRadioButton:
     _all = []

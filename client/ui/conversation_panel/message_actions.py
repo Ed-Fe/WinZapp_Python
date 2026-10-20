@@ -888,7 +888,10 @@ class MessageActionsMixin:
             if self._send_attachment_file(remote_jid, path, media_type, caption, None):
                 _drop_old_row()
                 self.main_window._schedule_set_chats()
-                self.main_window.output(self.main_window.i18n.t("resend_started"), interrupt=True)
+                # After the focus move remove_messages_by_id() made, or the
+                # focus announcement cuts it off.
+                wx.CallAfter(self.main_window.output, self.main_window.i18n.t("resend_started"),
+                             interrupt=True)
             return
 
         _drop_old_row()
@@ -920,7 +923,8 @@ class MessageActionsMixin:
 
         self._register_virtual_msg(virtual_msg)
         self.main_window._schedule_set_chats()
-        self.main_window.output(self.main_window.i18n.t("resend_started"), interrupt=True)
+        wx.CallAfter(self.main_window.output, self.main_window.i18n.t("resend_started"),
+                     interrupt=True)
 
     def _on_cancel_edit(self, event=None):
         """Leave edit mode without saving."""

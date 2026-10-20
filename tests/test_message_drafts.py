@@ -222,7 +222,7 @@ class TestWhatTravelsWithTheDraft:
         panel._link_preview_dismissed_url = "https://example.com"
         panel.previews_cleared = 0
         panel.open(BIA)
-        assert panel.previews_cleared == 1 and panel._link_preview_dismissed_url is None
+        assert panel.previews_cleared == 1 and panel._link_preview_dismissed_url == ""
         panel.open(ANA)
         assert panel.previews_checked == 1
 

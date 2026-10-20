@@ -630,8 +630,14 @@ class MessageTranscriptionFlow:
         if not self._inline:
             return False
         model = self._selection[1] if isinstance(self._selection, tuple) else None
-        return stored_transcription.cache_enabled_for(
-            self._main_window.settings, None if model in (None, "auto") else model)
+        # "auto" reads the general switch: the model is only known once the
+        # run resolves it (the same approximation the automatic queue makes).
+        return self._cache_keeps_text(None if model in (None, "auto") else model)
+
+    def _cache_keeps_text(self, model_id):
+        """Whether a result of *model_id* is kept with the message (the
+        conversations' switch); a status keeps its own (status flow)."""
+        return stored_transcription.cache_enabled_for(self._main_window.settings, model_id)
 
     def _drop_waiting(self):
         """Empty the queue after a failure that would stop every waiting run,
@@ -663,7 +669,9 @@ class MessageTranscriptionFlow:
                 continue
             if stored_transcription.saved_transcription(flow._msg, flow._selection) is not None:
                 # Transcribed while it waited (the automatic queue, another
-                # window): its text, not a second run.
+                # window): its text, not a second run — and, coming from the
+                # queue, without the focus or a window of a foreground one.
+                flow._background = True
                 flow.inline_saved()
                 continue
             flow._start_in_background(announce=False)
@@ -1151,6 +1159,12 @@ class MessageTranscriptionFlow:
             # existing=True: a text already kept, only marked — the cache
             # switches are about keeping new ones.
             if self._save(marked, existing=True) != stored_transcription.SAVE_STORED:
+                if self._background:
+                    # From the queue: no window at a moment nobody chose. The
+                    # text is read instead, without the mark in the line.
+                    text = stored_transcription.as_result(value).text
+                    wx.CallAfter(self._main_window.output, inline_speech(self._i18n, text, ()))
+                    return
                 # Nowhere to keep the mark: open the window, where the text can
                 # still be read.
                 self._inline = False
@@ -1165,7 +1179,8 @@ class MessageTranscriptionFlow:
         )
         spoken = tuple(n for n in notes if n.i18n_key == narration.VAD_UNAVAILABLE_I18N_KEY)
         self._repaint_row()
-        self._focus_message()
+        if not self._background:
+            self._focus_message()
         wx.CallAfter(self._main_window.output, inline_speech(self._i18n, result.text, spoken))
 
     def _offer_settings(self, sentence):

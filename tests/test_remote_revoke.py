@@ -246,6 +246,16 @@ class TestEveryStoredCopyIsRevoked:
         assert last["messageType"] == "protocolMessage"
         assert s.db.upserted == ["jid@g.us"]
 
+    def test_a_last_message_that_is_the_record_itself_is_still_saved(self):
+        """Reviewer: live messages set lastMessage to the very record, which
+        is already the tombstone when the copies are revoked; the chat row
+        kept the withdrawn text in the database."""
+        record = _text_msg("A", "segredo")
+        s = self._stub_with_chat([record], last=record)
+        s._apply_remote_revoke(record, _revoke("A"), "jid@g.us")
+        assert record["messageType"] == "protocolMessage"
+        assert s.db.upserted == ["jid@g.us"]
+
     def test_a_newer_last_message_is_left_alone_and_not_rewritten(self):
         """Reviewer: recomputing it from the records put an older preview over
         a newer lastMessage and moved the chat down the list."""

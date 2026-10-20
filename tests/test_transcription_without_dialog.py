@@ -26,7 +26,8 @@ STRINGS = {"transcription_background_started": "started", "transcription_backgro
 class Flow:
     for _name in ("start", "_prepare", "_cleanup", "_runs_without_dialog", "_start_in_background", "targets",
                   "cancel_background", "_background_done", "_background_finished", "_say_after_focus",
-                  "_start_next_waiting", "_can_wait_its_turn", "_drop_waiting"):
+                  "_start_next_waiting", "_can_wait_its_turn", "_drop_waiting",
+                  "_cache_keeps_text"):
         locals()[_name] = getattr(MessageTranscriptionFlow, _name)
     del _name
 
@@ -345,3 +346,36 @@ def test_an_inline_result_in_the_background_leaves_the_focus_where_it_is(window)
     flow._present_inline(monkeypatched, None, ())
     flow._focus_message.assert_not_called()
     flow._repaint_row.assert_called_once_with()
+
+
+def test_a_status_waits_its_turn_only_with_the_statuses_cache_on():
+    """Reviewer: statuses keep their text under their own switch; with it off
+    a queued status ended in the result window."""
+    from ui.status_transcription_flow import StatusTranscriptionFlow
+    stub = SimpleNamespace(_main_window=SimpleNamespace(
+        settings={"transcription": {"status_cache_enabled": False, "cache_enabled": True}}))
+    assert StatusTranscriptionFlow._cache_keeps_text(stub, None) is False
+    stub._main_window.settings["transcription"]["status_cache_enabled"] = True
+    assert StatusTranscriptionFlow._cache_keeps_text(stub, None) is True
+
+
+def test_a_waiting_message_shown_from_the_queue_neither_moves_the_focus_nor_opens_a_window(
+        window, monkeypatch):
+    """Reviewer: inline_saved() from the queue focused the message and, when
+    the mark could not be kept, opened the result window."""
+    flow = Flow(window, "B", inline=True)
+    flow._background = True
+    flow._repaint_row = Mock()
+    flow.show_saved = Mock()
+    flow._save = lambda value, existing=False: "disabled"
+    flow.inline_saved = MessageTranscriptionFlow.inline_saved.__get__(flow)
+    stored = transcription_flow.stored_transcription
+    monkeypatch.setattr(stored, "saved_transcription", lambda msg, selection: {"text": "olá"})
+    monkeypatch.setattr(stored, "is_inline", lambda value: False)
+    monkeypatch.setattr(stored, "marked_inline", lambda value, previous, now: value)
+    monkeypatch.setattr(stored, "as_result", lambda value: SimpleNamespace(text="olá"))
+    flow._i18n = SimpleNamespace(t=lambda key: "{text}")
+    flow.inline_saved()
+    flow.show_saved.assert_not_called()
+    flow._focus_message.assert_not_called()
+    window.output.assert_called_once_with("olá")

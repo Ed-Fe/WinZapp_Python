@@ -38,8 +38,6 @@ def poll_in_messages(msg: dict, messages, remote_jid: str, shown_jid: str) -> bo
     )
 
 
-
-
 def same_inline_poll(shown, shown_jid, msg, jid) -> bool:
     """Whether *msg* in chat *jid* is the poll already in the inline list:
     by its id, not by the dict, which a sync replaces."""
@@ -47,6 +45,7 @@ def same_inline_poll(shown, shown_jid, msg, jid) -> bool:
         return False
     shown_id = (shown.get("key") or {}).get("id")
     return bool(shown_id) and shown_id == (msg.get("key") or {}).get("id")
+
 
 class PollInlineMixin:
     """The options list that follows a focused single-answer poll."""

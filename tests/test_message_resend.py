@@ -2,6 +2,7 @@
 confirmed, text or attachment, from the message menu or Ctrl+Shift+Y
 (configurable as messages.ID_CTRL_SHIFT_Y). Never sent again by itself."""
 
+import pytest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -9,6 +10,14 @@ from core.message_resend import RESEND_PATH_KEY, needs_resend, resend_request
 from core.shortcut_catalog import SHORTCUTS
 from tests.test_unconfirmed_send_recovery import REMOTE, _ResendStub
 from ui.conversations import ConversationsPanel
+
+
+@pytest.fixture(autouse=True)
+def _call_after_runs_now(monkeypatch):
+    """The resend announcement goes through wx.CallAfter (after the focus
+    move); there is no wx.App here, so run it inline."""
+    import wx
+    monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
 
 
 def _msg(msg_type="conversation", body=None, **state):

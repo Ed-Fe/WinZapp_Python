@@ -91,22 +91,27 @@ class UnsentStatusMixin:
                      if post["id"] == post_id), None)
 
     def _redraw_unsent_rows(self):
-        """Rebuild the list with the rows as they are now, keeping the user
-        where they were: on the same row by what it is (the rebuild inserts
-        or removes unsent rows above, and re-sorts the contacts), and on the
-        same status in the inline viewer when it was open. A failed upload
-        used to close the viewer and land the focus on another contact."""
+        """Rebuild the list with the rows as they are now, keeping the user on
+        the same row by what it is (the rebuild inserts or removes unsent rows
+        above it and re-sorts the contacts), inside Freeze/Thaw.
+
+        Not while a status is open in the inline viewer: the rebuild closes
+        it, and showing it again restarts a video being watched. The rows wait
+        (`_unsent_redraw_pending`) until the viewer closes
+        (`_flush_unsent_redraw()`) or the list is rebuilt anyway, which brings
+        them in by itself."""
         if getattr(self, "_list_is_loading", False) or not hasattr(self, "_status_contacts"):
             return
+        if self._viewer_panel.IsShown():
+            self._unsent_redraw_pending = True
+            return
+        self._unsent_redraw_pending = False
         lst = self._status_list
         row = lst.GetFocusedItem()
         unsent_id = getattr(self, "_status_row_unsent", {}).get(row)
         contact_idx = getattr(self, "_status_row_contact", {}).get(row, -1)
         contacts = self._status_contacts
         entry = contacts[contact_idx] if 0 <= contact_idx < len(contacts) else None
-        viewing = (entry is not None and self._viewer_panel.IsShown()
-                   and getattr(self, "_selected_contact_idx", -1) == contact_idx)
-        status_idx = getattr(self, "_current_status_idx", 0)
         lst.Freeze()
         try:
             self._populate_list(self._my_statuses, contacts)
@@ -118,10 +123,11 @@ class UnsentStatusMixin:
                 lst.Select(target)
         finally:
             lst.Thaw()
-        if viewing and target > 0:
-            self._selected_contact_idx = self._status_row_contact.get(target, -1)
-            self._current_status_idx = status_idx
-            self._show_current_status(announce=False)
+
+    def _flush_unsent_redraw(self):
+        """The rows that waited for the inline viewer to close (see above)."""
+        if getattr(self, "_unsent_redraw_pending", False) and not self._viewer_panel.IsShown():
+            self._redraw_unsent_rows()
 
     # ── The menu and the key ──────────────────────────────────────────────
 

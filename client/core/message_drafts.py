@@ -70,8 +70,8 @@ class MessageDrafts:
         None when there is none.
 
         *same_chat(stored, jid)* finds a draft kept under another spelling of
-        the chat: an @lid chat re-keyed to its phone JID, a Brazilian number
-        with or without the extra 9."""
+        the chat: an @lid chat re-keyed to its phone JID (whatever forms the
+        caller's equivalence bridges)."""
         if not jid:
             return None
         if jid in self._drafts:
