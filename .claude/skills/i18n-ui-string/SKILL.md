@@ -11,6 +11,15 @@ speaks the raw key name. So **a key added anywhere is owed by every locale
 catalog listed in `client/languages/language_map.json`, in the same change: CI and release
 builds reject a missing or fuzzy entry.**
 
+## Polish
+
+Before writing or reviewing any Polish `msgstr`, read
+[the Polish glossary](../../../docs/reference/i18n-terminology-pl.md).
+Its reviewed terminology takes precedence over older help, changelogs and
+unreviewed translations. For a WhatsApp message thread, use `czat`, including
+when the English source says `conversation`. Keep `rozmowa` where it actually
+means a spoken or AI conversation; never apply a global word replacement.
+
 ## Procedure
 
 1. Name the key in English `snake_case`, after its role

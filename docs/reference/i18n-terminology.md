@@ -1,5 +1,9 @@
 # Reuse each locale's own terminology
 
+Locale-specific reviewed terminology takes precedence over older or unreviewed
+wording. Before writing or reviewing Polish `msgstr`, read
+[the Polish glossary](i18n-terminology-pl.md).
+
 > Why a new string must use the words the same locale file already uses (the Polish `rozmowa` → `czat` case).
 >
 > Moved verbatim out of `CLAUDE.md` so it is read when the area is touched, not on every session. Keep it here: this is measured history, not a summary.
