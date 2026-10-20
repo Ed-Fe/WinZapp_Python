@@ -329,3 +329,15 @@ def test_the_privacy_notice_names_fields_without_their_mnemonic():
     source = inspect.getsource(whatsapp_privacy_panel)
     line = source[source.index('"wa_privacy_unrecognized_fields"'):][:200]
     assert '.replace("&", "")' in line
+
+
+def test_with_accounts_a_rejected_fixed_port_is_taken_off_the_allocation(tmp_path):
+    """The registry path: the rejected port goes to resolve_account_port() as
+    a peer's, so even saved and inside the window it is not kept busy."""
+    settings = {"advanced": {"local_api_port": 6310}, "connection": {"wpp_port": 6310}}
+    window, _ = _port_window(settings, settings["connection"],
+                             free=lambda port: port != 6310)
+    window.global_dir = str(tmp_path)
+    port = window._resolve_wpp_port(settings["connection"])
+    assert port != 6310 and 6300 <= port < 6350
+    assert settings["connection"]["wpp_port"] == port
