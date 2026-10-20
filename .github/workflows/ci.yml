@@ -66,6 +66,10 @@ jobs:
       # WPPConnect), então os testes que comparam as duas cópias dos patches se
       # pulam sozinhos — vide test_api_patches_in_sync.py. Isso é esperado: a
       # deriva que eles pegam só é detectável numa máquina de dev.
+      # O comtypes cria o próprio cache no primeiro import; com -n auto vários
+      # workers corriam para criar a mesma pasta (FileExistsError na coleta).
+      - name: Warm the comtypes cache
+        run: uv run python -c "import comtypes.client"
       - name: Run pytest
         run: uv run pytest --run-wx-gui -n auto --shard ${{ matrix.shard }}/4 --durations=20
 
