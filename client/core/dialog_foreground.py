@@ -40,10 +40,15 @@ def parent_is_hidden(main_window) -> bool:
                 or getattr(main_window, "background_mode", False))
 
 
-def force_foreground(hwnd) -> bool:
+def force_foreground(hwnd, *, topmost: bool = False) -> bool:
     """SetForegroundWindow that survives the foreground lock; True if *hwnd*
     really is the foreground window afterwards. False for a null handle and off
-    Windows."""
+    Windows.
+
+    ``topmost`` first lifts the window above whatever program is in front
+    (HWND_TOPMOST, then HWND_NOTOPMOST straight after so it is not pinned
+    there and Alt+Tab still works): the incoming-call popup and the call
+    window, which have to come up over another program's window."""
     if not hwnd or sys.platform != "win32":
         return False
     # A private WinDLL: argtypes/restype set on ctypes.windll.user32 would
@@ -59,6 +64,10 @@ def force_foreground(hwnd) -> bool:
         func = getattr(user32, name)
         func.argtypes = [wintypes.HWND]
         func.restype = wintypes.BOOL if name != "SetActiveWindow" else wintypes.HWND
+    user32.SetWindowPos.argtypes = [
+        wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+        ctypes.c_int, ctypes.c_int, wintypes.UINT]
+    user32.SetWindowPos.restype = wintypes.BOOL
     kernel32.GetCurrentThreadId.restype = wintypes.DWORD
 
     target = wintypes.HWND(hwnd)
@@ -70,6 +79,10 @@ def force_foreground(hwnd) -> bool:
         cur_thread = kernel32.GetCurrentThreadId()
         if fg_thread and fg_thread != cur_thread:
             attached = bool(user32.AttachThreadInput(fg_thread, cur_thread, True))
+        if topmost:
+            flags = 0x0001 | 0x0002 | 0x0040  # SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW
+            user32.SetWindowPos(target, wintypes.HWND(-1), 0, 0, 0, 0, flags)
+            user32.SetWindowPos(target, wintypes.HWND(-2), 0, 0, 0, 0, flags)
         user32.BringWindowToTop(target)
         user32.SetForegroundWindow(target)
         user32.SetActiveWindow(target)

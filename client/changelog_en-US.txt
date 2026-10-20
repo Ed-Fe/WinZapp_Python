@@ -28,6 +28,8 @@ WHAT'S NEW
 
 - The call log (log.log) now shows, every 5 seconds, how much of the speaker's sound reaches the microphone before echo cancellation and how much is still left in what is sent, with that echo's delay. If someone still hears their own voice, the log tells whether the echo went through the canceller or arrived by another path.
 
+- Answering calls from any window: while a one-to-one call is ringing, Ctrl+Alt+Shift+Enter answers it, brings the call window in front of any program and puts the focus in it, and Ctrl+Alt+Shift+Backspace rejects it, as it does a ringing group call; with no call ringing, Ctrl+Alt+Shift+Backspace hangs up the call in progress. With several accounts open, a call ringing in any of them is rejected first. A video call is answered with the camera on, like its Answer button. Both keys can be changed in the Keyboard shortcuts of Settings, and belong to WinZapp only while they can act, so other programs keep them the rest of the time.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

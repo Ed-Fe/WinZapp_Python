@@ -28,6 +28,8 @@ NOWOŚCI
 
 - Dziennik połączeń (log.log) pokazuje teraz co 5 sekund, ile dźwięku z głośnika trafia do mikrofonu przed eliminacją echa i ile jeszcze zostaje w tym, co jest wysyłane, wraz z opóźnieniem tego echa. Jeśli ktoś nadal słyszy własny głos, dziennik mówi, czy echo przeszło przez eliminator, czy dotarło inną drogą.
 
+- Odbieranie połączeń z dowolnego okna: gdy dzwoni połączenie indywidualne, Ctrl+Alt+Shift+Enter je odbiera, przenosi okno połączenia przed każdy program i ustawia w nim fokus, a Ctrl+Alt+Shift+Backspace je odrzuca, tak samo jak dzwoniące połączenie grupowe; gdy nic nie dzwoni, Ctrl+Alt+Shift+Backspace rozłącza trwające połączenie. Przy kilku otwartych kontach najpierw odrzucane jest połączenie dzwoniące na którymkolwiek z nich. Połączenie wideo jest odbierane z włączoną kamerą, tak jak jego przyciskiem odbierania. Oba klawisze można zmienić w Skrótach klawiszowych w Ustawieniach i należą do WinZapp tylko wtedy, gdy mogą działać, więc inne programy mają je przez resztę czasu.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.

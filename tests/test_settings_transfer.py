@@ -396,6 +396,61 @@ class TestImporting:
             assert merged["general"]["global_hotkey"] == {"vk": 65, "mod": 0x0002}
             assert "general.global_hotkey" in ignored
 
+    @pytest.mark.parametrize("key", ["call_answer_hotkey", "call_end_hotkey"])
+    @pytest.mark.parametrize("hotkey, kept", [
+        ({"vk": 87, "mod": 0x0002}, True),           # Ctrl+W
+        ({"vk": 0, "mod": 0}, True),                 # removed by the user
+        ({"vk": 87, "mod": 0}, False),               # bare W, system-wide
+        ({"vk": 87, "mod": 0x0004}, False),          # Shift only
+        ({"vk": 0, "mod": 0x0002}, False),
+        ({"vk": True, "mod": 0x0002}, False),
+        (None, False),                               # null is not "removed" here
+        ("Ctrl+W", False),
+    ])
+    def test_a_call_hotkey_obeys_the_capture_rule(self, key, hotkey, kept):
+        current = _settings()
+        current["general"][key] = {"vk": 65, "mod": 0x0002}
+        merged, _applied, ignored = transfer.merge_settings(
+            current, {"general": {key: hotkey}})
+        if kept:
+            assert merged["general"][key] == hotkey
+        else:
+            assert merged["general"][key] == {"vk": 65, "mod": 0x0002}
+            assert f"general.{key}" in ignored
+
+    def test_a_call_key_on_the_show_winzapp_key_is_not_imported(self):
+        """Windows gives a combination to one registration: it would never work."""
+        current = _settings()
+        current["general"]["call_answer_hotkey"] = {"vk": 65, "mod": 0x0002}
+        merged, _applied, ignored = transfer.merge_settings(current, {"general": {
+            "global_hotkey": {"vk": 87, "mod": 0x0003},
+            "call_answer_hotkey": {"vk": 87, "mod": 0x0003},
+        }})
+        assert merged["general"]["global_hotkey"] == {"vk": 87, "mod": 0x0003}
+        assert merged["general"]["call_answer_hotkey"] == {"vk": 65, "mod": 0x0002}
+        assert "general.call_answer_hotkey" in ignored
+
+    def test_the_two_call_keys_on_one_combination_keep_only_the_first(self):
+        current = _settings()
+        current["general"].pop("call_end_hotkey", None)
+        merged, _applied, ignored = transfer.merge_settings(current, {"general": {
+            "call_answer_hotkey": {"vk": 87, "mod": 0x0003},
+            "call_end_hotkey": {"vk": 87, "mod": 0x0003},
+        }})
+        assert merged["general"]["call_answer_hotkey"] == {"vk": 87, "mod": 0x0003}
+        assert "call_end_hotkey" not in merged["general"]     # the shipped key
+        assert ignored == ["general.call_end_hotkey"]
+
+    def test_call_keys_on_their_own_combinations_are_imported(self):
+        merged, _applied, ignored = transfer.merge_settings(_settings(), {"general": {
+            "global_hotkey": {"vk": 87, "mod": 0x0003},
+            "call_answer_hotkey": {"vk": 65, "mod": 0x0003},
+            "call_end_hotkey": {"vk": 0, "mod": 0},
+        }})
+        assert merged["general"]["call_answer_hotkey"] == {"vk": 65, "mod": 0x0003}
+        assert merged["general"]["call_end_hotkey"] == {"vk": 0, "mod": 0}
+        assert ignored == []
+
     @pytest.mark.parametrize("language, kept", [
         ("pl", True), ("en-US", True), ("xx-YY", False), ("", False),
     ])

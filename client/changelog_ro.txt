@@ -28,6 +28,8 @@ NOUTĂȚI
 
 - Jurnalul apelurilor (log.log) arată acum, la fiecare 5 secunde, cât din sunetul difuzorului ajunge la microfon înainte de anularea ecoului și cât mai rămâne în ce se trimite, cu întârzierea acelui ecou. Dacă cineva încă își aude propria voce, jurnalul spune dacă ecoul a trecut prin anulator sau a sosit pe altă cale.
 
+- Răspunsul la apeluri din orice fereastră: cât timp sună un apel individual, Ctrl+Alt+Shift+Enter răspunde la el, aduce fereastra apelului în fața oricărui program și îi dă focalizarea, iar Ctrl+Alt+Shift+Backspace îl respinge, la fel ca pe un apel de grup care sună; când nu sună niciun apel, Ctrl+Alt+Shift+Backspace încheie apelul în curs. Cu mai multe conturi deschise, mai întâi este respins un apel care sună în oricare dintre ele. La un apel video se răspunde cu camera pornită, ca prin butonul de răspuns. Ambele taste pot fi schimbate în Comenzi rapide din Setări și aparțin WinZapp doar cât timp pot acționa, deci celelalte programe le păstrează restul timpului.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

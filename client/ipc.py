@@ -112,8 +112,13 @@ class IpcListener:
         window_ready_predicate: Optional[Callable[[], bool]] = None,
         on_audio_device: Optional[Callable[[str, str], None]] = None,
         on_open_link: Optional[Callable[[str], None]] = None,
+        on_reject_ringing_call: Optional[Callable[[], bool]] = None,
     ):
         self.global_dir = global_dir
+        # Another account's call-end key, pressed while a call rings here (see
+        # main_window/call_hotkeys.py). Answers whether something rang and is
+        # being rejected; optional, like on_audio_device.
+        self.on_reject_ringing_call = on_reject_ringing_call
         # A group invitation link Windows handed to a second launch (see
         # core/whatsapp_link_association.py). Optional, like on_audio_device.
         self.on_open_link = on_open_link
@@ -448,6 +453,13 @@ class IpcListener:
             if isinstance(kind, str) and isinstance(name, str):
                 replies.append(json.dumps({"request_id": rid, "ack": True}))
                 self.on_audio_device(kind, name)
+        elif cmd == "reject_ringing_call" and self.on_reject_ringing_call is not None:
+            try:
+                rejected = bool(self.on_reject_ringing_call())
+            except Exception:
+                logging.exception("[ipc] rejecting the ringing call failed")
+                rejected = False
+            replies.append(json.dumps({"request_id": rid, "rejected": rejected}))
         elif cmd == "quit":
             replies.append(json.dumps({"request_id": rid, "ack": True}))
             # Trigger shutdown, then wait until the process actually releases.
@@ -589,6 +601,20 @@ def request_audio_device(global_dir: str, account_id: str, kind: str, name: str,
     if not replies:
         return False
     return any(r.get("ack") for r in replies)
+
+
+def request_reject_ringing_call(global_dir: str, account_id: str,
+                                timeout: float = 1.0) -> bool:
+    """Ask the process owning account_id to reject the call ringing there.
+
+    True only when that account had a call ringing and is rejecting it; False
+    when nothing rang there or no listener answered. Short timeout: the user
+    pressed a key and waits for the call in progress to end if nothing rang.
+    """
+    replies = _send(global_dir, account_id, _make_request("reject_ringing_call"), timeout)
+    if not replies:
+        return False
+    return any(r.get("rejected") for r in replies)
 
 
 def request_quit(global_dir: str, account_id: str, timeout: float = 85.0) -> bool:
