@@ -31,6 +31,7 @@ making the imported settings take effect.
 import copy
 from urllib.parse import urlsplit
 
+from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_is_valid, saved_call_hotkey
 from core.utils import DEFAULT_SETTINGS
 
 #: What the first line of an exported file says it is. Checked on import so a
@@ -489,6 +490,10 @@ def merge_settings(current, incoming, include_connection=True):
             if section == "general" and key == "global_hotkey" and not global_hotkey_is_valid(item):
                 ignored.append(f"{section}.{key}")
                 continue
+            if (section == "general" and key in CALL_HOTKEY_DEFAULTS
+                    and not call_hotkey_is_valid(item)):
+                ignored.append(f"{section}.{key}")
+                continue
             if section == "general" and key == "language" and not _language_is_usable(
                     item, languages):
                 # A locale this build does not ship turns every label and every
@@ -500,4 +505,32 @@ def merge_settings(current, incoming, include_connection=True):
                 continue
             target[key] = copy.deepcopy(item)
             applied += 1
+    _undo_clashing_call_hotkeys(current, merged, incoming, ignored)
     return merged, applied, ignored
+
+
+def _undo_clashing_call_hotkeys(current, merged, incoming, ignored):
+    """Keep this install's call key when the imported one is the "show
+    WinZapp" key or the other call key: Windows gives a combination to one
+    registration only, so it would never work and be retried all through every
+    call. Settings' own capture refuses the same clash."""
+    imported = (incoming or {}).get("general")
+    general = merged.get("general")
+    if not isinstance(imported, dict) or not isinstance(general, dict):
+        return
+    taken = set()
+    show_key = general.get("global_hotkey")
+    if isinstance(show_key, dict) and show_key.get("vk") and global_hotkey_is_valid(show_key):
+        taken.add((show_key["vk"], show_key["mod"]))
+    previous = (current or {}).get("general") or {}
+    for key in CALL_HOTKEY_DEFAULTS:
+        pair = saved_call_hotkey(general, key)
+        if pair in taken and key in imported and f"general.{key}" not in ignored:
+            if key in previous:
+                general[key] = copy.deepcopy(previous[key])
+            else:
+                general.pop(key, None)
+            ignored.append(f"general.{key}")
+            pair = saved_call_hotkey(general, key)
+        if pair:
+            taken.add(pair)

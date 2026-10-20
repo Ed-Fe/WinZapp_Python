@@ -28,6 +28,8 @@ NOVIDADES
 
 - O registo das chamadas (log.log) passa a mostrar, a cada 5 segundos, quanto do som do altifalante chega ao microfone antes do cancelamento de eco e quanto ainda sobra no que é enviado, com o atraso desse eco. Se alguém ainda ouvir a própria voz, o registo diz se o eco passou pelo cancelador ou chegou por outro caminho.
 
+- Atender chamadas em qualquer janela: enquanto uma chamada individual toca, Ctrl+Alt+Shift+Enter atende, traz a janela da chamada para a frente de qualquer programa e coloca o foco nela, e Ctrl+Alt+Shift+Backspace recusa, tal como uma chamada de grupo a tocar; sem nenhuma chamada a tocar, Ctrl+Alt+Shift+Backspace termina a chamada em curso. Com várias contas abertas, uma chamada a tocar em qualquer uma delas é recusada primeiro. Uma chamada de vídeo é atendida com a câmara ligada, como pelo botão de atender. As duas teclas podem ser alteradas nos Atalhos de teclado das Definições e só pertencem ao WinZapp enquanto podem atuar, pelo que os outros programas ficam com elas o resto do tempo.
+
 - O cancelamento de eco passa a funcionar também quando o eco volta com muito atraso, como no retorno (loopback) de algumas mesas de som, que podia levar mais de meio segundo e passava inteiro para a outra pessoa. O WinZapp mede quanto tempo a voz da outra pessoa demora a voltar pelo seu microfone e ajusta o cancelador a esse atraso, até 1,5 segundos.
 
 V2.1.0.0

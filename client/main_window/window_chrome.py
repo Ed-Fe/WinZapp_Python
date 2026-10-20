@@ -767,6 +767,9 @@ class WindowChromeMixin:
                 # Another account's quick device switch (Ctrl+Alt+Shift+H/G).
                 on_audio_device=lambda kind, name: wx.CallAfter(
                     self._ipc_audio_device, kind, name),
+                # Another account's call-end key (main_window/call_hotkeys.py);
+                # answers at once, the reject itself is marshalled.
+                on_reject_ringing_call=getattr(self, "_ipc_reject_ringing_call", None),
             )
             self._ipc_listener.start()
             ready = self._ipc_listener.wait_ready(timeout=3.0)

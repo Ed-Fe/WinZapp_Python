@@ -50,6 +50,7 @@ Where to look (and where new code goes):
     group_invitation_links  invitation links handed over by Windows, whatsapp: association
     status_transcription    saved transcriptions of statuses, their media and automatic runs
     calls               voice/video calls, call bar, call-log watcher
+    call_hotkeys        answer/decline a ringing call from any window (global keys, only while it rings)
     chat_lock           locked-chats vault
     phone_chat_lock     chats locked with WhatsApp Chat Lock on the phone
     quick_audio_devices Ctrl+Alt+Shift+H/G quick output/recording device switch
