@@ -11907,7 +11907,7 @@ msgid "Post text as status"
 msgstr "Postar texto como status"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/status_tab/status_composer.py
+#: client/status_tab/status_composer.py client/status_tab/status_voice.py
 msgctxt "status_post_unconfirmed"
 msgid ""
 "Posting the status was not confirmed in time; it may have been posted. Look "

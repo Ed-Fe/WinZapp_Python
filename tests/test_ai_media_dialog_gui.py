@@ -262,7 +262,7 @@ def test_settings_page_is_appended_without_moving_connection_or_exposing_vault(c
         dialog = SettingsDialog(frame)
         index = dialog._notebook.FindPage(dialog._ai_page)
         assert index == 7
-        assert dialog._notebook.GetPage(dialog._notebook.GetPageCount() - 1) is dialog._conn_page
+        assert dialog._notebook.GetPage(dialog._notebook.GetPageCount() - 2) is dialog._conn_page
         assert dialog._chat_lock_tab_shown is (not hidden)
         assert dialog._notebook.GetPageText(index) == frame.i18n.t("tab_ai_accessibility")
     finally:
