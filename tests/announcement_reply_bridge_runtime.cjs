@@ -8,8 +8,8 @@ const source = ts.transpileModule(fs.readFileSync(path.resolve(__dirname,
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020},
 }).outputText;
 
-function load(window) {
-  const context = {exports: {}, window, setTimeout: () => 0};
+function load(window, setTimeout = () => 0) {
+  const context = {exports: {}, window, setTimeout};
   vm.runInNewContext(source, context);
   return context.exports;
 }
@@ -112,5 +112,18 @@ const msg = (remote, replyCount) => ({
   binding('garbage');
   assert.deepEqual(plain(emitted), [{room: 'session:s1', event: 'announcement-replies',
                               data: {session: 's1', ...payload}}]);
+
+  // A page where wa-js never gets ready: the retries end, and the log says so.
+  const retrying = load({}, (fn) => { fn(); return 0; });
+  let tries = 0;
+  const warnings = [];
+  const stuck = {exposeFunction: async () => {}, evaluate: async () => { tries++; return false; },
+                 on: () => {}};
+  await retrying.installAnnouncementReplyBridge({page: stuck, session: 's1'}, io,
+                                                {warn: (line) => warnings.push(line), info: () => {}});
+  for (let i = 0; i < 400 && !warnings.length; i++) await new Promise((done) => setImmediate(done));
+  assert.equal(tries, 121);
+  assert.equal(warnings.length, 1);
+  assert.ok(warnings[0].includes('GAVE UP after 121 attempts'));
   console.log('ok');
 })().catch((error) => { console.error(error); process.exit(1); });

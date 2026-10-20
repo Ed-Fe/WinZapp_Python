@@ -116,6 +116,11 @@ export async function installAnnouncementReplyBridge(client: any, io: any, logge
           setTimeout(() => install(attempt + 1), 500);
         } else if (installed) {
           logger?.info?.(`[${client.session}] announcement reply bridge installed`);
+        } else {
+          // As the unread-count listener says it: without this, replies
+          // simply stop updating live and nothing tells why.
+          logger?.warn?.(`[announcementReplyBridge] GAVE UP after ${attempt + 1} attempts — `
+            + 'wa-js never became ready, announcement replies will not update live');
         }
       })
       .catch((e: any) =>
