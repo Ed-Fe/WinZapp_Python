@@ -4,6 +4,8 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- macOS güncellemelerinde doğrulamanın bağlantı, sertifika, sunucu veya GitHub istek sınırı nedeniyle mi başarısız olduğu ve doğrulama dosyasının mı, resmî sürüm etiketinin mi kontrol edilemediği açıklanır. Geçici bağlantı ve sunucu hatalarında bir kez yeniden denenir; istek sınırında bekleme süresi gösterilir ve bu süre boyunca tekrar istek gönderilmez.
+
 - Güncellemeler: WinZapp kapandıktan sonra da kurulum sahipliği korunur ve kurulmayı bekleyen indirilmiş paket saklanır. Yalnızca tamamlanan kopyalama başarılı sayılır; başarılı güncelleme önceki hata uyarısını kaldırır. Otomatik yeniden açılış kurucunun bitmesini bekler ve bekleme sınırına ulaşıldığında gerçekleşmez. Eksik veya tamamlandığı doğrulanamayan kopyalamadan sonra WinZapp kapalı kalır ve onarım yönergelerini Not Defteri'nde açar.
 
 - Sesli aramalarda mikrofon veya hoparlör farklı bir örnekleme hızı gerektirdiğinde, ses paketleri arasındaki zamanlama korunur ve bant sınırlı dönüşüm kullanılır. Aramanın örnekleme hızında çalışan ses doğrudan aktarılmaya devam eder.
@@ -75,6 +77,8 @@ YENİLİKLER
 - Sohbet bilgilerinin Medya sekmesi: Farklı kaydet'ten sonra ekran okuyucu pencereyi artık kullanılamaz olarak duyurmuyor.
 
 - Yeni sohbet: bağlantıyla gruba katılma düğmesinin artık bir Alt kısayol harfi var.
+
+- Yankı önleme artık yankı çok gecikmeli döndüğünde de çalışıyor; bazı mikserlerin geri dönüşünde (loopback) olduğu gibi yarım saniyeyi aşabilen ve karşıdaki kişiye olduğu gibi ulaşan yankılar dahil. WinZapp karşıdaki kişinin sesinin mikrofonunuzdan geri dönmesinin ne kadar sürdüğünü ölçer ve önleyiciyi bu gecikmeye göre, 1,5 saniyeye kadar ayarlar.
 
 V2.1.0.0
 

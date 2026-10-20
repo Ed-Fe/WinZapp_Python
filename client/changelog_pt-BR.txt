@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de configurações reorganizada, a
 
 NOVIDADES
 
+- As atualizações do macOS explicam se a verificação falhou por um problema de conexão, certificado, servidor ou limite de solicitações do GitHub, e se não foi possível verificar o arquivo de verificação ou a tag da versão oficial. Falhas temporárias de conexão e servidor são repetidas uma vez; limites de solicitações mostram um tempo de espera e não geram novas solicitações durante esse período.
+
 - Atualizações: a instalação mantém a exclusividade depois que o WinZapp fecha, e o pacote baixado que aguarda instalação é preservado. Só uma cópia completa conta como sucesso; uma atualização bem-sucedida remove o aviso de falha anterior. A reabertura automática espera o instalador terminar e não ocorre quando o limite de espera é atingido. Depois de uma cópia incompleta ou não confirmada, o WinZapp permanece fechado e abre instruções de recuperação no Bloco de Notas.
 
 - As chamadas de voz preservam o tempo entre os pacotes de áudio e usam conversão com limitação de banda quando o microfone ou o alto-falante precisa de outra taxa de amostragem. O áudio que já está na taxa da chamada continua pelo caminho direto.
@@ -75,6 +77,8 @@ NOVIDADES
 - Aba Mídias dos dados da conversa: depois do Salvar como, o leitor de tela não anuncia mais a janela como indisponível.
 
 - Nova conversa: o botão de entrar num grupo por link ganhou uma letra de atalho com Alt.
+
+- O cancelamento de eco agora também funciona quando o eco volta com muito atraso, como no retorno (loopback) de algumas mesas de som, que podia levar mais de meio segundo e passava inteiro para a outra pessoa. O WinZapp mede quanto tempo a voz da outra pessoa leva para voltar pelo seu microfone e ajusta o cancelador para esse atraso, até 1,5 segundo.
 
 V2.1.0.0
 

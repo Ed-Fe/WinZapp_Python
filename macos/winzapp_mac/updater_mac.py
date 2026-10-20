@@ -43,7 +43,7 @@ import threading
 
 import wx
 
-from . import provenance
+from . import provenance, provenance_messages
 
 ARCH = platform.machine()   # arm64 / x86_64
 
@@ -151,7 +151,7 @@ def release_provenance(version):
     try:
         raw = provenance.fetch_release_asset(url)
     except provenance.ProvenanceError as exc:
-        return None, f"could not verify commit provenance: {exc}"
+        return None, exc.detail("verification_file")
     ok, detail = provenance.verify_release(
         raw, tag, running_tag, provenance.fetch_official,
         running_commit=_info().get(provenance.SOURCE_COMMIT_KEY) or "")
@@ -197,7 +197,8 @@ class MacUpdateProgress(wx.Dialog):
         i18n = self._mw.i18n
 
         def ui():
-            wx.MessageBox(f"{i18n.t('error').format(app_name='WinZapp')}\n\n{detail}",
+            message = provenance_messages.user_detail(detail, i18n.t)
+            wx.MessageBox(f"{i18n.t('error').format(app_name='WinZapp')}\n\n{message}",
                           i18n.t("update_available_title"), wx.OK | wx.ICON_ERROR, self)
             self.EndModal(wx.ID_CANCEL)
         wx.CallAfter(ui)

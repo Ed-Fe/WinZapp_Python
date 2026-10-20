@@ -26,6 +26,12 @@ _spec = importlib.util.spec_from_file_location("winzapp_provenance_under_test", 
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
 
+
+@pytest.fixture(autouse=True)
+def _no_rate_limit_or_real_retry_wait(monkeypatch):
+    monkeypatch.setattr(P, "_RATE_LIMITS", {})
+    monkeypatch.setattr(P.time, "sleep", lambda seconds: None)
+
 COMMIT = "a" * 40
 OTHER = "b" * 40
 TAG_OBJ = "c" * 40
@@ -322,10 +328,12 @@ class FakeResponse(io.BytesIO):
 class FakeOpener:
     def __init__(self, *outcomes):
         self.outcomes = list(outcomes)
+        self.last = None
 
     def open(self, req, timeout=None):
         assert timeout and timeout <= 30
-        out = self.outcomes.pop(0)
+        out = self.outcomes.pop(0) if self.outcomes else self.last
+        self.last = out
         if isinstance(out, Exception):
             raise out
         out._url = out._url or req.full_url
@@ -481,14 +489,16 @@ def test_an_annotated_tag_answer_for_another_object_is_refused():
     assert not ok and "does not match" in detail
 
 
-def test_offline_and_rate_limits_say_to_try_again_later(monkeypatch):
-    for outcome in (urllib.error.HTTPError(GOOD_URL, 403, "x", {}, None),
-                    urllib.error.HTTPError(GOOD_URL, 429, "x", {}, None),
-                    urllib.error.URLError("offline"), TimeoutError("slow"),
-                    FakeResponse(b"{}", status=503)):
+def test_offline_rate_limits_and_server_errors_keep_distinct_causes(monkeypatch):
+    for outcome, code in ((urllib.error.HTTPError(GOOD_URL, 403, "x", {}, None), "access_denied"),
+                          (urllib.error.HTTPError(GOOD_URL, 429, "x", {}, None), "rate_limited"),
+                          (urllib.error.URLError("offline"), "connection"), (TimeoutError("slow"), "timeout"),
+                          (urllib.error.HTTPError(GOOD_URL, 503, "x", {}, None), "server")):
+        P._RATE_LIMITS.clear()
         monkeypatch.setattr(P, "_API_OPENER", FakeOpener(outcome))
-        with pytest.raises(P.ProvenanceError, match="try again later"):
+        with pytest.raises(P.ProvenanceError) as caught:
             P.fetch_official(GOOD_URL)
+        assert caught.value.code == code
 
 
 def test_a_slow_trickle_hits_the_total_deadline(monkeypatch):

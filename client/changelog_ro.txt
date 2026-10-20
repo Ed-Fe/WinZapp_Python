@@ -4,6 +4,8 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Actualizările macOS explică dacă verificarea a eșuat din cauza conexiunii, certificatului, serverului sau limitei de solicitări GitHub și dacă nu a putut fi verificat fișierul de verificare sau eticheta versiunii oficiale. Erorile temporare de conexiune și server sunt reîncercate o singură dată; limitele de solicitări afișează un timp de așteptare și nu generează solicitări repetate în acel interval.
+
 - Actualizări: instalarea păstrează exclusivitatea după închiderea WinZapp, iar pachetul descărcat care așteaptă instalarea este păstrat. Doar o copiere completă înseamnă succes; o actualizare reușită elimină avertizarea despre un eșec anterior. Redeschiderea automată așteaptă terminarea programului de instalare și nu are loc la atingerea limitei de așteptare. După o copiere incompletă sau neconfirmată, WinZapp rămâne închis și deschide instrucțiuni de reparare în Notepad.
 
 - Apelurile vocale păstrează continuitatea temporală între pachetele audio și folosesc conversie cu bandă limitată când microfonul sau difuzorul necesită altă rată de eșantionare. Sunetul care are deja rata apelului continuă pe calea directă.
@@ -75,6 +77,8 @@ NOUTĂȚI
 - Fila Media din datele conversației: după Salvare ca, cititorul de ecran nu mai anunță fereastra ca indisponibilă.
 
 - Conversație nouă: butonul de intrare într-un grup prin link are acum o literă de scurtătură cu Alt.
+
+- Anularea ecoului funcționează acum și când ecoul revine cu mare întârziere, ca la reluarea (loopback) unor mixere, care putea dura peste o jumătate de secundă și ajungea întreg la cealaltă persoană. WinZapp măsoară cât îi ia vocii celeilalte persoane să revină prin microfonul tău și ajustează anulatorul la această întârziere, până la 1,5 secunde.
 
 V2.1.0.0
 

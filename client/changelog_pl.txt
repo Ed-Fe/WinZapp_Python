@@ -4,6 +4,8 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
+- Aktualizacje macOS wyjaśniają, czy weryfikacja nie powiodła się z powodu połączenia, certyfikatu, serwera lub limitu żądań GitHub oraz czy nie można sprawdzić pliku weryfikacji czy oficjalnego tagu wydania. Tymczasowe błędy połączenia i serwera powodują jedną ponowną próbę; limity żądań pokazują czas oczekiwania i nie powodują kolejnych żądań w tym czasie.
+
 - Aktualizacje: instalacja zachowuje wyłączność po zamknięciu WinZapp, a pobrany pakiet oczekujący na instalację jest zachowywany. Tylko pełna kopia oznacza sukces; udana aktualizacja usuwa ostrzeżenie o wcześniejszym błędzie. Automatyczne ponowne otwarcie czeka na zakończenie instalatora i nie następuje po przekroczeniu limitu oczekiwania. Po niepełnym lub niepotwierdzonym kopiowaniu WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku.
 
 - Połączenia głosowe zachowują ciągłość czasową między pakietami audio i używają konwersji z ograniczeniem pasma, gdy mikrofon lub głośnik wymaga innej częstotliwości próbkowania. Dźwięk o częstotliwości używanej w połączeniu nadal trafia bezpośrednio do dalszego przetwarzania.
@@ -75,6 +77,8 @@ NOWOŚCI
 - Karta Multimedia w danych czatu: po Zapisz jako czytnik ekranu nie ogłasza już okna jako niedostępnego.
 
 - Nowy czat: przycisk dołączania do grupy przez link ma teraz literę skrótu z Alt.
+
+- Eliminacja echa działa teraz także wtedy, gdy echo wraca z dużym opóźnieniem, jak w odsłuchu (loopback) niektórych mikserów, który potrafił trwać ponad pół sekundy i w całości docierał do drugiej osoby. WinZapp mierzy, ile czasu głos drugiej osoby potrzebuje, by wrócić przez twój mikrofon, i dostosowuje eliminator do tego opóźnienia, do 1,5 sekundy.
 
 V2.1.0.0
 

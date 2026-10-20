@@ -6795,6 +6795,95 @@ msgstr ""
 "A atualização não foi instalada. As outras contas do WinZapp que foram "
 "fechadas para ela foram abertas novamente."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_access_denied"
+msgid "GitHub refused access to the verification request."
+msgstr "O GitHub negou acesso à solicitação de verificação."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_connection"
+msgid "The connection to GitHub failed. Check your internet connection."
+msgstr "A conexão com o GitHub falhou. Confira sua conexão com a internet."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_dns"
+msgid ""
+"GitHub's address could not be resolved. Check your internet connection."
+msgstr ""
+"Não foi possível resolver o endereço do GitHub. Confira sua conexão com a "
+"internet."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_file"
+msgid ""
+"Could not retrieve the update verification file.\n"
+"{reason}"
+msgstr ""
+"Não foi possível obter o arquivo de verificação da atualização.\n"
+"{reason}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_http_error"
+msgid "GitHub returned an unexpected response."
+msgstr "O GitHub retornou uma resposta inesperada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_not_found"
+msgid "The verification resource was not found on GitHub."
+msgstr "O recurso de verificação não foi encontrado no GitHub."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_rate_limited"
+msgid "GitHub's request limit was reached."
+msgstr "O limite de solicitações do GitHub foi atingido."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_server"
+msgid "GitHub reported a temporary server error. Try again later."
+msgstr ""
+"O GitHub informou um erro temporário no servidor. Tente novamente mais "
+"tarde."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_tag"
+msgid ""
+"Could not verify the official release tag.\n"
+"{reason}"
+msgstr ""
+"Não foi possível verificar a tag da versão oficial.\n"
+"{reason}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_timeout"
+msgid "The verification request timed out. Try again later."
+msgstr ""
+"A solicitação de verificação excedeu o tempo limite. Tente novamente mais "
+"tarde."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_tls"
+msgid ""
+"The secure connection could not be verified. Check the date, time and "
+"network certificate settings."
+msgstr ""
+"Não foi possível verificar a conexão segura. Confira a data, a hora e as "
+"configurações de certificados da rede."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_unexpected"
+msgid "The verification request failed unexpectedly. Try again later."
+msgstr ""
+"A solicitação de verificação falhou inesperadamente. Tente novamente mais "
+"tarde."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_wait"
+msgid "Wait at least {seconds} seconds before checking again."
+msgstr "Aguarde pelo menos {seconds} segundos antes de verificar novamente."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/shortcuts.py
 #: client/ui/dialogs/shortcuts_dialog.py client/ui/navigation.py
 msgctxt "main_nav"
