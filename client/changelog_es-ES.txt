@@ -14,7 +14,7 @@ NOVEDADES
 
 - Comunidades: la ventana "Nueva conversación" tiene el nuevo botón "Comunidades", que abre la lista de las comunidades en las que estás. Al elegir una comunidad se muestran su descripción, sus administradores y los grupos de ella a los que te has unido, con el grupo de anuncios y el grupo general identificados; Intro o "Abrir grupo" va al grupo seleccionado. Si eres administrador de la comunidad, la ventana también ofrece "Añadir grupos", "Quitar grupo de la comunidad", "Promover a administrador de la comunidad", "Quitar como administrador de la comunidad" y "Desactivar comunidad", y "Nueva comunidad" crea una comunidad con nombre, descripción y los grupos que elijas. Después de cada acción, WinZapp vuelve a leer las comunidades y solo dice que ha terminado cuando WhatsApp muestra el cambio; si no, avisa de que la solicitud se envió pero aún no está confirmada, o de que fue rechazada.
 
-- Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. La ventana permite actualizar las respuestas y conserva tu texto si el envío no se confirma. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.
+- Respuestas a los anuncios de comunidades: abre el menú de un mensaje y elige "Respuestas al anuncio de la comunidad" para leer y enviar respuestas. Las respuestas se actualizan solas mientras la ventana está abierta, el campo de respuesta ya no queda de solo lectura y tu texto se conserva si el envío no se confirma. En la lista de conversaciones, la vista previa del grupo muestra "Fulano respondió a un anuncio" cuando es la novedad más reciente. Los anuncios indican el número conocido de respuestas. Los autores usan nombres guardados o de perfil, y tus respuestas respetan la configuración de cómo referirse a ti.
 
 - Comunidades es ahora un elemento de la lista de navegación, después de Llamadas, con su atajo Alt+8 en el nombre del elemento; se puede llegar bajando por la lista y no solo con Alt+8.
 
@@ -29,6 +29,52 @@ NOVEDADES
 - El registro de las llamadas (log.log) ahora muestra, cada 5 segundos, cuánto del sonido del altavoz llega al micrófono antes de la cancelación de eco y cuánto queda todavía en lo que se envía, con el retraso de ese eco. Si alguien sigue oyendo su propia voz, el registro dice si el eco pasó por el cancelador o llegó por otro camino.
 
 - Contestar llamadas desde cualquier ventana: mientras suena una llamada individual, Ctrl+Alt+Shift+Enter la contesta, trae la ventana de la llamada al frente de cualquier programa y le da el foco, y Ctrl+Alt+Shift+Retroceso la rechaza, igual que una llamada grupal que suena; sin ninguna llamada sonando, Ctrl+Alt+Shift+Retroceso cuelga la llamada en curso. Con varias cuentas abiertas, primero se rechaza la llamada que suene en cualquiera de ellas. Una videollamada se contesta con la cámara encendida, como con su botón de contestar. Las dos teclas se pueden cambiar en los Atajos de teclado de Ajustes y son de WinZapp solo mientras pueden actuar, así que los demás programas las conservan el resto del tiempo.
+
+- Configuración: nueva categoría Avanzadas, con el nivel de registro de log.log (depuración, información, avisos o solo errores, aplicado al momento), un puerto fijo para la API local, para ejecutar dos copias de WinZapp o cuando otro programa ya usa el puerto 6300 (se aplica al volver a abrir WinZapp), y "Mostrar todas las actualizaciones de WPPConnect Server", desmarcada por defecto, que también ofrece versiones aún no revisadas por los mantenedores, con un aviso. En la categoría Conexión, el campo Puerto solo se activa con la API personalizada.
+
+- Configuración: todos los controles de la Configuración y de las ventanas que abre tienen una letra de atajo con Alt, sin repetirse en la misma ventana, en todos los idiomas. Para que quepan las letras, la Transcripción local se dividió en ventanas (opciones avanzadas, transcripciones guardadas, estados, carpetas, bibliotecas CUDA y whisper.cpp) y las opciones automáticas de la IA en línea pasaron a la ventana "Transcripción y descripción automáticas...".
+
+- Atajos de teclado: la lista ahora es un árbol por categorías (la flecha derecha abre la categoría, que se dice una sola vez) y tiene un campo de búsqueda; en la búsqueda, la flecha abajo lleva a los resultados. Corregido el error que impedía cambiar un atajo.
+
+- Borrador por conversación, como en WhatsApp Web: el texto escrito y no enviado se queda en la conversación donde se escribió, con las menciones, y vuelve al abrirla de nuevo; antes pasaba a la siguiente conversación. En Interfaz > Conversaciones puedes elegir mantenerlo en el campo para la siguiente conversación (como antes), guardarlo como borrador de esa conversación (predeterminado) o descartarlo.
+
+- Al cambiar de conversación, los botones "Reacciones" y "Leer más" del mensaje en el que estabas ya no aparecen con Tab en la conversación nueva.
+
+- Eliminar para todos el último mensaje de una conversación actualiza al momento su vista previa en la lista de conversaciones a "mensaje eliminado".
+
+- Alt+A ya no abre el menú de adjuntar; su atajo sigue siendo Ctrl+Shift+A.
+
+- Lista de mensajes: tres opciones nuevas, desmarcadas por defecto, quitan del recorrido del Tab el botón de IA en línea (Transcribir o Describir; el menú del mensaje lo sigue ofreciendo), la barra de duración y el botón de velocidad durante la reproducción. Los atajos de velocidad y de avance siguen funcionando.
+
+- Transcripción local: con "transcribir sin la ventana de progreso", pedir la transcripción en línea de otro mensaje mientras una está en curso pone la nueva en cola en lugar de rechazarla; repetir el atajo en el mensaje en espera lo quita de la cola.
+
+- Transcripción local: el modo automático ya no dice "Ningún modelo de transcripción está listo" a quien tiene un modelo descargado: en una tarjeta gráfica pequeña donde el modelo instalado no cabe, se usa en el procesador en lugar de pedir otra descarga; y el motor automático sigue los modelos que ya están en el equipo.
+
+- Intro y Espacio que transcriben ahora también valen para audio y vídeo enviados como archivo, y la pestaña Multimedia de los datos de la conversación respeta esa opción en los vídeos.
+
+- Datos de la conversación: la transcripción automática pasó a ser dos casillas, local (Whisper) y en línea, cada una mostrando lo que hace ahora la conversación y pudiendo activarla o desactivarla solo para esa conversación.
+
+- Intentar enviar de nuevo: en el menú de un mensaje tuyo que falló o no se confirmó, texto o adjunto, y en los estados que no salieron, que ahora quedan en la pestaña Estados justo después de Mi estado; atajo Ctrl+Shift+Y. Nada se reenvía solo.
+
+- Publicar estado: una publicación a la vez (pulsar Publicar otra vez no duplica el estado), y un vídeo grande ya no se da por fallido mientras sigue subiendo; una publicación sin confirmar avisa de revisar Mi estado antes de publicar de nuevo.
+
+- Mi estado: elimina un estado para todos con la tecla Suprimir o el botón "Eliminar estado", con la misma confirmación de WhatsApp.
+
+- Comunidades: Intro en la lista lleva a los grupos de la comunidad, y un botón abre el grupo con actividad más reciente; un filtro muestra todos los grupos, aquellos en los que participas y aquellos en los que no; y puedes unirte a un grupo, pedir unirte y cancelar la solicitud, como en WhatsApp Web.
+
+- Pedidos: Intro abre los datos de un pedido que el vendedor creó para ti, con artículos y subtotal; el comprador puede confirmar un pedido pagado fuera de la aplicación, como en WhatsApp Web; y el diálogo dice qué respuesta del comprador WinZapp aún no ofrece.
+
+- Configuración de WhatsApp: en Privacidad, "Mis contactos, excepto" y "Compartir solo con" del estado ofrecen solo los contactos guardados en el teléfono, los únicos a los que WhatsApp deja ver un estado; en Perfil, el botón Elegir foto dice si hay foto actual y qué archivo se eligió, sin navegación por objetos.
+
+- Listas de conversaciones: con la opción "Esc desmarca" activada, Esc desmarca las conversaciones marcadas en la lista principal, en las archivadas y en las bloqueadas.
+
+- Actualización con varias cuentas abiertas: el instalador espera a que todas las cuentas se cierren antes de copiar, y WinZapp ya no se cierra en silencio al iniciar durante una actualización o con la cuenta ya abierta: explica el motivo y lo registra en el log.
+
+- Sincronización de cuentas grandes: tras lotes grandes de mensajes, WinZapp pide a WhatsApp Web que libere la memoria que ya no usa, lo que reduce el consumo durante la sincronización.
+
+- Pestaña Multimedia de los datos de la conversación: después de Guardar como, el lector de pantalla ya no anuncia la ventana como no disponible.
+
+- Nueva conversación: el botón para unirse a un grupo por enlace tiene ahora una letra de atajo con Alt.
 
 V2.1.0.0
 

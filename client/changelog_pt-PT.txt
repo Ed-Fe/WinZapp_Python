@@ -14,7 +14,7 @@ NOVIDADES
 
 - Comunidades: a janela "Nova conversa" tem o novo botão "Comunidades", que abre a lista das comunidades em que está. Ao escolher uma comunidade, aparecem a descrição, os administradores e os grupos dela em que entrou, com o grupo de avisos e o grupo geral identificados; Enter ou "Abrir grupo" vai para o grupo selecionado. Se for administrador da comunidade, a janela também oferece "Adicionar grupos", "Remover grupo da comunidade", "Promover a administrador da comunidade", "Despromover administrador da comunidade" e "Desativar comunidade", e "Nova comunidade" cria uma comunidade com nome, descrição e os grupos que escolher. Depois de cada ação, o WinZapp lê as comunidades de novo e só diz que terminou quando o WhatsApp mostra a alteração; caso contrário, avisa que o pedido foi enviado mas ainda não está confirmado, ou que foi recusado.
 
-- Respostas aos avisos de comunidades: abra o menu de uma mensagem e escolha "Respostas ao aviso da comunidade" para ler e enviar respostas. A janela permite atualizar as respostas e conserva o texto quando o envio não é confirmado. Os avisos anunciam a contagem conhecida de respostas. Os autores usam nomes guardados ou de perfil, e as suas respostas respeitam a configuração de como se referir a si.
+- Respostas aos avisos de comunidades: abra o menu de uma mensagem e escolha "Respostas ao aviso da comunidade" para ler e enviar respostas. As respostas atualizam-se sozinhas enquanto a janela está aberta, o campo de resposta já não fica só de leitura, e o texto é conservado quando o envio não é confirmado. Na lista de conversas, a pré-visualização do grupo mostra "Fulano respondeu a um aviso" quando essa é a novidade mais recente. Os avisos anunciam a contagem conhecida de respostas. Os autores usam nomes guardados ou de perfil, e as suas respostas respeitam a configuração de como se referir a si.
 
 - As comunidades passam a ser um item da lista de navegação, depois de Chamadas, com o atalho Alt+8 no nome do item; pode chegar-se lá descendo pela lista e não só com Alt+8.
 
@@ -29,6 +29,52 @@ NOVIDADES
 - O registo das chamadas (log.log) passa a mostrar, a cada 5 segundos, quanto do som do altifalante chega ao microfone antes do cancelamento de eco e quanto ainda sobra no que é enviado, com o atraso desse eco. Se alguém ainda ouvir a própria voz, o registo diz se o eco passou pelo cancelador ou chegou por outro caminho.
 
 - Atender chamadas em qualquer janela: enquanto uma chamada individual toca, Ctrl+Alt+Shift+Enter atende, traz a janela da chamada para a frente de qualquer programa e coloca o foco nela, e Ctrl+Alt+Shift+Backspace recusa, tal como uma chamada de grupo a tocar; sem nenhuma chamada a tocar, Ctrl+Alt+Shift+Backspace termina a chamada em curso. Com várias contas abertas, uma chamada a tocar em qualquer uma delas é recusada primeiro. Uma chamada de vídeo é atendida com a câmara ligada, como pelo botão de atender. As duas teclas podem ser alteradas nos Atalhos de teclado das Definições e só pertencem ao WinZapp enquanto podem atuar, pelo que os outros programas ficam com elas o resto do tempo.
+
+- Definições: nova categoria Avançadas, com o nível de registo do log.log (depuração, informação, avisos ou só erros, aplicado de imediato), uma porta fixa para a API local, para executar duas cópias do WinZapp ou quando outro programa já usa a porta 6300 (aplica-se ao reabrir o WinZapp), e "Mostrar todas as atualizações do WPPConnect Server", desmarcada por predefinição, que também oferece versões ainda não verificadas pelos responsáveis, com um aviso. Na categoria Ligação, o campo Porta só fica ativo com a API personalizada.
+
+- Definições: todos os controlos das Definições e das janelas abertas a partir delas têm uma letra de atalho com Alt, sem repetir na mesma janela, em todos os idiomas. Para as letras caberem, a Transcrição local foi dividida em janelas (opções avançadas, transcrições guardadas, estados, pastas, bibliotecas CUDA e whisper.cpp) e as opções automáticas da IA online passaram para a janela "Transcrição e descrição automáticas...".
+
+- Atalhos de teclado: a lista é agora uma árvore por categoria (a seta para a direita abre a categoria, que só é dita uma vez) e tem um campo de pesquisa; na pesquisa, a seta para baixo vai para os resultados. Corrigido o erro que impedia alterar um atalho.
+
+- Rascunho por conversa, como no WhatsApp Web: o texto escrito e não enviado fica com a conversa onde foi escrito, com as menções, e volta ao abri-la de novo; antes ia para a conversa seguinte. Em Interface > Conversas pode escolher manter no campo para a conversa seguinte (como era), guardar como rascunho dessa conversa (predefinição) ou descartar.
+
+- Ao mudar de conversa, os botões "Reações" e "Ler mais" da mensagem em que estava já não aparecem com o Tab na conversa nova.
+
+- Apagar para todos a última mensagem de uma conversa atualiza de imediato a pré-visualização na lista de conversas para "mensagem apagada".
+
+- Alt+A já não abre o menu de anexar; o atalho dele continua a ser Ctrl+Shift+A.
+
+- Lista de mensagens: três opções novas, desmarcadas por predefinição, tiram do caminho do Tab o botão de IA online (Transcrever ou Descrever; o menu da mensagem continua a oferecê-lo), a barra de duração e o botão de velocidade durante a reprodução. Os atalhos de velocidade e de avanço continuam a funcionar.
+
+- Transcrição local: com "transcrever sem a janela de progresso", pedir a transcrição na linha de outra mensagem enquanto uma decorre coloca a nova na fila, em vez de recusar; repetir o atalho na mensagem em espera tira-a da fila.
+
+- Transcrição local: o modo automático já não diz "Nenhum modelo de transcrição está pronto a usar" a quem tem um modelo descarregado: numa placa gráfica pequena, onde o modelo instalado não cabe, é usado no processador em vez de pedir outra descarga; e o motor automático segue os modelos que já estão no computador.
+
+- Enter e Espaço que transcrevem valem agora também para áudio e vídeo enviados como ficheiro, e o separador Multimédia dos dados da conversa respeita esta opção nos vídeos.
+
+- Dados da conversa: a transcrição automática passou a duas caixas, local (Whisper) e online, cada uma mostrando o que a conversa faz agora e podendo ligá-la ou desligá-la só para essa conversa.
+
+- Tentar enviar de novo: no menu de uma mensagem sua que falhou ou não foi confirmada, texto ou anexo, e nos estados que não saíram, que agora ficam no separador Estado logo a seguir a O meu estado; atalho Ctrl+Shift+Y. Nada é reenviado sozinho.
+
+- Publicar estado: uma publicação de cada vez (carregar de novo em Publicar não duplica o estado), e um vídeo grande já não é dado como falhado enquanto ainda está a ser enviado; uma publicação sem confirmação avisa para verificar O meu estado antes de publicar de novo.
+
+- O meu estado: apague um estado para todos com a tecla Delete ou o botão "Apagar estado", com a mesma confirmação do WhatsApp.
+
+- Comunidades: Enter na lista leva aos grupos da comunidade, e um botão abre o grupo com atividade mais recente; um filtro mostra todos os grupos, aqueles em que participa e aqueles em que não participa; e pode entrar num grupo, pedir para entrar e cancelar o pedido, como no WhatsApp Web.
+
+- Encomendas: Enter abre os dados de uma encomenda que o vendedor criou para si, com artigos e subtotal; o comprador pode confirmar uma encomenda paga fora da aplicação, como no WhatsApp Web; e a janela diz que resposta do comprador o WinZapp ainda não oferece.
+
+- Definições do WhatsApp: em Privacidade, "Os meus contactos, exceto" e "Partilhar só com" do estado oferecem só os contactos guardados no telemóvel, os únicos que o WhatsApp deixa ver um estado; no Perfil, o botão Escolher fotografia diz se há fotografia atual e que ficheiro foi escolhido, sem navegação por objetos.
+
+- Listas de conversas: com a opção "Esc desmarca" ligada, o Esc desmarca as conversas marcadas na lista principal, nas arquivadas e nas trancadas.
+
+- Atualização com várias contas abertas: o instalador espera que todas as contas fechem antes de copiar, e o WinZapp já não sai calado ao iniciar durante uma atualização ou com a conta já aberta: explica o motivo e regista-o no log.
+
+- Sincronização de contas grandes: depois de lotes grandes de mensagens, o WinZapp pede ao WhatsApp Web que liberte a memória que já não usa, o que reduz o consumo durante a sincronização.
+
+- Separador Multimédia dos dados da conversa: depois de Guardar como, o leitor de ecrã já não anuncia a janela como indisponível.
+
+- Nova conversa: o botão de entrar num grupo por ligação tem agora uma letra de atalho com Alt.
 
 V2.1.0.0
 

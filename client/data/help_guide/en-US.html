@@ -363,7 +363,7 @@
 <ul>
   <li><strong>Filters:</strong> All, Unread, Groups and Individual, as radio buttons. Alt+Shift+F takes you to them; Alt+Shift+A, Alt+Shift+U, Alt+Shift+G and Alt+Shift+I pick All, Unread, Groups and Individual straight from the list.</li>
   <li><strong>WhatsApp lists:</strong> your custom lists appear before the filters. You can refresh them, filter by them, create or rename a list, and add or remove chats, in "Manage WhatsApp lists". Editing depends on your account's support; when it is not possible, the manager says why. Locked chats or chats unavailable locally do not show in the selection, and the other members of the list are preserved.</li>
-  <li><strong>Search:</strong> Ctrl+F takes you to the search field; the down arrow goes to the first result. In Settings &gt; Interface &gt; Chats, "Keep the chat search when opening a chat" makes Esc return focus to that chat in the results instead of going back to the full list.</li>
+  <li><strong>Search:</strong> Ctrl+F takes you to the search field; the down arrow goes to the first result. In Settings &gt; Interface &gt; Chats, "Keep the chat search when opening a chat, so Esc returns to the results instead of the full list" makes Esc return focus to that chat in the results instead of going back to the full list.</li>
 </ul>
 
 <h3>Open a chat</h3>
@@ -460,7 +460,7 @@
   <tr><td class="field-name">Alt+T</td><td>Announce the contact's state: last seen, online, typing. The chat button and the contact details show the same information, always up to date</td></tr>
 </table>
 <p><strong>Review recent messages by position:</strong> there are ten commands, from the newest message (1) to the tenth (0), that read that message without moving focus; pressing the same key twice quickly copies it. They come with no key, because Alt+1 to Alt+9 belong to the main window: choose the keys in Settings &gt; Interface &gt; Keyboard shortcuts.</p>
-<p><strong>"Typing" in the list:</strong> with "Show who is typing or recording audio as the last row of the messages list" (Settings &gt; Interface &gt; Messages), a temporary row such as "Ana is typing..." appears at the end of the list and disappears when the person stops. It never moves focus and is not spoken on its own.</p>
+<p><strong>"typing" in the list:</strong> with "Show who is typing or recording audio as the last row of the messages list" (Settings &gt; Interface &gt; Messages), a temporary row such as "Ana is typing..." appears at the end of the list and disappears when the person stops. It never moves focus and is not spoken on its own.</p>
 <p><strong>Other kinds of rows:</strong> messages that WhatsApp has not loaded yet appear as "Waiting for this message. This may take a while." and turn into the text when it arrives. View-once messages appear as "View once message. Open it on your phone to see it." Order and product messages from businesses show items, total and state. Calls appear at the point of the chat where they happened ("Missed voice call", "Answered video call"...).</p>
 
 <h3>Reply, edit, delete, forward</h3>
@@ -485,7 +485,7 @@
 </ul>
 
 <h3>React</h3>
-<p>Ctrl+Shift+R opens the message's reactions (or, on a missed call, calls back). The list has 12 quick reactions; you select one to react, your current reaction comes marked, and selecting it again removes it. The left and right arrows change the emoji's skin tone. At the end, "Add more reactions" opens the full emoji picker. The reactions you use most start to appear among the 12, with the most used on top. If you prefer fixed positions, use Settings &gt; Interface &gt; Reactions: "Use fixed quick reactions" and, in each position, Enter opens the picker to choose its emoji; "Restore default positions" undoes it. A dedicated sound plays when someone reacts to your message (Settings &gt; Event sounds). Alt+Shift+E reads aloud the recent reactions the focused message received.</p>
+<p>Ctrl+Shift+R opens the message's reactions (or, on a missed call, calls back). The list has 12 quick reactions; you select one to react, your current reaction comes marked, and selecting it again removes it. The left and right arrows change the emoji's skin tone. At the end, "Add more reactions" opens the full emoji picker. The reactions you use most start to appear among the 12, with the most used on top. If you prefer fixed positions, use Settings &gt; Interface &gt; Reactions: "Use fixed quick reactions: choose the emoji for each of the 12 positions instead of sorting by most used" and, in each position, Enter opens the picker to choose its emoji; "Restore default positions" undoes it. A dedicated sound plays when someone reacts to your message (Settings &gt; Event sounds). Alt+Shift+E reads aloud the recent reactions the focused message received.</p>
 
 <h3>Star and pin</h3>
 <ul>
@@ -527,6 +527,11 @@
   <tr><td>Transcribe and show together / on their rows / delete transcriptions</td><td class="field-name">Ctrl+Alt+Shift+T / N / Delete</td></tr>
 </table>
 <p>The selection ends with the chat: when you close it, nothing stays marked.</p>
+
+<h3>Drafts, sending again and the controls after the list</h3>
+<p>The message field keeps what you typed with its conversation: leave a conversation without sending, and the text, mentions included, comes back when you open it again. In Settings &gt; Interface &gt; Chats, "Unsent message when you leave a conversation" chooses among keeping it in the field for the next conversation, keeping it as that conversation's draft (the default) or discarding it. Drafts last until WinZapp is closed.</p>
+<p>A message of yours that failed or was not confirmed, text or attachment, has "Try sending again" in its menu, also with Ctrl+Shift+Y. WinZapp never resends anything on its own.</p>
+<p>During playback, Tab after the message list stops at the speed button and the duration bar, and on a voice message, picture or video, at the online AI button. Each can be taken out of the way: "Hide the speed button while media plays (the speed shortcuts still work)" and "Hide the duration bar while media plays (Tab skips it)" in Settings &gt; Audio &gt; Audio playback, and "Hide the online AI button after the message list (the message menu still offers it)" in Online AI: Transcriptions and Descriptions. The shortcuts and the message menu keep working.</p>
 
   </section>
 
@@ -618,13 +623,13 @@
 <p>In the context menu: "Transcribe message locally with Whisper", "View transcription", "Transcribe again" and "Delete transcription".</p>
 <ul>
   <li><strong>Components:</strong> <em>faster-whisper</em> is the default and comes with WinZapp; <em>whisper.cpp</em> is optional and experimental, and the tab installs it in the version for the processor or for NVIDIA graphics cards. faster-whisper also uses an NVIDIA card once you install the "CUDA libraries" in the same tab.</li>
-  <li><strong>Models:</strong> they are only downloaded when you ask, from tiny to large-v3 and large-v3-turbo; in whisper.cpp there are also smaller versions (8 and 5 bits) and some 32-bit ones. Some models understand only one language (marked in the list). In the list, Ctrl+Space marks models and "Download" downloads all the marked ones, one after the other. "Where to run the transcription" and the "Calculation precision" stay on Automatic or can be chosen.</li>
+  <li><strong>Models:</strong> they are only downloaded when you ask, from tiny to large-v3 and large-v3-turbo; in whisper.cpp there are also smaller versions (8 and 5 bits) and some 32-bit ones. Some models understand only one language (marked in the list). In the list, Ctrl+Space marks models and "Download" downloads all the marked ones, one after the other. "Where to run the transcription" and the "Calculation precision: {precision}" stay on Automatic or can be chosen.</li>
   <li><strong>Reuse what you already have:</strong> "Models in other folders" uses models downloaded elsewhere without copying them, and "Reuse downloads from another folder" points to the CUDA libraries and to the whisper.cpp programs already downloaded. The models folder can be moved, with the models along.</li>
   <li><strong>Memory:</strong> "Keep the model loaded in memory (faster-whisper and whisper.cpp)" avoids reloading the model for each message. Turned off, the model is released 5 minutes after the last transcription.</li>
   <li><strong>Per model:</strong> the text stored in each message is per model. When you switch models, the message is transcribed again and the previous model's text stays stored. "Clear this model's saved transcriptions" and "Clear saved transcriptions of all models" clean the cache. The cache can be turned on or off in general and per model.</li>
   <li><strong>No progress window:</strong> the option "Transcribe without the progress window: stay on the messages or statuses until the text is ready (the same shortcut cancels)" makes Alt+Shift+T and Alt+Shift+N transcribe in the background; the same shortcut on the same message cancels.</li>
   <li><strong>Automatic:</strong> "Automatically transcribe received voice messages and videos and put the text in the message line" transcribes each new voice message and video (up to 10 minutes of audio, one at a time, outside locked chats), with no windows or per-message announcements. If transcription is not ready, WinZapp pauses and says why just once.</li>
-  <li><strong>Enter and Space:</strong> with "Enter and Space on a voice message or video transcribe it into its line in the list instead of playing it..." (Settings &gt; Audio), Enter and Space transcribe and Alt+Shift+N plays or pauses. Turned off, Enter and Space play and Alt+Shift+N transcribes on the row.</li>
+  <li><strong>Enter and Space:</strong> with "Enter and Space on a voice message or video transcribe it into its line in the list instead of playing it" (Settings &gt; Audio), Enter and Space transcribe and Alt+Shift+N plays or pauses. Turned off, Enter and Space play and Alt+Shift+N transcribes on the row.</li>
   <li><strong>Videos:</strong> the video's sound is converted and transcribed, with the same options. GIFs are ignored and a video without sound is reported as such.</li>
   <li><strong>In bulk:</strong> WinZapp says how many messages will be transcribed, skipped or reused, transcribes one at a time ("message 3 of 12"), continues if one fails and says at the end how many succeeded, were skipped and failed. The same shortcut or the context menu cancels the queue, and the context menu shows all the transcriptions together, with sender, date and time, to copy or save. With "Replace shortcuts with bulk actions when selecting chats and messages", Alt+Shift+T and Alt+Shift+N also act on the selection.</li>
   <li><strong>Background downloads:</strong> with "Download updates and transcription downloads in the background, without the progress window" (Settings &gt; General), models, whisper.cpp and CUDA download without the progress window, and "Cancel download in the background" stops it.</li>
@@ -641,11 +646,18 @@
   <tr><td>PDF: "Convert to accessible text"</td><td>Turns it into plain, readable text.</td></tr>
 </table>
 <p><kbd>Ctrl+Shift+I</kbd> does all of this on the focused message. The result opens in a window with the text; for photos and videos, you can ask follow-up questions (Ctrl+Enter asks). In the Status tab (Alt+5), the "Describe" button describes photo and video statuses.</p>
-<p>In the result of a transcription or description, "Put transcription in the message line" and "Put description in the message line" keep the text with the message, which then shows it in its own line in the list. In Settings &gt; Transcriptions &amp; Descriptions, "Transcribe received voice messages automatically" and "Describe received pictures, stickers and videos automatically" (both off by default) do this with the online providers, with no window, sound or speech per message; only providers you already authorized are used, and turning one on turns off the local automatic transcription. Each conversation's data window has "transcribe" and "describe" boxes, and you can choose between all conversations except the ones turned off, or only the ones turned on. To save your quota, you choose how old a received message may be and still be processed (5 minutes, 15, 30 or 1 hour) and a daily ceiling on automatic requests (50 by default, 0 for none); if every provider refuses because of quota or key, the queue pauses for an hour and says so once.</p>
+<p>In the result of a transcription or description, "Put transcription in the message line" and "Put description in the message line" keep the text with the message, which then shows it in its own line in the list. In Settings &gt; Transcriptions &amp; Descriptions, "Transcribe received voice messages automatically" and "Describe received pictures, stickers and videos automatically" (both off by default) do this with the online providers, with no window, sound or speech per message; only providers you already authorized are used, and turning one on turns off the local automatic transcription. Each conversation's data window has "transcribe" and "Describe" boxes, and you can choose between all conversations except the ones turned off, or only the ones turned on. To save your quota, you choose how old a received message may be and still be processed (5 minutes, 15, 30 or 1 hour) and a daily ceiling on automatic requests (50 by default, 0 for none); if every provider refuses because of quota or key, the queue pauses for an hour and says so once.</p>
 <div class="callout warn">
   <div class="callout-title">🔒 Privacy</div>
   WinZapp asks before sending media to a provider, and asks again each time in locked chats. Your keys are stored encrypted on your computer and are only sent to the provider they belong to. Resetting all keys also clears the remembered send authorizations. A waiting sound plays while the provider works; answers can be read aloud automatically; the text follows the app's language. Very long transcription and PDF texts report a text limit error.
 </div>
+
+<h3>Queue, windows and per-conversation options</h3>
+<p>With transcription without the progress window, asking for the inline transcription of another message while one is running puts it in a queue: WinZapp says its position and starts it when the previous one ends; the same shortcut on a waiting message takes it out of the queue. A transcription that opens a window is still refused while another runs.</p>
+<p>In automatic, WinZapp uses a model already on the computer whenever one fits: on a small graphics card that cannot hold the installed model, it runs that model on the processor instead of asking for a download.</p>
+<p>The options of the Local Transcription tab are in windows opened from buttons on it: "Advanced options...", "Saved transcriptions...", "Transcription of statuses...", "Models folder and models in other folders...", and the windows of the CUDA libraries and of whisper.cpp. The automatic options of online AI are in "Automatic transcription and description...", on its page.</p>
+<p>The conversation details have two boxes: "Transcribe the voice messages, audio and videos received in this conversation automatically, locally with Whisper" and "Transcribe the voice messages and audio received in this conversation automatically, with the online providers". Each shows what the conversation does now, following the general option until you tick or untick the box there.</p>
+<p>Enter and Space, when set to transcribe, also transcribe audio and video sent as a file.</p>
 
   </section>
 
@@ -663,6 +675,9 @@
   <li><strong>Transcribe audio and video statuses (local):</strong> Alt+Shift+T opens the text in the result window (or the saved transcription); Alt+Shift+N puts it on the status row and reads it aloud; Alt+Shift+Delete deletes the saved transcription. The "My status" window also accepts these keys on your own audio and video statuses. In Settings &gt; Local Transcription there are options just for statuses: automatically transcribe received ones, Enter and Space transcribing on the row, and saving the transcriptions together with the status (cache deleted along with it when the status expires), plus the "Clear saved local transcriptions of statuses" button.</li>
 </ul>
 <p>Who can see your statuses is set in File &gt; WhatsApp settings &gt; Privacy.</p>
+
+<h3>Posting again and deleting</h3>
+<p>WinZapp posts one status at a time; asking to post again while one is still going only says it is being posted. A status that failed or was not confirmed stays in the list right after "My status", with "Try posting again" and "Discard" in its menu (Ctrl+Shift+Y tries again); nothing is posted again on its own. In "My status", the Delete key or the "Delete status" button deletes a status for everyone, after the same confirmation as WhatsApp.</p>
 
   </section>
 
@@ -726,6 +741,9 @@
 <h3>Mentions and replies</h3>
 <p>A person mentioned by name together with @all keeps the link; the mention of you, in the notification and in the preview, uses the word chosen in "How should I be referred to?". In Settings &gt; Interface &gt; Messages, "Hide phone numbers of unnamed senders in messages" makes messages from people without a name start straight with the content. In Settings &gt; Interface &gt; Chats, "Precede names of unsaved contacts with a tilde (~) in conversations and messages" (on by default) shows a tilde before the name of anyone you have not saved, in conversations and in messages.</p>
 
+<h3>Groups of a community</h3>
+<p>In the list of communities, Enter goes to the community's groups, and "Open the most recent group" opens the group with the latest activity, saying its name. "Filter groups" shows all groups, the groups you are in or the ones you are not in; a group you are not in says so in its line. On one of those, "Join group" joins it or, when the group needs approval, "Request to join" sends the request, which "Cancel join request" withdraws.</p>
+
   </section>
 
   <section id="trancadas" class="wiki-section" aria-labelledby="h-trancadas">
@@ -753,7 +771,10 @@
 <p>Order messages and order updates appear in the message list, in the chat preview and in notifications, with items, total and state. Enter on the order message (or "View order" in the message menu) opens the details.</p>
 
 <h3>WhatsApp Business accounts</h3>
-<p>Only on WhatsApp Business accounts: in the orders window, "Accept order", "Decline order" and "Update status" for the orders received; in the chat menu, the "Business tools" submenu, with "Create an order for this contact" (Ctrl+Shift+N) and "Accept carts in my catalog". Where they do not apply, WinZapp says why.</p>
+<p>Only on WhatsApp Business accounts: in the orders window, "Accept order", "Decline order" and "update status" for the orders received; in the chat menu, the "Business tools" submenu, with "Create an order for this contact" (Ctrl+Shift+N) and "Accept carts in my catalog". Where they do not apply, WinZapp says why.</p>
+
+<h3>Orders created by the seller</h3>
+<p>Enter on an order a seller created for you opens its details, with items and subtotal. When the order is pending and is paid outside the app, "Confirm order info" sends the seller the confirmation, like WhatsApp Web; the dialog says which buyer responses WinZapp does not offer yet.</p>
 
   </section>
 
@@ -792,7 +813,7 @@
   <tr><td class="field-name">Interface</td><td>Each button opens the window of one subject: Messages, Reactions, Chats, Confirmations and Keyboard shortcuts.</td></tr>
   <tr><td class="field-name">Interface &gt; Messages</td><td>How many messages to show when opening a chat; how many to skip with Page Up/Down; type of message list (classic, with a 512-character limit, or list box, with full messages); show who is typing as the last row; "How should I be referred to?"; hide the sender on your own messages; hide numbers of unnamed senders; preserve the typed message as a caption; "yesterday" instead of the date; link previews; "Forwarded" before the sender; initial state of "Also delete the media from your phone"; videos and statuses in a separate player; media types shown by default.</td></tr>
   <tr><td class="field-name">Interface &gt; Reactions</td><td>Fixed quick reactions and the choice of the emoji for each position.</td></tr>
-  <tr><td class="field-name">Interface &gt; Chats</td><td>Where to put the focus when opening a chat; delivery status in the chat list; keep pinned chats in a fixed order; replace shortcuts with bulk actions; Space and Esc behavior with a selection; keep chat search when opening; position of the "selected" announcement.</td></tr>
+  <tr><td class="field-name">Interface &gt; Chats</td><td>Where to put the focus when opening a chat; delivery status in the chat list; keep pinned chats in a fixed order; replace shortcuts with bulk actions; Space and Esc behavior with a selection; keep chat search when opening; position of the "Selected" announcement.</td></tr>
   <tr><td class="field-name">Interface &gt; Chats &gt; Locked chats</td><td>Vault PIN, lock after inactivity and the secret code (the button appears when the vault is available).</td></tr>
   <tr><td class="field-name">Interface &gt; Confirmations</td><td>The confirmation questions (mark all as read, clear, delete, F5, Shift+F5, record computer audio) and their "Don't show again" versions.</td></tr>
   <tr><td class="field-name">Interface &gt; Keyboard shortcuts</td><td>Lists all of the program's shortcuts, including the global one. Select one, choose "Change" and type the new combination; or disable it, restore the default or restore all. Conflicts are warned about before applying, and changes only take effect with Apply or OK.</td></tr>
@@ -814,6 +835,12 @@
 <p>In the File menu, "Export settings..." saves your preferences to a file and "Import settings..." applies that file right away, without restarting. It is useful for taking everything to another computer or account. The connection to WhatsApp and what belongs to each account (cleared chats, per-chat sounds) are not in the file. If you use your own API, address, port and key go along.</p>
 <p>If you change the language and apply, all options switch to the new language right away.</p>
 
+<h3>Shortcut letters and keyboard shortcuts</h3>
+<p>Every control in Settings and in the windows it opens has a shortcut letter: Alt plus the letter the screen reader announces goes straight to the control, and no letter repeats within one window. In Interface &gt; Keyboard shortcuts, the shortcuts are in a tree by category: Right arrow opens a category and Left arrow closes it. The "Search shortcuts" field above it filters the tree; Down arrow goes from the field to the results, and Up arrow on the first one goes back to the field.</p>
+
+<h3>Advanced</h3>
+<p>The Advanced category, at the end of the list, has "Log level:" (debug, information, warnings and errors, or errors only), applied at once; "Start the local API on a fixed port", with the port number, which applies the next time WinZapp starts and lets two copies of WinZapp run or avoids port 6300 when another program already uses it; and "Show every WPPConnect Server update, not only the ones the WinZapp maintainers checked", off by default, which also offers releases the maintainers have not checked yet, with a warning. The port of the Connection category is the custom API's and is enabled only with it.</p>
+
   </section>
 
   <section id="privacidade" class="wiki-section" aria-labelledby="h-privacidade">
@@ -834,6 +861,8 @@
   <li>Each item is saved separately: if WhatsApp refuses one, the others are saved and the window lists the ones that failed.</li>
   <li>The picture is chosen from a JPG or PNG file.</li>
 </ul>
+
+<p>In the status options "My contacts except..." and "Only share with...", only the contacts saved on the phone are offered: they are the only ones WhatsApp lets see a status. In Profile, the button to choose the photo says whether there is a current photo and which file was chosen.</p>
 
   </section>
 
@@ -1234,7 +1263,7 @@
 <p class="lead">Every new alpha that brings features is added to the guide. This list shows up to which alpha the guide is complete and what was added in each round.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
-  <tr><td class="field-name">Not yet released</td><td>Update package retention, installation ownership, copy results and safe reopening. After an incomplete or unconfirmed copy, WinZapp stays closed and opens recovery instructions in Notepad. Answering, rejecting and hanging up calls from any window (Ctrl+Alt+Shift+Enter and Ctrl+Alt+Shift+Backspace).</td></tr>
+  <tr><td class="field-name">Not yet released</td><td>Update package retention, installation ownership, copy results and safe reopening. After an incomplete or unconfirmed copy, WinZapp stays closed and opens recovery instructions in Notepad. Answering, rejecting and hanging up calls from any window (Ctrl+Alt+Shift+Enter and Ctrl+Alt+Shift+Backspace). Advanced category, shortcut letters in Settings, shortcuts in a tree with search, draft per conversation, Try sending again, controls after the list that can leave the Tab order, the queue and windows of local transcription, automatic transcription per conversation, statuses that were not posted and deleting a status, groups of a community, orders created by the seller and status privacy.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Automatic adaptation of call audio to microphone and speaker sample rates.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>Profile tab in WhatsApp settings (display name, About and picture); Communities in the navigation list, after Calls.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>First version of the guide: all features of versions 1.1.0.0, 1.1.1.0, 2.0.0.0 and of the 2.1.0.0 cycle up to this alpha.</td></tr>

@@ -528,6 +528,11 @@
 </table>
 <p>Zaznaczenie kończy się razem z czatem: po jego zamknięciu nic nie zostaje zaznaczone.</p>
 
+<h3>Wersje robocze, ponowne wysyłanie i elementy za listą</h3>
+<p>Pole wiadomości zachowuje to, co wpisano, przy czacie: wyjdź z czatu bez wysyłania, a tekst razem ze wzmiankami wróci, gdy otworzysz go ponownie. W Ustawienia &gt; Interfejs &gt; Czaty opcja "Niewysłana wiadomość po opuszczeniu czatu" pozwala wybrać: zostaw w polu dla następnego czatu, zachowaj jako wersję roboczą tego czatu (domyślnie) albo odrzuć. Wersje robocze trwają do zamknięcia WinZapp.</p>
+<p>Twoja wiadomość, której wysłanie się nie powiodło lub nie zostało potwierdzone, tekst lub załącznik, ma w menu "Spróbuj wysłać ponownie", także pod Ctrl+Shift+Y. WinZapp nigdy niczego nie wysyła ponownie sam.</p>
+<p>Podczas odtwarzania klawisz Tab za listą wiadomości zatrzymuje się na przycisku prędkości i pasku czasu trwania, a przy wiadomości głosowej, zdjęciu lub filmie — na przycisku AI online. Każdy z nich można usunąć z drogi: "Ukryj przycisk prędkości podczas odtwarzania (skróty prędkości nadal działają)" i "Ukryj pasek czasu trwania podczas odtwarzania (Tab go pomija)" w Ustawienia &gt; Audio &gt; Odtwarzanie audio oraz "Ukryj przycisk AI online za listą wiadomości (menu wiadomości nadal go oferuje)" w AI online: transkrypcje i opisy. Skróty i menu wiadomości nadal działają.</p>
+
   </section>
 
   <section id="anexos-midia" class="wiki-section" aria-labelledby="h-anexos-midia">
@@ -647,6 +652,13 @@
   WinZapp pyta przed wysłaniem multimediów do dostawcy, a w zabezpieczonych czatach pyta za każdym razem. Twoje klucze są przechowywane w postaci zaszyfrowanej na twoim komputerze i wysyłane tylko do dostawcy, do którego należą. Zresetowanie wszystkich kluczy czyści także zapamiętane zgody na wysyłanie. Podczas pracy dostawcy odtwarzany jest dźwięk oczekiwania; odpowiedzi mogą być odczytywane automatycznie na głos; tekst jest w języku aplikacji. Bardzo długie teksty transkrypcji i PDF zgłaszają błąd limitu tekstu.
 </div>
 
+<h3>Kolejka, okna i opcje dla każdego czatu</h3>
+<p>Przy transkrypcji bez okna postępu poproszenie o transkrypcję w wierszu innej wiadomości, gdy jedna trwa, dodaje ją do kolejki: WinZapp podaje pozycję i zaczyna, gdy poprzednia się skończy; ten sam skrót na oczekującej wiadomości usuwa ją z kolejki. Transkrypcja, która otwiera okno, nadal jest odrzucana, gdy trwa inna.</p>
+<p>W trybie automatycznym WinZapp używa modelu, który już jest na komputerze, ilekroć któryś się mieści: na małej karcie graficznej, która nie pomieści zainstalowanego modelu, uruchamia ten model na procesorze zamiast prosić o pobieranie.</p>
+<p>Opcje karty Transkrypcja lokalna są w oknach otwieranych przyciskami na niej: "Opcje zaawansowane...", "Zapisane transkrypcje...", "Transkrypcja statusów...", "Folder modeli i modele w innych folderach..." oraz okna bibliotek CUDA i whisper.cpp. Opcje automatyczne AI online są w "Automatyczna transkrypcja i opisy...", na jej stronie.</p>
+<p>Dane czatu mają dwa pola: "Automatycznie transkrybuj lokalnie za pomocą Whisper odebrane w tym czacie wiadomości głosowe, nagrania audio i filmy" i "Automatycznie transkrybuj u dostawców online odebrane w tym czacie wiadomości głosowe i nagrania audio". Każde pokazuje, co czat robi teraz, zgodnie z opcją ogólną, dopóki nie zaznaczysz lub nie odznaczysz pola tutaj.</p>
+<p>Enter i spacja, gdy transkrybują, transkrybują też audio i wideo wysłane jako plik.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -663,6 +675,9 @@
   <li><strong>Transkrypcja statusów audio i wideo (lokalna):</strong> Alt+Shift+T otwiera tekst w oknie wyniku (lub zapisaną transkrypcję); Alt+Shift+N umieszcza go w wierszu statusu i odczytuje na głos; Alt+Shift+Delete usuwa zapisaną transkrypcję. Okno "Mój status" przyjmuje te klawisze także na twoich własnych statusach audio i wideo. W Ustawienia &gt; Transkrypcja lokalna są opcje tylko dla statusów: automatyczna transkrypcja otrzymanych, Enter i Spacja transkrybujące w wierszu oraz zapisywanie transkrypcji razem ze statusem (pamięć podręczna jest usuwana razem z nim, gdy status wygasa), a także przycisk "Wyczyść zapisane lokalne transkrypcje statusów".</li>
 </ul>
 <p>To, kto może widzieć twoje statusy, ustawia się w plik &gt; Ustawienia WhatsApp &gt; Prywatność.</p>
+
+<h3>Ponowna publikacja i usuwanie</h3>
+<p>WinZapp publikuje jeden status naraz; prośba o ponowną publikację, gdy jeden się jeszcze wysyła, tylko informuje, że trwa publikowanie. Status, którego publikacja się nie powiodła lub nie została potwierdzona, zostaje na liście zaraz po "Mój status", z "Spróbuj opublikować ponownie" i Odrzuć w menu (Ctrl+Shift+Y próbuje ponownie); nic nie jest publikowane ponownie samo. W "Mój status" klawisz Delete lub przycisk "Usuń status" usuwa status dla wszystkich, po takim samym potwierdzeniu jak w WhatsApp.</p>
 
   </section>
 
@@ -726,6 +741,9 @@
 <h3>Wzmianki i odpowiedzi</h3>
 <p>Osoba wspomniana z nazwy razem z @all zachowuje link; wzmianka o tobie, w powiadomieniu i w podglądzie, używa słowa wybranego w "Jak mam się do Ciebie zwracać?". W Ustawienia &gt; Interfejs &gt; Wiadomości opcja "Ukrywaj numery telefonów nadawców bez nazwy w wiadomościach" sprawia, że wiadomości od osób bez nazwy zaczynają się od razu od treści. W Ustawienia &gt; Interfejs &gt; Rozmowy opcja "Poprzedzaj nazwy niezapisanych kontaktów znakiem tyldy (~) w czatach i wiadomościach" (domyślnie włączona) pokazuje tyldę przed nazwą osoby, której nie zapisano, w czatach i w wiadomościach.</p>
 
+<h3>Grupy społeczności</h3>
+<p>Na liście społeczności Enter przechodzi do grup społeczności, a "Otwórz grupę z ostatnią aktywnością" otwiera grupę z najnowszą aktywnością, podając jej nazwę. "Filtruj grupy" pokazuje wszystkie grupy, grupy, do których należysz, albo te, do których nie należysz; grupa, do której nie należysz, mówi to w swoim wierszu. Na takiej grupie "Dołącz do grupy" dołącza do niej albo, gdy grupa wymaga zatwierdzenia, "Poproś o dołączenie do grupy" wysyła prośbę, którą "Anuluj prośbę o dołączenie" wycofuje.</p>
+
   </section>
 
   <section id="trancadas" class="wiki-section" aria-labelledby="h-trancadas">
@@ -754,6 +772,9 @@
 
 <h3>Konta WhatsApp Business</h3>
 <p>Tylko na kontach WhatsApp Business: w oknie zamówień "Przyjmij zamówienie", "Odrzuć zamówienie" i "zaktualizuj status" dla otrzymanych zamówień; w menu czatu podmenu "Narzędzia firmowe", z "Utwórz zamówienie dla tego kontaktu" (Ctrl+Shift+N) i "Przyjmuj koszyki w moim katalogu". Tam, gdzie nie mają zastosowania, WinZapp mówi dlaczego.</p>
+
+<h3>Zamówienia utworzone przez sprzedawcę</h3>
+<p>Enter na zamówieniu, które sprzedawca utworzył dla Ciebie, otwiera jego dane z pozycjami i sumą częściową. Gdy zamówienie oczekuje i jest opłacane poza aplikacją, "Potwierdź informacje o zamówieniu" wysyła sprzedawcy potwierdzenie, jak w WhatsApp Web; okno mówi, których odpowiedzi kupującego WinZapp jeszcze nie oferuje.</p>
 
   </section>
 
@@ -814,6 +835,12 @@
 <p>W menu plik "Eksportuj ustawienia..." zapisuje twoje preferencje do pliku, a "Importuj ustawienia..." stosuje ten plik od razu, bez ponownego uruchamiania. Przydaje się do przeniesienia wszystkiego na inny komputer lub konto. Połączenie z WhatsApp i to, co należy do każdego konta (wyczyszczone czaty, dźwięki dla poszczególnych czatów), nie są w pliku. Jeśli używasz własnego API, adres, port i klucz są dołączone.</p>
 <p>Jeśli zmienisz język i zastosujesz, wszystkie opcje od razu przełączą się na nowy język.</p>
 
+<h3>Litery skrótów i skróty klawiszowe</h3>
+<p>Każdy element Ustawień i okien z nich otwieranych ma literę skrótu: Alt i litera ogłaszana przez czytnik ekranu przenosi prosto do elementu, a żadna litera nie powtarza się w jednym oknie. W Interfejs &gt; Skróty klawiszowe skróty są w drzewie według kategorii: strzałka w prawo otwiera kategorię, a strzałka w lewo ją zamyka. Pole "Szukaj skrótów" nad nim filtruje drzewo; strzałka w dół przechodzi z pola do wyników, a strzałka w górę na pierwszym z nich wraca do pola.</p>
+
+<h3>Zaawansowane</h3>
+<p>Kategoria Zaawansowane, na końcu listy, ma "Poziom logowania:" (debugowanie, informacje, ostrzeżenia i błędy lub tylko błędy), stosowany od razu; "Uruchamiaj lokalne API na stałym porcie" z numerem portu, który obowiązuje od następnego uruchomienia WinZapp i pozwala uruchomić dwie kopie WinZapp albo ominąć port 6300, gdy używa go już inny program; oraz "Pokazuj wszystkie aktualizacje WPPConnect Server, nie tylko sprawdzone przez opiekunów WinZapp", domyślnie wyłączoną, która proponuje też wersje jeszcze niesprawdzone przez opiekunów, z ostrzeżeniem. Port w kategorii Połączenie to port niestandardowego API i jest aktywny tylko z nim.</p>
+
   </section>
 
   <section id="privacidade" class="wiki-section" aria-labelledby="h-privacidade">
@@ -834,6 +861,8 @@
   <li>Każdy element jest zapisywany osobno: jeśli WhatsApp odrzuci jeden, pozostałe zostają zapisane, a okno wymienia te, które się nie udały.</li>
   <li>Zdjęcie wybiera się z pliku JPG lub PNG.</li>
 </ul>
+
+<p>W opcjach statusu, które wykluczają lub wybierają kontakty, pojawiają się tylko kontakty zapisane w telefonie: tylko im WhatsApp pozwala zobaczyć status. W Profilu przycisk wyboru zdjęcia mówi, czy jest bieżące zdjęcie i który plik wybrano.</p>
 
   </section>
 
@@ -1010,6 +1039,7 @@
 <tr><td class="field-name">Ctrl+Shift+R</td><td>Oddzwoń na nieodebrane połączenie</td></tr>
 <tr><td class="field-name">Ctrl+Shift+G</td><td>Nagraj wiadomość głosową w drugim trybie (w stereo, jeśli domyślny jest mono, w mono, jeśli domyślny jest stereo)</td></tr>
 <tr><td class="field-name">Ctrl+Shift+H</td><td>Nagraj mikrofon i dźwięk komputera</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Przy wiadomości, której wysłanie nie powiodło się lub nie zostało potwierdzone, spróbuj wysłać ją ponownie</td></tr>
 <tr><td class="field-name">Alt+Shift+B</td><td>Otwórz katalog i koszyk firmy, z którą prowadzisz czat</td></tr>
 <tr><td class="field-name">Ctrl+Shift+N</td><td>Na koncie WhatsApp Business, utwórz zamówienie dla kontaktu z czatu</td></tr>
 <tr><td class="field-name">Delete</td><td>Usuń wiadomość lub czat (lub wszystkie zaznaczone, jeśli istnieje zaznaczenie)</td></tr>
@@ -1148,6 +1178,8 @@
 <tr><td class="field-name">Alt+Shift+T</td><td>Transkrybuj lokalnie status audio lub wideo za pomocą Whispera albo otwórz zapisaną już transkrypcję</td></tr>
 <tr><td class="field-name">Alt+Shift+N</td><td>Transkrybuj lokalnie status audio lub wideo za pomocą Whispera i wyświetl tekst w wierszu statusu. Jeśli Enter i Spacja służą do transkrypcji, ten skrót otwiera lub odtwarza status</td></tr>
 <tr><td class="field-name">Alt+Shift+Delete</td><td>Usuń zapisaną lokalną transkrypcję statusu</td></tr>
+<tr><td class="field-name">Delete</td><td>W Mój status usuń wyświetlany status u wszystkich, którzy go otrzymali</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Przy statusie, który nie został opublikowany, spróbuj opublikować go ponownie</td></tr>
 </table>
 <h3>Lista statusów</h3>
 <table class="field-table">
@@ -1231,7 +1263,7 @@
 <p class="lead">Każda nowa alpha, która wnosi funkcje, jest dodawana do przewodnika. Ta lista pokazuje, do której alphy przewodnik jest kompletny i co dodano w każdej rundzie.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Co trafiło do przewodnika</th></tr>
-  <tr><td class="field-name">Jeszcze niewydane</td><td>Zachowywanie pakietu aktualizacji, wyłączność instalacji, wynik kopiowania i bezpieczne ponowne otwarcie. Po niepełnym lub niepotwierdzonym kopiowaniu WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku. Odbieranie, odrzucanie i rozłączanie połączeń z dowolnego okna (Ctrl+Alt+Shift+Enter i Ctrl+Alt+Shift+Backspace).</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Zachowywanie pakietu aktualizacji, wyłączność instalacji, wynik kopiowania i bezpieczne ponowne otwarcie. Po niepełnym lub niepotwierdzonym kopiowaniu WinZapp pozostaje zamknięty i otwiera instrukcje naprawy w Notatniku. Odbieranie, odrzucanie i rozłączanie połączeń z dowolnego okna (Ctrl+Alt+Shift+Enter i Ctrl+Alt+Shift+Backspace). Kategoria Zaawansowane, litery skrótów w Ustawieniach, skróty w drzewie z wyszukiwaniem, wersja robocza dla każdego czatu, Spróbuj wysłać ponownie, elementy za listą, które mogą wyjść z kolejności klawisza Tab, kolejka i okna lokalnej transkrypcji, automatyczna transkrypcja dla każdego czatu, statusy, które nie zostały opublikowane, i usuwanie statusu, grupy społeczności, zamówienia utworzone przez sprzedawcę i prywatność statusu.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Automatyczne dostosowanie dźwięku połączeń do częstotliwości próbkowania mikrofonu i głośnika.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>Karta Profil w ustawieniach WhatsApp (wyświetlana nazwa, Informacje i zdjęcie); Społeczności na liście nawigacji, po Połączeniach.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>Pierwsza wersja przewodnika: wszystkie funkcje wersji 1.1.0.0, 1.1.1.0, 2.0.0.0 i cyklu 2.1.0.0 do tej alphy.</td></tr>

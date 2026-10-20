@@ -14,7 +14,7 @@ NOWOŚCI
 
 - Społeczności: okno „Nowy czat” ma nowy przycisk „Społeczności”, który otwiera listę społeczności, do których należysz. Po wybraniu społeczności widać jej opis, administratorów i te jej grupy, do których dołączono, z oznaczoną grupą ogłoszeń i grupą ogólną; Enter lub „Otwórz grupę” przechodzi do wybranej grupy. Jeśli jesteś administratorem społeczności, okno oferuje też „Dodaj grupy”, „Usuń grupę ze społeczności”, „Nadaj uprawnienia administratora społeczności”, „Odbierz uprawnienia administratora społeczności” i „Dezaktywuj społeczność”, a „Nowa społeczność” tworzy społeczność z nazwą, opisem i wybranymi grupami. Po każdym działaniu WinZapp ponownie odczytuje społeczności i mówi, że gotowe, dopiero gdy WhatsApp pokazuje zmianę; w przeciwnym razie informuje, że żądanie zostało wysłane, ale nie jest jeszcze potwierdzone, albo że zostało odrzucone.
 
-- Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Okno umożliwia odświeżanie odpowiedzi i zachowuje tekst, gdy wysłanie nie zostanie potwierdzone. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
+- Odpowiedzi na ogłoszenia społeczności: otwórz menu wiadomości i wybierz "Odpowiedzi na ogłoszenie społeczności", aby czytać i wysyłać odpowiedzi. Odpowiedzi odświeżają się same, gdy okno jest otwarte, pole odpowiedzi nie jest już tylko do odczytu, a tekst zostaje zachowany, gdy wysłanie nie zostanie potwierdzone. Na liście czatów podgląd grupy pokazuje „X odpowiedział(a) na ogłoszenie”, gdy to jest najnowsze zdarzenie. Ogłoszenia podają znaną liczbę odpowiedzi. Autorzy mają zapisane nazwy lub nazwy profilu, a własne odpowiedzi uwzględniają ustawienie sposobu odnoszenia się do użytkownika.
 
 - Społeczności są teraz pozycją listy nawigacji, po Połączeniach, ze skrótem Alt+8 w nazwie pozycji; można do nich dojść strzałkami po liście, a nie tylko skrótem Alt+8.
 
@@ -29,6 +29,52 @@ NOWOŚCI
 - Dziennik połączeń (log.log) pokazuje teraz co 5 sekund, ile dźwięku z głośnika trafia do mikrofonu przed eliminacją echa i ile jeszcze zostaje w tym, co jest wysyłane, wraz z opóźnieniem tego echa. Jeśli ktoś nadal słyszy własny głos, dziennik mówi, czy echo przeszło przez eliminator, czy dotarło inną drogą.
 
 - Odbieranie połączeń z dowolnego okna: gdy dzwoni połączenie indywidualne, Ctrl+Alt+Shift+Enter je odbiera, przenosi okno połączenia przed każdy program i ustawia w nim fokus, a Ctrl+Alt+Shift+Backspace je odrzuca, tak samo jak dzwoniące połączenie grupowe; gdy nic nie dzwoni, Ctrl+Alt+Shift+Backspace rozłącza trwające połączenie. Przy kilku otwartych kontach najpierw odrzucane jest połączenie dzwoniące na którymkolwiek z nich. Połączenie wideo jest odbierane z włączoną kamerą, tak jak jego przyciskiem odbierania. Oba klawisze można zmienić w Skrótach klawiszowych w Ustawieniach i należą do WinZapp tylko wtedy, gdy mogą działać, więc inne programy mają je przez resztę czasu.
+
+- Ustawienia: nowa kategoria Zaawansowane z poziomem logowania pliku log.log (debugowanie, informacje, ostrzeżenia lub tylko błędy, stosowane od razu), stałym portem lokalnego API, aby uruchomić dwie kopie WinZapp albo gdy inny program używa już portu 6300 (obowiązuje od następnego uruchomienia WinZapp), oraz opcją „Pokazuj wszystkie aktualizacje WPPConnect Server”, domyślnie wyłączoną, która proponuje też wersje jeszcze niesprawdzone przez opiekunów, z ostrzeżeniem. W kategorii Połączenie pole Port jest aktywne tylko przy niestandardowym API.
+
+- Ustawienia: każdy element Ustawień i okien z nich otwieranych ma literę skrótu z Alt, bez powtórzeń w jednym oknie, w każdym języku. Aby litery się zmieściły, Lokalna transkrypcja została podzielona na okna (opcje zaawansowane, zapisane transkrypcje, statusy, foldery, biblioteki CUDA i whisper.cpp), a opcje automatyczne AI online trafiły do okna „Automatyczna transkrypcja i opisy...”.
+
+- Skróty klawiszowe: lista jest teraz drzewem według kategorii (strzałka w prawo otwiera kategorię, wypowiadaną tylko raz) i ma pole wyszukiwania; w wyszukiwaniu strzałka w dół przechodzi do wyników. Naprawiono błąd, który uniemożliwiał zmianę skrótu.
+
+- Wersja robocza dla każdego czatu, jak w WhatsApp Web: wpisany i niewysłany tekst zostaje w czacie, w którym go napisano, razem ze wzmiankami, i wraca po ponownym otwarciu; wcześniej przechodził do następnego czatu. W Interfejs > Czaty można wybrać: zostaw w polu dla następnego czatu (jak dotąd), zachowaj jako wersję roboczą tego czatu (domyślnie) albo odrzuć.
+
+- Po zmianie czatu przyciski „Reakcje” i „Czytaj więcej” wiadomości, na której byłeś, nie pojawiają się już pod klawiszem Tab w nowym czacie.
+
+- Usunięcie dla wszystkich ostatniej wiadomości czatu od razu zmienia jej podgląd na liście czatów na „wiadomość usunięta”.
+
+- Alt+A nie otwiera już menu załączania; jego skrótem nadal jest Ctrl+Shift+A.
+
+- Lista wiadomości: trzy nowe opcje, domyślnie wyłączone, usuwają z kolejności klawisza Tab przycisk AI online (Transkrybuj lub Opisz; menu wiadomości nadal go oferuje), pasek czasu trwania i przycisk prędkości podczas odtwarzania. Skróty prędkości i przewijania nadal działają.
+
+- Lokalna transkrypcja: przy „transkrybuj bez okna postępu” poproszenie o transkrypcję w wierszu innej wiadomości, gdy jedna trwa, dodaje nową do kolejki zamiast odmowy; ponowne naciśnięcie skrótu na oczekującej wiadomości usuwa ją z kolejki.
+
+- Lokalna transkrypcja: tryb automatyczny nie mówi już „Żaden model transkrypcji nie jest gotowy” komuś, kto ma pobrany model: na małej karcie graficznej, na której zainstalowany model się nie mieści, jest on używany na procesorze zamiast prosić o kolejne pobieranie; a automatyczny silnik kieruje się modelami, które już są na komputerze.
+
+- Enter i spacja, które transkrybują, działają teraz także dla audio i wideo wysłanych jako plik, a karta Multimedia w danych czatu stosuje tę opcję do filmów.
+
+- Dane czatu: automatyczna transkrypcja to teraz dwa pola, lokalna (Whisper) i online, każde pokazuje, co czat robi teraz, i może ją włączyć lub wyłączyć tylko dla tego czatu.
+
+- Spróbuj wysłać ponownie: w menu Twojej wiadomości, której wysłanie się nie powiodło lub nie zostało potwierdzone, tekstu lub załącznika, oraz dla statusów, które nie zostały wysłane — zostają one teraz na karcie Status zaraz po Mój status; skrót Ctrl+Shift+Y. Nic nie jest wysyłane ponownie samo.
+
+- Publikowanie statusu: jedna publikacja naraz (ponowne naciśnięcie Opublikuj nie duplikuje statusu), a duży film nie jest już uznawany za nieudany, gdy wciąż się wysyła; niepotwierdzona publikacja prosi o sprawdzenie Mój status przed ponowną publikacją.
+
+- Mój status: usuń status dla wszystkich klawiszem Delete lub przyciskiem „Usuń status”, z takim samym potwierdzeniem jak w WhatsApp.
+
+- Społeczności: Enter na liście przechodzi do grup społeczności, a przycisk otwiera grupę z najnowszą aktywnością; filtr pokazuje wszystkie grupy, te, do których należysz, i te, do których nie należysz; można też dołączyć do grupy, poprosić o dołączenie i anulować prośbę, jak w WhatsApp Web.
+
+- Zamówienia: Enter otwiera dane zamówienia, które sprzedawca utworzył dla Ciebie, z pozycjami i sumą częściową; kupujący może potwierdzić zamówienie opłacone poza aplikacją, jak w WhatsApp Web; a okno mówi, której odpowiedzi kupującego WinZapp jeszcze nie oferuje.
+
+- Ustawienia WhatsApp: w Prywatności opcje statusu „Moje kontakty oprócz” i „Udostępniaj tylko” proponują tylko kontakty zapisane w telefonie, jedyne, którym WhatsApp pozwala zobaczyć status; w Profilu przycisk Wybierz zdjęcie mówi, czy jest bieżące zdjęcie i który plik wybrano, bez nawigacji po obiektach.
+
+- Listy czatów: przy włączonej opcji „Esc odznacza” klawisz Esc odznacza zaznaczone czaty na liście głównej, w archiwum i w zablokowanych czatach.
+
+- Aktualizacja przy kilku otwartych kontach: instalator czeka, aż wszystkie konta zostaną zamknięte, zanim zacznie kopiować, a WinZapp nie kończy już działania bez słowa przy starcie podczas aktualizacji lub gdy konto jest już otwarte: wyjaśnia powód i zapisuje go w logu.
+
+- Synchronizacja dużych kont: po dużych partiach wiadomości WinZapp prosi WhatsApp Web o zwolnienie pamięci, której już nie używa, co zmniejsza zużycie podczas synchronizacji.
+
+- Karta Multimedia w danych czatu: po Zapisz jako czytnik ekranu nie ogłasza już okna jako niedostępnego.
+
+- Nowy czat: przycisk dołączania do grupy przez link ma teraz literę skrótu z Alt.
 
 V2.1.0.0
 
