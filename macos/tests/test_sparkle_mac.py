@@ -171,6 +171,24 @@ class TestTheVetoBeforeOffering:
         assert ok is False and err.code() == S.REFUSED
         assert "no such tag" in err.localizedDescription()
 
+    def test_network_refusals_are_translated_before_crossing_the_objc_boundary(self, bridge, monkeypatch):
+        strings = {"mac_update_verify_tag": "TAG:{reason}", "mac_update_verify_tls": "CERTIFICATE"}
+        monkeypatch.setattr(sm._state["mw"].i18n, "t", lambda key: strings.get(key, key))
+        detail = P.ProvenanceError("safe diagnostic", code="tls").detail("official_tag")
+        sm._verdicts[TAG] = (sm.time.monotonic(), (False, detail))
+        ok, error = _proceed(bridge, _item(), S.CHECK_USER)
+        assert not ok and error.code() == S.REFUSED
+        assert error.localizedDescription() == "TAG:CERTIFICATE"
+
+    def test_refusal_is_shown_and_spoken_in_the_selected_language(self, bridge, monkeypatch):
+        strings = {"error": "{app_name} error", "mac_update_verify_tag": "TAG:{reason}",
+                   "mac_update_verify_tls": "CERTIFICATE"}
+        monkeypatch.setattr(sm._state["mw"].i18n, "t", lambda key: strings.get(key, key))
+        detail = P.ProvenanceError("safe diagnostic", code="tls").detail("official_tag")
+        sm._show_refusal(detail)
+        assert sm._state["shown"] == ["WinZapp error\n\nTAG:CERTIFICATE"]
+        assert sm._state["mw"].spoken == sm._state["shown"]
+
     @pytest.mark.parametrize("item", [
         lambda: _item(url="https://evil.example/WinZapp-macOS-arm64.zip"),
         lambda: _item(url=ASSET.replace("https://", "http://")),

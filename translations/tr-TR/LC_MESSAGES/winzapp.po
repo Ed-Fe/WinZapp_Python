@@ -6481,6 +6481,89 @@ msgstr ""
 "Güncelleme yüklenmedi. Bunun için kapatılan diğer WinZapp hesapları yeniden "
 "açıldı."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_access_denied"
+msgid "GitHub refused access to the verification request."
+msgstr "GitHub doğrulama isteğine erişimi reddetti."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_connection"
+msgid "The connection to GitHub failed. Check your internet connection."
+msgstr "GitHub bağlantısı kurulamadı. İnternet bağlantınızı kontrol edin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_dns"
+msgid ""
+"GitHub's address could not be resolved. Check your internet connection."
+msgstr "GitHub adresi çözümlenemedi. İnternet bağlantınızı kontrol edin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_file"
+msgid ""
+"Could not retrieve the update verification file.\n"
+"{reason}"
+msgstr ""
+"Güncelleme doğrulama dosyası alınamadı.\n"
+"{reason}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_http_error"
+msgid "GitHub returned an unexpected response."
+msgstr "GitHub beklenmeyen bir yanıt döndürdü."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_not_found"
+msgid "The verification resource was not found on GitHub."
+msgstr "Doğrulama kaynağı GitHub'da bulunamadı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_rate_limited"
+msgid "GitHub's request limit was reached."
+msgstr "GitHub istek sınırına ulaşıldı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_server"
+msgid "GitHub reported a temporary server error. Try again later."
+msgstr "GitHub geçici bir sunucu hatası bildirdi. Daha sonra tekrar deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_tag"
+msgid ""
+"Could not verify the official release tag.\n"
+"{reason}"
+msgstr ""
+"Resmî sürüm etiketi doğrulanamadı.\n"
+"{reason}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_timeout"
+msgid "The verification request timed out. Try again later."
+msgstr "Doğrulama isteği zaman aşımına uğradı. Daha sonra tekrar deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_tls"
+msgid ""
+"The secure connection could not be verified. Check the date, time and "
+"network certificate settings."
+msgstr ""
+"Güvenli bağlantı doğrulanamadı. Tarih, saat ve ağ sertifikası ayarlarını "
+"kontrol edin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "mac_update_verify_unexpected"
+msgid "The verification request failed unexpectedly. Try again later."
+msgstr ""
+"Doğrulama isteği beklenmedik biçimde başarısız oldu. Daha sonra tekrar "
+"deneyin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "mac_update_verify_wait"
+msgid "Wait at least {seconds} seconds before checking again."
+msgstr "Tekrar kontrol etmeden önce en az {seconds} saniye bekleyin."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/shortcuts.py
 #: client/ui/dialogs/shortcuts_dialog.py client/ui/navigation.py
 msgctxt "main_nav"
