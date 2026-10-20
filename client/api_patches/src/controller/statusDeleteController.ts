@@ -37,16 +37,45 @@ export async function deleteOwnStatus({ statusId }: { statusId: string }): Promi
   } catch (_) {
     mine = null;
   }
-  if (!mine) return { ok: false, code: 'not_found' };
-  let msgs: any[] = [];
-  try {
-    msgs = (typeof mine.getAllMsgs === 'function' ? mine.getAllMsgs() : mine.msgs?.getModelsArray?.()) || [];
-  } catch (_) {
-    msgs = [];
+  // Right after WhatsApp Web loads the account's statuses may not be there
+  // yet: "not found" would drop from WinZapp a status everyone still sees.
+  if (!mine) return { ok: false, code: 'unavailable' };
+  const findIt = () => {
+    let msgs: any[] = [];
+    try {
+      msgs = (typeof mine.getAllMsgs === 'function' ? mine.getAllMsgs() : mine.msgs?.getModelsArray?.()) || [];
+    } catch (_) {
+      msgs = [];
+    }
+    return msgs.find((m: any) => m?.id?.id === statusId);
+  };
+  // The list WhatsApp Web holds may be a part only: loaded to the end, as
+  // statusController.ts does before reading it, before anything is "not found".
+  // Complete when WhatsApp says nothing earlier is left, or a load brings
+  // nothing more; a failing load leaves it unknown.
+  const loadAll = async (): Promise<boolean> => {
+    if (typeof mine.loadMore !== 'function') return mine.noEarlierMsgs === true;
+    for (let i = 0; i < 40 && !mine.noEarlierMsgs; i++) {
+      const before = mine.msgsLength ?? mine.msgs?.length ?? 0;
+      try {
+        await mine.loadMore();
+      } catch (_) {
+        return false;
+      }
+      const after = mine.msgsLength ?? mine.msgs?.length ?? 0;
+      if (after <= before && !mine.isLoading) return true;
+    }
+    return mine.noEarlierMsgs === true;
+  };
+  let found = findIt();
+  if (!found) {
+    const complete = await loadAll();
+    found = findIt();
+    if (!found) return { ok: false, code: complete ? 'not_found' : 'unavailable' };
   }
   // Only the account's own: a status of someone else is never revoked here.
-  const msg = msgs.find((m: any) => m?.id?.id === statusId && m?.id?.fromMe === true);
-  if (!msg) return { ok: false, code: 'not_found' };
+  if (found?.id?.fromMe !== true) return { ok: false, code: 'not_found' };
+  const msg = found;
 
   const resolve = () => {
     const viaWpp = wpp?.whatsapp?.functions?.revokeStatus;

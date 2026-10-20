@@ -4,8 +4,8 @@ const STATUS = '3EB0ABCDEF1234567890';
 const own = { id: { id: STATUS, fromMe: true } };
 const theirs = { id: { id: 'OTHER1234567', fromMe: false } };
 
-function page({ revoke = jest.fn().mockResolvedValue(undefined), loaded = true, mine = true }: any = {}) {
-  const myStatus = { getAllMsgs: () => [theirs, own] };
+function page({ revoke = jest.fn().mockResolvedValue(undefined), loaded = true, mine = true,
+                myStatus = { getAllMsgs: () => [theirs, own], noEarlierMsgs: true } }: any = {}) {
   let available = loaded;
   const bootloader = { loadModules: jest.fn((_names: string[], done: () => void) => { available = true; done(); }) };
   const functions = {};
@@ -55,8 +55,50 @@ test.each([
   expect(fake.revoke).not.toHaveBeenCalled();
 });
 
-test('no status of the account at all is "not found"', async () => {
-  expect(await inPage(page({ mine: false }), STATUS)).toEqual({ ok: false, code: 'not_found' });
+test('statuses WhatsApp Web has not loaded yet are "unavailable", never "not found"', async () => {
+  // "not found" would drop from WinZapp a status everyone still sees.
+  expect(await inPage(page({ mine: false }), STATUS)).toEqual({ ok: false, code: 'unavailable' });
+});
+
+function partial({ failing = false, more = [own] }: any = {}) {
+  const msgs: any[] = [theirs];
+  const model: any = {
+    noEarlierMsgs: false,
+    isLoading: false,
+    getAllMsgs: () => msgs,
+    loadMore: jest.fn(async () => {
+      if (failing) throw new Error('offline');
+      msgs.push(...more.splice(0));
+      if (!more.length) model.noEarlierMsgs = true;
+    }),
+  };
+  Object.defineProperty(model, 'msgsLength', { get: () => msgs.length });
+  return model;
+}
+
+test('a status beyond what is loaded is loaded and then revoked', async () => {
+  const fake = page({ myStatus: partial() });
+  expect(await inPage(fake, STATUS)).toEqual({ ok: true });
+  expect(fake.myStatus.loadMore).toHaveBeenCalled();
+  expect(fake.revoke).toHaveBeenCalledWith(fake.myStatus, own);
+});
+
+test('"not found" only once everything is loaded', async () => {
+  const fake = page({ myStatus: partial({ more: [] }) });
+  expect(await inPage(fake, 'MISSING12345')).toEqual({ ok: false, code: 'not_found' });
+  expect(fake.myStatus.loadMore).toHaveBeenCalled();
+  expect(fake.revoke).not.toHaveBeenCalled();
+});
+
+test('a load that fails leaves a missing status "unavailable"', async () => {
+  const fake = page({ myStatus: partial({ failing: true }) });
+  expect(await inPage(fake, STATUS)).toEqual({ ok: false, code: 'unavailable' });
+  expect(fake.revoke).not.toHaveBeenCalled();
+});
+
+test('a list WhatsApp Web cannot load further is not taken as complete', async () => {
+  const fake = page({ myStatus: { getAllMsgs: () => [theirs] } });
+  expect(await inPage(fake, STATUS)).toEqual({ ok: false, code: 'unavailable' });
 });
 
 test('a failed revoke is unconfirmed, with no native text, and not tried again', async () => {
