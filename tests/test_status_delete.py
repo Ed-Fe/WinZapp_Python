@@ -47,6 +47,23 @@ class TestTheCall:
             status_delete.delete_own_status(CONNECTION, "3EB0ABC")
         post.assert_called_once()
 
+    def test_a_serialized_key_id_is_sent_as_its_id(self, monkeypatch):
+        """The route refuses anything but the id part (invalid_request)."""
+        post = Mock(return_value=SimpleNamespace(status_code=200, json=lambda: {"status": "success"}))
+        monkeypatch.setattr(status_delete, "api_post", post)
+        status_delete.delete_own_status(CONNECTION, "true_status@broadcast_3EB0ABC_5511@c.us")
+        assert post.call_args.args[0].endswith("/status/3EB0ABC/delete")
+
+    @pytest.mark.parametrize("value, plain", [
+        ("3EB0ABC", "3EB0ABC"),
+        ("true_status@broadcast_3EB0ABC", "3EB0ABC"),
+        ("false_status@broadcast_3EB0ABC_456@lid", "3EB0ABC"),
+        ("weird_id_here", "weird_id_here"),
+        (None, None),
+    ])
+    def test_plain_key_id(self, value, plain):
+        assert status_delete.plain_key_id(value) == plain
+
     def test_a_timeout_is_unavailable(self, monkeypatch):
         monkeypatch.setattr(status_delete, "api_post", Mock(side_effect=TimeoutError("private")))
         with pytest.raises(ValueError, match="^unavailable$"):
@@ -190,8 +207,29 @@ class TestTheKey:
         assert "(wx.ACCEL_NORMAL, wx.WXK_DELETE, self.ID_DELETE)" in source
         assert "self._on_delete_status, id=self.ID_DELETE" in source
         assert "AccessibleStatusDelete" in source
-        own = inspect.getsource(MyStatusTranscriptionKeys._create_transcription_accelerators)
-        assert "*extra" in own
+
+    def test_the_dialogs_extra_keys_join_the_transcription_ones(self, monkeypatch):
+        """A window has one accelerator table: Delete must go into the same
+        one as the transcription keys, or one table replaces the other."""
+        from status_tab import my_status_transcription
+        tables = []
+        monkeypatch.setattr(my_status_transcription, "make_shortcut_table",
+                            lambda window, scope, entries: (scope, list(entries)))
+
+        class _Keys:
+            _create_transcription_accelerators = \
+                MyStatusTranscriptionKeys._create_transcription_accelerators
+            SetAcceleratorTable = tables.append
+            Bind = Mock()
+            _on_transcribe_own_status = _on_transcribe_own_status_inline = Mock()
+            _on_delete_own_status_transcription = Mock()
+
+        delete = (wx.ACCEL_NORMAL, wx.WXK_DELETE, 4242)
+        _Keys()._create_transcription_accelerators(extra=[delete])
+        [(scope, entries)] = tables
+        assert scope == "status" and len(entries) == 4
+        assert entries[-1] == delete
+        assert (wx.ACCEL_ALT | wx.ACCEL_SHIFT, ord("T")) == entries[0][:2]
 
 
 def test_the_status_tab_redraws_after_a_deletion(monkeypatch):

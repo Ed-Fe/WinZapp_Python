@@ -322,6 +322,14 @@ def parse_buyer_order(data):
     return BuyerOrder(data.get("canConfirm") is True, data.get("confirmed") is True)
 
 
+def should_read_buyer(msg, message_id):
+    """Whether the order dialog asks what the buyer may do: only for an order
+    someone else sent, with an id to ask about. The account's own order
+    message has nothing for it to answer."""
+    key = (msg.get("key") or {}) if isinstance(msg, dict) else {}
+    return bool(message_id) and key.get("fromMe") is not True
+
+
 def read_buyer_order(connection, message_id):
     return parse_buyer_order(_call(connection, f"order-details/{_message(message_id)}"))
 

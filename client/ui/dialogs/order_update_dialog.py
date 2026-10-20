@@ -58,8 +58,7 @@ class OrderUpdateDialog(BackgroundWork, wx.Dialog):
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
         (self._items or self._details).SetFocus()
         self.CentreOnParent()
-        # The account's own order message has nothing for it to answer.
-        if not ((msg.get("key") or {}).get("fromMe") is True) and message_id:
+        if commerce.should_read_buyer(msg, message_id):
             wx.CallAfter(self._read_buyer)
 
     # ── what the buyer may do ─────────────────────────────────────────────

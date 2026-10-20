@@ -225,9 +225,19 @@ def test_a_confirmation_not_shown_by_the_reading_is_never_called_done_nor_offere
     assert not dialog.offered()
 
 
-def test_the_dialog_opened_from_the_accounts_own_message_asks_nothing():
-    """Its __init__ skips the reading for fromMe; checked in the source, since
-    building the dialog would put a window up."""
+@pytest.mark.parametrize("msg, message_id, asks", [
+    ({"key": {"fromMe": False}}, "false_1@c.us_X", True),
+    ({"key": {}}, "false_1@c.us_X", True),
+    ({"key": {"fromMe": True}}, "true_1@c.us_X", False),   # the account's own order
+    ({"key": {"fromMe": False}}, "", False),                # nothing to ask about
+    (None, "false_1@c.us_X", True),
+])
+def test_the_dialog_asks_only_about_someone_elses_order(msg, message_id, asks):
+    assert commerce.should_read_buyer(msg, message_id) is asks
+
+
+def test_the_dialog_asks_through_should_read_buyer():
+    """Building the dialog would put a window up: only the wiring is read."""
     import inspect
     source = inspect.getsource(OrderUpdateDialog.__init__)
-    assert 'get("fromMe") is True' in source and "wx.CallAfter(self._read_buyer)" in source
+    assert "commerce.should_read_buyer(msg, message_id)" in source
