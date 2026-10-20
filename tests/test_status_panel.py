@@ -1636,6 +1636,19 @@ class TestEscapeClosesTheViewer:
         assert stub._selected_contact_idx == -1
         assert stub._video_player.stop_calls == 1
 
+    def test_rows_that_waited_come_in_after_esc(self, monkeypatch):
+        """Reviewer: a post that failed while a status was open waited for
+        the viewer to close, and Esc, the usual way out, did not bring it in."""
+        import wx
+        queued = []
+        monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: queued.append(fn))
+        stub = _Stub()
+        stub._viewer_panel.Show()
+        stub._unsent_redraw_pending = True
+        stub._flush_unsent_redraw = lambda: None
+        stub._on_escape(None)
+        assert queued == [stub._flush_unsent_redraw]
+
     def test_no_op_when_already_hidden(self):
         stub = _Stub()
         stub._viewer_panel.Hide()
@@ -1823,20 +1836,3 @@ class TestStatusReplySentRefocusesTheField:
 
         assert stub._reply_field.GetValue() == ""
         assert stub._reply_field.set_focus_calls == 1
-
-
-def test_escape_out_of_the_viewer_brings_in_the_rows_that_waited(monkeypatch):
-    """Reviewer: a post that failed while a status was open waited for the
-    viewer to close, and Esc, the usual way out, did not bring it in."""
-    import wx
-    from types import SimpleNamespace
-    from status_tab.unsent_status import UnsentStatusMixin
-    queued = []
-    monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: queued.append(fn))
-    stub = SimpleNamespace(_viewer_panel=SimpleNamespace(Hide=lambda: None),
-                           _unsent_redraw_pending=True, _flush_unsent_redraw=lambda: None)
-    UnsentStatusMixin._hide_status_viewer(stub)
-    assert queued == [stub._flush_unsent_redraw]
-    stub._unsent_redraw_pending = False
-    UnsentStatusMixin._hide_status_viewer(stub)
-    assert len(queued) == 1

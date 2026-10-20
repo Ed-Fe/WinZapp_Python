@@ -148,6 +148,10 @@ class StatusComposerMixin:
             widget.Show()
         self.Layout()
         self._status_list.SetFocus()
+        if getattr(self, "_unsent_redraw_pending", False):
+            # A post that failed while composing waited for the list
+            # (status_tab/unsent_status.py).
+            wx.CallAfter(self._flush_unsent_redraw)
 
     # ── Record & post voice status ───────────────────────────────────────────
 

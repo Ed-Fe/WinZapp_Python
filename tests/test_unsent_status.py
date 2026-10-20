@@ -258,3 +258,43 @@ def test_restored_row_finds_the_row_by_what_it_is():
     assert restored_row(5, None, entry, {}, {0: 7}, [entry], 9) == 7
     assert restored_row(12, None, None, {}, {}, [], 9) == 8
     assert restored_row(3, None, None, {}, {}, [], 0) == -1
+
+
+class TestTheRestoredRowDoesNotReopenTheViewer:
+    """Reviewer, third round: in classic mode a selected contact opens the
+    inline viewer, and the redraw selects the row it puts the focus back on;
+    after Esc the viewer came straight back, and over the composer too."""
+
+    def _classic(self):
+        from status_tab.status_list import StatusListMixin as _List
+        panel = _Panel()
+        panel._status_row_text = lambda entry, i18n: entry["name"]
+        panel._use_status_media_viewer_dialog = lambda: False
+        panel.shown = []
+        panel._show_current_status = lambda announce=True: panel.shown.append(announce)
+        panel._on_status_contact_selected = _List._on_status_contact_selected.__get__(panel)
+        panel._status_list.Select = lambda row: panel._on_status_contact_selected(
+            SimpleNamespace(GetIndex=lambda: row))
+        ana = {"name": "Ana", "statuses": [{"messageTimestamp": 2}]}
+        panel._populate_list([], [ana])
+        return panel
+
+    def test_a_flush_after_esc_leaves_the_viewer_closed(self):
+        panel = self._classic()
+        panel._status_list.focused = panel._status_contact_row[0]
+        panel._unsent_status_posts = [unsent_post(TEXT, FAILED, text="oi")]
+        panel._unsent_redraw_pending = True
+        panel._flush_unsent_redraw()
+        assert panel.shown == [] and not panel._unsent_redraw_pending
+
+    def test_while_composing_the_rows_wait_for_the_composer_to_close(self):
+        panel = self._classic()
+        composing = {"value": True}
+        panel._is_status_composer_open = lambda: composing["value"]
+        panel._unsent_status_posts = [unsent_post(TEXT, FAILED, text="oi")]
+        before = list(panel._status_list.rows)
+        panel._redraw_unsent_rows()
+        assert panel._status_list.rows == before and panel._unsent_redraw_pending
+        composing["value"] = False
+        panel._flush_unsent_redraw()
+        assert len(panel._status_list.rows) == len(before) + 1

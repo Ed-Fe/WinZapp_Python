@@ -243,6 +243,10 @@ class StatusListMixin:
     def _on_status_contact_selected(self, event, announce: bool = False):
         """Track focus. In classic (non-dialog) mode this also drives the
         inline viewer directly — see _use_status_media_viewer_dialog()."""
+        if getattr(self, "_restoring_status_row", False):
+            # The list putting the focus back after a rebuild
+            # (unsent_status.py), not the user choosing a status to watch.
+            return
         idx = event.GetIndex()
 
         if not self._use_status_media_viewer_dialog():

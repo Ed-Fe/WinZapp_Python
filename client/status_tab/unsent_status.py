@@ -95,14 +95,20 @@ class UnsentStatusMixin:
         the same row by what it is (the rebuild inserts or removes unsent rows
         above it and re-sorts the contacts), inside Freeze/Thaw.
 
-        Not while a status is open in the inline viewer: the rebuild closes
-        it, and showing it again restarts a video being watched. The rows wait
-        (`_unsent_redraw_pending`) until the viewer closes
+        Not while a status is open in the inline viewer (the rebuild closes
+        it, and showing it again restarts a video being watched), nor while
+        a status is being composed (the list is hidden then). The rows wait
+        (`_unsent_redraw_pending`) until the viewer or the composer closes
         (`_flush_unsent_redraw()`) or the list is rebuilt anyway, which brings
-        them in by itself."""
+        them in by itself.
+
+        Putting the focus back selects the row, and in classic mode a
+        selected contact opens the inline viewer: `_restoring_status_row`
+        tells the selection handler this one is not the user's."""
         if getattr(self, "_list_is_loading", False) or not hasattr(self, "_status_contacts"):
             return
-        if self._viewer_panel.IsShown():
+        composing = getattr(self, "_is_status_composer_open", None)
+        if self._viewer_panel.IsShown() or (callable(composing) and composing()):
             self._unsent_redraw_pending = True
             return
         self._unsent_redraw_pending = False
@@ -119,8 +125,12 @@ class UnsentStatusMixin:
                                   self._status_contact_row, self._status_contacts,
                                   lst.GetItemCount())
             if target > 0:
-                lst.Focus(target)
-                lst.Select(target)
+                self._restoring_status_row = True
+                try:
+                    lst.Focus(target)
+                    lst.Select(target)
+                finally:
+                    self._restoring_status_row = False
         finally:
             lst.Thaw()
 
