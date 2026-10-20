@@ -18,8 +18,8 @@ MEASURE_RATE = 8_000
 MEASURE_DECIMATION = 48_000 // MEASURE_RATE
 MEASURE_WINDOW_S = 2.0
 # The echo arrives after the reference: device and room delay, usually tens of
-# milliseconds, up to about a second through a software loopback.
-MEASURE_MAX_LAG_S = 1.0
+# milliseconds, more than half a second through some mixer loopbacks.
+MEASURE_MAX_LAG_S = 1.5
 # ...and the reference may reach the module a little late (sender batching).
 MEASURE_MAX_LEAD_S = 0.1
 
