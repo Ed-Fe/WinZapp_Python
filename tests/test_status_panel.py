@@ -245,6 +245,7 @@ class _Stub:
     _on_next_status               = StatusPanel._on_next_status
     _on_prev_status                = StatusPanel._on_prev_status
     _on_escape                    = StatusPanel._on_escape
+    _hide_status_viewer           = StatusPanel._hide_status_viewer
     _hide_post_panels             = StatusPanel._hide_post_panels
     _is_status_composer_open      = StatusPanel._is_status_composer_open
     _enter_status_composer        = StatusPanel._enter_status_composer
@@ -1822,3 +1823,20 @@ class TestStatusReplySentRefocusesTheField:
 
         assert stub._reply_field.GetValue() == ""
         assert stub._reply_field.set_focus_calls == 1
+
+
+def test_escape_out_of_the_viewer_brings_in_the_rows_that_waited(monkeypatch):
+    """Reviewer: a post that failed while a status was open waited for the
+    viewer to close, and Esc, the usual way out, did not bring it in."""
+    import wx
+    from types import SimpleNamespace
+    from status_tab.unsent_status import UnsentStatusMixin
+    queued = []
+    monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: queued.append(fn))
+    stub = SimpleNamespace(_viewer_panel=SimpleNamespace(Hide=lambda: None),
+                           _unsent_redraw_pending=True, _flush_unsent_redraw=lambda: None)
+    UnsentStatusMixin._hide_status_viewer(stub)
+    assert queued == [stub._flush_unsent_redraw]
+    stub._unsent_redraw_pending = False
+    UnsentStatusMixin._hide_status_viewer(stub)
+    assert len(queued) == 1

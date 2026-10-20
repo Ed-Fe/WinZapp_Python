@@ -124,6 +124,14 @@ class UnsentStatusMixin:
         finally:
             lst.Thaw()
 
+    def _hide_status_viewer(self):
+        """Hide the inline viewer. Every way of closing it goes through here,
+        so the unsent rows that waited for it (see above) come in: after Esc,
+        the usual way out, too."""
+        self._viewer_panel.Hide()
+        if getattr(self, "_unsent_redraw_pending", False):
+            wx.CallAfter(self._flush_unsent_redraw)
+
     def _flush_unsent_redraw(self):
         """The rows that waited for the inline viewer to close (see above)."""
         if getattr(self, "_unsent_redraw_pending", False) and not self._viewer_panel.IsShown():

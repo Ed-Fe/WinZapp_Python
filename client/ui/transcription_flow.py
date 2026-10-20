@@ -1153,6 +1153,16 @@ class MessageTranscriptionFlow:
         if value is None:
             self.start()
             return
+        result = stored_transcription.as_result(value)
+        notes = narration.result_notes(
+            result,
+            preferences.preferred_language(
+                self._main_window.settings, getattr(self._i18n, "language", "")
+            ),
+        )
+        # The missing-voice-filter warning is always said (transcription rules),
+        # on every path below.
+        spoken = tuple(n for n in notes if n.i18n_key == narration.VAD_UNAVAILABLE_I18N_KEY)
         if not stored_transcription.is_inline(value):
             previous = self._msg.get(stored_transcription.TRANSCRIPTION_KEY)
             marked = stored_transcription.marked_inline(value, previous, time.time())
@@ -1162,22 +1172,14 @@ class MessageTranscriptionFlow:
                 if self._background:
                     # From the queue: no window at a moment nobody chose. The
                     # text is read instead, without the mark in the line.
-                    text = stored_transcription.as_result(value).text
-                    wx.CallAfter(self._main_window.output, inline_speech(self._i18n, text, ()))
+                    wx.CallAfter(self._main_window.output,
+                                 inline_speech(self._i18n, result.text, spoken))
                     return
                 # Nowhere to keep the mark: open the window, where the text can
                 # still be read.
                 self._inline = False
                 self.show_saved()
                 return
-        result = stored_transcription.as_result(value)
-        notes = narration.result_notes(
-            result,
-            preferences.preferred_language(
-                self._main_window.settings, getattr(self._i18n, "language", "")
-            ),
-        )
-        spoken = tuple(n for n in notes if n.i18n_key == narration.VAD_UNAVAILABLE_I18N_KEY)
         self._repaint_row()
         if not self._background:
             self._focus_message()

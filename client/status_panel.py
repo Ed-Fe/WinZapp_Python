@@ -483,7 +483,7 @@ class StatusPanel(
                 self._on_close_post_panel(event)
         elif self._viewer_panel.IsShown():
             self._selected_contact_idx = -1
-            self._viewer_panel.Hide()
+            self._hide_status_viewer()
             self._video_player.stop()
             self.Layout()
             self._status_list.SetFocus()

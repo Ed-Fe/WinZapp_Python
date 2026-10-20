@@ -374,8 +374,13 @@ def test_a_waiting_message_shown_from_the_queue_neither_moves_the_focus_nor_open
     monkeypatch.setattr(stored, "is_inline", lambda value: False)
     monkeypatch.setattr(stored, "marked_inline", lambda value, previous, now: value)
     monkeypatch.setattr(stored, "as_result", lambda value: SimpleNamespace(text="olá"))
-    flow._i18n = SimpleNamespace(t=lambda key: "{text}")
+    # Made without the voice filter: that warning is always said, from the
+    # queue too (reviewer, second round).
+    vad = transcription_flow.narration.Note(transcription_flow.narration.VAD_UNAVAILABLE_I18N_KEY)
+    monkeypatch.setattr(transcription_flow.narration, "result_notes", lambda result, language: (vad,))
+    monkeypatch.setattr(transcription_flow.preferences, "preferred_language", lambda *a: None)
+    flow._i18n = SimpleNamespace(t=lambda key: "{text}" if key != vad.i18n_key else "sem filtro")
     flow.inline_saved()
     flow.show_saved.assert_not_called()
     flow._focus_message.assert_not_called()
-    window.output.assert_called_once_with("olá")
+    window.output.assert_called_once_with("olá sem filtro")

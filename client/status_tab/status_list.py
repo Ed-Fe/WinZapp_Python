@@ -250,17 +250,13 @@ class StatusListMixin:
                 # My Status row selected — hide the inline viewer; dialog
                 # opens on activate.
                 self._selected_contact_idx = -1
-                self._viewer_panel.Hide()
+                self._hide_status_viewer()
                 self.Layout()
-                if getattr(self, "_unsent_redraw_pending", False):
-                    wx.CallAfter(self._flush_unsent_redraw)
                 return
             contact_idx = self._status_row_contact.get(idx, -1)
             if contact_idx < 0 or contact_idx >= len(self._status_contacts):
-                self._viewer_panel.Hide()
+                self._hide_status_viewer()
                 self.Layout()
-                if getattr(self, "_unsent_redraw_pending", False):
-                    wx.CallAfter(self._flush_unsent_redraw)
                 return
             # Only jump back to the FIRST status when selecting a genuinely
             # different contact. This event also fires from Select() calls
@@ -289,7 +285,7 @@ class StatusListMixin:
             self._video_player.stop()
         except Exception:
             pass
-        self._viewer_panel.Hide()
+        self._hide_status_viewer()
         self.Layout()
 
         if idx == 0:

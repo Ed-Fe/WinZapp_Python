@@ -139,6 +139,7 @@ class _Stub:
     _hide_post_panels         = StatusPanel._hide_post_panels
     _is_status_composer_open  = StatusPanel._is_status_composer_open
     _enter_status_composer    = StatusPanel._enter_status_composer
+    _hide_status_viewer       = StatusPanel._hide_status_viewer
     _leave_status_composer    = StatusPanel._leave_status_composer
     _start_voice_recording    = StatusPanel._start_voice_recording
     _send_media_status_bg     = StatusPanel._send_media_status_bg

@@ -123,7 +123,7 @@ class StatusComposerMixin:
         them beside the status list made the main screen needlessly crowded.
         """
         self._hide_post_panels()
-        self._viewer_panel.Hide()
+        self._hide_status_viewer()
         self._video_player.stop()
         for widget in (
             self._add_status_btn,
