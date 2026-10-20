@@ -51,6 +51,23 @@ def can_retry(post, file_exists=os.path.isfile) -> bool:
     return bool(post.get("path")) and file_exists(post["path"])
 
 
+def restored_row(old_row, unsent_id, entry, row_unsent, contact_row, contacts, count):
+    """The row to focus after the list was rebuilt: the same unsent post, or
+    the same contact (found by its entry: the rebuild re-sorts them), else
+    the old row number kept inside the list; -1 for an empty list."""
+    if count <= 0:
+        return -1
+    if unsent_id is not None:
+        for row, post_id in row_unsent.items():
+            if post_id == unsent_id:
+                return row
+    if entry is not None:
+        for index, candidate in enumerate(contacts):
+            if candidate is entry and index in contact_row:
+                return contact_row[index]
+    return min(max(old_row, 0), count - 1)
+
+
 class UnsentStatusMixin:
     """The Status list's rows of posts not sent, and trying them again."""
 
@@ -74,17 +91,37 @@ class UnsentStatusMixin:
                      if post["id"] == post_id), None)
 
     def _redraw_unsent_rows(self):
-        """Rebuild the list with the rows as they are now, focus kept on the
-        row it was on (or the last one, when that row went)."""
+        """Rebuild the list with the rows as they are now, keeping the user
+        where they were: on the same row by what it is (the rebuild inserts
+        or removes unsent rows above, and re-sorts the contacts), and on the
+        same status in the inline viewer when it was open. A failed upload
+        used to close the viewer and land the focus on another contact."""
         if getattr(self, "_list_is_loading", False) or not hasattr(self, "_status_contacts"):
             return
-        row = self._status_list.GetFocusedItem()
-        self._populate_list(self._my_statuses, self._status_contacts)
-        count = self._status_list.GetItemCount()
-        if count and row > 0:
-            row = min(row, count - 1)
-            self._status_list.Focus(row)
-            self._status_list.Select(row)
+        lst = self._status_list
+        row = lst.GetFocusedItem()
+        unsent_id = getattr(self, "_status_row_unsent", {}).get(row)
+        contact_idx = getattr(self, "_status_row_contact", {}).get(row, -1)
+        contacts = self._status_contacts
+        entry = contacts[contact_idx] if 0 <= contact_idx < len(contacts) else None
+        viewing = (entry is not None and self._viewer_panel.IsShown()
+                   and getattr(self, "_selected_contact_idx", -1) == contact_idx)
+        status_idx = getattr(self, "_current_status_idx", 0)
+        lst.Freeze()
+        try:
+            self._populate_list(self._my_statuses, contacts)
+            target = restored_row(row, unsent_id, entry, self._status_row_unsent,
+                                  self._status_contact_row, self._status_contacts,
+                                  lst.GetItemCount())
+            if target > 0:
+                lst.Focus(target)
+                lst.Select(target)
+        finally:
+            lst.Thaw()
+        if viewing and target > 0:
+            self._selected_contact_idx = self._status_row_contact.get(target, -1)
+            self._current_status_idx = status_idx
+            self._show_current_status(announce=False)
 
     # ── The menu and the key ──────────────────────────────────────────────
 

@@ -70,6 +70,9 @@ class _FakeDb:
     def insert_message(self, remote_jid, record):
         self.inserted.append((remote_jid, dict(record)))
 
+    def upsert_chat(self, jid, chat):
+        self.upserted = getattr(self, "upserted", []) + [jid]
+
 
 def _text_msg(mid, text="oi"):
     return {
@@ -221,22 +224,37 @@ class TestEveryStoredCopyIsRevoked:
     twice; the conversation showed (and revoked) the last copy, the preview
     read the first."""
 
-    def _stub_with_chat(self, records):
+    def _stub_with_chat(self, records, last=None):
         s = _Stub()
-        s.chats = {"jid@g.us": {"remoteJid": "jid@g.us",
+        s.chats = {"jid@g.us": {"remoteJid": "jid@g.us", "lastMessage": last,
                                 "messages": {"messages": {"records": records}}}}
         s._normalize_jid = lambda jid: jid
-        s.recomputed = []
-        s._recompute_chat_last_message = lambda jid: s.recomputed.append(jid)
         return s
 
-    def test_the_other_copy_becomes_the_tombstone_and_the_preview_is_redone(self):
+    def test_the_other_copy_becomes_the_tombstone(self):
         first, second = _text_msg("A", "segredo"), _text_msg("A", "segredo")
         s = self._stub_with_chat([first, second])
         s._apply_remote_revoke(second, _revoke("A"), "jid@g.us")
         assert first["messageType"] == second["messageType"] == "protocolMessage"
         assert "segredo" not in str(first)
-        assert s.recomputed == ["jid@g.us"]
+
+    def test_a_last_message_that_is_the_revoked_one_is_revoked_and_saved(self):
+        last = _text_msg("A", "segredo")
+        s = self._stub_with_chat([_text_msg("A", "segredo")], last=last)
+        s._apply_remote_revoke(s.chats["jid@g.us"]["messages"]["messages"]["records"][0],
+                               _revoke("A"), "jid@g.us")
+        assert last["messageType"] == "protocolMessage"
+        assert s.db.upserted == ["jid@g.us"]
+
+    def test_a_newer_last_message_is_left_alone_and_not_rewritten(self):
+        """Reviewer: recomputing it from the records put an older preview over
+        a newer lastMessage and moved the chat down the list."""
+        newer = _text_msg("Z", "mais nova")
+        s = self._stub_with_chat([_text_msg("A")], last=newer)
+        s._apply_remote_revoke(s.chats["jid@g.us"]["messages"]["messages"]["records"][0],
+                               _revoke("A"), "jid@g.us")
+        assert newer["messageType"] == "conversation"
+        assert not getattr(s.db, "upserted", [])
 
     def test_a_copy_of_another_message_is_left_alone(self):
         other = _text_msg("B", "fica")

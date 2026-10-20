@@ -53,7 +53,7 @@ def inline_toggle_menu_key(msg, enter_transcribes) -> str:
             return "play_voice_message_menu"
         if msg.get("messageType") == "videoMessage":
             return "open_video_menu"
-        if msg.get("messageType") == "documentMessage":
+        if msg.get("messageType") == "documentMessage" and message_audio.is_transcribable(msg):
             return "open"
     return "transcribe_inline_menu"
 

@@ -1427,7 +1427,8 @@ def test_the_describe_button_follows_the_menu_rule(ready):
     panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
                             _action_describe_btn=button)
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
-    panel._ai_menu_label = lambda msg, i18n: AIActionsMixin._ai_menu_label(panel, msg, i18n)
+    panel._ai_menu_label = lambda msg, i18n, config=None: AIActionsMixin._ai_menu_label(
+        panel, msg, i18n, config)
     AIActionsMixin._update_ai_describe_button(panel, message("imageMessage"))
     assert shown == [("label", "ai_describe_image_menu"), "show"]
     shown.clear()

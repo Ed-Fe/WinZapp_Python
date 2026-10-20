@@ -1244,3 +1244,15 @@ class TestAnInstalledModelOnTheProcessorBeatsADownloadForTheCard:
             available_backends=(backend_module.BACKEND_FASTER_WHISPER,))
         assert resolved.model_id is not None
         assert resolved.device_preference == device.PREFERENCE_AUTO
+
+
+def test_a_custom_whisper_cpp_file_keeps_its_backend_under_automatic():
+    """Reviewer: an external: model ignored its reference's backend, so a
+    custom whisper.cpp file with the backend left automatic resolved to
+    faster-whisper and was replaced."""
+    resolved = preferences.resolve(
+        _settings(model="external:abc"), _CPU_ONLY, (),
+        available_backends=(backend_module.BACKEND_FASTER_WHISPER, backend_module.BACKEND_WHISPER_CPP),
+        custom_model_ids={"abc": backend_module.BACKEND_WHISPER_CPP})
+    assert resolved.backend_id == backend_module.BACKEND_WHISPER_CPP
+    assert resolved.model_id == "external:abc"

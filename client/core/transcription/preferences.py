@@ -463,7 +463,8 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     section = read_section(settings)
     substitutions = []
 
-    backend_id = _resolve_backend(section, available_backends, substitutions, installed_ids)
+    backend_id = _resolve_backend(section, available_backends, substitutions, installed_ids,
+                                  custom_model_ids)
     preference = _resolve_device_preference(section, substitutions)
     compute_preference = _resolve_compute_type(section, substitutions)
     # The model is chosen against the device this preference resolves to right
@@ -779,7 +780,8 @@ def resolve_models_dir(stored=None) -> str:
 # ── Internals ────────────────────────────────────────────────────────────────
 
 
-def _resolve_backend(section, available_backends, substitutions, installed_ids=()):
+def _resolve_backend(section, available_backends, substitutions, installed_ids=(),
+                     custom_model_ids=None):
     """The backend id to run with, or None when nothing here can run.
 
     A configured backend that this install does not have falls through to the
@@ -802,18 +804,27 @@ def _resolve_backend(section, available_backends, substitutions, installed_ids=(
         if stored in known:
             return stored
         substitutions.append(Substitution(SETTING_BACKEND, str(stored)))
-    return _automatic_backend(known, section[SETTING_MODEL], installed_ids)
+    return _automatic_backend(known, section[SETTING_MODEL], installed_ids, custom_model_ids)
 
 
-def _automatic_backend(known, stored_model, installed_ids):
+def _automatic_backend(known, stored_model, installed_ids, custom_model_ids=None):
     """See _resolve_backend(): the picked model's backend, else the first one
-    with a model on disk, else the first available; None with none."""
+    with a model on disk, else the first available; None with none.
+
+    A custom model (`external:<id>`) has its backend in `custom_model_ids`
+    when that is the {id: backend} mapping: a whisper.cpp file picked with the
+    backend left automatic must not resolve to faster-whisper and be replaced."""
     if not known:
         return None
 
     def ids_of(backend_id):
         return {model.id for model in catalogue_models(backend_id)}
 
+    reference_id = custom_model_reference_id(stored_model) if isinstance(stored_model, str) else None
+    if reference_id is not None and isinstance(custom_model_ids, Mapping):
+        backend_id = custom_model_ids.get(reference_id)
+        if backend_id in known:
+            return backend_id
     if isinstance(stored_model, str) and stored_model != AUTO:
         for backend_id in known:
             if stored_model in ids_of(backend_id):

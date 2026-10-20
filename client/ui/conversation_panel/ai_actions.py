@@ -41,10 +41,13 @@ class AIActionsMixin:
         app = getattr(mw, "_app_settings", None) or AppSettings(global_dir())
         return app, preferences(app)
 
-    def _ai_menu_label(self, msg, i18n):
+    def _ai_menu_label(self, msg, i18n, config=None):
         """Context-menu label for this message, or "" when no AI action is
-        offered on it (feature off, nothing usable for its kind, view-once...)."""
-        app, config = self._ai_settings()
+        offered on it (feature off, nothing usable for its kind, view-once...).
+        *config*: the preferences already read by the caller (one app.json
+        read per focused row, not two)."""
+        if config is None:
+            _app, config = self._ai_settings()
         kind = ai_config.offered_kind(msg, config, CredentialStore(global_dir()).saved())
         return i18n.t(MENU_KEY[kind]) if kind else ""
 
@@ -53,8 +56,9 @@ class AIActionsMixin:
         context-menu item: only on a message the feature offers an action for."""
         button = self._action_describe_btn
         # Settings can leave the button out; the menu item stays.
-        hidden = self._ai_settings()[1].get("hide_action_button") is True
-        label = "" if hidden else self._ai_menu_label(msg, self.main_window.i18n)
+        _app, config = self._ai_settings()
+        hidden = config.get("hide_action_button") is True
+        label = "" if hidden else self._ai_menu_label(msg, self.main_window.i18n, config)
         if label:
             button.SetLabel(label)
             button.Show()

@@ -577,3 +577,17 @@ class TestFetchVoters:
         _post(monkeypatch, _Response(503, {"status": "error"}))
         sender = _VoteSender()
         assert sender.fetch_poll_voters(MSG) == {}
+
+
+def test_the_inline_poll_is_the_same_poll_by_id_not_by_dict():
+    """Reviewer: each rebuild re-decides the focused row, and a sync replaces
+    the record dicts; compared by identity, the list refilled and jumped to
+    its first item while the user was in it."""
+    from ui.conversation_panel.poll_inline import same_inline_poll
+    old = {"key": {"id": "P1"}}
+    fresh = {"key": {"id": "P1"}}
+    assert same_inline_poll(old, "g@g.us", fresh, "g@g.us")
+    assert not same_inline_poll(old, "g@g.us", {"key": {"id": "P2"}}, "g@g.us")
+    assert not same_inline_poll(old, "g@g.us", fresh, "other@g.us")
+    assert not same_inline_poll(None, "g@g.us", fresh, "g@g.us")
+    assert not same_inline_poll({"key": {}}, "g@g.us", {"key": {}}, "g@g.us")

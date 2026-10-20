@@ -99,26 +99,43 @@ class MessageEventsMixin:
 
     def _revoke_stored_copies(self, remote_jid: str, msg_id: str, message) -> None:
         """Every other stored copy of the revoked message becomes the
-        tombstone too, and the chat's last message is decided again — so the
-        chat list says "message deleted" now, not after another conversation
-        is opened (core/revoked_copies.py)."""
+        tombstone too (core/revoked_copies.py), so the chat list says
+        "message deleted" now, not after another conversation is opened.
+
+        The chat's own lastMessage is the fallback the preview reads when the
+        records hold nothing newer: it is turned into the tombstone only when
+        it is this very message (recomputing it from the records would put an
+        older preview over a newer lastMessage and move the chat down), and
+        the chat is written back on the background executor, not on the wx
+        thread every caller of this runs on."""
         chats = getattr(self, "chats", None) or {}
         if not chats:
             return
         candidates = [remote_jid, self._normalize_jid(remote_jid),
                       getattr(self, "_lid_to_phone", {}).get(remote_jid, ""),
                       getattr(self, "_phone_to_lid", {}).get(self._normalize_jid(remote_jid), "")]
+        drop = (stored_transcription.TRANSCRIPTION_KEY,)
         for jid in dict.fromkeys(j for j in candidates if j):
             chat = chats.get(jid)
             if not chat:
                 continue
             records = chat.get("messages", {}).get("messages", {}).get("records", [])
-            mark_copies_revoked(records, msg_id, message,
-                                drop_keys=(stored_transcription.TRANSCRIPTION_KEY,))
-            try:
-                self._recompute_chat_last_message(jid)
-            except Exception:
-                logging.exception("[_apply_remote_revoke] recomputing the chat preview failed")
+            mark_copies_revoked(records, msg_id, message, drop_keys=drop)
+            last = chat.get("lastMessage")
+            if not (isinstance(last, dict)
+                    and mark_copies_revoked([last], msg_id, message, drop_keys=drop)):
+                continue
+            db = getattr(self, "db", None)
+            if db is None:
+                continue
+
+            def _bg_upsert(j=jid, c=chat):
+                try:
+                    db.upsert_chat(j, c)
+                except Exception as exc:
+                    logging.warning("[_apply_remote_revoke] chat upsert failed: %s",
+                                    type(exc).__name__)
+            self._msg_bg_executor.submit(_bg_upsert)
 
     #: WhatsApp Web's "arrived, not decrypted yet" placeholder. It is followed
     #: by the real message under the same key.id.

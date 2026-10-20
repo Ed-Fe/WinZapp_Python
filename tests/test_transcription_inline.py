@@ -194,6 +194,17 @@ class TestAudioDocuments:
         panel.activate_message(pdf)
         assert panel.transcribed == [] and panel.played == ["open:D1"]
 
+    def test_the_key_on_a_pdf_still_says_it_has_no_audio(self):
+        """Reviewer: with the setting on, Alt+Shift+N opened a PDF too, the
+        same as Enter; only an audio or video sent as a file swaps keys."""
+        from ui.conversation_panel.message_menu import inline_toggle_menu_key
+        panel = self._opening(True)
+        pdf = _audio_document(text=None)
+        pdf["message"]["documentMessage"] = {"fileName": "a.pdf", "mimetype": "application/pdf"}
+        panel._on_menu_toggle_voice_action(pdf)
+        assert panel.played == [] and panel.transcribed == ["D1"]
+        assert inline_toggle_menu_key(pdf, True) == "transcribe_inline_menu"
+
     def test_the_menu_names_what_the_key_does(self):
         from ui.conversation_panel.message_menu import inline_toggle_menu_key
         assert inline_toggle_menu_key(_audio_document(), True) == "open"

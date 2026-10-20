@@ -58,6 +58,12 @@ class _List:
     def Select(self, row):
         pass
 
+    def Freeze(self):
+        self.frozen = getattr(self, "frozen", 0) + 1
+
+    def Thaw(self):
+        self.frozen -= 1
+
 
 class _Panel(UnsentStatusMixin):
     _populate_list = StatusListMixin._populate_list
@@ -68,7 +74,7 @@ class _Panel(UnsentStatusMixin):
     def __init__(self):
         self.main_window = SimpleNamespace(i18n=I18N, output=Mock())
         self._status_list = _List()
-        self._viewer_panel = SimpleNamespace(Hide=lambda: None)
+        self._viewer_panel = SimpleNamespace(Hide=lambda: None, IsShown=lambda: False)
         self._my_statuses, self._status_contacts = [], []
         self._send_text_status_bg = Mock()
         self._send_all_media_statuses_bg = Mock()
@@ -206,3 +212,48 @@ class TestThePostPathsRecordIt:
         composer._send_all_media_statuses_bg([clip], "c")
         [post] = composer.remembered
         assert (post["kind"], post["state"], post["path"], post["caption"]) == (MEDIA, UNCONFIRMED, clip, "c")
+
+
+class TestTheUserKeepsTheirPlace:
+    """Reviewer: a failed upload rebuilt the list, closed the inline viewer
+    and, the new row sitting above, put the focus on another contact."""
+
+    def _with_contacts(self):
+        panel = _Panel()
+        panel._status_row_text = lambda entry, i18n: entry["name"]
+        ana = {"name": "Ana", "statuses": [{"messageTimestamp": 2}]}
+        bia = {"name": "Bia", "statuses": [{"messageTimestamp": 1}]}
+        panel._populate_list([], [ana, bia])
+        return panel, ana, bia
+
+    def test_the_focus_stays_on_the_same_contact_when_a_row_is_added_above(self):
+        panel, _ana, bia = self._with_contacts()
+        panel._status_list.focused = panel._status_contact_row[1]   # Bia
+        panel._unsent_status_posts = [unsent_post(TEXT, FAILED, text="oi")]
+        panel._redraw_unsent_rows()
+        row = panel._status_list.focused
+        assert panel._status_contacts[panel._status_row_contact[row]] is bia
+        assert panel._status_list.frozen == 0
+
+    def test_the_inline_viewer_comes_back_on_the_same_status(self):
+        panel, ana, _bia = self._with_contacts()
+        row = panel._status_contact_row[0]
+        panel._status_list.focused = row
+        panel._selected_contact_idx = 0
+        panel._current_status_idx = 3
+        panel._viewer_panel = SimpleNamespace(Hide=lambda: None, IsShown=lambda: True)
+        shown = []
+        panel._show_current_status = lambda announce=True: shown.append(
+            (panel._selected_contact_idx, panel._current_status_idx, announce))
+        panel._unsent_status_posts = [unsent_post(TEXT, FAILED, text="oi")]
+        panel._redraw_unsent_rows()
+        assert shown == [(0, 3, False)]
+
+
+def test_restored_row_finds_the_row_by_what_it_is():
+    from status_tab.unsent_status import restored_row
+    entry = object()
+    assert restored_row(5, "p1", None, {2: "p1"}, {}, [], 9) == 2
+    assert restored_row(5, None, entry, {}, {0: 7}, [entry], 9) == 7
+    assert restored_row(12, None, None, {}, {}, [], 9) == 8
+    assert restored_row(3, None, None, {}, {}, [], 0) == -1

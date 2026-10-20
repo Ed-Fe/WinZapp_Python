@@ -38,6 +38,16 @@ def poll_in_messages(msg: dict, messages, remote_jid: str, shown_jid: str) -> bo
     )
 
 
+
+
+def same_inline_poll(shown, shown_jid, msg, jid) -> bool:
+    """Whether *msg* in chat *jid* is the poll already in the inline list:
+    by its id, not by the dict, which a sync replaces."""
+    if not isinstance(shown, dict) or not isinstance(msg, dict) or shown_jid != jid:
+        return False
+    shown_id = (shown.get("key") or {}).get("id")
+    return bool(shown_id) and shown_id == (msg.get("key") or {}).get("id")
+
 class PollInlineMixin:
     """The options list that follows a focused single-answer poll."""
 
@@ -76,12 +86,17 @@ class PollInlineMixin:
         if msg is None:
             self._hide_inline_poll()
             return
-        if msg is not self._poll_inline_msg:
+        jid = (self.conversation or {}).get("remoteJid", "")
+        if same_inline_poll(self._poll_inline_msg, getattr(self, "_poll_inline_jid", ""), msg, jid):
+            # The same poll, possibly a fresh dict from a sync or a rebuild
+            # (populate_messages() re-decides the focused row): keep the list
+            # where the user is in it, and only read its votes again.
             self._poll_inline_msg = msg
-            self._poll_inline_jid = (self.conversation or {}).get("remoteJid", "")
-            self._fill_inline_poll(msg)
-        else:
             self._reload_inline_poll()
+        else:
+            self._poll_inline_msg = msg
+            self._poll_inline_jid = jid
+            self._fill_inline_poll(msg)
         if not lst.IsShown():
             self._poll_inline_label.Show()
             lst.Show()

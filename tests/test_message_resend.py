@@ -2,7 +2,6 @@
 confirmed, text or attachment, from the message menu or Ctrl+Shift+Y
 (configurable as messages.ID_CTRL_SHIFT_Y). Never sent again by itself."""
 
-import inspect
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -134,9 +133,21 @@ class TestTheKey:
         [shortcut] = [s for s in SHORTCUTS if s.id == "messages.ID_CTRL_SHIFT_Y"]
         assert (shortcut.scope, shortcut.mod, shortcut.key) == ("messages", 6, ord("Y"))
 
-    def test_the_attachment_row_records_its_file(self):
-        src = inspect.getsource(ConversationsPanel._send_attachment_file)
-        assert "RESEND_PATH_KEY: path" in src
+    def test_the_attachment_row_records_its_file(self, tmp_path, monkeypatch):
+        """The real _send_attachment_file on a MagicMock panel: the pending
+        row it adds carries the file, which is what makes it resendable."""
+        import wx
+        from unittest.mock import MagicMock
+        monkeypatch.setattr(wx, "CallAfter", lambda *a, **k: None)
+        doc = tmp_path / "a.txt"
+        doc.write_text("x")
+        panel = MagicMock()
+        panel.main_window.settings = {}
+        panel.messages_list.GetItemCount.return_value = 0
+        panel._typing_row_list = None
+        panel._sorted_messages = []
+        assert ConversationsPanel._send_attachment_file(panel, REMOTE, str(doc), "document", "", None)
+        assert [row.get(RESEND_PATH_KEY) for row in panel._sorted_messages] == [str(doc)]
 
 
 def test_a_delivered_attachment_forgets_its_local_path():
