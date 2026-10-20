@@ -50,7 +50,11 @@ you open a matching file; the reasoning is in `docs/traps/` and
    process, and commit WIP early. After an interruption look for stray
    `python.exe` under `.claude\worktrees\`.
    **Cloud sessions are exempt** (Claude Code on the web: a remote machine
-   with no WinZapp and no screen reader to disturb). There, parallelize to go
+   with no WinZapp and no screen reader to disturb). A session is a cloud
+   one only when its environment has `CLAUDE_CODE_REMOTE=true` (Claude Code
+   on the web sets it) and it is not running on Windows; anything else —
+   the desktop app, a terminal, an IDE, a background agent — is local, and
+   **when in doubt, it is local**. There, parallelize to go
    faster: several agents at once, `pytest -n auto` (with `--shard K/N` to
    split further, as CI does), and `uv sync` when the environment needs it.
    Rule 1 still holds there.
