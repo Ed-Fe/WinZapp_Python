@@ -1435,6 +1435,10 @@ class _RevokeStub:
     def _schedule_set_chats(self):
         pass
 
+    def _revoke_stored_copies(self, remote_jid, msg_id, message):
+        # The other stored copies are tests/test_remote_revoke.py's.
+        pass
+
     _apply_remote_revoke = MainWindow._apply_remote_revoke
 
 
