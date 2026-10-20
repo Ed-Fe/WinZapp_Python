@@ -13,9 +13,10 @@ from ui.dialogs.community_comments import CommunityCommentsDialog
 JID = "123@g.us"
 PARENT = "false_123@g.us_PARENT_456@lid"
 
-def row(mid="reply", stamp=10, kind="comment"):
+def row(mid="reply", stamp=10, kind="comment", mine=False):
     return {"id": mid, "parentMsgId": PARENT, "chatId": JID, "author": "456@lid",
-            "timestamp": stamp, "type": kind, "body": "private text", "messageSecret": "secret"}
+            "timestamp": stamp, "type": kind, "body": "private text", "messageSecret": "secret",
+            "fromMe": mine}
 
 class API(CommunityCommentsMixin):
     wpp_server, wpp_port, token = "http://localhost", 6300, "account:secret"
@@ -49,7 +50,7 @@ class Dialog:
     close_comments = CommunityCommentsDialog.close_comments
     _on_text_key = CommunityCommentsDialog._on_text_key
     _register = CommunityCommentsDialog._register
-    _parent_id = CommunityCommentsDialog._parent_id
+    _resend_blocked = CommunityCommentsDialog._resend_blocked
     on_reply_count_changed = CommunityCommentsDialog.on_reply_count_changed
     _run_pending_refresh = CommunityCommentsDialog._run_pending_refresh
     def __init__(self):
@@ -62,8 +63,9 @@ class Dialog:
             get_announcement_comments=Mock(return_value=[row()]),
             send_announcement_comment=Mock(return_value=True),
             _resolve_jid_name=Mock(return_value="Author"), _normalize_jid=lambda value:value,
+            self_reference_label=lambda: "You",
             _announcement_comment_id=lambda jid, message: message["key"]["id"])
-        self._jid, self._message, self._token = JID, {"key":{"id":PARENT}}, "session"
+        self._jid, self._message, self._token = JID, {"key":{"id":"PARENT"}}, "session"
         self._closed = self._busy = self._loaded = self._uncertain = False
         self._refresh_pending = False
         self._rows = []
@@ -167,15 +169,54 @@ class TestCommentWindow:
         dlg.work.pop()()
         dlg._mw.send_announcement_comment.assert_called_once_with(JID,dlg._message," exact text ")
         assert dlg._text.value=="" and len(dlg.work)==1  # background refresh
-    def test_ambiguous_send_keeps_draft_and_blocks_retry_until_the_thread_is_read(self):
+    def test_ambiguous_send_keeps_draft_and_is_never_resent_by_itself(self):
         dlg=Dialog();dlg._loaded=True;dlg._mw.send_announcement_comment.side_effect=TimeoutError()
         dlg._on_send(None);dlg.work.pop()()
         assert dlg._text.value==" exact text " and dlg._uncertain
         assert len(dlg.work)==1   # the thread is read again on its own, never resent
         dlg._on_send(None);assert len(dlg.work)==1
         dlg.work.pop()()
-        assert not dlg._uncertain and dlg._text.value==" exact text "
         dlg._mw.send_announcement_comment.assert_called_once()
+
+    def _unconfirmed(self):
+        dlg=Dialog();dlg._finish_refresh([row("old", 1, mine=True)], None)
+        dlg._mw.send_announcement_comment.side_effect=TimeoutError()
+        dlg._on_send(None);dlg.work.pop()()
+        return dlg
+
+    def test_a_read_without_the_reply_keeps_the_same_text_blocked(self):
+        """The reply may still be on its way: a second Ctrl+Enter would post
+        it twice to the whole community."""
+        dlg=self._unconfirmed()
+        dlg._mw.get_announcement_comments.return_value=[row("old", 1, mine=True)]
+        dlg.work.pop()()
+        assert dlg._uncertain and dlg._resend_blocked()
+        assert dlg._send.Enable.call_args.args == (False,)
+        dlg._on_send(None)
+        assert not dlg.work
+        dlg._mw.send_announcement_comment.assert_called_once()
+
+    def test_a_read_showing_the_reply_says_it_went_and_clears_the_field(self):
+        dlg=self._unconfirmed()
+        dlg._mw.get_announcement_comments.return_value=[row("old", 1, mine=True),
+                                                         row("new", 20, mine=True)]
+        dlg.work.pop()()
+        assert not dlg._uncertain and dlg._text.value==""
+        assert dlg._mw.speak_output.output.call_args.args[0] == "community_comments_sent Replies: 2"
+
+    def test_someone_elses_new_reply_proves_nothing(self):
+        dlg=self._unconfirmed()
+        dlg._mw.get_announcement_comments.return_value=[row("old", 1, mine=True), row("theirs", 20)]
+        dlg.work.pop()()
+        assert dlg._uncertain and dlg._text.value==" exact text "
+
+    def test_a_changed_text_is_a_new_reply_and_can_go(self):
+        dlg=self._unconfirmed();dlg.work.pop()()
+        dlg._text.value="another reply"
+        dlg._update_buttons()
+        assert dlg._send.Enable.call_args.args == (True,)
+        dlg._on_send(None)
+        assert len(dlg.work)==1
     def test_unavailable_read_does_not_enable_sending(self):
         dlg=Dialog();dlg._finish_refresh(None,"not_announcement")
         assert not dlg._loaded
@@ -325,18 +366,20 @@ class TestLiveReplyCount:
 
     def test_open_window_reads_itself_again_for_its_own_announcement(self):
         dlg = Dialog(); dlg._finish_refresh([row()], None)
-        dlg.on_reply_count_changed("false_123@g.us_OTHER_456@lid", 2)
+        dlg.on_reply_count_changed(JID, "OTHER", 2)
         assert not dlg.work
-        dlg.on_reply_count_changed(PARENT, 1)   # already showing one reply
+        dlg.on_reply_count_changed("999@g.us", "PARENT", 2)
         assert not dlg.work
-        dlg.on_reply_count_changed(PARENT, 2)
+        dlg.on_reply_count_changed(JID, "PARENT", 1)   # already showing one reply
+        assert not dlg.work
+        dlg.on_reply_count_changed(JID, "PARENT", 2)
         assert len(dlg.work) == 1
         dlg.work.pop()()
         dlg._list.SetFocus.assert_not_called()
 
     def test_event_during_a_read_is_read_after_it(self):
         dlg = Dialog(); dlg._on_refresh(None)
-        dlg.on_reply_count_changed(PARENT, 5)
+        dlg.on_reply_count_changed(JID, "PARENT", 5)
         assert len(dlg.work) == 1 and dlg._refresh_pending
         dlg.work.pop()()
         assert len(dlg.work) == 1 and not dlg._refresh_pending
@@ -346,7 +389,7 @@ class TestLiveReplyCount:
         assert dlg in dlg._mw._announcement_comment_dialogs
         dlg.close_comments()
         assert dlg not in dlg._mw._announcement_comment_dialogs
-        dlg.on_reply_count_changed(PARENT, 5)
+        dlg.on_reply_count_changed(JID, "PARENT", 5)
         assert not dlg.work
 
     def test_main_window_updates_row_cache_and_open_windows(self):
@@ -362,7 +405,19 @@ class TestLiveReplyCount:
         args = mw.conversations_panel._update_announcement_reply_count.call_args.args
         assert args[0] == JID and args[1]["key"]["id"] == "PARENT" and args[2] == 4
         assert record["replyCount"] == 4
-        dialog.on_reply_count_changed.assert_called_once_with(PARENT, 4)
+        dialog.on_reply_count_changed.assert_called_once_with(JID, "PARENT", 4)
+
+    def test_the_open_window_is_found_whatever_form_the_author_part_takes(self):
+        """The stored parent's author is @c.us when _phone_to_lid has no entry;
+        the page sends @lid. The window still reads itself again."""
+        dlg = Dialog(); dlg._finish_refresh([row()], None)
+        dlg._mw._announcement_comment_dialogs = {dlg}
+        dlg._mw.conversations_panel = None
+        dlg._mw.chats = {}
+        CommunityCommentsMixin.on_announcement_reply_count(
+            dlg._mw, {"chat": JID, "parent": "false_123@g.us_PARENT_5511999999999@c.us",
+                      "key_id": "PARENT", "count": 2})
+        assert len(dlg.work) == 1
 
 
 def test_socket_event_reaches_the_main_window_on_the_ui_thread(monkeypatch):

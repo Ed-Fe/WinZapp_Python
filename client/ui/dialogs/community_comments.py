@@ -66,17 +66,16 @@ class CommunityCommentsDialog(wx.Dialog):
         self._closed = True
         getattr(self._mw, "_announcement_comment_dialogs", set()).discard(self)
 
-    def _parent_id(self):
-        try:
-            return self._mw._announcement_comment_id(self._jid, self._message)
-        except Exception:
-            return None
-
-    def on_reply_count_changed(self, parent, count):
+    def on_reply_count_changed(self, chat, key_id, count):
         """WhatsApp counted a reply to some announcement: read again when it is
         this one. A count already shown (the reply just sent from here, read
-        back by _finish_send) is not read twice."""
-        if not self._active() or parent != self._parent_id():
+        back by _finish_send) is not read twice.
+
+        Matched by group and key.id, never by the serialized id: its author
+        part is the stored @c.us phone when _phone_to_lid has no entry, and
+        the page sends @lid."""
+        if (not self._active() or chat != self._jid
+                or key_id != (self._message.get("key") or {}).get("id")):
             return
         if self._busy:
             self._refresh_pending = True
@@ -106,9 +105,16 @@ class CommunityCommentsDialog(wx.Dialog):
         return (not self._closed and not getattr(self._mw, "_shutting_down", False)
                 and self._token == self._mw.token)
 
+    def _resend_blocked(self):
+        """After an unconfirmed send, the same text cannot go again until a
+        read shows the reply arrived (_finish_refresh) or the text changes:
+        a reply still on its way is missing from the read right after it,
+        and a second Ctrl+Enter would post it twice to the whole community."""
+        return self._uncertain and self._text.GetValue() == getattr(self, "_sent_text", None)
+
     def _update_buttons(self):
         active = self._active() and not self._busy
-        self._send.Enable(active and self._loaded and not self._uncertain
+        self._send.Enable(active and self._loaded and not self._resend_blocked()
                           and bool(self._text.GetValue().strip()))
         # Never read-only while a read or a send runs: the screen reader said
         # "somente leitura" whenever the field was reached during one, which
@@ -185,24 +191,36 @@ class CommunityCommentsDialog(wx.Dialog):
                                             (min(max(old, 0), len(ids) - 1) if ids else wx.NOT_FOUND))
                 finally:
                     self._list.Thaw()
-            self._rows, self._loaded, self._uncertain = rows, True, False
+            arrived = self._uncertain and any(
+                row.get("fromMe") is True and row["id"] not in getattr(self, "_own_before_send", ())
+                for row in rows)
+            self._rows, self._loaded = rows, True
             if getattr(self, "_on_count", None):
                 self._on_count(len(rows))
             text = (i18n.t("community_comments_count").format(count=len(rows)) if rows else
                     i18n.t("community_comments_empty"))
+            if arrived:
+                # The unconfirmed reply is in the thread: it went.
+                self._uncertain = False
+                if self._text.GetValue() == getattr(self, "_sent_text", None):
+                    self._text.ChangeValue("")
+                text = f"{i18n.t('community_comments_sent')} {text}"
         self._status.SetLabel(text)
         self._update_buttons()
         self._mw.speak_output.output(text)
         self._run_pending_refresh()
 
     def _on_send(self, event):
-        if not self._active() or self._busy or not self._loaded or self._uncertain:
+        if not self._active() or self._busy or not self._loaded or self._resend_blocked():
             return
         text = self._text.GetValue()
         if not text.strip():
             return
         self._busy = True
         self._sent_text = text
+        # A reply of one's own missing from these is what proves an
+        # unconfirmed send went (_finish_refresh).
+        self._own_before_send = {row["id"] for row in self._rows if row.get("fromMe") is True}
         self._update_buttons()
         self._status.SetLabel(self._mw.i18n.t("community_comments_sending"))
 

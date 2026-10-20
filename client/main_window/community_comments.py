@@ -66,7 +66,7 @@ class CommunityCommentsMixin:
             panel._update_announcement_reply_count(jid, {"key": {"id": event["key_id"]}}, count)
         apply_reply_count((getattr(self, "chats", None) or {}).get(jid), event["key_id"], count)
         for dialog in list(getattr(self, "_announcement_comment_dialogs", ())):
-            dialog.on_reply_count_changed(event["parent"], count)
+            dialog.on_reply_count_changed(jid, event["key_id"], count)
 
     def on_announcement_reply_preview(self, event):
         """UI thread: WhatsApp changed a group's chat-list preview. A reply
