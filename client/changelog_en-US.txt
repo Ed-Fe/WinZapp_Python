@@ -70,7 +70,7 @@ WHAT'S NEW
 
 - Chat lists: with the "Esc clears the selection" option on, Esc unselects the selected chats in the main list, in Archived and in Locked chats.
 
-- Updating with several accounts open: the installer waits for every account to close before copying, and WinZapp no longer exits silently at startup during an update or when the account is already open: it says why and writes it to the log.
+- Updating with several accounts open: the installer waits for every account to close before copying, and WinZapp no longer exits silently at startup when the account is already open or an update looks stuck: it says why and writes it to the log. During an update that is still running it only writes to the log and exits, with no box, because the installer opens it again when it is done.
 
 - Syncing large accounts: after large batches of messages, WinZapp asks WhatsApp Web to release memory it no longer uses, which lowers the memory used during sync.
 

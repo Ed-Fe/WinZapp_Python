@@ -1922,8 +1922,11 @@ if __name__ == "__main__":
         if not update_coord.is_update_in_progress(gd):
             _runtime_lease = update_coord.try_create_runtime_lease(gd)
         if _runtime_lease is None:  # in progress, or one slipped in before the claim
-            startup_exit_notice.leave_startup(startup_exit_notice.UPDATE_IN_PROGRESS,
-                                              background=background)
+            # A box would hold WinZapp.exe while the installer copies over it:
+            # only a stuck update gets one.
+            startup_exit_notice.leave_startup(
+                startup_exit_notice.update_exit_reason(update_coord.update_state_age(gd)),
+                background=background)
         atexit.register(update_coord.release_runtime_lease, gd, _runtime_lease)
 
         # 2) One-time legacy flat-data migration, then resolve which account.
@@ -2004,8 +2007,10 @@ if __name__ == "__main__":
                         _reason = startup_exit_notice.ACTIVATED
                 except Exception:
                     pass
-            startup_exit_notice.leave_startup(_reason, background=background,
-                                              account_id=_account_id)
+            # The lease goes before the box: alive, it stops an update.
+            startup_exit_notice.leave_startup(
+                _reason, background=background, account_id=_account_id,
+                release=lambda: update_coord.release_runtime_lease(gd, _runtime_lease))
 
         setup_logging()
         logging.info("Instance lock acquired for account %s (%s).", _account_id, _account_name)

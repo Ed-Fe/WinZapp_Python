@@ -70,7 +70,7 @@ NOUTĂȚI
 
 - Listele de conversații: cu opțiunea „Esc debifează” activă, Esc debifează conversațiile marcate în lista principală, în cele arhivate și în cele blocate.
 
-- Actualizare cu mai multe conturi deschise: programul de instalare așteaptă închiderea tuturor conturilor înainte de copiere, iar WinZapp nu se mai închide fără niciun mesaj la pornire în timpul unei actualizări sau când contul este deja deschis: explică motivul și îl scrie în jurnal.
+- Actualizare cu mai multe conturi deschise: programul de instalare așteaptă închiderea tuturor conturilor înainte de copiere, iar WinZapp nu se mai închide fără niciun mesaj la pornire când contul este deja deschis sau o actualizare pare blocată: explică motivul și îl scrie în jurnal. În timpul unei actualizări care încă rulează doar scrie în jurnal și se închide, fără nicio casetă, deoarece programul de instalare îl redeschide când termină.
 
 - Sincronizarea conturilor mari: după loturi mari de mesaje, WinZapp cere WhatsApp Web să elibereze memoria pe care nu o mai folosește, ceea ce reduce consumul în timpul sincronizării.
 

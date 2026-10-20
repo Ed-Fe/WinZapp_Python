@@ -394,3 +394,23 @@ def test_other_live_leases_excludes_self_and_dead(tmp_path):
     # a different process and still counts.
     stale = uc.other_live_leases(gd, pid=900, create_time=4.0, is_alive=alive)
     assert sorted(l["pid"] for l in stale) == [900, 901]
+
+
+class TestUpdateStateAge:
+    """Startup tells a running update from a stuck one by this age
+    (startup_exit_notice.update_exit_reason())."""
+
+    def test_no_state_file_has_no_age(self, tmp_path):
+        assert uc.update_state_age(str(tmp_path)) is None
+
+    def test_the_age_counts_from_the_last_write(self, tmp_path):
+        path = tmp_path / "update_state.json"
+        path.write_text("{}", encoding="utf-8")
+        os.utime(path, (1000.0, 1000.0))
+        assert uc.update_state_age(str(tmp_path), now=1400.0) == 400.0
+
+    def test_a_clock_behind_the_file_is_no_age_at_all(self, tmp_path):
+        path = tmp_path / "update_state.json"
+        path.write_text("{}", encoding="utf-8")
+        os.utime(path, (1000.0, 1000.0))
+        assert uc.update_state_age(str(tmp_path), now=900.0) == 0.0

@@ -70,7 +70,7 @@ NOWOŚCI
 
 - Listy czatów: przy włączonej opcji „Esc odznacza” klawisz Esc odznacza zaznaczone czaty na liście głównej, w archiwum i w zablokowanych czatach.
 
-- Aktualizacja przy kilku otwartych kontach: instalator czeka, aż wszystkie konta zostaną zamknięte, zanim zacznie kopiować, a WinZapp nie kończy już działania bez słowa przy starcie podczas aktualizacji lub gdy konto jest już otwarte: wyjaśnia powód i zapisuje go w logu.
+- Aktualizacja przy kilku otwartych kontach: instalator czeka, aż wszystkie konta zostaną zamknięte, zanim zacznie kopiować, a WinZapp nie kończy już działania bez słowa przy starcie, gdy konto jest już otwarte lub aktualizacja wygląda na zawieszoną: wyjaśnia powód i zapisuje go w logu. Podczas aktualizacji, która wciąż trwa, tylko zapisuje to w logu i kończy działanie, bez okna komunikatu, bo instalator po zakończeniu sam go ponownie otwiera.
 
 - Synchronizacja dużych kont: po dużych partiach wiadomości WinZapp prosi WhatsApp Web o zwolnienie pamięci, której już nie używa, co zmniejsza zużycie podczas synchronizacji.
 

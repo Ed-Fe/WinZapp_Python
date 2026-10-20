@@ -70,7 +70,7 @@ NOVEDADES
 
 - Listas de conversaciones: con la opción "Esc desmarca" activada, Esc desmarca las conversaciones marcadas en la lista principal, en las archivadas y en las bloqueadas.
 
-- Actualización con varias cuentas abiertas: el instalador espera a que todas las cuentas se cierren antes de copiar, y WinZapp ya no se cierra en silencio al iniciar durante una actualización o con la cuenta ya abierta: explica el motivo y lo registra en el log.
+- Actualización con varias cuentas abiertas: el instalador espera a que todas las cuentas se cierren antes de copiar, y WinZapp ya no se cierra en silencio al iniciar con la cuenta ya abierta o con una actualización que parece atascada: explica el motivo y lo registra en el log. Durante una actualización que aún está en curso solo lo registra en el log y se cierra, sin ningún cuadro, porque el instalador lo vuelve a abrir al terminar.
 
 - Sincronización de cuentas grandes: tras lotes grandes de mensajes, WinZapp pide a WhatsApp Web que libere la memoria que ya no usa, lo que reduce el consumo durante la sincronización.
 

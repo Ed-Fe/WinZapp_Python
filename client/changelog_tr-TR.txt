@@ -70,7 +70,7 @@ YENİLİKLER
 
 - Sohbet listeleri: "Esc seçimi kaldırır" seçeneği açıkken Esc, ana listede, arşivde ve kilitli sohbetlerde işaretli sohbetlerin işaretini kaldırır.
 
-- Birden çok hesap açıkken güncelleme: yükleyici kopyalamadan önce tüm hesapların kapanmasını bekler; WinZapp da bir güncelleme sırasında veya hesap zaten açıkken başlangıçta artık sessizce kapanmaz: nedenini söyler ve günlüğe yazar.
+- Birden çok hesap açıkken güncelleme: yükleyici kopyalamadan önce tüm hesapların kapanmasını bekler; WinZapp da hesap zaten açıkken veya bir güncelleme takılmış görünürken başlangıçta artık sessizce kapanmaz: nedenini söyler ve günlüğe yazar. Hâlâ süren bir güncelleme sırasında yalnızca günlüğe yazar ve kutu göstermeden kapanır, çünkü yükleyici işi bitince onu yeniden açar.
 
 - Büyük hesapların eşitlenmesi: büyük mesaj gruplarından sonra WinZapp, WhatsApp Web'den artık kullanmadığı belleği bırakmasını ister; bu da eşitleme sırasındaki tüketimi azaltır.
 

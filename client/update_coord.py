@@ -639,6 +639,17 @@ def end_update(global_dir: str, token: dict) -> bool:
         return True
 
 
+def update_state_age(global_dir: str, now: Optional[float] = None) -> Optional[float]:
+    """Seconds since update_state.json was last written (the claim, the
+    hand-over to the installer), or None when it cannot be read. Startup uses
+    it to tell a running update from a stuck one (startup_exit_notice.py)."""
+    try:
+        written = os.path.getmtime(_state_path(global_dir))
+    except OSError:
+        return None
+    return max(0.0, (time.time() if now is None else now) - written)
+
+
 def is_update_in_progress(global_dir: str,
                           is_alive: Callable[[int, float], bool] = lease_alive) -> bool:
     """True iff an update is in progress AND its owner is alive (crashed owner
