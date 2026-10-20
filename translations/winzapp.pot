@@ -13489,6 +13489,13 @@ msgctxt "transcription_queue_done"
 msgid "{count} models downloaded."
 msgstr ""
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_queue_dropped"
+msgid ""
+"The transcriptions waiting in the queue were cancelled: they would stop for "
+"the same reason."
+msgstr ""
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
 msgctxt "transcription_queue_removed"
 msgid "Removed from the transcription queue."

@@ -44,3 +44,14 @@ def test_one_queue_per_window_made_on_first_use():
     queue.add(_flow("A"))
     queue.clear()
     assert len(queue) == 0
+
+
+def test_only_a_failure_about_its_own_message_lets_the_queue_go_on():
+    from core.transcription import errors
+    assert not waiting_runs.ends_the_queue(None)
+    for code in (errors.CANCELLED, errors.MEDIA_NOT_DOWNLOADED, errors.NO_AUDIO_TRACK,
+                 errors.UNSUPPORTED_AUDIO_FORMAT, errors.AUDIO_INCOMPLETE):
+        assert not waiting_runs.ends_the_queue(code), code
+    for code in (errors.MODEL_NOT_INSTALLED, errors.CUDA_UNAVAILABLE, errors.BACKEND_ERROR,
+                 errors.PRECISION_UNSUPPORTED):
+        assert waiting_runs.ends_the_queue(code), code

@@ -10,7 +10,9 @@ one now waits here and starts when the first ends.
 
 A transcription that ends in a window (Alt+Shift+T) is still refused while
 another runs, since its window would open over whatever the user is doing when
-the queue reaches it.
+the queue reaches it. So is an inline one whose text would not be kept (the
+saved transcriptions turned off for the model): its result opens the window
+instead (ui/transcription_flow.py `_report`).
 
 Rules:
 
@@ -20,12 +22,29 @@ Rules:
   before, rather than queued without end.
 * **Emptied at shutdown** (MainWindow.stop_transcription_runs()), so the run
   cancelled there does not start the next one.
+* **Emptied by a failure that is not about one message** (`ends_the_queue()`):
+  no model, a card that refused, a broken component. Every waiting run would
+  stop the same way, each with its own question or window.
 
 Entries are the flows themselves; all that is asked of one is
 `targets(other)`. No wx, so it is tested directly.
 """
 
+from core.transcription import errors
+
 MAX_WAITING = 50
+
+#: Failures about the one message that was being transcribed: the queue goes on.
+_MESSAGE_FAILURES = frozenset({
+    errors.CANCELLED, errors.MEDIA_NOT_DOWNLOADED, errors.UNSUPPORTED_AUDIO_FORMAT,
+    errors.NO_AUDIO_TRACK, errors.AUDIO_INCOMPLETE,
+})
+
+
+def ends_the_queue(error_code) -> bool:
+    """Whether a run that ended with *error_code* (None: it worked) empties
+    the queue: any failure but one about its own message."""
+    return error_code is not None and error_code not in _MESSAGE_FAILURES
 
 
 class WaitingRuns:

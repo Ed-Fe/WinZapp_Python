@@ -19,19 +19,22 @@ from ui.transcription_flow import MessageTranscriptionFlow
 
 STRINGS = {"transcription_background_started": "started", "transcription_background_busy": "busy",
            "transcription_background_cancelling": "cancelling", "transcription_no_audio": "no audio",
-           "transcription_queue_added": "queued {position}", "transcription_queue_removed": "unqueued"}
+           "transcription_queue_added": "queued {position}", "transcription_queue_removed": "unqueued",
+           "transcription_queue_dropped": "queue dropped"}
 
 
 class Flow:
     for _name in ("start", "_prepare", "_cleanup", "_runs_without_dialog", "_start_in_background", "targets",
                   "cancel_background", "_background_done", "_background_finished", "_say_after_focus",
-                  "_start_next_waiting"):
+                  "_start_next_waiting", "_can_wait_its_turn", "_drop_waiting"):
         locals()[_name] = getattr(MessageTranscriptionFlow, _name)
     del _name
 
     def __init__(self, window, message_id="A", without_dialog=True, inline=False):
         self._main_window = window
         self._inline = inline
+        self._selection = ("auto", "auto")
+        self.saved_shown = 0
         window.settings = {"transcription": {"run_without_dialog": without_dialog}}
         self._i18n = SimpleNamespace(t=lambda key: STRINGS[key])
         self._msg, self._msg_id = {"id": message_id}, message_id
@@ -45,6 +48,9 @@ class Flow:
 
     def _hidden_by_vault(self):
         return False
+
+    def inline_saved(self):
+        self.saved_shown += 1
 
     def _make_first_run(self, on_progress, on_finished):
         self._run = self.run
@@ -274,3 +280,68 @@ def test_quitting_empties_the_queue_before_cancelling_the_run():
                              _background_transcription=SimpleNamespace(cancel_background=Mock(return_value=run)))
     AutoTranscriptionMixin.stop_transcription_runs(window, timeout=1)
     assert len(queue) == 0
+
+
+def test_an_inline_result_that_would_not_be_kept_is_not_queued(window):
+    """Reviewer: with the saved transcriptions off for the model the result
+    opens the window, which must not pop up from the queue."""
+    Flow(window, "A").start()
+    off = _inline(window, "B")
+    window.settings["transcription"]["cache_enabled"] = False
+    off.start()
+    assert window.output.call_args.args == ("busy",)
+    assert not len(window._waiting_transcriptions)
+
+
+def test_a_failure_that_would_stop_every_run_empties_the_queue(window):
+    first = Flow(window, "A")
+    first.start()
+    waiting = _inline(window, "B")
+    waiting.start()
+    first.on_finished(None, errors.TranscriptionError(errors.MODEL_NOT_INSTALLED, "none"))
+    waiting.run.start.assert_not_called()
+    assert window.output.call_args.args == ("queue dropped",)
+
+
+def test_a_failure_about_one_message_lets_the_queue_go_on(window):
+    first = Flow(window, "A")
+    first.start()
+    waiting = _inline(window, "B")
+    waiting.start()
+    first.on_finished(None, errors.TranscriptionError(errors.NO_AUDIO_TRACK, "silent video"))
+    waiting.run.start.assert_called_once_with()
+
+
+def test_the_window_shortcut_on_a_waiting_message_leaves_it_in_the_queue(window):
+    Flow(window, "A").start()
+    _inline(window, "B").start()
+    Flow(window, "B").start()  # Alt+Shift+T on it
+    assert window.output.call_args.args == ("busy",)
+    assert len(window._waiting_transcriptions) == 1
+
+
+def test_a_waiting_message_transcribed_meanwhile_shows_its_text(window, monkeypatch):
+    first = Flow(window, "A")
+    first.start()
+    done, after = _inline(window, "B"), _inline(window, "C")
+    done.start()
+    after.start()
+    monkeypatch.setattr(transcription_flow.stored_transcription, "saved_transcription",
+                        lambda msg, selection: "text" if msg["id"] == "B" else None)
+    first.on_finished("text A", None)
+    done.run.start.assert_not_called()
+    assert done.saved_shown == 1
+    after.run.start.assert_called_once_with()
+
+
+def test_an_inline_result_in_the_background_leaves_the_focus_where_it_is(window):
+    """Reviewer: a queued result took the focus out of the message field."""
+    flow = Flow(window)
+    flow._background = True
+    flow._repaint_row = Mock()
+    flow._present_inline = MessageTranscriptionFlow._present_inline.__get__(flow)
+    monkeypatched = SimpleNamespace(text="olá")
+    flow._i18n = SimpleNamespace(t=lambda key: "{text}")
+    flow._present_inline(monkeypatched, None, ())
+    flow._focus_message.assert_not_called()
+    flow._repaint_row.assert_called_once_with()

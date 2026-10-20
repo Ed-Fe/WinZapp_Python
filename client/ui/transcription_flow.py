@@ -573,10 +573,10 @@ class MessageTranscriptionFlow:
                 # The same shortcut on the same message: that is Cancel.
                 active.cancel_background()
                 mw.output(i18n.t("transcription_background_cancelling"))
-            elif waiting.withdraw(self):
+            elif self._inline and waiting.withdraw(self):
                 # The same shortcut on a message waiting its turn: out of the queue.
                 mw.output(i18n.t("transcription_queue_removed"))
-            elif self._inline and waiting.add(self):
+            elif self._can_wait_its_turn() and waiting.add(self):
                 # Its text goes into the message's line, no window: it waits.
                 mw.output(i18n.t("transcription_queue_added").format(position=len(waiting)))
             else:
@@ -619,7 +619,28 @@ class MessageTranscriptionFlow:
             self._finish(self._run, result, error)
         finally:
             self._cleanup()
+            if waiting_runs.ends_the_queue(getattr(error, "code", None) if error else None):
+                self._drop_waiting()
             self._start_next_waiting()
+
+    def _can_wait_its_turn(self):
+        """An inline run whose text will be kept in the line: one that would not
+        be (saved transcriptions off for the model) ends in the result window,
+        which must not open from the queue at a moment nobody chose."""
+        if not self._inline:
+            return False
+        model = self._selection[1] if isinstance(self._selection, tuple) else None
+        return stored_transcription.cache_enabled_for(
+            self._main_window.settings, None if model in (None, "auto") else model)
+
+    def _drop_waiting(self):
+        """Empty the queue after a failure that would stop every waiting run,
+        and say so once, after the failure itself (waiting_runs.ends_the_queue())."""
+        waiting = getattr(self._main_window, "_waiting_transcriptions", None)
+        if waiting is None or not len(waiting):
+            return
+        waiting.clear()
+        wx.CallAfter(self._main_window.output, self._i18n.t("transcription_queue_dropped"))
 
     def _start_next_waiting(self):
         """The oldest inline transcription waiting for this one, started now.
@@ -639,6 +660,11 @@ class MessageTranscriptionFlow:
             flow = waiting.next()
             if flow._hidden_by_vault():
                 # Its chat was locked meanwhile: nothing it produced could be shown.
+                continue
+            if stored_transcription.saved_transcription(flow._msg, flow._selection) is not None:
+                # Transcribed while it waited (the automatic queue, another
+                # window): its text, not a second run.
+                flow.inline_saved()
                 continue
             flow._start_in_background(announce=False)
             return
@@ -1086,7 +1112,10 @@ class MessageTranscriptionFlow:
         if self._hidden_by_vault():
             return
         self._repaint_row()
-        self._focus_message()
+        if not self._background:
+            # A run without the progress window took the focus from nowhere:
+            # the user may be typing, or in another chat by now.
+            self._focus_message()
         spoken, _shown = split_result_notes(announcement, notes)
         # After the focus move, as every sentence here (see the module docstring).
         wx.CallAfter(self._main_window.output, inline_speech(self._i18n, result.text, spoken))
