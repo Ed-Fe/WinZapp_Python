@@ -15,6 +15,7 @@ import wx
 
 from core import status_delete
 from core.shortcut_catalog import SHORTCUTS
+from main_window.chats_store import ChatsStoreMixin
 from status_tab import status_dialogs
 from status_tab.my_status_transcription import MyStatusTranscriptionKeys
 from status_tab.status_dialogs import MyStatusDialog
@@ -117,6 +118,29 @@ class TestTheDialog:
         dialog._update_content.assert_called_once_with(said_first="status_deleted")
         dialog._mw.db.delete_status_update.assert_called_once_with("C")
         assert dialog.deleted_status_ids == ["C"]
+
+    def test_the_deleted_status_leaves_the_in_memory_statuses_too(self, monkeypatch, run_inline):
+        """_load_statuses merges MainWindow._status_updates back in: left
+        there, the deleted status came back with the status API down."""
+        _answer(monkeypatch, wx.YES)
+        monkeypatch.setattr(status_dialogs, "delete_own_status", Mock())
+        dialog = _Dialog(["A", "B"], current=1)
+        mine = "me@s.whatsapp.net"
+        dialog._mw._status_updates = {mine: [_status("A"), _status("B")]}
+        dialog._mw.remove_failed_status_update = (
+            lambda message_id, refresh=True: ChatsStoreMixin.remove_failed_status_update(
+                dialog._mw, message_id, refresh=refresh))
+        dialog._on_delete_status()
+        assert [s["key"]["id"] for s in dialog._mw._status_updates[mine]] == ["A"]
+        dialog._mw.db.delete_status_update.assert_called_once_with("B")
+
+    def test_the_tab_is_not_reloaded_twice(self, monkeypatch, run_inline):
+        _answer(monkeypatch, wx.YES)
+        monkeypatch.setattr(status_dialogs, "delete_own_status", Mock())
+        dialog = _Dialog(["A", "B"])
+        dialog._mw.remove_failed_status_update = Mock()
+        dialog._on_delete_status()
+        dialog._mw.remove_failed_status_update.assert_called_once_with("A", refresh=False)
 
     def test_the_last_status_deleted_closes_the_dialog(self, monkeypatch, run_inline):
         _answer(monkeypatch, wx.YES)

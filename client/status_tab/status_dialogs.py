@@ -359,15 +359,20 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
         self._update_content(said_first=said)
 
     def _drop_status(self, status_id):
-        """Out of the list (StatusPanel's own: the same list object) and out
-        of the local cache, so the next load cannot bring it back."""
+        """Out of the list (StatusPanel's own: the same list object), out of
+        MainWindow._status_updates and out of the local cache, so the next
+        load cannot bring it back: _load_statuses merges the in-memory list
+        back in, and with the status API down no reconciliation drops it."""
         self._statuses[:] = [s for s in self._statuses
                              if (s.get("key") or {}).get("id", "") != status_id]
         self.deleted_status_ids.append(status_id)
-        db = getattr(self._mw, "db", None)
+        remove = getattr(self._mw, "remove_failed_status_update", None)
         try:
-            if db is not None:
-                db.delete_status_update(status_id)
+            if callable(remove):
+                # Both sources; the dialog redraws the tab itself.
+                remove(status_id, refresh=False)
+            elif getattr(self._mw, "db", None) is not None:
+                self._mw.db.delete_status_update(status_id)
         except Exception:
             logging.warning("[status] could not drop a deleted status from the cache")
 
