@@ -9,16 +9,28 @@ and unreviewed catalog wording. An AI-generated `msgstr` does not become a
 reviewed term merely by being committed or passing gettext tests. Use code to
 establish what a feature does; use this glossary to name that meaning in Polish.
 
+## Review provenance
+
+The Polish terminology records native-speaker reviews by
+[@djgraco](https://github.com/djgraco), including
+[PR #481](https://github.com/gabrielhhaber/WinZapp_Python/pull/481) and
+[PR #561](https://github.com/gabrielhhaber/WinZapp_Python/pull/561).
+For the encryption notice, @djgraco reported checking the wording directly in
+the Polish WhatsApp phone app in
+[this comment on PR #561](https://github.com/gabrielhhaber/WinZapp_Python/pull/561#issuecomment-6277771919).
+Keep this distinction between a contributor's documented verification and an
+independently verifiable official source when recording future decisions.
+
 ## Contents
 
-- [Translation workflow](#translation-workflow)
+- [Choosing Polish wording](#choosing-polish-wording)
 - [WhatsApp chat means czat](#whatsapp-chat-means-czat)
 - [Chat access protection and contact blocking](#chat-access-protection-and-contact-blocking)
 - [Other reviewed terms](#other-reviewed-terms)
 - [Meaning, sources and spoken wording](#meaning-sources-and-spoken-wording)
-- [Gettext and final review](#gettext-and-final-review)
+- [Language review and technical references](#language-review-and-technical-references)
 
-## Translation workflow
+## Choosing Polish wording
 
 1. Check this glossary for the concept, including its exceptions.
 2. Search the Polish PO for reviewed wording, especially strings from the same
@@ -63,8 +75,8 @@ valid for a spoken conversation, voice/video call or AI conversation. Examples:
 - `ai_error_limit`: `Ta sesja osiągnęła limit liczby żądań lub długości rozmowy.`
   describes an AI session; keep `rozmowy`.
 - `chat_encryption_notice`: `Wiadomości i rozmowy są w pełni zaszyfrowane.`
-  includes calls. This WhatsApp wording was checked in the Polish phone app;
-  keep `rozmowy`. The full reviewed notice is:
+  includes calls. Keep `rozmowy` in this documented phone-app wording (see
+  [review provenance](#review-provenance)). The full reviewed notice is:
   `Wiadomości i rozmowy są w pełni zaszyfrowane. Tylko osoby w tym czacie mogą je odczytywać, odsłuchiwać i udostępniać.`
 - `bulk_transcription_open_hint`: `otwórz ten czat` refers to opening the
   message thread; `otwórz tę rozmowę` is inappropriate here.
@@ -116,11 +128,15 @@ capitalization appropriate to the UI location.
 | add a caption | Dodaj podpis... |
 | playback device | urządzenie odtwarzające |
 | mute chat | Wycisz |
-| unmute chat | Wyłącz wyciszenie |
+| unmute chat menu action (`unmute_chat`) | Włącz powiadomienia |
 | unarchive chat action | Przywróć |
 | show the window from the system tray | Pokaż |
 | read-receipt status | Wyświetlono |
 | announce, as a behavior setting | Ogłaszaj |
+
+The menu label `Włącz powiadomienia` and the descriptive shortcut wording
+`wycisz/wyłącz wyciszenie czatu` (`shortcut_alt_shift_s_label`) serve different
+UI roles. Do not prescribe the shortcut wording as a standalone menu label.
 
 `Osobiste` is a category name; do not mechanically turn descriptive
 `czaty prywatne` into `czaty osobiste`. Likewise, the `Media` tab does not
@@ -144,6 +160,8 @@ application whose feature is represented, then consistency within WinZapp.
 Verify an official label when possible; do not present a guessed phrase as a
 quotation from WhatsApp.
 
+Prefer Polish quotation marks `„…”` in prose while respecting technical syntax.
+
 Make text understandable when spoken by NVDA, JAWS or Narrator without visual
 context. Put information in a clear order, keep short messages unambiguous and
 remove redundant wording. Match the role: a button can say `Otwórz`, a setting
@@ -158,21 +176,7 @@ Do not translate proper names such as WinZapp, WhatsApp, WPPConnect, Meta AI,
 NVDA or Windows. Natural inflection is allowed, e.g. `w WhatsAppie` and
 `za pomocą Whispera`.
 
-## Gettext and final review
-
-Follow [the gettext workflow](gettext-migration.md) for synchronization,
-compilation and validation. `translations-update` synchronizes catalogs; it
-does not translate or review them. Translate new blank entries and review
-changed English source before clearing `fuzzy`; never clear flags in bulk to
-make a check pass. Preserve translator comments and reviewed translations.
-
-Preserve stable keys, English sources, placeholders and format specifications
-such as `{count}` and `{mb:.1f}`. Reorder placeholders only as Polish grammar
-requires. Preserve meaningful newlines, markup and links. Keep wx mnemonics
-valid: `&` marks an access key, `&&` is a literal ampersand; check collisions
-within the relevant UI group. Polish quotes `„…”` are preferred in prose,
-without changing technical syntax. Do not add gettext plural entries: the
-current WinZapp API rejects them (see the gettext workflow).
+## Language review and technical references
 
 Before finishing, inspect the changed Polish `msgstr` values and related
 feature strings for terminology regressions. Searching stems such as `rozmow`,
@@ -181,10 +185,12 @@ review and can be legitimate. Do not treat matches in keys or English sources
 as Polish wording errors. Fix chat-thread wording while retaining AI, call and
 contact-blocking meanings.
 
-Run the catalog checks required by the i18n skill and inspect the diff for
-unrelated edits. Passing tests does not replace this language review. If Polish
-shortcut descriptions change, regenerate the dependent guide with
-`uv run python docs/user-guide/gerar_guia.py . pl`, inspect the resulting
-`client/data/help_guide/pl.html`, and include its intended changes. Follow
-[the guide maintenance process](../user-guide/PROCESSO.md); an ignored generated
-guide may need an explicit `git add -f client/data/help_guide/pl.html`.
+Passing technical checks does not replace language review. Keep the process
+instructions in their owning documents:
+
+- [The i18n UI string skill](../../.claude/skills/i18n-ui-string/SKILL.md) covers
+  adding strings, placeholders, mnemonics and required checks.
+- [The gettext workflow](gettext-migration.md) covers catalog synchronization,
+  fuzzy review, compilation, metadata and the supported catalog format.
+- [The guide maintenance process](../user-guide/PROCESSO.md) covers regenerating
+  dependent guides, including shortcut tables, and adding generated outputs.
