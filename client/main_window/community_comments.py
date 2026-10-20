@@ -76,8 +76,12 @@ class CommunityCommentsMixin:
         if not isinstance(chat, dict):
             return
         preview = event["preview"]
+        lifted = bool(preview) and preview["timestamp"] > timestamp_seconds(chat.get("t"))
+        if chat.get("chatlistPreview") == preview and not lifted:
+            # Every reaction in a group lands here: nothing to redraw.
+            return
         chat["chatlistPreview"] = preview
-        if preview and preview["timestamp"] > timestamp_seconds(chat.get("t")):
+        if lifted:
             chat["t"] = preview["timestamp"]
         self._schedule_set_chats()
 

@@ -115,6 +115,22 @@ def test_live_preview_event_is_parsed_and_lifts_the_chat():
     assert latest_reply_preview(chat) is None and chat["t"] == NOON
 
 
+def test_a_preview_that_did_not_change_redraws_nothing():
+    """Every reaction in a group is an event, and a reply's preview arrives
+    again: the chat list is only rebuilt when something changed."""
+    chat = {"t": NOON - 600}
+    mw = SimpleNamespace(chats={JID: chat}, _schedule_set_chats=Mock())
+    CommunityCommentsMixin.on_announcement_reply_preview(mw, {"chat": JID, "preview": None})
+    mw._schedule_set_chats.assert_not_called()
+    event = parse_reply_preview_event({"kind": "preview", "chatId": JID, "preview": _preview()})
+    CommunityCommentsMixin.on_announcement_reply_preview(mw, event)
+    CommunityCommentsMixin.on_announcement_reply_preview(mw, event)
+    assert mw._schedule_set_chats.call_count == 1
+    CommunityCommentsMixin.on_announcement_reply_preview(mw, {"chat": JID, "preview": None})
+    CommunityCommentsMixin.on_announcement_reply_preview(mw, {"chat": JID, "preview": None})
+    assert mw._schedule_set_chats.call_count == 2
+
+
 def test_preview_event_reaches_the_main_window_on_the_ui_thread(monkeypatch):
     from core.websocket_client import WebSocketClient
     calls = []
