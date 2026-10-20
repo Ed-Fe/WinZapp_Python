@@ -177,6 +177,15 @@ def filter_subgroups(community, which):
     return tuple(groups)
 
 
+def empty_groups_key(community, which):
+    """What Enter on *community* says when the filter *which* leaves no
+    group to move to. Only "groups I'm not in" can be empty for the
+    account being in every one; otherwise it has joined none."""
+    if which == "not_joined" and community is not None and community.subgroups:
+        return "communities_in_every_group"
+    return "communities_no_groups"
+
+
 def _act(connection, endpoint, payload):
     """Send one action. Returns when it was not refused, which is not yet
     "it happened": run_action() reads the effect back."""
@@ -292,9 +301,13 @@ def admin(jid, person_key, key, present=True):
 def most_recent_group(community, last_activity):
     """The group of *community* with the newest activity, or None when none
     of them has any. *last_activity(jid)* is 0 for a group with nothing on
-    file; on a tie the group listed first wins."""
+    file; on a tie the group listed first wins. A group the account is not
+    in is never the one: one it left keeps its conversation on file, and it
+    cannot be opened."""
     best, best_ts = None, 0
     for group in community.subgroups if community else ():
+        if not group.joined:
+            continue
         ts = last_activity(group.jid)
         if ts > best_ts:
             best, best_ts = group, ts

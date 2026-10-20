@@ -431,6 +431,25 @@ def test_most_recent_group_is_the_one_with_the_newest_activity():
     assert api.most_recent_group(None, lambda jid: 100) is None
 
 
+def test_most_recent_group_never_offers_a_group_the_account_is_not_in():
+    """One it left keeps its conversation on file, and cannot be opened."""
+    left = Subgroup("111-9@g.us", "Old", False, False, joined=False)
+    community = Community("111-0@g.us", "School", "", True, (), (PLAIN, left))
+    activity = {PLAIN.jid: 100, left.jid: 900}
+    assert api.most_recent_group(community, lambda jid: activity.get(jid, 0)) == PLAIN
+    only_left = Community("111-0@g.us", "School", "", True, (), (left,))
+    assert api.most_recent_group(only_left, lambda jid: 900) is None
+
+
+def test_an_empty_filter_says_why_it_is_empty():
+    """"Groups I'm not in" left empty means the account is in every one."""
+    assert api.empty_groups_key(SCHOOL, "not_joined") == "communities_in_every_group"
+    assert api.empty_groups_key(SCHOOL, "joined") == "communities_no_groups"
+    assert api.empty_groups_key(CLUB, "not_joined") == "communities_no_groups"
+    assert api.empty_groups_key(CLUB, "all") == "communities_no_groups"
+    assert api.empty_groups_key(None, "not_joined") == "communities_no_groups"
+
+
 def test_the_recent_group_button_names_and_opens_the_newest_group():
     dialog = Dialog()
     dialog._mw.chats = {ANNOUNCEMENTS.jid: {"t": 100}, PLAIN.jid: {"t": 200}}
@@ -465,6 +484,17 @@ def test_enter_on_a_community_shows_its_groups_and_on_a_group_opens_it():
     assert dialog._on_enter(dialog._groups) is True
     assert dialog.result == PLAIN and dialog.EndModal.called
     assert dialog._on_enter(object()) is False  # a button handles its own Enter
+
+
+def test_enter_with_every_group_joined_and_the_not_in_filter_says_so():
+    dialog = Dialog()
+    dialog._announce = Mock()
+    dialog.select(SCHOOL)
+    dialog._filter = "not_joined"
+    dialog._groups.GetCount = lambda: 0
+    assert dialog._on_enter(dialog._list) is True
+    assert dialog._announce.call_args.args[0] == dialog._i18n.t("communities_in_every_group")
+    assert "not joined any group" not in dialog._announce.call_args.args[0]
 
 
 def finish(dialog, state, communities):

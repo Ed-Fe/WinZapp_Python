@@ -4147,6 +4147,11 @@ msgid "&Groups of the community"
 msgstr "Topluluğun &grupları"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_in_every_group"
+msgid "You are in every group of this community."
+msgstr "Bu topluluğun tüm gruplarına katıldınız."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_join_cancel_failed"
 msgid "Could not cancel the request. Check the connection and try again."
 msgstr "İstek iptal edilemedi. Bağlantıyı kontrol edip tekrar deneyin."

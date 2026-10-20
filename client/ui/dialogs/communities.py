@@ -8,7 +8,8 @@ import dataclasses
 import logging
 import wx
 from core.communities import (CANCELLED, JOINED, REQUEST_PENDING, REQUESTED, SUBGROUP_FILTERS,
-                              cancel_join_request, filter_subgroups, join_action,
+                              cancel_join_request, empty_groups_key, filter_subgroups,
+                              join_action,
                               join_subgroup, list_communities, most_recent_group,
                               refresh_community)
 from core.participant_names import person_name
@@ -321,7 +322,7 @@ class CommunitiesDialog(CommunityAdminActions, BackgroundWork, wx.Dialog):
             if self._groups.GetCount():
                 self._groups.SetFocus()
             elif self._selected() is not None:
-                self._announce(self._i18n.t("communities_no_groups"))
+                self._announce(self._i18n.t(empty_groups_key(self._selected(), self._filter)))
             return True
         if focus is self._groups:
             self._on_open(None)
