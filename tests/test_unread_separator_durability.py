@@ -350,6 +350,7 @@ class _FocusStub(_Stub):
     a base continuar carregando só o que a manutenção do separador usa."""
 
     _on_message_focused = ConversationsPanel._on_message_focused
+    _update_focused_row_controls = ConversationsPanel._update_focused_row_controls
     _should_dismiss_unread_separator = staticmethod(
         ConversationsPanel._should_dismiss_unread_separator
     )

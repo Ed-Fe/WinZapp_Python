@@ -532,11 +532,21 @@ class MessageListMixin:
             else:
                 self._load_older_messages()
 
+        self._update_focused_row_controls(idx)
+        event.Skip()
+
+    def _update_focused_row_controls(self, idx: int):
+        """The controls after the list that belong to the focused row:
+        Retornar ligação, Ler mais, the inline poll and Reações.
+
+        Also called after a rebuild (populate_messages()), where the focused
+        row can be another message with no focus event of its own: opening
+        another conversation left the previous one's Reações and Ler mais on
+        screen, and Tab from the list reached them."""
         self._update_return_call_button(idx)
         self._update_read_more_button(idx)
         self._update_inline_poll(idx)
         self._update_reactions_button(idx)
-        event.Skip()
 
     def _update_return_call_button(self, idx: int):
         """Show "Retornar ligação" only while a returnable missed call is focused."""

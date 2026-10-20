@@ -430,6 +430,7 @@ def test_focusing_the_row_does_not_mark_the_conversation_read(monkeypatch):
 
     class _Stub(_Panel):
         _on_message_focused = ConversationsPanel._on_message_focused
+        _update_focused_row_controls = ConversationsPanel._update_focused_row_controls
         _is_separator = ConversationsPanel._is_separator
         _should_dismiss_unread_separator = staticmethod(
             ConversationsPanel._should_dismiss_unread_separator)
