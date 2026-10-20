@@ -91,7 +91,7 @@ import objc
 import wx
 from Foundation import NSAttributedString, NSBundle, NSError, NSObject, NSSet, NSURL
 
-from . import (coord_mac, install_on_quit, provenance, sparkle_notes, sparkle_policy as policy,
+from . import (coord_mac, install_on_quit, provenance, provenance_messages, sparkle_notes, sparkle_policy as policy,
                update_accounts as accounts, updater_mac)
 
 ARCH = updater_mac.ARCH
@@ -169,7 +169,8 @@ def _show_refusal(detail):
     mw = _state["mw"]
     try:
         i18n = mw.i18n
-        text = f"{i18n.t('error').format(app_name='WinZapp')}\n\n{detail}"
+        message = provenance_messages.user_detail(detail, i18n.t)
+        text = f"{i18n.t('error').format(app_name='WinZapp')}\n\n{message}"
         mw.output(text, interrupt=True)
         wx.MessageBox(text, i18n.t("update_available_title"), wx.OK | wx.ICON_ERROR, mw)
     except Exception:
@@ -807,7 +808,8 @@ class WinZappSparkleDelegate(NSObject):
                 return True, None
             if action == policy.REFUSE:
                 logging.error("[sparkle_mac] refusing %s: %s", tag or "an appcast item", detail)
-                return False, _error(policy.REFUSED, detail)
+                return False, _error(policy.REFUSED,
+                                     provenance_messages.user_detail(detail, _state["mw"].i18n.t))
             if not _state["checking"]:
                 _check_offer(tag, check)
             elif check == policy.CHECK_USER:

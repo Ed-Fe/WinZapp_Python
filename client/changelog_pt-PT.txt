@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de definições reorganizada, alé
 
 NOVIDADES
 
+- As atualizações do macOS explicam se a verificação falhou devido a um problema de ligação, certificado, servidor ou limite de pedidos do GitHub, e se não foi possível verificar o ficheiro de verificação ou a etiqueta da versão oficial. As falhas temporárias de ligação e servidor são repetidas uma vez; os limites de pedidos mostram um tempo de espera e não geram novos pedidos durante esse período.
+
 - Atualizações: a instalação mantém a exclusividade depois de o WinZapp fechar, e o pacote descarregado que aguarda instalação é preservado. Só uma cópia completa conta como sucesso; uma atualização bem-sucedida remove o aviso de falha anterior. A reabertura automática espera que o instalador termine e não ocorre quando o limite de espera é atingido. Após uma cópia incompleta ou não confirmada, o WinZapp permanece fechado e abre instruções de recuperação no Bloco de Notas.
 
 - As chamadas de voz preservam a temporização entre os pacotes de áudio e usam conversão com limitação de banda quando o microfone ou o altifalante precisa de outra frequência de amostragem. O áudio que já está na frequência da chamada continua pelo percurso direto.
