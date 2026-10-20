@@ -124,10 +124,23 @@ tag's checkout would make `UpdateChecker` offer the running release on every
 check.
 
 **What is verified, in this order.** Any failure, or any answer that is not a
-clean 200, is a refusal: nothing is installed. Offline, a timeout, an HTTP
-403/429 or 5xx all say "GitHub unreachable or rate-limited, try again later"
-and the next update check retries. Every request has a per-read timeout of
-15 s and a total deadline of 30 s; each read is made in small chunks and
+clean 200, is a refusal: nothing is installed. Verification failures now
+distinguish DNS, connection, timeout, TLS/certificate, access denial, rate
+limit, missing resource and server failure. The selected language explains
+whether fetching the provenance file or checking the official tag failed;
+diagnostics never include the exception's URL, body or certificate text.
+Only transient DNS/connection/timeout/5xx failures get one retry after one
+second, within the same 30-second request budget. A 403 is a rate limit only
+with a quota/Retry-After hint; other 403 responses remain access denials.
+A server response carrying Retry-After is reported with that wait instead
+of being retried early.
+429 and confirmed quota failures respect Retry-After (seconds or HTTP date)
+and the primary quota reset when supplied; otherwise the wait is 60 seconds.
+Further checks on that host in this process wait out that interval without
+another request. This is a negative cooldown, never a cached approval.
+TLS, redirects, oversized answers and provenance mismatches are not retried
+or bypassed. Every request has a per-read timeout of 15 s and a total
+deadline of 30 s, including its retry; each read is made in small chunks and
 waits at most for what is left of the deadline, so a server trickling bytes
 cannot hold a request open past it.
 

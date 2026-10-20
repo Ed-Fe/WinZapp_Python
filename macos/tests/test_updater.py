@@ -98,6 +98,31 @@ def test_an_unverifiable_release_is_not_installed(monkeypatch):
     assert raw is None and "could not verify" in detail
 
 
+def test_release_asset_failures_keep_their_stage_for_translation(monkeypatch):
+    monkeypatch.setattr(um, "_info", lambda: {"WinZappMacReleasesRepo": "rocco-labs/WinZapp_Python",
+                                             "WinZappReleaseTag": "v3.0.0.4557alpha"})
+    def failed(url):
+        raise um.provenance.ProvenanceError("safe diagnostic", code="tls")
+    monkeypatch.setattr(um.provenance, "fetch_release_asset", failed)
+    raw, detail = um.release_provenance("3.0.0.4573alpha")
+    assert raw is None and (detail.code, detail.stage) == ("tls", "verification_file")
+
+
+def test_legacy_error_dialog_translates_verification_failures_without_a_window(monkeypatch):
+    from types import SimpleNamespace
+    shown, ended = [], []
+    strings = {"error": "{app_name} error", "mac_update_verify_file": "FILE:{reason}",
+               "mac_update_verify_tls": "CERTIFICATE"}
+    detail = um.provenance.ProvenanceError("safe diagnostic", code="tls").detail("verification_file")
+    stub = SimpleNamespace(_version="3.0.0.4573alpha",
+                           _mw=SimpleNamespace(i18n=SimpleNamespace(t=lambda k: strings.get(k, k))),
+                           EndModal=ended.append)
+    monkeypatch.setattr(um.wx, "CallAfter", lambda fn: fn())
+    monkeypatch.setattr(um.wx, "MessageBox", lambda text, *a: shown.append(text))
+    um.MacUpdateProgress._fail(stub, detail)
+    assert shown == ["WinZapp error\n\nFILE:CERTIFICATE"] and ended == [um.wx.ID_CANCEL]
+
+
 def test_the_provenance_url_is_built_from_the_release_repo_and_tag(monkeypatch):
     seen = []
     monkeypatch.setattr(um, "_info", lambda: {"WinZappMacReleasesRepo": "rocco-labs/WinZapp_Python", "WinZappReleaseTag": "v2.0.0.1"})

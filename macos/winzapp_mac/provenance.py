@@ -59,12 +59,19 @@ What this does NOT prove
 """
 
 import hashlib
+import http.client
 import json
+import math
 import os
 import re
+import socket
+import ssl
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from email.utils import parsedate_to_datetime
 
 # Pinned here: not read from the plist, not from the provenance file.
 OFFICIAL_REPO = "gabrielhhaber/WinZapp_Python"
@@ -98,6 +105,19 @@ _PRE = {"alpha": 1, "beta": 2, "": 3}
 
 class ProvenanceError(Exception):
     """Anything that stops a release from being verified."""
+
+    def __init__(self, message, *, code="", retry_after=0):
+        super().__init__(message)
+        self.code, self.retry_after = code, retry_after
+
+    def detail(self, stage):
+        detail = VerificationDetail(f"could not verify commit provenance: {self}")
+        detail.code, detail.stage, detail.retry_after = self.code, stage, self.retry_after
+        return detail
+
+
+class VerificationDetail(str):
+    """Keep safe network metadata until the UI translates it; still a str for logs."""
 
 
 def provenance_name(arch):
@@ -301,7 +321,7 @@ def verify_release(raw, tag, running_tag, fetch, running_commit=""):
             raise ProvenanceError(
                 "the release tag in the official repository points at another commit")
     except ProvenanceError as exc:
-        return False, f"could not verify commit provenance: {exc}"
+        return False, exc.detail("official_tag")
     return True, "ok"
 
 
@@ -342,6 +362,50 @@ _ASSET_OPENER = urllib.request.build_opener(_HttpsRedirectOnly)
 
 
 UNREACHABLE = "GitHub unreachable or rate-limited, try again later"
+_RATE_LIMITS = {}                 # host -> monotonic deadline; never a cached positive verdict
+_RATE_LOCK = threading.Lock()
+
+
+def _rate_wait(headers):
+    """Read only bounded numeric/date hints, never an error body or URL."""
+    waits = []
+    for field, value in headers.items():
+        value = str(value).strip()
+        if len(value) > 64:
+            continue
+        if field.lower() == "retry-after":
+            try:
+                wait = int(value) if re.fullmatch(r"[0-9]{1,10}", value) else (
+                    parsedate_to_datetime(value).timestamp() - time.time())
+                waits.append(max(1, math.ceil(wait)))
+            except (ValueError, TypeError, OverflowError, OSError):
+                pass
+        elif field.lower() == "x-ratelimit-reset" and headers.get("x-ratelimit-remaining") == "0":
+            if re.fullmatch(r"[0-9]{1,10}", value):
+                waits.append(max(1, math.ceil(int(value) - time.time())))
+    return max(waits, default=60)
+
+
+def _http_failure(status, headers):
+    headers = {key.lower(): str(value) for key, value in (headers or {}).items()}
+    if status == 429 or (status == 403 and (
+            headers.get("x-ratelimit-remaining") == "0" or headers.get("retry-after"))):
+        return ProvenanceError(UNREACHABLE + " (rate_limited)", code="rate_limited",
+                               retry_after=_rate_wait(headers))
+    code = ("access_denied" if status == 403 else "not_found" if status == 404
+            else "server" if status >= 500 else "http_error")
+    wait = _rate_wait(headers) if code == "server" and headers.get("retry-after") else 0
+    return ProvenanceError(f"HTTP {status}", code=code, retry_after=wait)
+
+
+def _network_failure(exc):
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    code = ("tls" if isinstance(reason, ssl.SSLError) else
+            "dns" if isinstance(reason, socket.gaierror) else
+            "timeout" if isinstance(reason, TimeoutError) else
+            "connection" if isinstance(reason, (OSError, http.client.HTTPException))
+            or isinstance(exc, urllib.error.URLError) else "unexpected")
+    return ProvenanceError(f"{UNREACHABLE} ({code})", code=code)
 
 
 def _limit_wait(resp, remaining):
@@ -363,7 +427,7 @@ def _chunks(resp, deadline_at, size=CHUNK):
     while True:
         remaining = deadline_at - time.monotonic()
         if remaining <= 0:
-            raise ProvenanceError(UNREACHABLE)
+            raise ProvenanceError(UNREACHABLE, code="timeout")
         _limit_wait(resp, remaining)
         data = read(size)
         if not data:
@@ -372,31 +436,51 @@ def _chunks(resp, deadline_at, size=CHUNK):
 
 
 def _read(opener, url, limit, headers):
+    """At most two small GETs sharing one deadline. No retry for a trust refusal.
+
+    Quota responses delay subsequent checks on the same host in this process;
+    no sleep through a rate-limit window, and no cached verification success.
+    """
     req = urllib.request.Request(url, headers=dict(headers, **{"User-Agent": "WinZapp-macOS"}))
+    host = urllib.parse.urlsplit(url).netloc
+    with _RATE_LOCK:
+        wait = math.ceil(_RATE_LIMITS.get(host, 0) - time.monotonic())
+    if wait > 0:
+        raise ProvenanceError(UNREACHABLE + " (rate_limited)", code="rate_limited", retry_after=wait)
     deadline_at = time.monotonic() + DEADLINE
-    try:
-        with opener.open(req, timeout=TIMEOUT) as resp:
-            if resp.status != 200:
-                raise ProvenanceError(UNREACHABLE if resp.status in (403, 429) or resp.status >= 500
-                                      else f"HTTP {resp.status}")
-            final = resp.geturl()
-            if not final.lower().startswith("https://"):
-                raise ProvenanceError("answer did not come over HTTPS")
-            chunks, size = [], 0
-            for chunk in _chunks(resp, deadline_at):
-                chunks.append(chunk)
-                size += len(chunk)
-                if size > limit:
-                    raise ProvenanceError("answer is too large")
-    except ProvenanceError:
-        raise
-    except urllib.error.HTTPError as exc:
-        # 3xx lands here (redirects are refused); 403/429 is the rate limit.
-        raise ProvenanceError(UNREACHABLE if exc.code in (403, 429) or exc.code >= 500
-                              else f"HTTP {exc.code}")
-    except Exception:
-        raise ProvenanceError(UNREACHABLE)
-    return b"".join(chunks), final
+    for attempt in range(2):
+        try:
+            remaining = deadline_at - time.monotonic()
+            if remaining <= 0:
+                raise ProvenanceError(UNREACHABLE, code="timeout")
+            with opener.open(req, timeout=min(TIMEOUT, remaining)) as resp:
+                if resp.status != 200:
+                    raise _http_failure(resp.status, getattr(resp, "headers", {}))
+                final = resp.geturl()
+                if not final.lower().startswith("https://"):
+                    raise ProvenanceError("answer did not come over HTTPS")
+                chunks, size = [], 0
+                for chunk in _chunks(resp, deadline_at):
+                    chunks.append(chunk)
+                    size += len(chunk)
+                    if size > limit:
+                        raise ProvenanceError("answer is too large")
+                return b"".join(chunks), final
+        except ProvenanceError as exc:
+            failure = exc
+        except urllib.error.HTTPError as exc:
+            failure = _http_failure(exc.code, exc.headers)
+            exc.close()
+        except Exception as exc:
+            failure = _network_failure(exc)
+        if failure.code == "rate_limited":
+            with _RATE_LOCK:
+                _RATE_LIMITS[host] = max(_RATE_LIMITS.get(host, 0),
+                                         time.monotonic() + failure.retry_after)
+        if attempt or failure.retry_after or failure.code not in {"server", "connection", "dns", "timeout"} or (
+                deadline_at - time.monotonic() <= 1):
+            raise failure from None
+        time.sleep(1)              # only the verification worker, never the UI thread
 
 
 def download_file(url, dest, progress=None, opener=None, limit=MAX_ZIP_BYTES,
