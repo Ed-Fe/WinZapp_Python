@@ -37,6 +37,7 @@ from core.call_log import (
     is_call_log,
 )
 from core.remote_deletions import message_timestamp_seconds
+from core.revoked_copies import mark_copies_revoked
 from core.utils import (
     effective_unread_count,
     is_message_forwarded,
@@ -89,11 +90,35 @@ class MessageEventsMixin:
             except Exception as e:
                 logging.error(f"[_apply_remote_revoke] Failed to persist revoked message: {e}")
         self._msg_bg_executor.submit(_bg_persist)
+        self._revoke_stored_copies(remote_jid, msg_id, existing["message"])
 
         if hasattr(self, "conversations_panel"):
             wx.CallAfter(self.conversations_panel.on_message_revoked, msg_id)
         self._schedule_set_chats()
         return True
+
+    def _revoke_stored_copies(self, remote_jid: str, msg_id: str, message) -> None:
+        """Every other stored copy of the revoked message becomes the
+        tombstone too, and the chat's last message is decided again — so the
+        chat list says "message deleted" now, not after another conversation
+        is opened (core/revoked_copies.py)."""
+        chats = getattr(self, "chats", None) or {}
+        if not chats:
+            return
+        candidates = [remote_jid, self._normalize_jid(remote_jid),
+                      getattr(self, "_lid_to_phone", {}).get(remote_jid, ""),
+                      getattr(self, "_phone_to_lid", {}).get(self._normalize_jid(remote_jid), "")]
+        for jid in dict.fromkeys(j for j in candidates if j):
+            chat = chats.get(jid)
+            if not chat:
+                continue
+            records = chat.get("messages", {}).get("messages", {}).get("records", [])
+            mark_copies_revoked(records, msg_id, message,
+                                drop_keys=(stored_transcription.TRANSCRIPTION_KEY,))
+            try:
+                self._recompute_chat_last_message(jid)
+            except Exception:
+                logging.exception("[_apply_remote_revoke] recomputing the chat preview failed")
 
     #: WhatsApp Web's "arrived, not decrypted yet" placeholder. It is followed
     #: by the real message under the same key.id.
