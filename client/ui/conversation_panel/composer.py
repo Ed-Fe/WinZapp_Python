@@ -201,9 +201,12 @@ class ComposerMixin:
         if self._is_recording or self._attachment_panel.IsShown():
             return
         msg = self.message_field.GetValue()
+        # A conversation's draft put back (message_drafts.py): nobody typed it
+        # just now, so no "typing..." for the contact and no spelling cue.
+        restoring = getattr(self, "_restoring_draft", False)
         spell_checker = getattr(self, "_spell_checker", None)
         if spell_checker is not None:
-            if self._spell_check_enabled():
+            if self._spell_check_enabled() and not restoring:
                 spell_checker.text_changed(msg)
             else:
                 # Keep the checker's view of the field current while it is
@@ -223,6 +226,8 @@ class ComposerMixin:
             self._record_voice_alt_btn.Show()
             if hasattr(self, "_record_voice_system_btn"):
                 self._record_voice_system_btn.Show()
+        if restoring:
+            return
         # Sync typing status with WPPConnect (only on state transitions)
         if self.conversation is not None:
             jid = self.conversation.get("remoteJid", "")

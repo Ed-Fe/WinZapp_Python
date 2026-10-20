@@ -149,6 +149,7 @@ class _HotkeyCapture(wx.TextCtrl):
 
 from core.utils import DEFAULT_SETTINGS, SEARCH_NORMALIZATION_MODES, search_normalization_mode, GROUP_MEDIA_TYPES, AUTO_DOWNLOAD_MEDIA_TYPES
 from core import save_location
+from core import message_drafts
 from core.profile_backup import (
     CLOSE_HOURS_MINIMUM, DEFAULT_CLOSE_HOURS, DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM,
     parse_hours_field, stored_hours,
@@ -1686,6 +1687,21 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         chats_sizer.Add(self._keep_pinned_order_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
 
+        # What happens to what was typed and not sent when the conversation is
+        # left (core/message_drafts.py MODES, in this order).
+        self._message_draft_radio = wx.RadioBox(
+            self._chats_page,
+            label=i18n.t("ui_message_draft_label"),
+            choices=[
+                i18n.t("ui_message_draft_keep_in_field"),
+                i18n.t("ui_message_draft_per_conversation"),
+                i18n.t("ui_message_draft_discard"),
+            ],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        chats_sizer.Add(self._message_draft_radio, 0, wx.EXPAND | wx.ALL, 8)
+
         self._bulk_action_shortcuts_cb = wx.CheckBox(
             self._chats_page, label=i18n.t("ui_bulk_action_shortcuts")
         )
@@ -2307,6 +2323,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "keep_pinned_chat_order", False
         )
         self._keep_pinned_order_cb.SetValue(bool(keep_pinned_order))
+
+        self._message_draft_radio.SetSelection(
+            message_drafts.MODES.index(message_drafts.mode(self.main_window.settings)))
 
         preserve_typed_caption = self.main_window.settings.get("user_interface", {}).get(
             "preserve_typed_text_as_attachment_caption", True
@@ -3715,6 +3734,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "keep_pinned_chat_order"
         ] = self._keep_pinned_order_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
+            message_drafts.SETTING
+        ] = message_drafts.MODES[max(self._message_draft_radio.GetSelection(), 0)]
+        self.main_window.settings.setdefault("user_interface", {})[
             "preserve_typed_text_as_attachment_caption"
         ] = self._preserve_typed_caption_cb.GetValue()
         self.main_window.settings.setdefault("user_interface", {})[
@@ -4356,6 +4378,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._hide_unnamed_sender_numbers_cb.SetHelpText(i18n.t("ui_hide_unnamed_sender_numbers_help"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._keep_pinned_order_cb.SetLabel(i18n.t("ui_keep_pinned_chat_order"))
+        self._message_draft_radio.SetLabel(i18n.t("ui_message_draft_label"))
+        for _i, _key in enumerate(("ui_message_draft_keep_in_field",
+                                   "ui_message_draft_per_conversation",
+                                   "ui_message_draft_discard")):
+            self._message_draft_radio.SetItemLabel(_i, i18n.t(_key))
         self._show_link_previews_cb.SetLabel(i18n.t("ui_show_link_previews_label"))
         self._show_yesterday_label_cb.SetLabel(i18n.t("ui_show_yesterday_label"))
         self._forwarded_prefix_cb.SetLabel(i18n.t("ui_forwarded_prefix_label"))

@@ -339,7 +339,11 @@ class ConversationNavigationMixin:
             self._search_panel.Hide()
             self._search_open_btn.Show()
             self._search_field.SetValue("")
+        # The field's text stays with the conversation it was typed in
+        # (message_drafts.py): kept for the one being left, put back for this.
+        self._stash_message_draft()
         self.conversation = conversation
+        self._restore_message_draft()
         self._begin_pinned_messages_visit()
 
         # Load up to 200 messages from local DB when opening conversation to support fast startup
@@ -605,6 +609,7 @@ class ConversationNavigationMixin:
         self.selected_messages.clear()
         self._reset_expanded_window()
         closed_jid = self._last_open_jid
+        self._stash_message_draft()
         self.conversation = None
         self._conversation_origin = None
         self._voice_call_btn.Hide()
