@@ -72,6 +72,7 @@ from core.message_edit import (
     response_not_sent,
 )
 from core.i18n import I18n
+from core import log_level
 from core.remote_deletions import (
     comparable_local_ids,
     comparable_local_records,
@@ -502,6 +503,8 @@ class MainWindow(
         self.settings = {}
         logging.info("MainWindow: Loading settings...")
         self.load_settings()
+        # setup_logging() started at INFO, before there were settings to read.
+        log_level.apply_log_level(self.settings)
 
         # The CUDA libraries a previous session downloaded are on no loader
         # search path when this process starts, so without this call a user who
@@ -1844,7 +1847,7 @@ def setup_logging():
 
         # Silence very noisy third-party libraries
         for _lib in ("urllib3", "requests", "socketio", "engineio",
-                     "charset_normalizer", "websocket", "PIL"):
+                     "charset_normalizer", "websocket", "PIL", "comtypes"):
             logging.getLogger(_lib).setLevel(logging.ERROR)
 
         logging.warning("WinZapp client starting up...")
@@ -1912,11 +1915,18 @@ if __name__ == "__main__":
         #    progress, don't start into a file-swap; otherwise claim a runtime
         #    lease so the updater won't swap files under us (plan Zad 2.2/2.-1).
         os.makedirs(gd, exist_ok=True)
-        if update_coord.is_update_in_progress(gd):
-            sys.exit(0)
-        _runtime_lease = update_coord.try_create_runtime_lease(gd)
-        if _runtime_lease is None:
-            sys.exit(0)  # an update slipped in between the check and the claim
+        import startup_exit_notice
+        # Not silent: a stuck updater left WinZapp "not opening" with no
+        # message and no log line (startup_exit_notice.py).
+        _runtime_lease = None
+        if not update_coord.is_update_in_progress(gd):
+            _runtime_lease = update_coord.try_create_runtime_lease(gd)
+        if _runtime_lease is None:  # in progress, or one slipped in before the claim
+            # A box would hold WinZapp.exe while the installer copies over it:
+            # only a stuck update gets one.
+            startup_exit_notice.leave_startup(
+                startup_exit_notice.update_exit_reason(update_coord.update_state_age(gd)),
+                background=background)
         atexit.register(update_coord.release_runtime_lease, gd, _runtime_lease)
 
         # 2) One-time legacy flat-data migration, then resolve which account.
@@ -1984,17 +1994,23 @@ if __name__ == "__main__":
         if not first_instance:
             # Another process already runs THIS account: ask it to come to the
             # foreground via account-scoped IPC (not a title match), then exit.
+            _reason = startup_exit_notice.ALREADY_RUNNING_BACKGROUND
             if not background:
+                _reason = startup_exit_notice.ACCOUNT_NOT_ANSWERING
                 try:
                     import ipc
                     # The running process comes to the foreground either way;
                     # with a link it also opens the join dialog.
-                    if not (_invitation_link and ipc.request_open_link(
-                            gd, _account_id, _invitation_link)):
-                        ipc.request_activate(gd, _account_id, source=startup_source)
+                    if ((_invitation_link and ipc.request_open_link(
+                            gd, _account_id, _invitation_link))
+                            or ipc.request_activate(gd, _account_id, source=startup_source)):
+                        _reason = startup_exit_notice.ACTIVATED
                 except Exception:
                     pass
-            sys.exit(0)
+            # The lease goes before the box: alive, it stops an update.
+            startup_exit_notice.leave_startup(
+                _reason, background=background, account_id=_account_id,
+                release=lambda: update_coord.release_runtime_lease(gd, _runtime_lease))
 
         setup_logging()
         logging.info("Instance lock acquired for account %s (%s).", _account_id, _account_name)

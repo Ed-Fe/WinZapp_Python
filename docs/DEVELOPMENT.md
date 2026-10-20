@@ -78,8 +78,13 @@ pytest tests/test_database.py::TestChats::test_upsert_chat_creates_record  # a s
 
 Tests cover the async SQLite storage layer and the pure-logic pieces of the client (name resolution, notification formatting, message classification, etc.) using small stand-in objects, since the wxPython UI classes cannot be instantiated without a running `wx.App`.
 
-Run one test process at a time, without xdist workers. A local full run is
-reserved for changes spanning shared helpers or several subsystems. Real
+On your own machine, run one test process at a time, without xdist workers:
+the machine also runs WinZapp, and parallel runs froze it (CLAUDE.md, rule 7).
+A local full run is reserved for changes spanning shared helpers or several
+subsystems. A cloud session (Claude Code on the web) has no WinZapp to
+disturb: there `pytest -n auto`, `--shard K/N` and several agents at once are
+fine, and CI itself runs the suite in 4 shards with `-n auto`
+(`tests/ci_shards.py`). Real
 dialog tests (`wxgui`) are skipped locally: `--run-wx-gui` and
 `WINZAPP_RUN_WX_GUI_TESTS=1` are CI-only. Synthetic `load` tests are skipped
 unless `--run-load` is passed or CI is set; remote-model `network` tests have

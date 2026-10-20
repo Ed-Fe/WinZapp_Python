@@ -10,8 +10,14 @@ import logging
 import mimetypes
 import os
 import threading
+import requests
 import wx
-from status_tab.status_rules import _post_was_rejected
+from status_tab.status_rules import (
+    STATUS_POST_UNCONFIRMED,
+    _post_was_rejected,
+    status_upload_timeout,
+)
+from status_tab.unsent_status import FAILED, MEDIA, TEXT, UNCONFIRMED, unsent_post
 from core.api_client import (
     api_post,
     redact_api_url,
@@ -117,7 +123,7 @@ class StatusComposerMixin:
         them beside the status list made the main screen needlessly crowded.
         """
         self._hide_post_panels()
-        self._viewer_panel.Hide()
+        self._hide_status_viewer()
         self._video_player.stop()
         for widget in (
             self._add_status_btn,
@@ -142,6 +148,10 @@ class StatusComposerMixin:
             widget.Show()
         self.Layout()
         self._status_list.SetFocus()
+        if getattr(self, "_unsent_redraw_pending", False):
+            # A post that failed while composing waited for the list
+            # (status_tab/unsent_status.py).
+            wx.CallAfter(self._flush_unsent_redraw)
 
     # ── Record & post voice status ───────────────────────────────────────────
 
@@ -171,12 +181,34 @@ class StatusComposerMixin:
 
         self._voice_start_btn.SetFocus()
 
+    # ── One post at a time ───────────────────────────────────────────────────
+    #
+    # Post sends in the background and the composer stays open until it ends:
+    # a video takes a while to upload, and a second press of Post (or Enter)
+    # started a second upload, so the status went out twice. Every post press
+    # goes through _begin_status_post(); the post ends in _end_status_post(),
+    # whatever its outcome.
+
+    def _begin_status_post(self) -> bool:
+        i18n = self.main_window.i18n
+        if getattr(self, "_status_post_in_flight", False):
+            self.main_window.output(i18n.t("status_post_in_progress"), interrupt=True)
+            return False
+        self._status_post_in_flight = True
+        self.main_window.output(i18n.t("status_posting"), interrupt=True)
+        return True
+
+    def _end_status_post(self):
+        self._status_post_in_flight = False
+
     # ── Send text status ─────────────────────────────────────────────────────
 
     def _on_send_text_status(self, event):
         text    = normalize_line_separators(self._post_text_field.GetValue()).strip()
         caption = normalize_line_separators(self._caption_field.GetValue()).strip()
         if not text and not caption:
+            return
+        if not self._begin_status_post():
             return
         content = text or caption
         threading.Thread(
@@ -197,12 +229,13 @@ class StatusComposerMixin:
                 "font": 2,
             }
         }
+        unconfirmed = False
         try:
             resp = api_post(url, json=payload, headers=headers, timeout=60)
             ok   = resp.status_code in (200, 201)
             logging.info(
                 "[status_post] POST %s -> HTTP %s, body=%.300s",
-                url, resp.status_code, (resp.text or "")[:300],
+                redact_api_url(url), resp.status_code, (resp.text or "")[:300],
             )
             if ok:
                 # Guard against the false-success path: with the status.layer.js
@@ -216,12 +249,30 @@ class StatusComposerMixin:
                         ok = False
                 except Exception:
                     pass
+        except requests.exceptions.Timeout as exc:
+            ok = False
+            # Sent, and no answer: it may be up (see _send_media_status_bg()).
+            unconfirmed = not isinstance(exc, requests.exceptions.ConnectTimeout)
+            logging.warning("[status_post] POST %s for %s", "unconfirmed" if unconfirmed
+                            else "failed", redact_api_url(url))
         except Exception as exc:
             ok = False
             logging.warning("[status_post] POST failed for %s: %s",
                             redact_api_url(url), exc)
+        wx.CallAfter(self._end_status_post)
+        if not ok:
+            # Kept in the Status list to try again (status_tab/unsent_status.py).
+            wx.CallAfter(self._remember_unsent_status, unsent_post(
+                TEXT, UNCONFIRMED if unconfirmed else FAILED, text=text))
         if ok:
             wx.CallAfter(self._on_status_sent)
+        elif unconfirmed:
+            wx.CallAfter(
+                wx.MessageBox,
+                mw.i18n.t("status_post_unconfirmed"),
+                mw.app_name,
+                wx.OK | wx.ICON_WARNING,
+            )
         else:
             wx.CallAfter(
                 wx.MessageBox,
@@ -294,6 +345,8 @@ class StatusComposerMixin:
     def _on_send_media_status(self, event):
         if not self._selected_media_paths:
             return
+        if not self._begin_status_post():
+            return
         caption = normalize_line_separators(self._media_caption_field.GetValue()).strip()
         paths = list(self._selected_media_paths)
         threading.Thread(
@@ -320,7 +373,7 @@ class StatusComposerMixin:
         remembering to catch everything.
         """
         mw = self.main_window
-        failures = 0
+        failures = unconfirmed = 0
         for path in paths:
             ext = os.path.splitext(path)[1].lower()
             try:
@@ -337,8 +390,24 @@ class StatusComposerMixin:
             except Exception:
                 logging.exception("[status] Unexpected failure sending %s as status", path)
                 ok = False
-            if not ok:
+            if ok == STATUS_POST_UNCONFIRMED:
+                unconfirmed += 1
+            elif ok is not True:
                 failures += 1
+            if ok is not True:
+                # Kept in the Status list to try again (status_tab/unsent_status.py).
+                wx.CallAfter(self._remember_unsent_status, unsent_post(
+                    MEDIA, UNCONFIRMED if ok == STATUS_POST_UNCONFIRMED else FAILED,
+                    path=path, caption=caption))
+        wx.CallAfter(self._end_status_post)
+        if unconfirmed:
+            # It may be up already: look before posting again.
+            wx.CallAfter(
+                wx.MessageBox,
+                mw.i18n.t("status_post_unconfirmed"),
+                mw.app_name,
+                wx.OK | wx.ICON_WARNING,
+            )
         if failures:
             wx.CallAfter(
                 wx.MessageBox,
@@ -347,7 +416,7 @@ class StatusComposerMixin:
                 wx.OK | wx.ICON_ERROR,
             )
 
-    def _send_media_status_bg(self, path: str, caption: str, report_result: bool = True) -> bool:
+    def _send_media_status_bg(self, path: str, caption: str, report_result: bool = True):
         mw = self.main_window
         ext      = os.path.splitext(path)[1].lower()
         mimetype = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -396,13 +465,22 @@ class StatusComposerMixin:
             "caption": caption,
         }
         try:
-            resp = api_post(url, json=payload, headers=headers, timeout=60)
+            resp = api_post(url, json=payload, headers=headers,
+                            timeout=status_upload_timeout(os.path.getsize(path)))
             ok   = resp.status_code in (200, 201)
             if not ok:
                 logging.warning(
                     "[status media] %s failed: HTTP %s: %s",
                     endpoint, resp.status_code, (resp.text or "")[:200],
                 )
+        except requests.exceptions.Timeout as exc:
+            if not isinstance(exc, requests.exceptions.ConnectTimeout):
+                # Sent, and no answer: it may be up. Never reported as failed,
+                # which invited posting the same status again.
+                logging.warning("[status media] %s unconfirmed: timed out", endpoint)
+                return STATUS_POST_UNCONFIRMED
+            ok = False
+            logging.warning("[status media] %s failed: %s", endpoint, type(exc).__name__)
         except Exception as exc:
             ok = False
             logging.warning("[status media] %s failed: %s", endpoint, exc)

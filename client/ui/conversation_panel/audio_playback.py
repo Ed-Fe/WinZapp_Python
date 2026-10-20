@@ -18,6 +18,7 @@ from core.utils import (
     is_voice_message,
 )
 from core.audio_transcode import transcode_audio_to_wav
+from core import playback_controls
 
 
 class AudioPlaybackMixin:
@@ -963,9 +964,12 @@ class AudioPlaybackMixin:
             return False
 
     def _show_audio_controls(self):
-        self.audio_speed_btn.Show()
-        self.audio_progress_label.Show()
-        self.audio_slider.Show()
+        # Each may be left out in Settings (core/playback_controls.py); the
+        # shortcuts act on the stream either way.
+        speed, progress = playback_controls.shown(getattr(self.main_window, "settings", None))
+        self.audio_speed_btn.Show(speed)
+        self.audio_progress_label.Show(progress)
+        self.audio_slider.Show(progress)
         self.conversation_panel.Layout()
 
     def _hide_audio_controls(self):

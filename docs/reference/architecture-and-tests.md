@@ -65,10 +65,13 @@ an idempotent corruption repair has a different contract.
 
 ## Verification boundaries
 
-Run touched test modules serially in the existing environment. At most one
-completed serial full run is needed for a cross-cutting change. Do not use
-`-n auto`, create another environment or enable GUI tests on the maintainer's
-desktop. `hidden_frame()` is the native off-screen frame factory; real dialog
+In a local session, run touched test modules serially in the existing
+environment. At most one completed serial full run is needed for a
+cross-cutting change. Do not use `-n auto`, run several agents at once, create
+another environment or enable GUI tests on the maintainer's desktop. A cloud
+session is exempt from all of that but the GUI tests: parallel runs
+(`-n auto`, `--shard K/N`) and several agents are fine there, as in CI
+(`tests/ci_shards.py`). `hidden_frame()` is the native off-screen frame factory; real dialog
 tests retain the `wxgui` marker and run in CI.
 
 Default local pytest skips real dialogs, synthetic load scenarios and opted-out

@@ -394,12 +394,17 @@ def test_the_help_text_names_the_call_keys():
     assert 'call_answer_hotkey_label' in text and 'call_end_hotkey_label' in text
 
 
+def _tree_on(shortcut):
+    """The shortcuts tree (shortcuts_tab.py) with *shortcut*'s row selected."""
+    item = SimpleNamespace(IsOk=lambda: True)
+    return SimpleNamespace(GetSelection=lambda: item, GetItemData=lambda _item: shortcut)
+
+
 def test_removing_a_call_key_stages_none_and_applying_saves_it(monkeypatch):
     monkeypatch.setattr('ui.dialogs.shortcuts_tab.refresh_shortcuts', lambda _: None)
     dialog = settings_stub()
     dialog.main_window.settings['general'] = {}
-    dialog._shortcut_list = SimpleNamespace(GetSelection=lambda: 1)
-    dialog._shortcut_rows = visible_shortcuts(dialog.main_window)
+    dialog._shortcut_list = _tree_on(CALL_ANSWER)
     dialog._remove_shortcut()
     assert dialog._shortcut_binding(CALL_ANSWER) is None
     dialog._apply_shortcut_values()
@@ -426,8 +431,7 @@ def test_a_call_key_off_only_for_the_show_key_clash_is_not_saved_as_removed(monk
 def test_resetting_a_call_key_brings_back_the_shipped_key():
     dialog = settings_stub()
     dialog._call_hotkeys['call_end_hotkey'] = (ord('Q'), 3)
-    dialog._shortcut_list = SimpleNamespace(GetSelection=lambda: 2)
-    dialog._shortcut_rows = visible_shortcuts(dialog.main_window)
+    dialog._shortcut_list = _tree_on(CALL_END)
     dialog._reset_shortcut()
     assert dialog._call_hotkeys['call_end_hotkey'] == CALL_END_HOTKEY
 

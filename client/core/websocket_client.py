@@ -5,7 +5,7 @@ import time
 import socketio
 import wx
 import requests
-from core.community_comments import comment_count
+from core.community_comments import comment_count, parse_reply_count_event, parse_reply_preview_event
 from core.api_client import api_get, api_post
 from core.connection_lifecycle import socket_client_is_current
 from core.call_log import CALL_LOG_MESSAGE_TYPE, call_log_creator, call_log_payload
@@ -366,6 +366,7 @@ class WebSocketClient:
         self.sio.on("contacts.update", self.on_contacts_update)
         self.sio.on("presence.update", self.on_presence_update)
         self.sio.on("groups.update", self.on_groups_update)
+        self.sio.on("announcement-replies", self.on_announcement_replies)
 
         # threading.Event used by on_continue() to wait for the phoneCode that
         # WPPConnect emits asynchronously via Socket.IO after /start-session.
@@ -2386,6 +2387,21 @@ class WebSocketClient:
             return
         wx.CallAfter(self.main_window.on_media_download_progress,
                      progress_id, progress)
+
+    def on_announcement_replies(self, data):
+        """A community announcement's reply count changed (announcementReplyBridge.ts)."""
+        try:
+            if not self._belongs_to_this_session(data):
+                return
+            preview = parse_reply_preview_event(data)
+            if preview is not None:
+                wx.CallAfter(self.main_window.on_announcement_reply_preview, preview)
+                return
+            event = parse_reply_count_event(data)
+            if event is not None:
+                wx.CallAfter(self.main_window.on_announcement_reply_count, event)
+        except Exception:
+            logging.exception("[WebSocketClient] announcement-replies failed")
 
     def on_wpp_reaction(self, data):
         try:

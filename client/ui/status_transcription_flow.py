@@ -32,6 +32,10 @@ class StatusTranscriptionFlow(MessageTranscriptionFlow):
         #: The private folder of this run's download, while `start()` runs.
         self._folder = ""
 
+    def _cache_keeps_text(self, model_id):
+        """A status's text is kept under the statuses' own switch."""
+        return statuses.cache_enabled_for(self._main_window.settings, model_id)
+
     def _prepare(self):
         # Entered here and left in _cleanup(): a run without the progress
         # window outlives start(), and its download must live as long as it.

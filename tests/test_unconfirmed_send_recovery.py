@@ -29,6 +29,7 @@ fake_delete_dialog (same comment there: "mirroring
 _on_menu_delete_message()'s single-message dialog").
 """
 
+import pytest
 import inspect
 
 import wx
@@ -41,6 +42,14 @@ REMOTE = "5511999999999@s.whatsapp.net"
 
 # ── Dismiss: _on_menu_delete_message()'s cancelled_pending branch ───────────
 
+
+
+@pytest.fixture(autouse=True)
+def _call_after_runs_now(monkeypatch):
+    """The resend announcement goes through wx.CallAfter (after the focus
+    move); there is no wx.App here, so run it inline."""
+    import wx
+    monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: fn(*a, **k))
 
 class _FakeRadioButton:
     _all = []
@@ -364,6 +373,11 @@ class _FakeMainWindowForResend:
     def __init__(self):
         self.message_queue = _FakeQueue()
         self.set_chats_calls = 0
+        self.spoken = []
+        self.i18n = type("_I18n", (), {"t": staticmethod(lambda key: key)})()
+
+    def output(self, text, interrupt=False):
+        self.spoken.append(text)
 
     def _schedule_set_chats(self):
         self.set_chats_calls += 1
@@ -494,10 +508,12 @@ class TestResendMenuItemIsGatedCorrectly:
     tests/test_lid_merge_keeps_messages.py's own structural test for a
     method too large to exercise every branch of directly."""
 
-    def test_resend_is_gated_on_text_type_and_unconfirmed_flag(self):
+    def test_resend_is_gated_on_something_to_send_again(self):
+        """Failed or unconfirmed, text or attachment: core/message_resend.py
+        decides (tests/test_message_resend.py), and the menu only asks it."""
         src = inspect.getsource(ConversationsPanel.on_messages_context_menu)
-        assert 'if _is_text and msg.get("_send_unconfirmed"):' in src
-        assert "resend_message" in src
+        assert "if resend_request(msg) is not None:" in src
+        assert "resend_message" in src and "\\tCtrl+Shift+Y" in src
 
 
 class TestTheResendCarriesTheWireTextNotTheDisplayText:

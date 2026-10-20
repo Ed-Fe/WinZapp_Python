@@ -47,8 +47,18 @@ jobs:
   # suite is green. Cheap to run and fails fast, before the ~10+ minute build.
   # Nothing exists on the Releases page until `publish` runs, so a failure
   # here leaves only the tag behind — delete it and push a corrected one.
-  test:
-    name: Run test suite
+  # The suite in 4 jobs at once, each with one pytest worker per vCPU
+  # (-n auto). Every test module lands in exactly one shard, and the modules
+  # that put real wx windows up run one after another on a single worker
+  # (tests/ci_shards.py). --durations lists each shard's slowest tests, so
+  # the next slowdown has a name. One job ran ~22,000 tests in ~25 minutes.
+  test-shard:
+    name: Run test suite (shard ${{ matrix.shard }}/4)
+    strategy:
+      # Every shard to the end: one run reports every failure, not the first.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -76,7 +86,7 @@ jobs:
       # describes the code accurately. ci.yml runs them on every PR; a stale
       # sentence in a Markdown file must not be what blocks a release build.
       - name: Run pytest
-        run: uv run pytest --run-wx-gui -m "not docs"
+        run: uv run pytest --run-wx-gui -m "not docs" -n auto --shard ${{ matrix.shard }}/4 --durations=20
 
       # Alpha builds (alpha-release.yml) are versioned as
       # <major>.<minor>.<patch>.<commit count>alpha off the CURRENT stable
@@ -85,9 +95,22 @@ jobs:
       # published — and updater.py would never offer it to anyone running one,
       # stranding every alpha user permanently with no error anywhere.
       - name: Reject a stable tag that alphas have already passed
+        # Once, not once per shard.
+        if: matrix.shard == 1
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: uv run python .github/scripts/check_stable_release_ordering.py
+
+  # The suite's single verdict, under the name every `needs: test` and the
+  # branch ruleset already use: it fails when any shard did not pass.
+  test:
+    name: Run test suite
+    needs: test-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed
+        run: test "${{ needs.test-shard.result }}" = "success"
 
   # The build itself lives in build-windows.yml, which release.yml,
   # alpha-release.yml and test-build.yml all call.

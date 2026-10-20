@@ -93,11 +93,12 @@ class _List:
         self.texts[idx] = text
 
 
-def _key(code, ctrl=False, shift=False):
+def _key(code, ctrl=False, shift=False, alt=False):
     event = Mock()
     event.GetKeyCode.return_value = code
     event.ControlDown.return_value = ctrl
     event.ShiftDown.return_value = shift
+    event.AltDown.return_value = alt
     return event
 
 
@@ -109,6 +110,7 @@ class _ArchivedStub:
     _chat_selection_visible = ArchivedConversationsPanel._chat_selection_visible
     _announce_chat_selected = ArchivedConversationsPanel._announce_chat_selected
     _selection_mode_enabled = ArchivedConversationsPanel._selection_mode_enabled
+    _escape_clears_selection_enabled = ArchivedConversationsPanel._escape_clears_selection_enabled
     _selection_mode_announcement = ArchivedConversationsPanel._selection_mode_announcement
     _bulk_shortcuts_enabled = ArchivedConversationsPanel._bulk_shortcuts_enabled
     _run_bulk_chat_action = ArchivedConversationsPanel._run_bulk_chat_action
@@ -424,3 +426,35 @@ class TestArchivedRowsCarryTheMarker:
         window.archived_conversations_panel.conversations_list.texts[1] = "Beto [selected_suffix]"
         window._refresh_archived_chats_in_ui()
         assert window.archived_conversations_panel.conversations_list.texts[1] == "Beto"
+
+
+class TestEscapeClearsTheChatSelection:
+    """"Esc desmarca" (default on) clears a chat list's selection the way it
+    clears a conversation's: reported as Esc ignoring the setting there."""
+
+    def test_esc_clears_and_announces_when_the_setting_is_on(self):
+        stub = _ArchivedStub()
+        stub.selected_chats = {A, B}
+        assert stub._handle_chat_selection_key(_key(wx.WXK_ESCAPE)) is True
+        assert stub.selected_chats == set()
+        stub.main_window._refresh_archived_chats_in_ui.assert_called_once()
+        assert stub.main_window.outputs == ["[all_unselected]. [selection_mode_off]"]
+
+    def test_the_setting_off_leaves_the_selection_and_the_key_alone(self):
+        stub = _ArchivedStub(ui={"escape_clears_selection": False})
+        stub.selected_chats = {A}
+        assert stub._handle_chat_selection_key(_key(wx.WXK_ESCAPE)) is False
+        assert stub.selected_chats == {A} and stub.main_window.outputs == []
+
+    def test_nothing_selected_keeps_what_esc_did_before(self):
+        stub = _ArchivedStub()
+        assert stub._handle_chat_selection_key(_key(wx.WXK_ESCAPE)) is False
+        assert stub.main_window.outputs == []
+
+    def test_a_modified_esc_is_not_taken(self):
+        stub = _ArchivedStub()
+        stub.selected_chats = {A}
+        for event in (_key(wx.WXK_ESCAPE, ctrl=True), _key(wx.WXK_ESCAPE, shift=True),
+                      _key(wx.WXK_ESCAPE, alt=True)):
+            assert stub._handle_chat_selection_key(event) is False
+        assert stub.selected_chats == {A}

@@ -528,6 +528,11 @@
 </table>
 <p>The selection ends with the chat: when you close it, nothing stays marked.</p>
 
+<h3>Drafts, sending again and the controls after the list</h3>
+<p>The message field keeps what you typed with its conversation: leave a conversation without sending, and the text, mentions included, comes back when you open it again. In Settings &gt; Interface &gt; Chats, "Unsent message when you leave a conversation" chooses among keeping it in the field for the next conversation, keeping it as that conversation's draft (the default) or discarding it. Drafts last until WinZapp is closed.</p>
+<p>A message of yours that failed or was not confirmed, text or attachment, has "Try sending again" in its menu, also with Ctrl+Shift+Y. WinZapp never resends anything on its own.</p>
+<p>During playback, Tab after the message list stops at the speed button and the duration bar, and on a voice message, picture or video, at the online AI button. Each can be taken out of the way: "Hide the speed button while media plays (the speed shortcuts still work)" and "Hide the duration bar while media plays (Tab skips it)" in Settings &gt; Audio &gt; Audio playback, and "Hide the online AI button after the message list (the message menu still offers it)" in Online AI: Transcriptions and Descriptions. The shortcuts and the message menu keep working.</p>
+
   </section>
 
   <section id="anexos-midia" class="wiki-section" aria-labelledby="h-anexos-midia">
@@ -647,6 +652,13 @@
   WinZapp asks before sending media to a provider, and asks again each time in locked chats. Your keys are stored encrypted on your computer and are only sent to the provider they belong to. Resetting all keys also clears the remembered send authorizations. A waiting sound plays while the provider works; answers can be read aloud automatically; the text follows the app's language. Very long transcription and PDF texts report a text limit error.
 </div>
 
+<h3>Queue, windows and per-conversation options</h3>
+<p>With transcription without the progress window, asking for the inline transcription of another message while one is running puts it in a queue: WinZapp says its position and starts it when the previous one ends; the same shortcut on a waiting message takes it out of the queue. A transcription that opens a window is still refused while another runs.</p>
+<p>In automatic, WinZapp uses a model already on the computer whenever one fits: on a small graphics card that cannot hold the installed model, it runs that model on the processor instead of asking for a download.</p>
+<p>The options of the Local Transcription tab are in windows opened from buttons on it: "Advanced options...", "Saved transcriptions...", "Transcription of statuses...", "Models folder and models in other folders...", and the windows of the CUDA libraries and of whisper.cpp. The automatic options of online AI are in "Automatic transcription and description...", on its page.</p>
+<p>The conversation details have two boxes: "Transcribe the voice messages, audio and videos received in this conversation automatically, locally with Whisper" and "Transcribe the voice messages and audio received in this conversation automatically, with the online providers". Each shows what the conversation does now, following the general option until you tick or untick the box there.</p>
+<p>Enter and Space, when set to transcribe, also transcribe audio and video sent as a file.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -663,6 +675,9 @@
   <li><strong>Transcribe audio and video statuses (local):</strong> Alt+Shift+T opens the text in the result window (or the saved transcription); Alt+Shift+N puts it on the status row and reads it aloud; Alt+Shift+Delete deletes the saved transcription. The "My status" window also accepts these keys on your own audio and video statuses. In Settings &gt; Local Transcription there are options just for statuses: automatically transcribe received ones, Enter and Space transcribing on the row, and saving the transcriptions together with the status (cache deleted along with it when the status expires), plus the "Clear saved local transcriptions of statuses" button.</li>
 </ul>
 <p>Who can see your statuses is set in File &gt; WhatsApp settings &gt; Privacy.</p>
+
+<h3>Posting again and deleting</h3>
+<p>WinZapp posts one status at a time; asking to post again while one is still going only says it is being posted. A status that failed or was not confirmed stays in the list right after "My status", with "Try posting again" and "Discard" in its menu (Ctrl+Shift+Y tries again); nothing is posted again on its own. In "My status", the Delete key or the "Delete status" button deletes a status for everyone, after the same confirmation as WhatsApp.</p>
 
   </section>
 
@@ -726,6 +741,9 @@
 <h3>Mentions and replies</h3>
 <p>A person mentioned by name together with @all keeps the link; the mention of you, in the notification and in the preview, uses the word chosen in "How should I be referred to?". In Settings &gt; Interface &gt; Messages, "Hide phone numbers of unnamed senders in messages" makes messages from people without a name start straight with the content. In Settings &gt; Interface &gt; Chats, "Precede names of unsaved contacts with a tilde (~) in conversations and messages" (on by default) shows a tilde before the name of anyone you have not saved, in conversations and in messages.</p>
 
+<h3>Groups of a community</h3>
+<p>In the list of communities, Enter goes to the community's groups, and "Open the most recent group" opens the group with the latest activity, saying its name. "Filter groups" shows all groups, the groups you are in or the ones you are not in; a group you are not in says so in its line. On one of those, "Join group" joins it or, when the group needs approval, "Request to join" sends the request, which "Cancel join request" withdraws.</p>
+
   </section>
 
   <section id="trancadas" class="wiki-section" aria-labelledby="h-trancadas">
@@ -754,6 +772,9 @@
 
 <h3>WhatsApp Business accounts</h3>
 <p>Only on WhatsApp Business accounts: in the orders window, "Accept order", "Decline order" and "Update status" for the orders received; in the chat menu, the "Business tools" submenu, with "Create an order for this contact" (Ctrl+Shift+N) and "Accept carts in my catalog". Where they do not apply, WinZapp says why.</p>
+
+<h3>Orders created by the seller</h3>
+<p>Enter on an order a seller created for you opens its details, with items and subtotal. When the order is pending and is paid outside the app, "Confirm order info" sends the seller the confirmation, like WhatsApp Web; the dialog says which buyer responses WinZapp does not offer yet.</p>
 
   </section>
 
@@ -814,6 +835,12 @@
 <p>In the File menu, "Export settings..." saves your preferences to a file and "Import settings..." applies that file right away, without restarting. It is useful for taking everything to another computer or account. The connection to WhatsApp and what belongs to each account (cleared chats, per-chat sounds) are not in the file. If you use your own API, address, port and key go along.</p>
 <p>If you change the language and apply, all options switch to the new language right away.</p>
 
+<h3>Shortcut letters and keyboard shortcuts</h3>
+<p>Every control in Settings and in the windows it opens has a shortcut letter: Alt plus the letter the screen reader announces goes straight to the control, and no letter repeats within one window. In Interface &gt; Keyboard shortcuts, the shortcuts are in a tree by category: Right arrow opens a category and Left arrow closes it. The "Search shortcuts" field above it filters the tree; Down arrow goes from the field to the results, and Up arrow on the first one goes back to the field.</p>
+
+<h3>Advanced</h3>
+<p>The Advanced category, at the end of the list, has "Log level" (debug, information, warnings and errors, or errors only), applied at once; "Start the local API on a fixed port", with the port number, which applies the next time WinZapp starts and lets two copies of WinZapp run or avoids port 6300 when another program already uses it; and "Show every WPPConnect Server update, not only the ones the WinZapp maintainers checked", off by default, which also offers releases the maintainers have not checked yet, with a warning. The port of the Connection category is the custom API's and is enabled only with it.</p>
+
   </section>
 
   <section id="privacidade" class="wiki-section" aria-labelledby="h-privacidade">
@@ -834,6 +861,8 @@
   <li>Each item is saved separately: if WhatsApp refuses one, the others are saved and the window lists the ones that failed.</li>
   <li>The picture is chosen from a JPG or PNG file.</li>
 </ul>
+
+<p>In the status options "My contacts except" and "Only share with", only the contacts saved on the phone are offered: they are the only ones WhatsApp lets see a status. In Profile, the button to choose the photo says whether there is a current photo and which file was chosen.</p>
 
   </section>
 
@@ -1011,6 +1040,7 @@
 <tr><td class="field-name">Ctrl+Shift+R</td><td>Call back a missed call</td></tr>
 <tr><td class="field-name">Ctrl+Shift+G</td><td>Record voice message in the other mode (stereo if the default is mono, mono if it is stereo)</td></tr>
 <tr><td class="field-name">Ctrl+Shift+H</td><td>Record microphone and computer audio</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>On a message whose send failed or was not confirmed, try sending it again</td></tr>
 <tr><td class="field-name">Alt+Shift+B</td><td>In a chat with a business, its catalog and cart</td></tr>
 <tr><td class="field-name">Ctrl+Shift+N</td><td>On a WhatsApp Business account, create an order for the contact of the chat</td></tr>
 <tr><td class="field-name">Delete</td><td>Delete the message or chat (or every selected one, if there&#x27;s a selection)</td></tr>
@@ -1149,6 +1179,8 @@
 <tr><td class="field-name">Alt+Shift+T</td><td>Transcribe the audio or video status locally with Whisper, or open the transcription already saved</td></tr>
 <tr><td class="field-name">Alt+Shift+N</td><td>On an audio or video status, do what Enter and Space do not: transcribe it locally with Whisper into its line in the list, or open or play it when Enter and Space are set to transcribe</td></tr>
 <tr><td class="field-name">Alt+Shift+Delete</td><td>Delete the saved local transcription of the status</td></tr>
+<tr><td class="field-name">Delete</td><td>In My status, delete the status being shown, for everyone who received it</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>On a status that was not posted, try posting it again</td></tr>
 </table>
 <h3>Status list</h3>
 <table class="field-table">
@@ -1233,7 +1265,7 @@
 <table class="field-table">
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
   <tr><td class="field-name">Not yet released</td><td>macOS update verification: distinct causes and verification stages, one bounded transient retry, and GitHub wait times.</td></tr>
-  <tr><td class="field-name">Not yet released</td><td>Update package retention, installation ownership, copy results and safe reopening. After an incomplete or unconfirmed copy, WinZapp stays closed and opens recovery instructions in Notepad. Answering, rejecting and hanging up calls from any window (Ctrl+Alt+Shift+Enter and Ctrl+Alt+Shift+Backspace).</td></tr>
+  <tr><td class="field-name">Not yet released</td><td>Update package retention, installation ownership, copy results and safe reopening. After an incomplete or unconfirmed copy, WinZapp stays closed and opens recovery instructions in Notepad. Answering, rejecting and hanging up calls from any window (Ctrl+Alt+Shift+Enter and Ctrl+Alt+Shift+Backspace). Advanced category, shortcut letters in Settings, shortcuts in a tree with search, draft per conversation, Try sending again, controls after the list that can leave the Tab order, the queue and windows of local transcription, automatic transcription per conversation, statuses that were not posted and deleting a status, groups of a community, orders created by the seller and status privacy.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Automatic adaptation of call audio to microphone and speaker sample rates.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>Profile tab in WhatsApp settings (display name, About and picture); Communities in the navigation list, after Calls.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>First version of the guide: all features of versions 1.1.0.0, 1.1.1.0, 2.0.0.0 and of the 2.1.0.0 cycle up to this alpha.</td></tr>

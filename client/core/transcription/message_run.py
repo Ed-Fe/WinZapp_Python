@@ -382,6 +382,17 @@ class MessageTranscription:
             whisper_cpp_cuda_installed=_whisper_cpp_cuda_installed(),
         )
         self.resolution = resolution
+        # Catalogue names and codes only, never the message's. Without this
+        # line a run that stops at "no model is ready" left nothing in log.log
+        # but the hardware probe.
+        engine, catalogue_model = resolution.backend_id, resolution.model_id
+        logging.info(
+            "[transcription] resolved backend=%s model=%s device=%s none_reason=%s "
+            "ready_models=%s references_known=%s",
+            engine, catalogue_model, resolution.device_preference,
+            resolution.model_none_reason, ",".join(installed) or "none",
+            self._external_references_known,
+        )
         if resolution.substitutions:
             # Setting names and the stored values that were replaced — ids and
             # codes, which `Substitution.stored` exists to carry to the log.

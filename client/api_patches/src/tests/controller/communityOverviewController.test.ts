@@ -1,4 +1,6 @@
-import { listCommunities, readCommunities } from '../../controller/communityOverviewController';
+import {
+  listCommunities, readCommunities, refreshCommunity, refreshUnjoinedSubgroups,
+} from '../../controller/communityOverviewController';
 
 function response() {
   const res: any = { statusCode: 0, body: null };
@@ -55,11 +57,11 @@ test('lists each community with its admins and the groups joined', () => {
 test('the announcement group is the default subgroup, not a groupType WhatsApp Web no longer fills', () => {
   const result: any = withPage([community, announcements, general, plain], readCommunities);
   expect(result[0].subgroups).toEqual([
-    { id: '111-1@g.us', subject: 'Avisos', announcement: true, general: false },
-    { id: '111-2@g.us', subject: 'Geral', announcement: false, general: true },
-    { id: '111-3@g.us', subject: 'Estudos', announcement: false, general: false },
+    { id: '111-1@g.us', subject: 'Avisos', announcement: true, general: false, joined: true, approval: false },
+    { id: '111-2@g.us', subject: 'Geral', announcement: false, general: true, joined: true, approval: false },
+    { id: '111-3@g.us', subject: 'Estudos', announcement: false, general: false, joined: true, approval: false },
     // Joined but not loaded yet: listed, with no name to show.
-    { id: '111-9@g.us', subject: '', announcement: false, general: false },
+    { id: '111-9@g.us', subject: '', announcement: false, general: false, joined: true, approval: false },
   ]);
 });
 
@@ -101,4 +103,79 @@ test.each([
   expect(res.statusCode).toBe(503);
   expect(res.body).toEqual({ status: 'error', code: 'communities_unavailable' });
   expect(JSON.stringify(res.body)).not.toMatch(/private/);
+});
+
+function withUnjoined<T>(models: any[], unjoined: any[], run: () => T): T {
+  const previous = (globalThis as any).require;
+  const byId = new Map(unjoined.map((m) => [m.id._serialized, m]));
+  (globalThis as any).require = (name: string) =>
+    name === 'WAWebUnjoinedSubgroupMetadataCollection' ? { get: (id: string) => byId.get(id) } : undefined;
+  try { return withPage(models, run); } finally { (globalThis as any).require = previous; }
+}
+
+const open = { id: wid('111-5@g.us'), subject: 'Esportes', membershipApprovalMode: false };
+const approval = { id: wid('111-6@g.us'), subject: 'Diretoria', membershipApprovalMode: true };
+const hidden = { id: wid('111-7@g.us'), subject: 'Oculto', hiddenSubgroup: true };
+const withOthers = {
+  ...community,
+  unjoinedSubgroups: [open.id, approval.id, hidden.id, plain.id, wid('999@lid')],
+};
+
+test('the groups the account is not in are listed after the joined ones', () => {
+  const result: any = withUnjoined([withOthers, announcements, general, plain], [open, approval, hidden],
+    readCommunities);
+  const others = result[0].subgroups.filter((group: any) => !group.joined);
+  expect(others).toEqual([
+    { id: '111-5@g.us', subject: 'Esportes', announcement: false, general: false, joined: false, approval: false, requested: false },
+    { id: '111-6@g.us', subject: 'Diretoria', announcement: false, general: false, joined: false, approval: true, requested: false },
+    // Hidden: shown to admins only, and this account is one.
+    { id: '111-7@g.us', subject: 'Oculto', announcement: false, general: false, joined: false, approval: false, requested: false },
+  ]);
+});
+
+test('a hidden group is not listed for someone who is not an admin', () => {
+  const member = { ...withOthers, participants: participants([], { admin: false }) };
+  const result: any = withUnjoined([member], [open, hidden], readCommunities);
+  expect(result[0].subgroups.map((group: any) => group.id)).not.toContain('111-7@g.us');
+});
+
+test('the refresh asks WhatsApp the way WhatsApp Web does, and only for a community', async () => {
+  const query = jest.fn().mockResolvedValue(undefined);
+  const root = globalThis as any;
+  const previous = { require: root.require, WPP: root.WPP };
+  root.require = (name: string) =>
+    name === 'WAWebQuerySubGroupAction' ? { queryAndUpdateSubgroupsMetadata: query } : undefined;
+  root.WPP = { whatsapp: { GroupMetadataStore: store([community, ordinaryGroup]) } };
+  try {
+    expect(await refreshUnjoinedSubgroups('111-0@g.us')).toBe(true);
+    expect(query).toHaveBeenCalledWith(community.id, community.joinedSubgroups);
+    expect(await refreshUnjoinedSubgroups('222-0@g.us')).toBe(false);
+    expect(query).toHaveBeenCalledTimes(1);
+  } finally {
+    root.require = previous.require;
+    root.WPP = previous.WPP;
+  }
+});
+
+test('the refresh route answers the one community, refreshed', async () => {
+  const evaluate = jest.fn()
+    .mockResolvedValueOnce(true)
+    .mockResolvedValueOnce([{ id: '222-0@g.us' }, { id: '111-0@g.us', subgroups: [] }]);
+  const req: any = { params: { communityId: '111-0@g.us' }, client: { page: { isClosed: () => false, evaluate } } };
+  const res = response();
+  await refreshCommunity(req, res);
+  expect(evaluate).toHaveBeenNthCalledWith(1, refreshUnjoinedSubgroups, '111-0@g.us');
+  expect(evaluate).toHaveBeenNthCalledWith(2, readCommunities);
+  expect(res.statusCode).toBe(200);
+  expect(res.body).toEqual({ status: 'success', response: [{ id: '111-0@g.us', subgroups: [] }] });
+});
+
+test.each([
+  ['an id that is not a group', '999@lid', 400],
+  ['a refresh WhatsApp refused', '111-0@g.us', 503],
+])('%s is never a success', async (_name, communityId, code) => {
+  const evaluate = jest.fn().mockResolvedValueOnce(false);
+  const res = response();
+  await refreshCommunity({ params: { communityId }, client: { page: { isClosed: () => false, evaluate } } } as any, res);
+  expect(res.statusCode).toBe(code);
 });

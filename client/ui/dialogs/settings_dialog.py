@@ -34,6 +34,8 @@ from ui.dialogs.transcription_cache import TranscriptionCacheMixin
 from ui.dialogs.transcription_options import TranscriptionOptionsMixin
 from ui.dialogs.transcription_queue import TranscriptionQueueMixin
 from ui.dialogs.transcription_reuse import TranscriptionReuseMixin
+from ui.dialogs.transcription_windows import TranscriptionWindowsMixin
+from ui.dialogs.advanced_tab import AdvancedTabMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_precision import TranscriptionPrecisionMixin
 from ui.dialogs.shortcuts_tab import ShortcutsTabMixin
@@ -87,6 +89,8 @@ class _HotkeyCapture(wx.TextCtrl):
         super().__init__(parent, style=wx.TE_PROCESS_ENTER)
         self._vk  = 0
         self._mod = 0
+        # The name is the label of the field, which may carry its Alt key.
+        accessible_name = accessible_name.replace("&", "")
         self._accessible = _HotkeyCaptureAccessible(self, accessible_name)
         self.SetName(accessible_name)
         self.SetAccessible(self._accessible)
@@ -95,6 +99,7 @@ class _HotkeyCapture(wx.TextCtrl):
         self.Bind(wx.EVT_SET_FOCUS, self._on_focus)
 
     def SetAccessibleName(self, name: str):
+        name = name.replace("&", "")
         self.SetName(name)
         self._accessible.SetNameText(name)
 
@@ -144,6 +149,7 @@ class _HotkeyCapture(wx.TextCtrl):
 
 from core.utils import DEFAULT_SETTINGS, SEARCH_NORMALIZATION_MODES, search_normalization_mode, GROUP_MEDIA_TYPES, AUTO_DOWNLOAD_MEDIA_TYPES
 from core import save_location
+from core import message_drafts
 from core.profile_backup import (
     CLOSE_HOURS_MINIMUM, DEFAULT_CLOSE_HOURS, DEFAULT_LIVE_HOURS, LIVE_HOURS_MINIMUM,
     parse_hours_field, stored_hours,
@@ -212,7 +218,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                      TranscriptionPrecisionMixin, TranscriptionResultFieldMixin,
                      TranscriptionBackgroundTabMixin, TranscriptionModelMarksMixin,
                      TranscriptionQueueMixin, TranscriptionCacheMixin,
-                     TranscriptionOptionsMixin, TranscriptionReuseMixin, wx.Dialog):
+                     TranscriptionOptionsMixin, TranscriptionReuseMixin,
+                     TranscriptionWindowsMixin, AdvancedTabMixin, wx.Dialog):
     """Settings dialog with a General, Connection, and Audio playback tab."""
 
     _AUDIO_SPEED_STEPS = [1.0, 1.5, 2.0]
@@ -1069,6 +1076,17 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         audio_sizer.Add(self._auto_focus_next_audio_cb, 0, wx.ALL, 8)
 
+        # The controls after the message list while media plays, each one Tab
+        # stop fewer when hidden (core/playback_controls.py).
+        self._hide_audio_speed_cb = wx.CheckBox(
+            self._audio_page, label=i18n.t("audio_hide_speed_button")
+        )
+        audio_sizer.Add(self._hide_audio_speed_cb, 0, wx.ALL, 8)
+        self._hide_audio_progress_cb = wx.CheckBox(
+            self._audio_page, label=i18n.t("audio_hide_progress_bar")
+        )
+        audio_sizer.Add(self._hide_audio_progress_cb, 0, wx.ALL, 8)
+
         self._audio_page.SetSizer(audio_sizer)
         self._audio_dialog.set_body(self._audio_page)
         self._audio_playback_btn.Bind(wx.EVT_BUTTON, lambda e: self._audio_dialog.open())
@@ -1320,6 +1338,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # index, for the same reason.
         self._ai_page = AISettingsPage(self._notebook, self.main_window, on_change=self._mark_dirty)
         self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
+        self._notebook.add_subpage(
+            self._notebook.GetPageCount() - 1, i18n.t("ai_auto_button").replace("&", "").rstrip(".… "),
+            self._ai_page.auto_panel, self._ai_page.open_auto)
 
         # ── Transcription tab ────────────────────────────────────────────────
         # Appended, never inserted, and the last tab of all. Every hardcoded
@@ -1334,6 +1355,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # at index 14 or 15 and this one at 15 or 16.
         self._transcription_page = self._build_transcription_page(self._notebook)
         self._notebook.AddPage(self._transcription_page, i18n.t("tab_transcription"))
+        self._register_transcription_windows()
         # ── WhatsApp settings ────────────────────────────────────────────────
         # What is kept on the paired WhatsApp account, not in WinZapp's own
         # settings. Two buttons, each opening its window; each window reads
@@ -1380,6 +1402,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # Connection is the last category: rarely needed, so out of the way.
         # Its controls are built above, where they were; only the page is added here.
         self._notebook.AddPage(self._conn_page, i18n.t("tab_connection"))
+        # Advanced comes after it: options most people never need (advanced_tab.py).
+        self._build_advanced_page()
 
         # ── Buttons at the end of the Interface page ─────────────────────────
         # Groups of options that open in a window of their own.
@@ -1460,12 +1484,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self_ref_sizer = wx.StaticBoxSizer(self._self_ref_box, wx.VERTICAL)
 
         self._self_ref_eu_rb = wx.RadioButton(
-            self._messages_page, label=i18n.t("ui_self_reference_eu"), style=wx.RB_GROUP
+            self._messages_page, label=i18n.t("ui_self_reference_eu_option"), style=wx.RB_GROUP
         )
         self_ref_sizer.Add(self._self_ref_eu_rb, 0, wx.LEFT | wx.TOP, 5)
 
         self._self_ref_voce_rb = wx.RadioButton(
-            self._messages_page, label=i18n.t("ui_self_reference_voce")
+            self._messages_page, label=i18n.t("ui_self_reference_voce_option")
         )
         self_ref_sizer.Add(self._self_ref_voce_rb, 0, wx.LEFT | wx.TOP, 5)
 
@@ -1663,6 +1687,21 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         chats_sizer.Add(self._keep_pinned_order_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
 
+        # What happens to what was typed and not sent when the conversation is
+        # left (core/message_drafts.py MODES, in this order).
+        self._message_draft_radio = wx.RadioBox(
+            self._chats_page,
+            label=i18n.t("ui_message_draft_label"),
+            choices=[
+                i18n.t("ui_message_draft_keep_in_field"),
+                i18n.t("ui_message_draft_per_conversation"),
+                i18n.t("ui_message_draft_discard"),
+            ],
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS,
+        )
+        chats_sizer.Add(self._message_draft_radio, 0, wx.EXPAND | wx.ALL, 8)
+
         self._bulk_action_shortcuts_cb = wx.CheckBox(
             self._chats_page, label=i18n.t("ui_bulk_action_shortcuts")
         )
@@ -1713,7 +1752,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         chats_sizer.Add(selected_announce_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         # The vault's settings, one level down: a button in this window.
-        self._chat_lock_btn = wx.Button(self._chats_page, label=i18n.t("locked_chats"))
+        # A key of its own: "locked_chats" also names the vault's list, where
+        # an Alt key would be read out.
+        self._chat_lock_btn = wx.Button(self._chats_page, label=i18n.t("chat_lock_settings_button"))
         self._chat_lock_btn.Show(self._chat_lock_tab_shown)
         chats_sizer.Add(self._chat_lock_btn, 0, wx.ALL, 8)
         self._chat_lock_btn.Bind(wx.EVT_BUTTON, lambda e: self._chat_lock_dialog.open())
@@ -1911,6 +1952,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             "updates_enabled": self._updates_check.GetValue(),
             "alpha_updates_enabled": self._alpha_updates_check.GetValue(),
             "background_update_downloads": self._background_updates_check.GetValue(),
+            "wpp_all_updates": self._wpp_all_updates_check.GetValue(),
             "show_tray_icon": self._tray_icon_check.GetValue(),
             "switch_behavior": (
                 "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
@@ -1978,6 +2020,10 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         self._background_updates_check.SetValue(background_updates)
 
+        # Settings > Advanced (advanced_tab.py): off, the approved releases only.
+        wpp_all_updates = install_wide.get("general", {}).get("wpp_all_updates", False)
+        self._wpp_all_updates_check.SetValue(wpp_all_updates)
+
         self._load_switch_behavior()
 
         conn = install_wide.get("connection", {})
@@ -2037,6 +2083,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         background_updates = self._background_updates_check.GetValue()
         if self._global_control_changed("background_update_downloads", background_updates):
             choices["background_update_downloads"] = background_updates
+        wpp_all_updates = self._wpp_all_updates_check.GetValue()
+        if self._global_control_changed("wpp_all_updates", wpp_all_updates):
+            choices["wpp_all_updates"] = wpp_all_updates
 
         # Account switch behavior
         self._apply_switch_behavior(choices)
@@ -2275,6 +2324,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         self._keep_pinned_order_cb.SetValue(bool(keep_pinned_order))
 
+        self._message_draft_radio.SetSelection(
+            message_drafts.MODES.index(message_drafts.mode(self.main_window.settings)))
+
         preserve_typed_caption = self.main_window.settings.get("user_interface", {}).get(
             "preserve_typed_text_as_attachment_caption", True
         )
@@ -2503,6 +2555,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._mark_audio_played_check.SetValue(
             audio_playback.get("mark_audio_played_in_list", True)
         )
+        self._hide_audio_speed_cb.SetValue(audio_playback.get("hide_speed_button", False))
+        self._hide_audio_progress_cb.SetValue(audio_playback.get("hide_progress_bar", False))
 
         # This load used to sit inside _on_custom_api_toggle() instead of here,
         # so opening Settings showed the Audio playback speed with nothing
@@ -2516,6 +2570,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._audio_speed_combo.SetSelection(speed_idx)
         self._load_chat_lock_values()
         self._load_transcription_values()
+        self._load_advanced_values()
 
     def _chat_lock_timeout_labels(self):
         i18n = self.main_window.i18n
@@ -2899,6 +2954,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._server_field.Enable(is_custom)
         self._ws_server_field.Enable(is_custom)
         self._api_key_field.Enable(is_custom)
+        # The bundled API's port is chosen per account at start, or fixed in
+        # Advanced (core/local_api_port.py); this one is the custom server's.
+        self._port_field.Enable(is_custom)
 
     def _update_self_reference_field_state(self):
         is_other = self._self_ref_other_rb.GetValue()
@@ -3071,6 +3129,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
     def _on_custom_api_toggle(self, event):
         self._update_fields_state()
+        self._sync_fixed_port_field()
         event.Skip()
 
     def _on_media_cleanup(self, event):
@@ -3224,7 +3283,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         answer = wx.MessageBox(
             i18n.t("profile_backup_delete_question").format(
                 size=snapshot_size_text(size, i18n.t("decimal_separator"))),
-            i18n.t("tab_profile_backup"),
+            i18n.t("tab_profile_backup").replace("&", ""),
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
             self,
         )
@@ -3600,6 +3659,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             return False
         if not self._validate():
             return False
+        if not self._validate_advanced_values():
+            return False
 
         if not self._ai_page.apply():
             self._notebook.SetSelection(self._notebook.FindPage(self._ai_page))
@@ -3673,6 +3734,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("user_interface", {})[
             "keep_pinned_chat_order"
         ] = self._keep_pinned_order_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            message_drafts.SETTING
+        ] = message_drafts.MODES[max(self._message_draft_radio.GetSelection(), 0)]
         self.main_window.settings.setdefault("user_interface", {})[
             "preserve_typed_text_as_attachment_caption"
         ] = self._preserve_typed_caption_cb.GetValue()
@@ -3836,6 +3900,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port
+        # Advanced: the log level (applied now) and the fixed local API port.
+        self._apply_advanced_values()
 
         # Audio devices — output was already switched live during _validate()
         # (that's the only way to test it); here we just persist the choice
@@ -4001,6 +4067,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("audio_playback", {})[
             "mark_audio_played_in_list"
         ] = self._mark_audio_played_check.GetValue()
+        self.main_window.settings.setdefault("audio_playback", {})[
+            "hide_speed_button"
+        ] = self._hide_audio_speed_cb.GetValue()
+        self.main_window.settings.setdefault("audio_playback", {})[
+            "hide_progress_bar"
+        ] = self._hide_audio_progress_cb.GetValue()
 
         # Transcription — the four per-account settings plus the install-wide
         # models folder, which goes to app_settings rather than settings.json.
@@ -4134,6 +4206,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
     def _refresh_dialog_labels(self):
         """Update this dialog's own title and notebook tab captions after a language change."""
         self._refresh_shortcut_labels()
+        self._refresh_advanced_labels()
         i18n = self.main_window.i18n
         self.SetTitle(i18n.t("settings_title"))
         self._refresh_search_texts()
@@ -4144,7 +4217,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._notebook.SetPageText(4, i18n.t("tab_event_sounds"))
         self._notebook.SetPageText(5, i18n.t("tab_storage"))
         self._notebook.SetPageText(6, i18n.t("tab_calls"))
-        self._chat_lock_btn.SetLabel(i18n.t("locked_chats"))
+        self._chat_lock_btn.SetLabel(i18n.t("chat_lock_settings_button"))
         self._chat_lock_dialog.SetTitle(i18n.t("locked_chats").replace("&", ""))
         self._notebook.SetPageText(
             self._notebook.FindPage(self._whatsapp_page), i18n.t("wa_settings_dialog_title"))
@@ -4295,8 +4368,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._show_listbox_count_cb.SetLabel(i18n.t("ui_show_listbox_item_count"))
         self._show_typing_row_cb.SetLabel(i18n.t("ui_show_typing_row"))
         self._self_ref_box.SetLabel(i18n.t("ui_self_reference_label"))
-        self._self_ref_eu_rb.SetLabel(i18n.t("ui_self_reference_eu"))
-        self._self_ref_voce_rb.SetLabel(i18n.t("ui_self_reference_voce"))
+        # Keys of their own: the plain words are what messages say for me.
+        self._self_ref_eu_rb.SetLabel(i18n.t("ui_self_reference_eu_option"))
+        self._self_ref_voce_rb.SetLabel(i18n.t("ui_self_reference_voce_option"))
         self._self_ref_other_rb.SetLabel(i18n.t("ui_self_reference_other"))
         self._self_ref_custom_label.SetLabel(i18n.t("ui_self_reference_custom_label"))
         self._hide_own_sender_cb.SetLabel(i18n.t("ui_hide_own_sender_in_message_list"))
@@ -4305,6 +4379,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._hide_unnamed_sender_numbers_cb.SetHelpText(i18n.t("ui_hide_unnamed_sender_numbers_help"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._keep_pinned_order_cb.SetLabel(i18n.t("ui_keep_pinned_chat_order"))
+        self._message_draft_radio.SetLabel(i18n.t("ui_message_draft_label"))
+        for _i, _key in enumerate(("ui_message_draft_keep_in_field",
+                                   "ui_message_draft_per_conversation",
+                                   "ui_message_draft_discard")):
+            self._message_draft_radio.SetItemLabel(_i, i18n.t(_key))
         self._show_link_previews_cb.SetLabel(i18n.t("ui_show_link_previews_label"))
         self._show_yesterday_label_cb.SetLabel(i18n.t("ui_show_yesterday_label"))
         self._forwarded_prefix_cb.SetLabel(i18n.t("ui_forwarded_prefix_label"))
@@ -4354,6 +4433,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._keep_search_after_open_cb.SetLabel(i18n.t("ui_keep_search_after_open"))
         self._auto_play_voice_in_sequence_cb.SetLabel(i18n.t("ui_auto_play_voice_in_sequence"))
         self._auto_focus_next_audio_cb.SetLabel(i18n.t("ui_auto_focus_next_audio"))
+        self._hide_audio_speed_cb.SetLabel(i18n.t("audio_hide_speed_button"))
+        self._hide_audio_progress_cb.SetLabel(i18n.t("audio_hide_progress_bar"))
         self._selected_announce_box.SetLabel(i18n.t("ui_selected_announce_position_label"))
         self._selected_announce_start_rb.SetLabel(i18n.t("ui_selected_announce_position_start"))
         self._selected_announce_end_rb.SetLabel(i18n.t("ui_selected_announce_position_end"))

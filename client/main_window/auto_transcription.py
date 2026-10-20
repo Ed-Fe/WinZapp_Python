@@ -52,23 +52,27 @@ _SHUTDOWN_JOIN_SECONDS = 2.0
 class AutoTranscriptionMixin:
     """Automatic transcription of received voice messages, for MainWindow."""
 
+    def _local_auto_transcription_for(self, remote_jid: str) -> bool:
+        """Whether messages arriving in *remote_jid* are transcribed locally
+        and automatically: the conversation's own box (its data window) when
+        the user set it, else Settings > Transcription. The box can turn it
+        on for one conversation while the setting is off."""
+        return conversation_auto_ai.transcription_wanted(
+            self.settings, self._normalize_jid(remote_jid),
+            conversation_auto_ai.TRANSCRIBE_LOCAL, auto_queue.enabled(self.settings))
+
     def _maybe_auto_transcribe(self, remote_jid: str, msg: dict) -> None:
-        """Queue *msg* for automatic transcription if the setting asks for it.
+        """Queue *msg* for automatic transcription if the conversation wants it.
 
         Called on the wx thread from on_new_message(), for messages that just
-        arrived; cheap when the setting is off (one dict lookup).
+        arrived; cheap when it does not (a few dict lookups).
         """
-        if not auto_queue.enabled(self.settings):
-            return
         try:
+            if not self._local_auto_transcription_for(remote_jid):
+                return
             if not auto_queue.eligible(
                     msg, max_age=auto_queue.max_age_seconds(self.settings)) \
                     or self.is_chat_locked(remote_jid):
-                return
-            # Cleared in the conversation's data window.
-            if not conversation_auto_ai.allowed(
-                    self.settings, self._normalize_jid(remote_jid),
-                    conversation_auto_ai.TRANSCRIBE):
                 return
             # A model chosen explicitly whose cache is off would run for
             # nothing: the result could not be kept in the line.
@@ -101,14 +105,10 @@ class AutoTranscriptionMixin:
             # and nothing else: its own setting, media and store.
             self._run_status_auto_transcription(msg)
             return
-        if not auto_queue.enabled(self.settings):
-            return
         try:
             # Checked again here: the queue holds several runs of minutes each,
-            # and the chat may have been locked since this one was queued.
-            if self.is_chat_locked(remote_jid) or not conversation_auto_ai.allowed(
-                    self.settings, self._normalize_jid(remote_jid),
-                    conversation_auto_ai.TRANSCRIBE):
+            # and the chat may have been locked, or its box cleared, since.
+            if self.is_chat_locked(remote_jid) or not self._local_auto_transcription_for(remote_jid):
                 return
         except Exception:
             return
@@ -189,7 +189,11 @@ class AutoTranscriptionMixin:
             current = cancel_bulk()
             if current is not None:
                 running.append(current)
-        # A run started by hand with no progress window (ui/transcription_flow.py).
+        # A run started by hand with no progress window (ui/transcription_flow.py),
+        # and the inline ones waiting for it, which must not start once it ends.
+        waiting = getattr(self, "_waiting_transcriptions", None)
+        if waiting is not None:
+            waiting.clear()
         background = getattr(self, "_background_transcription", None)
         if background is not None:
             current = background.cancel_background()
@@ -283,7 +287,7 @@ class AutoTranscriptionMixin:
 
     def _store_auto_transcription(self, remote_jid: str, msg_id: str, result) -> None:
         """Keep *result* as the inline transcription of the message and redraw its row."""
-        if not auto_queue.enabled(self.settings):
+        if not self._local_auto_transcription_for(remote_jid):
             return
         current = stored_transcription.find_record(
             self._transcription_copies(remote_jid, msg_id), msg_id)

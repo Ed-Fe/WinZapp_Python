@@ -735,22 +735,31 @@ def test_settings_guidance_has_a_distinct_readable_name_and_keeps_profile_select
             self.selection = value
         def GetCount(self):
             return 0
+    from ui.dialogs.ai_auto_options import AIAutoOptionsPanel
     page = SimpleNamespace(_labels=[], _t=lambda key: key, _plain=lambda key: key,
                            _profile_labels=lambda: ["quick", "balanced", "detailed"],
                            _scope_labels=lambda: ["all", "selected"],
-                           auto_scope=NamedControl(selection=1),
                            _age_labels=lambda: ["5", "15", "30", "60"],
-                           auto_max_age=NamedControl(selection=2),
-                           auto_limit=NamedControl(), auto_used=NamedControl(),
                            profile=NamedControl(selection=2), providers=NamedControl(selection=-1),
                            notice=NamedControl(), status=NamedControl(),
+                           auto_dialog=SimpleNamespace(SetTitle=lambda title: setattr(page, "title", title)),
                            _refresh_list=lambda selection: None)
+    # The automatic options live in their own window (ai_auto_options.py).
+    panel = SimpleNamespace(_page=page, transcribe=NamedControl(), describe=NamedControl(),
+                            scope_label=NamedControl(), scope=NamedControl(selection=1),
+                            max_age_label=NamedControl(), max_age=NamedControl(selection=2),
+                            limit_label=NamedControl(), limit=NamedControl(),
+                            used_label=NamedControl(), used=NamedControl())
+    panel.refresh_labels = lambda: AIAutoOptionsPanel.refresh_labels(panel)
+    page.auto_panel = panel
     AISettingsPage.refresh_labels(page)
     assert page.notice.name == "ai_settings_help" and page.notice.value == "ai_settings_notice"
     assert page.status.name == "ai_status_label" and page.profile.selection == 2
     assert page.profile.items == ["quick", "balanced", "detailed"]
-    assert page.auto_scope.items == ["all", "selected"] and page.auto_scope.selection == 1
-    assert page.auto_max_age.items == ["5", "15", "30", "60"] and page.auto_max_age.selection == 2
+    assert panel.scope.items == ["all", "selected"] and panel.scope.selection == 1
+    assert panel.max_age.items == ["5", "15", "30", "60"] and panel.max_age.selection == 2
+    assert panel.limit.name == "ai_auto_daily_limit" and panel.transcribe.value == "ai_auto_transcribe"
+    assert page.title == "ai_auto_button"
     assert page.providers.name == "ai_provider_list_label"
 
 
@@ -811,6 +820,7 @@ class PageStub:
         self.toggles = {kind: Control(True) for kind in ai_config.KINDS}
         self.profile = Control(selection=1)
         self.read_answers = Control(False)
+        self.hide_action_button = Control(False)
         self.auto_transcribe = Control(False)
         self.auto_describe = Control(False)
         self.auto_scope = Control(selection=0)
@@ -1417,13 +1427,37 @@ def test_the_describe_button_follows_the_menu_rule(ready):
     panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
                             _action_describe_btn=button)
     panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
-    panel._ai_menu_label = lambda msg, i18n: AIActionsMixin._ai_menu_label(panel, msg, i18n)
+    panel._ai_menu_label = lambda msg, i18n, config=None: AIActionsMixin._ai_menu_label(
+        panel, msg, i18n, config)
     AIActionsMixin._update_ai_describe_button(panel, message("imageMessage"))
     assert shown == [("label", "ai_describe_image_menu"), "show"]
     shown.clear()
     AIActionsMixin._update_ai_describe_button(panel, message("imageMessage", viewOnce=True))
     AIActionsMixin._update_ai_describe_button(panel, {"messageType": "conversation", "key": {"id": "m"}})
     assert shown == ["hide", "hide"]
+
+
+def test_the_describe_button_can_be_left_out_and_the_menu_keeps_the_item(ready):
+    """Settings > Online AI: one Tab stop fewer after the message list."""
+    shown = []
+    button = SimpleNamespace(SetLabel=lambda text: shown.append(("label", text)),
+                             Show=lambda: shown.append("show"), Hide=lambda: shown.append("hide"))
+    module, app = ready
+    app.update("ai_media", lambda old: dict(old or {}, hide_action_button=True))
+    panel = SimpleNamespace(main_window=SimpleNamespace(_app_settings=app, i18n=SimpleNamespace(t=lambda key: key)),
+                            _action_describe_btn=button)
+    panel._ai_settings = lambda: AIActionsMixin._ai_settings(panel)
+    AIActionsMixin._update_ai_describe_button(panel, message("imageMessage"))
+    assert shown == ["hide"]
+    assert AIActionsMixin._ai_menu_label(panel, message("imageMessage"), panel.main_window.i18n)         == "ai_describe_image_menu"
+
+
+def test_the_describe_button_option_is_off_by_default_and_saved(tmp_path):
+    assert ai_config.preferences(AppSettings(str(tmp_path)))["hide_action_button"] is False
+    page = PageStub(tmp_path)
+    page.hide_action_button = Control(True)
+    assert page.apply()
+    assert ai_config.preferences(page.app)["hide_action_button"] is True
 
 
 def test_the_shortcut_and_the_button_act_on_the_selected_message_while_the_button_has_focus(monkeypatch):

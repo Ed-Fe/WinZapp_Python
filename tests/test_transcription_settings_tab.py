@@ -72,6 +72,7 @@ import ast
 import pathlib
 import re
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 import wx
@@ -95,6 +96,7 @@ from ui.dialogs.transcription_model_marks import TranscriptionModelMarksMixin
 from ui.dialogs.transcription_queue import TranscriptionQueueMixin
 from ui.dialogs.transcription_result_field import TranscriptionResultFieldMixin
 from ui.dialogs.transcription_whisper_cpp import WhisperCppMixin
+from ui.dialogs.transcription_windows import TranscriptionWindowsMixin
 
 from tests.conftest import destroy_now, hidden_frame
 from tests.god_modules import main_window_source
@@ -258,7 +260,7 @@ class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixi
                 TranscriptionResultFieldMixin, TranscriptionBackgroundTabMixin,
                 TranscriptionModelMarksMixin, TranscriptionQueueMixin,
                 TranscriptionCacheMixin, TranscriptionOptionsMixin,
-                TranscriptionReuseMixin):
+                TranscriptionReuseMixin, TranscriptionWindowsMixin):
     """Stand-in for SettingsDialog carrying only what the tab touches.
 
     The section for models in other folders, the whisper.cpp section and the
@@ -270,6 +272,16 @@ class _TabOwner(ExternalModelsMixin, WhisperCppMixin, TranscriptionPrecisionMixi
     def __init__(self, main_window):
         self.main_window = main_window
         self.dirtied = 0
+
+    def _build_transcription_windows(self, page):
+        """The tab's windows (transcription_windows.py) as panels on the test's
+        hidden frame: a SubPageDialog is a real wx.Dialog, which a plain
+        pytest must not make (CLAUDE.md, rule 1). Their controls are the
+        same; only the window around them is not."""
+        for name in ("advanced", "saved", "statuses", "folders", "cuda", "whisper"):
+            setattr(self, f"_transcription_{name}_dialog", MagicMock(name=f"{name} window"))
+            setattr(self, f"_transcription_{name}_panel", wx.Panel(page))
+            setattr(self, f"_transcription_{name}_sizer", wx.BoxSizer(wx.VERTICAL))
 
     def _mark_dirty(self, event=None):
         # Same guard as SettingsDialog._mark_dirty: populating the controls
@@ -888,14 +900,15 @@ class TestThePrecisionPicker:
         return device.HardwareProbe(total_ram_mb=16_384, available_ram_mb=12_288,
                                     cpu_compute_types=self._INTEL)
 
-    def test_it_sits_right_under_the_device_it_depends_on(self, tab):
-        """Tab order is creation order: after the device radio, before the
-        language checkbox."""
-        children = list(tab._transcription_page.GetChildren())
+    def test_it_opens_the_advanced_options_window(self, tab):
+        """Tab order is creation order: the precision first in Advanced
+        options (transcription_windows.py), then the other two options."""
+        children = list(tab._transcription_advanced_panel.GetChildren())
         label = children.index(tab._transcription_precision_label)
-        assert children.index(tab._transcription_device_radio) < label
+        assert label == 0
         assert children.index(tab._transcription_precision_combo) == label + 1
-        assert children.index(tab._transcription_detect_language_check) > label + 1
+        assert children.index(tab._transcription_keep_loaded_check) > label + 1
+        assert tab._transcription_precision_combo not in tab._transcription_page.GetChildren()
 
     def test_automatic_by_default_and_everything_listed_before_the_probe(self, tab):
         tab._load_transcription_values()
@@ -1694,85 +1707,37 @@ class TestRetranslation:
 
 
 class TestTheMnemonicsOnThisTab:
-    """That the keys exist at all is not checked here any more: every label on
-    this tab is asked for as a literal `i18n.t("...")`, which is exactly what
-    tests/test_i18n_keys_exist.py scans for against every locale, and the
-    three `transcription_model_choice_*` keys — which are not literals — are
-    already covered by test_no_locale_leaves_a_placeholder_to_be_read_out
-    above, since a missing one renders as its own key name and no longer
-    contains the model id."""
+    """Every control of the tab and of its windows has an Alt key of its own,
+    no letter shared, in every locale: tests/test_settings_mnemonics.py,
+    which reads which controls share a window from the sources. The tab used
+    to have more controls than letters, so its action buttons shared them on
+    purpose; its options now live in windows of their own
+    (ui/dialogs/transcription_windows.py).
 
-    #: Every label on the tab that must have an Alt key, plus the three
-    #: buttons on screen whichever tab is showing. Leaving those three out is
-    #: what let &Aviso sit on top of &Aplicar and, worse, &Onde on top of the
-    #: dialog's own &OK.
-    LABELLED = (
-        "transcription_substituted_label",
-        "transcription_model_label",
-        "transcription_device_label",
-        "transcription_precision_label",
-        "transcription_language_label",
-        "transcription_language_detect",
-        "transcription_backend_label",
-        "transcription_models_dir_label",
-        "transcription_models_dir_browse_btn",
-        "transcription_cuda_runtime_label",
-        "transcription_external_label",
-        "transcription_whisper_cpp_label",
-        # Shown only while a download runs in the background, when every action
-        # button is off, so it may share a letter with those; it may not take
-        # a labelled control's.
-        "transcription_background_cancel_btn",
-        # The button under the model's group that deletes its saved
-        # transcriptions: a whole sentence, so it is not one of the one-word
-        # action buttons, and it keeps its letter to itself.
-        "transcription_clear_cache_btn",
-        # The two on/off options of the language block.
-        "transcription_keep_loaded_check",
-        "transcription_auto_transcribe_check",
-        "ok",
-        "cancel",
-        "apply",
-    )
+    What is checked here is the one rule of this tab that test does not see:
+    a group box is not a tab stop, so its name must not quietly spend a
+    letter."""
 
-    #: The seventeen action buttons. Each is owed an Alt key, but the tab has
-    #: more controls than any language has free letters (the fifteen above
-    #: already take fifteen), so the letters are shared on purpose: the same
-    #: word always has the same letter ("Verificar" is Alt+F on all four rows),
-    #: and a letter shared by several controls only moves the focus to the next
-    #: one instead of pressing anything. What may never happen is a button
-    #: taking the letter of OK, Cancel or Apply, which would turn Alt+letter
-    #: into a way to close the dialog.
-    ACTION_BUTTONS = (
-        "transcription_model_download_btn",
-        "transcription_model_verify_btn",
-        "transcription_model_repair_btn",
-        "transcription_model_remove_btn",
-        "transcription_cuda_install_btn",
-        "transcription_cuda_repair_btn",
-        "transcription_cuda_verify_btn",
-        "transcription_cuda_remove_btn",
-        # The five of the section for models in other folders, under the same
-        # rule: one word each, inside a group named after what they act on.
-        "transcription_external_add_btn",
-        "transcription_external_find_btn",
-        "transcription_external_use_btn",
-        "transcription_external_check_btn",
-        "transcription_external_forget_btn",
-        # The four of the whisper.cpp program, the same again.
-        "transcription_whisper_cpp_install_btn",
-        "transcription_whisper_cpp_verify_btn",
-        "transcription_whisper_cpp_repair_btn",
-        "transcription_whisper_cpp_remove_btn",
-    )
-
-    #: The two group names. Not tab stops, so not owed a letter — and they
-    #: must not quietly spend one either.
     GROUPS = (
         "transcription_model_actions_group",
         "transcription_cuda_actions_group",
         "transcription_external_actions_group",
         "transcription_whisper_cpp_actions_group",
+        "transcription_reuse_group",
+    )
+
+    #: The one-word action buttons, each inside a group named after what it
+    #: acts on.
+    ACTION_BUTTONS = (
+        "transcription_model_download_btn", "transcription_model_verify_btn",
+        "transcription_model_repair_btn", "transcription_model_remove_btn",
+        "transcription_cuda_install_btn", "transcription_cuda_repair_btn",
+        "transcription_cuda_verify_btn", "transcription_cuda_remove_btn",
+        "transcription_external_add_btn", "transcription_external_find_btn",
+        "transcription_external_use_btn", "transcription_external_check_btn",
+        "transcription_external_forget_btn",
+        "transcription_whisper_cpp_install_btn", "transcription_whisper_cpp_verify_btn",
+        "transcription_whisper_cpp_repair_btn", "transcription_whisper_cpp_remove_btn",
     )
 
     @staticmethod
@@ -1781,51 +1746,6 @@ class TestTheMnemonicsOnThisTab:
             if char == "&" and index + 1 < len(value) and value[index + 1] != "&":
                 return value[index + 1].casefold()
         return None
-
-    @pytest.mark.parametrize("locale", LOCALES)
-    def test_they_do_not_collide(self, locale):
-        """Two controls sharing an Alt key means one of them can never be
-        reached with it. The labelled controls and the dialog's buttons keep
-        their letters to themselves; the action buttons share (see
-        ACTION_BUTTONS)."""
-        table = load_strings(locale)
-        used = [
-            self._mnemonic(table[key])
-            for key in self.LABELLED
-            if self._mnemonic(table[key]) is not None
-        ]
-        assert len(used) == len(set(used)), f"{locale}: repeated mnemonics in {used}"
-
-    @pytest.mark.parametrize("locale", LOCALES)
-    def test_every_action_button_has_an_alt_key(self, locale):
-        table = load_strings(locale)
-        without = [
-            key for key in self.ACTION_BUTTONS if self._mnemonic(table[key]) is None
-        ]
-        assert without == [], f"{locale}: no Alt key for {without}"
-
-    @pytest.mark.parametrize("locale", LOCALES)
-    def test_the_same_word_has_the_same_letter_on_every_row(self, locale):
-        """Alt+F means "Verificar" wherever the focus is; two letters for one
-        word would make the shortcut depend on the row."""
-        table = load_strings(locale)
-        letters = {}
-        for key in self.ACTION_BUTTONS:
-            word = table[key].replace("&", "")
-            letters.setdefault(word, set()).add(self._mnemonic(table[key]))
-        assert all(len(found) == 1 for found in letters.values()), (
-            f"{locale}: {letters}"
-        )
-
-    @pytest.mark.parametrize("locale", LOCALES)
-    def test_no_button_takes_the_letter_of_ok_cancel_or_apply(self, locale):
-        table = load_strings(locale)
-        dialog = {self._mnemonic(table[key]) for key in ("ok", "cancel", "apply")}
-        taken = [
-            key for key in self.ACTION_BUTTONS
-            if self._mnemonic(table[key]) in dialog
-        ]
-        assert taken == [], f"{locale}: {taken}"
 
     @pytest.mark.parametrize("locale", LOCALES)
     def test_the_group_names_spend_no_letter(self, locale):
@@ -1855,17 +1775,6 @@ class TestTheMnemonicsOnThisTab:
         assert table["transcription_whisper_cpp_actions_group"] == (
             table["transcription_whisper_cpp_label"].replace("&", "")
         )
-
-    @pytest.mark.parametrize("locale", LOCALES)
-    def test_every_control_on_the_tab_has_one(self, locale):
-        """A control with no mnemonic is one a keyboard user can only reach by
-        tabbing past everything above it. transcription_language_detect had
-        none in any of the five."""
-        table = load_strings(locale)
-        without = sorted(
-            key for key in self.LABELLED if self._mnemonic(table[key]) is None
-        )
-        assert without == [], f"{locale}: no Alt key for {without}"
 
 
 
@@ -3064,12 +2973,41 @@ class TestVerifyingLandsOnTheResultField:
         management.ACTION_VERIFY_MODEL,
         management.ACTION_VERIFY_CUDA_RUNTIME,
     ])
-    def test_the_verification_moves_the_focus_to_the_field(self, tab, action):
+    def test_the_verification_moves_the_focus_to_the_field(self, tab, action, monkeypatch):
+        # Pressed in the window the field is in (the tab).
+        monkeypatch.setattr(wx.Window, "FindFocus",
+                            staticmethod(lambda: tab._transcription_substituted_field))
         tab._load_transcription_values()
         tab._select_transcription_model("small")
         self._say(tab)
         taken = self._watch(tab)
         tab._restore_transcription_focus(action)
+        assert taken == ["result"]
+
+    def test_a_check_in_another_window_keeps_the_focus_there(self, tab, monkeypatch):
+        """The CUDA and whisper.cpp checks run in windows of their own; the
+        field is on the tab, behind the modal window, where a focus would be
+        lost. The answer is spoken anyway."""
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        # The button pressed decides, not FindFocus() (None while WinZapp is
+        # not the foreground app).
+        elsewhere = object()
+        tab._transcription_action_buttons[
+            management.ACTION_VERIFY_CUDA_RUNTIME].GetTopLevelParent = lambda: elsewhere
+        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: None))
+        tab._restore_transcription_focus(management.ACTION_VERIFY_CUDA_RUNTIME)
+        assert "result" not in taken
+
+    def test_a_check_on_the_tab_lands_on_the_field_even_in_the_background(self, tab, monkeypatch):
+        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: None))
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_VERIFY_MODEL)
         assert taken == ["result"]
 
     def test_with_nothing_to_show_the_old_rule_still_applies(self, tab):
@@ -4898,3 +4836,13 @@ class TestTheWhisperCppProgram:
         assert tab._whisper_cpp_combo.GetString(0) == (
             transcription_whisper_cpp.whisper_cpp_build_label(
                 pl, _CPU_BUILD, whisper_cpp_runtime.STATE_ABSENT))
+
+
+def test_shares_window_compares_the_top_level_windows():
+    from ui.dialogs.transcription_result_field import shares_window
+    top = object()
+    a = SimpleNamespace(GetTopLevelParent=lambda: top)
+    b = SimpleNamespace(GetTopLevelParent=lambda: top)
+    c = SimpleNamespace(GetTopLevelParent=lambda: object())
+    assert shares_window(a, b) and not shares_window(a, c)
+    assert not shares_window(a, None) and not shares_window(None, a)

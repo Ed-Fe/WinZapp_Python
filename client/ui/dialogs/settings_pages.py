@@ -22,6 +22,26 @@ import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 
 
+def owner_window(active, fallback):
+    """The window a question or a folder picker opens over: the one active now
+    (a SubPageDialog, when the option lives in one), else *fallback*.
+
+    Parented to the Settings dialog while a SubPageDialog is up, the box opened
+    over a window disabled behind the modal one, and closing it sent the focus
+    back there instead of to the option the user was on."""
+    return active if active is not None else fallback
+
+
+def dialog_owner(fallback):
+    """owner_window() with the window active now; *fallback* when there is
+    none, or no wx.App to ask (a test calling the handler on a stub)."""
+    try:
+        active = wx.GetActiveWindow()
+    except Exception:
+        active = None
+    return owner_window(active, fallback)
+
+
 class ScrollingPage(ScrolledPanel):
     """A page that scrolls instead of making the dialog taller than the screen."""
 
@@ -103,7 +123,7 @@ def _fold(text: str) -> str:
 # control that does not.
 _SELF_LABELLED = (wx.CheckBox, wx.RadioButton, wx.Button, wx.ToggleButton)
 _CAPTIONED = (wx.Choice, wx.ComboBox, wx.SpinCtrl, wx.SpinCtrlDouble, wx.TextCtrl,
-              wx.ListBox, wx.ListCtrl, wx.Slider, wx.CheckListBox)
+              wx.ListBox, wx.ListCtrl, wx.Slider, wx.CheckListBox, wx.TreeCtrl)
 # Names wx gives a control when nobody named it — worthless to search or read.
 _DEFAULT_NAMES = frozenset((
     "", "button", "check", "radioButton", "text", "choice", "comboBox", "listBox",

@@ -64,3 +64,72 @@ def set_allowed(settings, jid, which, value) -> None:
         section[jid] = entry
     else:
         section.pop(jid, None)
+
+
+# ── Automatic transcription: one box per kind, inherited until chosen ────────
+#
+# Asked for: in a conversation's data window, a box for the automatic local
+# transcription (Whisper) and one for the automatic online one (AI provider),
+# each showing — until the user sets it for that conversation — what the
+# install-wide option says right now, and each able to turn the automatic
+# transcription ON for the conversation even while that option is off.
+# Unlike `allowed()`, a choice is therefore always stored, even when it equals
+# what the conversation would inherit: "chosen once" is the whole difference.
+#
+# The shared "transcribe" key above is the box both used to be, and it only
+# ever *restricted*: True meant "may act here while the install-wide option is
+# on" (all the "selected" scope stored), False "not here". It keeps exactly
+# that meaning for each new box until that box is set: False turns the box off,
+# True follows the install-wide option whatever the scope. It never becomes an
+# explicit "on": read as one, an old True ran local Whisper with the option off
+# and, moved to the other box, sent voice notes to an online provider whose
+# option was off too.
+
+TRANSCRIBE_LOCAL = "transcribe_local"
+TRANSCRIBE_ONLINE = "transcribe_online"
+_TRANSCRIPTION_BOXES = (TRANSCRIBE_LOCAL, TRANSCRIBE_ONLINE)
+
+
+def _entry(settings, jid):
+    section = settings.get(SETTING) if isinstance(settings, dict) else None
+    entry = section.get(jid) if isinstance(section, dict) else None
+    return entry if isinstance(entry, dict) else {}
+
+
+def transcription_choice(settings, jid, which):
+    """What the user chose for `jid` in box `which` (True/False), or None when
+    the box was never set. The old shared box is not a choice (see above)."""
+    value = _entry(settings, jid).get(which)
+    return value if isinstance(value, bool) else None
+
+
+def transcription_wanted(settings, jid, which, globally_on) -> bool:
+    """Whether the automatic transcription `which` runs on `jid`: the
+    conversation's own choice; else the old shared box as the restriction it
+    was; else the install-wide option `globally_on` within the scope."""
+    choice = transcription_choice(settings, jid, which)
+    if choice is not None:
+        return choice
+    legacy = _entry(settings, jid).get(TRANSCRIBE)
+    if legacy is False:
+        return False
+    if legacy is True:
+        return bool(globally_on)
+    return bool(globally_on) and default_allowed(settings)
+
+
+def set_transcription(settings, jid, which, value) -> None:
+    """Record `which` for `jid` as an explicit choice. The old shared box stays
+    for the other box, which it still restricts until that one is set."""
+    if which not in _TRANSCRIPTION_BOXES:
+        raise ValueError(which)
+    section = settings.get(SETTING)
+    if not isinstance(section, dict):
+        section = settings[SETTING] = {}
+    entry = section.get(jid)
+    entry = dict(entry) if isinstance(entry, dict) else {}
+    entry[which] = bool(value)
+    if all(isinstance(entry.get(box), bool) for box in _TRANSCRIPTION_BOXES):
+        # Both boxes chosen: the old one speaks for neither any more.
+        entry.pop(TRANSCRIBE, None)
+    section[jid] = entry

@@ -288,9 +288,9 @@ msgstr "așteaptă asocierea"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "acc_switch_behavior_keep_open"
-msgid "Keep windows of all accounts open on screen and system tray"
+msgid "&Keep windows of all accounts open on screen and system tray"
 msgstr ""
-"Păstrați ferestrele tuturor conturilor deschise pe ecran și în bara de "
+"Păstrați &ferestrele tuturor conturilor deschise pe ecran și în bara de "
 "sistem"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -302,9 +302,9 @@ msgstr "Când schimbați conturile, ce trebuie să faceți:"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "acc_switch_behavior_single"
-msgid "Hide current account window to system tray (single visible window)"
+msgid "Hide current account window to system tray (single &visible window)"
 msgstr ""
-"Ascundeți fereastra contului curent în bara de sistem (o singură fereastră "
+"Ascundeți fereastra contului curent în &bara de sistem (o singură fereastră "
 "vizibilă)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
@@ -347,24 +347,24 @@ msgstr "Contul nu este conectat"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "accessibility_extended_sr_compat_label"
 msgid ""
-"Enable extended screen reader compatibility (additional announcements, such "
-"as new messages in the active chat, downloads, typing/recording audio, among"
-" others)"
+"&Enable extended screen reader compatibility (additional announcements, such"
+" as new messages in the active chat, downloads, typing/recording audio, "
+"among others)"
 msgstr ""
-"Activați compatibilitatea extinsă a cititorului de ecran (anunțuri "
+"Activați compatibilitatea &extinsă a cititorului de ecran (anunțuri "
 "suplimentare, cum ar fi mesaje noi în conversația activă, descărcări, "
 "tastare/înregistrare audio, printre altele)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "accessibility_sapi_fallback_label"
-msgid "Use SAPI voice when the screen reader is not available"
-msgstr "Utilizați vocea SAPI când cititorul de ecran nu este disponibil"
+msgid "&Use SAPI voice when the screen reader is not available"
+msgstr "&Utilizați vocea SAPI când cititorul de ecran nu este disponibil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "accessibility_sapi_fallback_label_macos"
-msgid "Use the system voice when VoiceOver is not running"
-msgstr "Utilizați vocea sistemului când VoiceOver nu rulează"
+msgid "&Use the system voice when VoiceOver is not running"
+msgstr "&Utilizați vocea sistemului când VoiceOver nu rulează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -387,13 +387,13 @@ msgstr "Nu s-a putut schimba conturile. Celălalt proces WinZapp nu a pornit."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "activate_all_sounds"
-msgid "Enable all"
-msgstr "Activează-le pe toate"
+msgid "&Enable all"
+msgstr "Activează-&le pe toate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "add_attachment"
-msgid "Add &attachment"
-msgstr "&Adăugați atașament"
+msgid "Add attachment"
+msgstr "Adăugați atașament"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -484,10 +484,54 @@ msgctxt "add_more_files"
 msgid "Add more &files"
 msgstr "&Adăugați mai multe fișiere"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_fixed_port_check"
+msgid "Start the local API on a &fixed port"
+msgstr "Pornește API-ul local pe un port &fix"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_fixed_port_label"
+msgid "Local API &port (applies the next time WinZapp starts):"
+msgstr "&Portul API-ului local (se aplică la următoarea pornire a WinZapp):"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_debug"
+msgid "Debug: everything, to diagnose a problem"
+msgstr "Depanare: tot, pentru a diagnostica o problemă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_error"
+msgid "Errors only"
+msgstr "Doar erori"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_info"
+msgid "Information (default)"
+msgstr "Informații (implicit)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_log_level_label"
+msgid "&Log level:"
+msgstr "Nive&l de jurnalizare:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "advanced_log_level_warning"
+msgid "Warnings and errors"
+msgstr "Avertismente și erori"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "advanced_wpp_all_updates_check"
+msgid ""
+"Show &every WPPConnect Server update, not only the ones the WinZapp "
+"maintainers checked"
+msgstr ""
+"Afișează toate act&ualizările WPPConnect Server, nu doar cele verificate de "
+"întreținătorii WinZapp"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_accessibility_enabled_label"
-msgid "Enable AI &features (transcription and description)"
-msgstr "Activați funcții&le AI (transcriere și descriere)"
+msgid "Ena&ble AI features (transcription and description)"
+msgstr "Activați &funcțiile AI (transcriere și descriere)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -525,6 +569,12 @@ msgid "{minutes} minutes ago"
 msgstr "acum {minutes} minute"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ai_auto_button"
+msgid "Automatic transcri&ption and description..."
+msgstr "Transcriere &și descriere automată..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "ai_auto_consent"
 msgid ""
@@ -543,27 +593,27 @@ msgstr "Trimiți automat fișierele media?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_daily_limit"
-msgid "Daily limit of automatic requests (0 for no limit):"
-msgstr "Limita zilnică de cereri automate (0 pentru fără limită):"
+msgid "Daily &limit of automatic requests (0 for no limit):"
+msgstr "&Limita zilnică de cereri automate (0 pentru fără limită):"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_describe"
 msgid ""
-"Describe received pictures, stickers and videos automatically, with the "
+"Describe received pictures, stickers and videos automatically, &with the "
 "online providers"
 msgstr ""
-"Descrie automat imaginile, stickerele și videoclipurile primite, cu "
+"Descrie automat imaginile, stic&kerele și videoclipurile primite, cu "
 "furnizorii online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_max_age"
-msgid "Process automatically the messages received up to:"
-msgstr "Procesează automat mesajele primite cu cel mult:"
+msgid "&Process automatically the messages received up to:"
+msgstr "&Procesează automat mesajele primite cu cel mult:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope"
-msgid "Conversations the automatic options apply to:"
-msgstr "Conversațiile la care se aplică opțiunile automate:"
+msgid "Conversations t&he automatic options apply to:"
+msgstr "Conversațiile la care &se aplică opțiunile automate:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_scope_all"
@@ -578,13 +628,13 @@ msgstr "Doar conversațiile pe care le activez"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_transcribe"
 msgid ""
-"Transcribe received voice messages automatically, with the online providers"
-msgstr "Transcrie automat mesajele vocale primite, cu furnizorii online"
+"Transcribe received &voice messages automatically, with the online providers"
+msgstr "Transcrie automat &mesajele vocale primite, cu furnizorii online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_auto_used_today"
-msgid "Automatic requests made today:"
-msgstr "Cereri automate făcute astăzi:"
+msgid "Automatic &requests made today:"
+msgstr "Cereri automate &făcute astăzi:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_balanced"
@@ -711,7 +761,7 @@ msgstr "Descrieți"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_images_label"
-msgid "Describe received &images"
+msgid "Describe received ima&ges"
 msgstr "&Descrieți fotografiile primite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -721,7 +771,7 @@ msgstr "Descrieți autocolantul"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_describe_stickers_label"
-msgid "Describe received &stickers"
+msgid "&Describe received stickers"
 msgstr "Descrieți autocolantele &primite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -919,6 +969,15 @@ msgid "&Get models"
 msgstr "Obține mo&delele"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_hide_action_button"
+msgid ""
+"&Hide the online AI button after the message list (the message menu still "
+"offers it)"
+msgstr ""
+"Ascunde &butonul AI online de după lista de mesaje (meniul mesajului îl "
+"oferă în continuare)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_history_answer"
 msgid "Answer:"
@@ -1049,7 +1108,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_pdf_accessible_label"
-msgid "Convert received PDFs to accessi&ble text"
+msgid "Convert received PDFs to accessib&le text"
 msgstr "Convertiți PDF-&urile primite în text accesibil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1069,7 +1128,7 @@ msgstr "Se procesează cu AI, vă rugăm așteptați..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_profile"
-msgid "D&escription detail"
+msgid "Descr&iption detail"
 msgstr "&Nivelul de detaliu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1080,8 +1139,8 @@ msgstr "Configurați {provider}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_configure_button"
-msgid "Set up se&lected provider"
-msgstr "Configurați furnizorul &selectat"
+msgid "S&et up selected provider"
+msgstr "Confi&gurați furnizorul selectat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_enabled_checkbox"
@@ -1090,12 +1149,12 @@ msgstr "Ac&tivat (încercat automat)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_list_label"
-msgid "AI &providers (order = try order)"
-msgstr "&Furnizori AI (ordine = ordinea încercărilor)"
+msgid "AI providers (order = tr&y order)"
+msgstr "Fu&rnizori AI (ordine = ordinea încercărilor)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_provider_move_down_button"
-msgid "Move &down"
+msgid "Move do&wn"
 msgstr "Mutați în &jos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -1175,7 +1234,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_reset_keys"
 msgid "Reset all saved AI &keys"
-msgstr "&Resetează toate cheile AI salvate"
+msgstr "Resetează toate cheile AI &salvate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/ai_result_dialog.py
@@ -1207,7 +1266,7 @@ msgstr "Trimite &conținutul"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_help"
 msgid "&Usage and privacy information"
-msgstr "Informații despre utilizare și &confidențialitate"
+msgstr "&Informații despre utilizare și confidențialitate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_settings_notice"
@@ -1240,8 +1299,8 @@ msgstr "Star&e"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_info"
-msgid "Tec&hnical information"
-msgstr "&Informații tehnice"
+msgid "Technical in&formation"
+msgstr "Informații te&hnice"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_technical_notice"
@@ -1289,8 +1348,8 @@ msgstr "Personalizat"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "alert_tone_custom_path_label"
-msgid "Custom file path:"
-msgstr "Calea fișierului personalizat:"
+msgid "Cus&tom file path:"
+msgstr "Calea fișierului &personalizat:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -1302,8 +1361,8 @@ msgstr "Implicit"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "alert_tone_group_label"
-msgid "Background notification sound for groups:"
-msgstr "Sunet de notificare de fundal pentru grupuri:"
+msgid "&Background notification sound for groups:"
+msgstr "&Sunet de notificare de fundal pentru grupuri:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -1314,8 +1373,8 @@ msgstr "Alertă {n}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "alert_tone_private_label"
-msgid "Background notification sound for private chats:"
-msgstr "Sunet de notificare de fundal pentru conversații private:"
+msgid "Background &notification sound for private chats:"
+msgstr "Sunet &de notificare de fundal pentru conversații private:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/media_files.py client/ui/media_viewer.py
@@ -1341,8 +1400,8 @@ msgstr "Toate deselectate"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "alpha_updates_label"
-msgid "Check for a&lpha updates (unstable)"
-msgstr "&Verificați actualizările alfa (instabile)"
+msgid "C&heck for alpha updates (unstable)"
+msgstr "Verificați actualizările alfa (&instabile)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -1370,8 +1429,21 @@ msgstr "și încă {n}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "announce_sync_events_label"
-msgid "Announce sync, media downloads and automatic &offline mode"
-msgstr "&Anunțați sincronizarea, descărcări media și modul offline automat"
+msgid "Announce sync, &media downloads and automatic offline mode"
+msgstr "Anunțați sincronizarea, &descărcări media și modul offline automat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/community_comments.py
+#, python-brace-format
+msgctxt "announcement_reply_preview_them"
+msgid "{name} replied to an announcement"
+msgstr "{name} a răspuns la un anunț"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/community_comments.py
+msgctxt "announcement_reply_preview_you"
+msgid "you replied to an announcement"
+msgstr "ați răspuns la un anunț"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/account_link.py
@@ -1830,28 +1902,43 @@ msgstr "Ieșire mesaj vocal (redare):"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "audio_effects_output_device_label"
-msgid "Effects output device (alerts / sounds)"
-msgstr "Dispozitiv de ieșire pentru efecte (alerte/sunete)"
+msgid "Effects output dev&ice (alerts / sounds)"
+msgstr "Dispozitiv de ieșire &pentru efecte (alerte/sunete)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_progress_bar"
+msgid "&Hide the duration bar while media plays (Tab skips it)"
+msgstr "Ascunde bara de &durată în timpul redării (Tab o sare)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "audio_hide_speed_button"
+msgid ""
+"Hide the speed &button while media plays (the speed shortcuts still work)"
+msgstr ""
+"Ascunde &butonul de viteză în timpul redării (scurtăturile de viteză "
+"funcționează în continuare)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "audio_input_device_label"
-msgid "Recording device (microphone)"
-msgstr "Dispozitiv de înregistrare (microfon)"
+msgid "&Recording device (microphone)"
+msgstr "&Dispozitiv de înregistrare (microfon)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "audio_mark_played_in_list_label"
 msgid "&Mark audios as played in chats and announce it to the screen reader"
 msgstr ""
-"&Marcați fișierele audio ca redate în conversații și anunțați acest lucru "
+"Marcați &fișierele audio ca redate în conversații și anunțați acest lucru "
 "cititorului de ecran"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "audio_output_device_label"
-msgid "Playback device (speaker)"
-msgstr "Dispozitiv de redare (difuzor)"
+msgid "P&layback device (speaker)"
+msgstr "Di&spozitiv de redare (difuzor)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "audio_progress_label"
@@ -1867,8 +1954,8 @@ msgstr "&Viteza de redare audio implicită"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "auto_download_media_label"
-msgid "Automatically download media"
-msgstr "Descărcați automat media"
+msgid "A&utomatically download media"
+msgstr "D&escărcați automat media"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/auto_ai_media.py
@@ -1926,13 +2013,13 @@ msgstr "Nu s-a putut adăuga intrarea de pornire. Eroare:"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "autostart_label"
-msgid "Start WinZapp in the background when Windows starts"
-msgstr "Porniți WinZapp în fundal când Windows pornește"
+msgid "Start WinZapp &in the background when Windows starts"
+msgstr "Porniți &WinZapp în fundal când Windows pornește"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "autostart_label_macos"
-msgid "Start WinZapp in the background when you log in"
-msgstr "Porniți WinZapp în fundal când vă conectați la Mac"
+msgid "Start WinZapp &in the background when you log in"
+msgstr "Porniți &WinZapp în fundal când vă conectați la Mac"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "autostart_success_message"
@@ -1958,11 +2045,11 @@ msgstr "Îna&poi"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "background_updates_label"
 msgid ""
-"Download updates and transcription downloads in the background, without the "
-"progress window (WinZapp tells you before installing an update and when a "
+"&Download updates and transcription downloads in the background, without the"
+" progress window (WinZapp tells you before installing an update and when a "
 "download finishes)"
 msgstr ""
-"Descărcați actualizările și descărcările transcrierii în fundal, fără "
+"&Descărcați actualizările și descărcările transcrierii în fundal, fără "
 "fereastra de progres (WinZapp vă anunță înainte de instalarea unei "
 "actualizări și când se termină o descărcare)"
 
@@ -2363,14 +2450,14 @@ msgstr "Nu este disponibilă nicio cameră."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "calls_alerts_enabled_label"
-msgid "Allow incoming call alerts"
-msgstr "Permiteți alerte de apeluri primite"
+msgid "Allow &incoming call alerts"
+msgstr "Permiteți alerte &de apeluri primite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "calls_audio_settings_button"
-msgid "Call audio settings"
-msgstr "Setări audio pentru apeluri"
+msgid "Ca&ll audio settings"
+msgstr "Setări audio &pentru apeluri"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 msgctxt "calls_echo_cancellation_label"
@@ -2427,8 +2514,8 @@ msgstr "Deschide conversația"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "calls_popup_enabled_label"
-msgid "Open a window when a call comes in"
-msgstr "Deschideți o fereastră când sosește un apel"
+msgid "Open a &window when a call comes in"
+msgstr "Deschideți o &fereastră când sosește un apel"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "calls_tab_all"
@@ -2453,8 +2540,8 @@ msgstr "Pierdute"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "calls_video_settings_button"
-msgid "Call video settings"
-msgstr "Setări video pentru apeluri"
+msgid "Call &video settings"
+msgstr "&Setări video pentru apeluri"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/account_ui.py
 #: client/main_window/calls.py client/ui/chat_lock.py
@@ -2621,8 +2708,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "chat_lock_change_pin"
-msgid "Change &PIN"
-msgstr "Schimbați &codul PIN"
+msgid "C&hange PIN"
+msgstr "Schimbați codul &PIN"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/chat_lock.py
 msgctxt "chat_lock_change_pin_title"
@@ -2846,7 +2933,13 @@ msgstr "Cod secret pentru afișarea conversațiilor blocate în căutare"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "chat_lock_settings"
 msgid "Change &secret code"
-msgstr "Schimbați &codul secret"
+msgstr "&Schimbați codul secret"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "chat_lock_settings_button"
+msgid "&Locked chats"
+msgstr "&Conversații blocate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -2866,7 +2959,7 @@ msgstr "Setările conversațiilor blocate sunt deschise"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "chat_lock_settings_unlock"
-msgid "&Open locked-chat settings"
+msgid "O&pen locked-chat settings"
 msgstr "&Deschideți setările conversațiilor blocate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/chat_lock.py
@@ -2882,8 +2975,8 @@ msgstr "Configurați conversațiile blocate"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "chat_lock_show_navigation"
-msgid "Show Locked chats in the navigation menu"
-msgstr "Afișați Conversații blocate în meniul de navigare"
+msgid "Show &Locked chats in the navigation menu"
+msgstr "Afișați &Conversații blocate în meniul de navigare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "chat_lock_state_unavailable"
@@ -2903,8 +2996,8 @@ msgstr "Seiful conversațiilor blocate s-a închis automat."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "chat_lock_timeout_label"
-msgid "Close the vault automatically after inactivity"
-msgstr "Închideți automat seiful după o perioadă de inactivitate"
+msgid "&Close the vault automatically after inactivity"
+msgstr "Închideți &automat seiful după o perioadă de inactivitate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -3097,8 +3190,8 @@ msgstr "Nu s-a găsit niciun fișier cu aceste filtre."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "cleanup_open_button"
-msgid "Media cleanup…"
-msgstr "Curățarea fișierelor media…"
+msgid "&Media cleanup…"
+msgstr "Curățarea &fișierelor media…"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/media_cleanup_dialog.py
@@ -3213,7 +3306,8 @@ msgstr "Goliți conversațiile selectate"
 #: client/ui/conversation_panel/message_menu.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/media_cleanup_dialog.py
-#: client/ui/dialogs/new_conversation.py client/ui/dialogs/poll_dialog.py
+#: client/ui/dialogs/new_conversation.py
+#: client/ui/dialogs/order_update_dialog.py client/ui/dialogs/poll_dialog.py
 #: client/ui/dialogs/poll_voters_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 #: client/ui/dialogs/reactions_dialog.py client/ui/dialogs/shortcuts_dialog.py
@@ -3497,6 +3591,59 @@ msgstr ""
 "câteva momente pentru a verifica."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm"
+msgid "C&onfirm order info"
+msgstr "C&onfirmați informațiile comenzii"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_already"
+msgid "You have already confirmed the information of this order."
+msgstr "Ați confirmat deja informațiile acestei comenzi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_done"
+msgid ""
+"Order information confirmed. The business has received your confirmation."
+msgstr ""
+"Informațiile comenzii au fost confirmate. Firma a primit confirmarea dvs."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_failed"
+msgid "This order can no longer be confirmed."
+msgstr "Această comandă nu mai poate fi confirmată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+#, python-brace-format
+msgctxt "commerce_order_confirm_question"
+msgid ""
+"Confirm the information of this order to {name}? {name} receives your "
+"confirmation in the chat. Payment is arranged outside WhatsApp."
+msgstr ""
+"Confirmați informațiile acestei comenzi pentru {name}? {name} primește "
+"confirmarea dvs. în conversație. Plata se stabilește în afara WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_title"
+msgid "Confirm order info"
+msgstr "Confirmați informațiile comenzii"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
+msgctxt "commerce_order_confirm_unconfirmed"
+msgid ""
+"The confirmation may or may not have been sent. Check the chat before trying"
+" again."
+msgstr ""
+"Confirmarea poate să fi fost trimisă sau nu. Verificați conversația înainte "
+"de a încerca din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/commerce.py
 msgctxt "commerce_order_create_unavailable"
 msgid ""
@@ -3526,11 +3673,18 @@ msgid "Order declined."
 msgstr "Comandă refuzată."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
 msgctxt "commerce_order_details"
 msgid "&Details"
 msgstr "&Detalii"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "commerce_order_info_confirmed"
+msgid "Order information confirmed"
+msgstr "Informațiile comenzii au fost confirmate"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/order_update_dialog.py
 msgctxt "commerce_order_items"
 msgid "&Items of the order"
 msgstr "&Articolele comenzii"
@@ -3607,6 +3761,7 @@ msgid "WhatsApp accepted the status update for sending."
 msgstr "WhatsApp a acceptat actualizarea de stare pentru trimitere."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/order_dialog.py
+#: client/ui/dialogs/order_update_dialog.py
 #, python-brace-format
 msgctxt "commerce_order_title"
 msgid "Order - {name}"
@@ -3620,7 +3775,7 @@ msgstr ""
 "Această comandă nu a putut fi citită. Deschideți conversația la acest mesaj "
 "și încercați din nou."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/core/commerce.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "commerce_order_update"
 msgid "Order update"
 msgstr "Actualizare de comandă"
@@ -3773,7 +3928,7 @@ msgctxt "commerce_status_shipped"
 msgid "Shipped"
 msgstr "Expediată"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/commerce.py
 #, python-brace-format
 msgctxt "commerce_subtotal"
 msgid "subtotal {amount}"
@@ -3859,6 +4014,11 @@ msgstr "Administratori: {names}"
 msgctxt "communities_button"
 msgid "Co&mmunities"
 msgstr "Co&munități"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_cancel_join_request"
+msgid "Cancel &join request"
+msgstr "Anulați cererea de a &intra în grup"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -3950,6 +4110,21 @@ msgid "You are not in any community."
 msgstr "Nu faceți parte din nicio comunitate."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_all"
+msgid "All groups"
+msgstr "Toate grupurile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_joined"
+msgid "Groups I'm in"
+msgstr "Grupurile din care fac parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_filter_not_joined"
+msgid "Groups I'm not in"
+msgstr "Grupurile din care nu fac parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format
 msgctxt "communities_group_announcements"
 msgid "{name}, announcement group"
@@ -3962,9 +4137,87 @@ msgid "{name}, general group"
 msgstr "{name}, grup general"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined"
+msgid "{label}, you are not in it"
+msgstr "{label}, nu faceți parte"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_group_not_joined_approval"
+msgid "{label}, you are not in it, joining needs approval"
+msgstr "{label}, nu faceți parte, aderarea necesită aprobare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_group_not_joined_open"
+msgid "You are not in this group, so it cannot be opened here."
+msgstr "Nu faceți parte din acest grup, așa că nu poate fi deschis aici."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_groups_filter"
+msgid "F&ilter groups"
+msgstr "&Filtrați grupurile"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_groups_list"
 msgid "&Groups of the community"
 msgstr "&Grupurile comunității"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_in_every_group"
+msgid "You are in every group of this community."
+msgstr "Faceți parte din toate grupurile acestei comunități."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_cancel_failed"
+msgid "Could not cancel the request. Check the connection and try again."
+msgstr ""
+"Nu s-a putut anula cererea. Verificați conexiunea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_cancelled"
+msgid "Request cancelled."
+msgstr "Cererea a fost anulată."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_failed"
+msgid "Could not join the group. Check the connection and try again."
+msgstr ""
+"Nu s-a putut intra în grup. Verificați conexiunea și încercați din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_group"
+msgid "&Join group"
+msgstr "&Intrați în grup"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_hidden"
+msgid "This group is hidden: only its owner can add you."
+msgstr "Acest grup este ascuns: doar proprietarul îl poate adăuga."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_request_pending"
+msgid ""
+"You already asked to join this group; an admin still has to approve it."
+msgstr ""
+"Ați cerut deja să intrați în acest grup; un administrator trebuie încă să "
+"aprobe."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_requested"
+msgid "Request sent. An admin of the group has to approve it."
+msgstr ""
+"Cererea a fost trimisă. Un administrator al grupului trebuie să o aprobe."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_join_unavailable"
+msgid "This group is no longer available."
+msgstr "Acest grup nu mai este disponibil."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_joined"
+msgid "You joined the group."
+msgstr "Ați intrat în grup."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "communities_list"
@@ -4006,6 +4259,17 @@ msgstr ""
 msgctxt "communities_open_group"
 msgid "&Open group"
 msgstr "Deschideți g&rupul"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
+msgctxt "communities_open_recent_group"
+msgid "Open the mo&st recent group"
+msgstr "Deschideți grupul cu activitatea cea mai re&centă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "communities_open_recent_group_named"
+msgid "Open the mo&st recent group: {name}"
+msgstr "Deschideți grupul cu activitatea cea mai re&centă: {name}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_admin.py
@@ -4052,6 +4316,11 @@ msgstr "Act&ualizați"
 msgctxt "communities_remove_group"
 msgid "&Remove group from the community"
 msgstr "&Eliminați grupul din comunitate"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "communities_request_join"
+msgid "Request to &join"
+msgstr "Cereți să &intrați în grup"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/communities.py
 #, python-brace-format
@@ -4138,12 +4407,6 @@ msgstr "Acest mesaj nu se află în grupul de anunțuri al unei comunități."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
-msgctxt "community_comments_refresh"
-msgid "&Refresh replies"
-msgstr "&Actualizează răspunsurile"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_send"
 msgid "&Send reply"
 msgstr "&Trimite răspunsul"
@@ -4171,11 +4434,11 @@ msgstr "Răspunsuri la anunțul comunității..."
 #: client/ui/dialogs/community_comments.py
 msgctxt "community_comments_unconfirmed"
 msgid ""
-"Sending was not confirmed. Refresh and check the replies before trying "
-"again. Your text was kept."
+"Sending was not confirmed. Check the list of replies before trying again: it"
+" updates on its own. Your text was kept."
 msgstr ""
-"Trimiterea nu a fost confirmată. Actualizează și verifică răspunsurile "
-"înainte de a încerca din nou. Textul tău a fost păstrat."
+"Trimiterea nu a fost confirmată. Verifică lista de răspunsuri înainte de a "
+"încerca din nou: se actualizează singură. Textul tău a fost păstrat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/community_comments.py
@@ -4220,14 +4483,14 @@ msgstr "Se conectează..."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "connection_api_key_label"
-msgid "API Key (Secret Key):"
-msgstr "Cheie API (Cheie secretă):"
+msgid "API &Key (Secret Key):"
+msgstr "Cheie API (Cheie &secretă):"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "connection_custom_api_label"
-msgid "Use custom API (remote server)"
-msgstr "Utilizați API personalizat (server la distanță)"
+msgid "&Use custom API (remote server)"
+msgstr "&Utilizați API personalizat (server la distanță)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/ui/dialogs/connect.py
@@ -4254,14 +4517,14 @@ msgstr "Conexiune la internet restabilită."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "connection_server_label"
-msgid "Server Address (HTTP/HTTPS):"
-msgstr "Adresa serverului (HTTP/HTTPS):"
+msgid "Server Address (&HTTP/HTTPS):"
+msgstr "Adresa serverului (&HTTP/HTTPS):"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "connection_ws_server_label"
-msgid "WebSocket Address (WS/WSS):"
-msgstr "Adresa WebSocket (WS/WSS):"
+msgid "&WebSocket Address (WS/WSS):"
+msgstr "Adresa &WebSocket (WS/WSS):"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/contact_identity.py
 msgctxt "contact_business_account"
@@ -4417,13 +4680,23 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
-msgctxt "conversation_auto_transcribe_check"
+msgctxt "conversation_auto_transcribe_local_check"
 msgid ""
-"Transcribe this conversation's voice messages and videos automatically (when"
-" turned on in Settings)"
+"Transcribe the voice messages, audio and videos received in this "
+"conversation automatically, locally with Whisper"
 msgstr ""
-"Transcrie automat mesajele vocale și videoclipurile acestei conversații "
-"(dacă este activat în setări)"
+"Transcrie automat, local cu Whisper, mesajele vocale, fișierele audio și "
+"videoclipurile primite în această conversație"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/conversation_data_dialog.py
+msgctxt "conversation_auto_transcribe_online_check"
+msgid ""
+"Transcribe the voice messages and audio received in this conversation "
+"automatically, with the online providers"
+msgstr ""
+"Transcrie automat, cu furnizorii online, mesajele vocale și fișierele audio "
+"primite în această conversație"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -4498,7 +4771,7 @@ msgstr "Conversație cu {name}"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "convert_emoticons_label"
 msgid "Convert &emoticons like :D to emoji while typing"
-msgstr "Convertiți &emoticoanele precum :D în emoji în timpul tastării"
+msgstr "Convertiți emoticoanele &precum :D în emoji în timpul tastării"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
@@ -4591,8 +4864,8 @@ msgstr "Creat pe {date}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "customization_confirmations"
-msgid "&Confirmations"
-msgstr "&Confirmări"
+msgid "Co&nfirmations"
+msgstr "Con&firmări"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chats_store.py
 msgctxt "data_save_failed"
@@ -4605,8 +4878,9 @@ msgctxt "date_fmt"
 msgid "%m/%d/%Y"
 msgstr "%d.%m.%Y"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
-#: client/main_window/chat_list.py client/main_window/whats_new_since.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/locale_format.py
+#: client/main_window/chat_events.py client/main_window/chat_list.py
+#: client/main_window/whats_new_since.py
 #: client/ui/conversation_panel/bulk_messages.py
 #: client/ui/conversation_panel/bulk_transcription.py
 #: client/ui/conversation_panel/formatting.py
@@ -4620,8 +4894,8 @@ msgstr "%d.%m.%Y %H:%M"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "deactivate_all_sounds"
-msgid "Disable all"
-msgstr "Dezactivează toate"
+msgid "&Disable all"
+msgstr "Dezactivează &toate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/commerce.py
 #: client/core/notification_manager.py client/main_window/chat_list.py
@@ -5145,7 +5419,7 @@ msgstr "&Introduceți numărul dvs. de telefon"
 #: client/main_window/wpp_server.py
 #: client/ui/conversation_panel/media_files.py
 #: client/ui/conversation_panel/voice_recording.py
-#: client/ui/dialogs/settings_dialog.py
+#: client/ui/dialogs/advanced_tab.py client/ui/dialogs/settings_dialog.py
 #, python-brace-format
 msgctxt "error"
 msgid "{app_name} Error"
@@ -5294,8 +5568,8 @@ msgstr "Redirecționați mesajele selectate"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "general_notifications_button"
-msgid "Notifications"
-msgstr "Notificări"
+msgid "&Notifications"
+msgstr "&Notificări"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
@@ -5306,9 +5580,9 @@ msgstr "Apăsați o combinație de taste (Delete sau Backspace pentru eliminare)
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "global_hotkey_label"
-msgid "Global hotkey to open WinZapp or hide it to the system tray"
+msgid "&Global hotkey to open WinZapp or hide it to the system tray"
 msgstr ""
-"Tasta rapidă globală pentru a deschide WinZapp sau a-l ascunde în bara de "
+"&Tasta rapidă globală pentru a deschide WinZapp sau a-l ascunde în bara de "
 "sistem"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -5582,7 +5856,7 @@ msgid "You joined the group."
 msgstr "Te-ai alăturat grupului."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/conversation_panel/links.py client/ui/dialogs/new_conversation.py
+#: client/ui/conversation_panel/links.py
 msgctxt "group_join_title"
 msgid "Join group by link"
 msgstr "Alăturare la grup prin link"
@@ -6154,14 +6428,14 @@ msgstr "Importă pachetul de sunete"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "import_sound_pack_folder_button"
-msgid "Import sound folder"
-msgstr "Importă folderul cu sunete"
+msgid "&Import sound folder"
+msgstr "&Importă folderul cu sunete"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "import_sound_pack_zip_button"
-msgid "Import .ZIP file"
-msgstr "Importă fișierul .ZIP"
+msgid "Import .&ZIP file"
+msgstr "I&mportă fișierul .ZIP"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -6319,7 +6593,7 @@ msgstr ""
 "Dimensiunea saltului Page Up/Page Down trebuie să fie un număr întreg "
 "pozitiv."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "invalid_port"
 msgid "The port must be an integer between 1024 and 65535."
@@ -6377,16 +6651,16 @@ msgstr "Răspuns găsit."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "keep_muted_chats_silent_when_open_label"
-msgid "Keep muted chats silent even when open"
+msgid "&Keep muted chats silent even when open"
 msgstr ""
-"Păstrați conversațiile dezactivate silențioase chiar și atunci când sunt "
+"&Păstrați conversațiile dezactivate silențioase chiar și atunci când sunt "
 "deschise"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "language_label"
-msgid "Language:"
-msgstr "Limbă:"
+msgid "&Language:"
+msgstr "&Limbă:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "language_select_prompt"
@@ -6466,6 +6740,7 @@ msgstr "selectare din listă"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
 #: client/ui/dialogs/cart_dialog.py client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
+#: client/ui/dialogs/order_update_dialog.py
 #: client/ui/dialogs/profile_picture_dialog.py
 msgctxt "loading"
 msgid "Loading..."
@@ -6761,14 +7036,14 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "media_max_days_label"
-msgid "Download media from up to (days): 0 = unlimited"
-msgstr "Descărcați conținut media din ultimele (zile): 0 = nelimitat"
+msgid "Do&wnload media from up to (days): 0 = unlimited"
+msgstr "Descărcați conținut media din &ultimele (zile): 0 = nelimitat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "media_max_mb_label"
-msgid "Download media up to a maximum of (MB): 0 = unlimited"
-msgstr "Descărcați conținut media cu dimensiunea maximă (MB): 0 = nelimitat"
+msgid "&Download media up to a maximum of (MB): 0 = unlimited"
+msgstr "Descărcați conținut &media cu dimensiunea maximă (MB): 0 = nelimitat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sending.py
 #, python-brace-format
@@ -7417,6 +7692,12 @@ msgstr "Conversație nouă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/new_conversation.py
+msgctxt "new_conversation_join_by_link"
+msgid "Join group by lin&k"
+msgstr "Alăturare la grup prin lin&k"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/new_conversation.py
 msgctxt "new_conversation_title"
 msgid "New chat"
 msgstr "Conversație nouă"
@@ -7672,7 +7953,7 @@ msgstr "Se verifică integritatea descărcării..."
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "noise_reduction_label"
 msgid "Enable microphone &noise reduction"
-msgstr "&Activați reducerea zgomotului microfonului"
+msgstr "Activați reducerea zgomotului &microfonului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/core/notification_manager.py
@@ -7827,8 +8108,8 @@ msgstr "Sunet, numele conversației sau al grupului și textul mesajului"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "notification_content_label"
-msgid "Background notification content"
-msgstr "Conținutul notificărilor de fundal"
+msgid "&Background notification content"
+msgstr "&Conținutul notificărilor de fundal"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "notification_content_name"
@@ -7844,7 +8125,7 @@ msgstr "Doar sunet"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "notifications_label"
 msgid "Enable background &notifications for new messages"
-msgstr "&Activați notificările de fundal pentru mesajele noi"
+msgstr "Activați &notificările de fundal pentru mesajele noi"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/accessible.py
 #: client/ui/conversation_panel/message_rendering.py
@@ -7881,6 +8162,7 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py client/ui/dialogs/shortcut_capture.py
 #: client/ui/dialogs/shortcuts_tab.py
 #: client/ui/dialogs/status_audience_dialog.py
+#: client/ui/dialogs/transcription_windows.py
 msgctxt "ok"
 msgid "&OK"
 msgstr "&OK"
@@ -7997,8 +8279,8 @@ msgstr "Trimiteți ca document"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "pasted_audio_label"
-msgid "Audio files pasted into the message field (Ctrl+V)"
-msgstr "Fișiere audio lipite în câmpul de mesaj (Ctrl+V)"
+msgid "Audio &files pasted into the message field (Ctrl+V)"
+msgstr "Fișiere audio &lipite în câmpul de mesaj (Ctrl+V)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_voice.py
@@ -8311,8 +8593,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "preview_sound_play"
-msgid "Play sound preview"
-msgstr "Redați previzualizarea sunetului"
+msgid "P&lay sound preview"
+msgstr "&Redați previzualizarea sunetului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "preview_sound_stop"
@@ -8323,20 +8605,20 @@ msgstr "Opriți previzualizarea sunetului"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "probe_video_duration_on_download_label"
 msgid ""
-"Find the length of videos that state none as soon as they download (instead "
-"of only on playback)"
+"Find &the length of videos that state none as soon as they download (instead"
+" of only on playback)"
 msgstr ""
-"Determinați la descărcare durata videoclipurilor pentru care aceasta apare "
+"Determinați &la descărcare durata videoclipurilor pentru care aceasta apare "
 "ca indisponibilă (nu doar la redare)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "profile_backup_close_hours_label"
 msgid ""
-"Minimum time between profile backups taken when closing WinZapp (hours, 0 = "
-"on every close)"
+"&Minimum time between profile backups taken when closing WinZapp (hours, 0 ="
+" on every close)"
 msgstr ""
-"Intervalul minim dintre copiile de siguranță ale profilului create la "
+"Intervalul &minim dintre copiile de siguranță ale profilului create la "
 "închiderea WinZapp (ore, 0 = la fiecare închidere)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -8373,11 +8655,11 @@ msgstr ""
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "profile_backup_disabled_label"
 msgid ""
-"Don't keep profile backups (saves space, but if the profile is damaged you "
+"&Don't keep profile backups (saves space, but if the profile is damaged you "
 "will need to pair again)"
 msgstr ""
-"Nu păstrați copii de siguranță ale profilului (economisește spațiu, dar dacă"
-" profilul se deteriorează va trebui să efectuați din nou asocierea)"
+"&Nu păstrați copii de siguranță ale profilului (economisește spațiu, dar "
+"dacă profilul se deteriorează va trebui să efectuați din nou asocierea)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "profile_backup_live_confirm"
@@ -8391,10 +8673,10 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "profile_backup_live_confirm_label"
-msgid "Ask before each backup while WinZapp is open"
+msgid "&Ask before each backup while WinZapp is open"
 msgstr ""
-"Cereți confirmare înainte de fiecare copie de siguranță creată când WinZapp "
-"este deschis"
+"&Cereți confirmare înainte de fiecare copie de siguranță creată când WinZapp"
+" este deschis"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "profile_backup_live_confirm_title"
@@ -8424,19 +8706,19 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "profile_backup_live_hours_label"
-msgid "Time between backups while WinZapp is open (hours)"
+msgid "&Time between backups while WinZapp is open (hours)"
 msgstr ""
-"Intervalul dintre copiile de siguranță create când WinZapp este deschis "
+"&Intervalul dintre copiile de siguranță create când WinZapp este deschis "
 "(ore)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "profile_backup_live_label"
 msgid ""
-"Also back up the profile while WinZapp is open (WhatsApp is disconnected "
+"Also &back up the profile while WinZapp is open (WhatsApp is disconnected "
 "while the backup runs)"
 msgstr ""
-"Creați copii de siguranță ale profilului și când WinZapp este deschis "
+"Creați copii &de siguranță ale profilului și când WinZapp este deschis "
 "(WhatsApp este deconectat în timpul creării copiei)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -8460,8 +8742,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_choose_photo_button"
-msgid "Choose photo…"
-msgstr "Alegeți fotografia…"
+msgid "&Choose photo…"
+msgstr "&Alegeți fotografia…"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/session_lifecycle.py
@@ -8490,8 +8772,8 @@ msgstr "Se încarcă profilul dumneavoastră actual…"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_name_label"
-msgid "Display name:"
-msgstr "Nume afișat:"
+msgid "&Display name:"
+msgstr "&Nume afișat:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -8575,8 +8857,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_save_button"
-msgid "Save"
-msgstr "Salvați"
+msgid "&Save"
+msgstr "&Salvați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
@@ -8599,8 +8881,8 @@ msgstr "Se salvează…"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_profile_panel.py
 msgctxt "profile_status_label"
-msgid "About:"
-msgstr "Despre:"
+msgid "&About:"
+msgstr "&Despre:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -8769,11 +9051,11 @@ msgstr "Lista de reacții"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "reactions_fixed_label"
 msgid ""
-"Use fixed quick reactions: choose the emoji for each of the 12 positions "
+"&Use fixed quick reactions: choose the emoji for each of the 12 positions "
 "instead of sorting by most used"
 msgstr ""
-"Folosiți reacții rapide fixe: alegeți emoji-ul pentru fiecare dintre cele 12"
-" poziții, în loc să le ordonați după cele mai utilizate"
+"&Folosiți reacții rapide fixe: alegeți emoji-ul pentru fiecare dintre cele "
+"12 poziții, în loc să le ordonați după cele mai utilizate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_list.py
@@ -8835,10 +9117,10 @@ msgstr "Reacții rapide"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "reactions_slots_label"
 msgid ""
-"Quick reaction positions. Press Enter on a position to choose its emoji; if "
-"that emoji is already in another position, the two swap places."
+"&Quick reaction positions. Press Enter on a position to choose its emoji; if"
+" that emoji is already in another position, the two swap places."
 msgstr ""
-"Pozițiile reacțiilor rapide. Apăsați Enter pe o poziție pentru a-i alege "
+"&Pozițiile reacțiilor rapide. Apăsați Enter pe o poziție pentru a-i alege "
 "emoji-ul; dacă acel emoji este deja pe altă poziție, cele două își schimbă "
 "locul."
 
@@ -9010,8 +9292,20 @@ msgstr "răspunzând la {name}"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_menu.py
 msgctxt "resend_message"
-msgid "Resend"
-msgstr "Retrimiteți"
+msgid "Try sending again"
+msgstr "Încercați să trimiteți din nou"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_actions.py
+msgctxt "resend_not_available"
+msgid "This message has nothing to send again."
+msgstr "Acest mesaj nu are o trimitere de reîncercat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_actions.py
+msgctxt "resend_started"
+msgid "Sending again."
+msgstr "Se trimite din nou."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -9181,8 +9475,8 @@ msgstr "Alegeți folderul implicit pentru salvarea fișierelor"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "save_folder_custom_label"
-msgid "&Custom folder:"
-msgstr "&Folder personalizat:"
+msgid "Custom &folder:"
+msgstr "Folder &personalizat:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -9209,8 +9503,8 @@ msgstr "Salvați în folderul Descărcări al utilizatorului curent"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "save_folder_mode_label"
-msgid "&Default Windows Explorer behavior when saving files"
-msgstr "&Comportament implicit Windows Explorer la salvarea fișierelor"
+msgid "Default Windows &Explorer behavior when saving files"
+msgstr "Comportament &implicit Windows Explorer la salvarea fișierelor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "save_folder_mode_label_macos"
@@ -9276,8 +9570,8 @@ msgstr "Nu s-au găsit rezultate."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "search_normalization_label"
-msgid "Unicode &normalization in searches"
-msgstr "&Normalizare Unicode în căutări"
+msgid "&Unicode normalization in searches"
+msgstr "Normalizare &Unicode în căutări"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -10028,8 +10322,8 @@ msgstr "Apăsați altă tastă în timp ce țineți modificatorii apăsați."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_change"
-msgid "Change"
-msgstr "Modifică"
+msgid "&Change"
+msgstr "&Modifică"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcut_capture.py client/ui/dialogs/shortcuts_tab.py
@@ -10422,6 +10716,7 @@ msgid "Ctrl"
 msgstr "Ctrl"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
 msgctxt "shortcut_key_delete"
 msgid "Delete"
 msgstr "Delete"
@@ -10546,18 +10841,34 @@ msgstr "Nuanța anterioară a pielii emoji"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_remove"
-msgid "Remove shortcut"
-msgstr "Elimină comanda rapidă"
+msgid "Remove &shortcut"
+msgstr "&Elimină comanda rapidă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_resend_message_label"
+msgid ""
+"Ctrl+Shift+Y: on a message whose send failed or was not confirmed, try "
+"sending it again"
+msgstr ""
+"Ctrl+Shift+Y: la un mesaj a cărui trimitere a eșuat sau nu a fost "
+"confirmată, încearcă să-l trimiți din nou"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_reset"
-msgid "Restore default"
-msgstr "Restabilește valoarea implicită"
+msgid "Restore &default"
+msgstr "Restabilește &valoarea implicită"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_reset_all"
-msgid "Restore all defaults"
-msgstr "Restabilește toate valorile implicite"
+msgid "&Restore all defaults"
+msgstr "&Restabilește toate valorile implicite"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_retry_status_label"
+msgid "Ctrl+Shift+Y: on a status that was not posted, try posting it again"
+msgstr ""
+"Ctrl+Shift+Y: la o stare care nu a fost publicată, încearcă să o publici din"
+" nou"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_review_message_label"
@@ -10599,6 +10910,18 @@ msgstr ""
 msgctxt "shortcut_search_f3_label"
 msgid "F3: next search result, in the whole open conversation"
 msgstr "F3: următorul rezultat al căutării, în toată conversația deschisă"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+msgctxt "shortcut_search_label"
+msgid "S&earch shortcuts"
+msgstr "&Căutați comenzi rapide"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/shortcuts_tab.py
+msgctxt "shortcut_search_none"
+msgid "No shortcut found."
+msgstr "Nu s-a găsit nicio comandă rapidă."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_dialog.py
@@ -10728,6 +11051,15 @@ msgstr ""
 "există deja o selecție, selectează/deselectează în schimb conversația sau "
 "mesajul focalizat, dacă opțiunea este activată în Setări, Interfață "
 "utilizator"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "shortcut_status_delete_label"
+msgid ""
+"Delete: in My status, delete the status being shown, for everyone who "
+"received it"
+msgstr ""
+"Delete: în Starea mea, șterge starea afișată, pentru toți cei care au "
+"primit-o"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "shortcut_status_delete_transcription_label"
@@ -10900,8 +11232,8 @@ msgstr "Cod de asociere actualizat"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "sound_event_path_label"
-msgid "Sound file path:"
-msgstr "Calea fișierului de sunet:"
+msgid "Sound &file path:"
+msgstr "Calea &fișierului de sunet:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_qrcode_loaded"
@@ -10973,8 +11305,8 @@ msgstr "Se așteaptă asocierea"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "sound_events_list_label"
-msgid "Sound events"
-msgstr "Evenimente sonore"
+msgid "So&und events"
+msgstr "&Evenimente sonore"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -10985,8 +11317,8 @@ msgstr "Pachet de sunet implicit"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "sound_pack_label"
-msgid "Sound pack:"
-msgstr "Pachet de sunet:"
+msgid "Sound &pack:"
+msgstr "Pac&het de sunet:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "soundpack_import_error_absolute_path"
@@ -11046,69 +11378,69 @@ msgstr "Pachete de sunet (*.zip)|*.zip"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_conversations_update_label"
-msgid "Announce when chats update is complete"
-msgstr "Anunțați când actualizarea conversațiilor este finalizată"
+msgid "Announce when chats &update is complete"
+msgstr "Anunțați când actualizarea conversațiilor &este finalizată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_conversations_update_start_label"
-msgid "Announce when chats update starts"
-msgstr "Anunțați când începe actualizarea conversațiilor"
+msgid "Announce &when chats update starts"
+msgstr "A&nunțați când începe actualizarea conversațiilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_media_progress_label"
-msgid "Announce media download progress every few seconds"
-msgstr "Anunțați la câteva secunde progresul descărcării media"
+msgid "Announce media &download progress every few seconds"
+msgstr "Anunțați &la câteva secunde progresul descărcării media"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_recording_label"
-msgid "Announce when a contact is recording an audio message in a chat"
+msgid "Announce when a contact &is recording an audio message in a chat"
 msgstr ""
-"Anunțați când un contact înregistrează un mesaj audio într-o conversație"
+"Anunțați când &un contact înregistrează un mesaj audio într-o conversație"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_sync_progress_label"
-msgid "Announce chat sync progress every few seconds"
-msgstr "Anunțați la câteva secunde progresul sincronizării conversațiilor"
+msgid "Announce &chat sync progress every few seconds"
+msgstr "Anunțați la &câteva secunde progresul sincronizării conversațiilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_announce_typing_label"
-msgid "Announce when a contact is typing in a chat"
-msgstr "Anunțați când un contact scrie într-o conversație"
+msgid "Announce when a contact is &typing in a chat"
+msgstr "Anunțați când un contact &scrie într-o conversație"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_silence_while_recording_label"
 msgid ""
-"Mute spoken content announcements and the Send button while recording a "
+"Mute spoken content announcements and &the Send button while recording a "
 "voice message"
 msgstr ""
-"Dezactivați anunțurile de conținut vorbit și butonul Trimiteți în timp ce "
+"Dezactivați anunțurile de conținut &vorbit și butonul Trimiteți în timp ce "
 "înregistrați un mesaj vocal"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_speak_active_conv_label"
-msgid "Automatically speak messages in the active chat"
-msgstr "Rostiți automat mesajele în conversația activă"
+msgid "Automatically &speak messages in the active chat"
+msgstr "Rostiți &automat mesajele în conversația activă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "speech_speak_other_conv_label"
-msgid "Automatically speak messages in other chats while the program is open"
+msgid "&Automatically speak messages in other chats while the program is open"
 msgstr ""
-"Rostiți automat mesajele în alte conversații în timp ce programul este "
+"&Rostiți automat mesajele în alte conversații în timp ce programul este "
 "deschis"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "spell_check_label"
-msgid "Spell &checking in the message field"
-msgstr "Verificare &ortografică în câmpul de mesaj"
+msgid "Spell checking in &the message field"
+msgstr "&Verificare ortografică în câmpul de mesaj"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -11323,6 +11655,17 @@ msgstr ""
 "Nu există conturi disponibile pentru a începe. Managerul de cont nu este "
 "încă disponibil."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_account_not_answering"
+msgid ""
+"This WinZapp account is already running but did not answer, possibly because"
+" it is still closing. Wait a few seconds and open it again. If it keeps "
+"happening, end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"Acest cont WinZapp rulează deja, dar nu a răspuns; poate că încă se închide."
+" Așteptați câteva secunde și deschideți-l din nou. Dacă se repetă, închideți"
+" WinZapp.exe din Managerul de activități și deschideți din nou WinZapp."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #, python-brace-format
 msgctxt "startup_critical_message"
@@ -11355,6 +11698,18 @@ msgid ""
 msgstr ""
 "WinZapp nu a putut deschide contul solicitat ({account}): nu există, a fost "
 "arhivat sau este în curs de ștergere."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "startup_update_in_progress"
+msgid ""
+"WinZapp is still finishing an update and cannot open yet. It opens by itself"
+" when the installation is done. If it has not opened within a few minutes, "
+"end WinZapp.exe in Task Manager and open WinZapp again."
+msgstr ""
+"WinZapp încă termină instalarea unei actualizări și nu se poate deschide "
+"acum. Se va deschide singur când instalarea se încheie. Dacă nu s-a deschis "
+"în câteva minute, închideți WinZapp.exe din Managerul de activități și "
+"deschideți din nou WinZapp."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/ui/ai_media_demo.py client/ui/dialogs/ai_result_dialog.py
@@ -11390,10 +11745,69 @@ msgid "Copy status text"
 msgstr "Copiați textul de stare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete"
+msgid "Delete status"
+msgstr "Ștergeți starea"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm"
+msgid ""
+"Delete this status update? It will also be deleted for everyone who received"
+" it."
+msgstr ""
+"Ștergeți această actualizare de stare? Va fi ștearsă și pentru toți cei care"
+" au primit-o."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_confirm_title"
+msgid "Delete 1 status update"
+msgstr "Ștergeți 1 actualizare de stare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_failed"
+msgid ""
+"Could not confirm the status was deleted. Check the connection, and look at "
+"your statuses again before trying once more."
+msgstr ""
+"Nu s-a putut confirma ștergerea stării. Verificați conexiunea și uitați-vă "
+"din nou la stările dvs. înainte de a încerca iar."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_delete_not_found"
+msgid ""
+"This status is no longer among yours: it expired or was already deleted."
+msgstr ""
+"Această stare nu mai este printre ale dvs.: a expirat sau a fost deja "
+"ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleted"
+msgid "Status deleted."
+msgstr "Starea a fost ștearsă."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_dialogs.py
+msgctxt "status_deleting"
+msgid "Deleting the status..."
+msgstr "Se șterge starea..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
 msgctxt "status_delivered"
 msgid "Delivered"
 msgstr "Livrat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_discard_unsent"
+msgid "Discard"
+msgstr "Renunțați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
@@ -11508,6 +11922,12 @@ msgid "Played"
 msgstr "Redat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_post_in_progress"
+msgid "The status is still being posted. Please wait."
+msgstr "Starea încă se publică. Așteptați."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "status_post_media"
 msgid "Send media as status"
 msgstr "Trimiteți media ca stare"
@@ -11518,10 +11938,26 @@ msgid "Post text as status"
 msgstr "Postați text ca stare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py client/status_tab/status_voice.py
+msgctxt "status_post_unconfirmed"
+msgid ""
+"Posting the status was not confirmed in time; it may have been posted. Look "
+"at My status before posting it again."
+msgstr ""
+"Publicarea stării nu a fost confirmată la timp; este posibil să fi fost "
+"publicată. Verificați Starea mea înainte de a o publica din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/status_composer.py
 msgctxt "status_posted"
 msgid "Status posted successfully."
 msgstr "Starea a fost publicată cu succes."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/status_composer.py
+msgctxt "status_posting"
+msgid "Posting the status..."
+msgstr "Se publică starea..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_dialogs.py client/ui/media_viewer.py
@@ -11586,6 +12022,26 @@ msgctxt "status_reply_sent"
 msgid "Reply sent."
 msgstr "Răspuns trimis."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_file_missing"
+msgid ""
+"The file of this status is no longer there, so it cannot be posted again."
+msgstr ""
+"Fișierul acestei stări nu mai există, așa că nu poate fi publicată din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_not_available"
+msgid "This row has no status to post again."
+msgstr "Acest rând nu are o stare de publicat din nou."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_retry_post"
+msgid "Try posting again"
+msgstr "Încercați să publicați din nou"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/status_panel.py
 #: client/status_tab/status_media.py
 msgctxt "status_save_media"
@@ -11633,6 +12089,35 @@ msgid "Unlike"
 msgstr "Retrage aprecierea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_unsent_discarded"
+msgid "Discarded."
+msgstr "S-a renunțat."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "status_unsent_failed"
+msgid "failed"
+msgstr "a eșuat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+#, python-brace-format
+msgctxt "status_unsent_row"
+msgid "Status not sent: {what}, {state}"
+msgstr "Stare netrimisă: {what}, {state}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/status_tab/unsent_status.py
+msgctxt "status_unsent_text"
+msgid "text status"
+msgstr "stare text"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "status_unsent_unconfirmed"
+msgid "not confirmed, it may have been posted"
+msgstr "neconfirmată, este posibil să fi fost publicată"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/status_dialogs.py client/status_tab/status_media.py
 msgctxt "status_video_open_error"
 msgid "Could not play the status video."
@@ -11666,7 +12151,7 @@ msgstr "Opriți redarea"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "storage_auto_download_media_types_label"
-msgid "&Media types to download automatically"
+msgid "Med&ia types to download automatically"
 msgstr "&Tipuri media de descărcat automat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -11822,6 +12307,11 @@ msgctxt "tab_accessibility"
 msgid "Accessibility"
 msgstr "Accesibilitate"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/advanced_tab.py
+msgctxt "tab_advanced"
+msgid "Advanced"
+msgstr "Avansate"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/ai_media_demo.py
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_ai_accessibility"
@@ -11842,8 +12332,8 @@ msgstr "Dispozitive audio"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_audio_playback"
-msgid "Audio playback"
-msgstr "Redare audio"
+msgid "Audio &playback"
+msgstr "&Redare audio"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/call_audio_options.py
 #: client/ui/dialogs/settings_dialog.py
@@ -11877,26 +12367,26 @@ msgstr "Generale"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_profile_backup"
-msgid "Profile backup"
-msgstr "Copie de siguranță a profilului"
+msgid "&Profile backup"
+msgstr "Copie &de siguranță a profilului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_reactions"
-msgid "Reactions"
-msgstr "Reacții"
+msgid "&Reactions"
+msgstr "R&eacții"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/shortcuts_tab.py
 msgctxt "tab_shortcuts"
-msgid "Keyboard shortcuts"
-msgstr "Comenzi rapide"
+msgid "&Keyboard shortcuts"
+msgstr "Comenzi &rapide"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tab_speech_content"
-msgid "Spoken content"
-msgstr "Conținut vorbit"
+msgid "S&poken content"
+msgstr "Conținut &vorbit"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -11993,8 +12483,9 @@ msgctxt "terms_title"
 msgid "WinZapp | Important notice"
 msgstr "WinZapp | Notă importantă"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/chat_events.py
-#: client/main_window/chat_list.py client/ui/conversation_panel/formatting.py
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/locale_format.py
+#: client/main_window/chat_events.py client/main_window/chat_list.py
+#: client/ui/conversation_panel/formatting.py
 #: client/ui/conversation_panel/text_helpers.py
 msgctxt "time_fmt"
 msgid "%I:%M %p"
@@ -12042,6 +12533,12 @@ msgid "Transcribe the selected messages into their lines"
 msgstr "Transcrieți mesajele selectate în rândurile lor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_advanced_button"
+msgid "A&dvanced options..."
+msgstr "O&pțiuni avansate..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_apply_folder_first"
 msgid ""
@@ -12073,10 +12570,10 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_auto_transcribe_check"
 msgid ""
-"Automatically transcribe received &voice messages and videos and put the "
+"Automatically transcribe received voice &messages and videos and put the "
 "text in the message line"
 msgstr ""
-"Transcr&ieți automat mesajele vocale și videoclipurile primite și puneți "
+"Transcrieți automat mesa&jele vocale și videoclipurile primite și puneți "
 "textul în rândul mesajului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -12088,7 +12585,7 @@ msgstr "faster-whisper"
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_backend_label"
 msgid "Transcription com&ponent"
-msgstr "&Componenta de transcriere"
+msgstr "Co&mponenta de transcriere"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_backend_whisper_cpp"
@@ -12107,7 +12604,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_background_cancel_btn"
-msgid "Ca&ncel download in the background"
+msgid "Cancel download in the bac&kground"
 msgstr "A&nulați descărcarea în fundal"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
@@ -12163,9 +12660,9 @@ msgstr "Transcrieri locale șterse: {count}."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_cache_check"
-msgid "Save transcriptions with the messages so they are not redone (cache)"
+msgid "&Save transcriptions with the messages so they are not redone (cache)"
 msgstr ""
-"Salvați transcrierile împreună cu mesajele ca să nu fie refăcute (cache)"
+"Salvați transcrierile împreună &cu mesajele ca să nu fie refăcute (cache)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
@@ -12176,8 +12673,8 @@ msgstr "Urmați setarea generală"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_cache_model_label"
-msgid "Cache for this model"
-msgstr "Cache pentru acest model"
+msgid "Cache &for this model"
+msgstr "Cache &pentru acest model"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
@@ -12194,8 +12691,8 @@ msgstr "Activat"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_all_cache_btn"
-msgid "Clear saved transcriptions of all models"
-msgstr "Ștergeți transcrierile salvate ale tuturor modelelor"
+msgid "&Clear saved transcriptions of all models"
+msgstr "Ștergeți &transcrierile salvate ale tuturor modelelor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
@@ -12216,7 +12713,7 @@ msgstr "Nu a fost găsită nicio transcriere salvată."
 #: client/ui/dialogs/transcription_cache.py
 msgctxt "transcription_clear_cache_btn"
 msgid "Clear t&his model's saved transcriptions"
-msgstr "Ștergeți &transcrierile salvate ale acestui model"
+msgstr "Ștergeți transcrierile &salvate ale acestui model"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_cache.py
@@ -12455,8 +12952,14 @@ msgid "CUDA libraries"
 msgstr "Biblioteci CUDA"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_cuda_button"
+msgid "CUDA li&braries..."
+msgstr "Biblioteci CUDA pentru &GPU..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_install_btn"
-msgid "&Install"
+msgid "I&nstall"
 msgstr "I&nstalați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -12467,7 +12970,7 @@ msgstr "El&iminați"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_cuda_repair_btn"
 msgid "Repa&ir"
-msgstr "R&eparați"
+msgstr "Re&parați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
@@ -12590,7 +13093,7 @@ msgstr "CUDA nu este disponibil. Transcrierea va fi efectuată pe procesor."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_device_label"
-msgid "Whe&re to run the transcription"
+msgid "W&here to run the transcription"
 msgstr "&Unde se face transcrierea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -13051,7 +13554,7 @@ msgstr "Modele whisper.cpp (*.bin)|*.bin|Toate fișierele (*.*)|*.*"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_external_find_btn"
 msgid "Fi&nd..."
-msgstr "Cău&tați..."
+msgstr "&Căutați..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -13070,7 +13573,6 @@ msgid "Searching the Hugging Face cache..."
 msgstr "Se caută în cache-ul Hugging Face..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_external_forget_btn"
 msgid "&Forget"
 msgstr "Ui&tați"
@@ -13380,6 +13882,12 @@ msgid "Transcription finished."
 msgstr "Transcriere finalizată."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_folders_button"
+msgid "Models &folder and models in other folders..."
+msgstr "Folderul modelelor și modele e&xistente în alte foldere..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_hidden_vault_closed"
 msgid ""
 "The transcription finished, but the locked-chats vault was closed. Open the "
@@ -13420,8 +13928,8 @@ msgstr "Pă&strați modelul încărcat în memorie (faster-whisper și whisper.c
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_language_detect"
-msgid "D&etect automatically"
-msgstr "&Detectați automat"
+msgid "Detect a&utomatically"
+msgstr "D&etectați automat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_language_interface"
@@ -13431,8 +13939,8 @@ msgstr "Limba interfeței WinZapp"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_language_label"
-msgid "Transcription &language"
-msgstr "&Limba transcrierii"
+msgid "Transcription lan&guage"
+msgstr "Lim&ba transcrierii"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_manage_cancelled"
@@ -13659,14 +14167,14 @@ msgstr "{name}: {size_class}, {size} pe disc, instalat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_download_btn"
-msgid "Dow&nload"
-msgstr "De&scărcați"
+msgid "Down&load"
+msgstr "&Descărcați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_model_label"
-msgid "Transcription &model"
-msgstr "&Model de transcriere"
+msgid "Tra&nscription model"
+msgstr "Mode&l de transcriere"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -13713,13 +14221,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_remove_btn"
-msgid "Remo&ve"
+msgid "R&emove"
 msgstr "El&iminați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_repair_btn"
 msgid "Repa&ir"
-msgstr "R&eparați"
+msgstr "&Reparați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_unavailable_auto"
@@ -13733,10 +14241,9 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_model_verify_btn"
 msgid "Verif&y"
-msgstr "V&erificați"
+msgstr "Veri&ficați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_models_dir_browse_btn"
 msgid "&Browse..."
@@ -13770,7 +14277,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_models_dir_label"
-msgid "Models &folder"
+msgid "&Models folder"
 msgstr "&Folderul modelelor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -13793,11 +14300,11 @@ msgstr "Acest mesaj nu are nicio înregistrare audio de transcris."
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_no_dialog_check"
 msgid ""
-"Transcribe without the progress window: stay on the messages or statuses "
+"&Transcribe without the progress window: stay on the messages or statuses "
 "until the text is ready (the same shortcut cancels)"
 msgstr ""
-"Transcrieți fără fereastra de progres: rămâneți la mesaje sau la stări până "
-"când textul este gata (aceeași scurtătură anulează)"
+"&Transcrieți fără fereastra de progres: rămâneți la mesaje sau la stări până"
+" când textul este gata (aceeași scurtătură anulează)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/status_tab/my_status_transcription.py
@@ -14013,7 +14520,7 @@ msgstr "8 biți, calcule pe 32 de biți (int8_float32)"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_precision.py
 msgctxt "transcription_precision_label"
-msgid "Calcula&tion precision (faster-whisper only)"
+msgid "&Calculation precision (faster-whisper only)"
 msgstr "&Precizia calculelor (doar faster-whisper)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -14109,6 +14616,16 @@ msgctxt "transcription_progress_verify_whisper_cpp"
 msgid "Verifying the whisper.cpp program ({build})..."
 msgstr "Se verifică programul whisper.cpp ({build})..."
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+#, python-brace-format
+msgctxt "transcription_queue_added"
+msgid ""
+"In the transcription queue, position {position}. It starts when the one "
+"before it finishes."
+msgstr ""
+"În coada de transcriere, poziția {position}. Începe când se termină cea "
+"dinainte."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
 #: client/ui/dialogs/transcription_queue.py
@@ -14116,6 +14633,20 @@ msgstr "Se verifică programul whisper.cpp ({build})..."
 msgctxt "transcription_queue_done"
 msgid "{count} models downloaded."
 msgstr "{count} modele descărcate."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "transcription_queue_dropped"
+msgid ""
+"The transcriptions waiting in the queue were cancelled: they would stop for "
+"the same reason."
+msgstr ""
+"Transcrierile care așteptau în coadă au fost anulate: s-ar opri din același "
+"motiv."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/transcription_flow.py
+msgctxt "transcription_queue_removed"
+msgid "Removed from the transcription queue."
+msgstr "Eliminată din coada de transcriere."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_background.py
@@ -14235,8 +14766,8 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_cuda_label"
-msgid "CUDA libraries folder"
-msgstr "Dosarul bibliotecilor CUDA"
+msgid "&CUDA libraries folder"
+msgstr "&Dosarul bibliotecilor CUDA"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
@@ -14269,7 +14800,6 @@ msgid "WinZapp will stop reusing that folder once you press Apply or OK."
 msgstr "WinZapp nu va mai folosi acel dosar după ce apăsați Aplicați sau OK."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/transcription_reuse.py
 msgctxt "transcription_reuse_group"
 msgid "Reuse downloads from another folder"
 msgstr "Refolosiți descărcările dintr-un alt dosar"
@@ -14294,8 +14824,8 @@ msgstr "Acesta nu este un dosar."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_whisper_cpp_label"
-msgid "whisper.cpp program folder"
-msgstr "Dosarul programului whisper.cpp"
+msgid "&whisper.cpp program folder"
+msgstr "&Dosarul programului whisper.cpp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_reuse_whisper_cpp_none"
@@ -14372,6 +14902,12 @@ msgid "Text files (*.txt)|*.txt"
 msgstr "Fișiere text (*.txt)|*.txt"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_saved_button"
+msgid "Sa&ved transcriptions..."
+msgstr "Transcrieri &salvate..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "transcription_saved_opened"
 msgid "Saved transcription, made on {when} with the {model} model."
@@ -14421,27 +14957,27 @@ msgstr "Se pornește transcrierea..."
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_status_auto_check"
 msgid ""
-"Automatically transcribe received audio and video statuses locally and put "
+"&Automatically transcribe received audio and video statuses locally and put "
 "the text in the status line"
 msgstr ""
-"Transcrie local și automat stările audio și video primite și pune textul în "
-"rândul stării"
+"Transcrie &local și automat stările audio și video primite și pune textul în"
+" rândul stării"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_status_cache_check"
 msgid ""
-"Save local transcriptions of statuses with them so they are not redone "
+"&Save local transcriptions of statuses with them so they are not redone "
 "(cache; deleted together with the status)"
 msgstr ""
-"Salvează transcrierile locale ale stărilor împreună cu ele ca să nu fie "
+"&Salvează transcrierile locale ale stărilor împreună cu ele ca să nu fie "
 "refăcute (cache; sunt șterse odată cu starea)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_status_clear_btn"
-msgid "Clear saved local transcriptions of statuses"
-msgstr "Șterge transcrierile locale salvate ale stărilor"
+msgid "&Clear saved local transcriptions of statuses"
+msgstr "Șterge &transcrierile locale salvate ale stărilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_options.py
@@ -14466,11 +15002,17 @@ msgstr ""
 #: client/ui/dialogs/transcription_options.py
 msgctxt "transcription_status_enter_check"
 msgid ""
-"Enter and Space transcribe audio and video statuses locally into the status "
-"line (Alt+Shift+N then opens or plays them)"
+"&Enter and Space transcribe audio and video statuses locally into the status"
+" line (Alt+Shift+N then opens or plays them)"
 msgstr ""
-"Enter și Spațiu transcriu local stările audio și video în rândul stării "
+"&Enter și Spațiu transcriu local stările audio și video în rândul stării "
 "(Alt+Shift+N le deschide sau le redă atunci)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_statuses_button"
+msgid "&Transcription of statuses..."
+msgstr "&Transcrierea stărilor..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/transcription_store.py
@@ -14508,7 +15050,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/transcription_tab.py
 msgctxt "transcription_substituted_label"
-msgid "&Warning"
+msgid "Wa&rning"
 msgstr "A&vertisment"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -14568,6 +15110,12 @@ msgid "NVIDIA graphics card version (CUDA)"
 msgstr "Versiunea pentru plăci video NVIDIA (CUDA)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/transcription_windows.py
+msgctxt "transcription_whisper_cpp_button"
+msgid "&whisper.cpp program..."
+msgstr "Programul &whisper.cpp..."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "transcription_whisper_cpp_choice_absent"
 msgid "{build}, {size} download, not installed"
@@ -14588,7 +15136,7 @@ msgstr "{build}, instalată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_install_btn"
-msgid "&Install"
+msgid "I&nstall"
 msgstr "I&nstalați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -14610,7 +15158,7 @@ msgstr "R&eparați"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "transcription_whisper_cpp_verify_btn"
 msgid "Verif&y"
-msgstr "V&erificați"
+msgstr "&Verificați"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/api_start_behind_window.py
@@ -14643,8 +15191,8 @@ msgstr "Deschide"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "tray_show_icon"
-msgid "Show icon and unread message count in the system tray"
-msgstr "Afișează pictograma și numărul de mesaje necitite în bara de sistem"
+msgid "&Show icon and unread message count in the system tray"
+msgstr "&Afișează pictograma și numărul de mesaje necitite în bara de sistem"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/api_start_behind_window.py
@@ -14701,89 +15249,89 @@ msgstr "{name} tastează..."
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_auto_focus_next_audio"
 msgid ""
-"Automatically move focus to the next audio when playing audios in sequence"
+"&Automatically move focus to the next audio when playing audios in sequence"
 msgstr ""
-"Mutați automat focalizarea la următorul sunet atunci când redați audio în "
+"&Mutați automat focalizarea la următorul sunet atunci când redați audio în "
 "secvență"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_auto_play_voice_in_sequence"
-msgid "Automatically play voice messages in sequence"
-msgstr "Redă automat mesajele vocale în secvență"
+msgid "Automatically &play voice messages in sequence"
+msgstr "&Redă automat mesajele vocale în secvență"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_bulk_action_shortcuts"
-msgid "Replace shortcuts with bulk actions when selecting chats and messages"
+msgid "&Replace shortcuts with bulk actions when selecting chats and messages"
 msgstr ""
-"Înlocuiți comenzile rapide cu acțiuni în bloc atunci când selectați "
+"Înlocuiți comenzile &rapide cu acțiuni în bloc atunci când selectați "
 "conversații și mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_chats_button"
-msgid "Chats"
-msgstr "Conversații"
+msgid "C&hats"
+msgstr "Co&nversații"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_clear_chat"
-msgid "Ask for confirmation before clearing chats"
-msgstr "Cere confirmare înainte de a șterge conținutul conversațiilor"
+msgid "Ask for confirmation &before clearing chats"
+msgstr "C&ere confirmare înainte de a șterge conținutul conversațiilor"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_delete_chat"
-msgid "Ask for confirmation before deleting chats"
-msgstr "Cere confirmare înainte de a șterge conversațiile"
+msgid "Ask for &confirmation before deleting chats"
+msgstr "&Cere confirmare înainte de a șterge conversațiile"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_mark_all_read"
-msgid "Ask for confirmation before marking all chats as read"
-msgstr "Cereți confirmare înainte de a marca toate conversațiile ca citite"
+msgid "Ask for confirmation before &marking all chats as read"
+msgstr "Cereți confirmare înainte de a &marca toate conversațiile ca citite"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_resync_all"
-msgid "Ask for confirmation before resyncing all chats (F5)"
-msgstr "Cereți confirmare înainte de a resincroniza toate conversațiile (F5)"
+msgid "Ask &for confirmation before resyncing all chats (F5)"
+msgstr "Cereți confirmare înainte de a &resincroniza toate conversațiile (F5)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_confirm_resync_conversation"
-msgid "Ask for confirmation before resyncing the open chat (Shift+F5)"
+msgid "&Ask for confirmation before resyncing the open chat (Shift+F5)"
 msgstr ""
-"Cereți confirmare înainte de a resincroniza conversația deschisă (Shift+F5)"
+"Cereți confirmare înainte &de a resincroniza conversația deschisă (Shift+F5)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_conversation_video_media_viewer_dialog_label"
-msgid "Show chat videos in a separate player (opens a new dialog)"
+msgid "&Show chat videos in a separate player (opens a new dialog)"
 msgstr ""
-"Afișați videoclipuri de conversație într-un player separat (deschide o nouă "
-"casetă de dialog)"
+"Afișați videoclipuri de conversație într-un pla&yer separat (deschide o nouă"
+" casetă de dialog)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_delete_media_default_label"
 msgid ""
-"When deleting a media message, start with \"Also delete the media from your "
-"phone\" checked"
+"&When deleting a media message, start with \"Also delete the media from your"
+" phone\" checked"
 msgstr ""
-"La ștergerea unui mesaj media, opțiunea „Șterge și conținutul media din "
+"La ștergerea unui &mesaj media, opțiunea „Șterge și conținutul media din "
 "telefon” să fie deja bifată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_enter_transcribes_voice"
 msgid ""
-"Enter and Space on a voice message or video transcribe it into its line in "
+"&Enter and Space on a voice message or video transcribe it into its line in "
 "the list instead of playing it (Alt+Shift+N plays or opens it); turned off, "
 "Enter and Space play or open it and Alt+Shift+N transcribes it into its line"
 msgstr ""
-"Enter și Spațiu pe un mesaj vocal sau video îl transcriu în linia lui din "
+"&Enter și Spațiu pe un mesaj vocal sau video îl transcriu în linia lui din "
 "listă în loc să îl redea (Alt+Shift+N îl redă sau îl deschide); dezactivat, "
 "Enter și Spațiu îl redau sau îl deschid, iar Alt+Shift+N îl transcrie în "
 "linie"
@@ -14791,8 +15339,12 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_escape_clears_selection"
-msgid "Esc deselects the selected messages before closing the chat"
-msgstr "Esc deselectează mesajele selectate înainte de a închide conversația"
+msgid ""
+"&Esc deselects the selected messages before closing the chat, and the "
+"selected chats in a list of chats"
+msgstr ""
+"Esc deselectează &mesajele selectate înainte de a închide conversația, "
+"precum și conversațiile selectate dintr-o listă de conversații"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -14803,49 +15355,49 @@ msgstr "Când deschideți o conversație, concentrați-vă:"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_focus_message_field"
-msgid "Message field (default)"
-msgstr "Câmp de mesaj (implicit)"
+msgid "Message &field (default)"
+msgstr "Câmp &de mesaj (implicit)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_focus_unread_or_last"
-msgid "Unread message indicator or last message"
-msgstr "Indicator de mesaj necitit sau ultimul mesaj"
+msgid "Unread &message indicator or last message"
+msgstr "&Indicator de mesaj necitit sau ultimul mesaj"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_forward_voice_as_voice"
 msgid ""
-"Forward voice messages as voice messages instead of audio (they are still "
+"Forward &voice messages as voice messages instead of audio (they are still "
 "marked as forwarded)"
 msgstr ""
-"Redirecționați mesajele vocale ca mesaje vocale, nu ca audio (rămân marcate "
-"ca redirecționate)"
+"Redirecționați mesajele vocale ca mesaje vocale, &nu ca audio (rămân marcate"
+" ca redirecționate)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_forwarded_prefix_label"
-msgid "Announce \"Forwarded\" at the start of the message, before the sender"
+msgid "A&nnounce \"Forwarded\" at the start of the message, before the sender"
 msgstr ""
-"Anunțați „Redirecționat” la începutul mesajului, înaintea expeditorului"
+"Anunțați „Redirecționat” la începutul mesajului, înaintea e&xpeditorului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_group_media_default_types_label"
-msgid "Message types shown by default in a group's Media tab"
-msgstr "Tipuri de mesaje afișate implicit în fila Media a unui grup"
+msgid "Message types shown &by default in a group's Media tab"
+msgstr "Tipuri de mesaje afișate &implicit în fila Media a unui grup"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_hide_own_sender_in_message_list"
-msgid "Hide the sender on my own messages in the messages list"
-msgstr "Ascunde expeditorul la mesajele mele din lista de mesaje"
+msgid "&Hide the sender on my own messages in the messages list"
+msgstr "Ascunde expeditorul la mesajele mele &din lista de mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_hide_unnamed_sender_numbers"
-msgid "Hide phone numbers of unnamed senders in messages"
-msgstr "Ascunde numerele de telefon ale expeditorilor fără nume în mesaje"
+msgid "Hide &phone numbers of unnamed senders in messages"
+msgstr "Ascunde numerele de telefon ale expeditorilor &fără nume în mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -14865,34 +15417,58 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_keep_pinned_chat_order"
-msgid "Keep pinned chats in a fixed order"
-msgstr "Păstrează ordinea conversațiilor fixate"
+msgid "Keep &pinned chats in a fixed order"
+msgstr "Păstrează ordinea conversațiilor &fixate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_keep_search_after_open"
 msgid ""
-"Keep the chat search when opening a chat, so Esc returns to the results "
+"&Keep the chat search when opening a chat, so Esc returns to the results "
 "instead of the full list"
 msgstr ""
-"Păstrați căutarea conversațiilor la deschiderea unei conversații, pentru ca "
-"Esc să revină la rezultate, nu la lista completă"
+"&Păstrați căutarea conversațiilor la deschiderea unei conversații, pentru ca"
+" Esc să revină la rezultate, nu la lista completă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_mark_unsaved_contacts"
 msgid ""
-"Precede names of unsaved contacts with a tilde (~) in conversations and "
+"Precede &names of unsaved contacts with a tilde (~) in conversations and "
 "messages"
 msgstr ""
-"Precedă numele contactelor nesalvate cu semnul tilde (~) în conversații și "
+"Precedă &numele contactelor nesalvate cu semnul tilde (~) în conversații și "
 "mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_message_draft_discard"
+msgid "Discard it"
+msgstr "Elimină-l"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_message_draft_keep_in_field"
+msgid "Keep it in the message field for the next conversation"
+msgstr "Păstrează-l în câmpul de mesaj pentru conversația următoare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_message_draft_label"
+msgid "Unsent message &when you leave a conversation"
+msgstr "Mesa&jul netrimis când părăsiți o conversație"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_message_draft_per_conversation"
+msgid "Keep it as that conversation's draft"
+msgstr "Păstrează-l ca ciornă a acelei conversații"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_message_list_mode_classic"
-msgid "Classic message list (default, 512-character limit)"
-msgstr "Lista clasică de mesaje (implicit, limită de 512 de caractere)"
+msgid "Classic message &list (default, 512-character limit)"
+msgstr "&Lista clasică de mesaje (implicit, limită de 512 de caractere)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -14904,30 +15480,30 @@ msgstr "Afișează lista de mesaje ca:"
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_message_list_mode_listbox"
 msgid ""
-"List box (full messages, screen reader does not announce position or item "
+"List box (&full messages, screen reader does not announce position or item "
 "count)"
 msgstr ""
-"Casetă listă (mesaje complete, cititorul de ecran nu anunță poziția sau "
+"&Casetă listă (mesaje complete, cititorul de ecran nu anunță poziția sau "
 "numărul de elemente)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_messages_button"
-msgid "Messages"
-msgstr "Mesaje"
+msgid "&Messages"
+msgstr "&Mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_messages_page_size_label"
-msgid "When opening a chat, show up to this many messages:"
+msgid "When opening a chat, show &up to this many messages:"
 msgstr ""
-"Când deschideți o conversație, afișați cel mult acest număr de mesaje:"
+"Când desc&hideți o conversație, afișați cel mult acest număr de mesaje:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_page_jump_size_label"
-msgid "Messages to skip when pressing Page Up / Page Down:"
-msgstr "Mesaje de sărit atunci când apăsați Pagina în sus / Pagina în jos:"
+msgid "Messages &to skip when pressing Page Up / Page Down:"
+msgstr "Mesaje de să&rit atunci când apăsați Pagina în sus / Pagina în jos:"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ui_page_step_box_label"
@@ -14943,14 +15519,14 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_preserve_typed_text_as_caption"
-msgid "Preserve typed message as caption when attaching"
-msgstr "Păstrați mesajul tastat ca legendă la atașare"
+msgid "Preserve typed message &as caption when attaching"
+msgstr "&Păstrați mesajul tastat ca legendă la atașare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_selected_announce_position_end"
-msgid "Announce \"selected\" at the end of the message or chat"
-msgstr "Anunțați „selectat” la sfârșitul mesajului sau conversației"
+msgid "Announce \"selected\" at &the end of the message or chat"
+msgstr "Anunțați „&selectat” la sfârșitul mesajului sau conversației"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -14961,20 +15537,25 @@ msgstr "Poziția pentru a anunța articolele selectate:"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_selected_announce_position_start"
-msgid "Announce \"selected\" at the start of the message or chat"
-msgstr "Anunțați „selectat” la începutul mesajului sau al conversației"
+msgid "&Announce \"selected\" at the start of the message or chat"
+msgstr "Anunțați „selectat” &la începutul mesajului sau al conversației"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_self_reference_custom_label"
-msgid "Custom word"
-msgstr "Cuvânt personalizat"
+msgid "&Custom word"
+msgstr "Cu&vânt personalizat"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_self_reference_eu"
 msgid "Me"
 msgstr "Eu"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_self_reference_eu_option"
+msgid "&Me"
+msgstr "&Eu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -14985,71 +15566,76 @@ msgstr "Cum să se facă referire la mine?"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_self_reference_other"
-msgid "Other"
-msgstr "Altele"
+msgid "Oth&er"
+msgstr "&Altele"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/contacts.py
-#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_self_reference_voce"
 msgid "You"
 msgstr "Tu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_self_reference_voce_option"
+msgid "&You"
+msgstr "&Tu"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_delivery_status_in_chat_list"
-msgid "Show last message's delivery status in the chat list"
-msgstr "Afișează starea de livrare a ultimului mesaj în lista de conversații"
+msgid "&Show last message's delivery status in the chat list"
+msgstr "&Afișează starea de livrare a ultimului mesaj în lista de conversații"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_link_previews_label"
-msgid "Show link previews in the message list"
-msgstr "Afișează previzualizările linkurilor în lista de mesaje"
+msgid "Show lin&k previews in the message list"
+msgstr "Afișea&ză previzualizările linkurilor în lista de mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_listbox_item_count"
 msgid ""
-"Display item position and count when using List box mode (Only applies when "
-"List box mode is selected)"
+"&Display item position and count when using List box mode (Only applies when"
+" List box mode is selected)"
 msgstr ""
-"Afișează poziția și numărul elementelor când utilizați modul Casetă listă "
+"Afișează poziția și &numărul elementelor când utilizați modul Casetă listă "
 "(se aplică numai când acest mod este selectat)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_typing_row"
 msgid ""
-"Show who is typing or recording audio as the last row of the messages list"
+"Show who is typing or &recording audio as the last row of the messages list"
 msgstr ""
-"Afișează cine tastează sau înregistrează un mesaj vocal ca ultim rând al "
+"Afișează cine tastează sau înregistrează &un mesaj vocal ca ultim rând al "
 "listei de mesaje"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_yesterday_label"
-msgid "Show yesterday's messages with the date omitted (yesterday)"
-msgstr "Afișați mesajele de ieri cu data omisă (ieri)"
+msgid "Show yesterday's messa&ges with the date omitted (yesterday)"
+msgstr "Afișați mesa&jele de ieri cu data omisă (ieri)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_space_selects_in_selection_mode"
-msgid "Use Space to select/deselect whenever a selection already exists"
+msgid "&Use Space to select/deselect whenever a selection already exists"
 msgstr ""
-"Folosiți Spațiu pentru a selecta/deselecta când există deja o selecție"
+"Folosiți Spațiu pentru a selecta/deselecta când &există deja o selecție"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_status_media_viewer_dialog_label"
-msgid "Show statuses in a separate player (opens a new dialog)"
+msgid "Show statuses &in a separate player (opens a new dialog)"
 msgstr ""
-"Afișați stările într-un player separat (deschide o nouă casetă de dialog)"
+"Afișați &stările într-un player separat (deschide o nouă casetă de dialog)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_voice_message_mode_audio"
-msgid "Audio (read all as audio)"
-msgstr "Audio (citiți totul ca audio)"
+msgid "A&udio (read all as audio)"
+msgstr "A&udio (citiți totul ca audio)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -15060,14 +15646,14 @@ msgstr "Citirea mesajelor vocale în conversații și stare:"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_voice_message_mode_voice_message"
-msgid "Voice message (distinguish voice messages from audio files)"
-msgstr "Mesaj vocal (diferențierea mesajelor vocale de fișierele audio)"
+msgid "Voice &message (distinguish voice messages from audio files)"
+msgstr "Mesaj vocal (diferențierea mesajelor vocale de &fișierele audio)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_voice_record_focus_discard"
-msgid "Discard button"
-msgstr "Buton de eliminare"
+msgid "&Discard button"
+msgstr "&Buton de eliminare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -15078,14 +15664,14 @@ msgstr "Când înregistrați un mesaj vocal, concentrați-vă pe"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_voice_record_focus_send"
-msgid "Send button (default)"
-msgstr "Buton de trimitere (implicit)"
+msgid "Send &button (default)"
+msgstr "Buton de &trimitere (implicit)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_warn_system_audio_recording"
-msgid "Warn before recording computer audio"
-msgstr "Avertizați înainte de înregistrarea sunetului computerului"
+msgid "&Warn before recording computer audio"
+msgstr "&Avertizați înainte de înregistrarea sunetului computerului"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/archived_panel.py
@@ -15192,7 +15778,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po client/core/community_comments.py
 #: client/core/message_sender_labels.py client/core/notification_manager.py
 #: client/core/participant_names.py client/main_window/chat_list.py
-#: client/main_window/identity.py
+#: client/main_window/community_comments.py client/main_window/identity.py
 #: client/ui/conversation_panel/message_rendering.py
 #: client/ui/dialogs/group_membership_requests.py
 msgctxt "unnamed_participant"
@@ -15524,8 +16110,8 @@ msgstr "&Da"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "updates_label"
-msgid "Automatically check for &updates"
-msgstr "&Verificați automat actualizările"
+msgid "Automatically check &for updates"
+msgstr "V&erificați automat actualizările"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/sync.py
 msgctxt "updating_conversations"
@@ -15772,8 +16358,8 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "voice_stereo_default_label"
-msgid "Record voice messages in stereo by default"
-msgstr "Înregistrați implicit mesajele vocale în stereo"
+msgid "Record voice messa&ges in stereo by default"
+msgstr "Înregistrați &implicit mesajele vocale în stereo"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/voice_recording.py
@@ -16007,13 +16593,13 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_about_label"
-msgid "About"
-msgstr "Despre"
+msgid "&About"
+msgstr "D&espre"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_privacy_panel.py
 msgctxt "wa_privacy_apply_button"
-msgid "&Apply to WhatsApp"
+msgid "Apply &to WhatsApp"
 msgstr "&Aplicați în WhatsApp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -16036,13 +16622,13 @@ msgstr "Se aplică setările de confidențialitate..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_group_add_label"
-msgid "Who can add me to groups"
-msgstr "Cine mă poate adăuga în grupuri"
+msgid "&Who can add me to groups"
+msgstr "&Cine mă poate adăuga în grupuri"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_last_seen_label"
-msgid "Last seen"
-msgstr "Văzut ultima dată"
+msgid "&Last seen"
+msgstr "Văzut &ultima dată"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_privacy_panel.py
@@ -16077,8 +16663,8 @@ msgstr "Nu a fost modificat nimic."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_online_label"
-msgid "Who can see when I'm online"
-msgstr "Cine poate vedea când sunt online"
+msgid "Who &can see when I'm online"
+msgstr "Cine &poate vedea când sunt online"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_opt_all"
@@ -16112,13 +16698,13 @@ msgstr "Activate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_profile_pic_label"
-msgid "Profile photo"
-msgstr "Fotografie de profil"
+msgid "&Profile photo"
+msgstr "&Fotografie de profil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "wa_privacy_read_receipts_label"
-msgid "Read receipts"
-msgstr "Confirmări de citire"
+msgid "&Read receipts"
+msgstr "Confirmări &de citire"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_privacy_panel.py
@@ -16143,8 +16729,8 @@ msgstr "Contacte selectate: {count}."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/whatsapp_privacy_panel.py
 msgctxt "wa_privacy_status_label"
-msgid "Who can see my status"
-msgstr "Cine îmi poate vedea starea"
+msgid "Who can &see my status"
+msgstr "Cine îmi poate &vedea starea"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/status_audience_dialog.py
@@ -16238,14 +16824,14 @@ msgstr "Setări WhatsApp"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "wa_settings_tab_privacy"
-msgid "Privacy"
-msgstr "Confidențialitate"
+msgid "P&rivacy"
+msgstr "Co&nfidențialitate"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "wa_settings_tab_profile"
-msgid "Profile"
-msgstr "Profil"
+msgid "&Profile"
+msgstr "&Profil"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/ui/dialogs/connect.py
@@ -16365,10 +16951,10 @@ msgstr "Nu s-a putut modifica înregistrarea pentru linkurile WhatsApp."
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "whatsapp_links_label"
-msgid "Let Windows open WhatsApp group invitation links with WinZapp"
+msgid "Let &Windows open WhatsApp group invitation links with WinZapp"
 msgstr ""
-"Permite ca Windows să deschidă linkurile de invitație în grupuri WhatsApp cu"
-" WinZapp"
+"Permite ca Windows &să deschidă linkurile de invitație în grupuri WhatsApp "
+"cu WinZapp"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
 #, python-brace-format
@@ -16390,8 +16976,8 @@ msgstr "Forțați reinstalarea WPPConnect"
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "wpp_port_label"
-msgid "API port (WPPConnect):"
-msgstr "Port API (WPPConnect):"
+msgid "API &port (WPPConnect):"
+msgstr "&Port API (WPPConnect):"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 msgctxt "wpp_reinstall_notice_message"
@@ -16411,7 +16997,7 @@ msgctxt "wpp_reinstall_notice_title"
 msgid "WPPConnect update recommended"
 msgstr "Actualizare WPPConnect recomandată"
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/updater.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #, python-brace-format
 msgctxt "wpp_update_available_msg"
 msgid ""
@@ -16523,6 +17109,20 @@ msgstr "API-ul anterior nu a putut fi restaurat sau repornit."
 msgctxt "wpp_update_start_failed"
 msgid "The updated API did not finish starting."
 msgstr "API-ul actualizat nu a finalizat pornirea."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "wpp_update_unvetted_msg"
+msgid ""
+"A new WPPConnect Server version is available (current: {current}, new: "
+"{new}). The WinZapp maintainers have not checked it yet, so some features "
+"may not work with it. Update now? WinZapp will stop the API, install the new"
+" version, and restart it automatically."
+msgstr ""
+"Este disponibilă o nouă versiune WPPConnect Server (actual: {current}, nou: "
+"{new}). Întreținătorii WinZapp nu au verificat-o încă, așa că unele funcții "
+"s-ar putea să nu meargă cu ea. Actualizați acum? WinZapp va opri API-ul, va "
+"instala noua versiune și o va reporni automat."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/wpp_server.py
 msgctxt "wpp_version_unpinned_warning"

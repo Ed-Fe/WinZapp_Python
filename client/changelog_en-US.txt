@@ -16,7 +16,7 @@ WHAT'S NEW
 
 - Communities: the "New chat" window has the new "Communities" button, which opens the list of the communities you are in. Choosing a community shows its description, its admins and the groups of it you have joined, with the announcement group and the general group identified; Enter or "Open group" goes to the selected group. If you are an admin of the community, the window also offers "Add groups", "Remove group from the community", "Promote to community admin", "Demote community admin" and "Deactivate community", and "New community" creates a community with a name, a description and the groups you choose. After each action WinZapp reads the communities again and only says it is done when WhatsApp shows the change; otherwise it says the request was sent but is not confirmed yet, or that it was refused.
 
-- Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. The window can refresh replies and keeps your text when sending is not confirmed. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.
+- Community announcement replies: open a message menu and choose "Community announcement replies" to read and send replies. Replies update by themselves while the window is open, the reply field is no longer read-only, and your text is kept when sending is not confirmed. In the chat list, the group's preview says "So-and-so replied to an announcement" when that is the latest activity. Announcements report the known reply count. Authors use saved or profile names, and your replies respect your self-reference setting.
 
 - Communities is now a row of the navigation list, after Calls, with its Alt+8 shortcut in the row's name, so it can be reached by arrowing through the list as well as with Alt+8.
 
@@ -31,6 +31,52 @@ WHAT'S NEW
 - The call log (log.log) now shows, every 5 seconds, how much of the speaker's sound reaches the microphone before echo cancellation and how much is still left in what is sent, with that echo's delay. If someone still hears their own voice, the log tells whether the echo went through the canceller or arrived by another path.
 
 - Answering calls from any window: while a one-to-one call is ringing, Ctrl+Alt+Shift+Enter answers it, brings the call window in front of any program and puts the focus in it, and Ctrl+Alt+Shift+Backspace rejects it, as it does a ringing group call; with no call ringing, Ctrl+Alt+Shift+Backspace hangs up the call in progress. With several accounts open, a call ringing in any of them is rejected first. A video call is answered with the camera on, like its Answer button. Both keys can be changed in the Keyboard shortcuts of Settings, and belong to WinZapp only while they can act, so other programs keep them the rest of the time.
+
+- Settings: new Advanced category, with the log.log level (debug, information, warnings or errors only, applied at once), a fixed port for the local API, to run two copies of WinZapp or when another program already uses port 6300 (applies the next time WinZapp starts), and "Show every WPPConnect Server update", off by default, which also offers releases the maintainers have not checked yet, with a warning. In the Connection category, the Port field is now enabled only with the custom API.
+
+- Settings: every control in Settings and in the windows it opens has an Alt shortcut letter, never repeated within one window, in every language. To make the letters fit, Local transcription was split into windows (advanced options, saved transcriptions, statuses, folders, CUDA libraries and whisper.cpp) and the automatic options of online AI moved to the "Automatic transcription and description..." window.
+
+- Keyboard shortcuts: the list is now a tree by category (Right arrow opens a category, which is said only once) and has a search field; in the search, Down arrow goes to the results. Fixed the error that prevented changing a shortcut.
+
+- Draft per conversation, like WhatsApp Web: text typed and not sent stays with the conversation it was written in, mentions included, and comes back when you open it again; it used to follow you into the next conversation. Interface > Conversations lets you choose to keep it in the field for the next conversation (as before), keep it as that conversation's draft (default) or discard it.
+
+- When you switch conversations, the "Reactions" and "Read more" buttons of the message you were on no longer show up with Tab in the new conversation.
+
+- Deleting the last message of a conversation for everyone updates its preview in the chat list to "message deleted" right away.
+
+- Alt+A no longer opens the attach menu; its shortcut is still Ctrl+Shift+A.
+
+- Message list: three new options, off by default, take the online AI button (Transcribe or Describe; the message menu still offers it), the duration bar and the speed button out of the Tab order during playback. The speed and seeking shortcuts keep working.
+
+- Local transcription: with "transcribe without the progress window", asking for the inline transcription of another message while one is running queues the new one instead of refusing it; pressing the shortcut again on a waiting message takes it out of the queue.
+
+- Local transcription: automatic no longer says "No transcription model is ready" to someone who has a model downloaded: on a small graphics card that cannot hold the installed model, it runs on the processor instead of asking for another download; and the automatic engine follows the models already on the computer.
+
+- Enter and Space set to transcribe now also work on audio and video sent as a file, and the Media tab of the conversation details follows that option for videos.
+
+- Conversation details: automatic transcription is now two boxes, local (Whisper) and online, each showing what the conversation does now and able to turn it on or off for that conversation only.
+
+- Try sending again: in the menu of a message of yours that failed or was not confirmed, text or attachment, and for statuses that did not go out, which now stay in the Status tab right after My status; shortcut Ctrl+Shift+Y. Nothing is resent on its own.
+
+- Posting a status: one post at a time (pressing Post again does not duplicate the status), and a large video is no longer reported as failed while it is still uploading; a post that was not confirmed tells you to check My status before posting again.
+
+- My status: delete a status for everyone with the Delete key or the "Delete status" button, with WhatsApp's own confirmation.
+
+- Communities: Enter in the list goes to the community's groups, and a button opens the group with the most recent activity; a filter shows all groups, the ones you are in and the ones you are not; and you can join a group, ask to join and cancel the request, like WhatsApp Web.
+
+- Orders: Enter opens the details of an order a seller created for you, with items and subtotal; the buyer can confirm an order paid outside the app, like WhatsApp Web; and the dialog says which buyer response WinZapp does not offer yet.
+
+- WhatsApp settings: in Privacy, the status options "My contacts except" and "Only share with" offer only the contacts saved on the phone, the only ones WhatsApp lets see a status; in Profile, the Choose photo button says whether there is a current photo and which file was chosen, without object navigation.
+
+- Chat lists: with the "Esc clears the selection" option on, Esc unselects the selected chats in the main list, in Archived and in Locked chats.
+
+- Updating with several accounts open: the installer waits for every account to close before copying, and WinZapp no longer exits silently at startup when the account is already open or an update looks stuck: it says why and writes it to the log. During an update that is still running it only writes to the log and exits, with no box, because the installer opens it again when it is done.
+
+- Syncing large accounts: after large batches of messages, WinZapp asks WhatsApp Web to release memory it no longer uses, which lowers the memory used during sync.
+
+- Media tab of the conversation details: after Save as, the screen reader no longer announces the window as unavailable.
+
+- New chat: the button to join a group by link now has an Alt shortcut letter.
 
 - Echo cancellation now also works when the echo comes back very late, as with the loopback of some mixers, which could take more than half a second and reached the other person in full. WinZapp measures how long the other person's voice takes to come back through your microphone and adjusts the canceller to that delay, up to 1.5 seconds.
 

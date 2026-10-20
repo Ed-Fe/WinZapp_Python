@@ -463,7 +463,8 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
     section = read_section(settings)
     substitutions = []
 
-    backend_id = _resolve_backend(section, available_backends, substitutions)
+    backend_id = _resolve_backend(section, available_backends, substitutions, installed_ids,
+                                  custom_model_ids)
     preference = _resolve_device_preference(section, substitutions)
     compute_preference = _resolve_compute_type(section, substitutions)
     # The model is chosen against the device this preference resolves to right
@@ -491,6 +492,11 @@ def resolve(settings, probe, installed_ids=(), ui_language="",
         section, probe, device_id, installed_ids, substitutions, custom_model_ids,
         backend_id, language, memory_compute,
     )
+    cpu_model = _installed_model_on_cpu(
+        section, preference, device_id, model_id, probe, installed_ids, custom_model_ids,
+        backend_id, language, compute_preference)
+    if cpu_model is not None:
+        model_id, preference = cpu_model, device.PREFERENCE_CPU
     only = model_language(model_id)
     forced = only is not None and language != only
     overridden = language if forced else None
@@ -774,12 +780,22 @@ def resolve_models_dir(stored=None) -> str:
 # ── Internals ────────────────────────────────────────────────────────────────
 
 
-def _resolve_backend(section, available_backends, substitutions):
+def _resolve_backend(section, available_backends, substitutions, installed_ids=(),
+                     custom_model_ids=None):
     """The backend id to run with, or None when nothing here can run.
 
     A configured backend that this install does not have falls through to the
     automatic choice rather than failing, for the reason `resolve_backend()`
     gives: a settings value outlives the installation it was written on.
+
+    The automatic choice is the backend that can load what is already there:
+    the one whose catalogue holds the model the user picked, else the first
+    with a model on disk, else the first available. It used to be the first
+    available one, full stop. The models folder is install-wide but this
+    choice is each account's, so an account that had never opened the tab
+    resolved to faster-whisper while every model on disk was a whisper.cpp
+    file another account had downloaded, and was told to download `small`.
+    Reported as "transcription has nothing available with several accounts".
     """
     known = tuple(available_backends) if available_backends is not None \
         else backend_module.BACKEND_IDS
@@ -788,7 +804,36 @@ def _resolve_backend(section, available_backends, substitutions):
         if stored in known:
             return stored
         substitutions.append(Substitution(SETTING_BACKEND, str(stored)))
-    return known[0] if known else None
+    return _automatic_backend(known, section[SETTING_MODEL], installed_ids, custom_model_ids)
+
+
+def _automatic_backend(known, stored_model, installed_ids, custom_model_ids=None):
+    """See _resolve_backend(): the picked model's backend, else the first one
+    with a model on disk, else the first available; None with none.
+
+    A custom model (`external:<id>`) has its backend in `custom_model_ids`
+    when that is the {id: backend} mapping: a whisper.cpp file picked with the
+    backend left automatic must not resolve to faster-whisper and be replaced."""
+    if not known:
+        return None
+
+    def ids_of(backend_id):
+        return {model.id for model in catalogue_models(backend_id)}
+
+    reference_id = custom_model_reference_id(stored_model) if isinstance(stored_model, str) else None
+    if reference_id is not None and isinstance(custom_model_ids, Mapping):
+        backend_id = custom_model_ids.get(reference_id)
+        if backend_id in known:
+            return backend_id
+    if isinstance(stored_model, str) and stored_model != AUTO:
+        for backend_id in known:
+            if stored_model in ids_of(backend_id):
+                return backend_id
+    installed = set(installed_ids or ())
+    for backend_id in known:
+        if installed & ids_of(backend_id):
+            return backend_id
+    return known[0]
 
 
 def _resolve_device_preference(section, substitutions):
@@ -849,6 +894,36 @@ def _resolve_model(section, probe, device_id, installed_ids, substitutions,
         probe, device_id, installed_ids, catalog=catalogue_models(backend_id),
         language=language, compute_type=compute_type,
     )
+
+
+def _installed_model_on_cpu(section, preference, device_id, model_id, probe, installed_ids,
+                            custom_model_ids, backend_id, language, compute_preference):
+    """The installed model to run on the processor instead, or None.
+
+    Only when both the model and the device are automatic and the card won:
+    a small card (2 GB) holds none of the models on disk, so the automatic
+    choice fell to a smaller model that is not downloaded, and the run
+    stopped with "no model is ready" for a user whose large-v3-turbo fits the
+    processor's memory several times over. A model already here, on the
+    processor, beats a download nobody asked for: the rule
+    auto_select_model() already applies within one device.
+    """
+    if section[SETTING_MODEL] != AUTO or device_id != device.DEVICE_CUDA:
+        return None
+    if preference != device.PREFERENCE_AUTO:
+        return None
+    installed = set(installed_ids or ())
+    if model_id in installed:
+        return None
+    compute = (
+        None if backend_id == backend_module.BACKEND_WHISPER_CPP
+        else precision.memory_compute_type(compute_preference, device.DEVICE_CPU, probe)
+    )
+    candidate = _resolve_model(
+        section, probe, device.DEVICE_CPU, installed_ids, [], custom_model_ids,
+        backend_id, language, compute,
+    )
+    return candidate if candidate in installed else None
 
 
 def _model_choice_exists(stored, custom_model_ids, backend_id=None) -> bool:

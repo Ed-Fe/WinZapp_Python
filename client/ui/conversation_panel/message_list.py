@@ -37,10 +37,16 @@ def enter_transcribes_voice(panel) -> bool:
 
 def enter_transcribes(panel, msg: dict) -> bool:
     """Whether Enter and plain Space should transcribe *msg* into its line:
-    the setting above is on, *msg* is a voice message or a video with sound,
-    and the panel can transcribe at all (the data dialogs' Media tab borrows
-    the activation code and cannot)."""
-    if not isinstance(msg, dict) or msg.get("messageType") not in ("audioMessage", "videoMessage"):
+    the setting above is on, *msg* holds speech Alt+Shift+N can transcribe (a
+    voice message, a video with sound, or an audio or video file sent as a
+    document), and the panel can transcribe at all (the data dialogs' Media
+    tab borrows the activation code and cannot).
+
+    The document case was missing: Alt+Shift+N transcribed an .mp3 or .opus
+    sent as a file while Enter opened it in the system player, so with the
+    setting on both keys did what they do with it off. Reported as "Enter
+    always plays"."""
+    if not isinstance(msg, dict):
         return False
     if not enter_transcribes_voice(panel) or not callable(
             getattr(panel, "_on_menu_transcribe_inline", None)):
@@ -298,6 +304,11 @@ class MessageListMixin:
             # proper seek/volume/speed controls.
             self.open_media_viewer_for_message(msg, restore_index=index)
 
+        elif msg_type == "documentMessage" and enter_transcribes(self, msg):
+            # An audio or video file: transcribed like a voice message, and
+            # Alt+Shift+N opens it (_on_menu_toggle_voice_action()).
+            self._on_menu_transcribe_inline(msg)
+
         elif msg_type in ("documentMessage", "locationMessage", "liveLocationMessage"):
             # Documents and locations keep their existing system-open behaviour.
             # open_media_message() is _on_action_open()'s message-based half and
@@ -373,7 +384,9 @@ class MessageListMixin:
         if msg_type == "audioMessage":
             activate_audio_message(self, msg)
             return True
-        if msg_type == "videoMessage" and enter_transcribes(self, msg):
+        if msg_type in ("videoMessage", "documentMessage") and enter_transcribes(self, msg):
+            # Transcribing puts no window on screen, so Space may do it on a
+            # file too; opening one stays Enter's (Alt+Shift+N's) alone.
             self._on_menu_transcribe_inline(msg)
             return True
         if msg_type == "videoMessage" and not self._use_conversation_video_media_viewer_dialog():
@@ -519,11 +532,21 @@ class MessageListMixin:
             else:
                 self._load_older_messages()
 
+        self._update_focused_row_controls(idx)
+        event.Skip()
+
+    def _update_focused_row_controls(self, idx: int):
+        """The controls after the list that belong to the focused row:
+        Retornar ligação, Ler mais, the inline poll and Reações.
+
+        Also called after a rebuild (populate_messages()), where the focused
+        row can be another message with no focus event of its own: opening
+        another conversation left the previous one's Reações and Ler mais on
+        screen, and Tab from the list reached them."""
         self._update_return_call_button(idx)
         self._update_read_more_button(idx)
         self._update_inline_poll(idx)
         self._update_reactions_button(idx)
-        event.Skip()
 
     def _update_return_call_button(self, idx: int):
         """Show "Retornar ligação" only while a returnable missed call is focused."""

@@ -68,14 +68,25 @@ class StatusListMixin:
         self._status_contacts      = contacts
         self._selected_contact_idx = -1
         self._list_is_loading      = False
+        # Any rebuild brings the unsent rows in (status_tab/unsent_status.py).
+        self._unsent_redraw_pending = False
         self._viewer_panel.Hide()
         self._status_list.DeleteAllItems()
         self._status_row_contact = {}
         self._status_contact_row = {}
+        self._status_row_unsent = {}
 
         # ── Row 0: always "My Status" ─────────────────────────────────────
         self._status_list.Append((self._my_status_label(i18n),))
         self._status_row_contact[0] = -1
+
+        # Posts that did not go out, or were not confirmed, right after it
+        # (status_tab/unsent_status.py): a row each, with Try sending again.
+        for label, post_id in self._unsent_rows(i18n):
+            row = self._status_list.GetItemCount()
+            self._status_list.Append((label,))
+            self._status_row_contact[row] = -1
+            self._status_row_unsent[row] = post_id
 
         def _add_section(section_contacts: list, header: str, start_contact_idx: int):
             """Appends one "--- header ---" row followed by one row per
@@ -232,6 +243,10 @@ class StatusListMixin:
     def _on_status_contact_selected(self, event, announce: bool = False):
         """Track focus. In classic (non-dialog) mode this also drives the
         inline viewer directly — see _use_status_media_viewer_dialog()."""
+        if getattr(self, "_restoring_status_row", False):
+            # The list putting the focus back after a rebuild
+            # (unsent_status.py), not the user choosing a status to watch.
+            return
         idx = event.GetIndex()
 
         if not self._use_status_media_viewer_dialog():
@@ -239,12 +254,12 @@ class StatusListMixin:
                 # My Status row selected — hide the inline viewer; dialog
                 # opens on activate.
                 self._selected_contact_idx = -1
-                self._viewer_panel.Hide()
+                self._hide_status_viewer()
                 self.Layout()
                 return
             contact_idx = self._status_row_contact.get(idx, -1)
             if contact_idx < 0 or contact_idx >= len(self._status_contacts):
-                self._viewer_panel.Hide()
+                self._hide_status_viewer()
                 self.Layout()
                 return
             # Only jump back to the FIRST status when selecting a genuinely
@@ -274,7 +289,7 @@ class StatusListMixin:
             self._video_player.stop()
         except Exception:
             pass
-        self._viewer_panel.Hide()
+        self._hide_status_viewer()
         self.Layout()
 
         if idx == 0:

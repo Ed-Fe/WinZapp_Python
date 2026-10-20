@@ -20,6 +20,7 @@ from core.api_client import (
     sync_throttled,
 )
 from core.utils import auto_download_enabled
+from core.page_heap import collect_after_batch
 from core.sync_progress import ProgressThrottle
 from main_window import history_boundary
 from main_window.message_rules import describe_history_sync_health
@@ -1052,6 +1053,8 @@ class BackfillMixin:
                                 fut.result()
                             except Exception as exc:
                                 logging.warning("[backfill] chat sync failed: %s", exc)
+                    # The pass's batch is answered (core/page_heap.py).
+                    collect_after_batch(self)
 
                 if not sync_context_is_current(self, context):
                     logging.info("[backfill] A newer sync took over — stopping before phone requests.")

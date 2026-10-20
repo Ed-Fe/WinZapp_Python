@@ -26,6 +26,24 @@ import wx
 from core import whatsapp_profile as profile
 
 
+def photo_button_description(current_label: str, chosen_label: str) -> str:
+    """What the photo button says after its name: whether a photo is set now
+    and which file was chosen. Both live in static texts around the button,
+    which a screen reader only reaches by object navigation."""
+    return ". ".join(part for part in (current_label.strip(), chosen_label.strip()) if part)
+
+
+class _PhotoButtonAccessible(wx.Accessible):
+    def __init__(self, panel):
+        super().__init__()
+        self._panel = panel
+
+    def GetDescription(self, childId):
+        panel = self._panel
+        return (wx.ACC_OK, photo_button_description(panel._photo_current.GetLabel(),
+                                                     panel._photo_label.GetLabel()))
+
+
 class WhatsAppProfilePanel(wx.Panel):
     def __init__(self, parent, main_window):
         super().__init__(parent)
@@ -64,6 +82,9 @@ class WhatsAppProfilePanel(wx.Panel):
         sizer.Add(self._photo_button, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self._photo_label = wx.StaticText(self, label=i18n.t("profile_no_photo_chosen"))
         sizer.Add(self._photo_label, 0, wx.ALL, 8)
+        # Kept on the panel: the button only borrows it.
+        self._photo_accessible = _PhotoButtonAccessible(self)
+        self._photo_button.SetAccessible(self._photo_accessible)
 
         self._message = wx.StaticText(self, label=i18n.t("profile_loading"))
         sizer.Add(self._message, 0, wx.ALL, 8)
@@ -130,7 +151,7 @@ class WhatsAppProfilePanel(wx.Panel):
     def _on_choose_photo(self, event):
         i18n = self._i18n
         dialog = wx.FileDialog(
-            self, i18n.t("profile_choose_photo_button"),
+            self, i18n.t("profile_choose_photo_button").replace("&", ""),
             wildcard=i18n.t("profile_photo_wildcard"),
             style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
         )
@@ -191,10 +212,11 @@ class WhatsAppProfilePanel(wx.Panel):
             self._show_photo_state()
 
         if errors:
+            # The field labels carry their Alt key ("&"); the message does not.
             labels = {
-                "name": i18n.t("profile_name_label"),
-                "status": i18n.t("profile_status_label"),
-                "photo": i18n.t("profile_photo_label"),
+                "name": i18n.t("profile_name_label").replace("&", ""),
+                "status": i18n.t("profile_status_label").replace("&", ""),
+                "photo": i18n.t("profile_photo_label").replace("&", ""),
             }
             lines = profile.failure_lines(errors, labels)
             self._show(i18n.t("profile_save_partial_error"))

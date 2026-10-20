@@ -735,7 +735,7 @@ class MediaFilesMixin:
             )
             return False
 
-    def save_media_message(self, msg: dict):
+    def save_media_message(self, msg: dict, parent=None):
         """Save a message's media, given the message itself.
 
         Split out of _on_action_save_as() for the same reason as
@@ -743,6 +743,14 @@ class MediaFilesMixin:
         the bulk-selection branch: a caller holding one specific message is
         asking for that message, not for whatever the conversation happens to
         have multi-selected.
+
+        *parent* is the window the Save dialog belongs to; a modal dialog
+        calling this (the conversation data dialog's Media tab) must pass
+        itself. Parented to this panel instead, the Save dialog's owner is the
+        main window that the modal dialog has disabled, and Windows hands the
+        activation back to that owner when the Save dialog closes: focus lands
+        on a disabled window and the screen reader says "indisponível", with
+        the data dialog still open behind it.
         """
         if self._is_separator(msg):
             return
@@ -819,7 +827,7 @@ class MediaFilesMixin:
         )
         base_name = os.path.splitext(default_file)[0]
         with wx.FileDialog(
-            self,
+            parent or self,
             dlg_title,
             defaultDir=resolve_save_dialog_folder(self.main_window.settings),
             # Extension left off on purpose: the native Save dialog selects

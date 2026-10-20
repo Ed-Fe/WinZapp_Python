@@ -25,7 +25,11 @@ class StatusViewerMixin:
     def _open_my_status_dialog(self):
         dlg    = MyStatusDialog(self.main_window, self._my_statuses)
         result = dlg.ShowModal()
+        deleted = list(dlg.deleted_status_ids)
         dlg.Destroy()
+        if deleted:
+            # The dialog edited this same list: redraw the "My status" row.
+            self._populate_list(self._my_statuses, self._status_contacts)
         if result == MyStatusDialog.RC_ADD_STATUS:
             # User wants to add a status — open the popup menu
             self._on_add_status(None)

@@ -162,6 +162,54 @@ class TestAudioDocuments:
         row = self._stub()._get_message_content(_audio_document(inline=False))
         assert _I18n().t("transcription_row_label") not in row
 
+    def _opening(self, enter_transcribes):
+        stub = _Stub(enter_transcribes=enter_transcribes)
+        stub.open_media_message = lambda msg: stub.played.append("open:" + msg["key"]["id"])
+        return stub
+
+    def test_by_default_enter_opens_it_and_the_key_transcribes(self):
+        panel = self._opening(False)
+        panel.activate_message(_audio_document(text=None))
+        panel._on_menu_toggle_voice_action(_audio_document(text=None))
+        assert panel.played == ["open:D1"] and panel.transcribed == ["D1"]
+
+    def test_set_to_transcribe_enter_and_space_transcribe_and_the_key_opens_it(self):
+        """Reported: with the setting on, Enter still played an audio file
+        sent as a document, and Alt+Shift+N still transcribed it."""
+        panel = self._opening(True)
+        panel.activate_message(_audio_document(text=None))
+        assert panel._space_toggles_playback(_audio_document(text=None)) is True
+        panel._on_menu_toggle_voice_action(_audio_document(text=None))
+        assert panel.transcribed == ["D1", "D1"] and panel.played == ["open:D1"]
+
+    def test_space_never_opens_a_document(self):
+        panel = self._opening(False)
+        assert panel._space_toggles_playback(_audio_document(text=None)) is False
+        assert panel.played == []
+
+    def test_a_pdf_is_never_transcribed_by_enter(self):
+        panel = self._opening(True)
+        pdf = _audio_document(text=None)
+        pdf["message"]["documentMessage"] = {"fileName": "a.pdf", "mimetype": "application/pdf"}
+        panel.activate_message(pdf)
+        assert panel.transcribed == [] and panel.played == ["open:D1"]
+
+    def test_the_key_on_a_pdf_still_says_it_has_no_audio(self):
+        """Reviewer: with the setting on, Alt+Shift+N opened a PDF too, the
+        same as Enter; only an audio or video sent as a file swaps keys."""
+        from ui.conversation_panel.message_menu import inline_toggle_menu_key
+        panel = self._opening(True)
+        pdf = _audio_document(text=None)
+        pdf["message"]["documentMessage"] = {"fileName": "a.pdf", "mimetype": "application/pdf"}
+        panel._on_menu_toggle_voice_action(pdf)
+        assert panel.played == [] and panel.transcribed == ["D1"]
+        assert inline_toggle_menu_key(pdf, True) == "transcribe_inline_menu"
+
+    def test_the_menu_names_what_the_key_does(self):
+        from ui.conversation_panel.message_menu import inline_toggle_menu_key
+        assert inline_toggle_menu_key(_audio_document(), True) == "open"
+        assert inline_toggle_menu_key(_audio_document(), False) == "transcribe_inline_menu"
+
 
 class TestReadMoreOnALongDocumentLine:
     def test_the_button_offers_the_rest_of_the_line(self):
@@ -388,3 +436,22 @@ def test_a_picture_keeps_its_description_through_a_resync_copy():
     old = {"messageType": "imageMessage", "key": {"id": "X"}}
     kept = stored.with_known_transcription(old, {stored.TRANSCRIPTION_KEY: record})
     assert kept[stored.TRANSCRIPTION_KEY]["text"] == "um gato"
+
+
+def test_media_tab_video_follows_the_enter_setting():
+    """The data dialog's Media tab sent every video to the viewer before the
+    panel could look at the setting."""
+    from ui.dialogs.conversation_data_dialog import ConversationDataDialog
+    for enter_transcribes, expected in ((True, ["activate:V1"]), (False, ["viewer:V1"])):
+        panel = _Stub(enter_transcribes=enter_transcribes)
+        calls = []
+        panel.open_media_viewer_for_message = lambda msg: calls.append("viewer:" + msg["key"]["id"])
+        panel.activate_message = lambda msg: calls.append("activate:" + msg["key"]["id"])
+        dialog = types.SimpleNamespace(
+            _selected_media_message=lambda: _video(text=None),
+            _conversation_panel=lambda: panel,
+            _panel_is_on_this_chat=lambda: True,
+            _invoke=lambda call: call(),
+        )
+        ConversationDataDialog._on_media_activated(dialog, None)
+        assert calls == expected

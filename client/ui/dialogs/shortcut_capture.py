@@ -33,8 +33,11 @@ def classify_chord(mod, key, global_hotkey=False):
 
 
 class ShortcutCaptureDialog(wx.Dialog):
-    def __init__(self, parent, action, binding, global_hotkey=False):
-        self.main_window = parent.main_window
+    def __init__(self, parent, action, binding, global_hotkey=False, main_window=None):
+        # The parent is the Shortcuts window (a SubPageDialog), which has no
+        # main_window of its own: reading it off the parent raised
+        # AttributeError on every Change (reported from an installed build).
+        self.main_window = main_window if main_window is not None else parent.main_window
         self.i18n = self.main_window.i18n
         self.binding = binding
         self.vk = 0

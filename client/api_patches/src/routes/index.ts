@@ -35,8 +35,12 @@ import * as PrivacyController from '../controller/privacyController';
 import * as PollController from '../controller/pollController';
 import * as CommunityCommentsController from '../controller/communityCommentsController';
 import * as CommunityOverviewController from '../controller/communityOverviewController';
+import * as CommunityJoinController from '../controller/communityJoinController';
+import * as PageHeapController from '../controller/pageHeapController';
+import * as StatusDeleteController from '../controller/statusDeleteController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
+import * as OrderConfirmController from '../controller/orderConfirmController';
 import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
@@ -291,6 +295,14 @@ routes.get(
   '/api/:session/status-session',
   verifyToken,
   SessionController.getSessionState
+);
+// A full V8 garbage collection of the WhatsApp Web page, asked for after a
+// large sync batch (issue #379; pageHeapController.ts). No connection probe:
+// it needs only the page, and the probe would be one more evaluation in it.
+routes.post(
+  '/api/:session/collect-page-garbage',
+  verifyToken,
+  PageHeapController.collectGarbage
 );
 routes.post(
   '/api/:session/send-status',
@@ -968,6 +980,12 @@ routes.post('/api/:session/commerce/order/:messageId/decline', verifyToken, stat
   CommerceController.orderDecline);
 routes.post('/api/:session/commerce/order/:messageId/status', verifyToken, statusConnection,
   CommerceController.orderUpdate);
+// The buyer's "Confirm order info" for an order a seller created, when it is
+// paid outside the app (orderConfirmController.ts).
+routes.get('/api/:session/commerce/order-details/:messageId', verifyToken, statusConnection,
+  OrderConfirmController.readBuyerOrder);
+routes.post('/api/:session/commerce/order-details/:messageId/confirm', verifyToken, statusConnection,
+  OrderConfirmController.confirmBuyerOrder);
 routes.post(
   '/api/:session/set-cart-enabled',
   verifyToken,
@@ -1001,6 +1019,14 @@ routes.get(
   verifyToken,
   statusConnection,
   StatusController.getStatuses
+);
+// Delete one of the account's own statuses for everyone who received it
+// (statusDeleteController.ts).
+routes.post(
+  '/api/:session/status/:statusId/delete',
+  verifyToken,
+  statusConnection,
+  StatusDeleteController.deleteStatus
 );
 
 // Labels
@@ -1213,6 +1239,28 @@ routes.get(
   verifyToken,
   statusConnection,
   CommunityOverviewController.listCommunities
+);
+// One community with the groups the account is not in, asked of WhatsApp the
+// way WhatsApp Web asks when the community is opened (a read).
+routes.get(
+  '/api/:session/community-subgroups/:communityId',
+  verifyToken,
+  statusConnection,
+  CommunityOverviewController.refreshCommunity
+);
+// Join a group of the community the account is not in, or ask to when an
+// admin has to approve; and withdraw that request (communityJoinController.ts).
+routes.post(
+  '/api/:session/community-subgroups/:communityId/:subgroupId/join',
+  verifyToken,
+  statusConnection,
+  CommunityJoinController.joinSubgroup
+);
+routes.post(
+  '/api/:session/community-subgroups/:communityId/:subgroupId/cancel-request',
+  verifyToken,
+  statusConnection,
+  CommunityJoinController.cancelJoinRequest
 );
 routes.post(
   '/api/:session/community-admin/:communityId/promote',

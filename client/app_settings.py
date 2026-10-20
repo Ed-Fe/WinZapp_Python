@@ -46,6 +46,9 @@ _DEFAULTS: dict[str, Any] = {
     # and only interrupt the app to install (update_background.py). Global for
     # the same reason as the two above: the install and its api/ are shared.
     "background_update_downloads": False,
+    # Offer every upstream WPPConnect Server release, not only the approved
+    # ones (core/wpp_upstream.py). Global because api/ is shared.
+    "wpp_all_updates": False,
     "show_tray_icon": True,
     "autostart": False,
     # install-wide one-time setup prompts (asked once per install, NOT per
@@ -92,7 +95,7 @@ _DEFAULTS: dict[str, Any] = {
 
 # Which legacy general.* keys are global (the rest stay per-account).
 _GENERAL_GLOBAL = ("language", "updates_enabled", "alpha_updates_enabled",
-                   "background_update_downloads",
+                   "background_update_downloads", "wpp_all_updates",
                    "show_tray_icon", "autostart",
                    "first_run", "hotkey_first_run_asked", "api_type_first_run_asked",
                    "switch_behavior")

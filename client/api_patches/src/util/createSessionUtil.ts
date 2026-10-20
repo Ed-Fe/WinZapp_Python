@@ -27,6 +27,7 @@ import {
   prepareLinuxCallAudioEnvironment,
   warmCallVoipRuntime,
 } from './callMediaBridge';
+import { installAnnouncementReplyBridge } from './announcementReplyBridge';
 import {
   autoDownload,
   callWebHook,
@@ -1590,6 +1591,7 @@ export default class CreateSessionUtil {
     }
 
     await this.onUnreadCountChanged(client, req);
+    await installAnnouncementReplyBridge(client, req.io, req.logger);
   }
 
   /**

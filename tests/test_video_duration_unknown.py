@@ -287,9 +287,9 @@ class TestOwnVideoAttachmentGetsAMeasuredDuration:
         import ast
         tree = ast.parse(_source_conversations())
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == "_on_send_attachment":
+            if isinstance(node, ast.FunctionDef) and node.name == "_send_attachment_file":
                 return ast.get_source_segment(_source_conversations(), node)
-        raise AssertionError("_on_send_attachment not found")
+        raise AssertionError("_send_attachment_file not found")
 
     def test_video_attachments_are_probed_into_measured_seconds(self):
         src = self._send_attachment_source()

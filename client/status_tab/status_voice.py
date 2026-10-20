@@ -18,8 +18,11 @@ from core.audio_devices import (
     fallback_input_device_indices,
     find_input_device_index,
 )
+import requests
+
 from core.api_client import api_post
 from core.focus_cloak import cloak_panel_focus_fallback
+from status_tab.status_rules import STATUS_POST_UNCONFIRMED, status_upload_timeout
 try:
     import pyaudio
 except ImportError:
@@ -427,7 +430,7 @@ class StatusVoiceMixin:
             daemon=True,
         ).start()
 
-    def _send_status_voice_bg(self, path: str, is_temp_file: bool = False, report_result: bool = True) -> bool:
+    def _send_status_voice_bg(self, path: str, is_temp_file: bool = False, report_result: bool = True):
         """Background: convert *path* to OGG/Opus (WhatsApp's own voice-
         message codec — main_window._convert_wav_to_ogg() despite the name
         just runs it through ffmpeg, which reads the real container/codec
@@ -449,6 +452,11 @@ class StatusVoiceMixin:
         dialogs when several files in a batch failed at once (same failure
         mode already fixed for save_data(), see main.py's
         _SAVE_ERROR_DIALOG_COOLDOWN comment).
+
+        True when posted, False when it failed, STATUS_POST_UNCONFIRMED when
+        it was sent and no answer came in time (status_upload_timeout() of
+        its size): it may be up, so it is never reported as failed, which
+        invited posting it twice — as the image/video path does.
         """
         mw = self.main_window
         ogg_path = mw._convert_wav_to_ogg(path)
@@ -469,7 +477,8 @@ class StatusVoiceMixin:
             return False
         try:
             with open(ogg_path, "rb") as fh:
-                audio_b64 = base64.b64encode(fh.read()).decode("utf-8")
+                audio = fh.read()
+            audio_b64 = base64.b64encode(audio).decode("utf-8")
         except Exception as exc:
             # try/finally with no except let this propagate. Harmless while
             # this method was a thread target on its own, but
@@ -499,9 +508,24 @@ class StatusVoiceMixin:
         headers = {"Authorization": f"Bearer {mw.token}", "Content-Type": "application/json"}
         payload = {"base64Ptt": f"data:audio/ogg;codecs=opus;base64,{audio_b64}"}
         try:
-            resp = api_post(url, json=payload, headers=headers, timeout=60)
+            resp = api_post(url, json=payload, headers=headers,
+                            timeout=status_upload_timeout(len(audio)))
             ok   = resp.status_code in (200, 201)
             err_msg = "" if ok else f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except requests.exceptions.Timeout as exc:
+            if not isinstance(exc, requests.exceptions.ConnectTimeout):
+                logging.warning("[status audio] send-status-voice-base64 unconfirmed: timed out")
+                if report_result:
+                    # It may be up already: look before posting again.
+                    wx.CallAfter(
+                        wx.MessageBox,
+                        mw.i18n.t("status_post_unconfirmed"),
+                        mw.app_name,
+                        wx.OK | wx.ICON_WARNING,
+                    )
+                return STATUS_POST_UNCONFIRMED
+            ok = False
+            err_msg = type(exc).__name__
         except Exception as exc:
             ok = False
             err_msg = str(exc)

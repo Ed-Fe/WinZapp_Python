@@ -242,7 +242,7 @@ def test_groups_offered_for_linking_are_named_groups_in_no_community():
 class ListBox:
     def __init__(self):
         self.items, self.selection = [], -1
-        self.Freeze, self.Thaw = Mock(), Mock()
+        self.Freeze, self.Thaw, self.SetFocus = Mock(), Mock(), Mock()
 
     def Set(self, items):
         self.items, self.selection = list(items), -1
@@ -253,6 +253,9 @@ class ListBox:
     def GetSelection(self):
         return self.selection
 
+    def GetCount(self):
+        return len(self.items)
+
 
 STRINGS = load_strings("en-US")
 
@@ -260,7 +263,9 @@ STRINGS = load_strings("en-US")
 class Dialog:
     for _name in ("_selected", "_selected_group", "_set_busy", "_update_buttons", "_announce",
                   "_reload", "_finish_reload", "_show", "_show_selected", "_on_select", "_describe",
-                  "_on_open", "_deliver"):
+                  "_on_open", "_on_open_recent", "_open_group", "_recent_group", "_on_enter",
+                  "_deliver", "_shown_groups", "_on_filter", "_finish_other_groups",
+                  "_on_join", "_finish_join", "_replace_group"):
         locals()[_name] = getattr(CommunitiesDialog, _name)
     for _name in ("_admin_community", "_name_of", "_perform", "_finish_action", "_on_add_groups",
                   "_on_remove_group", "_on_demote", "_on_promote", "_promotion_candidates",
@@ -268,8 +273,15 @@ class Dialog:
         locals()[_name] = getattr(CommunityAdminActions, _name)
     del _name
 
+    # Asking for the other groups is tested on its own (TestOtherGroups):
+    # everywhere else it would queue work the action tests pop.
+    def _ask_for_other_groups(self, community):
+        pass
+
     def __init__(self, communities=(SCHOOL, CLUB)):
         self._connection = CONNECTION
+        self._filter, self._refreshed = "all", set()
+        self._filter_radio = SimpleNamespace(GetSelection=lambda: 0)
         self._busy, self._loaded, self._communities, self.result = False, False, [], None
         self._closed = SimpleNamespace(is_set=lambda: False, set=Mock())
         self._i18n = SimpleNamespace(t=lambda key: STRINGS[key].replace("&", ""))
@@ -277,12 +289,15 @@ class Dialog:
                  "444@lid": "444@lid"}
         self._mw = SimpleNamespace(
             i18n=self._i18n, chats={}, speak_output=SimpleNamespace(output=Mock()),
+            _chat_last_ts=lambda chat: chat.get("t", 0) or 1,
             is_chat_locked=lambda jid: False,
             _normalize_jid=lambda jid: jid.replace("@c.us", "@s.whatsapp.net"),
             _is_self_jid=lambda jid: jid == "999@lid", self_reference_label=lambda: "Me",
             _resolve_jid_name=lambda jid, resolve_missing=True: names.get(jid, ""),
             get_group_info_recent=Mock(return_value={}))
         self._list, self._groups = ListBox(), ListBox()
+        self._open_recent = SimpleNamespace(Enable=Mock(), SetLabel=Mock())
+        self._join = SimpleNamespace(Enable=Mock(), SetLabel=Mock())
         self._details = SimpleNamespace(ChangeValue=Mock())
         self._status = SimpleNamespace(SetLabel=Mock())
         for name in ("_open", "_add_groups", "_remove_group", "_promote", "_demote", "_deactivate",
@@ -404,6 +419,82 @@ def test_opening_a_group_closes_the_dialog_with_it():
     dialog.select(SCHOOL, PLAIN)
     dialog._on_open(None)
     assert dialog.result == PLAIN and dialog.EndModal.called
+
+
+def test_most_recent_group_is_the_one_with_the_newest_activity():
+    activity = {ANNOUNCEMENTS.jid: 100, PLAIN.jid: 200}
+    assert api.most_recent_group(SCHOOL, lambda jid: activity.get(jid, 0)) == PLAIN
+    activity[ANNOUNCEMENTS.jid] = 200  # a tie: the group listed first
+    assert api.most_recent_group(SCHOOL, lambda jid: activity.get(jid, 0)) == ANNOUNCEMENTS
+    assert api.most_recent_group(SCHOOL, lambda jid: 0) is None
+    assert api.most_recent_group(CLUB, lambda jid: 100) is None
+    assert api.most_recent_group(None, lambda jid: 100) is None
+
+
+def test_most_recent_group_never_offers_a_group_the_account_is_not_in():
+    """One it left keeps its conversation on file, and cannot be opened."""
+    left = Subgroup("111-9@g.us", "Old", False, False, joined=False)
+    community = Community("111-0@g.us", "School", "", True, (), (PLAIN, left))
+    activity = {PLAIN.jid: 100, left.jid: 900}
+    assert api.most_recent_group(community, lambda jid: activity.get(jid, 0)) == PLAIN
+    only_left = Community("111-0@g.us", "School", "", True, (), (left,))
+    assert api.most_recent_group(only_left, lambda jid: 900) is None
+
+
+def test_an_empty_filter_says_why_it_is_empty():
+    """"Groups I'm not in" left empty means the account is in every one."""
+    assert api.empty_groups_key(SCHOOL, "not_joined") == "communities_in_every_group"
+    assert api.empty_groups_key(SCHOOL, "joined") == "communities_no_groups"
+    assert api.empty_groups_key(CLUB, "not_joined") == "communities_no_groups"
+    assert api.empty_groups_key(CLUB, "all") == "communities_no_groups"
+    assert api.empty_groups_key(None, "not_joined") == "communities_no_groups"
+
+
+def test_the_recent_group_button_names_and_opens_the_newest_group():
+    dialog = Dialog()
+    dialog._mw.chats = {ANNOUNCEMENTS.jid: {"t": 100}, PLAIN.jid: {"t": 200}}
+    dialog.select(SCHOOL)
+    assert dialog.enabled("_open_recent") is True
+    assert dialog._open_recent.SetLabel.call_args.args[0] == "Open the most recent group: Study"
+    dialog._on_open_recent(None)
+    assert dialog.result == PLAIN and dialog.EndModal.called
+
+
+def test_the_recent_group_button_never_offers_a_locked_or_unknown_group():
+    dialog = Dialog()
+    dialog._mw.chats = {PLAIN.jid: {"t": 200}}
+    dialog._mw.is_chat_locked = lambda jid: jid == PLAIN.jid
+    dialog.select(SCHOOL)
+    assert dialog.enabled("_open_recent") is False
+    assert dialog._open_recent.SetLabel.call_args.args[0] == "Open the most recent group"
+    dialog._on_open_recent(None)
+    dialog.EndModal.assert_not_called()
+
+
+def test_enter_on_a_community_shows_its_groups_and_on_a_group_opens_it():
+    dialog = Dialog()
+    dialog._announce = Mock()
+    assert dialog._on_enter(dialog._list) is True  # Club: no groups to move to
+    dialog._groups.SetFocus.assert_not_called()
+    assert "not joined any group" in dialog._announce.call_args.args[0]
+    dialog.select(SCHOOL, PLAIN)
+    assert dialog._on_enter(dialog._list) is True
+    dialog._groups.SetFocus.assert_called_once()
+    dialog.EndModal.assert_not_called()
+    assert dialog._on_enter(dialog._groups) is True
+    assert dialog.result == PLAIN and dialog.EndModal.called
+    assert dialog._on_enter(object()) is False  # a button handles its own Enter
+
+
+def test_enter_with_every_group_joined_and_the_not_in_filter_says_so():
+    dialog = Dialog()
+    dialog._announce = Mock()
+    dialog.select(SCHOOL)
+    dialog._filter = "not_joined"
+    dialog._groups.GetCount = lambda: 0
+    assert dialog._on_enter(dialog._list) is True
+    assert dialog._announce.call_args.args[0] == dialog._i18n.t("communities_in_every_group")
+    assert "not joined any group" not in dialog._announce.call_args.args[0]
 
 
 def finish(dialog, state, communities):
@@ -604,3 +695,197 @@ def test_a_locked_group_is_never_offered_by_name():
     chats = {"555-0@g.us": {"name": "Alpha"}, "666-0@g.us": {"name": "Secret"}}
     rows = api.linkable_groups(chats, [], is_locked=lambda jid: jid == "666-0@g.us")
     assert rows == [("555-0@g.us", "Alpha")]
+
+
+SPORTS = Subgroup("111-5@g.us", "Sports", False, False, joined=False)
+BOARD = Subgroup("111-6@g.us", "Board", False, False, joined=False, approval=True)
+SCHOOL_ALL = Community(SCHOOL.jid, SCHOOL.name, SCHOOL.description, True, SCHOOL.admins,
+                       (ANNOUNCEMENTS, PLAIN, SPORTS, BOARD))
+
+
+class TestOtherGroups:
+    """The community's groups the account is not in: listed, filtered, and
+    asked of WhatsApp once per community, as WhatsApp Web does on opening it."""
+
+    def test_the_api_marks_the_groups_the_account_is_not_in(self):
+        body = {"status": "success", "response": [{**RAW, "subgroups": [
+            *RAW["subgroups"],
+            {"id": "111-5@g.us", "subject": "Sports", "joined": False},
+            {"id": "111-6@g.us", "subject": "Board", "joined": False, "approval": True}]}]}
+        [community] = api.parse_communities(body)
+        assert community.subgroups[-2:] == (SPORTS, BOARD)
+        assert all(group.joined for group in community.subgroups[:-2])  # older API: joined
+
+    def test_the_filter_keeps_all_joined_or_not_joined(self):
+        assert api.filter_subgroups(SCHOOL_ALL, "all") == SCHOOL_ALL.subgroups
+        assert api.filter_subgroups(SCHOOL_ALL, "joined") == (ANNOUNCEMENTS, PLAIN)
+        assert api.filter_subgroups(SCHOOL_ALL, "not_joined") == (SPORTS, BOARD)
+        assert api.filter_subgroups(None, "all") == ()
+
+    def test_rows_say_the_account_is_not_in_it(self):
+        i18n = SimpleNamespace(t=lambda key: STRINGS[key])
+        assert subgroup_label(SPORTS, i18n) == "Sports, you are not in it"
+        assert subgroup_label(BOARD, i18n) == "Board, you are not in it, joining needs approval"
+
+    def test_the_radio_filters_the_list_and_keeps_the_group(self):
+        dialog = Dialog(communities=(SCHOOL_ALL, CLUB))
+        dialog.select(SCHOOL_ALL, PLAIN)
+        assert len(dialog._groups.items) == 4
+        dialog._filter_radio = SimpleNamespace(GetSelection=lambda: 2)
+        dialog._on_filter(None)
+        assert dialog._groups.items == ["Sports, you are not in it",
+                                        "Board, you are not in it, joining needs approval"]
+        dialog._filter_radio = SimpleNamespace(GetSelection=lambda: 1)
+        dialog._on_filter(None)
+        assert dialog._selected_group() == PLAIN
+
+    def test_a_group_the_account_is_not_in_is_never_opened(self):
+        dialog = Dialog(communities=(SCHOOL_ALL, CLUB))
+        dialog._announce = Mock()
+        dialog.select(SCHOOL_ALL, SPORTS)
+        assert dialog.enabled("_open") is False
+        dialog._on_open(None)
+        dialog.EndModal.assert_not_called()
+        assert "not in this group" in dialog._announce.call_args.args[0]
+
+    def test_a_community_is_asked_about_once_and_the_answer_shown(self, monkeypatch):
+        dialog = Dialog()
+        dialog._ask_for_other_groups = CommunitiesDialog._ask_for_other_groups.__get__(dialog)
+        refresh = Mock(return_value=SCHOOL_ALL)
+        monkeypatch.setattr("ui.dialogs.communities.refresh_community", refresh)
+        dialog.select(SCHOOL)
+        dialog.select(SCHOOL)
+        [(work, done)] = dialog.work
+        done(work())
+        refresh.assert_called_once_with(CONNECTION, SCHOOL.jid)
+        assert dialog._selected() == SCHOOL_ALL and len(dialog._groups.items) == 4
+
+    def test_a_failed_answer_is_asked_again_next_time(self):
+        dialog = Dialog()
+        dialog._refreshed.add(SCHOOL.jid)
+        dialog._finish_other_groups(SCHOOL.jid, None)
+        assert SCHOOL.jid not in dialog._refreshed
+        assert dialog._selected() != SCHOOL_ALL
+
+    def test_no_groups_joined_is_said_even_when_others_are_listed(self):
+        only_others = Community("444-0@g.us", "Club", "", False, (), (SPORTS,))
+        assert "not joined any group" in Dialog()._describe(only_others)
+
+
+PENDING = Subgroup("111-6@g.us", "Board", False, False, joined=False, approval=True, requested=True)
+
+
+class TestJoining:
+    """Join, ask to join or withdraw the request, as WhatsApp Web's own
+    button offers on a group of the community the account is not in."""
+
+    def test_the_button_offers_what_whatsapp_offers(self):
+        assert api.join_action(PLAIN) is None
+        assert api.join_action(SPORTS) == "join"
+        assert api.join_action(BOARD) == "request"
+        assert api.join_action(PENDING) == "cancel"
+        assert api.join_action(None) is None
+
+    def test_the_api_reads_a_pending_request(self):
+        body = {"status": "success", "response": [{**RAW, "subgroups": [
+            {"id": "111-6@g.us", "subject": "Board", "joined": False, "approval": True,
+             "requested": True}]}]}
+        assert api.parse_communities(body)[0].subgroups == (PENDING,)
+
+    @pytest.mark.parametrize("call, path", [
+        (api.join_subgroup, "community-subgroups/111-0@g.us/111-5@g.us/join"),
+        (api.cancel_join_request, "community-subgroups/111-0@g.us/111-5@g.us/cancel-request"),
+    ])
+    def test_one_post_answers_the_state(self, monkeypatch, call, path):
+        post = Mock(return_value=SimpleNamespace(
+            status_code=200, json=lambda: {"status": "success", "response": {"state": "joined"}}))
+        monkeypatch.setattr(api, "api_post", post)
+        assert call(CONNECTION, "111-0@g.us", "111-5@g.us") == "joined"
+        post.assert_called_once()
+        assert post.call_args.args[0].endswith(path)
+
+    @pytest.mark.parametrize("reply, code", [
+        (SimpleNamespace(status_code=409, json=lambda: {"status": "error", "code": "hidden_group"}),
+         "hidden_group"),
+        (SimpleNamespace(status_code=502, json=lambda: {}), "unavailable"),
+        (SimpleNamespace(status_code=200, json=lambda: {"status": "success", "response": {"state": "?"}}),
+         "unavailable"),
+    ])
+    def test_anything_but_a_known_state_is_an_error_never_retried(self, monkeypatch, reply, code):
+        post = Mock(return_value=reply)
+        monkeypatch.setattr(api, "api_post", post)
+        with pytest.raises(ValueError, match=code):
+            api.join_subgroup(CONNECTION, "111-0@g.us", "111-5@g.us")
+        post.assert_called_once()
+
+    def _dialog(self, monkeypatch, outcome):
+        dialog = Dialog(communities=(SCHOOL_ALL, CLUB))
+        dialog._announce = Mock()
+        calls = []
+
+        def answer(connection, community, group):
+            calls.append((community, group))
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr("ui.dialogs.communities.join_subgroup", answer)
+        monkeypatch.setattr("ui.dialogs.communities.cancel_join_request", answer)
+        return dialog, calls
+
+    def _press(self, dialog):
+        dialog._on_join(None)
+        [(work, done)] = dialog.work
+        dialog.work.clear()
+        done(work())
+
+    def test_joining_opens_the_group(self, monkeypatch):
+        dialog, calls = self._dialog(monkeypatch, api.JOINED)
+        dialog.select(SCHOOL_ALL, SPORTS)
+        assert dialog.enabled("_join") is True
+        assert dialog._join.SetLabel.call_args.args[0] == "Join group"
+        self._press(dialog)
+        assert calls == [(SCHOOL.jid, SPORTS.jid)]
+        assert dialog.result.jid == SPORTS.jid and dialog.result.joined and dialog.EndModal.called
+        assert dialog._announce.call_args_list[0].args[0] == "You joined the group."
+
+    def test_a_request_is_sent_and_the_button_becomes_cancel(self, monkeypatch):
+        dialog, _calls = self._dialog(monkeypatch, api.REQUESTED)
+        dialog.select(SCHOOL_ALL, BOARD)
+        assert dialog._join.SetLabel.call_args.args[0] == "Request to join"
+        self._press(dialog)
+        dialog.EndModal.assert_not_called()
+        assert dialog._selected_group().requested is True
+        assert dialog._join.SetLabel.call_args.args[0] == "Cancel join request"
+        assert dialog._announce.call_args.args[0].startswith("Request sent.")
+
+    def test_cancelling_withdraws_the_request(self, monkeypatch):
+        with_pending = Community(SCHOOL.jid, SCHOOL.name, SCHOOL.description, True, SCHOOL.admins,
+                                 (ANNOUNCEMENTS, PLAIN, PENDING))
+        dialog, calls = self._dialog(monkeypatch, api.CANCELLED)
+        dialog._show([with_pending, CLUB])
+        dialog.select(with_pending, PENDING)
+        self._press(dialog)
+        assert dialog._selected_group().requested is False
+        assert dialog._announce.call_args.args[0] == "Request cancelled."
+
+    @pytest.mark.parametrize("code, said", [
+        ("hidden_group", "This group is hidden"),
+        ("group_unavailable", "no longer available"),
+        ("unavailable", "Could not join the group"),
+    ])
+    def test_a_refusal_is_said_and_nothing_changes(self, monkeypatch, caplog, code, said):
+        dialog, _calls = self._dialog(monkeypatch, ValueError(code))
+        dialog.select(SCHOOL_ALL, SPORTS)
+        self._press(dialog)
+        assert said in dialog._announce.call_args.args[0]
+        assert dialog._selected_group() == SPORTS and not dialog._busy
+        dialog.EndModal.assert_not_called()
+        assert caplog.messages == [f"[communities] join_failed action=join code={code}"]
+
+    def test_nothing_is_sent_for_a_group_the_account_is_in(self, monkeypatch):
+        dialog, calls = self._dialog(monkeypatch, api.JOINED)
+        dialog.select(SCHOOL_ALL, PLAIN)
+        assert dialog.enabled("_join") is False
+        dialog._on_join(None)
+        assert dialog.work == [] and calls == []

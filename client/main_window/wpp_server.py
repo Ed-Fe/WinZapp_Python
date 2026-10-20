@@ -828,10 +828,13 @@ class WppServerMixin:
 
     # ── WPPConnect lifecycle ─────────────────────────────────────────────────
 
-    def _peer_node_ports(self) -> list[int]:
+    def _peer_node_ports(self, any_port: bool = False) -> list[int]:
         """Node ports OTHER accounts have persisted, so this account allocates a
         distinct one. Best-effort: reads each peer account's settings.json
-        connection.wpp_port via the registry; any unreadable peer is skipped."""
+        connection.wpp_port via the registry; any unreadable peer is skipped.
+
+        `any_port` keeps every usable port, not only the automatic window's:
+        another account's own fixed port (Settings > Advanced) is outside it."""
         ports: list[int] = []
         registry = getattr(self, "registry", None)
         acc_id = getattr(self, "account_id", None)
@@ -840,6 +843,8 @@ class WppServerMixin:
         try:
             import json as _json
             import node_ports
+            from core import local_api_port
+            usable = local_api_port.parse_port if any_port else node_ports.sanitize_saved_port
             for acc in registry.list():
                 aid = acc.get("id")
                 if not aid or aid == acc_id:
@@ -848,7 +853,7 @@ class WppServerMixin:
                     sp = os.path.join(registry.data_dir_for(aid), "settings.json")
                     with open(sp, "r", encoding="utf-8") as f:
                         p = _json.load(f).get("connection", {}).get("wpp_port")
-                    p = node_ports.sanitize_saved_port(p)
+                    p = usable(p)
                     if p is not None:
                         ports.append(p)
                 except Exception:
@@ -896,10 +901,20 @@ class WppServerMixin:
 
         import node_ports
         from coord_locks import node_port_lock
-        logging.warning(
-            "[node-port] port %s no longer free right before starting Node "
-            "— re-resolving", self.wpp_port,
-        )
+        from core import local_api_port
+        if local_api_port.fixed_port(self.settings) == self.wpp_port:
+            # The fixed port (Settings > Advanced) is held by something else:
+            # this run takes an automatic one rather than a Node that cannot
+            # bind; the next start tries the fixed port again.
+            logging.warning(
+                "[node-port] the fixed port %s is taken right before starting "
+                "Node — using an automatic port for this run", self.wpp_port,
+            )
+        else:
+            logging.warning(
+                "[node-port] port %s no longer free right before starting Node "
+                "— re-resolving", self.wpp_port,
+            )
         with node_port_lock(self.global_dir):
             # allocate_port_for_account(), not resolve_account_port(): the
             # latter deliberately keeps a valid saved port even when
@@ -951,12 +966,46 @@ class WppServerMixin:
         it never drifts. This is what gives each account its own isolated Node.
         """
         import node_ports
+        from core import local_api_port
         if conn.get("wpp_custom_api"):
             saved = conn.get("wpp_port")
             return saved if isinstance(saved, int) and not isinstance(saved, bool) else node_ports.BASE_PORT
+        # Settings > Advanced fixed this account's port: it wins over the
+        # allocation below. Saved as the connection port too, so the other
+        # accounts' allocation (_peer_node_ports()) keeps away from it.
+        has_registry = (getattr(self, "registry", None) is not None
+                        and getattr(self, "account_id", None) is not None)
+        fixed = local_api_port.fixed_port(self.settings)
+        rejected = None
+        if fixed is not None and not local_api_port.keep_fixed(
+                fixed, self._peer_node_ports(any_port=True) if has_registry else (),
+                self._is_port_free, self._port_runs_our_api):
+            logging.warning(
+                "[node-port] the fixed port %s is held by another program or account — "
+                "using an automatic port for this run", fixed)
+            rejected, fixed = fixed, None
+        if fixed is not None:
+            if conn.get("wpp_port") != fixed:
+                self.settings.setdefault("connection", {})["wpp_port"] = fixed
+                try:
+                    self.save_settings()
+                except Exception:
+                    logging.exception("[node-port] persisting the fixed port failed (non-fatal)")
+            logging.info("[node-port] account %s → fixed WPPConnect port %s",
+                         getattr(self, "account_id", None), fixed)
+            return fixed
+        # A rejected fixed port is never the "saved" one below: last run saved
+        # it, and inside the window resolve_account_port() would keep it busy.
+        saved = conn.get("wpp_port")
+        if rejected is not None and saved == rejected:
+            saved = None
         # Single-account / legacy fallback (no registry context): behave as before.
-        if getattr(self, "registry", None) is None or getattr(self, "account_id", None) is None:
-            return node_ports.sanitize_saved_port(conn.get("wpp_port")) or node_ports.BASE_PORT
+        # (A fixed port, above, applies there too.)
+        if not has_registry:
+            kept = node_ports.sanitize_saved_port(saved)
+            if kept is None and rejected is not None:
+                return node_ports.allocate_port((rejected,), is_free=self._is_port_free)
+            return kept or node_ports.BASE_PORT
 
         # Two accounts can start simultaneously. Keep peer discovery, free-port
         # selection and persistence in one cross-process critical section so
@@ -965,8 +1014,8 @@ class WppServerMixin:
         with node_port_lock(self.global_dir):
             port = node_ports.resolve_account_port(
                 self.account_id,
-                conn.get("wpp_port"),
-                self._peer_node_ports(),
+                saved,
+                self._peer_node_ports() + ([rejected] if rejected is not None else []),
                 is_free=self._is_port_free,
             )
             # Persist so the choice is stable next launch.
@@ -981,6 +1030,25 @@ class WppServerMixin:
         logging.info("[node-port] account %s → WPPConnect port %s",
                      getattr(self, "account_id", None), port)
         return port
+
+    def _port_runs_our_api(self, port: int) -> bool:
+        """Whether *port* is held by a WinZapp Node of this install (its
+        /winzapp/identity answers with our installation id). Never raises."""
+        gd = getattr(self, "global_dir", None)
+        if not gd:
+            return False
+        try:
+            import node_coord
+            import requests
+            from core import local_api_port
+            with requests.Session() as session:
+                session.trust_env = False  # the local API never goes through a proxy
+                with session.get(f"http://127.0.0.1:{int(port)}/winzapp/identity",
+                                 timeout=1, allow_redirects=False) as response:
+                    identity = response.json() if response.status_code == 200 else None
+            return local_api_port.identity_is_ours(identity, node_coord.installation_id(gd))
+        except Exception:
+            return False
 
     def _is_wpp_running(self):
         """Return True if the WPPConnect is already listening on the configured server/port."""

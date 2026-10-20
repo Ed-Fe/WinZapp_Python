@@ -34,6 +34,8 @@ of this test suite (test_status_panel.py).
 import os
 import types
 
+import pytest
+
 import status_panel as status_panel_module
 from status_panel import StatusPanel
 from tests.god_modules import patch_status_panel_global
@@ -137,10 +139,15 @@ class _Stub:
     _hide_post_panels         = StatusPanel._hide_post_panels
     _is_status_composer_open  = StatusPanel._is_status_composer_open
     _enter_status_composer    = StatusPanel._enter_status_composer
+    _hide_status_viewer       = StatusPanel._hide_status_viewer
     _leave_status_composer    = StatusPanel._leave_status_composer
     _start_voice_recording    = StatusPanel._start_voice_recording
     _send_media_status_bg     = StatusPanel._send_media_status_bg
     _send_all_media_statuses_bg = StatusPanel._send_all_media_statuses_bg
+    _end_status_post          = StatusPanel._end_status_post
+
+    def _remember_unsent_status(self, post):
+        """status_tab/unsent_status.py keeps it in the list (tests/test_unsent_status.py)."""
     _send_status_voice_bg     = StatusPanel._send_status_voice_bg
     _stop_recorded_audio_preview = StatusPanel._stop_recorded_audio_preview
     _cleanup_recorded_audio_temp_file = StatusPanel._cleanup_recorded_audio_temp_file
@@ -281,6 +288,11 @@ class TestSendMediaStatusUsesThePathField:
 
 
 class TestAudioFilesAreRoutedToTheVoiceStatusPath:
+    @pytest.fixture(autouse=True)
+    def _call_after_inline(self, monkeypatch):
+        # The batch frees Post through wx.CallAfter whatever its outcome.
+        monkeypatch.setattr(status_panel_module.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+
     def test_audio_extension_calls_send_status_voice_bg_not_media(self, tmp_path, monkeypatch):
         stub = _Stub()
         audio = _touch(tmp_path, "note.mp3")
@@ -402,6 +414,63 @@ class TestSendStatusVoiceBgNeverDeletesAUserFileByAccident:
         assert posted["url"].endswith("/send-status-voice-base64")
         assert posted["json"]["base64Ptt"].startswith("data:audio/ogg;codecs=opus;base64,")
         assert stub.status_sent_calls == 1
+
+    def test_a_long_audio_gets_the_time_its_size_needs(self, tmp_path, monkeypatch):
+        """A flat 60 s gave up on a long audio still being uploaded."""
+        from status_tab.status_rules import status_upload_timeout
+        stub = _Stub()
+        wav = _touch(tmp_path, "recorded.wav")
+        ogg = tmp_path / "recorded.wav.ogg"
+        ogg.write_bytes(b"x" * 20_000_000)
+        stub.main_window._convert_result = str(ogg)
+        seen = {}
+
+        def fake_post(url, json=None, headers=None, timeout=None):
+            seen["timeout"] = timeout
+            return type("R", (), {"status_code": 200, "text": ""})()
+
+        monkeypatch.setattr(status_panel_module.requests, "post", fake_post)
+        monkeypatch.setattr(status_panel_module.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+
+        assert stub._send_status_voice_bg(wav, is_temp_file=True) is True
+        assert seen["timeout"] == status_upload_timeout(20_000_000) > 60
+
+    def test_no_answer_in_time_is_unconfirmed_never_failed(self, tmp_path, monkeypatch):
+        """It may be up: reported as failed it invited posting it twice."""
+        import requests
+        from status_tab.status_rules import STATUS_POST_UNCONFIRMED
+        stub = _Stub()
+        wav = _touch(tmp_path, "recorded.wav")
+        stub.main_window._convert_result = _touch(tmp_path, "recorded.wav.ogg")
+        boxes = []
+
+        def fake_post(*a, **k):
+            raise requests.exceptions.ReadTimeout("private")
+
+        monkeypatch.setattr(status_panel_module.requests, "post", fake_post)
+        monkeypatch.setattr(status_panel_module.wx, "MessageBox", lambda *a, **kw: boxes.append(a[0]))
+        monkeypatch.setattr(status_panel_module.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+
+        assert stub._send_status_voice_bg(wav, is_temp_file=True) == STATUS_POST_UNCONFIRMED
+        assert boxes == ["status_post_unconfirmed"]
+        assert stub.status_sent_calls == 0
+
+    def test_a_connection_that_never_opened_is_a_failure(self, tmp_path, monkeypatch):
+        import requests
+        stub = _Stub()
+        wav = _touch(tmp_path, "recorded.wav")
+        stub.main_window._convert_result = _touch(tmp_path, "recorded.wav.ogg")
+        boxes = []
+
+        def fake_post(*a, **k):
+            raise requests.exceptions.ConnectTimeout("private")
+
+        monkeypatch.setattr(status_panel_module.requests, "post", fake_post)
+        monkeypatch.setattr(status_panel_module.wx, "MessageBox", lambda *a, **kw: boxes.append(a[0]))
+        monkeypatch.setattr(status_panel_module.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+
+        assert stub._send_status_voice_bg(wav, is_temp_file=True) is False
+        assert boxes == ["status_error"]
 
     def test_conversion_failure_reports_the_error_and_does_not_post(self, tmp_path, monkeypatch):
         stub = _Stub(convert_result=None)  # ffmpeg missing/failed

@@ -14,6 +14,7 @@ import tempfile
 import threading
 import wx
 from core.quote_recovery import RECOVERED_FROM_QUOTE
+from core.message_resend import resend_request
 from core.reply_failure import is_missing_quote_failure
 from ui.conversation_panel.media_paths import (
     _SAVEABLE_MESSAGE_TYPES,
@@ -52,6 +53,8 @@ def inline_toggle_menu_key(msg, enter_transcribes) -> str:
             return "play_voice_message_menu"
         if msg.get("messageType") == "videoMessage":
             return "open_video_menu"
+        if msg.get("messageType") == "documentMessage" and message_audio.is_transcribable(msg):
+            return "open"
     return "transcribe_inline_menu"
 
 
@@ -496,13 +499,13 @@ class MessageMenuMixin:
                 edit_item,
             )
 
-        # Resend (text messages WinZapp itself never confirmed — see
-        # _mark_message_unconfirmed's docstring). Deleting one already works
-        # today (treated as nothing-to-revoke, see _on_menu_delete_message);
-        # this is the other half — a way to try again instead of only being
-        # able to give up on it.
-        if _is_text and msg.get("_send_unconfirmed"):
-            resend_item = menu.Append(wx.ID_ANY, i18n.t("resend_message"))
+        # Try sending again: only on an own message whose send failed or was
+        # never confirmed, and only when there is something to send
+        # (core/message_resend.py). Deleting one already works (treated as
+        # nothing-to-revoke, see _on_menu_delete_message); this is the other
+        # half — a way to try again instead of only being able to give up.
+        if resend_request(msg) is not None:
+            resend_item = menu.Append(wx.ID_ANY, f"{i18n.t('resend_message')}\tCtrl+Shift+Y")
             self.Bind(
                 wx.EVT_MENU,
                 lambda e, m=msg: self._on_menu_resend_message(m),

@@ -16,7 +16,7 @@ NOUTĂȚI
 
 - Comunități: fereastra „Conversație nouă” are noul buton „Comunități”, care deschide lista comunităților din care faceți parte. La alegerea unei comunități se afișează descrierea, administratorii și grupurile ei la care v-ați alăturat, cu grupul de anunțuri și grupul general identificate; Enter sau „Deschide grupul” duce la grupul selectat. Dacă sunteți administrator al comunității, fereastra oferă și „Adăugați grupuri”, „Eliminați grupul din comunitate”, „Promovați ca administrator al comunității”, „Eliminați ca administrator al comunității” și „Dezactivați comunitatea”, iar „Comunitate nouă” creează o comunitate cu nume, descriere și grupurile alese. După fiecare acțiune, WinZapp citește din nou comunitățile și spune că a terminat numai când WhatsApp arată modificarea; altfel anunță că cererea a fost trimisă, dar nu este încă confirmată, sau că a fost refuzată.
 
-- Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Fereastra poate actualiza răspunsurile și păstrează textul când trimiterea nu este confirmată. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.
+- Răspunsuri la anunțurile comunităților: deschide meniul unui mesaj și alege "Răspunsuri la anunțul comunității" pentru a citi și trimite răspunsuri. Răspunsurile se actualizează singure cât timp fereastra este deschisă, câmpul de răspuns nu mai devine doar pentru citire, iar textul este păstrat când trimiterea nu este confirmată. În lista de conversații, previzualizarea grupului arată „X a răspuns la un anunț” când acesta este cel mai recent eveniment. Anunțurile indică numărul cunoscut de răspunsuri. Autorii folosesc numele salvate sau de profil, iar răspunsurile tale respectă setarea privind modul în care ți se face referire.
 
 - Comunitățile sunt acum un element al listei de navigare, după Apeluri, cu scurtătura Alt+8 în numele elementului; se poate ajunge la ele coborând prin listă, nu doar cu Alt+8.
 
@@ -31,6 +31,52 @@ NOUTĂȚI
 - Jurnalul apelurilor (log.log) arată acum, la fiecare 5 secunde, cât din sunetul difuzorului ajunge la microfon înainte de anularea ecoului și cât mai rămâne în ce se trimite, cu întârzierea acelui ecou. Dacă cineva încă își aude propria voce, jurnalul spune dacă ecoul a trecut prin anulator sau a sosit pe altă cale.
 
 - Răspunsul la apeluri din orice fereastră: cât timp sună un apel individual, Ctrl+Alt+Shift+Enter răspunde la el, aduce fereastra apelului în fața oricărui program și îi dă focalizarea, iar Ctrl+Alt+Shift+Backspace îl respinge, la fel ca pe un apel de grup care sună; când nu sună niciun apel, Ctrl+Alt+Shift+Backspace încheie apelul în curs. Cu mai multe conturi deschise, mai întâi este respins un apel care sună în oricare dintre ele. La un apel video se răspunde cu camera pornită, ca prin butonul de răspuns. Ambele taste pot fi schimbate în Comenzi rapide din Setări și aparțin WinZapp doar cât timp pot acționa, deci celelalte programe le păstrează restul timpului.
+
+- Setări: categorie nouă Avansate, cu nivelul de jurnalizare din log.log (depanare, informații, avertismente sau doar erori, aplicat imediat), un port fix pentru API-ul local, pentru a rula două copii WinZapp sau când alt program folosește deja portul 6300 (se aplică la următoarea pornire a WinZapp), și „Afișează toate actualizările WPPConnect Server”, debifată implicit, care oferă și versiuni neverificate încă de întreținători, cu un avertisment. În categoria Conexiune, câmpul Port este activ doar cu API-ul personalizat.
+
+- Setări: fiecare control din Setări și din ferestrele deschise din ele are o literă de scurtătură cu Alt, fără repetare în aceeași fereastră, în toate limbile. Pentru ca literele să ajungă, Transcrierea locală a fost împărțită în ferestre (opțiuni avansate, transcrieri salvate, stări, foldere, biblioteci CUDA și whisper.cpp), iar opțiunile automate ale AI online au trecut în fereastra „Transcriere și descriere automată...”.
+
+- Comenzi rapide de la tastatură: lista este acum un arbore pe categorii (săgeata dreapta deschide categoria, care este rostită o singură dată) și are un câmp de căutare; în căutare, săgeata jos duce la rezultate. Corectată eroarea care împiedica modificarea unei comenzi rapide.
+
+- Ciornă pentru fiecare conversație, ca în WhatsApp Web: textul scris și netrimis rămâne în conversația în care a fost scris, cu mențiunile, și revine la redeschiderea ei; înainte trecea în conversația următoare. În Interfață > Conversații puteți alege: păstrare în câmp pentru conversația următoare (ca înainte), păstrare ca ciornă a acelei conversații (implicit) sau eliminare.
+
+- La schimbarea conversației, butoanele „Reacții” și „Citește mai mult” ale mesajului pe care erați nu mai apar cu Tab în conversația nouă.
+
+- Ștergerea pentru toți a ultimului mesaj dintr-o conversație actualizează imediat previzualizarea din lista de conversații în „mesaj șters”.
+
+- Alt+A nu mai deschide meniul de atașare; scurtătura lui rămâne Ctrl+Shift+A.
+
+- Lista de mesaje: trei opțiuni noi, debifate implicit, scot din ordinea tastei Tab butonul AI online (Transcrie sau Descrie; meniul mesajului îl oferă în continuare), bara de durată și butonul de viteză în timpul redării. Scurtăturile de viteză și de derulare funcționează în continuare.
+
+- Transcriere locală: cu „transcrie fără fereastra de progres”, cererea transcrierii în rând pentru alt mesaj cât timp una rulează pune noua cerere în coadă în loc s-o refuze; repetarea scurtăturii pe mesajul care așteaptă îl scoate din coadă.
+
+- Transcriere locală: modul automat nu mai spune „Niciun model de transcriere nu este pregătit” cuiva care are un model descărcat: pe o placă video mică, în care modelul instalat nu încape, acesta este folosit pe procesor în loc să ceară altă descărcare; iar motorul automat urmează modelele aflate deja pe computer.
+
+- Enter și Spațiu care transcriu funcționează acum și pentru audio și video trimise ca fișier, iar fila Media din datele conversației respectă această opțiune pentru videoclipuri.
+
+- Datele conversației: transcrierea automată a devenit două casete, locală (Whisper) și online, fiecare arătând ce face acum conversația și putând-o porni sau opri doar pentru acea conversație.
+
+- Încearcă să trimiți din nou: în meniul unui mesaj al dumneavoastră care a eșuat sau nu a fost confirmat, text sau atașament, și pentru stările care nu au plecat, care rămân acum în fila Stări imediat după Starea mea; scurtătură Ctrl+Shift+Y. Nimic nu este retrimis singur.
+
+- Publicarea unei stări: o publicare pe rând (o nouă apăsare pe Publică nu dublează starea), iar un videoclip mare nu mai este considerat eșuat cât timp încă se încarcă; o publicare neconfirmată vă cere să verificați Starea mea înainte de a publica din nou.
+
+- Starea mea: ștergeți o stare pentru toți cu tasta Delete sau butonul „Șterge starea”, cu aceeași confirmare ca în WhatsApp.
+
+- Comunități: Enter în listă duce la grupurile comunității, iar un buton deschide grupul cu cea mai recentă activitate; un filtru arată toate grupurile, cele din care faceți parte și cele din care nu faceți parte; și puteți intra într-un grup, cere să intrați și anula cererea, ca în WhatsApp Web.
+
+- Comenzi: Enter deschide datele unei comenzi create pentru dumneavoastră de vânzător, cu articole și subtotal; cumpărătorul poate confirma o comandă plătită în afara aplicației, ca în WhatsApp Web; iar fereastra spune ce răspuns al cumpărătorului WinZapp nu oferă încă.
+
+- Setări WhatsApp: în Confidențialitate, opțiunile de stare „Contactele mele, cu excepția” și „Partajează doar cu” oferă doar contactele salvate în telefon, singurele cărora WhatsApp le permite să vadă o stare; în Profil, butonul Alege fotografia spune dacă există o fotografie actuală și ce fișier a fost ales, fără navigare prin obiecte.
+
+- Listele de conversații: cu opțiunea „Esc debifează” activă, Esc debifează conversațiile marcate în lista principală, în cele arhivate și în cele blocate.
+
+- Actualizare cu mai multe conturi deschise: programul de instalare așteaptă închiderea tuturor conturilor înainte de copiere, iar WinZapp nu se mai închide fără niciun mesaj la pornire când contul este deja deschis sau o actualizare pare blocată: explică motivul și îl scrie în jurnal. În timpul unei actualizări care încă rulează doar scrie în jurnal și se închide, fără nicio casetă, deoarece programul de instalare îl redeschide când termină.
+
+- Sincronizarea conturilor mari: după loturi mari de mesaje, WinZapp cere WhatsApp Web să elibereze memoria pe care nu o mai folosește, ceea ce reduce consumul în timpul sincronizării.
+
+- Fila Media din datele conversației: după Salvare ca, cititorul de ecran nu mai anunță fereastra ca indisponibilă.
+
+- Conversație nouă: butonul de intrare într-un grup prin link are acum o literă de scurtătură cu Alt.
 
 - Anularea ecoului funcționează acum și când ecoul revine cu mare întârziere, ca la reluarea (loopback) unor mixere, care putea dura peste o jumătate de secundă și ajungea întreg la cealaltă persoană. WinZapp măsoară cât îi ia vocii celeilalte persoane să revină prin microfonul tău și ajustează anulatorul la această întârziere, până la 1,5 secunde.
 

@@ -404,7 +404,7 @@ def test_the_line_shows_an_inline_transcription_and_is_redrawn_quietly():
 def test_the_window_builds_its_keys_only_when_it_shows_statuses():
     source = inspect.getsource(MyStatusDialog._init_ui)
     viewer = source[source.index("if self._statuses:"):source.index("# Close button")]
-    assert "self._create_transcription_accelerators()" in viewer
+    assert "self._create_transcription_accelerators(" in viewer
     assert issubclass(MyStatusDialog, MyStatusTranscriptionKeys)
 
 

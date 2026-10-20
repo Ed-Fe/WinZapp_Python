@@ -19,6 +19,7 @@ from core.utils import (
     normalize_line_separators,
 )
 from core.message_queue import PendingMessage
+from core.message_resend import RESEND_PATH_KEY
 from core.coalesced_callback import CoalescedCallback
 from ui.conversation_panel.typing_row import append_message_row, message_row_count
 from core.attachment_types import classify_attachment_media_type
@@ -295,14 +296,38 @@ class AttachmentsMixin:
             return
         caption = self._consume_attachment_caption()
 
+        # Capture quoted state before looping (cleared after all enqueued)
+        quoted = self._quoted_message
+        for attachment in list(self._staged_attachments):
+            self._send_attachment_file(remote_jid, attachment["path"],
+                                       attachment.get("media_type", "document"), caption, quoted)
+
+        self._on_cancel_reply()  # clear quoted state after send
+        self.main_window.mark_conversation_as_read(remote_jid)
+        self._hide_attachment_panel()
+        # Attachment-panel teardown performs its own layout pass. Reassert the
+        # transfer UI afterwards so that pass cannot swallow the new gauge.
+        self._sync_pending_document_gauge()
+        self.main_window._schedule_set_chats()
+        self.message_field.SetFocus()
+
+        # Refresh conversation list preview to show the last sent attachment.
+        self.main_window._schedule_set_chats()
+
+    # ── Contact message helpers ──────────────────────────────────────────────
+
+    def _send_attachment_file(self, remote_jid, path, media_type, caption, quoted) -> bool:
+        """Send one file as a message of *remote_jid*: its pending row, its
+        cache entry and its queue item. True when it was queued, False when it
+        was refused (too large). The composer is not touched: the attachment
+        panel sends through here, and so does Resend (message_actions.py) for a
+        file whose send failed or was never confirmed."""
         _VTYPE = {
             "image":    "imageMessage",
             "video":    "videoMessage",
             "audio":    "audioMessage",
             "document": "documentMessage",
         }
-        # Capture quoted state before looping (cleared after all enqueued)
-        quoted = self._quoted_message
 
         # WhatsApp's own ceiling is 2 GB for documents and 1 GB for photos,
         # videos and audio — WinZapp used to cap documents at 1 GB as well,
@@ -325,154 +350,141 @@ class AttachmentsMixin:
         _MAX_MEDIA_BYTES    = 1 * 1024 * 1024 * 1024
         _MAX_MEDIA_MB       = 1024
         i18n = self.main_window.i18n
-        for attachment in list(self._staged_attachments):
-            path       = attachment["path"]
-            media_type = attachment.get("media_type", "document")
-            if media_type == "audio" and exceeds_aac_channel_limit(path):
-                # More channels than AAC carries: converting would downmix,
-                # and an attachment never loses a channel, so the original
-                # goes untouched as a document. Decided here and not inside
-                # send_media_attachment(): the pending row built below has to
-                # be a documentMessage too, or on_new_message()'s by-type
-                # echo matching never binds the document echo to it.
-                logging.info(
-                    "[attachments] audio has more than 8 channels; sending "
-                    "the original untouched as a document"
-                )
-                media_type = "document"
-
-            vtype      = _VTYPE.get(media_type, "documentMessage")
-            is_document = vtype == "documentMessage"
-            max_bytes = _MAX_DOCUMENT_BYTES if is_document else _MAX_MEDIA_BYTES
-            max_mb    = _MAX_DOCUMENT_MB if is_document else _MAX_MEDIA_MB
-
-            try:
-                file_size = os.path.getsize(path)
-            except OSError:
-                # Unreadable size is not a reason to refuse the send — the
-                # limit check below simply can't run, exactly as before.
-                file_size = None
-            if file_size is not None and file_size > max_bytes:
-                wx.MessageBox(
-                    i18n.t("media_too_large").format(max_mb=max_mb),
-                    i18n.t("app_name"),
-                    wx.OK | wx.ICON_ERROR,
-                    self,
-                )
-                continue
-
-            local_id   = str(uuid.uuid4())
-            _body = {
-                "caption":  caption,
-                "fileName": os.path.basename(path),
-                "mimetype": mimetypes.guess_type(path)[0]
-                            or "application/octet-stream",
-            }
-            if vtype == "documentMessage" and file_size is not None:
-                # Issue #96: a document we send showed no size, while the same
-                # document received from someone else did. The rendering is
-                # shared and keys only on fileLength — the field just never
-                # reached it. WPPConnect's echo of our own send DOES carry the
-                # size, but on_new_message() merges an echo into the pending
-                # virtual message by copying id/timestamp/participant onto it,
-                # keeping this body, so the echo's copy is discarded and the
-                # record persisted to the DB never has it. (It reappeared only
-                # after a resync re-fetched the message from the server through
-                # _normalize_wpp_message.)
-                #
-                # Filling it here rather than from the echo is deliberate: the
-                # line is complete the moment it appears, instead of being
-                # rewritten once the echo lands — and rewriting a list row is
-                # what makes a screen reader read the whole row out again (see
-                # _release_chain_held_repaints()).
-                #
-                # Only documents: theirs is the one type whose rendered line
-                # shows a size, and fileLength is also read by
-                # MainWindow.sync_if_media() as an auto-download size gate, so
-                # populating it for our own images/videos would change that
-                # decision for something this issue never asked about.
-                _body["fileLength"] = file_size
-            if media_type == "audio":
-                _dur = self._probe_audio_duration(path)
-                if _dur is not None:
-                    _body["seconds"] = _dur
-            elif media_type == "video":
-                # Unlike audio, video_seconds() doesn't trust a plain "seconds"
-                # of 0 (WhatsApp itself sends that to mean "not stated" — see
-                # that function's own docstring), so a video we're sending
-                # needs its length under _measured_seconds instead, same key
-                # _learn_video_duration() fills in for a received video once
-                # it's played. Without this, a video sent as a WinZapp
-                # attachment showed no duration in the list until the sender
-                # opened it themselves at least once.
-                _dur = self._probe_audio_duration(path)
-                if _dur is not None and _dur >= 0:
-                    _body[MEASURED_SECONDS_KEY] = _dur
-            virtual_msg = {
-                "_local_pending": True,
-                "_local_id":      local_id,
-                "key": {"id": local_id, "fromMe": True, "remoteJid": remote_jid},
-                "messageType": vtype,
-                "message": {vtype: _body},
-                "messageTimestamp": int(time.time()),
-                "pushName": "",
-            }
-            if quoted:
-                _qk = quoted.get("key", {})
-                virtual_msg["contextInfo"] = {
-                    "stanzaId":      _qk.get("id", ""),
-                    "participant":   _qk.get("participant", ""),
-                    "quotedMessage": quoted.get("message") or {},
-                }
-            
-            self._clear_empty_placeholder()
-            self._sorted_messages.append(virtual_msg)
-            append_message_row(self, self._render_message_line(virtual_msg))
-            # The row just added — not the typing row that may sit below it.
-            last = message_row_count(self) - 1
-            if last >= 0:
-                self.messages_list.Select(last, True)
-                self.messages_list.EnsureVisible(last)
-            def _update_upload_progress(
-                progress, local_id=local_id,
-                notify=CoalescedCallback(wx.CallAfter, self.update_media_upload_progress),
-            ):
-                notify(local_id, progress)
-
-            pm = PendingMessage(
-                local_id, remote_jid,
-                media_path=path, media_type=media_type, caption=caption,
-                quoted=quoted, progress_callback=_update_upload_progress,
+        if media_type == "audio" and exceeds_aac_channel_limit(path):
+            # More channels than AAC carries: converting would downmix,
+            # and an attachment never loses a channel, so the original
+            # goes untouched as a document. Decided here and not inside
+            # send_media_attachment(): the pending row built below has to
+            # be a documentMessage too, or on_new_message()'s by-type
+            # echo matching never binds the document echo to it.
+            logging.info(
+                "[attachments] audio has more than 8 channels; sending "
+                "the original untouched as a document"
             )
-            self._register_virtual_msg(virtual_msg)
+            media_type = "document"
 
-            # Pre-cache the file under local_id BEFORE enqueueing the actual
-            # send: _mark_message_sent() renames the cache entry from
-            # local_id to the real WhatsApp id as soon as the send is
-            # confirmed, so the file must already exist under local_id by
-            # then, or that rename silently no-ops and the cache is never
-            # found under the real id afterwards.
-            def _cache_then_enqueue(pm=pm, local_id=local_id, path=path, media_type=media_type):
-                self._pre_cache_sent_media(local_id, path, media_type)
-                self.main_window.message_queue.enqueue(pm)
+        vtype      = _VTYPE.get(media_type, "documentMessage")
+        is_document = vtype == "documentMessage"
+        max_bytes = _MAX_DOCUMENT_BYTES if is_document else _MAX_MEDIA_BYTES
+        max_mb    = _MAX_DOCUMENT_MB if is_document else _MAX_MEDIA_MB
 
-            threading.Thread(target=_cache_then_enqueue, daemon=True).start()
+        try:
+            file_size = os.path.getsize(path)
+        except OSError:
+            # Unreadable size is not a reason to refuse the send — the
+            # limit check below simply can't run, exactly as before.
+            file_size = None
+        if file_size is not None and file_size > max_bytes:
+            wx.MessageBox(
+                i18n.t("media_too_large").format(max_mb=max_mb),
+                i18n.t("app_name"),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            return False
 
-            self._show_media_transfer_gauge()
+        local_id   = str(uuid.uuid4())
+        _body = {
+            "caption":  caption,
+            "fileName": os.path.basename(path),
+            "mimetype": mimetypes.guess_type(path)[0]
+                        or "application/octet-stream",
+        }
+        if vtype == "documentMessage" and file_size is not None:
+            # Issue #96: a document we send showed no size, while the same
+            # document received from someone else did. The rendering is
+            # shared and keys only on fileLength — the field just never
+            # reached it. WPPConnect's echo of our own send DOES carry the
+            # size, but on_new_message() merges an echo into the pending
+            # virtual message by copying id/timestamp/participant onto it,
+            # keeping this body, so the echo's copy is discarded and the
+            # record persisted to the DB never has it. (It reappeared only
+            # after a resync re-fetched the message from the server through
+            # _normalize_wpp_message.)
+            #
+            # Filling it here rather than from the echo is deliberate: the
+            # line is complete the moment it appears, instead of being
+            # rewritten once the echo lands — and rewriting a list row is
+            # what makes a screen reader read the whole row out again (see
+            # _release_chain_held_repaints()).
+            #
+            # Only documents: theirs is the one type whose rendered line
+            # shows a size, and fileLength is also read by
+            # MainWindow.sync_if_media() as an auto-download size gate, so
+            # populating it for our own images/videos would change that
+            # decision for something this issue never asked about.
+            _body["fileLength"] = file_size
+        if media_type == "audio":
+            _dur = self._probe_audio_duration(path)
+            if _dur is not None:
+                _body["seconds"] = _dur
+        elif media_type == "video":
+            # Unlike audio, video_seconds() doesn't trust a plain "seconds"
+            # of 0 (WhatsApp itself sends that to mean "not stated" — see
+            # that function's own docstring), so a video we're sending
+            # needs its length under _measured_seconds instead, same key
+            # _learn_video_duration() fills in for a received video once
+            # it's played. Without this, a video sent as a WinZapp
+            # attachment showed no duration in the list until the sender
+            # opened it themselves at least once.
+            _dur = self._probe_audio_duration(path)
+            if _dur is not None and _dur >= 0:
+                _body[MEASURED_SECONDS_KEY] = _dur
+        virtual_msg = {
+            "_local_pending": True,
+            "_local_id":      local_id,
+            "key": {"id": local_id, "fromMe": True, "remoteJid": remote_jid},
+            "messageType": vtype,
+            "message": {vtype: _body},
+            "messageTimestamp": int(time.time()),
+            "pushName": "",
+            # What Try sending again sends, should this fail or go unconfirmed
+            # (core/message_resend.py).
+            RESEND_PATH_KEY: path,
+        }
+        if quoted:
+            _qk = quoted.get("key", {})
+            virtual_msg["contextInfo"] = {
+                "stanzaId":      _qk.get("id", ""),
+                "participant":   _qk.get("participant", ""),
+                "quotedMessage": quoted.get("message") or {},
+            }
 
-        self._on_cancel_reply()  # clear quoted state after send
-        self.main_window.mark_conversation_as_read(remote_jid)
-        self._hide_attachment_panel()
-        # Attachment-panel teardown performs its own layout pass. Reassert the
-        # transfer UI afterwards so that pass cannot swallow the new gauge.
-        self._sync_pending_document_gauge()
-        self.main_window._schedule_set_chats()
-        self.message_field.SetFocus()
+        self._clear_empty_placeholder()
+        self._sorted_messages.append(virtual_msg)
+        append_message_row(self, self._render_message_line(virtual_msg))
+        # The row just added — not the typing row that may sit below it.
+        last = message_row_count(self) - 1
+        if last >= 0:
+            self.messages_list.Select(last, True)
+            self.messages_list.EnsureVisible(last)
+        def _update_upload_progress(
+            progress, local_id=local_id,
+            notify=CoalescedCallback(wx.CallAfter, self.update_media_upload_progress),
+        ):
+            notify(local_id, progress)
 
-        # Refresh conversation list preview to show the last sent attachment.
-        self.main_window._schedule_set_chats()
+        pm = PendingMessage(
+            local_id, remote_jid,
+            media_path=path, media_type=media_type, caption=caption,
+            quoted=quoted, progress_callback=_update_upload_progress,
+        )
+        self._register_virtual_msg(virtual_msg)
 
-    # ── Contact message helpers ──────────────────────────────────────────────
+        # Pre-cache the file under local_id BEFORE enqueueing the actual
+        # send: _mark_message_sent() renames the cache entry from
+        # local_id to the real WhatsApp id as soon as the send is
+        # confirmed, so the file must already exist under local_id by
+        # then, or that rename silently no-ops and the cache is never
+        # found under the real id afterwards.
+        def _cache_then_enqueue(pm=pm, local_id=local_id, path=path, media_type=media_type):
+            self._pre_cache_sent_media(local_id, path, media_type)
+            self.main_window.message_queue.enqueue(pm)
+
+        threading.Thread(target=_cache_then_enqueue, daemon=True).start()
+
+        self._show_media_transfer_gauge()
+        return True
 
     def _on_caption_field_key_down(self, event):
         """Shift+Enter and Ctrl+Enter add a line to the caption; plain Enter

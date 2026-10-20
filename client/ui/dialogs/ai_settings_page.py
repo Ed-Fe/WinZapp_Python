@@ -31,6 +31,8 @@ from core.ai_media.config import KINDS, PROFILES, PROVIDERS, preferences, suppor
 from core.ai_media.errors import DescriptionError
 from core.ai_media.service import RequestToken, probe_connection, submit
 from .ai_provider_models import ModelSelectionMixin
+from .ai_auto_options import AIAutoOptionsPanel, window_title
+from .settings_pages import SubPageDialog
 
 #: The per-kind switches: (kind, i18n key of its label).
 KIND_TOGGLES = (
@@ -330,34 +332,25 @@ class AISettingsPage(ScrolledPanel):
         self.profile = self._choice("ai_profile", self._profile_labels())
         self.profile.SetSelection(PROFILES.index(config["profile"]))
         self.read_answers = self._check("ai_read_answers", config["read_answers"])
-        # On arrival, with no window: the text goes to the message's line.
-        self.auto_transcribe = self._check("ai_auto_transcribe", config["auto_transcribe"])
-        self.auto_describe = self._check("ai_auto_describe", config["auto_describe"])
+        self.hide_action_button = self._check("ai_hide_action_button", config["hide_action_button"])
+        # The automatic options, in a window of their own (ai_auto_options.py).
+        # Its parent is the settings dialog, not this page: _show_options()
+        # shows and hides every child of the page.
+        self.auto_button = self._button("ai_auto_button", lambda event: self.open_auto())
+        self.auto_dialog = SubPageDialog(
+            self.GetTopLevelParent(), window_title(self._t("ai_auto_button")), self._t("ok"),
+            on_change=lambda event: self._on_change())
+        self.auto_panel = AIAutoOptionsPanel(self.auto_dialog, self, config)
+        self.auto_dialog.set_body(self.auto_panel)
+        self.auto_transcribe = self.auto_panel.transcribe
+        self.auto_describe = self.auto_panel.describe
+        self.auto_scope = self.auto_panel.scope
+        self.auto_max_age = self.auto_panel.max_age
+        self.auto_limit = self.auto_panel.limit
+        self.auto_used = self.auto_panel.used
         self.auto_transcribe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
         self.auto_describe.Bind(wx.EVT_CHECKBOX, self._on_auto_toggle)
-        # Which conversations the two options reach before the user visits
-        # each one (core/conversation_auto_ai.py). Saved with the account's
-        # settings, beside the per-conversation boxes it is the default of.
-        self.auto_scope = self._choice("ai_auto_scope", self._scope_labels())
-        self.auto_scope.SetSelection(
-            1 if conversation_auto_ai.scope(self.main_window.settings)
-            == conversation_auto_ai.SCOPE_SELECTED else 0)
-        # How old a message may be to be processed on its own, local or
-        # online (core/transcription/auto_queue.max_age_seconds()).
-        self.auto_max_age = self._choice("ai_auto_max_age", self._age_labels())
-        minutes = int(auto_queue.max_age_seconds(self.main_window.settings) // 60)
-        self.auto_max_age.SetSelection(auto_queue.AGE_CHOICES_MINUTES.index(minutes))
-        # The ceiling on requests made on arrival, and what was spent today.
-        self._label("ai_auto_daily_limit")
-        self.auto_limit = wx.SpinCtrl(
-            self, min=0, max=10000, initial=config["auto_daily_limit"],
-            name=self._plain("ai_auto_daily_limit"))
-        self.sizer.Add(self.auto_limit, 0, wx.ALL, 8)
-        self._label("ai_auto_used_today")
-        self.auto_used = wx.TextCtrl(
-            self, value=str(ai_auto.spent_today(config)), style=wx.TE_READONLY,
-            name=self._plain("ai_auto_used_today"))
-        self.sizer.Add(self.auto_used, 0, wx.EXPAND | wx.ALL, 8)
+        self.auto_limit.Bind(wx.EVT_SPINCTRL, lambda event: (self._on_change(), event.Skip()))
         #: Set by SettingsDialog: asks before this replaces the local
         #: automatic transcription; True when it may go ahead.
         self.confirm_replaces_local = None
@@ -379,10 +372,19 @@ class AISettingsPage(ScrolledPanel):
         self.enabled.Bind(wx.EVT_CHECKBOX, self._on_enabled_toggle)
         self._show_options(self.enabled.GetValue())
 
+    def open_auto(self, control=None):
+        """The window of the automatic options, on *control* when given."""
+        self.auto_dialog.open(control)
+
     def _show_options(self, shown):
         for child in self.GetChildren():
             if child is not self.enabled:
                 child.Show(shown)
+        # The automatic options' window too: the settings search reads its
+        # controls (add_subpage), and must not offer them with AI turned off.
+        for child in self.auto_panel.GetChildren():
+            child.Show(shown)
+        self.auto_panel.Layout()
         self.Layout()
         self.SetupScrolling(scroll_x=False, rate_y=15, scrollIntoView=True)
 
@@ -438,16 +440,8 @@ class AISettingsPage(ScrolledPanel):
         selection = self.profile.GetSelection()
         self.profile.SetItems(self._profile_labels())
         self.profile.SetSelection(selection)
-        scope_selection = self.auto_scope.GetSelection()
-        self.auto_scope.SetItems(self._scope_labels())
-        self.auto_scope.SetSelection(max(scope_selection, 0))
-        self.auto_scope.SetName(self._plain("ai_auto_scope"))
-        age_selection = self.auto_max_age.GetSelection()
-        self.auto_max_age.SetItems(self._age_labels())
-        self.auto_max_age.SetSelection(max(age_selection, 0))
-        self.auto_max_age.SetName(self._plain("ai_auto_max_age"))
-        self.auto_limit.SetName(self._plain("ai_auto_daily_limit"))
-        self.auto_used.SetName(self._plain("ai_auto_used_today"))
+        self.auto_panel.refresh_labels()
+        self.auto_dialog.SetTitle(window_title(self._t("ai_auto_button")))
         self.notice.SetName(self._plain("ai_settings_help"))
         self.notice.ChangeValue(self._t("ai_settings_notice"))
         self.status.SetName(self._plain("ai_status_label"))
@@ -573,7 +567,7 @@ class AISettingsPage(ScrolledPanel):
                 text = self._t("ai_auto_consent").format(
                     providers=", ".join(PROVIDERS[p].name for p in needed))
                 answer = wx.MessageBox(text, self._plain("ai_auto_consent_title"),
-                                       wx.YES_NO | wx.ICON_WARNING, self)
+                                       wx.YES_NO | wx.ICON_WARNING, self.auto_dialog)
                 if answer != wx.YES:
                     control.SetValue(False)
                     return
@@ -628,6 +622,7 @@ class AISettingsPage(ScrolledPanel):
                     kinds={kind: check.GetValue() for kind, check in self.toggles.items()},
                     profile=PROFILES[self.profile.GetSelection()],
                     read_answers=self.read_answers.GetValue(),
+                    hide_action_button=self.hide_action_button.GetValue(),
                     auto_transcribe=self.auto_transcribe.GetValue(),
                     auto_describe=self.auto_describe.GetValue(),
                     auto_daily_limit=int(self.auto_limit.GetValue()))

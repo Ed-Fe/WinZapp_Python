@@ -53,3 +53,9 @@ def clear_reply_draft(record) -> None:
     if isinstance(record, dict):
         for key in REPLY_DRAFT_KEYS:
             record.pop(key, None)
+        # The file an attachment was sent from (core/message_resend.py): only
+        # "try sending again" reads it, and a delivered message has nothing
+        # to send again. Kept, it is a local path (user and folder names) in
+        # messages.db for every attachment ever sent.
+        from core.message_resend import RESEND_PATH_KEY
+        record.pop(RESEND_PATH_KEY, None)

@@ -245,6 +245,7 @@ class _Stub:
     _on_next_status               = StatusPanel._on_next_status
     _on_prev_status                = StatusPanel._on_prev_status
     _on_escape                    = StatusPanel._on_escape
+    _hide_status_viewer           = StatusPanel._hide_status_viewer
     _hide_post_panels             = StatusPanel._hide_post_panels
     _is_status_composer_open      = StatusPanel._is_status_composer_open
     _enter_status_composer        = StatusPanel._enter_status_composer
@@ -258,6 +259,7 @@ class _Stub:
     _mark_status_viewed           = StatusPanel._mark_status_viewed
     _MAX_REMEMBERED_VIEWED        = StatusPanel._MAX_REMEMBERED_VIEWED
     _populate_list                = StatusPanel._populate_list
+    _unsent_rows                  = StatusPanel._unsent_rows
     _my_status_label              = StatusPanel._my_status_label
     _set_list_loading             = StatusPanel._set_list_loading
     _status_row_text              = StatusPanel._status_row_text
@@ -1633,6 +1635,19 @@ class TestEscapeClosesTheViewer:
         assert stub._viewer_panel.shown is False
         assert stub._selected_contact_idx == -1
         assert stub._video_player.stop_calls == 1
+
+    def test_rows_that_waited_come_in_after_esc(self, monkeypatch):
+        """Reviewer: a post that failed while a status was open waited for
+        the viewer to close, and Esc, the usual way out, did not bring it in."""
+        import wx
+        queued = []
+        monkeypatch.setattr(wx, "CallAfter", lambda fn, *a, **k: queued.append(fn))
+        stub = _Stub()
+        stub._viewer_panel.Show()
+        stub._unsent_redraw_pending = True
+        stub._flush_unsent_redraw = lambda: None
+        stub._on_escape(None)
+        assert queued == [stub._flush_unsent_redraw]
 
     def test_no_op_when_already_hidden(self):
         stub = _Stub()

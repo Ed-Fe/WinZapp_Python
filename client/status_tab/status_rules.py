@@ -145,3 +145,30 @@ def _status_media_save_info(msg_type: str, msg_obj: dict, i18n):
         ext = _status_media_extension(mimetype, ".ogg")
         return ext, f"{i18n.t('message_type_audio')} (*{ext})|*{ext}|*.*|*.*"
     return None
+
+
+#: Uploads go through Node to WhatsApp before anything answers, so the read
+#: timeout has to cover the whole upload. The figures are the download's
+#: (main_window/message_rules.media_fetch_timeout()): pessimistic bytes per
+#: second, capped at 30 minutes.
+_STATUS_UPLOAD_BYTES_PER_SECOND = 200 * 1024
+_STATUS_UPLOAD_TIMEOUT_CEILING = 30 * 60
+
+#: What a post that timed out is: it may well have gone out, so it is never
+#: reported (or retried) as a failure.
+STATUS_POST_UNCONFIRMED = "unconfirmed"
+
+
+def status_upload_timeout(size_bytes, base: int = 60) -> int:
+    """Seconds to wait for a status post of a *size_bytes* file. A flat 60 s
+    gave up on a video still being uploaded: the user was told it failed,
+    posted again, and the status went out twice. The payload is base64 (a
+    third larger). `base` when the size is unknown."""
+    try:
+        size = int(size_bytes)
+    except (TypeError, ValueError):
+        return base
+    if size <= 0:
+        return base
+    sent = size * 4 / 3
+    return int(min(_STATUS_UPLOAD_TIMEOUT_CEILING, base + sent / _STATUS_UPLOAD_BYTES_PER_SECOND))

@@ -6,7 +6,7 @@ an order from its message, and a business account's own tools.
 
 import wx
 
-from core.commerce import is_order_message
+from core.commerce import is_order_message, is_order_update_message
 
 
 class CommercePanelMixin:
@@ -98,13 +98,20 @@ class CommercePanelMixin:
 
     def _can_view_order(self, msg):
         jid = (self.conversation or {}).get("remoteJid", "")
-        return bool(jid) and not jid.endswith(("@g.us", "@broadcast")) and is_order_message(msg)
+        return bool(jid) and not jid.endswith(("@g.us", "@broadcast")) and (
+            is_order_message(msg) or is_order_update_message(msg))
 
     def _show_order(self, msg):
         if not self._can_view_order(msg):
             return
-        from ui.dialogs.order_dialog import OrderDialog
         mw = self.main_window
         jid = self.conversation.get("remoteJid", "")
         message_id = mw._serialize_msg_id(jid, msg.get("key") or {}, msg)
+        if is_order_update_message(msg):
+            # An order the seller created or updated: everything it says is in
+            # the message itself (ui/dialogs/order_update_dialog.py).
+            from ui.dialogs.order_update_dialog import OrderUpdateDialog
+            self._show_modal(OrderUpdateDialog(mw, mw, msg, message_id, self._chat_name(self.conversation)))
+            return
+        from ui.dialogs.order_dialog import OrderDialog
         self._show_modal(OrderDialog(mw, mw, message_id, self._chat_name(self.conversation)))

@@ -49,3 +49,12 @@ class TestTheDisabledChannelLabelHasNoKey:
     def test_a_key_on_a_disabled_field_would_do_nothing(self):
         for name, translations in _locales():
             assert _mnemonic(translations["channel_read_only"]) is None, name
+
+
+class TestTheAttachButtonHasNoAltKey:
+    def test_alt_a_does_not_open_the_attach_menu(self):
+        """Reported: Alt+A opened the attach menu, whose shortcut is
+        Ctrl+Shift+A. "Adicionar &anexo" made Alt+A press the button; like
+        its siblings (Enviar, Gravar, Emoji) it carries no mnemonic."""
+        for name, translations in _locales():
+            assert _mnemonic(translations["add_attachment"]) is None, name

@@ -528,6 +528,11 @@
 </table>
 <p>Seçim sohbetle birlikte biter: sohbeti kapattığınızda hiçbir şey işaretli kalmaz.</p>
 
+<h3>Taslaklar, yeniden gönderme ve listeden sonraki denetimler</h3>
+<p>Mesaj alanı yazdıklarınızı sohbetiyle birlikte tutar: göndermeden bir sohbetten çıkın, metin bahsetmeleriyle birlikte sohbeti yeniden açtığınızda geri gelir. Ayarlar &gt; Arayüz &gt; Sohbetler bölümündeki "Sohbetten çıkarken gönderilmemiş mesaj", sonraki sohbet için alanda tutmak, o sohbetin taslağı olarak saklamak (varsayılan) veya silmek arasında seçim yapar. Taslaklar WinZapp kapanana kadar durur.</p>
+<p>Gönderimi başarısız olan veya doğrulanmayan kendi mesajınızın, metin ya da ek, menüsünde "Yeniden göndermeyi dene" bulunur; Ctrl+Shift+Y ile de çalışır. WinZapp hiçbir şeyi kendiliğinden yeniden göndermez.</p>
+<p>Oynatma sırasında mesaj listesinden sonra Tab hız düğmesinde ve süre çubuğunda, bir sesli mesaj, fotoğraf veya videoda da çevrim içi yapay zekâ düğmesinde durur. Her biri yoldan çıkarılabilir: Ayarlar &gt; Ses &gt; Ses oynatma bölümünde "Oynatma sırasında hız düğmesini gizle (hız kısayolları çalışmaya devam eder)" ve "Oynatma sırasında süre çubuğunu gizle (Tab tuşu onu atlar)", Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme bölümünde "Mesaj listesinden sonraki çevrim içi yapay zekâ düğmesini gizle (mesaj menüsü sunmaya devam eder)". Kısayollar ve mesaj menüsü çalışmaya devam eder.</p>
+
   </section>
 
   <section id="anexos-midia" class="wiki-section" aria-labelledby="h-anexos-midia">
@@ -618,7 +623,7 @@
 <p>Bağlam menüsünde: "Mesajı Whisper ile bu bilgisayarda yazıya dök", "Dökümü göster", "Yeniden yazıya dök" ve "Dökümü sil".</p>
 <ul>
   <li><strong>Bileşenler:</strong> <em>faster-whisper</em> varsayılandır ve WinZapp ile gelir; <em>whisper.cpp</em> isteğe bağlı ve deneyseldir, sekme onu işlemci ya da NVIDIA ekran kartları için olan sürümde kurar. faster-whisper da aynı sekmede "CUDA kütüphaneleri" kurduğunuzda bir NVIDIA kartı kullanır.</li>
-  <li><strong>Modeller:</strong> yalnızca siz istediğinizde indirilir; tiny'den large-v3 ve large-v3-turbo'ya kadar; whisper.cpp'de ayrıca daha küçük sürümler (8 ve 5 bit) ve bazı 32 bitlik olanlar vardır. Bazı modeller yalnızca tek bir dili anlar (listede işaretlidir). Listede Ctrl+Boşluk modelleri işaretler ve "İndir" işaretlenenlerin hepsini birbiri ardına indirir. "Yazıya dökümün yapılacağı yer" ve "Hesaplama hassasiyeti: {precision}" Otomatik'te kalır ya da seçilebilir.</li>
+  <li><strong>Modeller:</strong> yalnızca siz istediğinizde indirilir; tiny'den large-v3 ve large-v3-turbo'ya kadar; whisper.cpp'de ayrıca daha küçük sürümler (8 ve 5 bit) ve bazı 32 bitlik olanlar vardır. Bazı modeller yalnızca tek bir dili anlar (listede işaretlidir). Listede Ctrl+Boşluk modelleri işaretler ve "İndir" işaretlenenlerin hepsini birbiri ardına indirir. "Yazıya dökümün yapılacağı yer" ve "Hesaplama hassasiyeti" Otomatik'te kalır ya da seçilebilir.</li>
   <li><strong>Zaten sahip olduklarınızı yeniden kullanın:</strong> "Diğer klasörlerdeki modeller" başka yerde indirilmiş modelleri kopyalamadan kullanır; "Başka bir klasörden indirilenleri yeniden kullan" daha önce indirilmiş CUDA kitaplıklarını ve whisper.cpp programlarını gösterir. Modeller klasörü modellerle birlikte taşınabilir.</li>
   <li><strong>Bellek:</strong> "Modeli bellekte yüklü tut (faster-whisper ve whisper.cpp)" modeli her mesaj için yeniden yüklemeyi önler. Kapalıyken model son dökümden 5 dakika sonra serbest bırakılır.</li>
   <li><strong>Modele göre:</strong> her mesajda saklanan metin modele özeldir. Model değiştirdiğinizde mesaj yeniden yazıya dökülür ve önceki modelin metni saklı kalır. "Bu modelin kayıtlı dökümlerini sil" ve "Tüm modellerin kayıtlı dökümlerini sil" önbelleği temizler. Önbellek genel olarak ve model başına açılıp kapatılabilir.</li>
@@ -647,6 +652,13 @@
   WinZapp medyayı bir sağlayıcıya göndermeden önce sorar, kilitli sohbetlerde ise her seferinde yeniden sorar. Anahtarlarınız bilgisayarınızda şifrelenmiş olarak saklanır ve yalnızca ait oldukları sağlayıcıya gönderilir. Tüm anahtarları sıfırlamak, hatırlanan gönderim izinlerini de temizler. Sağlayıcı çalışırken bir bekleme sesi çalar; yanıtlar otomatik olarak yüksek sesle okunabilir; metin uygulamanın dilini izler. Çok uzun döküm ve PDF metinleri bir metin sınırı hatası bildirir.
 </div>
 
+<h3>Kuyruk, pencereler ve sohbete özel seçenekler</h3>
+<p>İlerleme penceresi olmadan döküm yapılırken, biri sürerken başka bir mesajın satır içi dökümünü istemek onu kuyruğa ekler: WinZapp sırasını söyler ve öncekinin bitmesiyle başlatır; bekleyen mesajda aynı kısayol onu kuyruktan çıkarır. Pencere açan bir döküm, başkası sürerken yine reddedilir.</p>
+<p>Otomatikte WinZapp, sığan bir model olduğunda bilgisayarda zaten bulunan modeli kullanır: kurulu modeli kaldıramayan küçük bir ekran kartında, indirme istemek yerine o modeli işlemcide çalıştırır.</p>
+<p>Yerel yazıya döküm sekmesinin seçenekleri, üzerindeki düğmelerle açılan pencerelerdedir: "Gelişmiş seçenekler...", "Kaydedilen yazıya dökümler...", "Durumların yazıya dökümü...", "Modeller klasörü ve diğer klasörlerdeki modeller..." ile CUDA kitaplıklarının ve whisper.cpp'nin pencereleri. Çevrim içi yapay zekânın otomatik seçenekleri kendi sayfasındaki "Otomatik döküm ve betimleme..." içindedir.</p>
+<p>Sohbet bilgilerinde iki kutu vardır: "Bu sohbette alınan sesli mesajları, ses dosyalarını ve videoları Whisper ile yerel olarak otomatik yazıya dök" ve "Bu sohbette alınan sesli mesajları ve ses dosyalarını çevrimiçi sağlayıcılarla otomatik olarak yazıya dök". Her biri sohbetin şu anda ne yaptığını gösterir; siz oradaki kutuyu işaretleyene veya işaretini kaldırana kadar genel seçeneği izler.</p>
+<p>Döküm yapacak şekilde ayarlanan Enter ve Boşluk, dosya olarak gönderilen ses ve videoları da döker.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -663,6 +675,9 @@
   <li><strong>Ses ve video durumlarını yazıya dökme (yerel):</strong> Alt+Shift+T metni sonuç penceresinde (ya da kayıtlı dökümü) açar; Alt+Shift+N metni durum satırına koyar ve yüksek sesle okur; Alt+Shift+Delete kayıtlı dökümü siler. "Durumum" penceresi bu tuşları kendi ses ve video durumlarınızda da kabul eder. Ayarlar &gt; Yerel yazıya döküm içinde yalnızca durumlara özel seçenekler vardır: alınanları otomatik yazıya dökme, Enter ve Boşluk'un satırda yazıya dökmesi ve dökümleri durumla birlikte kaydetme (durumun süresi dolduğunda önbellek de onunla silinir); ayrıca "Durumların kaydedilmiş yerel dökümlerini temizle" düğmesi.</li>
 </ul>
 <p>Durumlarınızı kimin görebileceği dosya &gt; WhatsApp ayarları &gt; Gizlilik içinde belirlenir.</p>
+
+<h3>Yeniden paylaşma ve silme</h3>
+<p>WinZapp aynı anda bir durum paylaşır; biri hâlâ giderken yeniden paylaşmak istemek yalnızca paylaşıldığını söyler. Başarısız olan veya doğrulanmayan bir durum, listede "Durumum" öğesinin hemen ardından kalır; menüsünde "Yeniden paylaşmayı dene" ve Vazgeç bulunur (Ctrl+Shift+Y yeniden dener); hiçbir şey kendiliğinden yeniden paylaşılmaz. "Durumum" içinde Delete tuşu veya "Durumu sil" düğmesi, WhatsApp'taki aynı onaydan sonra bir durumu herkesten siler.</p>
 
   </section>
 
@@ -726,6 +741,9 @@
 <h3>Anmalar ve yanıtlar</h3>
 <p>@all ile birlikte adıyla anılan bir kişi bağlantısını korur; sizin anılmanız, bildirimde ve önizlemede, "Kendimden nasıl bahsedilsin?" içinde seçilen sözcüğü kullanır. Ayarlar &gt; Arayüz &gt; Mesajlar içinde "Mesajlarda isimsiz gönderenlerin telefon numaralarını gizle" adı olmayan kişilerin mesajlarının doğrudan içerikle başlamasını sağlar. Ayarlar &gt; Arayüz &gt; Sohbetler içinde "Kaydedilmemiş kişilerin adlarının önüne sohbetlerde ve mesajlarda tilde (~) işareti koy" (varsayılan olarak açık) kaydetmediğiniz kişilerin adının önüne sohbetlerde ve mesajlarda bir tilde koyar.</p>
 
+<h3>Bir topluluğun grupları</h3>
+<p>Topluluk listesinde Enter topluluğun gruplarına gider; "En son etkin grubu aç" en son etkinliği olan grubu adını söyleyerek açar. "Grupları filtrele" tüm grupları, katıldığınız grupları veya katılmadıklarınızı gösterir; katılmadığınız bir grup bunu kendi satırında söyler. Bunlardan birinde "Gruba katıl" sizi gruba katar ya da grup onay istiyorsa "Katılma isteği gönder" isteği gönderir; "Katılma isteğini iptal et" isteği geri çeker.</p>
+
   </section>
 
   <section id="trancadas" class="wiki-section" aria-labelledby="h-trancadas">
@@ -754,6 +772,9 @@
 
 <h3>WhatsApp Business hesapları</h3>
 <p>Yalnızca WhatsApp Business hesaplarında: sipariş penceresinde alınan siparişler için "Siparişi onayla", "Siparişi reddet" ve "durumu güncelle"; sohbet menüsünde "İşletme araçları" alt menüsü, "Bu kişi için sipariş oluştur" (Ctrl+Shift+N) ve "Kataloğumda sepetleri kabul et" ile. Uygulanmadıkları yerde WinZapp nedenini söyler.</p>
+
+<h3>Satıcının oluşturduğu siparişler</h3>
+<p>Satıcının sizin için oluşturduğu bir siparişte Enter, kalemleri ve ara toplamıyla sipariş bilgilerini açar. Sipariş beklemedeyken ve uygulama dışında ödeniyorsa "Sipariş bilgilerini onayla", WhatsApp Web'deki gibi satıcıya onayı gönderir; pencere de alıcının hangi yanıtlarını WinZapp'in henüz sunmadığını söyler.</p>
 
   </section>
 
@@ -814,6 +835,12 @@
 <p>dosya menüsünde "Ayarları dışa aktar..." tercihlerinizi bir dosyaya kaydeder ve "Ayarları içe aktar..." o dosyayı yeniden başlatmadan hemen uygular. Her şeyi başka bir bilgisayara ya da hesaba taşımak için kullanışlıdır. WhatsApp bağlantısı ve her hesaba ait olanlar (temizlenmiş sohbetler, sohbet başına sesler) dosyada yoktur. Kendi API'nizi kullanıyorsanız adres, bağlantı noktası ve anahtar da gider.</p>
 <p>Dili değiştirip uygularsanız tüm seçenekler hemen yeni dile geçer.</p>
 
+<h3>Kısayol harfleri ve klavye kısayolları</h3>
+<p>Ayarlar'daki ve oradan açılan pencerelerdeki her denetimin bir kısayol harfi var: Alt ile ekran okuyucunun söylediği harf doğrudan denetime götürür ve aynı pencerede hiçbir harf tekrarlanmaz. Arayüz &gt; Klavye kısayolları bölümünde kısayollar kategorilere göre bir ağaçtadır: sağ ok kategoriyi açar, sol ok kapatır. Üstteki "Kısayollarda ara" alanı ağacı süzer; aşağı ok alandan sonuçlara gider, ilk sonuçta yukarı ok alana geri döner.</p>
+
+<h3>Gelişmiş</h3>
+<p>Listenin sonundaki Gelişmiş kategorisinde hemen uygulanan "Günlük düzeyi:" (hata ayıklama, bilgi, uyarılar ve hatalar ya da yalnızca hatalar); WinZapp bir sonraki açılışında geçerli olan ve iki WinZapp kopyası çalıştırmaya ya da başka bir program 6300 bağlantı noktasını kullandığında ondan kaçınmaya yarayan, bağlantı noktası numarasıyla birlikte "Yerel API'yi sabit bir bağlantı noktasında başlat"; ve varsayılan olarak kapalı, geliştiricilerin henüz denetlemediği sürümleri de bir uyarıyla sunan "Tüm WPPConnect Server güncellemelerini göster, yalnızca WinZapp geliştiricilerinin denetlediklerini değil" bulunur. Bağlantı kategorisindeki bağlantı noktası özel API'nindir ve yalnızca onunla etkindir.</p>
+
   </section>
 
   <section id="privacidade" class="wiki-section" aria-labelledby="h-privacidade">
@@ -834,6 +861,8 @@
   <li>Her öğe ayrı ayrı kaydedilir: WhatsApp birini reddederse diğerleri kaydedilir ve pencere başarısız olanları listeler.</li>
   <li>Fotoğraf bir JPG veya PNG dosyasından seçilir.</li>
 </ul>
+
+<p>Durumun kişileri hariç tutan veya seçen seçeneklerinde yalnızca telefonda kayıtlı kişiler görünür: WhatsApp bir durumu yalnızca onların görmesine izin verir. Profil'de fotoğraf seçme düğmesi, mevcut bir fotoğraf olup olmadığını ve hangi dosyanın seçildiğini söyler.</p>
 
   </section>
 
@@ -1011,6 +1040,7 @@
 <tr><td class="field-name">Ctrl+Shift+R</td><td>Cevapsız bir aramayı geri ara</td></tr>
 <tr><td class="field-name">Ctrl+Shift+G</td><td>Sesli mesajı diğer modda kaydet (varsayılan mono ise stereo, stereo ise mono)</td></tr>
 <tr><td class="field-name">Ctrl+Shift+H</td><td>Mikrofon ve bilgisayar sesini kaydet</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Gönderimi başarısız olan veya doğrulanmayan bir mesajda yeniden göndermeyi dene</td></tr>
 <tr><td class="field-name">Alt+Shift+B</td><td>Bir işletmeyle sohbette, işletmenin kataloğu ve sepeti</td></tr>
 <tr><td class="field-name">Ctrl+Shift+N</td><td>WhatsApp Business hesabında, sohbetteki kişi için sipariş oluştur</td></tr>
 <tr><td class="field-name">Delete</td><td>Mesajı veya sohbeti sil (seçim varsa seçili olanların tümünü)</td></tr>
@@ -1149,6 +1179,8 @@
 <tr><td class="field-name">Alt+Shift+T</td><td>Sesli ya da videolu durumu Whisper ile yerel olarak yazıya dök ya da kaydedilmiş dökümü aç</td></tr>
 <tr><td class="field-name">Alt+Shift+N</td><td>Sesli ya da videolu bir durumda Enter ve Boşluk&#x27;un yapmadığını yapar: Whisper ile yerel olarak listedeki satırına yazıya döker ya da Enter ve Boşluk yazıya dökmeye ayarlıyken açar veya oynatır</td></tr>
 <tr><td class="field-name">Alt+Shift+Delete</td><td>Durumun kaydedilmiş yerel dökümünü sil</td></tr>
+<tr><td class="field-name">Delete</td><td>Durumum&#x27;da gösterilen durumu, onu alan herkes için sil</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Paylaşılmamış bir durumda yeniden paylaşmayı dene</td></tr>
 </table>
 <h3>Durum listesi</h3>
 <table class="field-table">
@@ -1233,7 +1265,7 @@
 <table class="field-table">
   <tr><th>Alpha</th><th>Kılavuza girenler</th></tr>
   <tr><td class="field-name">Henüz yayımlanmadı</td><td>macOS güncelleme doğrulaması: ayrı hata nedenleri ve doğrulama adımları, geçici hatada süreyle sınırlı tek yeniden deneme ve GitHub bekleme süreleri.</td></tr>
-  <tr><td class="field-name">Henüz yayımlanmadı</td><td>Güncelleme paketinin korunması, kurulum sahipliği, kopyalama sonucu ve güvenli yeniden açılış. Eksik veya tamamlandığı doğrulanamayan kopyalamadan sonra WinZapp kapalı kalır ve onarım yönergelerini Not Defteri'nde açar. Aramaları herhangi bir pencereden yanıtlama, reddetme ve kapatma (Ctrl+Alt+Shift+Enter ve Ctrl+Alt+Shift+Geri sil).</td></tr>
+  <tr><td class="field-name">Henüz yayımlanmadı</td><td>Güncelleme paketinin korunması, kurulum sahipliği, kopyalama sonucu ve güvenli yeniden açılış. Eksik veya tamamlandığı doğrulanamayan kopyalamadan sonra WinZapp kapalı kalır ve onarım yönergelerini Not Defteri'nde açar. Aramaları herhangi bir pencereden yanıtlama, reddetme ve kapatma (Ctrl+Alt+Shift+Enter ve Ctrl+Alt+Shift+Geri sil). Gelişmiş kategorisi, Ayarlar'da kısayol harfleri, aramalı ağaçta kısayollar, sohbet başına taslak, Yeniden göndermeyi dene, Tab sırasından çıkabilen listeden sonraki denetimler, yerel dökümün kuyruğu ve pencereleri, sohbet başına otomatik döküm, paylaşılmayan durumlar ve durum silme, bir topluluğun grupları, satıcının oluşturduğu siparişler ve durum gizliliği.</td></tr>
   <tr><td class="field-name">Henüz yayımlanmadı</td><td>Arama sesinin mikrofon ve hoparlörün örnekleme hızına otomatik uyarlanması.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>WhatsApp ayarlarında Profil sekmesi (görünen ad, Hakkında ve fotoğraf); gezinme listesinde Aramalar'dan sonra Topluluklar.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>Kılavuzun ilk sürümü: 1.1.0.0, 1.1.1.0, 2.0.0.0 sürümlerinin ve 2.1.0.0 döngüsünün bu alpha'ya kadarki tüm özellikleri.</td></tr>

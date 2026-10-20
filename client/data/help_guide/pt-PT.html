@@ -528,6 +528,11 @@
 </table>
 <p>A seleção termina junto com a conversa: ao fechá-la, nada fica marcado.</p>
 
+<h3>Rascunhos, reenvio e os controlos depois da lista</h3>
+<p>O campo de mensagem guarda o que escreveu com a conversa: saia de uma conversa sem enviar, e o texto, com as menções, volta quando a abrir de novo. Em Definições &gt; Interface &gt; Conversas, "Mensagem não enviada ao sair de uma conversa" escolhe entre manter no campo para a conversa seguinte, guardar como rascunho dessa conversa (a predefinição) ou descartar. Os rascunhos duram até o WinZapp ser fechado.</p>
+<p>Uma mensagem sua que falhou ou não foi confirmada, texto ou anexo, tem "Tentar enviar de novo" no menu, também com Ctrl+Shift+Y. O WinZapp nunca reenvia nada sozinho.</p>
+<p>Durante a reprodução, o Tab depois da lista de mensagens passa pelo botão de velocidade e pela barra de duração e, numa mensagem de voz, fotografia ou vídeo, pelo botão de IA online. Cada um pode sair do caminho: "Ocultar o botão de velocidade durante a reprodução (os atalhos de velocidade continuam a funcionar)" e "Ocultar a barra de duração durante a reprodução (o Tab não passa por ela)" em Definições &gt; Áudio &gt; Reprodução de áudio, e "Ocultar o botão de IA online que fica depois da lista de mensagens (o menu da mensagem continua a oferecê-lo)" em IA online: Transcrições e Descrições. Os atalhos e o menu da mensagem continuam a funcionar.</p>
+
   </section>
 
   <section id="anexos-midia" class="wiki-section" aria-labelledby="h-anexos-midia">
@@ -618,7 +623,7 @@
 <p>No menu de contexto: "Transcrever mensagem localmente com o Whisper", "Ver transcrição", "Transcrever novamente" e "Apagar transcrição".</p>
 <ul>
   <li><strong>Componentes:</strong> o <em>faster-whisper</em> é o predefinição e já vem com o WinZapp; o <em>whisper.cpp</em> é opcional e experimental, e o separador o instala na versão para processador ou para placas de vídeo NVIDIA. O faster-whisper também usa placa NVIDIA depois que o utilizador instalar as "Bibliotecas CUDA" na mesma separador.</li>
-  <li><strong>Modelos:</strong> só são descarregados quando o utilizador pede, do tiny ao large-v3 e large-v3-turbo; no whisper.cpp há também versões menores (8 e 5 bits) e algumas de 32 bits. Há modelos que só entendem um idioma (marcados na lista). Na lista, Ctrl+Espaço marca modelos e "Descarregar" descarrega todos os marcados, um depois do outro. "Onde executar a transcrição" e a "Precisão de cálculo: {precision}" ficam em Automático ou podem ser escolhidas.</li>
+  <li><strong>Modelos:</strong> só são descarregados quando o utilizador pede, do tiny ao large-v3 e large-v3-turbo; no whisper.cpp há também versões menores (8 e 5 bits) e algumas de 32 bits. Há modelos que só entendem um idioma (marcados na lista). Na lista, Ctrl+Espaço marca modelos e "Descarregar" descarrega todos os marcados, um depois do outro. "Onde executar a transcrição" e a "Precisão de cálculo" ficam em Automático ou podem ser escolhidas.</li>
   <li><strong>Reutilizar o que o utilizador já tem:</strong> "Modelos noutras pastas" usa modelos descarregados em outro lugar sem copiá-los, e "Reutilizar transferências de outra pasta" aponta para as bibliotecas CUDA e para os programas whisper.cpp já descarregados. A pasta dos modelos pode ser mudada de lugar, com os modelos junto.</li>
   <li><strong>Memória:</strong> "Manter o modelo carregado na memória (faster-whisper e whisper.cpp)" evita recarregar o modelo a cada mensagem. Desligada, o modelo é liberado 5 minutos depois da última transcrição.</li>
   <li><strong>Por modelo:</strong> o texto guardado em cada mensagem é por modelo. Ao trocar de modelo, a mensagem é transcrita de novo e o texto do anterior fica guardado. "Apagar transcrições guardadas deste modelo" e "Apagar transcrições guardadas de todos os modelos" limpam o cache. O cache pode ser ligado ou desligado no geral e por modelo.</li>
@@ -647,6 +652,13 @@
   O WinZapp pergunta antes de enviar multimédia a um provedor, e pergunta de novo a cada vez nas conversas trancadas. Suas chaves ficam criptografadas no seu computador e só são enviadas ao provedor a que pertencem. Redefinir todas as chaves também limpa as autorizações de envio lembradas. Um som de espera toca enquanto o provedor trabalha; as respostas podem ser lidas em voz alta automaticamente; o texto segue o idioma do aplicativo. Textos de transcrição e de PDF muito longos informam um erro de limite de texto.
 </div>
 
+<h3>Fila, janelas e opções por conversa</h3>
+<p>Com a transcrição sem a janela de progresso, pedir a transcrição na linha de outra mensagem enquanto uma decorre coloca-a na fila: o WinZapp diz a posição e começa quando a anterior terminar; o mesmo atalho na mensagem em espera tira-a da fila. Uma transcrição que abre janela continua a ser recusada enquanto outra decorre.</p>
+<p>No automático, o WinZapp usa um modelo que já está no computador sempre que um cabe: numa placa gráfica pequena, que não comporta o modelo instalado, executa esse modelo no processador em vez de pedir uma descarga.</p>
+<p>As opções do separador Transcrição local ficam em janelas abertas por botões nele: "Opções avançadas...", "Transcrições guardadas...", "Transcrição de estados...", "Pasta dos modelos e modelos já existentes noutras pastas...", e as janelas das bibliotecas CUDA e do whisper.cpp. As opções automáticas da IA online ficam em "Transcrição e descrição automáticas...", na página dela.</p>
+<p>Os dados da conversa têm duas caixas: "Transcrever automaticamente, localmente com o Whisper, as mensagens de voz, áudios e vídeos recebidos nesta conversa" e "Transcrever automaticamente, com os fornecedores online, as mensagens de voz e áudios recebidos nesta conversa". Cada uma mostra o que a conversa faz agora, seguindo a opção geral até marcar ou desmarcar a caixa ali.</p>
+<p>Enter e Espaço, quando transcrevem, também transcrevem áudio e vídeo enviados como ficheiro.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -663,6 +675,9 @@
   <li><strong>Transcrever estados de áudio e vídeo (local):</strong> Alt+Shift+T abre o texto na janela de resultado (ou a transcrição guarda); Alt+Shift+N o coloca na linha do estados e o lê em voz alta; Alt+Shift+Delete elimina a transcrição guarda. A janela "O meu estado" também aceita essas teclas nos seus próprios estados de áudio e vídeo. Em Definições &gt; Transcrição local há opções próprias para os estados: transcrever automaticamente os recebidos, Enter e Espaço transcreverem na linha, e guardar as transcrições junto com o estados (cache eliminado junto com ele quando o estados expira), além do botão "Eliminar transcrições locais guardadas dos estados".</li>
 </ul>
 <p>Quem pode ver os seus estados se define em Ficheiro &gt; Definições do WhatsApp &gt; Privacidade.</p>
+
+<h3>Publicar de novo e apagar</h3>
+<p>O WinZapp publica um estado de cada vez; pedir para publicar outra vez enquanto um ainda está a ser enviado só avisa que está a ser publicado. Um estado que falhou ou não foi confirmado fica na lista logo a seguir a "O meu estado", com "Tentar publicar de novo" e Descartar no menu (Ctrl+Shift+Y tenta de novo); nada é publicado de novo sozinho. Em "O meu estado", a tecla Delete ou o botão "Eliminar estado" apaga um estado para todos, depois da mesma confirmação do WhatsApp.</p>
 
   </section>
 
@@ -726,6 +741,9 @@
 <h3>Menções e respostas</h3>
 <p>Uma pessoa mencionada pelo nome com @todos mantém o chamada; a menção ao utilizador, na notificação e na prévia, usa a palavra escolhida em "Como se referir a mim?". Em Definições &gt; Interface &gt; Mensagens, "Ocultar números de telefone de remetentes sem nome nas mensagens" faz mensagens de pessoas sem nome começarem direto pelo conteúdo. Em Definições &gt; Interface &gt; Conversas, "Preceder os nomes de contactos não guardados com um sinal de til (~) nas conversas e mensagens" (ligada por predefinição) mostra um til antes do nome de quem não guardou, nas conversas e nas mensagens.</p>
 
+<h3>Grupos de uma comunidade</h3>
+<p>Na lista de comunidades, Enter vai para os grupos da comunidade, e "Abrir o grupo mais recente" abre o grupo com atividade mais recente, dizendo o nome dele. "Filtrar grupos" mostra todos os grupos, aqueles em que participa ou aqueles em que não participa; um grupo em que não participa di-lo na linha. Num deles, "Entrar no grupo" faz com que entre ou, quando o grupo exige aprovação, "Pedir para entrar no grupo" envia o pedido, que "Cancelar pedido para entrar no grupo" retira.</p>
+
   </section>
 
   <section id="trancadas" class="wiki-section" aria-labelledby="h-trancadas">
@@ -754,6 +772,9 @@
 
 <h3>Contas WhatsApp Business</h3>
 <p>Só em contas do WhatsApp Business: na janela de encomendas, "Aceitar encomenda", "Recusar encomenda" e "Atualizar estado" para os encomendas recebidos; no menu da conversa, o submenu "Ferramentas comerciais", com "Criar encomenda para este contacto" (Ctrl+Shift+N) e "Aceitar carrinhos no meu catálogo". Onde não se aplicam, o WinZapp diz o motivo.</p>
+
+<h3>Encomendas criadas pelo vendedor</h3>
+<p>Enter numa encomenda que um vendedor criou para si abre os dados dela, com artigos e subtotal. Quando a encomenda está pendente e é paga fora da aplicação, "Confirmar informações da encomenda" envia a confirmação ao vendedor, como no WhatsApp Web; a janela diz que respostas do comprador o WinZapp ainda não oferece.</p>
 
   </section>
 
@@ -814,6 +835,12 @@
 <p>No menu Ficheiro, "Exportar definições..." grava as suas preferências num ficheiro e "Importar definições..." aplica esse ficheiro na hora, sem reiniciar. Serve para levar tudo para outro computador ou outra conta. A ligação com o WhatsApp e o que é próprio de cada conta (conversas limpas, sons por conversa) não vão no ficheiro. Se o utilizador usa uma API própria, endereço, porta e chave vão junto.</p>
 <p>Se mudar o idioma e aplicar, todas as opções passam para o idioma novo na hora.</p>
 
+<h3>Letras de atalho e atalhos de teclado</h3>
+<p>Todos os controlos das Definições e das janelas abertas a partir delas têm uma letra de atalho: Alt mais a letra que o leitor de ecrã anuncia leva diretamente ao controlo, e nenhuma letra se repete na mesma janela. Em Interface &gt; Atalhos de teclado, os atalhos estão numa árvore por categoria: a seta para a direita abre a categoria e a seta para a esquerda fecha-a. O campo "Procurar atalhos" acima filtra a árvore; a seta para baixo vai do campo para os resultados, e a seta para cima no primeiro deles volta ao campo.</p>
+
+<h3>Avançadas</h3>
+<p>A categoria Avançadas, no fim da lista, tem o "Nível de registo:" (depuração, informação, avisos e erros, ou só erros), aplicado de imediato; "Iniciar a API local numa porta fixa", com o número da porta, que se aplica da próxima vez que o WinZapp abrir e serve para executar duas cópias do WinZapp ou para evitar a porta 6300 quando outro programa já a usa; e "Mostrar todas as atualizações do WPPConnect Server, não só as verificadas pelos responsáveis pelo WinZapp", desmarcada por predefinição, que também oferece versões que os responsáveis ainda não verificaram, com um aviso. A porta da categoria Ligação é a da API personalizada e só fica ativa com ela.</p>
+
   </section>
 
   <section id="privacidade" class="wiki-section" aria-labelledby="h-privacidade">
@@ -834,6 +861,8 @@
   <li>Cada item é guardado separadamente: se o WhatsApp recusar um, os outros são guardados e a janela lista os que falharam.</li>
   <li>A foto é escolhida num ficheiro JPG ou PNG.</li>
 </ul>
+
+<p>Nas opções do estado que excluem ou escolhem contactos, só aparecem os contactos guardados no telemóvel: são os únicos a quem o WhatsApp deixa ver um estado. Em Perfil, o botão de escolher a fotografia diz se há fotografia atual e que ficheiro foi escolhido.</p>
 
   </section>
 
@@ -1011,6 +1040,7 @@
 <tr><td class="field-name">Ctrl+Shift+R</td><td>Devolver uma chamada perdida</td></tr>
 <tr><td class="field-name">Ctrl+Shift+G</td><td>Gravar uma mensagem de voz no outro modo (em estéreo se a predefinição for mono, em mono se for estéreo)</td></tr>
 <tr><td class="field-name">Ctrl+Shift+H</td><td>Gravar microfone e áudio do computador</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Numa mensagem cujo envio falhou ou não foi confirmado, tentar enviar de novo</td></tr>
 <tr><td class="field-name">Alt+Shift+B</td><td>Numa conversa com uma empresa, o catálogo e o carrinho dela</td></tr>
 <tr><td class="field-name">Ctrl+Shift+N</td><td>Numa conta do WhatsApp Business, criar encomenda para o contacto da conversa</td></tr>
 <tr><td class="field-name">Delete</td><td>Eliminar mensagem ou conversa (ou as selecionadas, se houver seleção)</td></tr>
@@ -1149,6 +1179,8 @@
 <tr><td class="field-name">Alt+Shift+T</td><td>Transcrever localmente o estado de áudio ou de vídeo com o Whisper, ou abrir a transcrição já guardada</td></tr>
 <tr><td class="field-name">Alt+Shift+N</td><td>Num estado de áudio ou de vídeo, faz o que Enter e Espaço não fazem: transcrever localmente com o Whisper na linha dele na lista, ou abrir ou reproduzir quando Enter e Espaço estão configurados para transcrever</td></tr>
 <tr><td class="field-name">Alt+Shift+Delete</td><td>Eliminar a transcrição local guardada do estado</td></tr>
+<tr><td class="field-name">Delete</td><td>Em O meu estado, eliminar o estado mostrado, para todos os que o receberam</td></tr>
+<tr><td class="field-name">Ctrl+Shift+Y</td><td>Num estado que não foi publicado, tentar publicá-lo de novo</td></tr>
 </table>
 <h3>Lista de estados</h3>
 <table class="field-table">
@@ -1233,7 +1265,7 @@
 <table class="field-table">
   <tr><th>Alpha</th><th>O que entrou no guia</th></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Verificação de atualizações do macOS: causas e etapas distintas, uma nova tentativa limitada para falhas temporárias e tempos de espera do GitHub.</td></tr>
-  <tr><td class="field-name">Ainda não lançado</td><td>Preservação do pacote de atualização, exclusividade da instalação, resultado da cópia e reabertura segura. Após uma cópia incompleta ou não confirmada, o WinZapp permanece fechado e abre instruções de recuperação no Bloco de Notas. Atender, recusar e terminar chamadas a partir de qualquer janela (Ctrl+Alt+Shift+Enter e Ctrl+Alt+Shift+Backspace).</td></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Preservação do pacote de atualização, exclusividade da instalação, resultado da cópia e reabertura segura. Após uma cópia incompleta ou não confirmada, o WinZapp permanece fechado e abre instruções de recuperação no Bloco de Notas. Atender, recusar e terminar chamadas a partir de qualquer janela (Ctrl+Alt+Shift+Enter e Ctrl+Alt+Shift+Backspace). Categoria Avançadas, letras de atalho nas Definições, atalhos em árvore com pesquisa, rascunho por conversa, Tentar enviar de novo, controlos depois da lista que podem sair do Tab, fila e janelas da transcrição local, transcrição automática por conversa, estados que não foram publicados e apagar um estado, grupos de uma comunidade, encomendas criadas pelo vendedor e privacidade do estado.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Adaptação automática do áudio das chamadas à frequência de amostragem do microfone e do altifalante.</td></tr>
   <tr><td class="field-name">2.1.0.4397</td><td>Separador Perfil em Definições do WhatsApp (nome exibido, recado e foto); Comunidades na lista de navegação, depois de Chamadas.</td></tr>
   <tr><td class="field-name">2.1.0.4395</td><td>Versão inicial do guia: todas as funcionalidades das versões 1.1.0.0, 1.1.1.0, 2.0.0.0 e do ciclo 2.1.0.0 até esta alpha.</td></tr>

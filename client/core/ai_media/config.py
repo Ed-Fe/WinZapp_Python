@@ -155,6 +155,9 @@ def preferences(app_settings):
         "kinds": {k: _flag(kinds.get(k), True) for k in KINDS},
         "profile": profile if profile in PROFILES else "balanced",
         "read_answers": _flag(raw.get("read_answers"), True),
+        # Leave the Transcribe/Describe button out of the controls after the
+        # message list; the message menu still offers it. Off by default.
+        "hide_action_button": _flag(raw.get("hide_action_button"), False),
         # Done on arrival, with no window (core/ai_media/auto.py). Off by
         # default: every received voice message or picture would otherwise
         # leave the computer for a provider without anyone asking.

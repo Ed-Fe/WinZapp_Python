@@ -1937,8 +1937,16 @@ class TestTheMenuOffersWhatIsStored:
         assert inline_toggle_menu_key(video, False) == "transcribe_inline_menu"
         assert inline_toggle_menu_key(voice, True) == "play_voice_message_menu"
         assert inline_toggle_menu_key(video, True) == "open_video_menu"
-        assert inline_toggle_menu_key({"messageType": "documentMessage"}, True) == (
-            "transcribe_inline_menu")
+        # An audio or video file sent as a document follows the setting too:
+        # Enter transcribes it, so Alt+Shift+N opens it (9c357f94).
+        mp3 = {"messageType": "documentMessage",
+               "message": {"documentMessage": {"fileName": "aula.mp3", "mimetype": "audio/mpeg"}}}
+        assert inline_toggle_menu_key(mp3, True) == "open"
+        assert inline_toggle_menu_key(mp3, False) == "transcribe_inline_menu"
+        # Any other document is not swapped: Enter already opens it.
+        pdf = {"messageType": "documentMessage",
+               "message": {"documentMessage": {"fileName": "a.pdf", "mimetype": "application/pdf"}}}
+        assert inline_toggle_menu_key(pdf, True) == "transcribe_inline_menu"
 
     @pytest.mark.parametrize("handler, entry", [
         ("_on_menu_transcribe", "open_or_transcribe"),

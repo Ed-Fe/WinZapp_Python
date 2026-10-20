@@ -16,6 +16,7 @@
         "updates_enabled": true,
         "alpha_updates_enabled": false,
         "background_update_downloads": false,
+        "wpp_all_updates": false,
         "noise_reduction_enabled": false,
         "voice_message_stereo": false,
         "system_audio_recording_volume": 100,
@@ -76,6 +77,7 @@
         "mark_unsaved_contacts": true,
         "show_delivery_status_in_chat_list": true,
         "keep_pinned_chat_order": false,
+        "message_draft_mode": "per_conversation",
         "preserve_typed_text_as_attachment_caption": true,
         "bulk_action_shortcuts": true,
         "confirm_mark_all_read": true,
@@ -105,7 +107,9 @@
     },
     "audio_playback": {
         "audio_default_speed": 1.0,
-        "mark_audio_played_in_list": true
+        "mark_audio_played_in_list": true,
+        "hide_speed_button": false,
+        "hide_progress_bar": false
     },
     "audio_devices": {
         "output_device_name": "",
@@ -184,5 +188,9 @@
         "media_max_days": 30,
         "media_max_mb": 100,
         "probe_video_duration_on_download": false
+    },
+    "advanced": {
+        "log_level": "info",
+        "local_api_port": 0
     }
 }

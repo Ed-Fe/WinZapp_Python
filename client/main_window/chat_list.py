@@ -37,6 +37,7 @@ from core.utils import (
 from core.locale_format import (
     get_datetime_format,
     get_time_format,
+    preview_time_text,
 )
 from main_window.message_rules import is_countable_message
 
@@ -1049,6 +1050,13 @@ class ChatListMixin:
         # chat; a reaction to an older message must not resurrect itself as
         # the preview once newer messages have since arrived.
         last_reaction = chat.get("_last_reaction")
+        # An announcement reply is never a record either: WhatsApp keeps it
+        # as the chat's own chatlistPreview. The newer of the two events wins.
+        if chat.get("chatlistPreview"):
+            reply_label = self._announcement_reply_preview_text(
+                chat, max(_get_ts(last), (last_reaction or {}).get("timestamp", 0)))
+            if reply_label:
+                return reply_label
         if last_reaction and last_reaction.get("timestamp", 0) >= _get_ts(last):
             emoji = last_reaction.get("emoji", "")
             orig_text = ""
@@ -1083,19 +1091,7 @@ class ChatListMixin:
                         else:
                             orig_text = i18n.t("notif_unsupported")
                         break
-            ts_val = last_reaction.get("timestamp", 0)
-            time_str = ""
-            if ts_val:
-                try:
-                    from datetime import datetime as _dt
-                    dt    = _dt.fromtimestamp(ts_val)
-                    today = _dt.now().date()
-                    if dt.date() == today:
-                        time_str = dt.strftime(get_time_format(i18n.t("time_fmt")))
-                    else:
-                        time_str = dt.strftime(get_datetime_format(i18n.t("datetime_fmt")))
-                except Exception:
-                    pass
+            time_str = preview_time_text(last_reaction.get("timestamp", 0), i18n)
             if last_reaction.get("from_me"):
                 label = i18n.t("reaction_preview_you").format(emoji=emoji)
             else:

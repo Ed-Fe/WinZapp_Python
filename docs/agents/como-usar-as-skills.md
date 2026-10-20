@@ -99,9 +99,13 @@ ou apontando para um spec já existente:
 roda no CI do PR) e chama o `code-review` antes de terminar.
 
 **Regras do WinZapp que valem aqui** (estão no `CLAUDE.md`, mas vale repetir):
-- "Suíte completa" é `uv run pytest` puro, serial, uma execução por vez.
-  **Nunca** `-n auto` nem `--run-wx-gui` — a segunda opção abre
-  janela na tela de quem está usando leitor de tela.
+- Numa sessão **local**, "suíte completa" é `uv run pytest` puro, serial, uma
+  execução por vez, e **nunca** `-n auto`: a máquina também roda o WinZapp, e
+  execuções em paralelo já a travaram. Numa sessão **na nuvem** (Claude Code na
+  web) isso não vale: rode em paralelo (`-n auto`, `--shard K/N`) para ir mais
+  rápido.
+- **Nunca** `--run-wx-gui`, em lugar nenhum: abre janela na tela de quem está
+  usando leitor de tela.
 - Ele **não commita** sem você pedir, mesmo a skill dizendo o contrário.
 
 **Como usar:** uma sessão por ticket. Antes de cada um, `/clear`.
@@ -115,8 +119,9 @@ roda no CI do PR) e chama o `code-review` antes de terminar.
 branch) em dois eixos, cada um num sub-agente sem o viés de quem escreveu:
 **Standards** (smells de código do livro *Refactoring*, mais os padrões
 documentados do repo — aqui, `CLAUDE.md` e `docs/traps/`) e **Spec** (o
-código faz o que a issue pediu?). No WinZapp, execute esses agentes em
-sequência, nunca simultaneamente; `CLAUDE.md` exige um agente por vez.
+código faz o que a issue pediu?). Numa sessão local do WinZapp, execute esses
+agentes em sequência, nunca simultaneamente: `CLAUDE.md` exige um agente por
+vez na máquina do mantenedor. Numa sessão na nuvem eles podem rodar juntos.
 
 **Como usar:**
 ```

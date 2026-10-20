@@ -435,6 +435,15 @@ class TranscriptionTabMixin:
         #: crops the text at the display scaling and font size a low-vision
         #: user runs — the one reader these two fields exist for.
         text_block_height = page.GetTextExtent("Xg").GetHeight() * 3
+        # Groups of options in windows of their own (transcription_windows.py):
+        # the tab had more controls than there are letters for Alt keys.
+        self._build_transcription_windows(page)
+        folders = self._transcription_folders_panel
+        folders_sizer = self._transcription_folders_sizer
+        cuda = self._transcription_cuda_panel
+        cuda_sizer = self._transcription_cuda_sizer
+        whisper = self._transcription_whisper_panel
+        whisper_sizer = self._transcription_whisper_sizer
 
         # What resolve() had to replace, when it had to replace anything.
         # First on the page and in the tab order because it is about the
@@ -535,10 +544,9 @@ class TranscriptionTabMixin:
             page, sizer, _TRANSCRIPTION_MODEL_ACTION_BUTTONS,
             _TRANSCRIPTION_MODEL_ACTIONS_GROUP,
         )
-        self._build_transcription_cache(page, sizer)
-        # Models the user already has in other folders: right after the ways
-        # to get one into the picker, and before the device it will run on.
-        self._build_external_models_group(page, sizer)
+        self._build_transcription_cache(self._transcription_saved_panel,
+                                        self._transcription_saved_sizer)
+        self._add_transcription_saved_button(page, sizer)
 
         self._transcription_device_radio = wx.RadioBox(
             page,
@@ -558,9 +566,10 @@ class TranscriptionTabMixin:
         self._transcription_device_radio.Bind(
             wx.EVT_RADIOBOX, self._on_transcription_device_change
         )
-        # faster-whisper's precision, under the device it depends on
-        # (TranscriptionPrecisionMixin).
-        self._build_transcription_precision(page, sizer)
+        # faster-whisper's precision (TranscriptionPrecisionMixin), with the
+        # other advanced options in their own window.
+        self._build_transcription_precision(self._transcription_advanced_panel,
+                                            self._transcription_advanced_sizer)
 
         # A checkbox that enables the list, rather than a "detect
         # automatically" entry at the top of the list itself: they are two
@@ -588,18 +597,25 @@ class TranscriptionTabMixin:
         self._transcription_language_combo.Bind(
             wx.EVT_COMBOBOX, self._on_transcription_language_change
         )
-        # The on/off options (TranscriptionOptionsMixin).
+        # The on/off options (TranscriptionOptionsMixin); those for statuses
+        # in their own window.
         self._build_transcription_options(page, sizer)
+        self._build_transcription_advanced_options(self._transcription_advanced_panel,
+                                                   self._transcription_advanced_sizer)
+        self._add_transcription_advanced_button(page, sizer)
+        self._build_transcription_status_options(self._transcription_statuses_panel,
+                                                 self._transcription_statuses_sizer)
+        self._add_transcription_statuses_button(page, sizer)
 
 
         self._transcription_models_dir_label = wx.StaticText(
-            page, label=i18n.t("transcription_models_dir_label")
+            folders, label=i18n.t("transcription_models_dir_label")
         )
-        sizer.Add(self._transcription_models_dir_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        folders_sizer.Add(self._transcription_models_dir_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         # Field and button on one row, as on the Files and saving tab: the path
         # is the long part and the button is a fixed word.
         models_dir_row = wx.BoxSizer(wx.HORIZONTAL)
-        self._transcription_models_dir_field = wx.TextCtrl(page, style=wx.TE_DONTWRAP)
+        self._transcription_models_dir_field = wx.TextCtrl(folders, style=wx.TE_DONTWRAP)
         # Shows the *resolved* folder, and is not typed into: an empty stored
         # value means "the default folder", and typing the resolved path back
         # into it would freeze a data directory that legitimately moves (see
@@ -607,33 +623,41 @@ class TranscriptionTabMixin:
         self._transcription_models_dir_field.SetEditable(False)
         models_dir_row.Add(self._transcription_models_dir_field, 1, wx.EXPAND | wx.RIGHT, 8)
         self._transcription_models_dir_browse_btn = wx.Button(
-            page, label=i18n.t("transcription_models_dir_browse_btn")
+            folders, label=i18n.t("transcription_models_dir_browse_btn")
         )
         models_dir_row.Add(self._transcription_models_dir_browse_btn, 0)
-        sizer.Add(models_dir_row, 0, wx.EXPAND | wx.ALL, 8)
+        folders_sizer.Add(models_dir_row, 0, wx.EXPAND | wx.ALL, 8)
         self._transcription_models_dir_browse_btn.Bind(
             wx.EVT_BUTTON, self._on_browse_transcription_models_dir
         )
         self._show_transcription_models_dir()
+        # Models the user already has in other folders, after the folder of
+        # the ones WinZapp keeps.
+        self._build_external_models_group(folders, folders_sizer)
 
         self._transcription_cuda_label = wx.StaticText(
-            page, label=i18n.t("transcription_cuda_runtime_label")
+            cuda, label=i18n.t("transcription_cuda_runtime_label")
         )
-        sizer.Add(self._transcription_cuda_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        cuda_sizer.Add(self._transcription_cuda_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
         self._transcription_cuda_field = wx.TextCtrl(
-            page, style=wx.TE_MULTILINE | wx.TE_BESTWRAP, size=(-1, text_block_height)
+            cuda, style=wx.TE_MULTILINE | wx.TE_BESTWRAP, size=(-1, text_block_height)
         )
         self._transcription_cuda_field.SetEditable(False)
-        sizer.Add(self._transcription_cuda_field, 0, wx.EXPAND | wx.ALL, 8)
+        cuda_sizer.Add(self._transcription_cuda_field, 0, wx.EXPAND | wx.ALL, 8)
         self._build_transcription_action_row(
-            page, sizer, _TRANSCRIPTION_CUDA_ACTION_BUTTONS,
+            cuda, cuda_sizer, _TRANSCRIPTION_CUDA_ACTION_BUTTONS,
             _TRANSCRIPTION_CUDA_ACTIONS_GROUP,
         )
-        # The whisper.cpp program: its builds and their four buttons, last, as
-        # the other download that is not a model.
-        self._build_whisper_cpp_section(page, sizer)
-        # Folders to reuse CUDA libraries and whisper.cpp programs from.
-        self._build_transcription_reuse(page, sizer)
+        # The folder to reuse CUDA libraries from (TranscriptionReuseMixin).
+        self._build_transcription_reuse_cuda(cuda, cuda_sizer)
+        # The whisper.cpp program: its builds and their four buttons, as the
+        # other download that is not a model, and the folder to reuse it from.
+        self._build_whisper_cpp_section(whisper, whisper_sizer)
+        self._build_transcription_reuse_whisper_cpp(whisper, whisper_sizer)
+        self._add_transcription_folders_button(page, sizer)
+        self._add_transcription_cuda_button(page, sizer)
+        self._add_transcription_whisper_cpp_button(page, sizer)
+        self._finish_transcription_windows()
         self._sync_transcription_action_buttons()
         # A download the window is running in the background is this tab's too.
         self._watch_transcription_background()
@@ -1390,7 +1414,8 @@ class TranscriptionTabMixin:
         button on the same row, and failing that the control the row belongs
         to.
         """
-        if action in VERIFY_ACTIONS and self._focus_transcription_result():
+        if action in VERIFY_ACTIONS and self._focus_transcription_result(
+                self._transcription_action_buttons.get(action)):
             return
         button = self._transcription_action_buttons.get(action)
         if button is None or button.IsEnabled():
@@ -1895,6 +1920,7 @@ class TranscriptionTabMixin:
         self._refresh_transcription_options_labels()
         self._refresh_transcription_reuse_labels()
         self._refresh_transcription_cache_labels()
+        self._refresh_transcription_window_labels()
         self._refresh_whisper_cpp_labels()
         self._transcription_cuda_label.SetLabel(i18n.t("transcription_cuda_runtime_label"))
         self._show_transcription_cuda_status()

@@ -1076,6 +1076,9 @@ DEFAULT_SETTINGS = {
         # interrupted to install them. Off: the long-standing behaviour, so no
         # migration.
         "background_update_downloads": False,
+        # Offer every WPPConnect Server release, not only the approved ones
+        # (core/wpp_upstream.py). Off: the approved list, as since it existed.
+        "wpp_all_updates": False,
         "noise_reduction_enabled": False,
         # Stereo voice messages (issue #82, core/voice_stereo.py). Off: a
         # stereo recording goes out as an audio message, not a voice message.
@@ -1164,6 +1167,10 @@ DEFAULT_SETTINGS = {
         "mark_unsaved_contacts": True,
         "show_delivery_status_in_chat_list": True,
         "keep_pinned_chat_order": False,
+        # What happens to what was typed and not sent when the conversation
+        # is left: one draft per conversation, like WhatsApp Web
+        # (core/message_drafts.py MODES).
+        "message_draft_mode": "per_conversation",
         "preserve_typed_text_as_attachment_caption": True,
         "bulk_action_shortcuts": True,
         "confirm_mark_all_read": True,
@@ -1222,7 +1229,11 @@ DEFAULT_SETTINGS = {
         # voice note is never flagged "played" in the message list when its
         # playback ends — which also means no row rewrite, and so no screen
         # reader announcement about a message the user has already moved off.
-        "mark_audio_played_in_list": True
+        "mark_audio_played_in_list": True,
+        # Leave the speed button and the duration bar out of the controls
+        # after the message list while media plays (core/playback_controls.py).
+        "hide_speed_button": False,
+        "hide_progress_bar": False
     },
     "audio_devices": {
         "output_device_name": "",
@@ -1343,6 +1354,13 @@ DEFAULT_SETTINGS = {
         "media_max_days": 30,
         "media_max_mb": 100,
         "probe_video_duration_on_download": False
+    },
+    # Settings > Advanced (ui/dialogs/advanced_tab.py). INFO is what log.log
+    # always recorded (core/log_level.py); 0 is the automatic per-account
+    # port of the bundled API (core/local_api_port.py).
+    "advanced": {
+        "log_level": "info",
+        "local_api_port": 0
     }
 }
 

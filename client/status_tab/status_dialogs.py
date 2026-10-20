@@ -13,6 +13,9 @@ from ui.accessible import (
     AccessibleStatusPrev,
 )
 from core.video_player import VideoPlayer
+from core.group_invitation import connection_identity
+from core.status_delete import NOT_FOUND, delete_own_status
+from ui.accessible import AccessibleStatusDelete
 from status_tab.status_rules import (
     _download_status_media,
     _status_content_label,
@@ -122,6 +125,9 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
         self._mw       = main_window
         self._statuses = my_statuses
         self._current  = 0
+        # Ids deleted here: StatusPanel redraws its "My status" row on close.
+        self.deleted_status_ids: list[str] = []
+        self._deleting = False
         self._is_closed = False
         self._owned_temp_paths: set[str] = set()
         self._download_generation = 0
@@ -179,7 +185,14 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
 
             self._view_reactions_btn = wx.Button(panel, label=i18n.t("status_view_reactions"))
             self._view_reactions_btn.Bind(wx.EVT_BUTTON, self._on_view_reactions)
-            nav_sizer.Add(self._view_reactions_btn, 0)
+            nav_sizer.Add(self._view_reactions_btn, 0, wx.RIGHT, 5)
+
+            # Deletes the status being shown for everyone, as WhatsApp's own
+            # Delete does; Delete (status.ID_DELETE) from anywhere here.
+            self._delete_btn = wx.Button(panel, label=i18n.t("status_delete"))
+            self._delete_btn.SetAccessible(AccessibleStatusDelete(i18n.t("shortcut_key_delete")))
+            self._delete_btn.Bind(wx.EVT_BUTTON, self._on_delete_status)
+            nav_sizer.Add(self._delete_btn, 0)
 
             sizer.Add(nav_sizer, 0, wx.LEFT | wx.BOTTOM, 8)
 
@@ -201,8 +214,11 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
             self._video_download_status_id = None
             self.Bind(wx.EVT_CLOSE, self._on_close)
             # Alt+Shift+T / N / Delete: transcribing the status being shown
-            # (status_tab/my_status_transcription.py).
-            self._create_transcription_accelerators()
+            # (status_tab/my_status_transcription.py); Delete: deleting it.
+            self.ID_DELETE = wx.NewIdRef()
+            self._create_transcription_accelerators(
+                extra=[(wx.ACCEL_NORMAL, wx.WXK_DELETE, self.ID_DELETE)])
+            self.Bind(wx.EVT_MENU, self._on_delete_status, id=self.ID_DELETE)
 
             self._update_content()
 
@@ -245,7 +261,7 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
             current=self._current + 1, total=len(self._statuses))
         return f"{nav_info}: {content}"
 
-    def _update_content(self):
+    def _update_content(self, said_first=""):
         if not self._statuses:
             return
         i18n   = self._mw.i18n
@@ -254,7 +270,7 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
 
         label = self._content_label_text()
         self._content_lbl.SetLabel(label)
-        self._mw.output(label, interrupt=True)
+        self._mw.output(f"{said_first} {label}" if said_first else label, interrupt=True)
 
         # Switching statuses always stops whatever was playing — resuming
         # stale audio/frames for a status navigated away from would be
@@ -291,6 +307,74 @@ class MyStatusDialog(MyStatusTranscriptionKeys, wx.Dialog):
             return
         self._current = (self._current + 1) % len(self._statuses)
         self._update_content()
+
+    # ── Deleting ──────────────────────────────────────────────────────────
+
+    def _on_delete_status(self, event=None):
+        """Delete the status being shown, for everyone who received it, after
+        WhatsApp's own warning. Sent once: never again by itself."""
+        status = self._own_status()
+        status_id = ((status or {}).get("key") or {}).get("id", "")
+        if not status_id or self._deleting:
+            return
+        i18n = self._mw.i18n
+        answer = wx.MessageBox(i18n.t("status_delete_confirm"), i18n.t("status_delete_confirm_title"),
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING, self)
+        if answer != wx.YES:
+            return
+        self._deleting = True
+        self._mw.output(i18n.t("status_deleting"), interrupt=True)
+        connection = connection_identity(self._mw)
+
+        def work():
+            try:
+                delete_own_status(connection, status_id)
+                error = None
+            except ValueError as exc:
+                error = str(exc)
+            wx.CallAfter(self._finish_delete_status, status_id, error)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _finish_delete_status(self, status_id, error):
+        self._deleting = False
+        if getattr(self, "_is_closed", False) or not bool(self):
+            return
+        i18n = self._mw.i18n
+        if error not in (None, NOT_FOUND):
+            # A static code only: never the status, never its text.
+            logging.warning("[status] delete_failed code=%s", error)
+            self._mw.output(i18n.t("status_delete_failed"), interrupt=True)
+            return
+        # Not found is gone too (expired, or deleted on the phone): out of
+        # the list either way, and said as what it is.
+        said = i18n.t("status_deleted") if error is None else i18n.t("status_delete_not_found")
+        self._drop_status(status_id)
+        if not self._statuses:
+            self._mw.output(said, interrupt=True)
+            self._cleanup()
+            self.EndModal(wx.ID_CANCEL)
+            return
+        self._current = min(self._current, len(self._statuses) - 1)
+        self._update_content(said_first=said)
+
+    def _drop_status(self, status_id):
+        """Out of the list (StatusPanel's own: the same list object), out of
+        MainWindow._status_updates and out of the local cache, so the next
+        load cannot bring it back: _load_statuses merges the in-memory list
+        back in, and with the status API down no reconciliation drops it."""
+        self._statuses[:] = [s for s in self._statuses
+                             if (s.get("key") or {}).get("id", "") != status_id]
+        self.deleted_status_ids.append(status_id)
+        remove = getattr(self._mw, "remove_failed_status_update", None)
+        try:
+            if callable(remove):
+                # Both sources; the dialog redraws the tab itself.
+                remove(status_id, refresh=False)
+            elif getattr(self._mw, "db", None) is not None:
+                self._mw.db.delete_status_update(status_id)
+        except Exception:
+            logging.warning("[status] could not drop a deleted status from the cache")
 
     # ── Reactions ─────────────────────────────────────────────────────────
 

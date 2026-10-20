@@ -59,6 +59,10 @@ class _FakeTimer:
 
 class _Stub:
     _close_conversation_core = ConversationsPanel._close_conversation_core
+
+    def _stash_message_draft(self):
+        # The draft itself is tests/test_message_drafts.py's.
+        self.draft_stashed = True
     close_conversation = ConversationsPanel.close_conversation
     close_conversation_for_panel_switch = ConversationsPanel.close_conversation_for_panel_switch
     _stop_typing_for_current_conversation = ConversationsPanel._stop_typing_for_current_conversation

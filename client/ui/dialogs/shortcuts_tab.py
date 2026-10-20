@@ -9,7 +9,7 @@ from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_setting
 from core.shortcut_catalog import SHORTCUTS
 from ui.shortcut_names import shortcut_name, hotkey_binding
 from ui.dialogs.shortcut_capture import ShortcutCaptureDialog
-from ui.dialogs.settings_pages import SubPageDialog
+from ui.dialogs.settings_pages import SubPageDialog, _fold
 from ui.shortcut_bindings import refresh_shortcuts
 
 GLOBAL = Shortcut('global.restore', 'global', 'restore', 'global_hotkey_label', 0, 0)
@@ -55,6 +55,26 @@ def visible_shortcuts(window):
     return result
 
 
+def shortcut_groups(rows, category_of, text_of, query=""):
+    """The shortcuts list as categories: [(category, [(shortcut, text), ...])],
+    in the order the categories first appear in *rows*. Two scopes shown under
+    the same name are one category. With *query*, only the shortcuts whose
+    category, command or keys hold every word of it (accents and case
+    ignored), and only the categories left with one."""
+    words = _fold(query).split()
+    groups, order = {}, []
+    for shortcut in rows:
+        category = category_of(shortcut)
+        text = text_of(shortcut)
+        if words and not all(word in _fold(f"{category} {text}") for word in words):
+            continue
+        if category not in groups:
+            groups[category] = []
+            order.append(category)
+        groups[category].append((shortcut, text))
+    return [(category, groups[category]) for category in order]
+
+
 def shortcuts_help_text(window, i18n):
     lines, previous = [], None
     for shortcut in visible_shortcuts(window):
@@ -94,10 +114,23 @@ class ShortcutsTabMixin:
         self._shortcuts_hint = wx.StaticText(page, label=i18n.t('shortcut_settings_hint'))
         self._shortcuts_hint.Wrap(580)
         sizer.Add(self._shortcuts_hint, 0, wx.EXPAND | wx.ALL, 8)
-        self._shortcut_list = wx.ListBox(page)
+        # Down arrow goes from the search into the results, as in the
+        # settings' own search; Up from the first row comes back.
+        self._shortcut_search_label = wx.StaticText(page, label=i18n.t('shortcut_search_label'))
+        sizer.Add(self._shortcut_search_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self._shortcut_search = wx.TextCtrl(page)
+        self._shortcut_search.SetName(i18n.t('shortcut_search_label').replace('&', ''))
+        self._shortcut_search.Bind(wx.EVT_TEXT, lambda event: self._refresh_shortcut_rows())
+        self._shortcut_search.Bind(wx.EVT_KEY_DOWN, self._on_shortcut_search_key)
+        sizer.Add(self._shortcut_search, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        # A tree: each category is said once, on its own row, and opens with
+        # the right arrow, instead of being read before every command.
+        self._shortcut_list = wx.TreeCtrl(
+            page, style=wx.TR_HIDE_ROOT | wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_SINGLE)
         self._shortcut_list.SetName(i18n.t('shortcut_settings_list'))
         sizer.Add(self._shortcut_list, 1, wx.EXPAND | wx.ALL, 8)
-        self._shortcut_list.Bind(wx.EVT_LISTBOX_DCLICK, self._change_shortcut)
+        self._shortcut_list.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self._on_shortcut_activated)
+        self._shortcut_list.Bind(wx.EVT_KEY_DOWN, self._on_shortcut_tree_key)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
         self._shortcut_buttons = []
         for key, handler in (
@@ -135,25 +168,90 @@ class ShortcutsTabMixin:
             return hotkey_binding(*pair) if pair else None
         return binding_for(shortcut, self._shortcut_overrides, self.main_window.i18n.t)
 
-    def _refresh_shortcut_rows(self):
+    def _shortcut_groups(self):
         i18n = self.main_window.i18n
         self._shortcut_rows = visible_shortcuts(self.main_window)
-        focused = self._shortcut_list.GetSelection()
-        self._shortcut_list.Freeze()
+        return shortcut_groups(
+            self._shortcut_rows,
+            lambda s: i18n.t(SCOPE_LABELS[s.scope]).replace('&', ''),
+            lambda s: f'{action_text(s, i18n.t)}: {shortcut_name(self._shortcut_binding(s), i18n)}',
+            self._shortcut_search.GetValue())
+
+    def _refresh_shortcut_rows(self):
+        """Rebuild the tree, keeping the command that was selected selected
+        (its category open). While searching every category is open."""
+        tree = self._shortcut_list
+        previous = self._selected_shortcut()
+        filtering = bool(self._shortcut_search.GetValue().strip())
+        groups = self._shortcut_groups()
+        tree.Freeze()
         try:
-            self._shortcut_list.Set([
-                f'{i18n.t(SCOPE_LABELS[s.scope]).replace("&", "")} — '
-                f'{action_text(s, i18n.t)}: {shortcut_name(self._shortcut_binding(s), i18n)}'
-                for s in self._shortcut_rows
-            ])
-            if self._shortcut_rows:
-                self._shortcut_list.SetSelection(max(0, min(focused, len(self._shortcut_rows) - 1)))
+            tree.DeleteAllItems()
+            root = tree.AddRoot('')
+            chosen = None
+            for category, items in groups:
+                node = tree.AppendItem(root, category)
+                for shortcut, text in items:
+                    item = tree.AppendItem(node, text, data=shortcut)
+                    if previous is not None and shortcut.id == previous.id:
+                        chosen = item
+                if filtering:
+                    tree.Expand(node)
+            if not groups:
+                tree.AppendItem(root, self.main_window.i18n.t('shortcut_search_none'))
+            if chosen is None and filtering:
+                chosen = self._first_shortcut_item()
+            if chosen is None:
+                chosen = tree.GetFirstChild(root)[0]
+            if chosen is not None and chosen.IsOk():
+                tree.EnsureVisible(chosen)
+                tree.SelectItem(chosen)
         finally:
-            self._shortcut_list.Thaw()
+            tree.Thaw()
 
     def _selected_shortcut(self):
-        index = self._shortcut_list.GetSelection()
-        return self._shortcut_rows[index] if 0 <= index < len(self._shortcut_rows) else None
+        tree = self._shortcut_list
+        item = tree.GetSelection()
+        if not item.IsOk():
+            return None
+        data = tree.GetItemData(item)
+        return data if isinstance(data, Shortcut) else None
+
+    def _first_shortcut_item(self):
+        tree = self._shortcut_list
+        category = tree.GetFirstChild(tree.GetRootItem())[0]
+        while category.IsOk():
+            child = tree.GetFirstChild(category)[0]
+            if child.IsOk():
+                return child
+            category = tree.GetNextSibling(category)
+        return None
+
+    def _on_shortcut_search_key(self, event):
+        if event.GetKeyCode() == wx.WXK_DOWN:
+            item = self._first_shortcut_item()
+            if item is not None:
+                self._shortcut_list.EnsureVisible(item)
+                self._shortcut_list.SelectItem(item)
+                self._shortcut_list.SetFocus()
+                return
+        event.Skip()
+
+    def _on_shortcut_tree_key(self, event):
+        tree = self._shortcut_list
+        if event.GetKeyCode() == wx.WXK_UP:
+            selection = tree.GetSelection()
+            if not selection.IsOk() or not tree.GetPrevVisible(selection).IsOk():
+                self._shortcut_search.SetFocus()
+                return
+        event.Skip()
+
+    def _on_shortcut_activated(self, event):
+        # Enter on a command changes it; on a category it opens or closes it.
+        if self._selected_shortcut() is not None:
+            self._change_shortcut()
+        else:
+            event.Skip()
 
     def _change_shortcut(self, event=None):
         shortcut = self._selected_shortcut()
@@ -161,7 +259,8 @@ class ShortcutsTabMixin:
             return
         i18n = self.main_window.i18n
         dialog = ShortcutCaptureDialog(self._shortcuts_dialog, action_text(shortcut, i18n.t),
-                                       self._shortcut_binding(shortcut), shortcut.id in GLOBAL_IDS)
+                                       self._shortcut_binding(shortcut), shortcut.id in GLOBAL_IDS,
+                                       main_window=self.main_window)
         try:
             if dialog.ShowModal() != wx.ID_OK:
                 return
@@ -279,6 +378,8 @@ class ShortcutsTabMixin:
         self._shortcuts_dialog.SetTitle(i18n.t('tab_shortcuts').replace('&', ''))
         self._shortcuts_hint.SetLabel(i18n.t('shortcut_settings_hint'))
         self._shortcut_list.SetName(i18n.t('shortcut_settings_list'))
+        self._shortcut_search_label.SetLabel(i18n.t('shortcut_search_label'))
+        self._shortcut_search.SetName(i18n.t('shortcut_search_label').replace('&', ''))
         for button, key in self._shortcut_buttons:
             button.SetLabel(i18n.t(key))
         self._refresh_shortcut_rows()

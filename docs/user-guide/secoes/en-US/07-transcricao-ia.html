@@ -43,3 +43,10 @@
   <div class="callout-title">🔒 Privacy</div>
   WinZapp asks before sending media to a provider, and asks again each time in locked chats. Your keys are stored encrypted on your computer and are only sent to the provider they belong to. Resetting all keys also clears the remembered send authorizations. A waiting sound plays while the provider works; answers can be read aloud automatically; the text follows the app's language. Very long transcription and PDF texts report a text limit error.
 </div>
+
+<h3>Queue, windows and per-conversation options</h3>
+<p>With transcription without the progress window, asking for the inline transcription of another message while one is running puts it in a queue: WinZapp says its position and starts it when the previous one ends; the same shortcut on a waiting message takes it out of the queue. A transcription that opens a window is still refused while another runs.</p>
+<p>In automatic, WinZapp uses a model already on the computer whenever one fits: on a small graphics card that cannot hold the installed model, it runs that model on the processor instead of asking for a download.</p>
+<p>The options of the Local Transcription tab are in windows opened from buttons on it: "Advanced options...", "Saved transcriptions...", "Transcription of statuses...", "Models folder and models in other folders...", and the windows of the CUDA libraries and of whisper.cpp. The automatic options of online AI are in "Automatic transcription and description...", on its page.</p>
+<p>The conversation details have two boxes: "Transcribe the voice messages, audio and videos received in this conversation automatically, locally with Whisper" and "Transcribe the voice messages and audio received in this conversation automatically, with the online providers". Each shows what the conversation does now, following the general option until you tick or untick the box there.</p>
+<p>Enter and Space, when set to transcribe, also transcribe audio and video sent as a file.</p>

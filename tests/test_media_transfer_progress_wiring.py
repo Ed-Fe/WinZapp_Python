@@ -42,7 +42,7 @@ def test_attachment_http_progress_is_scoped_to_its_upload_id():
     src = _method_source(
         ROOT / "client" / "ui" / "conversations.py",
         "ConversationsPanel",
-        "_on_send_attachment",
+        "_send_attachment_file",
     )
     assert "CoalescedCallback(wx.CallAfter, self.update_media_upload_progress)" in src
     assert "notify(local_id, progress)" in src

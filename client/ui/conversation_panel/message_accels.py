@@ -12,6 +12,7 @@ import wx
 from core.utils import format_number
 from main_window.message_rules import quote_is_of_my_message
 from core.message_review import is_repeated_review, recent_message_index
+from core.transcription import message_audio
 
 
 def jump_to_older_message(panel, indices, found_key):
@@ -399,6 +400,12 @@ class MessageAccelsMixin:
                 return
             if msg.get("messageType") == "videoMessage":
                 self._video_default_action(msg)
+                return
+            if msg.get("messageType") == "documentMessage" and message_audio.is_transcribable(msg):
+                # An audio or video sent as a file: Enter transcribes it, so
+                # this key opens it. Any other document is not swapped: Enter
+                # already opens it, and this key says it has no audio.
+                self.open_media_message(msg)
                 return
         self._on_menu_transcribe_inline(msg)
 

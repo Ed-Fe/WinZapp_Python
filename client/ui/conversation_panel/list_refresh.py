@@ -1365,11 +1365,12 @@ class ListRefreshMixin:
                 self._messages_signature_cache = None
             # The focused row may now be another message (another conversation
             # opened, or a call record whose outcome just settled) without a
-            # focus event of its own, so "Retornar ligação" is re-decided here.
+            # focus event of its own, so the controls that follow it
+            # (Retornar ligação, Ler mais, the poll, Reações) are re-decided here.
             try:
-                self._update_return_call_button(self.messages_list.GetFocusedItem())
+                self._update_focused_row_controls(self.messages_list.GetFocusedItem())
             except Exception:
-                logging.exception("[populate_messages] failed to update the return-call button")
+                logging.exception("[populate_messages] failed to update the focused row's controls")
             _rebuild_ms = (time.monotonic() - _rebuild_started) * 1000.0
             # Acima do limiar sobe para WARNING. Em INFO o número só aparece
             # para quem já foi procurar por ele, e este é o laço que a janela

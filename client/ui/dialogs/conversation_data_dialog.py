@@ -24,6 +24,7 @@ from datetime import datetime
 import wx
 import wx.adv
 from core import conversation_auto_ai, phone_contacts
+from core.transcription import auto_queue
 from core.chat_notices import encryption_lines
 from core.chat_settings import chat_settings_lines
 from core.contact_identity import contact_identity_lines
@@ -41,6 +42,7 @@ from core.locale_format import get_datetime_format
 # and renames those files. conversations.py only imports this module inside a
 # function, so this direction of the pair is not a cycle.
 from ui.conversations import local_media_cache_paths
+from ui.conversation_panel.message_list import enter_transcribes
 from app_paths import data_path
 from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
 from core.sound_system import (
@@ -415,33 +417,62 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
     def _build_auto_ai_options(self, panel, sizer):
         """The conversation's own say over the automatic transcription and
-        description (Settings > Transcription / Transcriptions & Descriptions).
-        Checked means "may act here"; a box only matters while the matching
-        install-wide option is on. Saved at once, like the sound."""
+        description. Saved at once, like the sound.
+
+        The two transcription boxes (local, online) show what the conversation
+        does now: the install-wide option (Settings > Transcription, Settings >
+        Transcriptions & Descriptions) until the user sets the box here, which
+        then is this conversation's choice for good, and can turn the
+        automatic transcription on for it while the option is off
+        (core/conversation_auto_ai.transcription_wanted()). The describe box
+        keeps its old meaning: "may act here" while the option is on."""
         i18n = self._i18n
         jid = self._mw._normalize_jid(self._jid)
-        self._auto_transcribe_check = wx.CheckBox(
-            panel, label=i18n.t("conversation_auto_transcribe_check"))
-        self._auto_transcribe_check.SetValue(
-            conversation_auto_ai.allowed(
-                self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE))
-        sizer.Add(self._auto_transcribe_check, 0, wx.ALL, 8)
+        settings = self._mw.settings
+        self._auto_transcribe_local_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_transcribe_local_check"))
+        self._auto_transcribe_local_check.SetValue(conversation_auto_ai.transcription_wanted(
+            settings, jid, conversation_auto_ai.TRANSCRIBE_LOCAL, auto_queue.enabled(settings)))
+        sizer.Add(self._auto_transcribe_local_check, 0, wx.ALL, 8)
+        self._auto_transcribe_online_check = wx.CheckBox(
+            panel, label=i18n.t("conversation_auto_transcribe_online_check"))
+        self._auto_transcribe_online_check.SetValue(conversation_auto_ai.transcription_wanted(
+            settings, jid, conversation_auto_ai.TRANSCRIBE_ONLINE, self._online_auto_transcribe()))
+        sizer.Add(self._auto_transcribe_online_check, 0, wx.ALL, 8)
         self._auto_describe_check = wx.CheckBox(
             panel, label=i18n.t("conversation_auto_describe_check"))
         self._auto_describe_check.SetValue(
-            conversation_auto_ai.allowed(
-                self._mw.settings, jid, conversation_auto_ai.DESCRIBE))
+            conversation_auto_ai.allowed(settings, jid, conversation_auto_ai.DESCRIBE))
         sizer.Add(self._auto_describe_check, 0, wx.ALL, 8)
-        self._auto_transcribe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
+        # One handler per box: only the box the user changed becomes a choice,
+        # the other keeps following its install-wide option.
+        self._auto_transcribe_local_check.Bind(
+            wx.EVT_CHECKBOX, lambda event: self._on_auto_transcription_changed(
+                event, conversation_auto_ai.TRANSCRIBE_LOCAL))
+        self._auto_transcribe_online_check.Bind(
+            wx.EVT_CHECKBOX, lambda event: self._on_auto_transcription_changed(
+                event, conversation_auto_ai.TRANSCRIBE_ONLINE))
         self._auto_describe_check.Bind(wx.EVT_CHECKBOX, self._on_auto_ai_changed)
 
+    def _online_auto_transcribe(self) -> bool:
+        """Settings > Transcriptions & Descriptions > "transcribe automatically"
+        (install-wide); False when it cannot be read."""
+        try:
+            return bool(self._mw._ai_media_preferences().get("auto_transcribe"))
+        except Exception:
+            return False
+
+    def _on_auto_transcription_changed(self, event, which):
+        box = (self._auto_transcribe_local_check if which == conversation_auto_ai.TRANSCRIBE_LOCAL
+               else self._auto_transcribe_online_check)
+        conversation_auto_ai.set_transcription(
+            self._mw.settings, self._mw._normalize_jid(self._jid), which, box.GetValue())
+        self._mw._schedule_save_settings()
+        event.Skip()
+
     def _on_auto_ai_changed(self, event):
-        jid = self._mw._normalize_jid(self._jid)
         conversation_auto_ai.set_allowed(
-            self._mw.settings, jid, conversation_auto_ai.TRANSCRIBE,
-            self._auto_transcribe_check.GetValue())
-        conversation_auto_ai.set_allowed(
-            self._mw.settings, jid, conversation_auto_ai.DESCRIBE,
+            self._mw.settings, self._mw._normalize_jid(self._jid), conversation_auto_ai.DESCRIBE,
             self._auto_describe_check.GetValue())
         self._mw._schedule_save_settings()
         event.Skip()
@@ -1480,8 +1511,10 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         if msg is None or panel is None or not self._panel_is_on_this_chat():
             return
         msg_type = msg.get("messageType", "")
-        if msg_type in ("imageMessage", "videoMessage") and hasattr(
-                panel, "open_media_viewer_for_message"):
+        # A video set to be transcribed by Enter is, here too: the viewer
+        # branch below ran first and played it whatever the setting said.
+        if msg_type in ("imageMessage", "videoMessage") and not enter_transcribes(
+                panel, msg) and hasattr(panel, "open_media_viewer_for_message"):
             self._invoke(lambda: panel.open_media_viewer_for_message(msg))
             return
         # By message, never by row index. This tab lists the conversation's
@@ -1521,7 +1554,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         panel = self._conversation_panel()
         if msg is None or panel is None or not self._panel_is_on_this_chat():
             return
-        self._invoke(lambda: panel.save_media_message(msg))
+        self._invoke(lambda: panel.save_media_message(msg, parent=self))
 
     def _delete_selected_media(self):
         """Delete the selected row through the panel's own delete flow.
@@ -1586,7 +1619,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         key = chr(code) if 32 < code < 127 else ""
         method = None
         if ctrl and shift and key == "S":
-            self._invoke(lambda: panel.save_media_message(msg))
+            self._invoke(lambda: panel.save_media_message(msg, parent=self))
             return
         elif alt and shift and key == "D":
             method = "_on_menu_message_data"
@@ -1656,7 +1689,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
                 wx.ID_ANY, f"{i18n.t('save_as')}	Ctrl+Shift+S")
             self.Bind(
                 wx.EVT_MENU,
-                lambda _e: self._invoke(lambda: panel.save_media_message(msg)),
+                lambda _e: self._invoke(lambda: panel.save_media_message(msg, parent=self)),
                 save_item,
             )
             added_any[0] = True
