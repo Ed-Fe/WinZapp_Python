@@ -325,3 +325,28 @@ def test_with_the_option_on_an_approved_newest_release_is_still_vetted(monkeypat
     checker._mw.settings = {"general": {"wpp_all_updates": True}}
     checker._check_once()
     assert prompts == [("2.10.16", "2.10.18", "v2.10.18", False, True)]
+
+
+def test_with_every_release_on_a_required_update_still_goes_to_an_approved_one(monkeypatch):
+    """Below the pin the user is being repaired, not opting in: the newest
+    upstream release is never the target there."""
+    from core import wpp_upstream
+    monkeypatch.setattr(wpp_upstream, "fetch_latest_tag", lambda *a, **k: "v2.10.30")
+    checker, prompts, _ = _checker(monkeypatch, "2.10.10", "v2.10.16", ("v2.10.18", True))
+    checker._mw.settings = {"general": {"wpp_all_updates": True}}
+    checker._check_once()
+    assert prompts == [("2.10.10", "2.10.18", "v2.10.18", True, True)]
+
+
+def test_with_every_release_on_force_reinstall_stays_on_approved_or_pin(monkeypatch):
+    from core import wpp_upstream
+    monkeypatch.setattr(wpp_upstream, "fetch_latest_tag",
+                        lambda *a, **k: pytest.fail("Force Reinstall asked GitHub"))
+    checker = WppUpdateChecker.__new__(WppUpdateChecker)
+    checker._mw = _MW("2.10.16")
+    checker._mw.settings = {"general": {"wpp_all_updates": True}}
+    checker._pinned_tag = lambda: "v2.10.16"
+    checker._approved_tag = lambda pin: ("v2.10.18", True)
+    assert checker._reinstall_tag() == "v2.10.18"
+    checker._approved_tag = lambda pin: ("", True)
+    assert checker._reinstall_tag() == "v2.10.16"

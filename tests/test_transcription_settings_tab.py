@@ -2973,13 +2973,29 @@ class TestVerifyingLandsOnTheResultField:
         management.ACTION_VERIFY_MODEL,
         management.ACTION_VERIFY_CUDA_RUNTIME,
     ])
-    def test_the_verification_moves_the_focus_to_the_field(self, tab, action):
+    def test_the_verification_moves_the_focus_to_the_field(self, tab, action, monkeypatch):
+        # Pressed in the window the field is in (the tab).
+        monkeypatch.setattr(wx.Window, "FindFocus",
+                            staticmethod(lambda: tab._transcription_substituted_field))
         tab._load_transcription_values()
         tab._select_transcription_model("small")
         self._say(tab)
         taken = self._watch(tab)
         tab._restore_transcription_focus(action)
         assert taken == ["result"]
+
+    def test_a_check_in_another_window_keeps_the_focus_there(self, tab, monkeypatch):
+        """The CUDA and whisper.cpp checks run in windows of their own; the
+        field is on the tab, behind the modal window, where a focus would be
+        lost. The answer is spoken anyway."""
+        elsewhere = SimpleNamespace(GetTopLevelParent=lambda: object())
+        monkeypatch.setattr(wx.Window, "FindFocus", staticmethod(lambda: elsewhere))
+        tab._load_transcription_values()
+        tab._select_transcription_model("small")
+        self._say(tab)
+        taken = self._watch(tab)
+        tab._restore_transcription_focus(management.ACTION_VERIFY_CUDA_RUNTIME)
+        assert "result" not in taken
 
     def test_with_nothing_to_show_the_old_rule_still_applies(self, tab):
         tab._load_transcription_values()
@@ -4807,3 +4823,13 @@ class TestTheWhisperCppProgram:
         assert tab._whisper_cpp_combo.GetString(0) == (
             transcription_whisper_cpp.whisper_cpp_build_label(
                 pl, _CPU_BUILD, whisper_cpp_runtime.STATE_ABSENT))
+
+
+def test_shares_window_compares_the_top_level_windows():
+    from ui.dialogs.transcription_result_field import shares_window
+    top = object()
+    a = SimpleNamespace(GetTopLevelParent=lambda: top)
+    b = SimpleNamespace(GetTopLevelParent=lambda: top)
+    c = SimpleNamespace(GetTopLevelParent=lambda: object())
+    assert shares_window(a, b) and not shares_window(a, c)
+    assert not shares_window(a, None) and not shares_window(None, a)

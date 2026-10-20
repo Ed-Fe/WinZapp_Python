@@ -14,6 +14,7 @@ import wx
 
 from core.transcription import residency
 from core.transcription import stored as stored_transcription
+from ui.dialogs.settings_pages import owner_window
 
 
 class TranscriptionOptionsMixin:
@@ -73,7 +74,8 @@ class TranscriptionOptionsMixin:
     def _ask_replace_automatic(self, key) -> bool:
         i18n = self.main_window.i18n
         return wx.MessageBox(
-            i18n.t(key), i18n.t("settings_title"), wx.YES_NO | wx.ICON_QUESTION, self
+            i18n.t(key), i18n.t("settings_title"), wx.YES_NO | wx.ICON_QUESTION,
+            owner_window(wx.GetActiveWindow(), self)
         ) == wx.YES
 
     def _on_local_auto_toggle(self, event) -> None:

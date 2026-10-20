@@ -122,7 +122,8 @@ class WhatsAppPrivacyPanel(wx.ScrolledWindow):
         unknown = privacy.unrecognized_fields(settings)
         if unknown:
             notes.append(i18n.t("wa_privacy_unrecognized_fields").format(
-                settings=", ".join(i18n.t(field.label_key) for field in unknown)))
+                settings=", ".join(i18n.t(field.label_key).replace("&", "")
+                                   for field in unknown)))
 
         self._status_loaded = privacy.parse_status_privacy(answer.get("status"))
         if self._status_loaded is None:

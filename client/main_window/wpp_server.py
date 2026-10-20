@@ -969,6 +969,12 @@ class WppServerMixin:
         # allocation below. Saved as the connection port too, so the other
         # accounts' allocation (_peer_node_ports()) keeps away from it.
         fixed = local_api_port.fixed_port(self.settings)
+        if fixed is not None and not local_api_port.usable(
+                self._is_port_free(fixed), self._port_runs_our_api(fixed)):
+            logging.warning(
+                "[node-port] the fixed port %s is held by another program — using an "
+                "automatic port for this run", fixed)
+            fixed = None
         if fixed is not None:
             if conn.get("wpp_port") != fixed:
                 self.settings.setdefault("connection", {})["wpp_port"] = fixed
@@ -1007,6 +1013,25 @@ class WppServerMixin:
         logging.info("[node-port] account %s → WPPConnect port %s",
                      getattr(self, "account_id", None), port)
         return port
+
+    def _port_runs_our_api(self, port: int) -> bool:
+        """Whether *port* is held by a WinZapp Node of this install (its
+        /winzapp/identity answers with our installation id). Never raises."""
+        gd = getattr(self, "global_dir", None)
+        if not gd:
+            return False
+        try:
+            import node_coord
+            import requests
+            from core import local_api_port
+            with requests.Session() as session:
+                session.trust_env = False  # the local API never goes through a proxy
+                with session.get(f"http://127.0.0.1:{int(port)}/winzapp/identity",
+                                 timeout=1, allow_redirects=False) as response:
+                    identity = response.json() if response.status_code == 200 else None
+            return local_api_port.identity_is_ours(identity, node_coord.installation_id(gd))
+        except Exception:
+            return False
 
     def _is_wpp_running(self):
         """Return True if the WPPConnect is already listening on the configured server/port."""

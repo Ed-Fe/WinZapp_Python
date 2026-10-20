@@ -67,12 +67,13 @@ class TestLocalApiPort:
         assert (local_api_port.SECTION, local_api_port.KEY) in EXCLUDED_KEYS
 
 
-def _port_window(settings, conn, *, registry=True):
+def _port_window(settings, conn, *, registry=True, free=True, ours=False):
     saved = []
     window = types.SimpleNamespace(
         settings=settings, account_id="acc" if registry else None,
         registry=object() if registry else None, global_dir=None,
         save_settings=lambda: saved.append(dict(settings.get("connection", {}))),
+        _is_port_free=lambda port: free, _port_runs_our_api=lambda port: ours,
     )
     from main_window.wpp_server import WppServerMixin
     window._resolve_wpp_port = WppServerMixin._resolve_wpp_port.__get__(window)
@@ -97,6 +98,29 @@ class TestResolveWithAFixedPort:
                     "connection": {"wpp_custom_api": True, "wpp_port": 8443}}
         window, _ = _port_window(settings, settings["connection"])
         assert window._resolve_wpp_port(settings["connection"]) == 8443
+
+    def test_a_fixed_port_another_program_holds_is_not_used_this_run(self):
+        """Reported by the reviewer: WinZapp "reused" that program as its API
+        and could kill it at exit when it was a node.exe."""
+        settings = {"advanced": {"local_api_port": 7000}, "connection": {"wpp_port": 6305}}
+        window, _ = _port_window(settings, settings["connection"], registry=False, free=False)
+        assert window._resolve_wpp_port(settings["connection"]) == 6305
+        assert settings["advanced"]["local_api_port"] == 7000, "tried again next start"
+
+    def test_a_fixed_port_held_by_our_own_node_is_reused(self):
+        settings = {"advanced": {"local_api_port": 7000}, "connection": {}}
+        window, _ = _port_window(settings, settings["connection"], registry=False,
+                                 free=False, ours=True)
+        assert window._resolve_wpp_port(settings["connection"]) == 7000
+
+    def test_identity_of_our_install_only(self):
+        assert local_api_port.identity_is_ours(
+            {"protocol_version": 1, "installation_id": "abc"}, "abc")
+        assert not local_api_port.identity_is_ours(
+            {"protocol_version": 1, "installation_id": "other"}, "abc")
+        assert not local_api_port.identity_is_ours({"installation_id": "abc"}, "abc")
+        assert not local_api_port.identity_is_ours(None, "abc")
+        assert not local_api_port.identity_is_ours({"protocol_version": 1, "installation_id": ""}, "")
 
     def test_automatic_is_unchanged(self):
         settings = {"advanced": {"local_api_port": 0}, "connection": {"wpp_port": 6305}}
@@ -257,3 +281,30 @@ class TestThePage:
         page._apply_advanced_values()
         assert applied == ["error"]
         assert page.main_window.settings["advanced"]["local_api_port"] == 6400
+
+
+class TestTheFixedPortFollowsTheCustomApi:
+    def test_off_with_the_custom_api(self):
+        page = _page({})
+        page._fixed_port_check = _Value(True)
+        page._custom_api_check = _Value(True)
+        page._sync_fixed_port_field()
+        assert not page._fixed_port_check.enabled and not page._fixed_port_field.enabled
+        page._custom_api_check.value = False
+        page._sync_fixed_port_field()
+        assert page._fixed_port_check.enabled and page._fixed_port_field.enabled
+
+
+def test_a_question_opens_over_the_window_the_user_is_in():
+    from ui.dialogs.settings_pages import owner_window
+    settings, sub = object(), object()
+    assert owner_window(sub, settings) is sub
+    assert owner_window(None, settings) is settings
+
+
+def test_the_privacy_notice_names_fields_without_their_mnemonic():
+    import inspect
+    from ui.dialogs import whatsapp_privacy_panel
+    source = inspect.getsource(whatsapp_privacy_panel)
+    line = source[source.index('"wa_privacy_unrecognized_fields"'):][:200]
+    assert '.replace("&", "")' in line

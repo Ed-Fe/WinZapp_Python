@@ -380,6 +380,11 @@ class AISettingsPage(ScrolledPanel):
         for child in self.GetChildren():
             if child is not self.enabled:
                 child.Show(shown)
+        # The automatic options' window too: the settings search reads its
+        # controls (add_subpage), and must not offer them with AI turned off.
+        for child in self.auto_panel.GetChildren():
+            child.Show(shown)
+        self.auto_panel.Layout()
         self.Layout()
         self.SetupScrolling(scroll_x=False, rate_y=15, scrollIntoView=True)
 

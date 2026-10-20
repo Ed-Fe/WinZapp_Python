@@ -66,7 +66,12 @@ class AdvancedTabMixin:
         self._notebook.AddPage(self._advanced_page, i18n.t("tab_advanced"))
 
     def _sync_fixed_port_field(self) -> None:
-        self._fixed_port_field.Enable(self._fixed_port_check.GetValue())
+        """The fixed port is the bundled API's: with the custom API on (the
+        Connection page) it does nothing, so both controls are off."""
+        custom = getattr(self, "_custom_api_check", None)
+        bundled = not (custom is not None and custom.GetValue())
+        self._fixed_port_check.Enable(bundled)
+        self._fixed_port_field.Enable(bundled and self._fixed_port_check.GetValue())
 
     def _load_advanced_values(self) -> None:
         settings = self.main_window.settings

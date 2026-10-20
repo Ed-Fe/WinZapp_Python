@@ -2105,14 +2105,18 @@ class WppUpdateChecker:
         pin = self._pinned_tag()
         if not pin:
             return ""
-        return self._offered_tag(pin, self._approved_tag(pin)[0]) or pin
+        return self._approved_tag(pin)[0] or pin
 
     def _offered_tag(self, pin: str, approved: str) -> str:
-        """The release this check may offer above the pin: the approved one,
-        or, with Settings > Advanced > "Show every WPPConnect Server update"
-        on (core/wpp_upstream.py), the newer of it and the newest upstream
-        release. "" when there is none; wpp_update_target() still never
-        offers anything below the pin."""
+        """The release a *recommended* update may offer above the pin: the
+        approved one, or, with Settings > Advanced > "Show every WPPConnect
+        Server update" on (core/wpp_upstream.py), the newer of it and the
+        newest upstream release. "" when there is none; wpp_update_target()
+        still never offers anything below the pin.
+
+        Never the target of Force Reinstall (_reinstall_tag()) or of a
+        required update: a repair, or an install below the pin, must land on
+        a release the patches were written for (docs/traps/updater-channels.md)."""
         from core import wpp_upstream
         if not wpp_upstream.enabled(getattr(getattr(self, "_mw", None), "settings", None)):
             return approved
@@ -2137,8 +2141,15 @@ class WppUpdateChecker:
                 # A dev checkout: no pin, nothing to compare, nothing approved.
                 return
             approved, reachable = self._approved_tag(minimum)
-            target = wpp_update_target(installed, minimum,
-                                       self._offered_tag(minimum, approved))
+            # Below the pin the update is required, and goes to the pin or an
+            # approved release only. Above it, the recommended offer may also
+            # be the newest upstream release when the user asked for that.
+            target = wpp_update_target(installed, minimum, approved)
+            if target is None or not target[1]:
+                upstream = wpp_update_target(installed, minimum,
+                                             self._offered_tag(minimum, approved))
+                if upstream is not None and not upstream[1]:
+                    target = upstream
             if target is None:
                 # The approved list can grow while this process runs; an
                 # unreachable one (no network yet at a Windows login) is read

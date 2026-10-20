@@ -22,6 +22,16 @@ import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 
 
+def owner_window(active, fallback):
+    """The window a question or a folder picker opens over: the one active now
+    (a SubPageDialog, when the option lives in one), else *fallback*.
+
+    Parented to the Settings dialog while a SubPageDialog is up, the box opened
+    over a window disabled behind the modal one, and closing it sent the focus
+    back there instead of to the option the user was on."""
+    return active if active is not None else fallback
+
+
 class ScrollingPage(ScrolledPanel):
     """A page that scrolls instead of making the dialog taller than the screen."""
 

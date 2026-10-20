@@ -1847,7 +1847,7 @@ def setup_logging():
 
         # Silence very noisy third-party libraries
         for _lib in ("urllib3", "requests", "socketio", "engineio",
-                     "charset_normalizer", "websocket", "PIL"):
+                     "charset_normalizer", "websocket", "PIL", "comtypes"):
             logging.getLogger(_lib).setLevel(logging.ERROR)
 
         logging.warning("WinZapp client starting up...")

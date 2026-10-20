@@ -18,6 +18,7 @@ import threading
 import wx
 
 from core.transcription import management_text, reused_runtimes
+from ui.dialogs.settings_pages import owner_window
 
 #: The words of each row, the same on both: relabelled by kind in
 #: _refresh_transcription_reuse_labels(), where the dicts below keep each control.
@@ -159,7 +160,8 @@ class TranscriptionReuseMixin:
         _label, dialog_key, _setting = _KINDS[kind]
         current = self._transcription_reuse_dirs[kind]
         default_path = current if current and os.path.isdir(current) else ""
-        with wx.DirDialog(self, message=i18n.t(dialog_key), defaultPath=default_path,
+        with wx.DirDialog(owner_window(wx.GetActiveWindow(), self),
+                          message=i18n.t(dialog_key), defaultPath=default_path,
                           style=wx.DD_DEFAULT_STYLE) as dlg:
             if dlg.ShowModal() != wx.ID_OK:
                 return
@@ -199,7 +201,8 @@ class TranscriptionReuseMixin:
             self.main_window.speak_output.output(text, interrupt=True)
             return
         self._show_transcription_reuse()
-        wx.MessageBox(text, i18n.t("settings_title"), wx.OK | wx.ICON_INFORMATION, self)
+        wx.MessageBox(text, i18n.t("settings_title"), wx.OK | wx.ICON_INFORMATION,
+                      owner_window(wx.GetActiveWindow(), self))
 
     def _on_transcription_reuse_forget(self, kind) -> None:
         if not self._transcription_reuse_dirs[kind]:

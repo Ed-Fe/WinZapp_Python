@@ -10,9 +10,14 @@ folder, so it cannot see this one's accounts), each pick it again.
 A fixed port, set per account, wins over that allocation for the bundled API
 only (a custom API keeps the Connection page's port). 0 means automatic. It
 takes effect the next time the account starts, since the Node of this run is
-already listening. Taken by something else when Node is about to start, it
-falls back to the automatic choice for that run rather than failing to bind
-(MainWindow._ensure_wpp_port_still_free()).
+already listening.
+
+Held by another program at start (`usable()`), it is not used for that run:
+WinZapp would otherwise "reuse" that program as its API (ensure_wpp_running()
+sees something listening) and, finding no process of its own on the port at
+exit, kill it if it is a node.exe. The automatic port is used instead and the
+fixed one is tried again at the next start. A WinZapp Node of this install on
+it (its /winzapp/identity answers with our installation id) is ours to reuse.
 """
 
 SECTION = "advanced"
@@ -37,6 +42,18 @@ def parse_port(value):
     if isinstance(value, int) and MIN_PORT <= value <= MAX_PORT:
         return value
     return None
+
+
+def usable(port_free: bool, runs_our_api: bool) -> bool:
+    """Whether a fixed port can be used this run: free, or already running a
+    WinZapp API of this install."""
+    return bool(port_free or runs_our_api)
+
+
+def identity_is_ours(identity, installation_id: str) -> bool:
+    """Whether a /winzapp/identity answer is a WinZapp Node of this install."""
+    return (isinstance(identity, dict) and identity.get("protocol_version") == 1
+            and bool(installation_id) and identity.get("installation_id") == installation_id)
 
 
 def fixed_port(settings):

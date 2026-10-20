@@ -20,6 +20,8 @@ here, apart from the 1,900-line tab that owns the field:
   when nothing else has anything to say.
 """
 
+import wx
+
 from core.transcription import management as transcription_management
 
 #: The three management verifications. The check of a folder in another
@@ -29,6 +31,22 @@ VERIFY_ACTIONS = (
     transcription_management.ACTION_VERIFY_CUDA_RUNTIME,
     transcription_management.ACTION_VERIFY_WHISPER_CPP,
 )
+
+
+def shares_window(control, other) -> bool:
+    """Whether two controls are in the same top-level window.
+
+    The CUDA, whisper.cpp and external-model checks run from windows of their
+    own (transcription_windows.py) while the result field stays on the tab:
+    focusing it from there put the focus in the Settings dialog, disabled
+    behind the modal window, and the user lost their place. The answer is
+    spoken either way (_announce_transcription_result())."""
+    if control is None or other is None:
+        return False
+    try:
+        return control.GetTopLevelParent() is other.GetTopLevelParent()
+    except RuntimeError:  # a window already destroyed
+        return False
 
 
 class TranscriptionResultFieldMixin:
@@ -42,6 +60,10 @@ class TranscriptionResultFieldMixin:
         """
         field = self._transcription_substituted_field
         if not field.IsShown():
+            return False
+        if not shares_window(field, wx.Window.FindFocus()):
+            # The check ran in another window (see shares_window()): the focus
+            # stays there, under the caller's own rule.
             return False
         field.SetFocus()
         return True

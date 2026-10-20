@@ -3129,6 +3129,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
     def _on_custom_api_toggle(self, event):
         self._update_fields_state()
+        self._sync_fixed_port_field()
         event.Skip()
 
     def _on_media_cleanup(self, event):
