@@ -82,6 +82,25 @@ class TestSendingAgain:
         assert stub.removed_ids == [{"loc-1"}]
         assert stub.main_window.message_queue.enqueued == []
 
+    def test_a_failure_whatsapp_reported_goes_under_its_real_id_too(self):
+        """Reviewer: an ack -1 marks a row that already has WhatsApp's id in
+        key.id; removing only the local id left it focused and offering the
+        action, and each press sent another copy."""
+        failed = _msg(_send_failed=True)
+        failed["key"]["id"] = "3EB0REAL"
+        stub = _ResendStub([failed])
+        stub._on_menu_resend_message(failed)
+        assert stub.removed_ids == [{"loc-1", "3EB0REAL"}]
+        assert stub.main_window.spoken == ["resend_started"]
+
+    def test_an_attachment_that_can_no_longer_be_sent_keeps_its_row(self, tmp_path):
+        clip = tmp_path / "clip.mp4"
+        clip.write_bytes(b"x")
+        stub = _MediaStub([_video(str(clip), _send_failed=True)])
+        stub._send_attachment_file = lambda *a: False
+        stub._on_menu_resend_message(stub._sorted_messages[0])
+        assert stub.removed_ids == [] and stub.main_window.spoken == []
+
     def test_nothing_to_send_again_sends_nothing(self):
         stub = _ResendStub([_msg()])
         stub._on_menu_resend_message(stub._sorted_messages[0])
@@ -118,3 +137,11 @@ class TestTheKey:
     def test_the_attachment_row_records_its_file(self):
         src = inspect.getsource(ConversationsPanel._send_attachment_file)
         assert "RESEND_PATH_KEY: path" in src
+
+
+def test_a_delivered_attachment_forgets_its_local_path():
+    """Reviewer: _resend_path stayed in messages.db for every sent file."""
+    from core.reply_failure import clear_reply_draft
+    record = _video("C:/Users/ana/Desktop/clip.mp4")
+    clear_reply_draft(record)
+    assert RESEND_PATH_KEY not in record

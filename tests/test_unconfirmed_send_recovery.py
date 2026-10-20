@@ -364,6 +364,11 @@ class _FakeMainWindowForResend:
     def __init__(self):
         self.message_queue = _FakeQueue()
         self.set_chats_calls = 0
+        self.spoken = []
+        self.i18n = type("_I18n", (), {"t": staticmethod(lambda key: key)})()
+
+    def output(self, text, interrupt=False):
+        self.spoken.append(text)
 
     def _schedule_set_chats(self):
         self.set_chats_calls += 1

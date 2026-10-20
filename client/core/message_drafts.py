@@ -65,10 +65,26 @@ class MessageDrafts:
             return
         self._drafts[jid] = Draft(text, list(mentions or ()), dict(mention_names or {}))
 
-    def take(self, jid):
+    def take(self, jid, same_chat=None):
         """*jid*'s draft, handed back and forgotten (it is in the field again);
-        None when there is none."""
-        return self._drafts.pop(jid, None) if jid else None
+        None when there is none.
+
+        *same_chat(stored, jid)* finds a draft kept under another spelling of
+        the chat: an @lid chat re-keyed to its phone JID, a Brazilian number
+        with or without the extra 9."""
+        if not jid:
+            return None
+        if jid in self._drafts:
+            return self._drafts.pop(jid)
+        if same_chat is not None:
+            for stored in list(self._drafts):
+                try:
+                    match = same_chat(stored, jid)
+                except Exception:
+                    match = False
+                if match:
+                    return self._drafts.pop(stored)
+        return None
 
     def clear(self) -> None:
         self._drafts.clear()

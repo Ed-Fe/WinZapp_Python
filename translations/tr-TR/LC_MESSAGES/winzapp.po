@@ -9124,6 +9124,12 @@ msgid "This message has nothing to send again."
 msgstr "Bu mesajın yeniden denenecek bir gönderimi yok."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/message_actions.py
+msgctxt "resend_started"
+msgid "Sending again."
+msgstr "Yeniden gönderiliyor."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
 msgctxt "restart_required_message"
 msgid "Some changes will only take effect after restarting WinZapp."

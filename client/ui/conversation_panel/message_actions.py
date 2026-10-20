@@ -865,19 +865,33 @@ class MessageActionsMixin:
         content = request[1] if request[0] == "text" else ""
 
         old_local_id = str(msg.get("_local_id") or "")
-        if old_local_id:
-            # Harmless no-op on message_queue's side — an unconfirmed send
-            # has already left its queue by definition — but still clears
-            # this row's own tracking entries the same way a dismiss would.
-            self.main_window.message_queue.cancel(old_local_id)
-            self._outgoing_virtual_messages.pop(old_local_id, None)
-            self.remove_messages_by_id({old_local_id}, focus_previous=True)
+        # The row goes under both ids: a send WhatsApp itself reported as
+        # failed (ack -1) already carries its real id in key.id, and removing
+        # only the local one left the failed row focused and offering this
+        # action again, so each press sent another copy.
+        old_ids = {i for i in (old_local_id, str((msg.get("key") or {}).get("id") or "")) if i}
+
+        def _drop_old_row():
+            if old_local_id:
+                # Harmless no-op on message_queue's side — an unconfirmed send
+                # has already left its queue by definition — but still clears
+                # this row's own tracking entries the same way a dismiss would.
+                self.main_window.message_queue.cancel(old_local_id)
+                self._outgoing_virtual_messages.pop(old_local_id, None)
+            if old_ids:
+                self.remove_messages_by_id(old_ids, focus_previous=True)
 
         if request[0] == "media":
             _kind, path, media_type, caption = request
+            # Only once the copy is queued: a file that can no longer be sent
+            # (too large now) keeps its failed row instead of vanishing.
             if self._send_attachment_file(remote_jid, path, media_type, caption, None):
+                _drop_old_row()
                 self.main_window._schedule_set_chats()
+                self.main_window.output(self.main_window.i18n.t("resend_started"), interrupt=True)
             return
+
+        _drop_old_row()
 
         local_id = str(uuid.uuid4())
         virtual_msg = {
@@ -906,6 +920,7 @@ class MessageActionsMixin:
 
         self._register_virtual_msg(virtual_msg)
         self.main_window._schedule_set_chats()
+        self.main_window.output(self.main_window.i18n.t("resend_started"), interrupt=True)
 
     def _on_cancel_edit(self, event=None):
         """Leave edit mode without saving."""

@@ -7,11 +7,9 @@ core/message_drafts.py directly, and the mixin's unbound methods on a plain
 stub; no window opens.
 """
 
-import inspect
 from types import SimpleNamespace
 
 from core.message_drafts import MessageDrafts
-from ui.conversation_panel import conversation_navigation
 from ui.conversation_panel.composer import ComposerMixin
 from ui.conversation_panel.message_drafts import MessageDraftsMixin
 
@@ -152,15 +150,98 @@ def test_a_restored_draft_tells_no_one_it_is_being_typed():
     assert sent == []
 
 
-def test_navigation_and_closing_keep_the_draft():
-    source = inspect.getsource(conversation_navigation)
-    navigate = source[source.index("    def navigate_to_conversation("):]
-    navigate = navigate[:navigate.index("\n    def ", 10)]
-    assert navigate.index("self._stash_message_draft()") < navigate.index(
-        "self.conversation = conversation\n        self._restore_message_draft()")
-    close = source[source.index("    def _close_conversation_core("):]
-    close = close[:close.index("\n    def ", 10)]
-    assert close.index("self._stash_message_draft()") < close.index("self.conversation = None")
+def _running(method, stub, *args, **kwargs):
+    """The real navigation method on a MagicMock panel: every attribute the
+    test does not set answers harmlessly, so the method's own order runs."""
+    import wx
+    from unittest import mock
+    with mock.patch.object(wx, "CallAfter", lambda *a, **k: None):
+        return method(stub, *args, **kwargs)
+
+
+def test_opening_another_conversation_keeps_the_draft_with_its_mentions():
+    """Reviewer: the mentions were reset before the draft was taken, so a
+    restored "@Carla" no longer mentioned her."""
+    from unittest.mock import MagicMock
+    from ui.conversations import ConversationsPanel
+    stub = MagicMock()
+    stub.conversation = {"remoteJid": ANA}
+    stub._pending_mentions = ["carla@lid"]
+    stub._current_audio_id = None
+    seen = []
+    stub._stash_message_draft = lambda: seen.append(("stash", list(stub._pending_mentions)))
+    stub._restore_message_draft = lambda: seen.append(("restore", stub.conversation["remoteJid"]))
+    _running(ConversationsPanel.navigate_to_conversation, stub, {"remoteJid": BIA}, take_focus=False)
+    assert seen == [("stash", ["carla@lid"]), ("restore", BIA)]
+
+
+def test_closing_keeps_the_draft_before_the_composer_is_reset():
+    from unittest.mock import MagicMock
+    from ui.conversations import ConversationsPanel
+    stub = MagicMock()
+    stub.conversation = {"remoteJid": ANA}
+    stub._mention_panel.IsShown.return_value = False
+    stub._editing_message_id = None
+    stub._quoted_message = None
+    order = []
+    stub._stash_message_draft = lambda: order.append("stash")
+    stub._hide_attachment_panel = lambda: order.append("attachments")
+    _running(ConversationsPanel._close_conversation_core, stub)
+    assert order[:2] == ["stash", "attachments"] and stub.conversation is None
+
+
+class _Caption(_Field):
+    pass
+
+
+class TestWhatTravelsWithTheDraft:
+    def _panel(self):
+        panel = _Panel()
+        panel._caption_field = _Caption()
+        panel.previews_cleared = 0
+        panel.previews_checked = 0
+        panel._clear_link_preview = lambda: setattr(panel, "previews_cleared", panel.previews_cleared + 1)
+        panel._schedule_link_preview_check = lambda: setattr(
+            panel, "previews_checked", panel.previews_checked + 1)
+        return panel
+
+    def test_a_caption_taken_from_the_field_is_the_draft(self):
+        """Reviewer: A's caption went out with the next file staged in B."""
+        panel = self._panel()
+        panel.open(ANA)
+        panel._caption_field.value = "legenda de A"
+        panel.open(BIA)
+        assert panel._caption_field.value == ""
+        panel.open(ANA)
+        assert panel.message_field.value == "legenda de A"
+
+    def test_the_link_preview_does_not_follow_into_the_next_conversation(self):
+        panel = self._panel()
+        panel.open(ANA)
+        panel.message_field.value = "olha https://example.com"
+        panel._link_preview_dismissed_url = "https://example.com"
+        panel.previews_cleared = 0
+        panel.open(BIA)
+        assert panel.previews_cleared == 1 and panel._link_preview_dismissed_url is None
+        panel.open(ANA)
+        assert panel.previews_checked == 1
+
+    def test_a_multiline_draft_comes_back_with_windows_line_breaks(self):
+        panel = self._panel()
+        panel.open(ANA)
+        panel.message_field.value = "linha 1" + chr(10) + "linha 2"
+        panel.open(BIA)
+        panel.open(ANA)
+        assert panel.message_field.value == "linha 1" + chr(13) + chr(10) + "linha 2"
+
+    def test_an_lid_chat_re_keyed_to_its_phone_finds_its_draft(self):
+        panel = self._panel()
+        panel.main_window._chat_jids_equivalent = lambda a, b: {a, b} == {"123@lid", ANA}
+        panel.open("123@lid")
+        panel.message_field.value = "rascunho"
+        panel.open(BIA)
+        panel.open(ANA)
+        assert panel.message_field.value == "rascunho"
 
 
 def _with_mode(panel, mode):

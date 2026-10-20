@@ -283,6 +283,10 @@ class ConversationNavigationMixin:
         except Exception:
             logging.exception("[conversations] could not record the open (non-fatal)")
         self._stop_typing_for_current_conversation()
+        # The field's text stays with the conversation it was typed in
+        # (message_drafts.py): kept now, before the mentions and the
+        # attachment panel below are reset; put back once the new one is set.
+        self._stash_message_draft()
         if hasattr(self, "close_ai_media"):
             self.close_ai_media()
         self._cancel_active_recording()
@@ -339,9 +343,6 @@ class ConversationNavigationMixin:
             self._search_panel.Hide()
             self._search_open_btn.Show()
             self._search_field.SetValue("")
-        # The field's text stays with the conversation it was typed in
-        # (message_drafts.py): kept for the one being left, put back for this.
-        self._stash_message_draft()
         self.conversation = conversation
         self._restore_message_draft()
         self._begin_pinned_messages_visit()
@@ -579,6 +580,8 @@ class ConversationNavigationMixin:
             self.message_field.SetFocus()
             return False, ""
         self._stop_contact_presence()
+        # Before the composer is reset below (message_drafts.py).
+        self._stash_message_draft()
         if hasattr(self, "close_ai_media"):
             self.close_ai_media()
         self._stop_typing_for_current_conversation()
@@ -609,7 +612,6 @@ class ConversationNavigationMixin:
         self.selected_messages.clear()
         self._reset_expanded_window()
         closed_jid = self._last_open_jid
-        self._stash_message_draft()
         self.conversation = None
         self._conversation_origin = None
         self._voice_call_btn.Hide()
