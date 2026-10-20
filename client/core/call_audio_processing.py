@@ -27,6 +27,10 @@ import logging
 
 import numpy as np
 
+from core.call_echo_measure import (
+    MEASURE_MAX_LAG_S, MEASURE_RATE, MEASURE_WINDOW_S, decimate, dbfs, echo_coupling,
+)
+
 APM_SAMPLE_RATE = 48_000
 APM_FRAME = APM_SAMPLE_RATE // 100  # 10 ms, the only size the module accepts
 
@@ -88,6 +92,10 @@ class CallAudioProcessor:
         self._frames = 0
         self._reference_frames = 0
         self._errors = 0
+        # The last seconds at 8 kHz, for echo_measure().
+        self._history_ref = np.empty(0)
+        self._history_in = np.empty(0)
+        self._history_out = np.empty(0)
         self._apm = None
         if self._unavailable:
             return
@@ -131,6 +139,8 @@ class CallAudioProcessor:
         self._ref = np.concatenate((self._ref, data))
         while self._ref.size >= APM_FRAME:
             chunk, self._ref = self._ref[:APM_FRAME], self._ref[APM_FRAME:]
+            self._history_ref = self._remember(self._history_ref, chunk,
+                                               MEASURE_WINDOW_S + MEASURE_MAX_LAG_S)
             try:
                 self._apm.process_reverse_stream(self._frame_factory(chunk))
                 self._reference_frames += 1
@@ -161,9 +171,40 @@ class CallAudioProcessor:
                 self._errors += 1
                 out.append(chunk)
             self._frames += 1
+            if self._echo_cancellation:
+                self._history_in = self._remember(self._history_in, chunk, MEASURE_WINDOW_S)
+                self._history_out = self._remember(self._history_out, out[-1], MEASURE_WINDOW_S)
         if not out:
             return np.empty(0, dtype=np.float32)
         return np.concatenate(out)
+
+    @staticmethod
+    def _remember(history: np.ndarray, chunk: np.ndarray, seconds: float) -> np.ndarray:
+        history = np.concatenate((history, decimate(np.asarray(chunk, dtype=np.float64))))
+        keep = int(seconds * MEASURE_RATE)
+        return history[-keep:] if history.size > keep else history
+
+    def echo_measure(self) -> dict:
+        """The speaker's echo in the microphone, before and after the module.
+
+        ``echo_in`` near 1 with ``echo_out`` near 0 is the module working.
+        ``echo_out`` staying high: the echo is in the reference and the module
+        is not removing it. ``echo_in`` low while the other person hears
+        themselves: the echo reaches the microphone through a path the
+        reference does not carry (another program or device playing the call).
+        Only meaningful while the other person talks (``speaker_dbfs``).
+        """
+        if not self._echo_cancellation or self._history_in.size < MEASURE_RATE:
+            return {}
+        echo_in, lag_in = echo_coupling(self._history_ref, self._history_in)
+        echo_out, lag_out = echo_coupling(self._history_ref, self._history_out)
+        return {
+            "echo_in": echo_in, "echo_in_lag_ms": lag_in,
+            "echo_out": echo_out, "echo_out_lag_ms": lag_out,
+            "speaker_dbfs": dbfs(self._history_ref[-self._history_in.size:]),
+            "mic_dbfs": dbfs(self._history_in),
+            "sent_dbfs": dbfs(self._history_out),
+        }
 
     def diagnostics(self) -> dict:
         """What the processor is doing, for the call log."""
@@ -175,4 +216,5 @@ class CallAudioProcessor:
             "frames": self._frames,
             "reference_frames": self._reference_frames,
             "errors": self._errors,
+            **self.echo_measure(),
         }

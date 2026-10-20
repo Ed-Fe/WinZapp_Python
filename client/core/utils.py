@@ -1106,6 +1106,10 @@ DEFAULT_SETTINGS = {
         "terms_alert_displayed": False,
         "quick_tip_shown": False,
         "global_hotkey": None,
+        # System-wide keys that answer / reject-or-hang-up a call from any
+        # window (main_window/call_hotkeys.py). {"vk": 0, "mod": 0} = removed.
+        "call_answer_hotkey": {"vk": 13, "mod": 7},
+        "call_end_hotkey": {"vk": 8, "mod": 7},
         "switch_behavior": "single",
         # Master mute (Settings > Geral) for the spoken+sound announcements of
         # sync progress/completion, media downloads and the automatic offline

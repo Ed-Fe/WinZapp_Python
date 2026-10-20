@@ -2301,6 +2301,16 @@ msgid "&Yes"
 msgstr "&Yes"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "call_answer_hotkey_label"
+msgid "Global hotkey to answer an incoming call from any window"
+msgstr "Global hotkey to answer an incoming call from any window"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "call_end_hotkey_label"
+msgid "Global hotkey to reject an incoming call or end the call in progress"
+msgstr "Global hotkey to reject an incoming call or end the call in progress"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bulk_messages.py
 msgctxt "call_log_action_unavailable"
 msgid "This action is not available for calls."
@@ -6424,6 +6434,12 @@ msgstr "&Reject"
 msgctxt "incoming_call_reject_failed"
 msgid "Could not reject the call: {error}"
 msgstr "Could not reject the call: {error}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/call_hotkeys.py
+msgctxt "incoming_call_rejected"
+msgid "Call rejected."
+msgstr "Call rejected."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/main_window/shortcuts.py

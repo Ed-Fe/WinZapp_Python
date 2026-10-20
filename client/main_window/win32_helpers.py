@@ -80,11 +80,14 @@ class _HotkeyManager:
     _REFRESH_INTERVAL_SECONDS = 5 * 60
     _RETRY_INTERVAL_SECONDS = 15
 
-    def __init__(self, vk: int, mod: int, callback):
+    def __init__(self, vk: int, mod: int, callback, *, retry_seconds: float | None = None):
         self._vk       = vk
         self._mod      = mod
         self._callback = callback
+        # A key held only for a moment (a ringing call) retries sooner.
+        self._retry_seconds = retry_seconds or self._RETRY_INTERVAL_SECONDS
         self._stop     = threading.Event()
+        self._thread_id = 0  # Win32 id of the loop's thread, for stop() to wake it
         self._thread   = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -116,12 +119,13 @@ class _HotkeyManager:
                 ("pt",      _POINT),
             ]
 
+        self._thread_id = kernel32.GetCurrentThreadId()
         registered = self._register()
         if not registered:
             logging.error(
                 "[HotkeyManager] RegisterHotKey failed (error=%s) — will keep "
                 "retrying every %ds instead of giving up silently.",
-                kernel32.GetLastError(), self._RETRY_INTERVAL_SECONDS,
+                kernel32.GetLastError(), self._retry_seconds,
             )
 
         msg = _MSG()
@@ -148,7 +152,7 @@ class _HotkeyManager:
                 logging.exception("[HotkeyManager] Error in hotkey message loop")
 
             now = time.time()
-            if not registered and now - last_retry >= self._RETRY_INTERVAL_SECONDS:
+            if not registered and now - last_retry >= self._retry_seconds:
                 last_retry = now
                 registered = self._register()
                 if registered:
@@ -174,8 +178,20 @@ class _HotkeyManager:
         if registered:
             user32.UnregisterHotKey(None, self._HOTKEY_ID)
 
-    def stop(self):
+    def stop(self, wait: bool = False):
+        """Unregister the key. With ``wait`` it is free again on return, for a
+        caller about to register the same combination straight away."""
         self._stop.set()
+        if not wait or self._thread is threading.current_thread():
+            return
+        if self._thread_id:
+            # WM_NULL wakes the loop's wait at once instead of at its next
+            # 200 ms timeout, so the UI thread waiting here is not held up.
+            try:
+                ctypes.windll.user32.PostThreadMessageW(self._thread_id, 0, 0, 0)
+            except Exception:
+                pass
+        self._thread.join(timeout=1.0)
 
 
 def _vk_mod_to_str(vk: int, mod: int) -> str:

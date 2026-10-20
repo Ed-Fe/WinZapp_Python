@@ -4,6 +4,7 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "b7cc16c47a10": "Atender chamadas em qualquer janela: enquanto uma chamada individual toca, Ctrl+",
     "08bdfe02f5a9": "Atualizações: a instalação mantém a exclusividade depois que o WinZapp fecha, e ",
     "a6171f430b5b": "As chamadas de voz preservam o tempo entre os pacotes de áudio e usam conversão ",
     "4c6f7722e289": "A janela de Configurações agora tem um campo de busca e uma lista de categorias:",
@@ -126,6 +127,7 @@
     "329cb39b3860": "O cancelamento de eco nas chamadas de voz e vídeo agora funciona nas chamadas qu",
     "37a18225b15e": "WPPConnect Server atualizado para a 2.10.58. A biblioteca agora recusa iniciar u",
     "e3d4b07f51f4": "As atualizações do WPPConnect Server não são mais sugeridas por conta própria. O",
-    "227d631afa96": "O cancelamento de eco nas chamadas de voz e vídeo foi refeito com o mesmo motor "
+    "227d631afa96": "O cancelamento de eco nas chamadas de voz e vídeo foi refeito com o mesmo motor ",
+    "17ee1eb215b2": "O registro das chamadas (log.log) agora mostra, a cada 5 segundos, quanto do som"
   }
 }

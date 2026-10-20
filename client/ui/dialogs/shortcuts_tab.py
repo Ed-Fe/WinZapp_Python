@@ -5,6 +5,7 @@ from core.keyboard_shortcuts import (
     SECTION, Shortcut, action_text, binding_for, conflicts, default_binding,
     sanitize_overrides,
 )
+from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_setting
 from core.shortcut_catalog import SHORTCUTS
 from ui.shortcut_names import shortcut_name, hotkey_binding
 from ui.dialogs.shortcut_capture import ShortcutCaptureDialog
@@ -12,6 +13,13 @@ from ui.dialogs.settings_pages import SubPageDialog, _fold
 from ui.shortcut_bindings import refresh_shortcuts
 
 GLOBAL = Shortcut('global.restore', 'global', 'restore', 'global_hotkey_label', 0, 0)
+# The two call keys are system-wide too, but live in their own settings
+# (general.call_answer_hotkey / call_end_hotkey) and have a shipped key.
+CALL_ANSWER = Shortcut('global.call_answer', 'global', 'call_answer', 'call_answer_hotkey_label', 0, 0)
+CALL_END = Shortcut('global.call_end', 'global', 'call_end', 'call_end_hotkey_label', 0, 0)
+CALL_KEYS = {CALL_ANSWER.id: 'call_answer_hotkey', CALL_END.id: 'call_end_hotkey'}
+GLOBALS = (GLOBAL, CALL_ANSWER, CALL_END)
+GLOBAL_IDS = frozenset(s.id for s in GLOBALS)
 SCOPE_LABELS = {
     'global': 'shortcut_scope_global', 'main': 'shortcuts_nav_section',
     'navigation': 'main_nav',
@@ -35,7 +43,7 @@ def visible_shortcuts(window):
     hidden = (vault is not None and getattr(vault, 'configured', False)
               and getattr(vault, 'hide_navigation', False))
     accounts = bool(getattr(window, 'account_id', None) and getattr(window, 'registry', None))
-    seen, result = set(), [GLOBAL]
+    seen, result = set(), list(GLOBALS)
     for shortcut in SHORTCUTS:
         if hidden and (shortcut.scope == 'locked' or shortcut.id in ('main.ID_ALT_7', 'main.lock_vault')):
             continue
@@ -76,6 +84,9 @@ def shortcuts_help_text(window, i18n):
         if shortcut.id == GLOBAL.id:
             hotkey = window.settings.get('general', {}).get('global_hotkey') or {}
             binding = hotkey_binding(hotkey.get('vk', 0), hotkey.get('mod', 0))
+        elif shortcut.id in CALL_KEYS:
+            pair = call_hotkey_setting(window.settings.get('general', {}), CALL_KEYS[shortcut.id])
+            binding = hotkey_binding(*pair) if pair else None
         else:
             binding = binding_for(shortcut, window.settings.get(SECTION, {}), i18n.t)
         lines.append(f'{action_text(shortcut, i18n.t)}: {shortcut_name(binding, i18n)}')
@@ -87,6 +98,12 @@ class ShortcutsTabMixin:
         i18n = self.main_window.i18n
         self._shortcut_overrides = sanitize_overrides(
             copy.deepcopy(self.main_window.settings.get(SECTION, {})), SHORTCUTS)
+        general = self.main_window.settings.get('general', {})
+        self._call_hotkeys = {key: call_hotkey_setting(general, key) for key in CALL_HOTKEY_DEFAULTS}
+        # What the rows started from: a key left alone is not saved, so one
+        # shown as off only because the show-WinZapp key has its combination
+        # comes back by itself once that key moves.
+        self._call_hotkeys_loaded = dict(self._call_hotkeys)
         # A button on the Interface page opens these options in a window.
         self._shortcuts_dialog = SubPageDialog(
             self, i18n.t('tab_shortcuts').replace('&', ''), i18n.t('ok'),
@@ -146,6 +163,9 @@ class ShortcutsTabMixin:
     def _shortcut_binding(self, shortcut):
         if shortcut.id == GLOBAL.id:
             return hotkey_binding(self._hotkey_field._vk, self._hotkey_field._mod)
+        if shortcut.id in CALL_KEYS:
+            pair = self._call_hotkeys[CALL_KEYS[shortcut.id]]
+            return hotkey_binding(*pair) if pair else None
         return binding_for(shortcut, self._shortcut_overrides, self.main_window.i18n.t)
 
     def _shortcut_groups(self):
@@ -239,7 +259,7 @@ class ShortcutsTabMixin:
             return
         i18n = self.main_window.i18n
         dialog = ShortcutCaptureDialog(self._shortcuts_dialog, action_text(shortcut, i18n.t),
-                                       self._shortcut_binding(shortcut), shortcut.id == GLOBAL.id,
+                                       self._shortcut_binding(shortcut), shortcut.id in GLOBAL_IDS,
                                        main_window=self.main_window)
         try:
             if dialog.ShowModal() != wx.ID_OK:
@@ -249,6 +269,8 @@ class ShortcutsTabMixin:
             if shortcut.id == GLOBAL.id:
                 self._hotkey_field._vk, self._hotkey_field._mod = dialog.vk, dialog.binding[0]
                 self._hotkey_field.SetValue(shortcut_name(dialog.binding, i18n))
+            elif shortcut.id in CALL_KEYS:
+                self._call_hotkeys[CALL_KEYS[shortcut.id]] = (dialog.vk, dialog.binding[0])
             else:
                 self._shortcut_overrides[shortcut.id] = list(dialog.binding)
             self._shortcut_edit_finished()
@@ -258,8 +280,10 @@ class ShortcutsTabMixin:
     def _accept_shortcut(self, shortcut, candidate, translate=None):
         i18n = self.main_window.i18n
         found = conflicts(shortcut, candidate, self._shortcut_overrides, SHORTCUTS, translate or i18n.t)
-        if candidate is not None and shortcut.id != GLOBAL.id and candidate == self._shortcut_binding(GLOBAL):
-            found.append(GLOBAL)
+        for other in GLOBALS:
+            if (candidate is not None and other.id != shortcut.id
+                    and candidate == self._shortcut_binding(other)):
+                found.append(other)
         if found:
             names = '\n'.join(dict.fromkeys(action_text(s, i18n.t) for s in found))
             wx.MessageBox(i18n.t('shortcut_conflict').format(actions=names),
@@ -274,6 +298,8 @@ class ShortcutsTabMixin:
         if shortcut.id == GLOBAL.id:
             self._hotkey_field._vk = self._hotkey_field._mod = 0
             self._hotkey_field.SetValue('')
+        elif shortcut.id in CALL_KEYS:
+            self._call_hotkeys[CALL_KEYS[shortcut.id]] = None
         else:
             self._shortcut_overrides[shortcut.id] = None
         self._shortcut_edit_finished()
@@ -285,6 +311,13 @@ class ShortcutsTabMixin:
         if shortcut.id == GLOBAL.id:
             self._remove_shortcut()
             return
+        if shortcut.id in CALL_KEYS:
+            key = CALL_KEYS[shortcut.id]
+            candidate = hotkey_binding(*CALL_HOTKEY_DEFAULTS[key])
+            if self._accept_shortcut(shortcut, candidate):
+                self._call_hotkeys[key] = CALL_HOTKEY_DEFAULTS[key]
+                self._shortcut_edit_finished()
+            return
         candidate = default_binding(shortcut, self.main_window.i18n.t)
         if self._accept_shortcut(shortcut, candidate):
             self._shortcut_overrides.pop(shortcut.id, None)
@@ -292,6 +325,7 @@ class ShortcutsTabMixin:
 
     def _reset_all_shortcuts(self, event=None):
         self._shortcut_overrides.clear()
+        self._call_hotkeys = dict(CALL_HOTKEY_DEFAULTS)
         self._hotkey_field._vk = self._hotkey_field._mod = 0
         self._hotkey_field.SetValue('')
         self._shortcut_edit_finished()
@@ -303,7 +337,18 @@ class ShortcutsTabMixin:
 
     def _apply_shortcut_values(self):
         self.main_window.settings[SECTION] = copy.deepcopy(self._shortcut_overrides)
+        general = self.main_window.settings.setdefault('general', {})
+        loaded = getattr(self, '_call_hotkeys_loaded', None) or {}
+        for key, pair in self._call_hotkeys.items():
+            if key in loaded and loaded[key] == pair:
+                continue
+            general[key] = {'vk': pair[0], 'mod': pair[1]} if pair else {'vk': 0, 'mod': 0}
         refresh_shortcuts(self.main_window)
+        # A call that is ringing right now picks up the keys just chosen. The
+        # dialog can also sit on a plain frame (its tests), without the mixin.
+        sync = getattr(self.main_window, '_request_call_hotkey_sync', None)
+        if sync is not None:
+            sync()
 
     def _validate_shortcut_values(self):
         """Also check General's legacy capture field before any settings mutate."""
@@ -319,10 +364,12 @@ class ShortcutsTabMixin:
                 if not self._accept_shortcut(shortcut, candidate, translate):
                     self._show_page(self._shortcuts_page, self._shortcut_list)
                     return False
-        global_binding = self._shortcut_binding(GLOBAL)
-        if global_binding is not None and not self._accept_shortcut(GLOBAL, global_binding, translate):
-            self._show_page(self._shortcuts_page, self._shortcut_list)
-            return False
+        for global_shortcut in GLOBALS:
+            global_binding = self._shortcut_binding(global_shortcut)
+            if global_binding is not None and not self._accept_shortcut(
+                    global_shortcut, global_binding, translate):
+                self._show_page(self._shortcuts_page, self._shortcut_list)
+                return False
         return True
 
     def _refresh_shortcut_labels(self):

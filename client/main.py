@@ -276,6 +276,7 @@ from main_window.window_lifecycle import WindowLifecycleMixin
 from main_window.chat_list import ChatListMixin
 from main_window.chat_lists import WhatsAppListsMixin
 from main_window.calls import CallsMixin
+from main_window.call_hotkeys import CallHotkeysMixin
 from main_window.identity import IdentityMixin
 from main_window.message_events import MessageEventsMixin
 from main_window.wpp_server import WppServerMixin
@@ -339,6 +340,7 @@ class MainWindow(
     ChatListMixin,
     WhatsAppListsMixin,
     CallsMixin,
+    CallHotkeysMixin,
     IdentityMixin,
     MessageEventsMixin,
     WppServerMixin,
