@@ -391,8 +391,8 @@ msgstr "Activar &todos"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "add_attachment"
-msgid "Add &attachment"
-msgstr "Agregar &archivo adjunto"
+msgid "Add attachment"
+msgstr "Agregar archivo adjunto"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py

@@ -368,7 +368,7 @@ msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "add_attachment"
-msgid "Add &attachment"
+msgid "Add attachment"
 msgstr ""
 
 #: translations/en-US/LC_MESSAGES/winzapp.po

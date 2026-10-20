@@ -387,8 +387,8 @@ msgstr "Tü&münü etkinleştir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "add_attachment"
-msgid "Add &attachment"
-msgstr "&Ek ekle"
+msgid "Add attachment"
+msgstr "Ek ekle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
