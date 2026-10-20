@@ -32,6 +32,16 @@ def owner_window(active, fallback):
     return active if active is not None else fallback
 
 
+def dialog_owner(fallback):
+    """owner_window() with the window active now; *fallback* when there is
+    none, or no wx.App to ask (a test calling the handler on a stub)."""
+    try:
+        active = wx.GetActiveWindow()
+    except Exception:
+        active = None
+    return owner_window(active, fallback)
+
+
 class ScrollingPage(ScrolledPanel):
     """A page that scrolls instead of making the dialog taller than the screen."""
 

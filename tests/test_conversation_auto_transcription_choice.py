@@ -43,7 +43,25 @@ class TestTheChoice:
         assert conv.transcription_wanted(settings, JID, LOCAL, True) is False
         assert conv.transcription_wanted(settings, JID, ONLINE, True) is False
         conv.set_transcription(settings, JID, LOCAL, True)
-        assert settings[conv.SETTING][JID] == {LOCAL: True, ONLINE: False}
+        assert conv.transcription_wanted(settings, JID, LOCAL, True) is True
+        assert conv.transcription_wanted(settings, JID, ONLINE, True) is False
+        conv.set_transcription(settings, JID, ONLINE, True)
+        assert settings[conv.SETTING][JID] == {LOCAL: True, ONLINE: True}
+
+    def test_an_old_true_only_allowed_and_never_turns_anything_on(self):
+        """Reviewer: the old box only restricted ("may act here while the
+        option is on"). Read as a choice, an old True ran local Whisper with
+        the option off and, moved to the other box, sent voice notes to an
+        online provider whose option was off."""
+        settings = {conv.SCOPE_SETTING: conv.SCOPE_SELECTED,
+                    conv.SETTING: {JID: {conv.TRANSCRIBE: True}}}
+        assert conv.transcription_wanted(settings, JID, LOCAL, False) is False
+        assert conv.transcription_wanted(settings, JID, ONLINE, False) is False
+        # It still lets the option act here, as it did under "selected".
+        assert conv.transcription_wanted(settings, JID, LOCAL, True) is True
+        conv.set_transcription(settings, JID, LOCAL, False)
+        assert conv.transcription_wanted(settings, JID, ONLINE, False) is False
+        assert conv.transcription_choice(settings, JID, ONLINE) is None
 
     def test_the_selected_scope_still_starts_a_conversation_off(self):
         settings = {conv.SCOPE_SETTING: conv.SCOPE_SELECTED}
