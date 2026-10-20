@@ -5,17 +5,17 @@ const ID = 'false_5511900000001@c.us_3EB0AAAAAAAAAAAA';
 function fakePage({
   status = 'pending', mine = false, items = [{ id: 'custom-item-1', name: 'Bread' }], subtotal = 20,
   pix = false, link = false, boleto = false, countries = ['BR'], sent = [] as any[], present = true,
-  sendFails = false, lazy = false,
+  sendFails = false, lazy = false, flow = 'order_details', hang = false,
 }: any = {}) {
   const sender = { toJid: () => '5511900000001@c.us' };
   const info = { referenceId: 'REF1', items, subtotal };
   const chat = { msgs: { getModelsArray: () => sent } };
-  const msg = { unsafe: () => msg };
+  const msg = { unsafe: () => msg, nativeFlowName: flow };
   const send = jest.fn(async () => {
     if (sendFails) throw new Error('SendMsgResult failure');
   });
   let bundle = !lazy;
-  const requireBundle = jest.fn(async () => { bundle = true; });
+  const requireBundle = jest.fn(() => (hang ? new Promise(() => {}) : Promise.resolve().then(() => { bundle = true; })));
   const modules: Record<string, any> = {
     WAWebMsgCollection: { MsgCollection: { get: (id: string) => (present && id === ID ? msg : undefined) } },
     WAWebOrderDetails: { getOrderInfo: () => info },
@@ -109,6 +109,25 @@ test("the order drawer's code is loaded when nobody opened an order yet", async 
 
 test('a message that is not loaded or not an order is not an order', async () => {
   expect(await inPage(fakePage({ present: false }), 'read')).toEqual({ error: 'not_an_order' });
+});
+
+test.each(['order_status', 'payment_info', null])(
+  'a seller message of another kind (%s) is not an order to confirm', async (flow) => {
+    const fake = fakePage({ flow });
+    expect(await inPage(fake, 'confirm')).toEqual({ error: 'not_an_order' });
+    expect(fake.send).not.toHaveBeenCalled();
+  });
+
+test('a page that never loads the order drawer gives up instead of hanging', async () => {
+  jest.useFakeTimers();
+  try {
+    const answer = inPage(fakePage({ lazy: true, hang: true }), 'read');
+    await Promise.resolve();
+    jest.advanceTimersByTime(15000);
+    expect(await answer).toEqual({ error: 'unavailable' });
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('the route refuses an id that is not a message id before touching the page', async () => {

@@ -46,10 +46,18 @@ export async function buyerOrderInPage(request: any): Promise<any> {
   if (Object.values(m).some((value) => !value)) {
     // Some of it belongs to the order drawer's code, loaded the first time
     // someone opens an order in WhatsApp Web. Loading it shows nothing.
+    // Bounded, as statusDeleteController.ts's Bootloader wait: a page that
+    // never answers would keep one request hanging per window opened.
+    let timer: any;
     try {
-      await load('WAWebProductDetailsFlowLoadable')?.requireBundle?.();
+      await Promise.race([
+        load('WAWebProductDetailsFlowLoadable')?.requireBundle?.(),
+        new Promise((_, fail) => { timer = setTimeout(() => fail(new Error('unavailable')), 15000); }),
+      ]);
     } catch (_) {
       // Answered below: still missing.
+    } finally {
+      clearTimeout(timer);
     }
     m = modules();
     if (Object.values(m).some((value) => !value)) return { error: 'unavailable' };
@@ -66,6 +74,9 @@ export async function buyerOrderInPage(request: any): Promise<any> {
   }
   if (!msg) return { error: 'not_an_order' };
   const raw = typeof msg.unsafe === 'function' ? msg.unsafe() : msg;
+  // The seller's order itself: getOrderInfo() is not trusted to come back
+  // empty for its other interactive messages (status, payment info).
+  if ((msg.nativeFlowName ?? raw?.nativeFlowName) !== 'order_details') return { error: 'not_an_order' };
   let info: any = null;
   try {
     info = m.details.getOrderInfo(msg);
