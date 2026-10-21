@@ -2,7 +2,7 @@
 
 Two defects, reported by an outside contributor and both real:
 
-* ``_start_individual_call()``'s worker held ``_call_action_lock`` across the
+* ``_start_call()``'s worker held ``_call_action_lock`` across the
   offer POST, whose timeout is 75 seconds. ``end_active_call()`` takes the same
   lock, so while an offer stalled the "end call" button did nothing at all.
 * Its ``except`` branch never cleared ``_active_voice_call``. The report says
@@ -58,6 +58,7 @@ class _Response:
 
 class _MainStub:
     _start_individual_call = MainWindow._start_individual_call
+    _start_call = MainWindow._start_call
     _abandon_outgoing_call = MainWindow._abandon_outgoing_call
     end_active_call = MainWindow.end_active_call
     # Bound from the real class on purpose: a stub that invents a truthy

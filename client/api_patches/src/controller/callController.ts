@@ -17,6 +17,7 @@ import {
 type CallActionPayload = {
   callId?: string;
   to?: string;
+  groupJid?: string;
   isVideo?: boolean;
 };
 
@@ -478,7 +479,56 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
         return null;
       };
 
-      if (action === 'offer') {
+      // A group call has no single peer to dial. WhatsApp's own group-info
+      // call buttons go through WAWebVoipStartCall.startWAWebVoipGroupCallFromChat
+      // with the CALL_FROM_UI.GROUP_CHAT_INFO / LOBBY_ENTRY_POINT_TYPE.GROUP_CHAT_INFO
+      // entry points: it preloads the group-call bundle, opens the lobby and
+      // invites the group. The resulting call then lives in CallStore exactly
+      // like a one-to-one one, which is why the polling below is shared.
+      // Never hand-roll group signaling here.
+      const startOutgoingGroupCall = async (
+        groupJid: string,
+        isVideo: boolean
+      ): Promise<any> => {
+        const requireWa = (name: string): any => {
+          try {
+            return win.require?.(name);
+          } catch (_) {
+            return null;
+          }
+        };
+        const start =
+          win.WPP?.whatsapp?.functions?.startWAWebVoipGroupCallFromChat ||
+          requireWa('WAWebVoipStartCall')?.startWAWebVoipGroupCallFromChat;
+        if (typeof start !== 'function') {
+          throw new Error('startWAWebVoipGroupCallFromChat is not available');
+        }
+        const createWid = requireWa('WAWebWidFactory')?.createWid;
+        const chats = requireWa('WAWebChatCollection')?.ChatCollection;
+        if (typeof createWid !== 'function' || typeof chats?.get !== 'function') {
+          throw new Error('WhatsApp chat collection is not available');
+        }
+        const chat = chats.get(createWid(groupJid));
+        if (!chat || !chat.groupMetadata) {
+          throw new Error(`The group ${groupJid} is not a callable group chat`);
+        }
+        const callFromUi =
+          requireWa('WAWebWamEnumCallFromUi')?.CALL_FROM_UI?.GROUP_CHAT_INFO ?? 10;
+        const lobbyEntryPoint =
+          requireWa('WAWebWamEnumLobbyEntryPointType')?.LOBBY_ENTRY_POINT_TYPE
+            ?.GROUP_CHAT_INFO ?? 11;
+        await start(chat, isVideo, callFromUi, lobbyEntryPoint);
+        return null;
+      };
+
+      // Current WhatsApp Web promotes the real ongoing call through
+      // CallStore.activeCall. The value returned by the legacy collection
+      // lookup may point at an older call model, so prefer a newly-active call
+      // and only trust a direct return value when it is not stale.
+      const waitForOfferedCall = async (
+        place: () => Promise<any>,
+        kind: string
+      ): Promise<any> => {
         let call: any = null;
         const storeBeforeOffer = getCallStore();
         const preexistingIds = new Set(
@@ -488,12 +538,8 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
 
         for (let attempt = 0; attempt < 3 && !call; attempt += 1) {
           await ensureVoipRuntimeReady();
-          const offered = await startOutgoingCall(String(payload.to), !!payload.isVideo);
+          const offered = await place();
 
-          // Current WhatsApp Web promotes the real ongoing call through
-          // CallStore.activeCall.  The value returned by the legacy collection
-          // lookup may point at an older call model, so prefer a newly-active
-          // call and only trust the direct return value when it is not stale.
           for (let waitAttempt = 0; waitAttempt < 50 && !call; waitAttempt += 1) {
             const store = getCallStore();
             const active = store?.activeCall;
@@ -525,7 +571,23 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
           }
           if (!call && attempt < 2) await delay(300 * (attempt + 1));
         }
-        if (!call) throw new Error('WhatsApp did not create an outgoing call model');
+        if (!call) throw new Error(`WhatsApp did not create ${kind} call model`);
+        return call;
+      };
+
+      if (action === 'offer') {
+        const call = await waitForOfferedCall(
+          () => startOutgoingCall(String(payload.to), !!payload.isVideo),
+          'an outgoing'
+        );
+        return summarizeCall(call);
+      }
+
+      if (action === 'group-offer') {
+        const call = await waitForOfferedCall(
+          () => startOutgoingGroupCall(String(payload.groupJid), !!payload.isVideo),
+          'an outgoing group'
+        );
         return summarizeCall(call);
       }
 
@@ -653,6 +715,26 @@ export async function offerCall(req: Request, res: Response) {
   } catch (error) {
     await stopAudioBridge(req);
     fail(req, res, 'offerCall', error);
+  }
+}
+
+export async function offerGroupCall(req: Request, res: Response) {
+  try {
+    const body = req.body || {};
+    if (!body.groupJid) {
+      res.status(400).json({ status: 'error', message: 'Parameter groupJid is required!' });
+      return;
+    }
+    await prepareAudioBridge(req);
+    const stopWatching = watchOutgoingCallNotices(req);
+    try {
+      ok(res, await evaluateWppCall(req, 'group-offer', body));
+    } finally {
+      stopWatching();
+    }
+  } catch (error) {
+    await stopAudioBridge(req);
+    fail(req, res, 'offerGroupCall', error);
   }
 }
 
