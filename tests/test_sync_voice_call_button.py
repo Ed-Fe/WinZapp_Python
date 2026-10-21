@@ -40,6 +40,7 @@ class _Stub:
         self.main_window = _FakeMainWindow()
         self._voice_call_btn = _FakeWidget()
         self._video_call_btn = _FakeWidget()
+        self._group_call_unavailable_btn = _FakeWidget()
         self.conversation_panel = _FakeWidget()
 
     def Layout(self):
@@ -99,7 +100,6 @@ class _LimitStub(_Stub):
 
     def __init__(self, jid):
         super().__init__()
-        self._group_call_unavailable_btn = _FakeWidget()
         self.conversation = {"remoteJid": jid}
         self.conversation_name = "G"
         self._group_call_blocked_jid = ""

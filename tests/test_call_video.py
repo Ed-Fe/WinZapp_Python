@@ -266,7 +266,7 @@ def test_video_button_is_offered_for_groups_but_not_unreachable_chats():
     source = conversations_source()
     assert 'unavailable = jid.endswith(("@newsletter", "@broadcast")) or is_self_chat' in source
     assert 'unavailable = jid.endswith(("@g.us", "@newsletter", "@broadcast"))' not in source
-    assert 'self._video_call_btn.Show(bool(jid) and not unavailable)' in source
+    assert 'self._video_call_btn.Show(callable_chat and not too_large)' in source
     assert 'self.main_window.start_video_call(jid, name)' in source
 
 
