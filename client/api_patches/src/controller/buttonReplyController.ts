@@ -15,6 +15,9 @@ import type { Request, Response } from 'express';
 //    selectedId), then marks the button as clicked.
 //  - "template": the buttons of a template message, answered by index by
 //    WA-JS itself.
+//  - "list": a row of a list message. The web client sends a list response
+//    (type list_response) that carries the row's title, description and id,
+//    quoting the list.
 // Links, copied codes and phone numbers are never sent: the window acts on
 // them.
 //
@@ -85,6 +88,42 @@ export async function replyButtonInPage(request: any): Promise<any> {
     return { sent: true };
   }
 
+  if (request.source === 'list') {
+    const rows = (raw.list?.sections ?? []).flatMap((section: any) => section?.rows ?? []);
+    const row = rows[request.index];
+    if (!row || typeof row.rowId !== 'string' || typeof row.title !== 'string') return { error: 'button_not_found' };
+    const me = load('WAWebUserPrefsMeUser')?.getMePnUserOrThrow_DO_NOT_USE;
+    const MsgKey = load('WAWebMsgKey');
+    const ack = load('WAWebAck')?.ACK;
+    const time = load('WATimeUtils')?.unixTime;
+    const sender = load('WAWebSendMsgChatAction')?.addAndSendMsgToChat;
+    const types = load('WAWebMsgType');
+    const listType = load('WAWebProtobufsE2E.pb')?.Message$ListResponseMessage$ListType?.SINGLE_SELECT;
+    if (typeof me !== 'function' || typeof MsgKey?.newId !== 'function' || !ack || typeof time !== 'function'
+        || typeof sender !== 'function' || !types?.MSG_TYPE?.LIST_RESPONSE || !types?.MsgKind?.ListResponse
+        || typeof msg.msgContextInfo !== 'function' || listType === undefined) {
+      return { error: 'unavailable' };
+    }
+    const mePn = me();
+    const description = typeof row.description === 'string' ? row.description : '';
+    await sender(chat, {
+      type: types.MSG_TYPE.LIST_RESPONSE,
+      kind: types.MsgKind.ListResponse,
+      ack: ack.CLOCK,
+      from: mePn,
+      id: new MsgKey({ from: mePn, to: chat.id, id: await MsgKey.newId(), participant: undefined, selfDir: 'out' }),
+      local: true,
+      isNewMsg: true,
+      t: time(),
+      to: chat.id,
+      ...msg.msgContextInfo(chat.id),
+      listResponse: { title: row.title, description, listType, singleSelectReply: { selectedRowId: row.rowId } },
+      body: description ? `${row.title}\n${description}` : row.title,
+      viewMode: 'VISIBLE',
+    });
+    return { sent: true };
+  }
+
   const buttons = raw.hydratedButtons;
   if (!Array.isArray(buttons) || !buttons[request.index]?.quickReplyButton) return { error: 'button_not_found' };
   if (typeof root.WPP?.chat?.replyToButtonMessage !== 'function') return { error: 'unavailable' };
@@ -98,7 +137,7 @@ export async function replyButtonInPage(request: any): Promise<any> {
 const validMessage = (value: unknown): value is string =>
   typeof value === 'string' && /^(true|false)_\d+@(c\.us|lid)_[A-Za-z0-9]{8,64}$/.test(value);
 
-const SOURCES = ['dynamic', 'native', 'template'];
+const SOURCES = ['dynamic', 'native', 'template', 'list'];
 
 const STATUS_OF: Record<string, number> = {
   message_not_found: 404, button_not_found: 404, button_used: 409,

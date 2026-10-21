@@ -56,6 +56,13 @@ class TestReadingTheButtons:
             native("cta_catalog", display_text="Catalog"), native("quick_reply", display_text="Yes", id="y")]}}
         assert [(b["index"], b["source"]) for b in business_buttons(msg)] == [(1, "native")]
 
+    def test_the_rows_of_a_list_are_numbered_across_its_sections(self):
+        msg = {"list": {"buttonText": "Menu", "sections": [
+            {"rows": [{"title": "Outage", "rowId": "r1"}, {"title": " ", "rowId": "skipped"}]},
+            {"rows": [{"title": "Bills", "rowId": "r3", "description": "x"}]}]}}
+        assert [(b["source"], b["index"], b["label"], b["value"]) for b in business_buttons(msg)] == [
+            ("list", 0, "Outage", "r1"), ("list", 2, "Bills", "r3")]
+
     def test_template_buttons_are_answered_by_index(self):
         msg = {"hydratedButtons": [{"quickReplyButton": {"id": "q", "displayText": "Yes"}},
                                    {"urlButton": {"displayText": "Site", "url": "https://x.com"}},

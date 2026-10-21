@@ -7,6 +7,7 @@ function fakePage({ present = true, extra = {}, withSender = true }: any = {}) {
   const sendButtonReply = jest.fn(async () => {});
   const sendText = jest.fn(async () => {});
   const mark = jest.fn(async () => {});
+  const sendList = jest.fn(async () => {});
   const replyToButtonMessage = jest.fn(async () => ({}));
   const button = { id: '2', displayText: 'Home' };
   const raw: any = {
@@ -17,22 +18,30 @@ function fakePage({ present = true, extra = {}, withSender = true }: any = {}) {
       { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Site', url: 'https://x.com' }) },
       { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: 'Used', id: 'u', disabled: true }) },
     ] },
+    list: { sections: [{ rows: [{ title: 'Outage', rowId: 'r1' }] }, { rows: [{ title: 'Bills', description: 'd', rowId: 'r2' }] }] },
     hydratedButtons: [{ quickReplyButton: { id: 'q', displayText: 'Yes' } }, { urlButton: { url: 'https://x.com' } }],
     ...extra,
   };
-  const msg = { unsafe: () => raw };
+  const msg = { unsafe: () => raw, msgContextInfo: (to: any) => ({ quotedStanzaID: 'Q', to }) };
   const modules: Record<string, any> = {
     WAWebMsgCollection: { MsgCollection: { get: (id: string) => (present && id === ID ? msg : undefined) } },
     WAWebFrontendMsgGetters: { getChat: () => chat },
     WAWebSendButtonsMsgReplyChatAction: withSender ? sendButtonReply : undefined,
     WAWebSendTextMsgChatAction: { sendTextMsgToChat: sendText },
     WAWebBizInteractiveMessageQuickReplyAction: { markInteractiveButtonClicked: mark },
+    WAWebUserPrefsMeUser: { getMePnUserOrThrow_DO_NOT_USE: () => 'me' },
+    WAWebMsgKey: class { static newId = async () => 'NEWID'; constructor(public parts: any) {} },
+    WAWebAck: { ACK: { CLOCK: 0 } },
+    WATimeUtils: { unixTime: () => 1790000000 },
+    WAWebSendMsgChatAction: { addAndSendMsgToChat: sendList },
+    WAWebMsgType: { MSG_TYPE: { LIST_RESPONSE: 'list_response' }, MsgKind: { ListResponse: 'listResponse' } },
+    'WAWebProtobufsE2E.pb': { Message$ListResponseMessage$ListType: { SINGLE_SELECT: 1 } },
   };
   const require = (name: string) => {
     if (!(name in modules)) throw new Error('unknown');
     return modules[name];
   };
-  return { require, chat, msg, raw, button, sendButtonReply, sendText, mark, replyToButtonMessage };
+  return { require, chat, msg, raw, button, sendButtonReply, sendText, mark, sendList, replyToButtonMessage };
 }
 
 async function inPage(fake: any, source: string, index: number, messageId = ID) {
@@ -75,6 +84,20 @@ test('a button that is not a quick reply, or was used, is never sent', async () 
   expect(await inPage(fake, 'native', 2)).toEqual({ error: 'button_used' });
   expect(await inPage(fake, 'native', 9)).toEqual({ error: 'button_not_found' });
   expect(fake.sendText).not.toHaveBeenCalled();
+});
+
+test('a list row is answered with a list response that quotes the list', async () => {
+  const fake = fakePage();
+  expect(await inPage(fake, 'list', 1)).toEqual({ sent: true });
+  expect(fake.sendList).toHaveBeenCalledTimes(1);
+  const [chat, sent] = fake.sendList.mock.calls[0] as any[];
+  expect(chat).toBe(fake.chat);
+  expect(sent).toMatchObject({
+    type: 'list_response', kind: 'listResponse', from: 'me', local: true, quotedStanzaID: 'Q',
+    listResponse: { title: 'Bills', description: 'd', listType: 1, singleSelectReply: { selectedRowId: 'r2' } },
+    body: 'Bills\nd' });
+  expect(await inPage(fake, 'list', 5)).toEqual({ error: 'button_not_found' });
+  expect(fake.sendList).toHaveBeenCalledTimes(1);
 });
 
 test('a template quick reply is answered by index through WA-JS', async () => {

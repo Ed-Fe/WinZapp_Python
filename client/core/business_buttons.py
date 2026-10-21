@@ -10,6 +10,8 @@ and WAWebSendButtonsMsgReplyChatAction):
   quick reply is sent as a text message that quotes it, with the button's
   index and id; a link, a copied code and a phone number are never sent.
 * ``hydratedButtons``: a template message, answered by index.
+* ``list``: a list message; each row is answered with a list response that
+  carries the row's id.
 
 Only the server can send an answer (api_patches buttonReplyController.ts); here
 the buttons are read off the message and the request is made. A link, a code
@@ -28,7 +30,7 @@ from core.api_client import api_post
 
 MAX_BUTTONS = 12
 LABEL_LIMIT = 80
-SOURCES = ("dynamic", "native", "template")
+SOURCES = ("dynamic", "native", "template", "list")
 REPLY, URL, COPY, CALL = "reply", "url", "copy", "call"
 
 _MESSAGE = re.compile(r"(?:true|false)_\d+@(?:c\.us|lid)_[A-Za-z0-9]{8,64}")
@@ -96,6 +98,19 @@ def _native(wpp_msg):
     return found
 
 
+def _list(wpp_msg):
+    listing = wpp_msg.get("list")
+    found, index = [], 0
+    for section in _dicts(listing.get("sections") if isinstance(listing, dict) else None):
+        for row in _dicts(section.get("rows")):
+            button = _button(REPLY, "list", index, row.get("title"),
+                             row.get("rowId") if isinstance(row.get("rowId"), str) else "")
+            if button and button["value"]:
+                found.append(button)
+            index += 1
+    return found
+
+
 def _template(wpp_msg):
     found = []
     for index, raw in enumerate(_dicts(wpp_msg.get("hydratedButtons"))):
@@ -122,7 +137,7 @@ def business_buttons(wpp_msg):
     by. Empty for a message without any, or for a button it cannot act on."""
     if not isinstance(wpp_msg, dict):
         return []
-    return (_dynamic(wpp_msg) + _native(wpp_msg) + _template(wpp_msg))[:MAX_BUTTONS]
+    return (_dynamic(wpp_msg) + _native(wpp_msg) + _template(wpp_msg) + _list(wpp_msg))[:MAX_BUTTONS]
 
 
 def reply_to_button(connection, message_id, button):
