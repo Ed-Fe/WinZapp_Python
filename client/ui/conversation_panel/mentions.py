@@ -496,6 +496,7 @@ class MentionsMixin:
                 participants = data.get("participants", [])
                 logging.info(f"[mention] get_group_info({jid}) attempt {attempt+1}/{max_retries} → {len(participants)} participants")
                 if participants:
+                    wx.CallAfter(self._set_group_call_limit, jid, len(participants))
                     my_jid = getattr(self.main_window, "my_jid", "") or ""
                     # Build initial cache first so UI is populated instantly
                     cache = []

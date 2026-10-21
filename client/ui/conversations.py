@@ -91,6 +91,7 @@ from core.wrapped_text import original_range, selection_offsets, word_wrap
 from core.video_player import VideoPlayer
 from core.focus_cloak import cloak_panel_focus_fallback
 from core.chain_repaint_guard import ChainRepaintGuard
+from core.call_logic import MAX_GROUP_CALL_PARTICIPANTS
 from core.spell_checker import (
     WindowsSpellChecker, spell_check_active, windows_spellcheck_enabled,
 )
@@ -624,6 +625,18 @@ class ConversationsPanel(
         self._conv_data_btn.SetAccessible(AccessibleConversationDataButton())
         self._conv_data_btn.Bind(wx.EVT_BUTTON, self._show_conversation_data)
         conv_sizer.Add(self._conv_data_btn, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+
+        # Shown in place of the two call buttons when the group is too large to
+        # call; a link button so the reason is read with it, like the data one.
+        self._group_call_unavailable_btn = wx.adv.CommandLinkButton(
+            self.conversation_panel,
+            mainLabel=i18n.t("group_call_unavailable_label"),
+            note=i18n.t("group_call_unavailable_note").format(
+                limit=MAX_GROUP_CALL_PARTICIPANTS
+            ),
+        )
+        conv_sizer.Add(self._group_call_unavailable_btn, 0, wx.LEFT | wx.TOP, 5)
+        self._group_call_unavailable_btn.Hide()
 
         self._video_call_btn = wx.Button(
             self.conversation_panel, label=i18n.t("video_call_button")
@@ -1248,6 +1261,10 @@ class ConversationsPanel(
         self._search_open_btn.SetLabel(i18n.t("search_in_conv"))
         self._update_pinned_messages_button()
         self._voice_call_btn.SetLabel(i18n.t("voice_call_button"))
+        self._group_call_unavailable_btn.SetMainLabel(i18n.t("group_call_unavailable_label"))
+        self._group_call_unavailable_btn.SetNote(
+            i18n.t("group_call_unavailable_note").format(limit=MAX_GROUP_CALL_PARTICIPANTS)
+        )
         self._search_close_btn.SetLabel(i18n.t("search_close"))
         self._search_field_label.SetLabel(i18n.t("search_in_conv"))
         self._search_prev_btn.SetLabel(i18n.t("search_prev_result"))

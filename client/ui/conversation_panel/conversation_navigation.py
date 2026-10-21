@@ -333,6 +333,7 @@ class ConversationNavigationMixin:
         self._pending_mentions.clear()
         self._pending_mention_display_names.clear()
         self._group_participants_cache = []
+        self._group_call_blocked_jid = ""
         self._hide_mention_suggestions()
         if hasattr(self, "_pending_mentions_panel"):
             self._rebuild_mention_pills()

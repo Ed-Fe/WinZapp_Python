@@ -5653,6 +5653,18 @@ msgctxt "group_admins_only"
 msgid "Only admins can send messages in this grou&p"
 msgstr "Numai adm&inistratorii pot trimite mesaje în acest grup"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
+msgctxt "group_call_unavailable_label"
+msgid "Calling is not possible"
+msgstr "Nu se poate apela"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/composer.py client/ui/conversations.py
+#, python-brace-format
+msgctxt "group_call_unavailable_note"
+msgid "The group has more than {limit} participants"
+msgstr "Grupul are mai mult de {limit} participanți"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/new_group.py
 msgctxt "group_contacts_label"
 msgid "&Participants"
