@@ -4,7 +4,7 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
-- İşletme mesajlarındaki düğmeler artık kullanılabiliyor: bir yanıt düğmesi yanıtı WhatsApp Web ile aynı şekilde gönderir (düz mesajların yanıt düğmeleri, etkileşimli mesajların hızlı yanıtları ve şablon düğmeleri), bağlantı düğmesi bağlantıyı açar, kopyalama düğmesi kodu kopyalar, arama düğmesi numarayı söyler. Mesaj seçildiğinde düğmeler mesaj listesinin altında görünür.
+- İşletme mesajlarındaki düğmeler artık kullanılabiliyor: bir yanıt düğmesi yanıtı WhatsApp Web ile aynı şekilde gönderir (düz mesajların yanıt düğmeleri, etkileşimli mesajların hızlı yanıtları, şablon düğmeleri ve listelerin satırları), bağlantı düğmesi bağlantıyı açar, kopyalama düğmesi kodu kopyalar, arama düğmesi numarayı söyler. Mesaj seçildiğinde düğmeler mesaj listesinin altında görünür.
 
 - macOS güncellemelerinde doğrulamanın bağlantı, sertifika, sunucu veya GitHub istek sınırı nedeniyle mi başarısız olduğu ve doğrulama dosyasının mı, resmî sürüm etiketinin mi kontrol edilemediği açıklanır. Geçici bağlantı ve sunucu hatalarında bir kez yeniden denenir; istek sınırında bekleme süresi gösterilir ve bu süre boyunca tekrar istek gönderilmez.
 

@@ -4,7 +4,7 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
-- Ya se pueden usar los botones de los mensajes de empresas: un botón de respuesta envía la respuesta igual que WhatsApp Web (botones de respuesta de mensajes simples, respuestas rápidas de mensajes interactivos y botones de plantilla), un botón de enlace abre el enlace, un botón de copiar copia el código y un botón de llamada dice el número. Los botones aparecen debajo de la lista de mensajes cuando el mensaje está seleccionado.
+- Ya se pueden usar los botones de los mensajes de empresas: un botón de respuesta envía la respuesta igual que WhatsApp Web (botones de respuesta de mensajes simples, respuestas rápidas de mensajes interactivos, botones de plantilla y filas de listas), un botón de enlace abre el enlace, un botón de copiar copia el código y un botón de llamada dice el número. Los botones aparecen debajo de la lista de mensajes cuando el mensaje está seleccionado.
 
 - Las actualizaciones de macOS explican si la verificación ha fallado por un problema de conexión, certificado, servidor o límite de solicitudes de GitHub, y si no se ha podido comprobar el archivo de verificación o la etiqueta de la versión oficial. Los fallos temporales de conexión y servidor se reintentan una vez; los límites de solicitudes muestran un tiempo de espera y no generan nuevas solicitudes durante ese período.
 
