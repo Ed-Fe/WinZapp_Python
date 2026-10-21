@@ -13,6 +13,7 @@
  "toc_label": "Spis treści podręcznika",
  "toc_title": "W tym podręczniku",
  "col_shortcut": "Skrót",
+ "number_range": "{first} do {last}",
  "col_action": "Działanie",
  "nokey_title": "Polecenia bez przypisanego klawisza",
  "nokey_intro": "Te polecenia są na karcie Skróty klawiszowe w Ustawieniach, ale nie mają przypisanego klawisza. Wybierz tam klawisz, jeśli chcesz z nich korzystać.",

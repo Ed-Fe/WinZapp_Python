@@ -54,7 +54,7 @@ def nome_tecla(mod, key, nomes):
         partes.append(nomes.get(TECLAS.get(key, ''), TECLAS.get(key, f'#{key}')))
     return '+'.join(partes)
 
-def juntar_numerados(linhas):
+def juntar_numerados(linhas, number_range='{first} a {last}'):
     """Junta famílias numeradas (Ctrl+1..9 etc.) numa linha só."""
     familias, resultado, usados = {}, [], set()
     for i, (tecla, acao) in enumerate(linhas):
@@ -66,7 +66,7 @@ def juntar_numerados(linhas):
             continue
         digitos = sorted(int(t[-1]) for _, t, _ in itens)
         prefixo = itens[0][1][:-1]
-        faixa = (f'{digitos[0]} a {digitos[-1]}' if digitos == list(range(digitos[0], digitos[-1] + 1))
+        faixa = (number_range.format(first=digitos[0], last=digitos[-1]) if digitos == list(range(digitos[0], digitos[-1] + 1))
                  else ', '.join(map(str, digitos)))
         usados |= {i for i, _, _ in itens}
         resultado.append((itens[0][0], prefixo + faixa, base))
@@ -94,7 +94,7 @@ def main():
             sem_tecla.append((s, acao)); continue
         por_escopo[s.scope].append((nome_tecla(*b, t['keys']), acao))
     for escopo, linhas in list(por_escopo.items()):
-        por_escopo[escopo] = juntar_numerados(linhas)
+        por_escopo[escopo] = juntar_numerados(linhas, t.get('number_range', '{first} a {last}'))
     up = lambda x: x[:1].upper() + x[1:]
     out = []
     ordem = GRUPOS + [e for e in por_escopo if e not in GRUPOS]
