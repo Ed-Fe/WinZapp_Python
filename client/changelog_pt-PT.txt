@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de definições reorganizada, alé
 
 NOVIDADES
 
+- Chamadas de grupo: o WhatsApp não permite ligar para grupos com mais de 32 membros, pelo que os botões de chamada são substituídos por um botão "Não é possível ligar" cuja nota diz que o grupo tem mais de 32 membros, e os atalhos de chamada dizem o mesmo em vez de iniciar a chamada.
+
 - Chamadas de grupo: os botões de chamada de voz e de vídeo aparecem agora na conversa do grupo e iniciam uma chamada para o grupo, e uma chamada de grupo recebida toca, é anunciada pelo nome do grupo e pode ser atendida, com o mesmo botão de atender e o mesmo atalho global de atender de uma chamada individual. Ligar a câmara durante uma chamada de voz funciona como numa chamada individual, e os eventos de chamada de cada participante ficam com o grupo, pelo que a janela da chamada mantém o nome do grupo desde o primeiro toque até ao fim.
 
 - Chamadas de vídeo: o WinZapp encontra agora a câmara com o FFmpeg incluído no WinZapp, que lista os dispositivos DirectShow sem o cabeçalho "DirectShow video devices". Essa versão do FFmpeg não devolvia câmara nenhuma, pelo que a chamada de vídeo seguia apenas a receber, com "No camera found" no registo.

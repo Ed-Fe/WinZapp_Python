@@ -1,6 +1,20 @@
 """Pure call-state helpers shared by the wx UI and headless tests."""
 
 
+# WhatsApp only places a group call for groups of up to this many participants
+# (the account itself included, as the group-info participant list counts it).
+MAX_GROUP_CALL_PARTICIPANTS = 32
+
+
+def group_too_large_for_call(participant_count: int | None) -> bool:
+    """Return whether a group has too many participants for a call.
+
+    An unknown count (the group info has not arrived yet) is not "too large":
+    the call buttons stay, and WhatsApp answers for itself.
+    """
+    return bool(participant_count) and participant_count > MAX_GROUP_CALL_PARTICIPANTS
+
+
 def incoming_call_can_answer(details: dict | None) -> bool:
     """Return whether this incoming call can be answered.
 

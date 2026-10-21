@@ -76,3 +76,90 @@ def test_newsletter_and_broadcast_hide_both_call_buttons():
         panel._sync_voice_call_button(jid)
         assert panel._voice_call_btn.IsShown() is False
         assert panel._video_call_btn.IsShown() is False
+
+
+# ── Groups over the call limit ───────────────────────────────────────────────
+
+from core.call_logic import MAX_GROUP_CALL_PARTICIPANTS, group_too_large_for_call
+
+
+def test_the_limit_is_thirty_two_participants():
+    assert MAX_GROUP_CALL_PARTICIPANTS == 32
+    assert not group_too_large_for_call(32)
+    assert group_too_large_for_call(33)
+    assert not group_too_large_for_call(None)
+    assert not group_too_large_for_call(0)
+
+
+class _LimitStub(_Stub):
+    _set_group_call_limit = ConversationsPanel._set_group_call_limit
+    _group_call_refused = ConversationsPanel._group_call_refused
+    _on_voice_call = ConversationsPanel._on_voice_call
+    _on_video_call = ConversationsPanel._on_video_call
+
+    def __init__(self, jid):
+        super().__init__()
+        self._group_call_unavailable_btn = _FakeWidget()
+        self.conversation = {"remoteJid": jid}
+        self.conversation_name = "G"
+        self._group_call_blocked_jid = ""
+        spoken = self.spoken = []
+        started = self.started = []
+
+        class _I18n:
+            def t(self, key):
+                return "note {limit}" if key == "group_call_unavailable_note" else key
+
+        class _MW(_FakeMainWindow):
+            i18n = _I18n()
+
+            def output(self, text, interrupt=False):
+                spoken.append(text)
+
+            def start_voice_call(self, jid, name):
+                started.append(jid)
+
+            start_video_call = start_voice_call
+
+        self.main_window = _MW()
+
+
+def test_a_group_over_the_limit_swaps_the_call_buttons_for_the_note_button():
+    jid = "120363000000000000@g.us"
+    panel = _LimitStub(jid)
+    panel._set_group_call_limit(jid, 33)
+    assert panel._voice_call_btn.IsShown() is False
+    assert panel._video_call_btn.IsShown() is False
+    assert panel._group_call_unavailable_btn.IsShown() is True
+
+
+def test_a_group_within_the_limit_keeps_the_call_buttons():
+    jid = "120363000000000000@g.us"
+    panel = _LimitStub(jid)
+    panel._set_group_call_limit(jid, 32)
+    assert panel._voice_call_btn.IsShown() is True
+    assert panel._group_call_unavailable_btn.IsShown() is False
+
+
+def test_the_limit_of_a_group_no_longer_open_is_ignored():
+    panel = _LimitStub("120363000000000000@g.us")
+    panel._set_group_call_limit("999@g.us", 40)
+    assert panel._group_call_blocked_jid == ""
+
+
+def test_the_call_shortcuts_say_why_instead_of_calling_an_oversized_group():
+    jid = "120363000000000000@g.us"
+    panel = _LimitStub(jid)
+    panel._set_group_call_limit(jid, 40)
+    panel._on_voice_call()
+    panel._on_video_call()
+    assert panel.started == []
+    assert panel.spoken == ["note 32"] * 2
+
+
+def test_the_call_shortcuts_still_call_a_group_within_the_limit():
+    jid = "120363000000000000@g.us"
+    panel = _LimitStub(jid)
+    panel._set_group_call_limit(jid, 10)
+    panel._on_voice_call()
+    assert panel.started == [jid]

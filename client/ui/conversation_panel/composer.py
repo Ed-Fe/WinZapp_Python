@@ -10,6 +10,7 @@ import tempfile
 import threading
 import wx
 from ui.shortcut_bindings import command_key_event
+from core.call_logic import MAX_GROUP_CALL_PARTICIPANTS, group_too_large_for_call
 from ui.dialogs.emoji_picker import choose_and_insert_emoji
 from core.attachment_types import DEFAULT_PASTED_AUDIO_AS, pasted_attachment_media_type
 from core.link_preview import (
@@ -409,15 +410,44 @@ class ComposerMixin:
         # same native group call WinZapp asks the Node patch for. Newsletters,
         # broadcast lists and the self-chat have no call to place.
         unavailable = jid.endswith(("@newsletter", "@broadcast")) or is_self_chat
-        self._voice_call_btn.Show(bool(jid) and not unavailable)
-        self._video_call_btn.Show(bool(jid) and not unavailable)
+        too_large = (
+            jid.endswith("@g.us") and getattr(self, "_group_call_blocked_jid", "") == jid
+        )
+        callable_chat = bool(jid) and not unavailable
+        self._voice_call_btn.Show(callable_chat and not too_large)
+        self._video_call_btn.Show(callable_chat and not too_large)
+        self._group_call_unavailable_btn.Show(callable_chat and too_large)
         self.conversation_panel.Layout()
         self.Layout()
+
+    def _set_group_call_limit(self, jid: str, participant_count: int):
+        """Main-thread callback: swap the call buttons for the "cannot call"
+        link button when the open group is over the WhatsApp call limit."""
+        if not self.conversation or self.conversation.get("remoteJid") != jid:
+            return
+        self._group_call_blocked_jid = (
+            jid if group_too_large_for_call(participant_count) else ""
+        )
+        self._sync_voice_call_button(jid)
+
+    def _group_call_refused(self, jid: str) -> bool:
+        """Say why a call cannot start in a group over the limit (the shortcuts
+        reach the call handlers even though the buttons are hidden)."""
+        if not jid.endswith("@g.us") or getattr(self, "_group_call_blocked_jid", "") != jid:
+            return False
+        i18n = self.main_window.i18n
+        self.main_window.output(
+            i18n.t("group_call_unavailable_note").format(limit=MAX_GROUP_CALL_PARTICIPANTS),
+            interrupt=True,
+        )
+        return True
 
     def _on_voice_call(self, _event=None):
         if not self.conversation:
             return
         jid = str(self.conversation.get("remoteJid") or "")
+        if self._group_call_refused(jid):
+            return
         name = self.conversation_name or self.conversation.get("name") or ""
         self.main_window.start_voice_call(jid, name)
 
@@ -425,6 +455,8 @@ class ComposerMixin:
         if not self.conversation:
             return
         jid = str(self.conversation.get("remoteJid") or "")
+        if self._group_call_refused(jid):
+            return
         name = self.conversation_name or self.conversation.get("name") or ""
         self.main_window.start_video_call(jid, name)
 
