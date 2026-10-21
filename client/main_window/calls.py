@@ -78,10 +78,8 @@ class CallsMixin:
         if not self._active_incoming_calls:
             if hasattr(self, "call_incoming_sound"):
                 self.call_incoming_sound.stop()
-        # Keyed to an ANSWERABLE call, not to "any alert is still up" -- see
-        # stop_incoming_call_alert(). Group offers sit in the dictionary too
-        # and never open a monitor, so the old emptiness test held the speaker
-        # for as long as one kept ringing beside the expired one-to-one call.
+        # The monitor is shared by every ringing call and is released only
+        # when no answerable offer remains -- see stop_incoming_call_alert().
         if not self._has_answerable_incoming_call():
             self._stop_incoming_call_audio_monitor()
         self._sync_incoming_call_bar()
@@ -235,18 +233,15 @@ class CallsMixin:
         if not self._active_incoming_calls:
             if hasattr(self, "call_incoming_sound"):
                 self.call_incoming_sound.stop()
-        # The receive-only monitor is keyed to a call that can actually be
-        # ANSWERED, not to "any alert is still up". Group offers now sit in
-        # _active_incoming_calls too (they are announced, just not answerable),
-        # and they never start a monitor -- so gating this on the dictionary
-        # being empty left the speaker held open after the one-to-one call was
-        # dismissed, for as long as a group offer kept ringing beside it.
+        # The receive-only monitor is shared by every ringing call, so it is
+        # released only when no answerable offer remains, not merely because
+        # one of them was dismissed.
         if not keep_audio_monitor and not self._has_answerable_incoming_call():
             self._stop_incoming_call_audio_monitor()
         self._sync_incoming_call_bar()
 
     def _has_answerable_incoming_call(self) -> bool:
-        """Whether any still-ringing offer could be accepted (i.e. not a group)."""
+        """Whether any still-ringing offer could be accepted."""
         details_map = getattr(self, "_incoming_call_details", {})
         return any(
             incoming_call_can_answer(details_map.get(identity))
@@ -447,10 +442,17 @@ class CallsMixin:
             wx.CallAfter(self._sync_voice_call_bar)
             return True
         details = details or getattr(self, "_incoming_call_details", {}).get(identity, {})
+        is_group = bool(details.get("is_group", False))
+        group_jid = str(details.get("group_jid") or "")
         self._active_voice_call = {
             "identity": identity,
             "call_id": details.get("call_id") or identity,
-            "peer_jid": details.get("peer_jid") or "",
+            # A group call's event names a participant in peerJid and the group
+            # in groupJid. The active record -- and every later state event --
+            # is keyed on the group, never on whichever participant spoke.
+            "peer_jid": group_jid if is_group else (details.get("peer_jid") or ""),
+            "group_jid": group_jid,
+            "is_group": is_group,
             "name": details.get("name") or "",
             "outgoing": bool(details.get("outgoing", False)),
             "is_video": bool(details.get("is_video", False)),
@@ -863,10 +865,14 @@ class CallsMixin:
         # Keep the receive-only monitor alive so accepting can promote the
         # same CallAudioSession to full duplex without reopening the speaker.
         self.stop_incoming_call_alert(identity, keep_audio_monitor=True)
+        is_group = bool(details.get("is_group", False))
+        group_jid = str(details.get("group_jid") or "")
         self._active_voice_call = {
             "identity": identity,
             "call_id": details.get("call_id") or identity,
-            "peer_jid": details.get("peer_jid") or "",
+            "peer_jid": group_jid if is_group else (details.get("peer_jid") or ""),
+            "group_jid": group_jid,
+            "is_group": is_group,
             "name": details.get("name") or "",
             "outgoing": False,
             "is_video": is_video,
@@ -1307,13 +1313,33 @@ class CallsMixin:
             event.Skip()
 
     def start_voice_call(self, peer_jid: str, name: str = ""):
-        self._start_individual_call(peer_jid, name, is_video=False)
+        if str(peer_jid or "").endswith("@g.us"):
+            self._start_group_call(peer_jid, name, is_video=False)
+        else:
+            self._start_individual_call(peer_jid, name, is_video=False)
 
     def start_video_call(self, peer_jid: str, name: str = ""):
-        self._start_individual_call(peer_jid, name, is_video=True)
+        if str(peer_jid or "").endswith("@g.us"):
+            self._start_group_call(peer_jid, name, is_video=True)
+        else:
+            self._start_individual_call(peer_jid, name, is_video=True)
 
     def _start_individual_call(self, peer_jid: str, name: str, *, is_video: bool):
         """Start a one-to-one WhatsApp voice/video call using Python-owned media."""
+        self._start_call(peer_jid, name, is_video=is_video, is_group=False)
+
+    def _start_group_call(self, peer_jid: str, name: str, *, is_video: bool):
+        """Start a WhatsApp group voice/video call using Python-owned media.
+
+        The page's own group-info buttons call
+        ``startWAWebVoipGroupCallFromChat``; the Node side owns that and this
+        record only has to follow the group, never one of its participants.
+        """
+        self._start_call(peer_jid, name, is_video=is_video, is_group=True)
+
+    def _start_call(self, peer_jid: str, name: str, *, is_video: bool,
+                    is_group: bool):
+        """Place an outgoing call and keep Python's audio attached to it."""
         peer_jid = self._normalize_jid(str(peer_jid or ""))
         # The self-chat belongs on this list with the other unreachable kinds.
         # Hiding the call buttons for it (#268) covers the mouse and the Tab
@@ -1322,11 +1348,16 @@ class CallsMixin:
         # "calling Me..." and POSTed an offer to the user's own JID -- with the
         # button hidden, a blind user had no way to know the action even
         # existed there. This is the layer every path goes through.
-        if (
+        unreachable = (
             not peer_jid
-            or peer_jid.endswith(("@g.us", "@newsletter", "@broadcast"))
+            or peer_jid.endswith(("@newsletter", "@broadcast"))
             or self._is_self_jid(peer_jid)
-        ):
+        )
+        if is_group:
+            unreachable = unreachable or not peer_jid.endswith("@g.us")
+        else:
+            unreachable = unreachable or peer_jid.endswith("@g.us")
+        if unreachable:
             self.output(self.i18n.t("voice_call_individual_only"), interrupt=True)
             return
         if (
@@ -1339,7 +1370,13 @@ class CallsMixin:
         details = {
             "call_id": identity,
             "peer_jid": peer_jid,
-            "name": name or self._preview_sender_from_jid(peer_jid) or peer_jid,
+            "group_jid": peer_jid if is_group else "",
+            "is_group": is_group,
+            "name": name or (
+                self._group_display_name(peer_jid)
+                if is_group
+                else self._preview_sender_from_jid(peer_jid) or peer_jid
+            ),
             "outgoing": True,
             "is_video": is_video,
         }
@@ -1372,7 +1409,10 @@ class CallsMixin:
                     # Taken after the audio start, which is what installs the
                     # record this attempt owns.
                     call_record = getattr(self, "_active_voice_call", None)
-                    dial_jid = self._resolve_jid_for_send(peer_jid) or peer_jid
+                    dial_jid = (
+                        peer_jid if is_group
+                        else self._resolve_jid_for_send(peer_jid) or peer_jid
+                    )
 
                 # The offer POST runs OUTSIDE _call_action_lock, for the same
                 # reason as the camera below: it blocks for up to 75 seconds
@@ -1382,8 +1422,12 @@ class CallsMixin:
                 # still in flight -- that is what ``cancelled`` settles.
                 response = self._raise_for_call_response(
                     self._post_call_control(
-                        "offer",
-                        {"to": dial_jid, "isVideo": is_video},
+                        "group/offer" if is_group else "offer",
+                        (
+                            {"groupJid": dial_jid, "isVideo": is_video}
+                            if is_group
+                            else {"to": dial_jid, "isVideo": is_video}
+                        ),
                         timeout=75,
                     ),
                     "offer",
@@ -1607,32 +1651,32 @@ class CallsMixin:
         peer_jid = self._normalize_jid(str(event.get("peerJid") or ""))
         # A real group JID, for the same reason as on_incoming_call_event():
         # the Node side infers isGroup from participant count, so the flag can
-        # be asserted for a one-to-one call. Trusting it alone here meant a
-        # call answered on the phone or from the page controls arrived as
-        # ACTIVE, was discarded as a group event, and WinZapp never adopted
-        # it -- no "call connected", no Python audio attached, nothing on
-        # screen. The user was in a call their PC pretended not to see.
-        is_group_event = bool(
-            peer_jid.endswith("@g.us")
-            or str(event.get("groupJid") or "").endswith("@g.us")
-        )
+        # be asserted for a one-to-one call. A group event also names a
+        # participant in peerJid and the group in groupJid, so the active call
+        # is keyed on the group -- never on whichever participant is speaking.
+        group_jid = self._normalize_jid(str(event.get("groupJid") or ""))
+        if not group_jid and peer_jid.endswith("@g.us"):
+            group_jid = peer_jid
+        is_group_event = group_jid.endswith("@g.us")
+        call_peer_jid = group_jid if is_group_event else peer_jid
         active = getattr(self, "_active_voice_call", None)
         if not active:
-            # A group call is never adopted as the active call. This guard
-            # deliberately sits INSIDE the "no active call" branch: applied
-            # before the match below, a single false-positive isGroup (the Node
-            # side now also infers it from participant count) would swallow the
-            # terminal ENDED of a real one-to-one call, leaving the microphone
-            # open and the call window on screen after the other side hung up.
-            if is_group_event:
-                return
+            # A call answered on the phone or from the page controls is adopted
+            # here, group calls included: otherwise no "call connected" is
+            # spoken, no Python audio is attached and nothing appears on screen
+            # while the user is in a call their PC pretends not to see.
             if state != "ACTIVE" or not call_id:
                 return
             active = {
                 "identity": call_id,
                 "call_id": call_id,
-                "peer_jid": peer_jid,
-                "name": self._preview_sender_from_jid(peer_jid) or peer_jid,
+                "peer_jid": call_peer_jid,
+                "group_jid": group_jid,
+                "is_group": is_group_event,
+                "name": (
+                    self._group_display_name(group_jid) if is_group_event
+                    else self._preview_sender_from_jid(call_peer_jid) or call_peer_jid
+                ),
                 "outgoing": bool(event.get("outgoing", False)),
                 "is_video": bool(event.get("isVideo")),
             }
@@ -1640,7 +1684,7 @@ class CallsMixin:
             self._voice_call_last_announced_state = ""
             wx.CallAfter(self._sync_voice_call_bar)
         if not call_event_matches_active(
-            active, call_id, peer_jid, self._chat_jids_equivalent
+            active, call_id, call_peer_jid, self._chat_jids_equivalent
         ):
             return
         if call_id:
@@ -1652,10 +1696,16 @@ class CallsMixin:
         upgraded_to_video = bool(event.get("isVideo")) and not active.get("is_video")
         if event.get("isVideo"):
             active["is_video"] = True
-        if peer_jid:
-            active["peer_jid"] = peer_jid
-        if not active.get("name") and peer_jid:
-            active["name"] = self._preview_sender_from_jid(peer_jid) or peer_jid
+        if is_group_event:
+            active["group_jid"] = group_jid
+            active["is_group"] = True
+        if call_peer_jid:
+            active["peer_jid"] = call_peer_jid
+        if not active.get("name") and call_peer_jid:
+            active["name"] = (
+                self._group_display_name(group_jid) if is_group_event
+                else self._preview_sender_from_jid(call_peer_jid) or call_peer_jid
+            )
         self._sync_voice_call_bar()
 
         terminal_states = {
@@ -1664,7 +1714,7 @@ class CallsMixin:
         }
         if state in terminal_states or event.get("event") in {"ended", "timeout"}:
             self._confirm_call_ended(
-                active, call_id, peer_jid, upgraded_to_video=upgraded_to_video)
+                active, call_id, call_peer_jid, upgraded_to_video=upgraded_to_video)
             return
         if upgraded_to_video:
             self._on_call_upgraded_to_video()
@@ -1926,6 +1976,14 @@ class CallsMixin:
                 return data
         return None
 
+    def _group_display_name(self, group_jid: str) -> str:
+        """The group's name from the loaded chat, cache, or a spoken fallback."""
+        chat = getattr(self, "chats", {}).get(group_jid, {}) if group_jid else {}
+        name = self._group_name_from_chat_dict(chat) if chat else ""
+        if not name and group_jid:
+            name = getattr(self, "_group_name_cache", {}).get(group_jid, "")
+        return name or self.i18n.t("unknown_group")
+
     def on_incoming_call_event(self, event: dict):
         """Announce an incoming call and keep its tone playing until it ends.
 
@@ -1971,12 +2029,20 @@ class CallsMixin:
                 )
                 return
 
+        # A group call names a participant in peerJid and the group in
+        # groupJid; a group event can also carry the group in peerJid itself.
+        group_jid = self._normalize_jid(str(event.get("groupJid") or ""))
+        if not group_jid and peer_jid.endswith("@g.us"):
+            group_jid = peer_jid
+
         # State changes away from INCOMING_RING mean the call was answered on
         # another device, rejected, missed, failed, or otherwise ended.
         if not is_ringing:
             # The record WhatsApp writes for it is what shows the call in the
-            # conversation ("Ligação de voz perdida").
-            self._watch_ended_call_log(call_id, peer_jid, False)
+            # conversation ("Ligação de voz perdida"). A group call's record
+            # belongs to the group chat, never to the participant that rang;
+            # _watch_ended_call_log() deliberately skips @g.us records.
+            self._watch_ended_call_log(call_id, group_jid or peer_jid, False)
             if call_id:
                 self._active_incoming_calls.pop(call_id, None)
                 getattr(self, "_incoming_call_details", {}).pop(call_id, None)
@@ -2025,25 +2091,14 @@ class CallsMixin:
         identity = call_id or peer_jid
         if not identity or identity in self._active_incoming_calls:
             return
-        # WPPConnect cannot answer a group call, so `is_group` keeps the Answer
-        # button disabled (incoming_call_can_answer()). It must NOT silence the
-        # offer: the page's own ringtone is muted by callMediaBridge, so
-        # dropping the event here left a blind user with no signal at all that
-        # their phone was ringing -- and no log line to explain it afterwards.
-        # The alert follows the same two Calls settings as a one-to-one offer.
-        group_jid = self._normalize_jid(str(event.get("groupJid") or ""))
         # A real group JID is required, not merely the isGroup flag. The Node
-        # side now infers isGroup from participant count too
+        # side also infers isGroup from participant count
         # (groupParticipantCountOf(call) > 1 in createSessionUtil.ts), so the
-        # flag can be asserted for a one-to-one call -- which is exactly why
-        # on_voice_call_state_event's own group guard had to move inside its
-        # "no active call" branch. Trusting it here costs more, not less: a
-        # false positive would announce "incoming group call in Unnamed group"
-        # instead of the caller's name AND disable the Answer button via
-        # incoming_call_can_answer(), so the user simply could not answer a
-        # real call from a friend. CLAUDE.md's rule for the other direction
-        # applies here too: a @g.us is not trustworthy alone, and neither is
-        # a group claim with no @g.us behind it.
+        # flag can be asserted for a one-to-one call. Announcing a false one as
+        # a group would hide the caller's name and promise a group call that
+        # does not exist. CLAUDE.md's rule applies in both directions: a @g.us
+        # is not trustworthy alone, and neither is a group claim with no @g.us
+        # behind it.
         is_group = group_jid.endswith("@g.us") or peer_jid.endswith("@g.us")
         if event.get("isGroup") and not is_group:
             logging.info(
@@ -2051,14 +2106,8 @@ class CallsMixin:
                 "individual id=%s peer=%s", call_id, peer_jid,
             )
         if is_group:
-            chat = getattr(self, "chats", {}).get(group_jid, {}) if group_jid else {}
-            group_name = self._group_name_from_chat_dict(chat) if chat else ""
-            if not group_name and group_jid:
-                group_name = getattr(self, "_group_name_cache", {}).get(group_jid, "")
-            if not group_name:
-                group_name = self.i18n.t("unknown_group")
-            caller_name = group_name
-            message = self.i18n.t("incoming_group_call_announcement").format(name=group_name)
+            caller_name = self._group_display_name(group_jid)
+            message = self.i18n.t("incoming_group_call_announcement").format(name=caller_name)
         else:
             # Keep the proven one-to-one call path unchanged: peerJid is the
             # caller and resolves through the existing contact-name machinery.
@@ -2081,12 +2130,11 @@ class CallsMixin:
         }
         self._arm_incoming_call_watchdog(identity)
         self._incoming_call_details[identity]["message"] = message
-        # Only for a call that CAN be answered: the monitor exists so accepting
-        # can promote the same session to full duplex without reopening the
-        # speaker, and a group offer never gets that far. Opening an output
-        # stream for it would hold the device for nothing.
-        if not is_group:
-            self._start_incoming_call_audio_monitor(identity)
+        # Every answerable call gets the receive-only monitor, group calls
+        # included: accepting promotes this same session to full duplex without
+        # reopening the speaker. WhatsApp's own ringtone is muted by the page
+        # bridge, so this is also how the caller is heard while it rings.
+        self._start_incoming_call_audio_monitor(identity)
         self.output(message, interrupt=True)
         if hasattr(self, "call_incoming_sound"):
             self.call_incoming_sound.play()

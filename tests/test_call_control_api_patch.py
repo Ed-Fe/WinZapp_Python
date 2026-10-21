@@ -1,5 +1,7 @@
 import re
 from pathlib import Path
+from types import SimpleNamespace
+
 from tests.god_modules import main_window_source
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +19,7 @@ def test_wppconnect_patch_exposes_voice_call_control_routes():
     assert '/api/:session/call/reject' in routes
     assert '/api/:session/call/end' in routes
     assert '/api/:session/call/offer' in routes
+    assert '/api/:session/call/group/offer' in routes
     assert '/api/:session/call/diagnostics' in routes
     assert "getVoipStackInterface" in controller
     assert "enableCallInterface" in controller
@@ -29,6 +32,9 @@ def test_wppconnect_patch_exposes_voice_call_control_routes():
     assert "WPP.call.rejectCall" in controller
     assert "WPP.call.end" in controller
     assert "WPP.call.offer" in controller
+    assert "startWAWebVoipGroupCallFromChat" in controller
+    assert "offerGroupCall" in controller
+    assert "group-offer" in controller
     assert "prepareAudioBridge(req)" in controller
     assert "isOutgoingOrLiveCall" in controller
     assert "without successful voipInit" in controller
@@ -375,12 +381,59 @@ def test_setup_api_copies_call_patch_files_into_runtime_api():
 def test_outgoing_call_allows_native_voip_more_than_generic_http_timeout():
     main_py = main_window_source()
 
-    offer = main_py[main_py.index("def _start_individual_call"):]
+    offer = main_py[main_py.index("def _start_call(self"):]
     offer = offer[: offer.index("threading.Thread(target=_worker")]
-    assert '"offer",' in offer
+    assert '"group/offer" if is_group else "offer",' in offer
     assert "timeout=75," in offer
-    assert "dial_jid = self._resolve_jid_for_send(peer_jid) or peer_jid" in offer
+    assert "self._resolve_jid_for_send(peer_jid) or peer_jid" in offer
     assert '{"to": dial_jid, "isVideo": is_video}' in offer
+    assert '{"groupJid": dial_jid, "isVideo": is_video}' in offer
+
+
+def test_call_control_urls_prefix_call_exactly_once(monkeypatch):
+    """Every control URL is ``/api/<token>/call/<endpoint>``.
+
+    The group offer used to pass ``"call/group/offer"`` as the endpoint, and
+    the prefix turned that into ``/call/call/group/offer`` — a 404 that no
+    test caught, because the call-path tests all stub ``_post_call_control``
+    itself and never see the URL it builds.
+    """
+    from main_window import calls as calls_module
+
+    urls = []
+
+    def _capture(url, **_kwargs):
+        urls.append(url)
+        return object()
+
+    monkeypatch.setattr(calls_module, "api_post", _capture)
+    stub = SimpleNamespace(
+        wpp_server="http://127.0.0.1", wpp_port=6300, token="tok"
+    )
+    calls_module.CallsMixin._post_call_control(
+        stub, "group/offer", {"groupJid": "1@g.us"}
+    )
+    calls_module.CallsMixin._post_call_control(
+        stub, "offer", {"to": "1@s.whatsapp.net"}
+    )
+
+    assert urls == [
+        "http://127.0.0.1:6300/api/tok/call/group/offer",
+        "http://127.0.0.1:6300/api/tok/call/offer",
+    ]
+
+
+def test_group_calls_are_dispatched_and_started_without_a_peer_dial():
+    main_py = main_window_source()
+
+    assert 'if str(peer_jid or "").endswith("@g.us"):' in main_py
+    assert "self._start_group_call(peer_jid, name, is_video=False)" in main_py
+    assert "self._start_group_call(peer_jid, name, is_video=True)" in main_py
+    group = main_py[main_py.index("def _start_call(self"):]
+    group = group[: group.index("threading.Thread(target=_worker")]
+    # A group has no contact JID to resolve, and its record follows the group.
+    assert "peer_jid if is_group" in group
+    assert '"group_jid": peer_jid if is_group else "",' in group
 
 def test_outgoing_call_prefers_new_active_call_over_stale_collection_model():
     controller = _source("client/api_patches/src/controller/callController.ts")
@@ -408,8 +461,36 @@ def test_offer_starts_the_call_as_a_user_gesture():
     assert "await start(peer, isVideo, 8, 5, undefined, { entryTrust: 'user_gesture' })" in offer
     assert "return win.WPP.call.offer(to, { isVideo })" in offer
     assert "peer?.isUser?.()" in offer
-    assert "await startOutgoingCall(String(payload.to), !!payload.isVideo)" in offer
+    assert "() => startOutgoingCall(String(payload.to), !!payload.isVideo)" in offer
     assert "await win.WPP.call.offer(payload.to" not in offer
+
+
+def test_group_offer_uses_whatsapps_own_group_start_entry_points():
+    """A group call has no single peer to dial. The patch must go through
+    startWAWebVoipGroupCallFromChat with the GROUP_CHAT_INFO WAM entry points,
+    exactly like WhatsApp's own group-info buttons, and never hand-roll group
+    signaling or fall back to WPP.call.offer() for a group."""
+    controller = _source("client/api_patches/src/controller/callController.ts")
+
+    group = controller[controller.index("const startOutgoingGroupCall"):]
+    group = group[: group.index("const waitForOfferedCall")]
+
+    assert "win.WPP?.whatsapp?.functions?.startWAWebVoipGroupCallFromChat" in group
+    assert "requireWa('WAWebVoipStartCall')?.startWAWebVoipGroupCallFromChat" in group
+    assert "requireWa('WAWebWidFactory')?.createWid" in group
+    assert "requireWa('WAWebChatCollection')?.ChatCollection" in group
+    assert "chats.get(createWid(groupJid))" in group
+    assert "chat.groupMetadata" in group
+    assert "WAWebWamEnumCallFromUi" in group
+    assert "WAWebWamEnumLobbyEntryPointType" in group
+    assert "await start(chat, isVideo, callFromUi, lobbyEntryPoint)" in group
+    assert "WPP.call.offer" not in group
+
+    assert "if (action === 'group-offer')" in controller
+    assert "String(payload.groupJid)" in controller
+    assert "'an outgoing group'" in controller
+    assert "offerGroupCall" in controller
+    assert "Parameter groupJid is required!" in controller
 
 
 

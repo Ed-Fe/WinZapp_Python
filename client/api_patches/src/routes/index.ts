@@ -868,6 +868,12 @@ routes.post(
   statusConnection,
   CallController.offerCall
 );
+routes.post(
+  '/api/:session/call/group/offer',
+  verifyToken,
+  statusConnection,
+  CallController.offerGroupCall
+);
 routes.get(
   '/api/:session/call/diagnostics',
   verifyToken,

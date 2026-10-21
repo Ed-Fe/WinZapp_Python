@@ -94,6 +94,7 @@ class _MainStub:
     _CALL_EVENT_START_GRACE_SECONDS = MainWindow._CALL_EVENT_START_GRACE_SECONDS
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
     _group_name_from_chat_dict = staticmethod(MainWindow._group_name_from_chat_dict)
+    _group_display_name = MainWindow._group_display_name
     on_incoming_call_event = MainWindow.on_incoming_call_event
     _expire_incoming_call_alert = MainWindow._expire_incoming_call_alert
     stop_incoming_call_alert = MainWindow.stop_incoming_call_alert
@@ -322,14 +323,14 @@ def test_in_window_stop_button_clears_non_popup_call_surface():
     assert stub.call_incoming_sound.stop_calls == 1
 
 
-def test_group_offer_is_announced_by_group_name_but_cannot_be_answered():
+def test_group_offer_is_announced_by_group_name_and_can_be_answered():
     """REGRESSION: the group offer used to be dropped before the announcement,
     the ring tone and even the log line. WhatsApp Web's own ringtone is muted
     by callMediaBridge, so a blind user got NO signal at all that their phone
     was ringing, and log.log had nothing to explain it afterwards.
 
-    WPPConnect still cannot answer a group call, so the offer is announced and
-    shown like any other -- only `is_group` keeps the Answer button disabled.
+    A group offer is now answerable through the same native accept path as a
+    one-to-one call, so it is announced, shown and monitored like any other.
     """
     stub = _MainStub()
     group_jid = "120363427511142886@g.us"
@@ -348,12 +349,12 @@ def test_group_offer_is_announced_by_group_name_but_cannot_be_answered():
     assert stub._active_incoming_calls != {}
     details = stub._incoming_call_details["call-1"]
     assert details["is_group"] is True
+    assert details["group_jid"] == group_jid
     assert details["name"] == "Família"
-    assert incoming_call_can_answer(details) is False
-    # The receive-only monitor exists so ANSWERING can promote the same session
-    # to full duplex. A group offer never gets that far, so opening an output
-    # stream for it would hold the device for nothing.
-    assert stub.ring_monitor_starts == []
+    assert incoming_call_can_answer(details) is True
+    # The receive-only monitor is what makes the caller audible while it rings
+    # and lets accepting promote the same session to full duplex.
+    assert stub.ring_monitor_starts == ["call-1"]
 
 
 def test_group_offer_still_obeys_the_calls_alert_setting():
@@ -575,6 +576,73 @@ def test_stale_terminal_event_for_same_peer_does_not_end_current_call(monkeypatc
     assert stub._active_voice_call["call_id"] == "current-call"
 
 
+def test_active_group_call_is_adopted_with_group_metadata(monkeypatch):
+    """A group call answered on the phone or from the page must become the
+    active call here too, keyed on the group -- never on the participant in
+    peerJid -- so the call window, audio and hang-up all follow it."""
+    monkeypatch.setattr(wx, "CallAfter", lambda *_args: None)
+    stub = _MainStub()
+    stub._sync_voice_call_bar = lambda: None
+    stub._call_audio_session = object()  # audio already attached
+    group_jid = "120363427511142886@g.us"
+    stub.chats[group_jid] = {
+        "remoteJid": group_jid,
+        "groupMetadata": {"subject": "Família"},
+    }
+
+    stub.on_voice_call_state_event({
+        "event": "state",
+        "state": "ACTIVE",
+        "id": "group-call",
+        "peerJid": "5511888888888@lid",
+        "groupJid": group_jid,
+        "isGroup": True,
+    })
+
+    active = stub._active_voice_call
+    assert active["call_id"] == "group-call"
+    assert active["peer_jid"] == group_jid
+    assert active["group_jid"] == group_jid
+    assert active["is_group"] is True
+    assert active["name"] == "Família"
+    assert stub.announcements == [("Ligação conectada.", True)]
+
+
+def test_group_state_event_matches_the_group_not_a_participant(monkeypatch):
+    """Once adopted, later events still carry a participant in peerJid. They
+    match on groupJid, so the call is not treated as a different call."""
+    monkeypatch.setattr(wx, "CallAfter", lambda *_args: None)
+    stub = _MainStub()
+    stub._sync_voice_call_bar = lambda: None
+    stub._call_audio_session = object()
+    group_jid = "120363427511142886@g.us"
+    stub.chats[group_jid] = {"remoteJid": group_jid, "groupMetadata": {"subject": "Família"}}
+    stub._active_voice_call = {
+        "identity": "group-call",
+        "call_id": "group-call",
+        "peer_jid": group_jid,
+        "group_jid": group_jid,
+        "is_group": True,
+        "name": "Família",
+        "outgoing": False,
+        "is_video": False,
+    }
+
+    stub.on_voice_call_state_event({
+        "event": "state",
+        "state": "ACTIVE",
+        "id": "group-call",
+        "peerJid": "5511888888888@lid",
+        "groupJid": group_jid,
+        "isGroup": True,
+    })
+
+    assert stub._active_voice_call["peer_jid"] == group_jid
+    assert stub._active_voice_call["group_jid"] == group_jid
+    assert stub._active_voice_call["name"] == "Família"
+    assert stub._voice_call_last_announced_state == "ACTIVE"
+
+
 def test_websocket_forwards_remote_call_audio_to_main_window():
     delivered = []
     stub = SimpleNamespace(
@@ -648,10 +716,9 @@ def test_isgroup_without_a_group_jid_is_treated_as_an_individual_call():
     """REGRESSION: the Node side now infers isGroup from participant count
     (groupParticipantCountOf(call) > 1), so the flag can be asserted for a
     real one-to-one call. Trusting it alone announced "incoming group call in
-    Unnamed group" instead of the caller's name AND disabled the Answer button
-    via incoming_call_can_answer() -- the user simply could not answer a call
-    from a friend. CLAUDE.md's rule applies in both directions: a @g.us is not
-    trustworthy alone, and neither is a group claim with no @g.us behind it.
+    Unnamed group" instead of the caller's name. CLAUDE.md's rule applies in
+    both directions: a @g.us is not trustworthy alone, and neither is a group
+    claim with no @g.us behind it.
     """
     stub = _MainStub()
 
@@ -664,33 +731,28 @@ def test_isgroup_without_a_group_jid_is_treated_as_an_individual_call():
     details = stub._incoming_call_details["call-1"]
     assert details["is_group"] is False
     assert incoming_call_can_answer(details) is True
-    # A real one-to-one call still gets its receive-only monitor.
+    # It is treated as a real one-to-one call, monitor included.
     assert stub.ring_monitor_starts == ["call-1"]
 
 
-def test_dismissing_the_only_answerable_call_releases_the_speaker():
-    """REGRESSION: the receive-only monitor is keyed to a call that can be
-    ANSWERED, but it was released only when _active_incoming_calls emptied.
-    Group offers now sit in that dictionary too -- announced, never answerable,
-    and they start no monitor -- so dismissing the one-to-one call left the
-    speaker held open for as long as a group offer kept ringing beside it."""
+def test_dismissing_a_group_offer_keeps_the_monitor_until_the_last_call():
+    """The shared monitor is released only once no answerable offer remains.
+    A still-ringing group offer counts, because it can be answered too."""
     stub = _MainStub()
-    group_jid = "120363427511142886@g.us"
-    stub.chats[group_jid] = {"remoteJid": group_jid, "groupMetadata": {"subject": "Família"}}
-
     stub.on_incoming_call_event(_offer(call_id="one-to-one"))
-    group_event = _offer(call_id="group-call", peer="5511888888888@lid")
-    group_event.update({"isGroup": True, "groupJid": group_jid})
-    stub.on_incoming_call_event(group_event)
+    _ringing_group_offer(stub)
 
-    assert stub.ring_monitor_starts == ["one-to-one"]
+    assert stub.ring_monitor_starts == ["one-to-one", "group-call"]
     assert stub.ring_monitor_stops == 0
 
     stub.stop_incoming_call_alert("one-to-one")
 
-    # The group offer is still ringing, so the alert list is not empty -- but
-    # nothing answerable remains, so the speaker must be released.
+    # The group offer is still ringing and answerable, so the speaker stays.
     assert stub._active_incoming_calls == {"group-call": "5511888888888@lid"}
+    assert stub.ring_monitor_stops == 0
+
+    stub.stop_incoming_call_alert("group-call")
+    assert stub._active_incoming_calls == {}
     assert stub.ring_monitor_stops == 1
 
 
@@ -711,30 +773,32 @@ def _ringing_group_offer(stub, call_id="group-call"):
     event = _offer(call_id=call_id, peer="5511888888888@lid")
     event.update({"isGroup": True, "groupJid": group_jid})
     stub.on_incoming_call_event(event)
+    return group_jid
 
 
-def test_the_watchdog_timeout_also_releases_the_speaker():
-    """REGRESSION: the answerable-call gate was applied only in
-    stop_incoming_call_alert(). The watchdog path kept the old emptiness test,
-    so a one-to-one call expiring beside a still-ringing group offer left the
-    speaker held -- and with exclusive_output on, that silences the screen
-    reader with nothing on screen to explain it."""
+def test_the_watchdog_timeout_keeps_the_speaker_for_a_ringing_group_offer():
+    """The shared monitor is released only when no answerable offer remains,
+    so a group offer still ringing holds it exactly like a second one-to-one."""
     stub = _MainStub()
     stub.on_incoming_call_event(_offer(call_id="one-to-one"))
     _ringing_group_offer(stub)
-    assert stub.ring_monitor_starts == ["one-to-one"]
+    assert stub.ring_monitor_starts == ["one-to-one", "group-call"]
 
     stub._expire_incoming_call_alert("one-to-one")
 
     assert "group-call" in stub._active_incoming_calls
+    assert stub.ring_monitor_stops == 0
+
+    stub._expire_incoming_call_alert("group-call")
+    assert stub._active_incoming_calls == {}
     assert stub.ring_monitor_stops == 1
 
 
-def test_a_terminal_call_event_also_releases_the_speaker():
-    """Same gap in the non-ringing branch of on_incoming_call_event()."""
+def test_a_terminal_call_event_keeps_the_speaker_for_a_ringing_group_offer():
+    """Same shared-monitor rule in the non-ringing branch of the offer path."""
     stub = _MainStub()
     stub.on_incoming_call_event(_offer(call_id="one-to-one"))
-    _ringing_group_offer(stub)
+    group_jid = _ringing_group_offer(stub)
 
     stub.on_incoming_call_event({
         "event": "callstate",
@@ -744,6 +808,17 @@ def test_a_terminal_call_event_also_releases_the_speaker():
     })
 
     assert "group-call" in stub._active_incoming_calls
+    assert stub.ring_monitor_stops == 0
+
+    stub.on_incoming_call_event({
+        "event": "callstate",
+        "state": "ENDED",
+        "id": "group-call",
+        "peerJid": "5511888888888@lid",
+        "groupJid": group_jid,
+    })
+
+    assert stub._active_incoming_calls == {}
     assert stub.ring_monitor_stops == 1
 
 

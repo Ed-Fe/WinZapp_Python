@@ -4,6 +4,10 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Apeluri de grup: butoanele de apel vocal și video apar acum în conversația de grup și pornesc un apel către grup, iar un apel de grup primit sună, este anunțat cu numele grupului și poate fi răspuns, cu același buton de răspuns și aceeași comandă rapidă globală de răspuns ca un apel individual. Pornirea camerei în timpul unui apel vocal funcționează ca într-un apel individual, iar evenimentele de apel de la fiecare participant rămân la grup, așa că fereastra apelului păstrează numele grupului de la primul sunet până la final.
+
+- Apeluri video: WinZapp găsește acum camera cu FFmpeg-ul inclus în WinZapp, care listează dispozitivele DirectShow fără antetul „DirectShow video devices”. Acea versiune de FFmpeg nu returna nicio cameră, așa că apelul video ieșea doar cu recepție, cu „No camera found” în log.
+
 - Butoanele din mesajele firmelor pot fi acum folosite: un buton de răspuns trimite răspunsul la fel ca WhatsApp Web (butoanele de răspuns ale mesajelor simple, răspunsurile rapide ale mesajelor interactive, butoanele de șablon și rândurile listelor), un buton de link deschide linkul, un buton de copiere copiază codul, iar un buton de apel spune numărul. Butoanele apar sub lista de mesaje când mesajul este selectat.
 
 - WPPConnect Server 2.10.61 este acum oferit ca actualizare, fără a aștepta o nouă versiune WinZapp. Actualizează doar dependențe și nu afectează modificările pe care WinZapp le face în server.

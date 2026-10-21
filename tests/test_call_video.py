@@ -34,6 +34,21 @@ def test_camera_names_accepts_current_ffmpeg_directshow_suffix_and_spacing():
     assert camera_names(listing) == ["Integrated Camera", "USB Camera"]
 
 
+def test_camera_names_reads_the_bundled_ffmpeg_listing_without_section_headers():
+    """client/lib/ffmpeg.exe omits the "DirectShow video devices" header.
+
+    That binary is what _find_api_ffmpeg() prefers, and it tags every device
+    line with (video)/(audio) instead. Requiring the header made it enumerate
+    zero cameras, so a real HP webcam was reported as "No camera found".
+    """
+    listing = '''[dshow @ 000] "HP TrueVision HD Camera" (video)
+[dshow @ 000]   Alternative name "@device_pnp_abc"
+[dshow @ 000] "Microphone Array (Realtek(R) Audio)" (audio)
+[dshow @ 000]   Alternative name "@device_cm_abc"
+'''
+    assert camera_names(listing) == ["HP TrueVision HD Camera"]
+
+
 class _FakeCompletedProcess:
     def __init__(self, stderr):
         self.stderr = stderr
@@ -226,9 +241,10 @@ def test_jpeg_pipe_discards_noise_and_yields_complete_frames():
     ]
 
 
-def test_individual_video_is_answerable_and_has_video_label():
+def test_individual_video_and_group_calls_are_answerable_and_have_labels():
     assert incoming_call_can_answer({"is_video": True})
-    assert not incoming_call_can_answer({"is_group": True})
+    # A group offer is answerable through the same native accept path.
+    assert incoming_call_can_answer({"is_group": True})
     assert active_call_label_key({"is_video": True}) == "video_call_active_label"
 
 
@@ -240,13 +256,46 @@ def test_video_button_and_labels_exist_in_all_languages():
         assert entries['voice_call_video_off_button']
         assert entries['voice_call_video_on_button']
         assert '{name}' in entries['incoming_video_call_announcement']
+        # Group calls reuse the existing call labels; only the announcement has
+        # its own group wording.
+        assert '{name}' in entries['incoming_group_call_announcement']
+        assert '{name}' in entries['voice_call_starting']
 
 
-def test_video_button_is_restricted_to_individual_chats():
+def test_video_button_is_offered_for_groups_but_not_unreachable_chats():
     source = conversations_source()
-    assert 'unavailable = jid.endswith(("@g.us", "@newsletter", "@broadcast"))' in source
+    assert 'unavailable = jid.endswith(("@newsletter", "@broadcast")) or is_self_chat' in source
+    assert 'unavailable = jid.endswith(("@g.us", "@newsletter", "@broadcast"))' not in source
     assert 'self._video_call_btn.Show(bool(jid) and not unavailable)' in source
     assert 'self.main_window.start_video_call(jid, name)' in source
+
+
+class _DispatchMainWindow:
+    start_voice_call = MainWindow.start_voice_call
+    start_video_call = MainWindow.start_video_call
+
+    def __init__(self):
+        self.started = []
+
+    def _start_group_call(self, jid, name, *, is_video):
+        self.started.append(("group", jid, name, is_video))
+
+    def _start_individual_call(self, jid, name, *, is_video):
+        self.started.append(("individual", jid, name, is_video))
+
+
+def test_group_jids_use_the_group_call_path_and_contacts_do_not():
+    stub = _DispatchMainWindow()
+
+    stub.start_voice_call("120363427511142886@g.us", "Família")
+    stub.start_video_call("120363427511142886@g.us", "Família")
+    stub.start_voice_call("5511999999999@s.whatsapp.net", "Fulano")
+
+    assert stub.started == [
+        ("group", "120363427511142886@g.us", "Família", False),
+        ("group", "120363427511142886@g.us", "Família", True),
+        ("individual", "5511999999999@s.whatsapp.net", "Fulano", False),
+    ]
 
 
 class _NoCameraWs:
@@ -470,8 +519,8 @@ def test_camera_starts_after_the_offer_post_on_an_outgoing_video_call():
     between pressing "video call" and the offer actually being placed."""
     body = _body_between(
         _MAIN_SRC,
-        "    def _start_individual_call(self",
-        "    def _sync_voice_call_bar(self",
+        "    def _start_call(self",
+        "    def _abandon_outgoing_call(self",
     )
     offer_post = body.index('"offer",')
     camera_start = body.index("self._start_call_camera()")
@@ -590,6 +639,7 @@ class _NoThread:
 
 class _SelfChatMainWindow:
     _start_individual_call = MainWindow._start_individual_call
+    _start_call = MainWindow._start_call
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
 
     def __init__(self):

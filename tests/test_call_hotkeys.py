@@ -166,12 +166,12 @@ class TestWhichCall:
         details = {"a": {}, "b": {}}
         assert first_answerable_call({"a": "x", "b": "y"}, details) == "a"
 
-    def test_a_group_offer_ringing_first_is_skipped(self):
+    def test_a_group_offer_is_chosen_in_ring_order(self):
         details = {"g": {"is_group": True}, "a": {}}
-        assert first_answerable_call({"g": "x", "a": "y"}, details) == "a"
+        assert first_answerable_call({"g": "x", "a": "y"}, details) == "g"
 
-    def test_only_a_group_offer_leaves_nothing_to_answer(self):
-        assert first_answerable_call({"g": "x"}, {"g": {"is_group": True}}) == ""
+    def test_only_a_group_offer_is_still_answerable(self):
+        assert first_answerable_call({"g": "x"}, {"g": {"is_group": True}}) == "g"
 
     def test_no_call_leaves_nothing_to_answer(self):
         assert first_answerable_call({}, {}) == ""
@@ -294,12 +294,12 @@ class TestHoldingTheKeys:
         assert all(m.stopped for m in recorder.created)
         assert _held(window) == {}
 
-    def test_a_group_offer_alone_takes_only_the_end_key(self, recorder):
-        """It cannot be answered, but it can be rejected."""
+    def test_a_group_offer_alone_takes_both_call_keys(self, recorder):
+        """A group call can be answered and rejected like a one-to-one one."""
         window = _Window()
         window.ring("g", is_group=True)
         window._sync_call_hotkeys()
-        assert _held(window) == {"end": CALL_END_HOTKEY}
+        assert _held(window) == {"answer": CALL_ANSWER_HOTKEY, "end": CALL_END_HOTKEY}
 
     def test_changed_settings_move_the_key_of_a_call_that_rings(self, recorder):
         window = _Window()
@@ -382,12 +382,12 @@ class TestPressingTheKeys:
         window._focus_call_window()
         assert self.fronted == []
 
-    def test_answer_skips_a_group_offer(self):
+    def test_answer_takes_the_oldest_group_offer(self):
         window = _Window()
         window.ring("g", is_group=True)
         window.ring("a")
         window._answer_call_from_hotkey()
-        assert window.accepted == [("a", None)]
+        assert window.accepted == [("g", None)]
 
     def test_answer_after_the_call_ended_does_nothing(self):
         window = _Window()

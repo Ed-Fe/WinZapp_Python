@@ -207,6 +207,29 @@ def test_answer_without_video_on_a_voice_only_call_never_touches_the_camera():
     assert stub._call_camera_available is None
 
 
+def test_answering_a_group_call_records_the_group_not_the_ringing_participant():
+    """The offer names a participant in peer_jid and the group in group_jid.
+    The accepted call -- and every later state event -- must follow the group."""
+    stub = _MainStub()
+    group_jid = "120363427511142886@g.us"
+    stub._incoming_call_details["group-call"] = {
+        "call_id": "group-call",
+        "peer_jid": "5511888888888@lid",
+        "group_jid": group_jid,
+        "is_group": True,
+        "name": "Família",
+        "is_video": False,
+    }
+    stub._active_incoming_calls["group-call"] = "5511888888888@lid"
+
+    stub.accept_incoming_call("group-call")
+
+    assert stub._active_voice_call["peer_jid"] == group_jid
+    assert stub._active_voice_call["group_jid"] == group_jid
+    assert stub._active_voice_call["is_group"] is True
+    assert stub.posted_controls == [("accept", {"callId": "group-call"})]
+
+
 class _FakeParent:
     def __init__(self, i18n):
         self.i18n = i18n

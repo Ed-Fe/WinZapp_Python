@@ -9,7 +9,21 @@ import time
 
 
 def camera_names(ffmpeg_output: str) -> list[str]:
-    """Extract DirectShow video device names, excluding audio and aliases."""
+    """Extract DirectShow video device names, excluding audio and aliases.
+
+    Two listing formats are in the field. Newer FFmpeg builds print a
+    ``DirectShow video devices`` header and list bare quoted names under it.
+    The build WinZapp bundles (``client/lib/ffmpeg.exe``, which
+    ``_find_api_ffmpeg()`` prefers) prints no header at all and tags each
+    line itself::
+
+        [dshow @ 000] "HP TrueVision HD Camera" (video)
+        [dshow @ 000] "Microphone Array (Realtek(R) Audio)" (audio)
+
+    Requiring the header made that build enumerate zero cameras, so a real
+    camera was reported as "No camera found" and the call went out
+    receive-only.
+    """
     names = []
     in_video = False
     for line in ffmpeg_output.splitlines():
@@ -18,13 +32,24 @@ def camera_names(ffmpeg_output: str) -> list[str]:
             continue
         if 'DirectShow audio devices' in line:
             in_video = False
-        if not in_video or 'Alternative name' in line:
+            continue
+        if 'Alternative name' in line:
             continue
         # Recent FFmpeg builds may append a media-kind suffix, e.g.
         #   [dshow @ ...]  "Integrated Camera" (video)
         # and spacing after the dshow prefix is not stable.
-        match = re.search(r'\]\s+"([^"]+)"(?:\s+\(video\))?\s*$', line, re.IGNORECASE)
-        if match:
+        match = re.search(
+            r'\]\s+"([^"]+)"(?:\s+\((video|audio)\))?\s*$', line, re.IGNORECASE
+        )
+        if not match:
+            continue
+        kind = (match.group(2) or '').lower()
+        if kind == 'audio':
+            continue
+        # A tagged (video) line names its own kind, so it is authoritative
+        # without the header. An untagged name still needs the header, which
+        # is what keeps audio devices in the older format out.
+        if kind == 'video' or in_video:
             names.append(match.group(1))
     return names
 

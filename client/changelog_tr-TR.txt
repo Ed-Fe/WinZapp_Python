@@ -4,6 +4,10 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- Grup aramaları: sesli ve görüntülü arama düğmeleri artık grup sohbetinde görünür ve gruba arama başlatır; gelen bir grup araması çalar, grubun adıyla duyurulur ve tek kişilik aramadaki aynı Yanıtla düğmesi ve genel yanıtlama kısayoluyla yanıtlanabilir. Sesli arama sırasında kamerayı açmak tek kişilik aramadaki gibi çalışır ve her katılımcıdan gelen arama olayları grupta kalır, böylece arama penceresi ilk çalmadan sona kadar grubun adını korur.
+
+- Görüntülü aramalar: WinZapp artık kamerayı, DirectShow aygıtlarını "DirectShow video devices" başlığı olmadan listeleyen ve WinZapp ile birlikte gelen FFmpeg ile bulur. Bu FFmpeg sürümü hiçbir kamera döndürmüyordu, bu yüzden görüntülü arama yalnızca alım modunda başlıyordu ve günlükte "No camera found" yazıyordu.
+
 - İşletme mesajlarındaki düğmeler artık kullanılabiliyor: bir yanıt düğmesi yanıtı WhatsApp Web ile aynı şekilde gönderir (düz mesajların yanıt düğmeleri, etkileşimli mesajların hızlı yanıtları, şablon düğmeleri ve listelerin satırları), bağlantı düğmesi bağlantıyı açar, kopyalama düğmesi kodu kopyalar, arama düğmesi numarayı söyler. Mesaj seçildiğinde düğmeler mesaj listesinin altında görünür.
 
 - WPPConnect Server 2.10.61 artık yeni bir WinZapp sürümü beklenmeden güncelleme olarak sunuluyor. Yalnızca bağımlılıkları günceller ve WinZapp'ın sunucuda yaptığı değişiklikleri etkilemez.

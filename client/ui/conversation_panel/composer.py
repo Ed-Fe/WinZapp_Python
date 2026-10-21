@@ -405,7 +405,10 @@ class ComposerMixin:
     def _sync_voice_call_button(self, jid: str):
         jid = str(jid or "")
         is_self_chat = bool(jid) and self.main_window._is_self_jid(jid)
-        unavailable = jid.endswith(("@g.us", "@newsletter", "@broadcast")) or is_self_chat
+        # Groups are callable too: WhatsApp Web's group-info buttons start the
+        # same native group call WinZapp asks the Node patch for. Newsletters,
+        # broadcast lists and the self-chat have no call to place.
+        unavailable = jid.endswith(("@newsletter", "@broadcast")) or is_self_chat
         self._voice_call_btn.Show(bool(jid) and not unavailable)
         self._video_call_btn.Show(bool(jid) and not unavailable)
         self.conversation_panel.Layout()

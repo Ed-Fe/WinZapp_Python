@@ -2,12 +2,18 @@
 
 
 def incoming_call_can_answer(details: dict | None) -> bool:
-    """Return whether this one-to-one incoming call can be answered."""
-    return not bool((details or {}).get("is_group"))
+    """Return whether this incoming call can be answered.
+
+    Group offers are answerable: WhatsApp Web accepts a group call through the
+    same native ``voipStack.acceptCall`` its own Answer button uses, and
+    WinZapp attaches Python audio to the resulting call. This stays the single
+    decision point for the alert UI and the global answer key.
+    """
+    return True
 
 
 def active_call_label_key(active: dict | None) -> str:
-    """Return the label for an active individual call."""
+    """Return the label for an active call, group calls included."""
     return "video_call_active_label" if (active or {}).get("is_video") else "voice_call_active_label"
 
 
@@ -79,8 +85,8 @@ def call_hotkey_setting(general, key):
 def first_answerable_call(active_calls, details_map) -> str:
     """Return the identity of the oldest ringing call that can be answered.
 
-    A group offer rings too, but cannot be answered, so it must not be the
-    call a global "answer" key acts on when a one-to-one call rings beside it.
+    Group offers ring and are answerable too, so they take part in the same
+    oldest-first order as one-to-one calls rather than being skipped.
     """
     for identity in active_calls or ():
         if incoming_call_can_answer((details_map or {}).get(identity)):

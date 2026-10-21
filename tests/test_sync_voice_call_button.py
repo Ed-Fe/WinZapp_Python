@@ -1,6 +1,7 @@
-"""Regression coverage for hiding the voice/video call buttons on chats
-WhatsApp can't call: groups, newsletters, broadcast, and the user's own
-self-chat ("Eu"), which has no one on the other end to call.
+"""Regression coverage for the voice/video call buttons on chats WhatsApp
+cannot call: newsletters, broadcast, and the user's own self-chat ("Eu"),
+which has no one on the other end to call. Groups are callable, so they show
+both buttons like a one-to-one chat.
 
 ConversationsPanel is a wx.Panel and can't be instantiated without a running
 wx.App, so the method under test is bound onto a plain stub carrying only the
@@ -59,10 +60,16 @@ def test_ordinary_one_to_one_shows_both_call_buttons():
     assert panel._video_call_btn.IsShown() is True
 
 
-def test_group_newsletter_broadcast_hide_both_call_buttons():
+def test_group_shows_both_call_buttons():
+    panel = _Stub()
+    panel._sync_voice_call_button("120363012345678901@g.us")
+    assert panel._voice_call_btn.IsShown() is True
+    assert panel._video_call_btn.IsShown() is True
+
+
+def test_newsletter_and_broadcast_hide_both_call_buttons():
     panel = _Stub()
     for jid in (
-        "120363012345678901@g.us",
         "1234567890@newsletter",
         "status@broadcast",
     ):
