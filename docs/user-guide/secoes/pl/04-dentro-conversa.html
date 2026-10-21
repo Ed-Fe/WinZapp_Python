@@ -5,7 +5,7 @@
 <p>Pisz w polu wiadomości i naciśnij Enter; Shift+Enter wstawia nowy wiersz. Wysyłanie odbywa się przez kolejkę w tle. Jeśli WhatsApp przyjmie wiadomość, ale nie potwierdzi dostarczenia, WinZapp prosi o sprawdzenie czatu przed ponownym wysłaniem, aby wiadomość nie została dostarczona dwa razy. Wysyłanie wiadomości do siebie (czat "Ja (wiadomości do siebie)") też działa.</p>
 <ul>
   <li><strong>Emotikony zamieniają się w emoji podczas pisania</strong>: <code>:)</code> zamienia się w 🙂, <code>:D</code> w 😃, <code>&lt;3</code> w ❤️, gdy po nich wpiszesz spację lub znak interpunkcyjny. Backspace tuż po zamianie przywraca to, co wpisałeś. Można to wyłączyć w Ustawienia &gt; Ogólne. Ctrl+. otwiera selektor emoji (strzałki w lewo i w prawo zmieniają odcień skóry).</li>
-  <li><strong>Sprawdzanie pisowni:</strong> odtwarzany jest osobny dźwięk, gdy zrobisz błąd w słowie, gdy wpiszesz po nim znak interpunkcyjny i gdy kursor trafi na słowo z błędem. W menu kontekstowym pola podmenu "Pisownia" oferuje podpowiedzi ze słownika Windows. W ustawieniach wybierasz: zgodnie z Windows, zawsze włączone lub zawsze wyłączone.</li>
+  <li><strong>Sprawdzanie pisowni:</strong> osobny dźwięk sygnalizuje błąd podczas wpisywania słowa, po dodaniu za nim znaku interpunkcyjnego oraz po przeniesieniu kursora na błędnie zapisane słowo. W menu kontekstowym pola podmenu "Pisownia" oferuje podpowiedzi ze słownika Windows. W ustawieniach wybierasz: zgodnie z Windows, zawsze włączone lub zawsze wyłączone.</li>
   <li><strong>Wzmianki:</strong> wpisz <code>@</code>, aby wybrać osobę (Enter wstawia wzmiankę, Esc zamyka). W grupach działa też <code>@all</code>.</li>
 </ul>
 
@@ -21,7 +21,7 @@
   <tr><td class="field-name">Alt+Shift+Q</td><td>Przejdź do cytowanej wiadomości, w odpowiedzi</td></tr>
   <tr><td class="field-name">Alt+Shift+M / Alt+Shift+J</td><td>Przejdź do poprzedniej / następnej wiadomości, która cię wspomina</td></tr>
   <tr><td class="field-name">Alt+Shift+P / Alt+Shift+O</td><td>Przejdź do poprzedniej / następnej wiadomości, która jest odpowiedzią do ciebie (kolejne naciśnięcie cofa się po odpowiedziach, a po najstarszej wraca do najnowszej)</td></tr>
-  <tr><td class="field-name">Alt+T</td><td>Ogłoś stan kontaktu: ostatnio widziany, online, pisze. Przycisk czatu i dane kontaktu pokazują te same informacje, zawsze aktualne</td></tr>
+  <tr><td class="field-name">Alt+T</td><td>Ogłoś stan kontaktu: widziano, online, pisze. Przycisk czatu i dane kontaktu pokazują te same informacje, zawsze aktualne</td></tr>
 </table>
 <p><strong>Przegląd ostatnich wiadomości według pozycji:</strong> jest dziesięć poleceń, od najnowszej wiadomości (1) do dziesiątej (0), które odczytują daną wiadomość bez przenoszenia fokusu; dwukrotne szybkie naciśnięcie tego samego klawisza kopiuje ją. Nie mają przypisanego klawisza, ponieważ Alt+1 do Alt+9 należą do głównego okna: wybierz klawisze w Ustawienia &gt; Interfejs &gt; Skróty klawiszowe.</p>
 <p><strong>"Pisze" na liście:</strong> przy włączonej opcji "Pokazuj informację o tym, kto pisze lub nagrywa wiadomość głosową, w ostatnim wierszu listy wiadomości" (Ustawienia &gt; Interfejs &gt; Wiadomości) na końcu listy pojawia się tymczasowy wiersz, taki jak "Ania pisze...", który znika, gdy osoba przestaje. Nigdy nie przenosi fokusu i nie jest odczytywany sam z siebie.</p>
@@ -32,24 +32,24 @@
   <tr><th>Skrót</th><th>Akcja</th></tr>
   <tr><td class="field-name">Alt+R</td><td>Odpowiedz na wiadomość z fokusem</td></tr>
   <tr><td class="field-name">Alt+Shift+R</td><td>Odpowiedz prywatnie (w grupach)</td></tr>
-  <tr><td class="field-name">Alt+Shift+V</td><td>Rozmowa z uczestnikiem (w grupach)</td></tr>
+  <tr><td class="field-name">Alt+Shift+V</td><td>Rozpocznij czat z członkiem grupy</td></tr>
   <tr><td class="field-name">Alt+E</td><td>Edytuj swoją wiadomość</td></tr>
   <tr><td class="field-name">Delete</td><td>Usuń wiadomość (dla siebie lub dla wszystkich)</td></tr>
-  <tr><td class="field-name">Ctrl+Shift+E</td><td>Przekaż dalej</td></tr>
+  <tr><td class="field-name">Ctrl+Shift+E</td><td>Przekaż</td></tr>
   <tr><td class="field-name">Ctrl+C</td><td>Kopiuj wiadomość; na linku z fokusem kopiuje link</td></tr>
   <tr><td class="field-name">Ctrl+Shift+C</td><td>Kopiuj podpis zdjęcia, filmu lub dokumentu</td></tr>
   <tr><td class="field-name">Alt+Shift+D</td><td>Informacje o wiadomości</td></tr>
 </table>
 <ul>
-  <li><strong>Odpowiedź:</strong> jeśli oryginalnej wiadomości nie ma przed wysłaniem, WinZapp informuje, że brakuje cytatu, i zachowuje twój tekst do edycji przez menu wiadomości ("Edytuj niewysłaną odpowiedź bez cytatu"). Odpowiedzi ze wzmianką zabierają cytat ze sobą.</li>
-  <li><strong>Usuwanie multimediów:</strong> gdy usuwasz zdjęcie, film, nagranie audio lub dokument, potwierdzenie zawiera "Usuń też multimedia z telefonu", domyślnie zaznaczone. Odznacz, aby usunąć wiadomość i zachować plik zapisany na telefonie. Pole dotyczy też kilku zaznaczonych wiadomości i pojawia się tylko wtedy, gdy wśród nich są multimedia. W Ustawienia &gt; Interfejs &gt; Wiadomości określasz, jak ma się zaczynać.</li>
+  <li><strong>Odpowiedź:</strong> jeśli oryginalnej wiadomości nie ma przed wysłaniem, WinZapp informuje, że brakuje cytatu, i zachowuje twój tekst do edycji przez menu wiadomości ("Edytuj niewysłaną odpowiedź bez cytatu"). Odpowiedź zawierająca wzmiankę zachowuje również cytowaną wiadomość.</li>
+  <li><strong>Usuwanie multimediów:</strong> gdy usuwasz zdjęcie, film, nagranie audio lub dokument, potwierdzenie zawiera "Usuń też multimedia z telefonu", domyślnie zaznaczone. Odznacz, aby usunąć wiadomość i zachować plik zapisany na telefonie. Pole dotyczy też kilku zaznaczonych wiadomości i pojawia się tylko wtedy, gdy wśród nich są multimedia. W Ustawienia &gt; Interfejs &gt; Wiadomości wybierasz, czy opcja „Usuń też multimedia z telefonu” ma być domyślnie zaznaczona.</li>
   <li><strong>Przekazywanie:</strong> wybierz miejsca docelowe na liście z wyszukiwaniem (strzałka w dół w polu przechodzi do pierwszego wyniku). Gdy się uda, czytnik ekranu mówi "Wiadomość przekazana." (lub ile ich było), bez okna do zamknięcia. Przekazane wiadomości głosowe docierają jako zwykłe audio, chyba że zaznaczysz "Przekazuj wiadomości głosowe jako wiadomości głosowe, a nie jako audio" w Ustawienia &gt; Dźwięk.</li>
   <li><strong>Informacje o wiadomości:</strong> przy twojej wiadomości pokazują, kiedy została dostarczona, przeczytana i odtworzona, z pełną datą i godziną, przez zapytanie samego WhatsApp (więc pojawiają się także potwierdzenia, które dotarły, gdy WinZapp był zamknięty). W grupie wymieniają z nazwy, kto otrzymał i kto przeczytał.</li>
-  <li><strong>Cytowane wiadomości:</strong> w odpowiedzi jako linki liczą się tylko linki samej odpowiedzi.</li>
+  <li><strong>Cytowane wiadomości:</strong> nawigacja po linkach w odpowiedzi obejmuje tylko linki z jej treści, bez linków z cytowanej wiadomości.</li>
 </ul>
 
 <h3>Reagowanie</h3>
-<p>Ctrl+Shift+R otwiera reakcje wiadomości (a przy nieodebranym połączeniu oddzwania). Lista ma 12 szybkich reakcji; wybierasz jedną, aby zareagować, twoja bieżąca reakcja jest zaznaczona, a ponowne jej wybranie ją usuwa. Strzałki w lewo i w prawo zmieniają odcień skóry emoji. Na końcu "Dodaj więcej reakcji" otwiera pełny selektor emoji. Reakcje, których używasz najczęściej, zaczynają pojawiać się wśród tych 12, z najczęściej używaną na górze. Jeśli wolisz stałe pozycje, użyj Ustawienia &gt; Interfejs &gt; Reakcje: "Używaj stałych szybkich reakcji: wybierz emoji dla każdej z 12 pozycji zamiast sortować je według najczęściej używanych" i w każdej pozycji Enter otwiera selektor, aby wybrać jej emoji; "Przywróć domyślne pozycje" cofa zmiany. Osobny dźwięk odtwarza się, gdy ktoś zareaguje na twoją wiadomość (Ustawienia &gt; Dźwięki zdarzeń). Alt+Shift+E odczytuje na głos ostatnie reakcje, które otrzymała wiadomość z fokusem.</p>
+<p>Ctrl+Shift+R otwiera reakcje wiadomości (a przy nieodebranym połączeniu oddzwania). Lista zawiera 12 szybkich reakcji. Wybierz emoji, aby zareagować na wiadomość. Jeśli już na nią zareagowałeś, twoja reakcja będzie zaznaczona. Ponowne wybranie tego samego emoji usunie reakcję. Strzałki w lewo i w prawo zmieniają odcień skóry emoji. Na końcu "Dodaj więcej reakcji" otwiera pełny selektor emoji. Reakcje, których używasz najczęściej, zaczynają pojawiać się wśród tych 12, z najczęściej używaną na górze. Jeśli wolisz stałe pozycje, użyj Ustawienia &gt; Interfejs &gt; Reakcje: "Używaj stałych szybkich reakcji: wybierz emoji dla każdej z 12 pozycji zamiast sortować je według najczęściej używanych" i w każdej pozycji Enter otwiera selektor, aby wybrać jej emoji; "Przywróć domyślne pozycje" cofa zmiany. Osobny dźwięk odtwarza się, gdy ktoś zareaguje na twoją wiadomość (Ustawienia &gt; Dźwięki zdarzeń). Alt+Shift+E odczytuje na głos ostatnie reakcje, które otrzymała wiadomość z fokusem.</p>
 
 <h3>Gwiazdka i przypinanie</h3>
 <ul>
@@ -69,7 +69,7 @@
 
 <h3>Kontakty, ankiety i karty</h3>
 <ul>
-  <li><strong>Otrzymana karta kontaktu:</strong> Enter lub Spacja zapisuje ją jako kontakt. Menu kontekstowe ma: zobacz nazwę i numer, kopiuj numer za pomocą Ctrl+C oraz rozmowa. Jeśli karta ma więcej niż jeden numer, WinZapp pyta, którego użyć.</li>
+  <li><strong>Otrzymana karta kontaktu:</strong> Enter lub Spacja zapisuje ją jako kontakt. Menu kontekstowe pozwala wyświetlić nazwę i numer, skopiować numer (Ctrl+C) oraz rozpocząć czat. Jeśli karta ma więcej niż jeden numer, WinZapp pyta, którego użyć.</li>
   <li><strong>Otrzymane ankiety:</strong> wiersz odczytuje pytanie, a potem każdą opcję, z procentami i głosami, gdy WinZapp je otrzyma. Enter otwiera okno z tą samą listą, polami wyboru do głosowania i paskiem postępu dla każdej opcji. W ankiecie z jedną odpowiedzią Tab od wiadomości prowadzi do opcji, a zaznaczenie jednej już głosuje. Przycisk "Pokaż głosy" (Alt+V) wymienia, kto na co głosował. Aby utworzyć ankietę, zobacz sekcję Załączniki.</li>
   <li><strong>Wiadomości z zamówieniami:</strong> Enter otwiera zamówienie; zobacz sekcję Firmy.</li>
   <li><strong>Ogłoszenia społeczności:</strong> w menu wiadomości z ogłoszeniem "Odpowiedzi na ogłoszenie społeczności" otwiera okno do czytania i wysyłania odpowiedzi oraz odświeżania listy; tekst jest zachowywany, jeśli wysłanie nie zostanie potwierdzone.</li>
@@ -93,6 +93,6 @@
 <p>Zaznaczenie kończy się razem z czatem: po jego zamknięciu nic nie zostaje zaznaczone.</p>
 
 <h3>Wersje robocze, ponowne wysyłanie i elementy za listą</h3>
-<p>Pole wiadomości zachowuje to, co wpisano, przy czacie: wyjdź z czatu bez wysyłania, a tekst razem ze wzmiankami wróci, gdy otworzysz go ponownie. W Ustawienia &gt; Interfejs &gt; Czaty opcja "Niewysłana wiadomość po opuszczeniu czatu" pozwala wybrać: zostaw w polu dla następnego czatu, zachowaj jako wersję roboczą tego czatu (domyślnie) albo odrzuć. Wersje robocze trwają do zamknięcia WinZapp.</p>
+<p>Domyślnie niewysłany tekst wraz ze wzmiankami jest zachowywany jako wersja robocza danego czatu. Wróci do pola wiadomości, gdy ponownie otworzysz ten czat. W Ustawienia &gt; Interfejs &gt; Czaty opcja "Niewysłana wiadomość po opuszczeniu czatu" pozwala wybrać: zostaw w polu dla następnego czatu, zachowaj jako wersję roboczą tego czatu (domyślnie) albo odrzuć. Wersje robocze są przechowywane do zamknięcia WinZappa.</p>
 <p>Twoja wiadomość, której wysłanie się nie powiodło lub nie zostało potwierdzone, tekst lub załącznik, ma w menu "Spróbuj wysłać ponownie", także pod Ctrl+Shift+Y. WinZapp nigdy niczego nie wysyła ponownie sam.</p>
-<p>Podczas odtwarzania klawisz Tab za listą wiadomości zatrzymuje się na przycisku prędkości i pasku czasu trwania, a przy wiadomości głosowej, zdjęciu lub filmie — na przycisku AI online. Każdy z nich można usunąć z drogi: "Ukryj przycisk prędkości podczas odtwarzania (skróty prędkości nadal działają)" i "Ukryj pasek czasu trwania podczas odtwarzania (Tab go pomija)" w Ustawienia &gt; Audio &gt; Odtwarzanie audio oraz "Ukryj przycisk AI online za listą wiadomości (menu wiadomości nadal go oferuje)" w AI online: transkrypcje i opisy. Skróty i menu wiadomości nadal działają.</p>
+<p>Podczas odtwarzania klawisz Tab za listą wiadomości zatrzymuje się na przycisku prędkości i pasku czasu trwania, a przy wiadomości głosowej, zdjęciu lub filmie — na przycisku AI online. Możesz ukryć te elementy, aby klawisz Tab je pomijał. Służą do tego opcje: "Ukryj przycisk prędkości podczas odtwarzania (skróty prędkości nadal działają)" i "Ukryj pasek czasu trwania podczas odtwarzania (Tab go pomija)" w Ustawienia &gt; Dźwięk &gt; Odtwarzanie audio oraz "Ukryj przycisk AI online za listą wiadomości (menu wiadomości nadal go oferuje)" w AI online: transkrypcje i opisy. Skróty i menu wiadomości nadal działają.</p>
