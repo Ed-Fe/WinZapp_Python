@@ -179,6 +179,9 @@ class MessageListMixin:
                 self._action_open_btn.Show()
                 self.conversation_panel.Layout()
 
+        if msg.get("businessButtons"):
+            self._show_business_buttons(msg)
+
         self._update_ai_describe_button(msg)
 
         if self._saved_media_path(msg):

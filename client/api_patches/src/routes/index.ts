@@ -41,6 +41,7 @@ import * as StatusDeleteController from '../controller/statusDeleteController';
 import * as CommunityAdminController from '../controller/communityAdminController';
 import * as CommerceController from '../controller/commerceController';
 import * as OrderConfirmController from '../controller/orderConfirmController';
+import * as ButtonReplyController from '../controller/buttonReplyController';
 import * as GroupMembershipRequestsController from '../controller/groupMembershipRequestsController';
 import * as MiscController from '../controller/miscController';
 import * as NewsletterController from '../controller/newsletterController';
@@ -992,6 +993,10 @@ routes.get('/api/:session/commerce/order-details/:messageId', verifyToken, statu
   OrderConfirmController.readBuyerOrder);
 routes.post('/api/:session/commerce/order-details/:messageId/confirm', verifyToken, statusConnection,
   OrderConfirmController.confirmBuyerOrder);
+// A button of a business's message, answered the way WhatsApp Web does
+// (buttonReplyController.ts).
+routes.post('/api/:session/reply-button/:messageId', verifyToken, statusConnection,
+  ButtonReplyController.replyToButton);
 routes.post(
   '/api/:session/set-cart-enabled',
   verifyToken,

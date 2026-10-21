@@ -8,6 +8,8 @@ NOVEDADES
 
 - Videollamadas: WinZapp ahora encuentra la cámara con el FFmpeg incluido en WinZapp, que enumera los dispositivos DirectShow sin el encabezado "DirectShow video devices". Esa versión de FFmpeg no devolvía ninguna cámara, así que la videollamada salía solo recibiendo, con "No camera found" en el registro.
 
+- Ya se pueden usar los botones de los mensajes de empresas: un botón de respuesta envía la respuesta igual que WhatsApp Web (botones de respuesta de mensajes simples, respuestas rápidas de mensajes interactivos, botones de plantilla y filas de listas), un botón de enlace abre el enlace, un botón de copiar copia el código y un botón de llamada dice el número. Los botones aparecen debajo de la lista de mensajes cuando el mensaje está seleccionado.
+
 - WPPConnect Server 2.10.61 ya se ofrece como actualización sin esperar a una nueva versión de WinZapp. Solo actualiza dependencias y no afecta a los cambios que WinZapp hace en el servidor.
 
 - Las actualizaciones de macOS explican si la verificación ha fallado por un problema de conexión, certificado, servidor o límite de solicitudes de GitHub, y si no se ha podido comprobar el archivo de verificación o la etiqueta de la versión oficial. Los fallos temporales de conexión y servidor se reintentan una vez; los límites de solicitudes muestran un tiempo de espera y no generan nuevas solicitudes durante ese período.
