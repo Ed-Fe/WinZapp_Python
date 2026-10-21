@@ -9,6 +9,7 @@ from core.community_comments import comment_count, parse_reply_count_event, pars
 from core.api_client import api_get, api_post
 from core.connection_lifecycle import socket_client_is_current
 from core.call_log import CALL_LOG_MESSAGE_TYPE, call_log_creator, call_log_payload
+from core.business_buttons import business_buttons
 from core.commerce import (
     ORDER_MESSAGE_TYPE, ORDER_UPDATE_MESSAGE_TYPE, PRODUCT_MESSAGE_TYPE, order_payload,
     order_update_payload, product_payload,
@@ -3159,6 +3160,9 @@ class WebSocketClient:
         if not _is_edit_event and server_marks_edited(wpp_msg):
             normalized["_edited"] = True
         normalized.update(remote_star_state(wpp_msg))
+        buttons = business_buttons(wpp_msg)
+        if buttons:
+            normalized["businessButtons"] = buttons
         replies = comment_count(wpp_msg.get("replyCount"))
         if replies is not None:
             normalized["replyCount"] = replies

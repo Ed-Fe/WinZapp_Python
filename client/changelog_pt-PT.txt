@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de definições reorganizada, alé
 
 NOVIDADES
 
+- Os botões das mensagens de empresas passam a poder ser usados: um botão de resposta envia a resposta da mesma forma que o WhatsApp Web (botões de resposta de mensagens simples, respostas rápidas de mensagens interativas, botões de modelo e linhas de listas), um botão de ligação abre a ligação, um botão de copiar copia o código e um botão de chamada diz o número. Os botões aparecem por baixo da lista de mensagens quando a mensagem está selecionada.
+
 - O WPPConnect Server 2.10.61 passa a ser oferecido como atualização sem esperar por uma nova versão do WinZapp. Só atualiza dependências e não afeta as alterações que o WinZapp faz no servidor.
 
 - As atualizações do macOS explicam se a verificação falhou devido a um problema de ligação, certificado, servidor ou limite de pedidos do GitHub, e se não foi possível verificar o ficheiro de verificação ou a etiqueta da versão oficial. As falhas temporárias de ligação e servidor são repetidas uma vez; os limites de pedidos mostram um tempo de espera e não geram novos pedidos durante esse período.

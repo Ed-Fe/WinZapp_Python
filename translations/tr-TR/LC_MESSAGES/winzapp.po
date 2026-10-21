@@ -2300,6 +2300,30 @@ msgid "Bulk transcription"
 msgstr "Toplu yazıya döküm"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/business_buttons.py
+#, python-brace-format
+msgctxt "business_button_call"
+msgid "To call, dial {number}."
+msgstr "Aramak için {number} numarasını çevirin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/business_buttons.py
+msgctxt "business_button_copied"
+msgid "Copied."
+msgstr "Kopyalandı."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "business_button_failed"
+msgid ""
+"The reply could not be sent. Check the conversation before trying again."
+msgstr "Yanıt gönderilemedi. Tekrar denemeden önce sohbeti kontrol edin."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "business_button_sent"
+msgid "Reply sent."
+msgstr "Yanıt gönderildi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "button_no"
 msgid "&No"
 msgstr "&Hayır"
@@ -7403,6 +7427,7 @@ msgstr "Mesaj kopyalandı."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bulk_messages.py
+#: client/ui/conversation_panel/business_buttons.py
 #: client/ui/conversation_panel/contact_messages.py
 #: client/ui/conversation_panel/links.py
 #: client/ui/conversation_panel/message_menu.py
