@@ -2319,6 +2319,32 @@ msgid "Bulk transcription"
 msgstr "Transcripción en masa"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/business_buttons.py
+#, python-brace-format
+msgctxt "business_button_call"
+msgid "To call, dial {number}."
+msgstr "Para llamar, marque {number}."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/business_buttons.py
+msgctxt "business_button_copied"
+msgid "Copied."
+msgstr "Copiado."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "business_button_failed"
+msgid ""
+"The reply could not be sent. Check the conversation before trying again."
+msgstr ""
+"No se pudo enviar la respuesta. Revise la conversación antes de volver a "
+"intentarlo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "business_button_sent"
+msgid "Reply sent."
+msgstr "Respuesta enviada."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "button_no"
 msgid "&No"
 msgstr "&No"
@@ -7477,6 +7503,7 @@ msgstr "Mensaje copiado."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/bulk_messages.py
+#: client/ui/conversation_panel/business_buttons.py
 #: client/ui/conversation_panel/contact_messages.py
 #: client/ui/conversation_panel/links.py
 #: client/ui/conversation_panel/message_menu.py
