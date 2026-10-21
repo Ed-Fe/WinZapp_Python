@@ -1261,6 +1261,10 @@ class ConversationsPanel(
         self._search_open_btn.SetLabel(i18n.t("search_in_conv"))
         self._update_pinned_messages_button()
         self._voice_call_btn.SetLabel(i18n.t("voice_call_button"))
+        self._group_call_unavailable_btn.SetMainLabel(i18n.t("group_call_unavailable_label"))
+        self._group_call_unavailable_btn.SetNote(
+            i18n.t("group_call_unavailable_note").format(limit=MAX_GROUP_CALL_PARTICIPANTS)
+        )
         self._search_close_btn.SetLabel(i18n.t("search_close"))
         self._search_field_label.SetLabel(i18n.t("search_in_conv"))
         self._search_prev_btn.SetLabel(i18n.t("search_prev_result"))
