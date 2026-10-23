@@ -1049,12 +1049,27 @@ def main():
                     help="todas as sessoes pedidas usam esta conta (testes)")
     ap.add_argument("--historico-dias", type=int, default=180,
                     help="historico a pedir no pareamento (0 = o padrao do WhatsApp)")
+    ap.add_argument("--log-estado", action="store_true",
+                    help="liga o registro tecnico do lado em Go, filtrado para o estado do app")
     ap.add_argument("--pasta", default=os.path.join(os.path.dirname(__file__), "dados"))
     a = ap.parse_args()
     global HISTORICO_DIAS
     HISTORICO_DIAS = a.historico_dias
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if a.log_estado:
+        import re
+        from neonize.utils import log as log_neonize
+        log_neonize.setLevel(logging.DEBUG)
+        for nome in ("whatsmeow", "Whatsmeow"):
+            logging.getLogger(nome).setLevel(logging.DEBUG)
+        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate", re.I)
+
+        class SoEstado(logging.Filter):
+            def filter(self, rec):
+                return rec.levelno >= logging.WARNING or rec.name == "ponte"                     or bool(padrao.search(rec.getMessage()))
+        for h in logging.getLogger().handlers:
+            h.addFilter(SoEstado())
     web.run_app(criar_app(a.pasta, a.sessao_unica), host="127.0.0.1", port=a.porta, print=None)
 
 
