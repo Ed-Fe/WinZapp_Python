@@ -585,6 +585,102 @@ def criar_app(pasta, fixa=""):
         import base64 as b64
         return ok(base64=b64.b64encode(dados).decode())
 
+    def destino_de(fone):
+        from neonize.utils import build_jid
+        fone = fone[0] if isinstance(fone, list) else fone
+        if "@" in fone:
+            u, _, srv = msgmap.jid_whatsmeow(fone).partition("@")
+            return build_jid(u, srv)
+        return build_jid(fone)
+
+    def guardar_enviada(s, destino, resp, texto_ou_msg=None):
+        """Guarda a mensagem recem-enviada e devolve a resposta do WPPConnect."""
+        chat = jid_texto(destino)
+        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
+                          ts=resp.Timestamp or time.time(), mensagem=resp.Message)
+        if w is not None:
+            s.bd.mensagem(chat, w, msgmap.ficha_midia(resp.Message))
+            s.bd.ao_chegar(chat, w["t"], True)
+        return ok(status="success", response=[{
+            "id": w["id"]["_serialized"] if w else f"true_{msgmap.jid_wpp(chat)}_{resp.ID}",
+            "ack": 1}])
+
+    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt):
+        c = s.cliente
+        if tipo == "image":
+            return c.send_image(destino, arquivo, caption=legenda or None)
+        if tipo == "video":
+            return c.send_video(destino, arquivo, caption=legenda or None)
+        if tipo == "audio":
+            return c.send_audio(destino, arquivo, ptt=ptt)
+        return c.send_document(destino, arquivo, caption=legenda or None,
+                               filename=nome or None, mimetype=mime or None)
+
+    async def send_file(req):
+        """Envio multipart (imagem, video, audio, documento) como o WPPConnect."""
+        import tempfile
+        s = sessao(req)
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        campos, caminho, mime = {}, None, ""
+        leitor = await req.multipart()
+        try:
+            while True:
+                parte = await leitor.next()
+                if parte is None:
+                    break
+                if parte.filename is not None:      # o arquivo, direto para o disco
+                    sufixo = os.path.splitext(parte.filename)[1]
+                    mime = parte.headers.get("Content-Type", "")
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=sufixo) as f:
+                        caminho = f.name
+                        while True:
+                            bloco = await parte.read_chunk(1 << 20)
+                            if not bloco:
+                                break
+                            f.write(bloco)
+                else:
+                    campos.setdefault(parte.name, []).append((await parte.text()))
+            if caminho is None:
+                return web.json_response({"status": "error", "message": "arquivo ausente"}, status=400)
+
+            def um(nome, padrao=""):
+                return (campos.get(nome) or [padrao])[0]
+            destino = destino_de(campos.get("phone") or campos.get("phone[]") or [""])
+            if um("quotedMessageId"):
+                log.info("resposta citada ainda nao suportada no envio de midia: enviando sem citar")
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None, enviar_midia, s, destino, um("type", "document"), caminho,
+                um("caption"), um("filename"), mime, um("isPtt") == "true")
+            return guardar_enviada(s, destino, resp)
+        except Exception as erro:
+            log.exception("send-file")
+            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+        finally:
+            if caminho:
+                try:
+                    os.unlink(caminho)
+                except OSError:
+                    pass
+
+    async def send_voice_base64(req):
+        import base64 as b64
+        s = sessao(req)
+        corpo = await req.json()
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
+        destino = destino_de(corpo["phone"])
+        try:
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None, enviar_midia, s, destino, "audio", dados, "", "", "", True)
+        except Exception as erro:
+            log.exception("send-voice-base64")
+            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+        return guardar_enviada(s, destino, resp)
+
+    r.add_post("/api/{tok}/send-file", send_file)
+    r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
     r.add_post("/api/{tok}/send-seen", send_seen)
     r.add_post("/api/{tok}/typing", vazio_ok)
