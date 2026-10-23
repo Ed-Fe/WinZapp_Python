@@ -4,3 +4,5 @@ __pycache__/
 servidor.log
 dados/
 dados-teste/
+dados-simulado/
+dados-real/

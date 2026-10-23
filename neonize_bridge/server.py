@@ -31,6 +31,21 @@ def qr_data_url(texto: str) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+HISTORICO_DIAS = 180     # quanto historico pedir ao celular no pareamento (0 = padrao)
+
+
+def props_do_aparelho(dias):
+    """DeviceProps: o nome que aparece no celular e quanto historico pedir."""
+    from neonize.proto.waCompanionReg.WAWebProtobufsCompanionReg_pb2 import DeviceProps
+    props = DeviceProps(os="WinZapp", platformType=DeviceProps.DESKTOP)
+    if dias:
+        props.requireFullSync = True
+        props.historySyncConfig.fullSyncDaysLimit = dias
+        props.historySyncConfig.fullSyncSizeMbLimit = 102400
+        props.historySyncConfig.storageQuotaMb = 102400
+    return props
+
+
 def jid_texto(jid) -> str:
     """JID do neonize -> 'usuario@servidor' (vazio se nao ha)."""
     if jid is None or not getattr(jid, "User", ""):
@@ -87,7 +102,8 @@ class Sessao:
         import neonize.events as nev
         from neonize.client import NewClient
         os.makedirs(self.pasta, exist_ok=True)
-        cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"))
+        cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"),
+                                       props=props_do_aparelho(HISTORICO_DIAS))
 
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
@@ -567,8 +583,12 @@ def main():
     ap.add_argument("--porta", type=int, default=6300)
     ap.add_argument("--sessao-unica", default="",
                     help="todas as sessoes pedidas usam esta conta (testes)")
+    ap.add_argument("--historico-dias", type=int, default=180,
+                    help="historico a pedir no pareamento (0 = o padrao do WhatsApp)")
     ap.add_argument("--pasta", default=os.path.join(os.path.dirname(__file__), "dados"))
     a = ap.parse_args()
+    global HISTORICO_DIAS
+    HISTORICO_DIAS = a.historico_dias
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
     web.run_app(criar_app(a.pasta, a.sessao_unica), host="127.0.0.1", port=a.porta, print=None)
