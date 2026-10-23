@@ -120,6 +120,7 @@ class Sessao:
                 self.emitir("session-logged", {"session": self.nome, "status": True})
             threading.Thread(target=self._carregar_nomes, daemon=True).start()
             threading.Thread(target=self._conferir_estado, daemon=True).start()
+            threading.Thread(target=self._conferir_sempre, daemon=True).start()
 
         @cli.event(nev.LoggedOutEv)
         def _saiu(c, e):
@@ -196,6 +197,17 @@ class Sessao:
                     "previousUnreadCount": antes}]})
             except Exception:
                 log.exception("conversa lida no celular")
+
+        def _registrar(nome):
+            classe = getattr(nev, nome, None)
+            if classe is None:
+                return
+
+            @cli.event(classe)
+            def _aviso(c, e):
+                log.info("aviso de estado %s em %s...", nome, jid_texto(e.JID)[:6])
+        for _nome in ("ChatArchiveEv", "ChatPinEv", "ChatMuteEv", "ChatDeleteEv", "ChatLockEv"):
+            _registrar(_nome)
 
         @cli.event(nev.ReceiptEv)
         def _recibo(c, e):
@@ -317,6 +329,34 @@ class Sessao:
         time.sleep(5)       # deixa a sincronia inicial terminar
         for nome in self.COLECOES:
             self.reparar_colecao(nome, forcar=False)
+
+    def _conferir_sempre(self):
+        """De minuto em minuto busca as mudancas do estado do app que o celular
+        fez e o aviso ao vivo deixou passar (ler uma conversa, por exemplo)."""
+        if getattr(self, "_busca_ativa", False):     # um laco so, mesmo reconectando
+            return
+        self._busca_ativa = True
+        try:
+            while self.status == "CONNECTED":
+                time.sleep(60)
+                self.buscar_mudancas()
+        finally:
+            self._busca_ativa = False
+
+    def buscar_mudancas(self):
+        """fetch_app_state de regular_low/high: os avisos novos viram eventos."""
+        agora = time.monotonic()
+        if agora - getattr(self, "_ultima_busca", 0) < 15 or self.status != "CONNECTED":
+            return
+        self._ultima_busca = agora
+        for nome in ("regular_low", "regular_high"):
+            try:
+                self.cliente.fetch_app_state(nome, full_sync=False)
+            except Exception as erro:
+                if "LTHash" in str(erro):
+                    self.reparar_colecao(nome, forcar=False)
+                else:
+                    log.info("busca do estado %s: %s", nome, erro)
 
     def reparar_colecao(self, nome, forcar=True):
         c = self.cliente
@@ -548,6 +588,7 @@ def criar_app(pasta, fixa=""):
 
     async def list_chats(req):
         s = sessao(req)
+        threading.Thread(target=s.buscar_mudancas, daemon=True).start()
         nomes = {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"]
                  for c in s.bd.contatos()}
         saida = []
