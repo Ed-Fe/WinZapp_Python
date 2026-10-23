@@ -119,6 +119,7 @@ class Sessao:
             if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
                 self.emitir("session-logged", {"session": self.nome, "status": True})
             threading.Thread(target=self._carregar_nomes, daemon=True).start()
+            threading.Thread(target=self._conferir_estado, daemon=True).start()
 
         @cli.event(nev.LoggedOutEv)
         def _saiu(c, e):
@@ -306,6 +307,56 @@ class Sessao:
         log.info("historico: %d conversas, %d mensagens (%s%%)",
                  len(dados.conversations), total, dados.progress)
 
+    COLECOES = ("regular_high", "regular_low", "regular",
+                "critical_unblock_low", "critical_block")
+
+    def _conferir_estado(self):
+        """Confere as colecoes do estado do app (lida/nao lida, fixar, silenciar...).
+        Uma colecao fora de sincronia ("mismatching LTHash") faz as mudancas do
+        celular pararem de chegar e as daqui serem recusadas."""
+        time.sleep(5)       # deixa a sincronia inicial terminar
+        for nome in self.COLECOES:
+            self.reparar_colecao(nome, forcar=False)
+
+    def reparar_colecao(self, nome, forcar=True):
+        c = self.cliente
+        if c is None or self.status != "CONNECTED":
+            return False
+        try:
+            c.fetch_app_state(nome, full_sync=forcar)
+            log.info("estado %s conferido%s", nome, " (baixado de novo)" if forcar else "")
+            return True
+        except Exception as erro:
+            if "LTHash" not in str(erro):
+                log.warning("estado %s: %s", nome, erro)
+                return False
+            if not forcar:
+                log.warning("estado %s fora de sincronia; baixando de novo", nome)
+                return self.reparar_colecao(nome, forcar=True)
+            return self._recuperar_colecao(nome)
+
+    def _recuperar_colecao(self, nome):
+        """Pede ao celular uma copia nova do estado (o iPhone so responde com o
+        WhatsApp aberto na tela)."""
+        log.warning("estado %s: pedindo ao celular uma copia nova", nome)
+        try:
+            self.cliente.request_app_state_recovery(nome)
+        except Exception as erro:
+            log.warning("nao consegui pedir a copia do estado: %s", erro)
+            return False
+        for _ in range(18):
+            time.sleep(5)
+            try:
+                self.cliente.fetch_app_state(nome)
+                log.info("estado %s recuperado com a copia do celular", nome)
+                return True
+            except Exception as erro:
+                if "LTHash" not in str(erro):
+                    log.warning("estado %s: %s", nome, erro)
+                    return False
+        log.warning("o celular nao respondeu ao pedido do estado %s: abra o WhatsApp no celular", nome)
+        return False
+
     def _carregar_nomes(self):
         try:
             for c in self.cliente.contact.get_all_contacts():
@@ -350,7 +401,8 @@ class Sessao:
                 if "LTHash" not in str(erro) and "409" not in str(erro):
                     raise
                 # colecao fora de sincronia: baixa de novo e tenta mais uma vez
-                self.cliente.fetch_app_state("regular_low", full_sync=True)
+                if not self.reparar_colecao("regular_low"):
+                    raise
                 self.cliente.send_app_state(patch)
             log.info("conversa marcada como %s no celular", "lida" if lida else "nao lida")
             return True
