@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS msgs(
 CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
 """
 
-CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted"}
+CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
 
 
 class Armazem:
@@ -28,6 +28,10 @@ class Armazem:
         self._trava = threading.RLock()
         with self._trava:
             self._bd.executescript(ESQUEMA)
+            try:    # bancos criados antes da coluna locked
+                self._bd.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
             try:    # bancos criados antes da coluna raw
                 self._bd.execute("ALTER TABLE msgs ADD COLUMN raw BLOB")
             except sqlite3.OperationalError:
@@ -101,6 +105,23 @@ class Armazem:
                 "INSERT OR REPLACE INTO msgs(chat, id, ts, data, raw) VALUES (?,?,?,?,?)",
                 [(l[0], l[1]["id"]["id"], l[1]["t"], json.dumps(l[1]),
                   l[2] if len(l) > 2 else None) for l in linhas])
+            self._bd.commit()
+
+    def mudar_mensagem(self, id_msg, **campos):
+        """Muda campos do JSON de uma mensagem guardada (estrela, tipo...)."""
+        with self._trava:
+            r = self._bd.execute("SELECT chat, data FROM msgs WHERE id=?", (id_msg,)).fetchone()
+            if r is None:
+                return False
+            dados = json.loads(r["data"])
+            dados.update(campos)
+            self._bd.execute("UPDATE msgs SET data=? WHERE id=?", (json.dumps(dados), id_msg))
+            self._bd.commit()
+        return True
+
+    def apagar_mensagem(self, id_msg):
+        with self._trava:
+            self._bd.execute("DELETE FROM msgs WHERE id=?", (id_msg,))
             self._bd.commit()
 
     def mensagem_wpp(self, id_msg):

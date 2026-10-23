@@ -257,6 +257,33 @@ class Sessao:
             except Exception:
                 log.exception("fixar no celular")
 
+        @cli.event(nev.MessageStarEv)
+        def _estrela_no_celular(c, e):
+            try:
+                self.bd.mudar_mensagem(e.MessageID, star=bool(e.Action.starred))
+                log.info("mensagem %s no celular", "favoritada" if e.Action.starred else "desfavoritada")
+            except Exception:
+                log.exception("estrela no celular")
+
+        @cli.event(nev.MessageDeleteForMeEv)
+        def _apagada_no_celular(c, e):
+            try:
+                if e.FromFullSync:
+                    return
+                self.bd.apagar_mensagem(e.MessageID)
+                log.info("mensagem apagada no celular")
+            except Exception:
+                log.exception("apagar no celular")
+
+        @cli.event(nev.ChatLockEv)
+        def _trancada_no_celular(c, e):
+            try:
+                jid = chat_local(c, e.JID)
+                self.bd.conversa(jid, locked=int(bool(e.Action.locked)))
+                log.info("conversa %s no celular", "trancada" if e.Action.locked else "destrancada")
+            except Exception:
+                log.exception("trancar no celular")
+
         @cli.event(nev.ChatMuteEv)
         def _silenciada_no_celular(c, e):
             try:
@@ -368,6 +395,8 @@ class Sessao:
                 campos["pinned"] = int(c.pinned)
             if c.HasField("muteEndTime"):
                 campos["muted"] = int(c.muteEndTime)
+            if c.HasField("locked"):
+                campos["locked"] = int(bool(c.locked))
             self.bd.conversa(jid, **{k: v for k, v in campos.items() if v is not None})
             linhas = []
             for h in c.messages:
@@ -380,6 +409,8 @@ class Sessao:
                     ts=m.messageTimestamp, mensagem=m.message,
                     nome_de_quem=m.pushName)
                 if w is not None and w["id"]["id"]:
+                    if m.starred:
+                        w["star"] = True
                     linhas.append((jid, w, msgmap.ficha_midia(m.message)))
             self.bd.mensagens_em_lote(linhas)
             total += len(linhas)
@@ -517,13 +548,13 @@ class Sessao:
             log.exception("aviso de estado (lida) nao aceito")
             return False
 
-    def enviar_estado(self, indice, versao, tipo, valor, conversa):
+    def enviar_estado(self, indice, versao, tipo, valor, conversa, extra=()):
         """Aviso de estado generico (arquivar, fixar...): True se o WhatsApp aceitou."""
         from neonize.proto.Neonize_pb2 import MutationInfo, PatchInfo
         if self.cliente is None or self.status != "CONNECTED":
             return False
         patch = PatchInfo(Timestamp=time.time_ns(), Type=tipo, Mutations=[
-            MutationInfo(Index=[indice, conversa], Version=versao, Value=valor)])
+            MutationInfo(Index=[indice, conversa, *extra], Version=versao, Value=valor)])
         colecao = {PatchInfo.REGULAR_LOW: "regular_low",
                    PatchInfo.REGULAR_HIGH: "regular_high"}.get(tipo, "regular_low")
         try:
@@ -566,6 +597,95 @@ class Sessao:
         if ok_:
             self.bd.conversa(conversa, pinned=int(time.time()) if fixar else 0)
         return ok_
+
+    @staticmethod
+    def partes_do_id(serial):
+        """'true_<conversa>_<ID>[_autor]' -> (de_mim, conversa whatsmeow, ID, autor whatsmeow ou '')."""
+        p = serial.split("_")
+        if len(p) < 3:
+            return False, "", serial, ""
+        return p[0] == "true", msgmap.jid_whatsmeow(p[1]), p[2], \
+            msgmap.jid_whatsmeow(p[3]) if len(p) > 3 else ""
+
+    def _indice_da_mensagem(self, serial):
+        de_mim, conversa, mid, autor = self.partes_do_id(serial)
+        participante = autor if (conversa.endswith("@g.us") and not de_mim and autor) else "0"
+        return conversa, mid, ("1" if de_mim else "0", participante)
+
+    def favoritar(self, serial, estrela):
+        from neonize.proto.Neonize_pb2 import PatchInfo
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import StarAction, SyncActionValue
+        conversa, mid, (minha, participante) = self._indice_da_mensagem(serial)
+        ok_ = self.enviar_estado(
+            "star", 2, PatchInfo.REGULAR_HIGH,
+            SyncActionValue(starAction=StarAction(starred=bool(estrela))),
+            conversa, extra=(mid, minha, participante))
+        if ok_:
+            self.bd.mudar_mensagem(mid, star=bool(estrela))
+        return ok_
+
+    def silenciar(self, conversa, segundos):
+        """segundos: 0 = tirar o silencio; -1 = para sempre."""
+        from neonize.proto.Neonize_pb2 import PatchInfo
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import MuteAction, SyncActionValue
+        acao = MuteAction(muted=segundos != 0)
+        if segundos != 0:
+            acao.muteEndTimestamp = -1 if segundos < 0 else int((time.time() + segundos) * 1000)
+        ok_ = self.enviar_estado("mute", 2, PatchInfo.REGULAR_HIGH,
+                                 SyncActionValue(muteAction=acao), conversa)
+        if ok_:
+            fim = 0 if segundos == 0 else (2**31 - 1 if segundos < 0 else int(time.time() + segundos))
+            self.bd.conversa(conversa, muted=fim)
+        return ok_
+
+    def apagar_para_mim(self, serial):
+        from neonize.proto.Neonize_pb2 import PatchInfo
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
+            DeleteMessageForMeAction, SyncActionValue)
+        conversa, mid, (minha, participante) = self._indice_da_mensagem(serial)
+        original = self.bd.mensagem_wpp(mid) or {}
+        ok_ = self.enviar_estado(
+            "deleteMessageForMe", 3, PatchInfo.REGULAR_HIGH,
+            SyncActionValue(deleteMessageForMeAction=DeleteMessageForMeAction(
+                deleteMedia=True, messageTimestamp=int(original.get("t", time.time())))),
+            conversa, extra=(mid, minha, participante))
+        if ok_:
+            self.bd.apagar_mensagem(mid)
+        return ok_
+
+    def apagar_para_todos(self, serial):
+        de_mim, conversa, mid, _ = self.partes_do_id(serial)
+        if not de_mim or self.cliente is None or self.status != "CONNECTED":
+            return False
+        from neonize.utils import build_jid
+        u, _, srv = conversa.partition("@")
+        try:
+            eu_u, _, eu_srv = self.eu.partition("@")
+            self.cliente.revoke_message(build_jid(u, srv), build_jid(eu_u, eu_srv), mid)
+        except Exception:
+            log.exception("revogar")
+            return False
+        self.bd.mudar_mensagem(mid, type="revoked", body="")
+        return True
+
+    def marcar_ouvida(self, serial):
+        from neonize.utils import build_jid
+        from neonize.utils.enum import ReceiptType
+        de_mim, conversa, mid, autor = self.partes_do_id(serial)
+        if de_mim or self.cliente is None or self.status != "CONNECTED":
+            return False
+        original = self.bd.mensagem_wpp(mid) or {}
+        quem = autor or msgmap.jid_whatsmeow(original.get("author") or original.get("from") or conversa)
+        cu, _, csrv = conversa.partition("@")
+        qu, _, qsrv = quem.partition("@")
+        try:
+            self.cliente.mark_read(mid, chat=build_jid(cu, csrv), sender=build_jid(qu, qsrv),
+                                   receipt=ReceiptType.PLAYED)
+        except Exception:
+            log.exception("mark_played")
+            return False
+        self.bd.mudar_mensagem(mid, played=True)
+        return True
 
     def marcar_nao_lida(self, conversa):
         self.bd.conversa(conversa, unread=1)
@@ -752,7 +872,7 @@ def criar_app(pasta, fixa=""):
                 "isGroup": jid.endswith("@g.us"),
                 "unreadCount": c["unread"], "t": c["ts"],
                 "archive": bool(c["archived"]), "pin": c["pinned"] or False,
-                "muteExpiration": c["muted"], "msgs": None,
+                "muteExpiration": c["muted"], "isLocked": bool(c.get("locked")), "msgs": None,
             })
         return web.json_response(saida)
 
@@ -1201,6 +1321,78 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={})
 
+    async def em_thread(funcao, *args):
+        return await asyncio.get_running_loop().run_in_executor(None, funcao, *args)
+
+    def sem_conexao(s):
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        return None
+
+    async def star_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        feito = await em_thread(s.favoritar, corpo["messageId"], bool(corpo.get("star", True)))
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"star": bool(corpo.get("star", True))})
+
+    async def message_by_id(req):
+        s = sessao(req)
+        serial = req.match_info["msgid"]
+        _, _, mid, _ = s.partes_do_id(serial)
+        original = s.bd.mensagem_wpp(mid)
+        if original is None:
+            return web.json_response({"status": "error", "message": "message not found"}, status=404)
+        return ok(status="success", response={**original, "star": bool(original.get("star"))})
+
+    async def send_mute(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        quantidade = float(corpo.get("time") or 0)
+        unidade = {"minutes": 60, "hours": 3600, "days": 86400, "weeks": 604800,
+                   "months": 2592000, "years": 31536000}.get(str(corpo.get("type", "hours")), 3600)
+        segundos = int(quantidade * unidade)
+        if segundos >= 8766 * 3600:
+            segundos = -1                       # "para sempre"
+        fone = corpo.get("phone")
+        fone = fone[0] if isinstance(fone, list) else fone
+        feito = await em_thread(s.silenciar, msgmap.jid_whatsmeow(fone), segundos)
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"isMuted": segundos != 0})
+
+    async def mark_played(req):
+        s = sessao(req)
+        corpo = await req.json()
+        feito = await em_thread(s.marcar_ouvida, corpo["messageId"])
+        return ok(status="success", response={"played": bool(feito)})
+
+    async def delete_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        ids = corpo["messageId"]
+        ids = ids if isinstance(ids, list) else [ids]
+        funcao = s.apagar_para_mim if corpo.get("onlyLocal") else s.apagar_para_todos
+        feitos = [await em_thread(funcao, i) for i in ids]
+        if not all(feitos):
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"deleted": len(feitos)})
+
+    r.add_post("/api/{tok}/star-message", star_message)
+    r.add_get("/api/{tok}/message-by-id/{msgid}", message_by_id)
+    r.add_post("/api/{tok}/send-mute", send_mute)
+    r.add_post("/api/{tok}/mark-played", mark_played)
+    r.add_post("/api/{tok}/delete-message", delete_message)
     r.add_post("/api/{tok}/archive-chat", archive_chat)
     r.add_post("/api/{tok}/pin-chat", pin_chat)
     r.add_post("/api/{tok}/send-seen", send_seen)
