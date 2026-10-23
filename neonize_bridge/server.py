@@ -169,9 +169,11 @@ class Sessao:
                 tipo = Receipt.DESCRIPTOR.fields_by_name["Type"].enum_type \
                     .values_by_number[e.Type].name
                 ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(tipo)
+                chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
+                log.info("recibo %s (%d mensagem(ns)) em %s... -> ack %s", tipo,
+                         len(e.MessageIDs), chat[:6], ack)
                 if ack is None:
                     return
-                chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
                 for mid in e.MessageIDs:
                     self.emitir("onack", {
                         "session": self.nome, "ack": ack, "to": chat, "from": chat,
@@ -465,14 +467,7 @@ def criar_app(pasta, fixa=""):
             destino = build_jid(fone)
         resp = await asyncio.get_running_loop().run_in_executor(
             None, lambda: s.cliente.send_message(destino, corpo["message"]))
-        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
-        chat = jid_texto(destino)
-        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
-                          ts=resp.Timestamp or time.time(),
-                          mensagem=Message(conversation=corpo["message"]))
-        s.bd.mensagem(chat, w)
-        s.bd.ao_chegar(chat, w["t"], True)
-        return ok(status="success", response=[{"id": w["id"]["_serialized"], "ack": 1}])
+        return guardar_enviada(s, destino, resp)
 
     async def saude(req):
         return ok(status="ok")
@@ -612,9 +607,15 @@ def criar_app(pasta, fixa=""):
         if w is not None:
             s.bd.mensagem(chat, w, msgmap.ficha_midia(resp.Message))
             s.bd.ao_chegar(chat, w["t"], True)
-        return ok(status="success", response=[{
-            "id": w["id"]["_serialized"] if w else f"true_{msgmap.jid_wpp(chat)}_{resp.ID}",
-            "ack": 1}])
+        serial = w["id"]["_serialized"] if w else f"true_{msgmap.jid_wpp(chat)}_{resp.ID}"
+        chat_w = msgmap.jid_wpp(chat)
+        # o WPPConnect avisa "enviada" (ack 1) logo depois do envio; o app so
+        # registra a mensagem depois da resposta HTTP, por isso o pequeno atraso
+        asyncio.get_running_loop().call_later(0.6, lambda: asyncio.ensure_future(
+            sio.emit("onack", {"session": s.nome, "ack": 1, "to": chat_w, "from": chat_w,
+                               "id": {"fromMe": True, "remote": chat_w, "id": resp.ID,
+                                      "_serialized": serial}})))
+        return ok(status="success", response=[{"id": serial, "ack": 1}])
 
     def contexto_citado(s, citado, ctx=None):
         """ContextInfo que cita a mensagem `citado` (id serializado), ou None se
