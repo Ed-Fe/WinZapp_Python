@@ -373,7 +373,7 @@ def criar_app(pasta, fixa=""):
             jid += "@c.us"
         conversa = msgmap.jid_whatsmeow(jid)
         itens = s.bd.mensagens(conversa, int(q.get("count", 20)), antes)
-        return web.json_response(itens)
+        return ok(status="success", response=itens)
 
     async def send_message(req):
         s = sessao(req)
