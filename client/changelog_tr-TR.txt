@@ -6,6 +6,8 @@ YENİLİKLER
 
 - Özel sohbetlerde WhatsApp kişiyi çevrim dışı bildirse de yazıyor ve ses kaydediyor bilgileri korunur. Bu etkinlikler çevrim içi görünürlükten ayrı gösterilir; yenilenmediklerinde süreleri dolar. Etkinlik, gerçekleştiği sohbete aittir; grup ve özel sohbetler ayrı izlenir.
 
+- WPPConnect Server 2.10.62 sürümüne güncellendi. Yeni bir hesap eşleştirilirken, WhatsApp oturum başladıktan kısa süre sonra telefonun bağlantısının kesildiğini bildirse bile QR kodu artık kaybolmuyor.
+
 - Aramalar: WPPConnect yeniden kurulurken daha yeni ve uyumlu WhatsApp Web kataloğu korunur ve güncelliği kontrol edilir. Yeniden kurulan katalog önceki altı saatlik beklemeye takılmaz. Yeniden denenemeyen doğrulanmış VoIP uyumsuzluğunda başlatma tekrarlanmaz.
 
 - Grup aramaları: WhatsApp 32'den fazla katılımcısı olan gruplarda arama yapılmasına izin vermez; bu yüzden arama düğmelerinin yerine notu grubun 32'den fazla katılımcısı olduğunu söyleyen bir "Arama yapılamıyor" düğmesi gelir ve arama kısayolları aramayı başlatmak yerine aynı şeyi söyler.

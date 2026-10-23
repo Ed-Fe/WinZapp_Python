@@ -4,6 +4,8 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "79f97fd434a8": "O WPPConnect Server foi atualizado para a 2.10.62. Ao vincular uma conta nova, o",
+    "e8aaaa3d7beb": "Ligações: reinstalar a WPPConnect preserva um catálogo mais recente e compatível",
     "e5655e6399c7": "Chamadas em grupo: o WhatsApp não permite ligar para grupos com mais de 32 parti",
     "05947e90a05a": "Chamadas em grupo: os botões de chamada de voz e de vídeo agora aparecem na conv",
     "8dc1cc789b43": "Chamadas de vídeo: o WinZapp agora encontra a câmera com o FFmpeg incluído no Wi",
@@ -47,7 +49,6 @@
     "23f9ecafb5e7": "Aba Mídias dos dados da conversa: depois do Salvar como, o leitor de tela não an",
     "10e881249e52": "Nova conversa: o botão de entrar num grupo por link ganhou uma letra de atalho c",
     "87443f8afcee": "O cancelamento de eco agora também funciona quando o eco volta com muito atraso,",
-    "e8aaaa3d7beb": "Ligações: reinstalar a WPPConnect preserva um catálogo mais recente e compatível",
     "6c45007b5679": "Os indicadores de digitação e gravação de áudio em conversas individuais continu"
   }
 }

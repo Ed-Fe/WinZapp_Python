@@ -107,6 +107,14 @@ Flows through untouched: `manageSession.ts` (now serialises backup/restore throu
 
 Verified on a scratch checkout of 2.10.58 with the patches laid over it: `tsc --noEmit` reports only missing-module errors from using our `package.json` as the install source (`socket.io-client`, `express-rate-limit`), none in a patched file. Jest: upstream's new `auth`, `sessionSecretKeyGuards`, `manageSession` and `sessionMaintenance` suites pass; `sessionLifecycle` fails the same two cases as on 2.10.52 (INITIALIZING placeholder close, close that rejects), the documented divergence from our `closeSession`.
 
+## 2.10.58 → 2.10.62 (2026-10-23)
+
+2.10.59 to 2.10.61 changed only `CHANGELOG.md`, `package.json` and `yarn.lock` (the `@wppconnect-team/wppconnect` range moved to `^2.3.5`, which is our exact pin already); 2.10.61 is approved in `wpp_approved_versions.json`. 2.10.62 changed one overridden file, `util/createSessionUtil.ts` (plus upstream's test, `yarn.lock` and `mongoose` ^8.24.6, which we do not override).
+
+- `util/createSessionUtil.ts`: `statusFind` ignores `disconnectedMobile` while `client` is still the plain state object (no `close()` yet), and `autocloseCalled` only calls `client.close()` when it exists. Ported literally into the patch; upstream's `ownsAttempt()` was **not** taken, we use `shouldClose`. Guarded by `tests/test_api_runtime_regressions.py::test_disconnected_mobile_before_the_runtime_is_attached_is_ignored`.
+
+Verified by building 2.10.62 with `setup_api.py` (TypeScript compiled with the patch, all `node_modules` patches reported applied).
+
 ## wa-js 4.6.1 -> 4.7.1 with wppconnect 2.3.4 -> 2.3.5 (2026-10-15)
 
 **Symptom.** Voice messages and documents failed to send: `send-voice-base64 failed: Cannot read properties of undefined (reading 'prepRawMedia')`, HTTP 201 from the server with the error in the body, so the client's "invalid success response" path. Texts, and a source tree installed hours earlier, kept working: `@wppconnect/wa-version` is reached only through WPPConnect's own `^1.5.4472`, so a fresh install resolves whatever WhatsApp Web build is newest (1.5.5046, published 21:28Z) and `start.js` serves exactly that build. It moved `prepRawMedia` out of the object wa-js 4.6.1 reads it from. wa-js 4.7.1 (22:34Z) is "split MediaPrep bindings after WhatsApp moved prepRawMedia and uploadProductImage".
