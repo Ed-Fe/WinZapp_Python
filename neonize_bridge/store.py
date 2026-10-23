@@ -186,6 +186,13 @@ class Armazem:
             m = self._bd.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
         return {"chat": c, "message": m}
 
+    def contagem_de_estados(self):
+        """(arquivadas, fixadas): so para ver se uma copia do estado mudou algo."""
+        with self._trava:
+            a = self._bd.execute("SELECT COUNT(*) FROM chats WHERE archived=1").fetchone()[0]
+            f = self._bd.execute("SELECT COUNT(*) FROM chats WHERE pinned>0").fetchone()[0]
+        return a, f
+
     def existe_conversa(self, jid):
         with self._trava:
             return self._bd.execute("SELECT 1 FROM chats WHERE jid=?", (jid,)).fetchone() is not None

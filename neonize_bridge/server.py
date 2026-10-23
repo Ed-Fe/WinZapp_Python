@@ -122,6 +122,7 @@ class Sessao:
             threading.Thread(target=self._carregar_nomes, daemon=True).start()
             threading.Thread(target=self._conferir_estado, daemon=True).start()
             threading.Thread(target=self._conferir_sempre, daemon=True).start()
+            threading.Thread(target=self._copia_sempre, daemon=True).start()
 
         @cli.event(nev.LoggedOutEv)
         def _saiu(c, e):
@@ -453,6 +454,46 @@ class Sessao:
                 self.buscar_mudancas()
         finally:
             self._busca_ativa = False
+
+    INTERVALO_DA_COPIA = 300        # segundos entre dois pedidos de copia ao celular
+
+    def pedir_copia_do_estado(self, nomes=("regular_low", "regular_high")):
+        """Pede ao celular a copia do estado. Mudancas que ele fez mas nao subiu
+        como atualizacao (acontece com arquivar) so chegam assim. O iPhone so
+        responde com o WhatsApp aberto na tela; sem resposta, tenta de novo
+        na proxima rodada. Devolve quantas mudancas novas chegaram."""
+        if self.cliente is None or self.status != "CONNECTED":
+            return 0
+        antes = self.bd.contagem_de_estados()
+        for nome in nomes:
+            try:
+                self.cliente.request_app_state_recovery(nome)
+            except Exception as erro:
+                log.info("pedido de copia do estado %s: %s", nome, erro)
+                continue
+            for _ in range(8):          # espera ate ~40 s pela resposta
+                time.sleep(5)
+                try:
+                    self.cliente.fetch_app_state(nome, full_sync=False)
+                except Exception as erro:
+                    if "LTHash" not in str(erro):
+                        log.info("estado %s: %s", nome, erro)
+                        break
+        depois = self.bd.contagem_de_estados()
+        log.info("copia do estado pedida: arquivadas %d -> %d, fixadas %d -> %d",
+                 antes[0], depois[0], antes[1], depois[1])
+        return abs(depois[0] - antes[0]) + abs(depois[1] - antes[1])
+
+    def _copia_sempre(self):
+        if getattr(self, "_copia_ativa", False):
+            return
+        self._copia_ativa = True
+        try:
+            while self.status == "CONNECTED":
+                time.sleep(self.INTERVALO_DA_COPIA)
+                self.pedir_copia_do_estado()
+        finally:
+            self._copia_ativa = False
 
     def buscar_mudancas(self):
         """fetch_app_state de regular_low/high: os avisos novos viram eventos."""
@@ -1406,6 +1447,12 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/send-mute", send_mute)
     r.add_post("/api/{tok}/mark-played", mark_played)
     r.add_post("/api/{tok}/delete-message", delete_message)
+    async def recuperar_estado(req):
+        s = sessao(req)
+        mudou = await em_thread(s.pedir_copia_do_estado)
+        return ok(status="success", response={"mudancas": mudou})
+
+    r.add_post("/api/{tok}/recuperar-estado", recuperar_estado)
     r.add_post("/api/{tok}/archive-chat", archive_chat)
     r.add_post("/api/{tok}/pin-chat", pin_chat)
     r.add_post("/api/{tok}/send-seen", send_seen)
