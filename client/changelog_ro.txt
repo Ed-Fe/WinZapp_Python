@@ -4,6 +4,8 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Mesaje fixate: deschiderea mesajelor fixate ale unui grup ale cărui fixări sunt mai vechi decât ce păstrează WhatsApp Web în memorie nu mai eșuează cu „Nu s-au putut încărca mesajele fixate”, iar numărul de pe buton arată cifra corectă.
+
 - WPPConnect Server a fost actualizat la 2.10.62. La asocierea unui cont nou, codul QR nu se mai pierde atunci când WhatsApp raportează deconectarea telefonului la scurt timp după începerea sesiunii.
 
 - Apeluri: reinstalarea WPPConnect păstrează un catalog WhatsApp Web mai nou și compatibil și verifică actualitatea acestuia. Catalogul reinstalat este verificat fără așteptarea anterioară de șase ore. O incompatibilitate VoIP confirmată care nu permite reîncercarea oprește inițializările repetate.

@@ -4,6 +4,8 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- Sabitlenmiş mesajlar: sabitlemeleri WhatsApp Web'in bellekte tuttuğundan eski olan bir grubun sabitlenmiş mesajlarını açmak artık "Sabitlenmiş mesajlar yüklenemedi" hatasıyla başarısız olmuyor ve düğmedeki sayı doğru değeri gösteriyor.
+
 - WPPConnect Server 2.10.62 sürümüne güncellendi. Yeni bir hesap eşleştirilirken, WhatsApp oturum başladıktan kısa süre sonra telefonun bağlantısının kesildiğini bildirse bile QR kodu artık kaybolmuyor.
 
 - Aramalar: WPPConnect yeniden kurulurken daha yeni ve uyumlu WhatsApp Web kataloğu korunur ve güncelliği kontrol edilir. Yeniden kurulan katalog önceki altı saatlik beklemeye takılmaz. Yeniden denenemeyen doğrulanmış VoIP uyumsuzluğunda başlatma tekrarlanmaz.

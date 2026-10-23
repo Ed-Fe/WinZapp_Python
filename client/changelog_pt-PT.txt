@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de definições reorganizada, alé
 
 NOVIDADES
 
+- Mensagens afixadas: abrir as mensagens afixadas de um grupo cujas afixações são mais antigas do que o WhatsApp Web mantém na memória já não falha com "Não foi possível carregar as mensagens afixadas", e o número no botão mostra a quantidade correta.
+
 - O WPPConnect Server foi atualizado para a 2.10.62. Ao associar uma conta nova, o código QR já não se perde quando o WhatsApp indica que o telemóvel foi desligado logo a seguir ao início da sessão.
 
 - Chamadas: reinstalar a WPPConnect preserva um catálogo mais recente e compatível do WhatsApp Web e verifica se está atualizado. O catálogo reinstalado é verificado sem a espera anterior de seis horas. Uma incompatibilidade confirmada do VoIP que não permite nova tentativa interrompe as inicializações repetidas.

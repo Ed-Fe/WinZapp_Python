@@ -63,6 +63,18 @@ describe('pinned messages', () => {
     expect(res.body.response).toBeUndefined();
   });
 
+  it('loads a pinned message the Store dropped, then serializes it', async () => {
+    const req = request();
+    req.client.getMessageById
+      .mockResolvedValueOnce({ erro: true })
+      .mockImplementationOnce(async id => ({ id, type: 'chat' }));
+    const res = response();
+    await readPinnedMessages(req, res);
+    expect(req.client.page.evaluate).toHaveBeenCalledTimes(2);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.response).toEqual([{ id: 'false_123@c.us_OLD', type: 'chat', pinInChat: true }]);
+  });
+
   it('does not expose native exception text or credentials', async () => {
     const req = request();
     req.client.page.evaluate.mockRejectedValue(new Error('private contact 123@c.us'));
