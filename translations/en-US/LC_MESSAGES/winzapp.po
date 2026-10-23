@@ -8131,7 +8131,7 @@ msgstr "Use WhatsApp on your phone to see older messages."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/conversation_info.py
-#: client/ui/dialogs/conversation_data_dialog.py
+#: client/ui/dialogs/personal_presence.py
 msgctxt "online_status"
 msgid "Online"
 msgstr "Online"
