@@ -196,6 +196,18 @@ class Sessao:
             log.info("lidas no celular: %d mensagem(ns), nao lidas %d -> %d", len(ids), antes, novo)
             avisar_lida(jid, antes, novo)
 
+        def ouvida_em_outro_aparelho(c, e):
+            """Ouvi uma voz recebida no celular: o app mostra 'Reproduzida' (onack 4)."""
+            jid = chat_local(c, e.MessageSource.Chat)
+            chat_w = msgmap.jid_wpp(jid)
+            for mid in e.MessageIDs:
+                self.bd.mudar_mensagem(mid, played=True)
+                self.emitir("onack", {
+                    "session": self.nome, "ack": 4, "to": chat_w, "from": chat_w,
+                    "id": {"fromMe": False, "remote": chat_w, "id": mid,
+                           "_serialized": f"false_{chat_w}_{mid}"}})
+            log.info("%d voz(es) ouvida(s) no celular -> app", len(e.MessageIDs))
+
         @cli.event(nev.ChatMarkAsReadEv)
         def _lida_no_celular(c, e):
             """Conversa lida (ou marcada como nao lida) no celular: o app acompanha."""
@@ -312,6 +324,7 @@ class Sessao:
                     lida_em_outro_aparelho(c, e)
                     return
                 if tipo == "PLAYED_SELF" or (tipo == "PLAYED" and meu):
+                    ouvida_em_outro_aparelho(c, e)
                     return
                 if ack is None:
                     return
