@@ -616,8 +616,36 @@ def criar_app(pasta, fixa=""):
             "id": w["id"]["_serialized"] if w else f"true_{msgmap.jid_wpp(chat)}_{resp.ID}",
             "ack": 1}])
 
-    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt):
+    def contexto_citado(s, citado, ctx=None):
+        """ContextInfo que cita a mensagem `citado` (id serializado), ou None se
+        ela nao esta guardada."""
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ContextInfo
+        partes = citado.split("_")
+        id_citado = partes[2] if len(partes) > 2 else partes[-1]
+        original = s.bd.mensagem_wpp(id_citado)
+        if original is None:
+            return None
+        ctx = ctx if ctx is not None else ContextInfo()
+        ctx.stanzaID = id_citado
+        ctx.participant = msgmap.participante_citado(original, s.eu)
+        ctx.quotedMessage.CopyFrom(msgmap.citada(original))
+        return ctx
+
+    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt, ctx=None):
         c = s.cliente
+        if ctx is not None:     # com citacao: monta a mensagem, poe o contexto e envia
+            if tipo == "image":
+                m, campo = c.build_image_message(arquivo, caption=legenda or None), "imageMessage"
+            elif tipo == "video":
+                m, campo = c.build_video_message(arquivo, caption=legenda or None), "videoMessage"
+            elif tipo == "audio":
+                m, campo = c.build_audio_message(arquivo, ptt=ptt), "audioMessage"
+            else:
+                m, campo = c.build_document_message(
+                    arquivo, caption=legenda or None, filename=nome or None,
+                    mimetype=mime or None), "documentMessage"
+            getattr(m, campo).contextInfo.CopyFrom(ctx)
+            return c.send_message(destino, m)
         if tipo == "image":
             return c.send_image(destino, arquivo, caption=legenda or None)
         if tipo == "video":
@@ -658,11 +686,12 @@ def criar_app(pasta, fixa=""):
             def um(nome, padrao=""):
                 return (campos.get(nome) or [padrao])[0]
             destino = destino_de(campos.get("phone") or campos.get("phone[]") or [""])
-            if um("quotedMessageId"):
-                log.info("resposta citada ainda nao suportada no envio de midia: enviando sem citar")
+            ctx = contexto_citado(s, um("quotedMessageId")) if um("quotedMessageId") else None
+            if um("quotedMessageId") and ctx is None:
+                log.info("mensagem citada nao guardada: enviando sem citar")
             resp = await asyncio.get_running_loop().run_in_executor(
                 None, enviar_midia, s, destino, um("type", "document"), caminho,
-                um("caption"), um("filename"), mime, um("isPtt") == "true")
+                um("caption"), um("filename"), mime, um("isPtt") == "true", ctx)
             return guardar_enviada(s, destino, resp)
         except Exception as erro:
             log.exception("send-file")
@@ -682,9 +711,10 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
         dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
         destino = destino_de(corpo["phone"])
+        ctx = contexto_citado(s, corpo["quotedMessageId"]) if corpo.get("quotedMessageId") else None
         try:
             resp = await asyncio.get_running_loop().run_in_executor(
-                None, enviar_midia, s, destino, "audio", dados, "", "", "", True)
+                None, enviar_midia, s, destino, "audio", dados, "", "", "", True, ctx)
         except Exception as erro:
             log.exception("send-voice-base64")
             return web.json_response({"status": "error", "message": str(erro)}, status=500)
@@ -790,16 +820,9 @@ def criar_app(pasta, fixa=""):
         destino = destino_de(corpo["phone"])
         ctx = ContextInfo()
         citado = corpo.get("messageId")
-        if citado:
-            partes = citado.split("_")
-            id_citado = partes[2] if len(partes) > 2 else partes[-1]
-            original = s.bd.mensagem_wpp(id_citado)
-            if original is None:
-                return web.json_response(
-                    {"status": "error", "message": "quoted message not found"}, status=404)
-            ctx.stanzaID = id_citado
-            ctx.participant = msgmap.participante_citado(original, s.eu)
-            ctx.quotedMessage.CopyFrom(msgmap.citada(original))
+        if citado and contexto_citado(s, citado, ctx) is None:
+            return web.json_response(
+                {"status": "error", "message": "quoted message not found"}, status=404)
         if com_mencoes:
             ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in corpo.get("mentioned", []))
         mensagem = Message(extendedTextMessage=ExtendedTextMessage(
