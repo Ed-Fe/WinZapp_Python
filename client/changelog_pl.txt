@@ -4,6 +4,8 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
+- Przypięte wiadomości: otwarcie przypiętych wiadomości w grupie, w której przypięcia są starsze niż to, co WhatsApp Web trzyma w pamięci, nie kończy się już błędem „Nie udało się wczytać przypiętych wiadomości”, a licznik na przycisku pokazuje właściwą liczbę.
+
 - WPPConnect Server zaktualizowany do wersji 2.10.62. Podczas parowania nowego konta kod QR nie znika już, gdy WhatsApp zgłasza rozłączenie telefonu chwilę po rozpoczęciu sesji.
 
 - Połączenia: ponowna instalacja WPPConnect zachowuje nowszy, zgodny katalog WhatsApp Web i sprawdza jego aktualność. Ponownie zainstalowany katalog jest sprawdzany bez wcześniejszego sześciogodzinnego oczekiwania. Potwierdzona niezgodność VoIP, której nie można ponowić, zatrzymuje powtarzanie inicjalizacji.
