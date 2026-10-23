@@ -4,6 +4,8 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
+- WPPConnect Server actualizado a la 2.10.62. Al vincular una cuenta nueva ya no se pierde el código QR cuando WhatsApp informa de que el teléfono se ha desconectado poco después de iniciar la sesión.
+
 - Llamadas: reinstalar WPPConnect conserva un catálogo de WhatsApp Web más reciente y compatible y comprueba si está actualizado. El catálogo reinstalado se comprueba sin la espera anterior de seis horas. Una incompatibilidad confirmada de VoIP que no permite reintentos detiene las inicializaciones repetidas.
 
 - Llamadas de grupo: WhatsApp no permite llamar a grupos con más de 32 participantes, así que los botones de llamada se sustituyen por un botón "No es posible llamar" cuya nota dice que el grupo tiene más de 32 participantes, y los atajos de llamada dicen lo mismo en lugar de iniciar la llamada.

@@ -180,3 +180,19 @@ def test_set_limit_route_authenticates_and_checks_connection():
         r"verifyToken,\s*statusConnection,\s*MiscController\.setLimit",
         route.group("body"),
     )
+
+
+def test_disconnected_mobile_before_the_runtime_is_attached_is_ignored():
+    """wppconnect emits disconnectedMobile ~1s after "Session Unpaired" on a
+    fresh, never-paired page, while `client` is still the plain state object
+    (the wppconnect runtime is merged into it only after create() returns).
+    Recording it as the session status looks like a lost phone to WinZapp's
+    REST poll, and calling client.close() on that object throws and skips the
+    status-find webhook. Ported from wppconnect-server 2.10.62.
+    """
+    source = _patch("src/util/createSessionUtil.ts")
+
+    assert "statusFind === StatusFind.disconnectedMobile &&" in source
+    assert "typeof client.close !== 'function'" in source
+    assert "Ignoring disconnectedMobile before the session is ready" in source
+    assert "if (typeof client.close === 'function') client.close();" in source

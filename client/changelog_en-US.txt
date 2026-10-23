@@ -4,6 +4,8 @@ This release brings communities and a reorganized settings window, on top of eve
 
 WHAT'S NEW
 
+- WPPConnect Server updated to 2.10.62. Pairing a new account no longer loses the QR code when WhatsApp reports the phone as disconnected a moment after the session starts.
+
 - Calls: reinstalling WPPConnect preserves a newer compatible WhatsApp Web catalogue and checks its freshness. A rebuilt catalogue is checked without the previous six-hour wait. A confirmed non-retryable VoIP contract mismatch stops repeated initialization.
 
 - Group calls: a group with more than 32 participants cannot be called on WhatsApp, so the call buttons are replaced by a "Calling is not possible" button whose note says the group has more than 32 participants, and the call shortcuts say the same instead of starting a call.

@@ -1088,6 +1088,21 @@ export default class CreateSessionUtil {
               req.logger.info(`[${session}] ${percent}% - ${message}`);
             },
             statusFind: (statusFind: StatusFind) => {
+              // wppconnect emits disconnectedMobile ~1s after "Session Unpaired"
+              // on a fresh, never-paired page. Before the runtime is attached
+              // (wppClient merged into `client` below) there is nothing to
+              // disconnect, and recording it as the session status would
+              // reach WinZapp's REST poll as a lost phone. Upstream
+              // wppconnect-server 2.10.62 ignores it the same way.
+              if (
+                statusFind === StatusFind.disconnectedMobile &&
+                typeof client.close !== 'function'
+              ) {
+                req.logger.info(
+                  `[${session}] Ignoring disconnectedMobile before the session is ready`
+                );
+                return;
+              }
               try {
                 if ((client as any).shouldClose) {
                   req.logger.info(
@@ -1146,7 +1161,9 @@ export default class CreateSessionUtil {
                 if (statusFind === StatusFind.autocloseCalled) {
                   client.status = 'CLOSED';
                   client.qrcode = null;
-                  client.close();
+                  // During initialization `client` is a plain state object with
+                  // no close(); calling it threw and skipped the webhook below.
+                  if (typeof client.close === 'function') client.close();
                   clientsArray[session] = undefined;
                 }
                 callWebHook(client, req, 'status-find', statusPayload);
