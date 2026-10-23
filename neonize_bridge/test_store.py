@@ -23,3 +23,11 @@ def test_conversa_conta_nao_lidas_e_ordena(tmp_path):
     lista = a.conversas()
     assert [c["jid"] for c in lista] == ["b", "a"]
     assert lista[1]["unread"] == 1 and lista[1]["ts"] == 9 and lista[1]["name"] == "A"
+
+
+def test_ficha_da_midia_por_id(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagem("c", _msg("m1", 1), b"ficha")
+    a.mensagem("c", _msg("m2", 2))
+    assert a.ficha("m1") == b"ficha"
+    assert a.ficha("m2") is None and a.ficha("nao-existe") is None

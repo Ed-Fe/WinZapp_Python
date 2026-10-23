@@ -59,6 +59,36 @@ def desembrulhar(msg):
     return msg
 
 
+def ficha_midia(mensagem):
+    """O minimo que o WhatsApp exige para baixar a midia depois (chaves e
+    caminho), sem miniatura nem legenda nem resposta citada; bytes do proto
+    ou None se a mensagem nao tem midia."""
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
+    interna = desembrulhar(mensagem)
+    try:
+        if interna.HasField("ptvMessage"):      # video redondo: baixa como videoMessage
+            video = type(interna.videoMessage)()
+            video.CopyFrom(interna.ptvMessage)
+            interna = Message(videoMessage=video)
+    except ValueError:
+        pass
+    for nome in MIDIAS:
+        try:
+            if not interna.HasField(nome):
+                continue
+        except ValueError:
+            continue
+        sub = type(getattr(interna, nome))()
+        sub.CopyFrom(getattr(interna, nome))
+        for campo in ("contextInfo", "JPEGThumbnail", "caption"):
+            try:
+                sub.ClearField(campo)
+            except ValueError:
+                pass
+        return Message(**{nome: sub}).SerializeToString()
+    return None
+
+
 def _b64(dado) -> str:
     return base64.b64encode(dado).decode() if dado else ""
 

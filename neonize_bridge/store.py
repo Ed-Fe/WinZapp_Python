@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS contacts(
     jid TEXT PRIMARY KEY, name TEXT DEFAULT '', pushname TEXT DEFAULT '');
 CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
-    PRIMARY KEY(chat, id));
+    raw BLOB, PRIMARY KEY(chat, id));
 CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
 """
 
@@ -28,6 +28,10 @@ class Armazem:
         self._trava = threading.RLock()
         with self._trava:
             self._bd.executescript(ESQUEMA)
+            try:    # bancos criados antes da coluna raw
+                self._bd.execute("ALTER TABLE msgs ADD COLUMN raw BLOB")
+            except sqlite3.OperationalError:
+                pass
             try:    # bancos criados antes desta coluna
                 self._bd.execute("ALTER TABLE chats ADD COLUMN read_ts INTEGER DEFAULT 0")
             except sqlite3.OperationalError:
@@ -75,20 +79,26 @@ class Armazem:
             return [dict(r) for r in self._bd.execute("SELECT * FROM contacts")]
 
     # ---------------------------------------------------------- mensagens
-    def mensagem(self, conversa, wpp):
-        """Guarda (ou troca) uma mensagem no formato do WhatsApp Web."""
-        with self._trava:
-            self._bd.execute(
-                "INSERT OR REPLACE INTO msgs(chat, id, ts, data) VALUES (?,?,?,?)",
-                (conversa, wpp["id"]["id"], wpp["t"], json.dumps(wpp)))
-            self._bd.commit()
+    def mensagem(self, conversa, wpp, raw=None):
+        """Guarda (ou troca) uma mensagem no formato do WhatsApp Web; `raw` e a
+        ficha da midia (proto serializado) para baixa-la depois."""
+        self.mensagens_em_lote([(conversa, wpp, raw)])
 
     def mensagens_em_lote(self, linhas):
+        """Linhas (conversa, wpp) ou (conversa, wpp, raw)."""
         with self._trava:
             self._bd.executemany(
-                "INSERT OR REPLACE INTO msgs(chat, id, ts, data) VALUES (?,?,?,?)",
-                [(c, w["id"]["id"], w["t"], json.dumps(w)) for c, w in linhas])
+                "INSERT OR REPLACE INTO msgs(chat, id, ts, data, raw) VALUES (?,?,?,?,?)",
+                [(l[0], l[1]["id"]["id"], l[1]["t"], json.dumps(l[1]),
+                  l[2] if len(l) > 2 else None) for l in linhas])
             self._bd.commit()
+
+    def ficha(self, id_msg):
+        """A ficha da midia de uma mensagem (qualquer conversa) ou None."""
+        with self._trava:
+            r = self._bd.execute("SELECT raw FROM msgs WHERE id=? AND raw IS NOT NULL",
+                                 (id_msg,)).fetchone()
+        return bytes(r["raw"]) if r else None
 
     def mensagens(self, conversa, quantidade=20, antes_de=None):
         """As `quantidade` mais recentes (ou as anteriores a `antes_de`, um id

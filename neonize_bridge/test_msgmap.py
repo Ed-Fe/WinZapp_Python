@@ -41,3 +41,20 @@ def test_jids():
     assert msgmap.jid_wpp("a:3@s.whatsapp.net") == "a@c.us"
     assert msgmap.jid_whatsmeow("a@c.us") == "a@s.whatsapp.net"
     assert msgmap.jid_whatsmeow("a@lid") == "a@lid"
+
+
+def test_ficha_da_midia_guarda_chaves_e_tira_miniatura_e_legenda():
+    msg = Message()
+    msg.imageMessage.caption = "foto"
+    msg.imageMessage.mediaKey = b"\x01\x02"
+    msg.imageMessage.directPath = "/v/t62/x"
+    msg.imageMessage.JPEGThumbnail = b"\xff\xd8"
+    ficha = msgmap.ficha_midia(msg)
+    volta = Message.FromString(ficha)
+    assert volta.imageMessage.mediaKey == b"\x01\x02"
+    assert volta.imageMessage.directPath == "/v/t62/x"
+    assert not volta.imageMessage.caption and not volta.imageMessage.JPEGThumbnail
+
+
+def test_texto_nao_tem_ficha():
+    assert msgmap.ficha_midia(Message(conversation="oi")) is None

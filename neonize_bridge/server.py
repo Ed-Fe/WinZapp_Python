@@ -142,7 +142,7 @@ class Sessao:
                     mensagem=e.Message, nome_de_quem=e.Info.Pushname)
                 if w is None:
                     return
-                self.bd.mensagem(chat, w)
+                self.bd.mensagem(chat, w, msgmap.ficha_midia(e.Message))
                 self.bd.ao_chegar(chat, w["t"], w["fromMe"])
                 if e.Info.Pushname and not o.IsFromMe:
                     self.bd.contato(jid_texto(o.Sender), pushname=e.Info.Pushname)
@@ -256,7 +256,7 @@ class Sessao:
                     ts=m.messageTimestamp, mensagem=m.message,
                     nome_de_quem=m.pushName)
                 if w is not None and w["id"]["id"]:
-                    linhas.append((jid, w))
+                    linhas.append((jid, w, msgmap.ficha_midia(m.message)))
             self.bd.mensagens_em_lote(linhas)
             total += len(linhas)
         log.info("historico: %d conversas, %d mensagens (%s%%)",
@@ -558,6 +558,34 @@ def criar_app(pasta, fixa=""):
     def vazio_ok_resp():
         return ok(status="success", response={})
 
+    async def get_media(req):
+        """Baixa e decifra a midia de uma mensagem guardada (id serializado
+        'false_<conversa>_<ID>[_autor]'); bytes brutos ou JSON com base64."""
+        s = sessao(req)
+        partes = req.match_info["msgid"].split("_")
+        id_msg = partes[2] if len(partes) > 2 else partes[-1]
+        ficha = s.bd.ficha(id_msg)
+        if ficha is None:
+            return web.json_response({"status": "error", "message": "midia nao encontrada"}, status=404)
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
+        mensagem = Message.FromString(ficha)
+        try:
+            dados = await asyncio.get_running_loop().run_in_executor(
+                None, s.cliente.download_any, mensagem)
+        except Exception as erro:
+            log.exception("download")
+            texto = str(erro).lower()
+            # midia que saiu do servidor do WhatsApp: o app trata 410 como "expirada"
+            status = 410 if ("404" in texto or "410" in texto or "not found" in texto) else 500
+            return web.json_response({"status": "error", "message": str(erro)}, status=status)
+        if "octet-stream" in req.headers.get("Accept", ""):
+            return web.Response(body=dados, content_type="application/octet-stream")
+        import base64 as b64
+        return ok(base64=b64.b64encode(dados).decode())
+
+    r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
     r.add_post("/api/{tok}/send-seen", send_seen)
     r.add_post("/api/{tok}/typing", vazio_ok)
     r.add_post("/api/{tok}/recording", vazio_ok)
