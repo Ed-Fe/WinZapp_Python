@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import base64
 import hashlib
+import json
 import io
 import logging
 import os
@@ -549,6 +550,38 @@ def criar_app(pasta, fixa=""):
     app = web.Application(client_max_size=2 * 1024**3)
     sio.attach(app)
     estado = {"sessoes": {}, "fixa": fixa}
+    arquivo_ativas = os.path.join(pasta, "ativas.json")
+
+    def ler_ativas():
+        try:
+            with open(arquivo_ativas, encoding="utf-8") as f:
+                return [str(n) for n in json.load(f)]
+        except (OSError, ValueError):
+            return []
+
+    def marcar_ativa(nome, ativa):
+        """Lembra quais contas estavam ligadas, para a ponte retomar sozinha
+        quando reiniciar (o app so chama start-session ao abrir)."""
+        lista = [n for n in ler_ativas() if n != nome]
+        if ativa:
+            lista.append(nome)
+        os.makedirs(pasta, exist_ok=True)
+        with open(arquivo_ativas, "w", encoding="utf-8") as f:
+            json.dump(lista, f)
+
+    async def retomar(_app):
+        if estado["fixa"]:
+            return
+        for nome in ler_ativas():
+            if os.path.exists(os.path.join(pasta, nome, "sessao.db")):
+                s = estado["sessoes"][nome] = Sessao(
+                    nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
+                s.iniciar()
+                log.info("sessao retomada ao iniciar: %s...", nome[:6])
+    app.on_startup.append(retomar)
+
+    def chave_da(req):
+        return estado["fixa"] or req.match_info["tok"].split(":", 1)[0]
 
     def sessao(req):
         tok = req.match_info["tok"]
@@ -585,6 +618,7 @@ def criar_app(pasta, fixa=""):
         except Exception:
             corpo = {}
         s.iniciar(corpo.get("phone"))
+        marcar_ativa(chave_da(req), True)
         if s.status == "CONNECTED":     # ja logada: o cliente espera os avisos
             if corpo.get("phone") and s.simular_codigo:
                 await sio.emit("phoneCode", {"session": s.nome, "data": "TEST-0000"})
@@ -604,10 +638,12 @@ def criar_app(pasta, fixa=""):
 
     async def close_session(req):
         sessao(req).parar()
+        marcar_ativa(chave_da(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def logout_session(req):
         sessao(req).sair()
+        marcar_ativa(chave_da(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def host_device(req):
