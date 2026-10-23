@@ -1199,6 +1199,15 @@ def criar_app(pasta, fixa=""):
 
     def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt, ctx=None):
         c = s.cliente
+        if tipo == "audio":
+            # o neonize detecta so "audio/ogg"; o WhatsApp quer "audio/ogg; codecs=opus"
+            # (sem isso a voz pode nem aparecer em alguns aparelhos)
+            m = c.build_audio_message(arquivo, ptt=ptt)
+            if (m.audioMessage.mimetype or "").startswith("audio/ogg"):
+                m.audioMessage.mimetype = "audio/ogg; codecs=opus"
+            if ctx is not None:
+                m.audioMessage.contextInfo.CopyFrom(ctx)
+            return c.send_message(destino, m)
         if ctx is not None:     # com citacao: monta a mensagem, poe o contexto e envia
             if tipo == "image":
                 m, campo = c.build_image_message(arquivo, caption=legenda or None), "imageMessage"
