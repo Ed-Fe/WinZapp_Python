@@ -48,6 +48,7 @@ class Sessao:
         self.sio = sio
         self.laco = laco
         self.cliente = None
+        self.simular_codigo = False
         self.thread = None
         self.status = "CLOSED"      # CLOSED INITIALIZING QRCODE CONNECTED
         self.urlcode = None
@@ -97,7 +98,8 @@ class Sessao:
             self.urlcode = None
             self.status = "CONNECTED"
             log.info("conectado como %s", self.eu)
-            self.emitir("session-logged", {"session": self.nome, "status": True})
+            if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
+                self.emitir("session-logged", {"session": self.nome, "status": True})
             threading.Thread(target=self._carregar_nomes, daemon=True).start()
 
         @cli.event(nev.LoggedOutEv)
@@ -148,7 +150,19 @@ class Sessao:
         if telefone:
             def _codigo():
                 from neonize.utils.enum import ClientName, ClientType
-                time.sleep(2)
+                # espera a conexao decidir: ja pareada (CONNECTED) nao precisa de codigo
+                for _ in range(40):
+                    if self.status in ("QRCODE", "CONNECTED"):
+                        break
+                    time.sleep(0.5)
+                if self.status == "CONNECTED":
+                    if self.simular_codigo:     # so no modo de teste (--sessao-unica)
+                        self.emitir("phoneCode", {"session": self.nome,
+                                                  "data": "TEST-0000"})
+                        time.sleep(2)
+                        self.emitir("session-logged", {"session": self.nome,
+                                                       "status": True})
+                    return
                 for tentativa in range(5):
                     try:
                         cod = cli.PairPhone("".join(ch for ch in telefone if ch.isdigit()),
@@ -242,20 +256,23 @@ class Sessao:
 
 
 # ---------------------------------------------------------------- HTTP
-def criar_app(pasta):
+def criar_app(pasta, fixa=""):
     sio = socketio.AsyncServer(async_mode="aiohttp", cors_allowed_origins="*",
                                logger=False, engineio_logger=False)
     app = web.Application(client_max_size=2 * 1024**3)
     sio.attach(app)
-    estado = {"sessoes": {}}
+    estado = {"sessoes": {}, "fixa": fixa}
 
     def sessao(req):
         tok = req.match_info["tok"]
-        nome = tok.split(":", 1)[0]
+        nome = estado["fixa"] or tok.split(":", 1)[0]
         s = estado["sessoes"].get(nome)
         if s is None:
             s = estado["sessoes"][nome] = Sessao(
                 nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
+        if estado["fixa"]:      # os eventos levam o nome que o cliente usa
+            s.nome = tok.split(":", 1)[0]
+            s.simular_codigo = True
         return s
 
     def ok(**kw):
@@ -281,6 +298,11 @@ def criar_app(pasta):
         except Exception:
             corpo = {}
         s.iniciar(corpo.get("phone"))
+        if s.status == "CONNECTED":     # ja logada: o cliente espera os avisos
+            if corpo.get("phone") and s.simular_codigo:
+                await sio.emit("phoneCode", {"session": s.nome, "data": "TEST-0000"})
+                await asyncio.sleep(2)
+            await sio.emit("session-logged", {"session": s.nome, "status": True})
         return ok(status=s.status, qrcode=None, urlcode=s.urlcode)
 
     async def status_session(req):
@@ -334,7 +356,7 @@ def criar_app(pasta):
 
     async def all_contacts(req):
         s = sessao(req)
-        return web.json_response([{
+        return ok(status="success", response=[{
             "id": id_wpp(c["jid"]), "name": c["name"] or None,
             "pushname": c["pushname"] or None, "shortName": c["name"] or None,
             "isMyContact": bool(c["name"])} for c in s.bd.contatos()])
@@ -387,7 +409,55 @@ def criar_app(pasta):
     r.add_post("/api/{tok}/close-session", close_session)
     r.add_post("/api/{tok}/logout-session", logout_session)
     r.add_get("/api/{tok}/host-device", host_device)
+    async def pn_lid(req):
+        """Mapeamento numero <-> LID (o neonize guarda no armazenamento do aparelho)."""
+        s = sessao(req)
+        jid = msgmap.jid_whatsmeow(req.match_info["jid"].replace("~", ""))
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
+        from neonize.utils import build_jid
+        usuario, _, servidor = jid.partition("@")
+        alvo = build_jid(usuario, servidor)
+
+        def consultar():
+            try:
+                if servidor == "lid":
+                    return jid_texto(s.cliente.get_pn_from_lid(alvo)), jid
+                return jid, jid_texto(s.cliente.get_lid_from_pn(alvo))
+            except Exception:
+                return "", ""
+        fone, lid = await asyncio.get_running_loop().run_in_executor(None, consultar)
+        if not fone or not lid:
+            return web.json_response({"status": "error", "message": "mapeamento nao encontrado"}, status=404)
+        return ok(lid={"_serialized": lid}, phone={"_serialized": msgmap.jid_wpp(fone)},
+                  id={"_serialized": msgmap.jid_wpp(fone)})
+
+    async def blocklist(req):
+        s = sessao(req)
+        try:
+            lista = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: list(s.cliente.get_blocklist().JIDs))
+            itens = [{"phone": j.User, "id": {"_serialized": msgmap.jid_wpp(jid_texto(j))}}
+                     for j in lista]
+        except Exception:
+            log.exception("blocklist")
+            itens = []
+        return ok(status="success", response=itens)
+
+    async def history_status(req):
+        s = sessao(req)
+        return ok(status="success", response={
+            "backendWorkerBridgeReady": True, "unprocessedChunks": 0,
+            "initialSyncComplete": True, "recentCompleted": True,
+            "onDemandEnabled": False, "chunkStatus": {},
+            "storeCounts": s.bd.contagens()})
+
     r.add_post("/api/{tok}/set-limit", vazio_ok)
+    r.add_get("/api/{tok}/contact/pn-lid/{jid}", pn_lid)
+    r.add_get("/api/{tok}/blocklist", blocklist)
+    r.add_get("/api/{tok}/history-sync-status", history_status)
+    r.add_post("/api/{tok}/unblock-history-sync", history_status)
+    r.add_post("/api/{tok}/set-online-presence", vazio_ok)
     r.add_post("/api/{tok}/list-chats", list_chats)
     r.add_get("/api/{tok}/list-chats", list_chats)
     r.add_get("/api/{tok}/all-contacts", all_contacts)
@@ -401,11 +471,13 @@ def criar_app(pasta):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--porta", type=int, default=6300)
+    ap.add_argument("--sessao-unica", default="",
+                    help="todas as sessoes pedidas usam esta conta (testes)")
     ap.add_argument("--pasta", default=os.path.join(os.path.dirname(__file__), "dados"))
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    web.run_app(criar_app(a.pasta), host="127.0.0.1", port=a.porta, print=None)
+    web.run_app(criar_app(a.pasta, a.sessao_unica), host="127.0.0.1", port=a.porta, print=None)
 
 
 if __name__ == "__main__":

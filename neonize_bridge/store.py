@@ -106,6 +106,12 @@ class Armazem:
                     (conversa, limite, limite, antes_de, quantidade)).fetchall()
         return [json.loads(r["data"]) for r in reversed(linhas)]
 
+    def contagens(self):
+        with self._trava:
+            c = self._bd.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+            m = self._bd.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
+        return {"chat": c, "message": m}
+
     def ultima(self, conversa):
         itens = self.mensagens(conversa, 1)
         return itens[0] if itens else None
