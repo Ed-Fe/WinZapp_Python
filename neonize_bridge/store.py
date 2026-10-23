@@ -165,6 +165,16 @@ class Armazem:
             m = self._bd.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
         return {"chat": c, "message": m}
 
+    def nao_lidas(self, conversa):
+        with self._trava:
+            r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()
+        return int(r["unread"] or 0) if r else 0
+
+    def ultima_bruta(self, conversa):
+        """A mensagem mais recente guardada (qualquer autor), ou None."""
+        itens = self.mensagens(conversa, 1)
+        return itens[0] if itens else None
+
     def ultima(self, conversa):
         itens = self.mensagens(conversa, 1)
         return itens[0] if itens else None

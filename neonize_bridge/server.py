@@ -286,11 +286,58 @@ class Sessao:
         except Exception:
             log.exception("grupos")
 
-    def marcar_lidas(self, conversa):
-        """Manda o recibo de leitura das mensagens recebidas e ainda nao lidas."""
+    def estado_lida(self, conversa, lida):
+        """Marca a conversa como lida (ou nao lida) no celular e nos outros
+        aparelhos, pelo aviso de estado markChatAsRead."""
+        from neonize.proto.Neonize_pb2 import MutationInfo, PatchInfo
+        from neonize.proto.waCommon.WACommon_pb2 import MessageKey
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
+            MarkChatAsReadAction, SyncActionMessage, SyncActionMessageRange,
+            SyncActionValue)
+        ultima = self.bd.ultima_bruta(conversa)
+        faixa = SyncActionMessageRange()
+        if ultima is not None:
+            faixa.lastMessageTimestamp = int(ultima["t"])
+            chave = MessageKey(remoteJID=conversa, fromMe=bool(ultima.get("fromMe")),
+                               ID=ultima["id"]["id"])
+            if conversa.endswith("@g.us") and not ultima.get("fromMe") and ultima.get("author"):
+                chave.participant = msgmap.jid_whatsmeow(ultima["author"])
+            faixa.messages.append(SyncActionMessage(key=chave, timestamp=int(ultima["t"])))
+        patch = PatchInfo(
+            Timestamp=time.time_ns(), Type=PatchInfo.REGULAR_LOW,
+            Mutations=[MutationInfo(
+                Index=["markChatAsRead", conversa], Version=3,
+                Value=SyncActionValue(markChatAsReadAction=MarkChatAsReadAction(
+                    read=bool(lida), messageRange=faixa)))])
+        try:
+            try:
+                self.cliente.send_app_state(patch)
+            except Exception as erro:
+                if "LTHash" not in str(erro) and "409" not in str(erro):
+                    raise
+                # colecao fora de sincronia: baixa de novo e tenta mais uma vez
+                self.cliente.fetch_app_state("regular_low", full_sync=True)
+                self.cliente.send_app_state(patch)
+            log.info("conversa marcada como %s no celular", "lida" if lida else "nao lida")
+            return True
+        except Exception:
+            log.exception("aviso de estado (lida) nao aceito")
+            return False
+
+    def marcar_nao_lida(self, conversa):
+        self.bd.conversa(conversa, unread=1)
+        if self.cliente is not None and self.status == "CONNECTED":
+            self.estado_lida(conversa, False)
+
+    def marcar_lidas(self, conversa, forcar=False):
+        """Manda o recibo de leitura das mensagens recebidas e ainda nao lidas
+        e marca a conversa como lida tambem no celular."""
         if self.cliente is None or self.status != "CONNECTED":
             return 0
+        tinha_nao_lidas = self.bd.nao_lidas(conversa) > 0
         a_ler = self.bd.recebidas_a_ler(conversa)
+        if tinha_nao_lidas or forcar:     # forcar: o app pediu (o celular pode ainda ter o contador)
+            self.estado_lida(conversa, True)
         if not a_ler:
             return 0
         from neonize.utils import build_jid
@@ -528,11 +575,12 @@ def criar_app(pasta, fixa=""):
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone and corpo.get("unread"):        # "marcar como nao lida": so guarda aqui
-            s.bd.conversa(msgmap.jid_whatsmeow(fone), unread=1)
+        if fone and corpo.get("unread"):        # "marcar como nao lida"
+            await asyncio.get_running_loop().run_in_executor(
+                None, s.marcar_nao_lida, msgmap.jid_whatsmeow(fone))
         elif fone:
             await asyncio.get_running_loop().run_in_executor(
-                None, s.marcar_lidas, msgmap.jid_whatsmeow(fone))
+                None, s.marcar_lidas, msgmap.jid_whatsmeow(fone), True)
         # o app so aceita a confirmacao neste formato: response.data = [true]
         return ok(status="success", response={"data": [True]})
 
