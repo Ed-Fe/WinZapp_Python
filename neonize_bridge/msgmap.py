@@ -89,6 +89,38 @@ def ficha_midia(mensagem):
     return None
 
 
+def citada(w):
+    """Mensagem minima para o balao de citacao a partir do formato WhatsApp Web."""
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
+    m = Message()
+    tipo, corpo = w.get("type"), w.get("body") or ""
+    if tipo == "image":
+        m.imageMessage.caption = w.get("caption") or ""
+        m.imageMessage.mimetype = w.get("mimetype") or "image/jpeg"
+    elif tipo == "video":
+        m.videoMessage.caption = w.get("caption") or ""
+        m.videoMessage.mimetype = w.get("mimetype") or "video/mp4"
+    elif tipo in ("audio", "ptt"):
+        m.audioMessage.PTT = tipo == "ptt"
+        m.audioMessage.mimetype = w.get("mimetype") or "audio/ogg; codecs=opus"
+    elif tipo == "document":
+        m.documentMessage.fileName = w.get("filename") or ""
+        m.documentMessage.caption = w.get("caption") or ""
+        m.documentMessage.mimetype = w.get("mimetype") or ""
+    elif tipo == "sticker":
+        m.stickerMessage.mimetype = w.get("mimetype") or "image/webp"
+    else:
+        m.conversation = corpo
+    return m
+
+
+def participante_citado(w, eu):
+    """Quem escreveu a mensagem citada, no formato whatsmeow."""
+    if w.get("fromMe"):
+        return eu
+    return jid_whatsmeow(w.get("author") or w.get("from") or "")
+
+
 def _b64(dado) -> str:
     return base64.b64encode(dado).decode() if dado else ""
 

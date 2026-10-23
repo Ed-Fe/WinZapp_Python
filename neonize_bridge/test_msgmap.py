@@ -58,3 +58,16 @@ def test_ficha_da_midia_guarda_chaves_e_tira_miniatura_e_legenda():
 
 def test_texto_nao_tem_ficha():
     assert msgmap.ficha_midia(Message(conversation="oi")) is None
+
+
+def test_citada_de_texto_e_de_imagem():
+    assert msgmap.citada({"type": "chat", "body": "oi"}).conversation == "oi"
+    img = msgmap.citada({"type": "image", "caption": "foto", "mimetype": "image/png"})
+    assert img.imageMessage.caption == "foto" and img.imageMessage.mimetype == "image/png"
+    assert msgmap.citada({"type": "ptt"}).audioMessage.PTT is True
+
+
+def test_participante_citado():
+    assert msgmap.participante_citado({"fromMe": True}, "eu@s.whatsapp.net") == "eu@s.whatsapp.net"
+    assert msgmap.participante_citado({"author": "5@c.us"}, "x") == "5@s.whatsapp.net"
+    assert msgmap.participante_citado({"from": "9@lid"}, "x") == "9@lid"

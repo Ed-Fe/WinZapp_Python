@@ -779,6 +779,47 @@ def criar_app(pasta, fixa=""):
     r.add_get("/api/{tok}/group-info/{jid}", group_info)
     r.add_post("/api/{tok}/leave-group", leave_group)
     r.add_post("/api/{tok}/group-subject", group_subject)
+    async def texto_com_contexto(req, com_mencoes):
+        """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
+            ContextInfo, ExtendedTextMessage, Message)
+        s = sessao(req)
+        corpo = await req.json()
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        destino = destino_de(corpo["phone"])
+        ctx = ContextInfo()
+        citado = corpo.get("messageId")
+        if citado:
+            partes = citado.split("_")
+            id_citado = partes[2] if len(partes) > 2 else partes[-1]
+            original = s.bd.mensagem_wpp(id_citado)
+            if original is None:
+                return web.json_response(
+                    {"status": "error", "message": "quoted message not found"}, status=404)
+            ctx.stanzaID = id_citado
+            ctx.participant = msgmap.participante_citado(original, s.eu)
+            ctx.quotedMessage.CopyFrom(msgmap.citada(original))
+        if com_mencoes:
+            ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in corpo.get("mentioned", []))
+        mensagem = Message(extendedTextMessage=ExtendedTextMessage(
+            text=corpo["message"], contextInfo=ctx))
+        try:
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None, s.cliente.send_message, destino, mensagem)
+        except Exception as erro:
+            log.exception("send-reply")
+            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+        return guardar_enviada(s, destino, resp)
+
+    async def send_reply(req):
+        return await texto_com_contexto(req, False)
+
+    async def send_mentioned(req):
+        return await texto_com_contexto(req, True)
+
+    r.add_post("/api/{tok}/send-reply", send_reply)
+    r.add_post("/api/{tok}/send-mentioned", send_mentioned)
     r.add_post("/api/{tok}/send-file", send_file)
     r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)

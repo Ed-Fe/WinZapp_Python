@@ -103,6 +103,12 @@ class Armazem:
                   l[2] if len(l) > 2 else None) for l in linhas])
             self._bd.commit()
 
+    def mensagem_wpp(self, id_msg):
+        """A mensagem (formato WhatsApp Web) de um id, em qualquer conversa, ou None."""
+        with self._trava:
+            r = self._bd.execute("SELECT data FROM msgs WHERE id=?", (id_msg,)).fetchone()
+        return json.loads(r["data"]) if r else None
+
     def ficha(self, id_msg):
         """A ficha da midia de uma mensagem (qualquer conversa) ou None."""
         with self._trava:
