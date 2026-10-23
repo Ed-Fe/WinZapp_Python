@@ -19,6 +19,9 @@ import segno
 import socketio
 from aiohttp import web
 
+import msgmap
+from store import Armazem
+
 log = logging.getLogger("ponte")
 
 
@@ -50,6 +53,8 @@ class Sessao:
         self.urlcode = None
         self.eu = ""                # JID proprio (usuario@s.whatsapp.net)
         self.lid = ""
+        os.makedirs(pasta, exist_ok=True)
+        self.bd = Armazem(os.path.join(pasta, "ponte.db"))
 
     # ------------------------------------------------------------ eventos
     def emitir(self, evento, dados):
@@ -65,7 +70,11 @@ class Sessao:
     # --------------------------------------------------------- ciclo de vida
     def iniciar(self, telefone=None):
         if self.thread and self.thread.is_alive():
-            return
+            if not (telefone and self.status == "QRCODE"):
+                return
+            # tentativa de pareamento parada (o tempo do QR acabou): recomeca
+            self.parar()
+            self.thread.join(10)
         self.status = "INITIALIZING"
         self.thread = threading.Thread(
             target=self._rodar, args=(telefone,), daemon=True, name="neonize")
@@ -89,6 +98,7 @@ class Sessao:
             self.status = "CONNECTED"
             log.info("conectado como %s", self.eu)
             self.emitir("session-logged", {"session": self.nome, "status": True})
+            threading.Thread(target=self._carregar_nomes, daemon=True).start()
 
         @cli.event(nev.LoggedOutEv)
         def _saiu(c, e):
@@ -104,10 +114,28 @@ class Sessao:
         @cli.event(nev.MessageEv)
         def _mensagem(c, e):
             try:
-                self.emitir("received-message", {
-                    "session": self.nome, "response": mensagem_para_wpp(e)})
+                o = e.Info.MessageSource
+                chat = jid_texto(o.Chat)
+                w = msgmap.montar(
+                    conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
+                    remetente=jid_texto(o.Sender), ts=e.Info.Timestamp,
+                    mensagem=e.Message, nome_de_quem=e.Info.Pushname)
+                if w is None:
+                    return
+                self.bd.mensagem(chat, w)
+                self.bd.ao_chegar(chat, w["t"], w["fromMe"])
+                if e.Info.Pushname and not o.IsFromMe:
+                    self.bd.contato(jid_texto(o.Sender), pushname=e.Info.Pushname)
+                self.emitir("received-message", {"session": self.nome, "response": w})
             except Exception:
                 log.exception("mensagem recebida")
+
+        @cli.event(nev.HistorySyncEv)
+        def _historico(c, e):
+            try:
+                self._guardar_historico(e.Data)
+            except Exception:
+                log.exception("historico")
 
         @cli.event.qr
         def _qr(c, dados):
@@ -143,6 +171,57 @@ class Sessao:
             if self.status != "CLOSED":
                 self.status = "CLOSED"
 
+    def _guardar_historico(self, dados):
+        for x in dados.pushnames:
+            if x.ID and x.pushname:
+                self.bd.contato(x.ID, pushname=x.pushname)
+        total = 0
+        for c in dados.conversations:
+            jid = c.ID
+            if not jid or jid.endswith("@broadcast") or jid.endswith("@newsletter"):
+                continue
+            campos = {"name": c.name or c.displayName or None,
+                      "ts": msgmap.segundos(c.conversationTimestamp or c.lastMsgTimestamp)}
+            if c.HasField("unreadCount"):
+                campos["unread"] = int(c.unreadCount)
+            if c.HasField("archived"):
+                campos["archived"] = int(bool(c.archived))
+            if c.HasField("pinned"):
+                campos["pinned"] = int(c.pinned)
+            if c.HasField("muteEndTime"):
+                campos["muted"] = int(c.muteEndTime)
+            self.bd.conversa(jid, **{k: v for k, v in campos.items() if v is not None})
+            linhas = []
+            for h in c.messages:
+                m = h.message
+                chave = m.key
+                w = msgmap.montar(
+                    conversa=jid, de_mim=bool(chave.fromMe), id=chave.ID,
+                    remetente=chave.participant or m.participant
+                    or ("" if chave.fromMe else jid),
+                    ts=m.messageTimestamp, mensagem=m.message,
+                    nome_de_quem=m.pushName)
+                if w is not None and w["id"]["id"]:
+                    linhas.append((jid, w))
+            self.bd.mensagens_em_lote(linhas)
+            total += len(linhas)
+        log.info("historico: %d conversas, %d mensagens (%s%%)",
+                 len(dados.conversations), total, dados.progress)
+
+    def _carregar_nomes(self):
+        try:
+            for c in self.cliente.contact.get_all_contacts():
+                nome = c.Info.FullName or c.Info.FirstName
+                self.bd.contato(jid_texto(c.JID), name=nome or None,
+                                pushname=c.Info.PushName or None)
+        except Exception:
+            log.exception("contatos")
+        try:
+            for g in self.cliente.get_joined_groups():
+                self.bd.conversa(jid_texto(g.JID), name=g.GroupName.Name)
+        except Exception:
+            log.exception("grupos")
+
     def parar(self):
         c = self.cliente
         if c is not None:
@@ -160,29 +239,6 @@ class Sessao:
             except Exception:
                 log.exception("logout")
         self.parar()
-
-
-def mensagem_para_wpp(e):
-    """MessageEv -> o formato 'estilo Baileys' que o WinZapp ja le no evento
-    received-message (key / message / messageType / messageTimestamp)."""
-    from google.protobuf.json_format import MessageToDict
-    info = e.Info
-    origem = info.MessageSource
-    corpo = MessageToDict(e.Message, preserving_proto_field_name=False)
-    tipo = next((k for k in corpo if k != "messageContextInfo"), "conversation")
-    return {
-        "key": {
-            "remoteJid": jid_texto(origem.Chat),
-            "fromMe": bool(origem.IsFromMe),
-            "id": info.ID,
-            **({"participant": jid_texto(origem.Sender)} if origem.IsGroup else {}),
-        },
-        "message": corpo,
-        "messageType": tipo,
-        "messageTimestamp": int(info.Timestamp // 1000 if info.Timestamp > 10**11
-                                else info.Timestamp),
-        "pushName": info.Pushname,
-    }
 
 
 # ---------------------------------------------------------------- HTTP
@@ -254,8 +310,48 @@ def criar_app(pasta):
     async def vazio_ok(req):
         return ok(status="success", response={})
 
-    async def lista_vazia(req):
-        return web.json_response([])
+    def id_wpp(jid):
+        usuario, _, servidor = msgmap.jid_wpp(jid).partition("@")
+        return {"server": servidor, "user": usuario,
+                "_serialized": f"{usuario}@{servidor}"}
+
+    async def list_chats(req):
+        s = sessao(req)
+        nomes = {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"]
+                 for c in s.bd.contatos()}
+        saida = []
+        for c in s.bd.conversas():
+            jid = msgmap.jid_wpp(c["jid"])
+            saida.append({
+                "id": id_wpp(c["jid"]),
+                "name": c["name"] or nomes.get(jid) or None,
+                "isGroup": jid.endswith("@g.us"),
+                "unreadCount": c["unread"], "t": c["ts"],
+                "archive": bool(c["archived"]), "pin": c["pinned"] or False,
+                "muteExpiration": c["muted"], "msgs": None,
+            })
+        return web.json_response(saida)
+
+    async def all_contacts(req):
+        s = sessao(req)
+        return web.json_response([{
+            "id": id_wpp(c["jid"]), "name": c["name"] or None,
+            "pushname": c["pushname"] or None, "shortName": c["name"] or None,
+            "isMyContact": bool(c["name"])} for c in s.bd.contatos()])
+
+    async def get_messages(req):
+        s = sessao(req)
+        q = req.query
+        antes = q.get("id") if q.get("direction") == "before" else None
+        if antes:   # vem serializado: true_<conversa>_<ID>[_autor]
+            partes = antes.split("_")
+            antes = partes[2] if len(partes) > 2 else antes
+        jid = req.match_info["phone"]
+        if "@" not in jid:
+            jid += "@c.us"
+        conversa = msgmap.jid_whatsmeow(jid)
+        itens = s.bd.mensagens(conversa, int(q.get("count", 20)), antes)
+        return web.json_response(itens)
 
     async def send_message(req):
         s = sessao(req)
@@ -264,11 +360,21 @@ def criar_app(pasta):
             return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
         from neonize.utils import build_jid
         fone = corpo["phone"]
-        destino = build_jid(fone.split("@")[0], fone.split("@")[1]) if "@" in fone \
-            else build_jid(fone)
+        if "@" in fone:
+            u, _, srv = msgmap.jid_whatsmeow(fone).partition("@")
+            destino = build_jid(u, srv)
+        else:
+            destino = build_jid(fone)
         resp = await asyncio.get_running_loop().run_in_executor(
             None, lambda: s.cliente.send_message(destino, corpo["message"]))
-        return ok(status="success", response=[{"id": resp.ID, "ack": 1}])
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
+        chat = jid_texto(destino)
+        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
+                          ts=resp.Timestamp or time.time(),
+                          mensagem=Message(conversation=corpo["message"]))
+        s.bd.mensagem(chat, w)
+        s.bd.ao_chegar(chat, w["t"], True)
+        return ok(status="success", response=[{"id": w["id"]["_serialized"], "ack": 1}])
 
     async def saude(req):
         return ok(status="ok")
@@ -282,8 +388,10 @@ def criar_app(pasta):
     r.add_post("/api/{tok}/logout-session", logout_session)
     r.add_get("/api/{tok}/host-device", host_device)
     r.add_post("/api/{tok}/set-limit", vazio_ok)
-    r.add_post("/api/{tok}/list-chats", lista_vazia)
-    r.add_get("/api/{tok}/all-contacts", lista_vazia)
+    r.add_post("/api/{tok}/list-chats", list_chats)
+    r.add_get("/api/{tok}/list-chats", list_chats)
+    r.add_get("/api/{tok}/all-contacts", all_contacts)
+    r.add_get("/api/{tok}/get-messages/{phone}", get_messages)
     r.add_post("/api/{tok}/send-message", send_message)
     r.add_get("/healthz", saude)
     r.add_get("/health", saude)
