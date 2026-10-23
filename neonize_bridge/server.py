@@ -495,12 +495,76 @@ class Sessao:
         finally:
             self._copia_ativa = False
 
+    def conferir_ajustes(self):
+        """Le do armazem do whatsmeow (que os avisos de estado do celular mantem em
+        dia) se cada conversa esta arquivada, fixada e silenciada, e acompanha o
+        que mudou, do mesmo jeito que os avisos ao vivo. Mudancas que o celular
+        fez e nao chegaram como aviso (ou que chegaram antes de o app olhar)
+        aparecem aqui."""
+        c = self.cliente
+        if c is None or self.status != "CONNECTED" or not hasattr(c, "chat_settings"):
+            return 0
+        from neonize.utils import build_jid
+        mudou = 0
+        for conv in self.bd.conversas():
+            jid = conv["jid"]
+            usuario, _, servidor = jid.partition("@")
+            if servidor in ("broadcast", "newsletter") or not usuario:
+                continue
+            candidatos = [build_jid(usuario, servidor)]
+            if servidor == "s.whatsapp.net":
+                try:
+                    lid = c.get_lid_from_pn(candidatos[0])
+                    if lid.User:
+                        candidatos.append(lid)
+                except Exception:
+                    pass
+            dados = None
+            for alvo in candidatos:
+                try:
+                    achado = c.chat_settings.get_chat_settings(alvo)
+                except Exception:
+                    continue
+                if achado.Found:
+                    dados = achado
+                    break
+            if dados is None:
+                continue
+            arquivada, fixada = bool(dados.Archived), bool(dados.Pinned)
+            campos, avisos = {}, {}
+            if arquivada != bool(conv["archived"]):
+                campos["archived"] = int(arquivada)
+                avisos["archive"] = arquivada
+            if fixada != (conv["pinned"] > 0):
+                campos["pinned"] = int(time.time()) if fixada else 0
+                avisos["pin"] = campos["pinned"] if fixada else False
+            fim = int(dados.MutedUntil) if dados.MutedUntil > 0 else 0
+            if fim > 4e9:
+                fim = 2**31 - 1
+            if (fim > 0) != (conv["muted"] > 0):
+                campos["muted"] = fim
+            if not campos:
+                continue
+            self.bd.conversa(jid, **campos)
+            mudou += 1
+            if avisos:
+                chat_w = msgmap.jid_wpp(jid)
+                self.emitir("chats-update", {"session": self.nome, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, **avisos}]})
+        if mudou:
+            log.info("ajustes lidos do armazem: %d conversa(s) mudaram", mudou)
+        return mudou
+
     def buscar_mudancas(self):
         """fetch_app_state de regular_low/high: os avisos novos viram eventos."""
         agora = time.monotonic()
         if agora - getattr(self, "_ultima_busca", 0) < 15 or self.status != "CONNECTED":
             return
         self._ultima_busca = agora
+        try:
+            self.conferir_ajustes()
+        except Exception:
+            log.exception("conferir ajustes")
         for nome in ("regular_low", "regular_high"):
             try:
                 self.cliente.fetch_app_state(nome, full_sync=False)
