@@ -230,16 +230,44 @@ class Sessao:
             except Exception:
                 log.exception("conversa lida no celular")
 
-        def _registrar(nome):
-            classe = getattr(nev, nome, None)
-            if classe is None:
-                return
+        @cli.event(nev.ChatArchiveEv)
+        def _arquivada_no_celular(c, e):
+            try:
+                jid = chat_local(c, e.JID)
+                arq = bool(e.Action.archived)
+                self.bd.conversa(jid, archived=int(arq))
+                chat_w = msgmap.jid_wpp(jid)
+                log.info("conversa %s no celular -> app", "arquivada" if arq else "desarquivada")
+                self.emitir("chats-update", {"session": self.nome, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, "archive": arq}]})
+            except Exception:
+                log.exception("arquivar no celular")
 
-            @cli.event(classe)
-            def _aviso(c, e):
-                log.info("aviso de estado %s em %s...", nome, jid_texto(e.JID)[:6])
-        for _nome in ("ChatArchiveEv", "ChatPinEv", "ChatMuteEv", "ChatDeleteEv", "ChatLockEv"):
-            _registrar(_nome)
+        @cli.event(nev.ChatPinEv)
+        def _fixada_no_celular(c, e):
+            try:
+                jid = chat_local(c, e.JID)
+                fix = bool(e.Action.pinned)
+                self.bd.conversa(jid, pinned=int(time.time()) if fix else 0)
+                chat_w = msgmap.jid_wpp(jid)
+                log.info("conversa %s no celular -> app", "fixada" if fix else "desafixada")
+                self.emitir("chats-update", {"session": self.nome, "data": [{
+                    "remoteJid": chat_w, "id": chat_w,
+                    "pin": int(time.time()) if fix else False}]})
+            except Exception:
+                log.exception("fixar no celular")
+
+        @cli.event(nev.ChatMuteEv)
+        def _silenciada_no_celular(c, e):
+            try:
+                jid = chat_local(c, e.JID)
+                fim = 0
+                if e.Action.muted:
+                    fim = msgmap.segundos(e.Action.muteEndTimestamp)                         if e.Action.muteEndTimestamp > 0 else 2**31 - 1
+                self.bd.conversa(jid, muted=int(fim))
+                log.info("conversa %s no celular", "silenciada" if e.Action.muted else "com som de novo")
+            except Exception:
+                log.exception("silenciar no celular")
 
         @cli.event(nev.ReceiptEv)
         def _recibo(c, e):
@@ -488,6 +516,56 @@ class Sessao:
         except Exception:
             log.exception("aviso de estado (lida) nao aceito")
             return False
+
+    def enviar_estado(self, indice, versao, tipo, valor, conversa):
+        """Aviso de estado generico (arquivar, fixar...): True se o WhatsApp aceitou."""
+        from neonize.proto.Neonize_pb2 import MutationInfo, PatchInfo
+        if self.cliente is None or self.status != "CONNECTED":
+            return False
+        patch = PatchInfo(Timestamp=time.time_ns(), Type=tipo, Mutations=[
+            MutationInfo(Index=[indice, conversa], Version=versao, Value=valor)])
+        colecao = {PatchInfo.REGULAR_LOW: "regular_low",
+                   PatchInfo.REGULAR_HIGH: "regular_high"}.get(tipo, "regular_low")
+        try:
+            try:
+                self.cliente.send_app_state(patch)
+            except Exception as erro:
+                if "LTHash" not in str(erro) and "409" not in str(erro):
+                    raise
+                if not self.reparar_colecao(colecao):
+                    raise
+                self.cliente.send_app_state(patch)
+            return True
+        except Exception:
+            log.exception("aviso de estado %s nao aceito", indice)
+            return False
+
+    def arquivar(self, conversa, arquivar):
+        from neonize.proto.Neonize_pb2 import PatchInfo
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
+            ArchiveChatAction, SyncActionMessageRange, SyncActionValue)
+        ultima = self.bd.ultima_bruta(conversa)
+        quando = int(ultima["t"]) if ultima else int(time.time())
+        ok_ = self.enviar_estado(
+            "archive", 3, PatchInfo.REGULAR_LOW,
+            SyncActionValue(archiveChatAction=ArchiveChatAction(
+                archived=bool(arquivar),
+                messageRange=SyncActionMessageRange(lastMessageTimestamp=quando))),
+            conversa)
+        if ok_:
+            self.bd.conversa(conversa, archived=int(bool(arquivar)))
+        return ok_
+
+    def fixar(self, conversa, fixar):
+        from neonize.proto.Neonize_pb2 import PatchInfo
+        from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
+            PinAction, SyncActionValue)
+        ok_ = self.enviar_estado(
+            "pin_v1", 5, PatchInfo.REGULAR_LOW,
+            SyncActionValue(pinAction=PinAction(pinned=bool(fixar))), conversa)
+        if ok_:
+            self.bd.conversa(conversa, pinned=int(time.time()) if fixar else 0)
+        return ok_
 
     def marcar_nao_lida(self, conversa):
         self.bd.conversa(conversa, unread=1)
@@ -1096,6 +1174,35 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/send-file", send_file)
     r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
+    async def archive_chat(req):
+        s = sessao(req)
+        corpo = await req.json()
+        fone = corpo.get("phone")
+        fone = fone[0] if isinstance(fone, list) else fone
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        feito = await asyncio.get_running_loop().run_in_executor(
+            None, s.arquivar, msgmap.jid_whatsmeow(fone), bool(corpo.get("value", True)))
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={})
+
+    async def pin_chat(req):
+        s = sessao(req)
+        corpo = await req.json()
+        fone = corpo.get("phone")
+        fone = fone[0] if isinstance(fone, list) else fone
+        if s.status != "CONNECTED" or s.cliente is None:
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        fixar = str(corpo.get("state", "true")).lower() == "true"
+        feito = await asyncio.get_running_loop().run_in_executor(
+            None, s.fixar, msgmap.jid_whatsmeow(fone), fixar)
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={})
+
+    r.add_post("/api/{tok}/archive-chat", archive_chat)
+    r.add_post("/api/{tok}/pin-chat", pin_chat)
     r.add_post("/api/{tok}/send-seen", send_seen)
     r.add_post("/api/{tok}/typing", vazio_ok)
     r.add_post("/api/{tok}/recording", vazio_ok)
