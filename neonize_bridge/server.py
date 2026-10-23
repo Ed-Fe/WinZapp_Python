@@ -132,6 +132,24 @@ class Sessao:
             except Exception:
                 log.exception("mensagem recebida")
 
+        @cli.event(nev.ReceiptEv)
+        def _recibo(c, e):
+            try:
+                from neonize.proto.Neonize_pb2 import Receipt
+                tipo = Receipt.DESCRIPTOR.fields_by_name["Type"].enum_type \
+                    .values_by_number[e.Type].name
+                ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(tipo)
+                if ack is None:
+                    return
+                chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
+                for mid in e.MessageIDs:
+                    self.emitir("onack", {
+                        "session": self.nome, "ack": ack, "to": chat, "from": chat,
+                        "id": {"fromMe": True, "remote": chat, "id": mid,
+                               "_serialized": f"true_{chat}_{mid}"}})
+            except Exception:
+                log.exception("recibo")
+
         @cli.event(nev.HistorySyncEv)
         def _historico(c, e):
             try:
@@ -382,6 +400,8 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
         from neonize.utils import build_jid
         fone = corpo["phone"]
+        if isinstance(fone, list):      # o WinZapp manda uma lista de destinos
+            fone = fone[0]
         if "@" in fone:
             u, _, srv = msgmap.jid_whatsmeow(fone).partition("@")
             destino = build_jid(u, srv)
@@ -452,6 +472,21 @@ def criar_app(pasta, fixa=""):
             "onDemandEnabled": False, "chunkStatus": {},
             "storeCounts": s.bd.contagens()})
 
+    async def send_seen(req):
+        s = sessao(req)
+        corpo = await req.json()
+        fone = corpo.get("phone")
+        fone = fone[0] if isinstance(fone, list) else fone
+        if fone:
+            s.bd.conversa(msgmap.jid_whatsmeow(fone), unread=0)
+        return vazio_ok_resp()
+
+    def vazio_ok_resp():
+        return ok(status="success", response={})
+
+    r.add_post("/api/{tok}/send-seen", send_seen)
+    r.add_post("/api/{tok}/typing", vazio_ok)
+    r.add_post("/api/{tok}/recording", vazio_ok)
     r.add_post("/api/{tok}/set-limit", vazio_ok)
     r.add_get("/api/{tok}/contact/pn-lid/{jid}", pn_lid)
     r.add_get("/api/{tok}/blocklist", blocklist)
