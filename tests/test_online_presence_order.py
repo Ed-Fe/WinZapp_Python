@@ -164,7 +164,7 @@ class Window:
         self.iconized = False
         self._presence_timer = Timer()
         self.sent = []
-        self._send_presence = self.sent.append
+        self._send_presence = lambda state, **kwargs: self.sent.append(state)
 
     def IsActive(self):
         return self.active
@@ -246,7 +246,7 @@ def test_background_reconnect_does_not_wait_for_focus_change(workers):
     window.background_mode = True
     window._sync_online_presence = lambda: Window._sync_online_presence(window)
     window._presence_timer = Timer()
-    window._send_presence = lambda state: sent.append(state)
+    window._send_presence = lambda state, **kwargs: sent.append(state)
     sent = []
     queued = []
     # Only UI scheduling is simulated; call the actual connection transition.

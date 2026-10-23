@@ -1703,13 +1703,18 @@ class IdentityMixin:
         a verified withheld timestamp clears the old value. Later live events
         and connection epochs take precedence over this worker's result.
         """
-        from core.contact_presence import aliases, cached, merge
+        from core.contact_presence import aliases, cached
         fresh = cached(self, jid)
         if fresh.get("lastKnownPresence") in ("available", "composing", "recording"):
             return None
         previous = cached(self, jid, fresh=False)
         revision = previous or None
         epoch = getattr(self, "_contact_presence_epoch", 0)
+        identity = aliases(self, jid)
+        from core.contact_presence_query import query_targets
+        query_identity = query_targets(self._normalize_jid(jid),
+                                       getattr(self, "_lid_to_phone", {}),
+                                       getattr(self, "_phone_to_lid", {}))
         panel = getattr(self, "conversations_panel", None)
         conversation = getattr(panel, "conversation", None)
         in_open_chat = (conversation is not None and aliases(self, jid)
@@ -1720,10 +1725,20 @@ class IdentityMixin:
         # Profile workers use the same cache contract as the active-chat worker.
         # Apply on the UI thread; a live update or disconnect wins the race.
         def apply():
-            if (result is not None and epoch == getattr(self, "_contact_presence_epoch", 0)
-                    and (visit is None or visit == getattr(panel, "_contact_presence_visit", None))
+            current_identity = aliases(self, (getattr(panel, "conversation", None) or {}).get("remoteJid", ""))
+            same_visit = (visit is None or (
+                panel is getattr(self, "conversations_panel", None)
+                and visit == getattr(panel, "_contact_presence_visit", None)
+                and current_identity and current_identity[0] == identity[0]))
+            if (result is not None and not getattr(self, "_shutting_down", False)
+                    and getattr(self, "_wa_connected", False)
+                    and epoch == getattr(self, "_contact_presence_epoch", 0)
+                    and same_visit and identity == aliases(self, jid)
+                    and query_identity == query_targets(self._normalize_jid(jid),
+                                                       getattr(self, "_lid_to_phone", {}),
+                                                       getattr(self, "_phone_to_lid", {}))
                     and revision is (cached(self, jid, fresh=False) or None)):
-                merge(self, jid, result)
+                self.on_presence_update(jid, {jid: result}, refresh_offline=False)
                 self._refresh_open_contact_presence_note()
         wx.CallAfter(apply)
         # UI consumers read the shared cache when their callback runs; keep the

@@ -30,6 +30,7 @@ from core.chat_settings import chat_settings_lines
 from core.contact_identity import contact_identity_lines
 from core.group_operations import group_permissions
 from ui.dialogs.common_groups_tab import CommonGroupsTabMixin
+from ui.dialogs.personal_presence import presence_line, stop_personal_presence, track_personal_presence
 from ui.accessible import AccessibleSaveAs, split_mnemonic
 from core.utils import (
     format_number, GROUP_MEDIA_TYPES, GROUP_MEDIA_FILTERS,
@@ -229,6 +230,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         # CI. The event stays as the net for destruction that does not come
         # through here (the parent being destroyed first).
         self._closed.set()
+        stop_personal_presence(self)
         return super().Destroy()
 
     def _on_window_destroy(self, event):
@@ -236,6 +238,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
         # the dialog's own destruction means nobody is looking any more.
         if event.GetEventObject() is self:
             self._closed.set()
+            stop_personal_presence(self)
             pending = getattr(self, "_sound_path_check", None)
             if pending is not None:
                 pending.Stop()
@@ -825,6 +828,9 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
     def _populate_personal(self, data: dict):
         """Fill the personal-chat TextCtrl (called on main thread)."""
+        closed = getattr(self, '_closed', None)
+        if closed is not None and closed.is_set():
+            return
         # _fetch_data()'s background thread starts in __init__, before the
         # caller has called ShowModal() — a fast local WPPConnect response
         # routinely won this race and got here while IsShown() was still
@@ -879,18 +885,11 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
         # Read the shared snapshot after the profile worker's cache callback.
         # Captured HTTP values must not override later live/withheld information.
-        canonical = self._mw._normalize_jid(canonical)
-        from core.contact_presence import cached
-        presence = cached(self._mw, canonical)
-        lkp       = presence.get("lastKnownPresence", "")
-        last_seen = presence.get("lastSeen")
-        from ui.conversation_panel.text_helpers import _fmt_last_seen
-        if lkp in ("available", "composing", "recording"):
-            lines.append(i18n.t("online_status"))
-        elif last_seen:
-            ls_str = _fmt_last_seen(last_seen, i18n)
-            if ls_str:
-                lines.append(ls_str)
+        before = list(lines)
+        current_presence = presence_line(self._mw, canonical, i18n)
+        if current_presence:
+            lines.append(current_presence)
+        suffix_start = len(lines)
 
         # Mute and disappearing messages, from what the client already holds
         # (its mute map and the chat-list snapshot); no line when it has none.
@@ -899,6 +898,7 @@ class ConversationDataDialog(CommonGroupsTabMixin, wx.Dialog):
 
         self._info_ctrl.SetValue("\n".join(lines))
         self._info_ctrl.SetFocus()
+        track_personal_presence(self, before, lines[suffix_start:], current_presence)
 
     def _populate_group(self, data: dict):
         """Fill the group Notebook tabs (called on main thread)."""

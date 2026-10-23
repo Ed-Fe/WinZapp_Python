@@ -5,16 +5,18 @@ from collections.abc import Callable
 
 
 class OnlinePresenceSender:
-    def __init__(self, send: Callable[[str], None]):
+    def __init__(self, send: Callable[..., None]):
         self._send = send
         self._lock = threading.Lock()
         self._pending: str | None = None
+        self._diagnostic = None
         self._running = False
 
-    def submit(self, presence: str | None) -> None:
+    def submit(self, presence: str | None, *, diagnostic=None) -> None:
         """None drops queued work on disconnect/shutdown; no persistent worker."""
         with self._lock:
             self._pending = presence
+            self._diagnostic = diagnostic
             if self._running or presence is None:
                 return
             self._running = True
@@ -29,12 +31,17 @@ class OnlinePresenceSender:
         while True:
             with self._lock:
                 presence = self._pending
+                diagnostic = self._diagnostic
                 self._pending = None
+                self._diagnostic = None
                 if presence is None:
                     self._running = False
                     return
             try:
-                self._send(presence)
+                if diagnostic is None:
+                    self._send(presence)
+                else:
+                    self._send(presence, diagnostic=diagnostic)
             except Exception:
                 # A failed request must not strand a newer offline update.
                 logging.exception("[presence] sender failed")

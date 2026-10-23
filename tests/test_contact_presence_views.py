@@ -49,7 +49,7 @@ def views(owner):
     return panel, dialog, button, text, layouts
 
 
-@pytest.mark.parametrize("state,last_seen,expected", [("available", None, "Online"), ("composing", None, "Online"), ("recording", None, "Online"), ("unavailable", 1700000000, "Seen"), ("unavailable", None, "Unknown")])
+@pytest.mark.parametrize("state,last_seen,expected", [("available", None, "Online"), ("composing", None, "typing_indicator"), ("recording", None, "recording_indicator"), ("unavailable", 1700000000, "Seen"), ("unavailable", None, "Unknown")])
 def test_three_views_read_the_same_snapshot_without_network(state, last_seen, expected):
     owner = Owner()
     merge(owner, PN, {"lastKnownPresence": state, "lastSeen": last_seen})

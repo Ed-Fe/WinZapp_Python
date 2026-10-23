@@ -6,7 +6,7 @@ ConversationsPanel.__init__/init_UI is available here.
 """
 
 import wx
-from core.contact_presence import cached
+from core.contact_presence import activity, cached, visible_online
 from ui.conversation_panel.text_helpers import _fmt_last_seen
 from core.utils import (
     format_number,
@@ -147,7 +147,9 @@ class ConversationInfoMixin:
             or format_number(jid)
         )
 
-        if lkp in ("available", "composing", "recording"):
+        if activity(presence):
+            note = i18n.t("typing_indicator" if lkp == "composing" else "recording_indicator")
+        elif visible_online(presence):
             note = i18n.t("online_status")
         elif last_seen:
             ls_str = _fmt_last_seen(last_seen, i18n)

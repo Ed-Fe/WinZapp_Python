@@ -55,9 +55,11 @@ def test_apply_keeps_checked_time_for_the_package_it_actually_promoted(tree):
 
 
 def test_missing_html_bypasses_throttle_and_repairs_equal_version(tree):
+    # gzip embeds the current time: hash exactly the archive our fake serves.
+    tarball = _good_tarball('1.5.4490')
     latest = {'version': '1.5.4490', 'dependencies': {},
-              'dist': {'tarball': TARBALL, 'integrity': _sri(_good_tarball('1.5.4490'))}}
-    fetch = _fetcher(tarball=_good_tarball('1.5.4490'), latest=latest)
+              'dist': {'tarball': TARBALL, 'integrity': _sri(tarball)}}
+    fetch = _fetcher(tarball=tarball, latest=latest)
     assert wr.check_and_stage(tree.nm, tree.state, fetch=fetch, clock=lambda: 100) == 'current'
     shutil.rmtree(Path(tree.target, 'html'))
     assert wr.check_and_stage(tree.nm, tree.state, fetch=fetch, clock=lambda: 101) == 'staged'

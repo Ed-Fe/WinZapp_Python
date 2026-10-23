@@ -5,9 +5,10 @@ from urllib.parse import quote
 
 import wx
 from core.api_client import api_get
-from core.contact_presence import aliases, cached, is_subscribed, merge
+from core.contact_presence import aliases, cached, is_subscribed
 from core.contact_presence_query import query_targets, read_snapshot
 from core.conversation_view import conversation_in_view
+from ui.dialogs.personal_presence import notify_personal_presence
 
 
 class ContactPresenceMixin:
@@ -83,7 +84,7 @@ class ContactPresenceMixin:
                                                             getattr(self, "_lid_to_phone", {}),
                                                             getattr(self, "_phone_to_lid", {}))
                         and revision is (cached(self, jid, fresh=False) or None)):
-                    merge(self, jid, result)
+                    self.on_presence_update(jid, {jid: result}, refresh_offline=False)
                 # Read the current cache, including events received during HTTP.
                 self._refresh_open_contact_presence_note()
                 if not same_visit or epoch != getattr(self, "_contact_presence_epoch", 0):
@@ -113,6 +114,7 @@ class ContactPresenceMixin:
             timer.Stop()
         self._presence_timers = {}
         self._composing_chats = {}
+        notify_personal_presence(self)
         panel = getattr(self, "conversations_panel", None)
         if panel is not None and hasattr(panel, "refresh_typing_row"):
             panel.refresh_typing_row()

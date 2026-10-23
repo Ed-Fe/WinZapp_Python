@@ -4,6 +4,8 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- Özel sohbetlerde WhatsApp kişiyi çevrim dışı bildirse de yazıyor ve ses kaydediyor bilgileri korunur. Bu etkinlikler çevrim içi görünürlükten ayrı gösterilir; yenilenmediklerinde süreleri dolar. Etkinlik, gerçekleştiği sohbete aittir; grup ve özel sohbetler ayrı izlenir.
+
 - Sabitlenmiş mesajlar: sabitlemeleri WhatsApp Web'in bellekte tuttuğundan eski olan bir grubun sabitlenmiş mesajlarını açmak artık "Sabitlenmiş mesajlar yüklenemedi" hatasıyla başarısız olmuyor ve düğmedeki sayı doğru değeri gösteriyor.
 
 - WPPConnect Server 2.10.62 sürümüne güncellendi. Yeni bir hesap eşleştirilirken, WhatsApp oturum başladıktan kısa süre sonra telefonun bağlantısının kesildiğini bildirse bile QR kodu artık kaybolmuyor.
