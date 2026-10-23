@@ -165,6 +165,10 @@ class Armazem:
             m = self._bd.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
         return {"chat": c, "message": m}
 
+    def existe_conversa(self, jid):
+        with self._trava:
+            return self._bd.execute("SELECT 1 FROM chats WHERE jid=?", (jid,)).fetchone() is not None
+
     def nao_lidas(self, conversa):
         with self._trava:
             r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()

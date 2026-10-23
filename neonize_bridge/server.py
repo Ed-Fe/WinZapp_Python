@@ -162,6 +162,40 @@ class Sessao:
             except Exception:
                 log.exception("grupo mudou")
 
+        @cli.event(nev.ChatMarkAsReadEv)
+        def _lida_no_celular(c, e):
+            """Conversa lida (ou marcada como nao lida) no celular: o app acompanha."""
+            try:
+                acao = e.Action
+                jid = jid_texto(e.JID)
+                if not self.bd.existe_conversa(jid) and jid.endswith("@s.whatsapp.net"):
+                    try:        # a conversa pode estar guardada pelo endereco LID
+                        lid = jid_texto(c.get_lid_from_pn(e.JID))
+                        if lid and self.bd.existe_conversa(lid):
+                            jid = lid
+                    except Exception:
+                        pass
+                antes = self.bd.nao_lidas(jid)
+                if acao.read:
+                    ate = msgmap.segundos(acao.messageRange.lastMessageTimestamp)                         if acao.HasField("messageRange") else 0
+                    ultima = self.bd.ultima_bruta(jid)
+                    if ate and ultima is not None and ultima["t"] > ate + 5:
+                        log.info("lida no celular, mas ha mensagem mais nova: mantida")
+                        return
+                    self.bd.conversa(jid, unread=0)
+                    novo = 0
+                else:
+                    self.bd.conversa(jid, unread=max(antes, 1))
+                    novo = -1
+                log.info("conversa marcada como %s no celular -> app",
+                         "lida" if acao.read else "nao lida")
+                chat_w = msgmap.jid_wpp(jid)
+                self.emitir("chats-update", {"session": self.nome, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, "unreadCount": novo,
+                    "previousUnreadCount": antes}]})
+            except Exception:
+                log.exception("conversa lida no celular")
+
         @cli.event(nev.ReceiptEv)
         def _recibo(c, e):
             try:
