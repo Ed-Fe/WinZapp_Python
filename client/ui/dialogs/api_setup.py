@@ -220,6 +220,7 @@ _CUSTOM_SRC_FILES = [
     "src/util/statusReactionRuntime.ts",
     "src/util/quotedMessagePreflight.ts",
     "src/util/contactPresenceRuntime.ts",
+    "src/util/onlinePresenceDiagnostics.ts",
     "src/util/listChatsDiag.ts",
     "src/util/createSessionUtil.ts",
     "src/util/sessionUtil.ts",

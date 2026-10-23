@@ -13,6 +13,7 @@ import threading
 import time
 import wx
 from core.api_client import api_post
+from core.online_presence_diagnostics import PresenceDiagnostics, diagnostic_headers, record_write
 if sys.platform == "win32":
     from core.tray_manager import TrayIcon
 
@@ -142,20 +143,31 @@ class WindowLifecycleMixin:
         connected = (bool(getattr(self, "token", None))
                      and getattr(self, "_wa_connected", False)
                      and not getattr(self, "_shutting_down", False))
+        if not hasattr(self, "_online_presence_diagnostics"):
+            self._online_presence_diagnostics = PresenceDiagnostics()
+        inspect_window = (connected and not getattr(self, "background_mode", False)
+                          and not getattr(self, "_window_hidden", False))
+        decision = self._online_presence_diagnostics.decide(
+            connected=bool(connected), token=bool(getattr(self, "token", None)),
+            shutdown=bool(getattr(self, "_shutting_down", False)),
+            background=bool(getattr(self, "background_mode", False)),
+            hidden=bool(getattr(self, "_window_hidden", False)),
+            shown=bool(self.IsShown()) if inspect_window else None,
+            iconized=bool(self.IsIconized()) if inspect_window else None,
+            active=bool(self.IsActive()) if inspect_window else None,
+        )
         if not connected:
             self._presence_timer.Stop()
             self._online_presence_sender.submit(None)
             return
-        online = (not getattr(self, "background_mode", False)
-                  and not getattr(self, "_window_hidden", False)
-                  and self.IsShown() and not self.IsIconized() and self.IsActive())
-        self._online_presence_sender.submit("available" if online else "unavailable")
+        self._online_presence_sender.submit(
+            "available" if decision.online else "unavailable", diagnostic=decision)
         # Offline writes need retries too, and a reconnect needs an initial
         # write even if the window never gains/loses focus (background start).
         if not self._presence_timer.IsRunning():
             self._presence_timer.Start(20_000)
 
-    def _send_presence(self, presence: str):
+    def _send_presence(self, presence: str, *, diagnostic=None):
         """
         POST /api/{session}/set-online-presence
         Body: {"isOnline": true | false}
@@ -164,30 +176,36 @@ class WindowLifecycleMixin:
         """
         token = getattr(self, "token", None)
         if not token:
+            record_write(diagnostic, skipped=True)
             return
         if (not getattr(self, "_wa_connected", False)
                 or getattr(self, "_shutting_down", False)):
             logging.debug(
                 "[presence] skipping '%s' — no live WhatsApp connection", presence
             )
+            record_write(diagnostic, skipped=True)
             return
         url = f"{self.wpp_server}:{self.wpp_port}/api/{token}/set-online-presence"
         is_online = presence == "available"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            **diagnostic_headers(diagnostic),
         }
+        started = time.monotonic()
         try:
             resp = api_post(
                 url, json={"isOnline": is_online}, headers=headers, timeout=5
             )
             status = getattr(resp, "status_code", None)
+            record_write(diagnostic, response=resp, elapsed=time.monotonic() - started)
             if status is not None and status >= 400:
                 logging.warning(
                     "[presence] set-online-presence('%s') returned HTTP %s",
                     presence, status,
                 )
         except Exception:
+            record_write(diagnostic, failure=True, elapsed=time.monotonic() - started)
             logging.debug(
                 "[presence] set-online-presence('%s') failed", presence, exc_info=True
             )

@@ -4,6 +4,8 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
+- Wskaźniki pisania i nagrywania wiadomości głosowej w czatach prywatnych pozostają dostępne, gdy WhatsApp informuje, że kontakt jest offline. Aktywność jest pokazywana oddzielnie od widoczności online i wygasa, gdy nie jest odświeżana. Aktywność jest przypisana do czatu, w którym występuje: grupy i czaty prywatne są śledzone oddzielnie.
+
 - Połączenia: ponowna instalacja WPPConnect zachowuje nowszy, zgodny katalog WhatsApp Web i sprawdza jego aktualność. Ponownie zainstalowany katalog jest sprawdzany bez wcześniejszego sześciogodzinnego oczekiwania. Potwierdzona niezgodność VoIP, której nie można ponowić, zatrzymuje powtarzanie inicjalizacji.
 
 - Połączenia grupowe: WhatsApp nie pozwala dzwonić do grup liczących więcej niż 32 członków, więc przyciski połączeń zastępuje przycisk "Nie można zadzwonić", którego opis mówi, że grupa ma więcej niż 32 członków, a skróty połączeń mówią to samo zamiast rozpoczynać połączenie.

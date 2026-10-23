@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de configurações reorganizada, a
 
 NOVIDADES
 
+- Os indicadores de digitação e gravação de áudio em conversas individuais continuam disponíveis quando o WhatsApp informa que o contato está offline. A atividade aparece separada da visibilidade online e expira quando deixa de ser atualizada. A atividade pertence à conversa em que ocorre: grupos e conversas privadas são acompanhados separadamente.
+
 - Ligações: reinstalar a WPPConnect preserva um catálogo mais recente e compatível do WhatsApp Web e verifica se está atualizado. O catálogo reinstalado é verificado sem a espera anterior de seis horas. Uma incompatibilidade confirmada do VoIP que não permite nova tentativa interrompe as inicializações repetidas.
 
 - Chamadas em grupo: o WhatsApp não permite ligar para grupos com mais de 32 participantes, então os botões de ligação são trocados por um botão "Não é possível ligar" cuja nota diz que o grupo possui mais de 32 participantes, e os atalhos de ligação dizem o mesmo em vez de iniciar a ligação.

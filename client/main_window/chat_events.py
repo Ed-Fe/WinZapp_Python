@@ -6,7 +6,8 @@ available here.
 """
 
 import logging
-from core.contact_presence import ONLINE, cached, merge
+from core.contact_presence import ONLINE, activity, cached, merge, visible_online
+from ui.dialogs.personal_presence import notify_personal_presence
 import time
 import wx
 from core.conversation_view import conversation_in_view
@@ -231,7 +232,9 @@ class ChatEventsMixin:
 
         presence = cached(self, chat_jid_norm)
         lkp = presence.get("lastKnownPresence", "")
-        if lkp in ONLINE:
+        if activity(presence):
+            return self.i18n.t("typing_indicator" if lkp == "composing" else "recording_indicator")
+        if visible_online(presence):
             return self.i18n.t("presence_online")
 
         last_seen = presence.get("lastSeen")
@@ -385,7 +388,7 @@ class ChatEventsMixin:
                     pass
                 break
 
-    def on_presence_update(self, jid: str, presences: dict):
+    def on_presence_update(self, jid: str, presences: dict, *, refresh_offline=True):
         """Update the presence cache and composing indicators. Speaks changes
         via AO2 when the active conversation has a new composing event, and refreshes
         the data-button note for the open conversation.
@@ -401,6 +404,7 @@ class ChatEventsMixin:
         if chat_jid_norm.endswith("@lid"):
             chat_jid_norm = self._lid_to_phone.get(chat_jid_norm, chat_jid_norm)
 
+        presence_scope = chat_jid_norm if chat_jid_norm.endswith("@g.us") else None
         composing_chats = getattr(self, "_composing_chats", None)
         if composing_chats is None:
             self._composing_chats = {}
@@ -462,11 +466,11 @@ class ChatEventsMixin:
                             self._presence_pushname_map[lid] = push
                             _ppm_updated = True
 
-            previous = cached(self, canonical, fresh=False)
-            old_lkp = previous.get("lastKnownPresence", "")
+            previous = cached(self, canonical, fresh=False, chat=presence_scope)
+            old_lkp = cached(self, canonical, chat=presence_scope).get("lastKnownPresence", "")
             new_lkp = data.get("lastKnownPresence", "unavailable")
 
-            entry = merge(self, canonical, data)
+            entry = merge(self, canonical, data, chat=presence_scope)
             if entry is previous:
                 continue  # An older event must not restart a typing timer/speech.
             new_lkp = entry.get("lastKnownPresence", "")
@@ -490,17 +494,24 @@ class ChatEventsMixin:
                         pass
                 def _make_clear(cjid, part):
                     def _clear():
+                        # Stop() cannot retract an already queued callback.
+                        # Only this chat/participant's current timer owns expiry.
+                        if self._presence_timers.get((cjid, part)) is not timer:
+                            return
                         self._composing_chats.get(cjid, {}).pop(part, None)
                         self._presence_timers.pop((cjid, part), None)
+                        notify_personal_presence(self)
                         self._refresh_chat_row_in_list(cjid)
                         # Same expiry for the open conversation's typing row.
                         cp = getattr(self, "conversations_panel", None)
                         if cp is not None and hasattr(cp, "refresh_typing_row"):
                             cp.refresh_typing_row()
-                    return _clear
-                self._presence_timers[timer_key] = wx.CallLater(
-                    10_000, _make_clear(chat_jid_norm, canonical)
-                )
+                        refresh_note = getattr(self, "_refresh_open_contact_presence_note", None)
+                        if refresh_note is not None:
+                            refresh_note()
+                    timer = wx.CallLater(10_000, _clear)
+                    return timer
+                self._presence_timers[timer_key] = _make_clear(chat_jid_norm, canonical)
             else:
                 composing_chats[chat_jid_norm].pop(canonical, None)
                 old_timer = self._presence_timers.pop(timer_key, None)
@@ -550,6 +561,8 @@ class ChatEventsMixin:
                         except Exception as e:
                             logging.error("[on_presence_update] speak error: %s", e)
 
+        notify_personal_presence(self)
+
         # Persist the updated pushName map to database metadata.
         if _ppm_updated and hasattr(self, "db") and self.db is not None:
             try:
@@ -574,7 +587,7 @@ class ChatEventsMixin:
             panel._refresh_presence_note(conv_jid)
         # WPP pushes the state, but not chatstate.t. Ask for the current
         # snapshot when this contact goes offline instead of waiting for a tick.
-        if (is_active_chat(chat_jid_norm, conv_jid)
+        if (refresh_offline and is_active_chat(chat_jid_norm, conv_jid)
                 and not conv_jid.endswith("@g.us")
                 and cached(self, conv_jid).get("lastKnownPresence") not in ONLINE
                 and hasattr(self, "_refresh_open_contact_presence")):

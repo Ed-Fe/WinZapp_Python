@@ -36,6 +36,7 @@ import {
   probeIsConnected,
 } from '../util/functions';
 import getAllTokens from '../util/getAllTokens';
+import { beginOnlinePresenceDiagnostic, finishOnlinePresenceDiagnostic } from '../util/onlinePresenceDiagnostics';
 import { isSessionMaintenanceActive } from '../util/sessionMaintenance';
 import { cleanupSession, clientsArray } from '../util/sessionUtil';
 
@@ -1382,16 +1383,20 @@ export async function setOnlinePresence(req: Request, res: Response) {
       }
      }
    */
+  const trace = beginOnlinePresenceDiagnostic(req);
   try {
     const { isOnline = true } = req.body;
 
-    await req.client.setOnlinePresence(isOnline);
+    const native = await req.client.setOnlinePresence(isOnline);
+    const diagnostic = await finishOnlinePresenceDiagnostic(req, trace, native);
 
     res.status(200).json({
       status: 'success',
       response: { message: 'Set Online Presence Successfully' },
+      ...(diagnostic ? { diagnostic } : {}),
     });
   } catch (error) {
+    await finishOnlinePresenceDiagnostic(req, trace, undefined, true);
     res.status(500).json({
       status: 'error',
       message: 'Error on set online presence',

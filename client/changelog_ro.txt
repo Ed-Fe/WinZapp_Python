@@ -4,6 +4,8 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Indicatorii de scriere și de înregistrare audio din conversațiile private rămân disponibili când WhatsApp raportează contactul ca deconectat. Activitatea este afișată separat de vizibilitatea online și expiră când nu mai este actualizată. Activitatea aparține conversației în care are loc: grupurile și conversațiile private sunt urmărite separat.
+
 - Apeluri: reinstalarea WPPConnect păstrează un catalog WhatsApp Web mai nou și compatibil și verifică actualitatea acestuia. Catalogul reinstalat este verificat fără așteptarea anterioară de șase ore. O incompatibilitate VoIP confirmată care nu permite reîncercarea oprește inițializările repetate.
 
 - Apeluri de grup: WhatsApp nu permite apeluri către grupuri cu mai mult de 32 de participanți, așa că butoanele de apel sunt înlocuite cu un buton "Nu se poate apela" a cărui notă spune că grupul are mai mult de 32 de participanți, iar comenzile rapide de apel spun același lucru în loc să pornească apelul.

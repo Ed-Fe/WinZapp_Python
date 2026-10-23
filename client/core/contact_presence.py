@@ -7,7 +7,20 @@ import math
 import time
 
 FRESH_SECONDS = 90
+ACTIVITY_SECONDS = 10
+ACTIVITY = frozenset(("composing", "recording"))
 ONLINE = frozenset(("available", "composing", "recording"))
+
+
+def visible_online(entry):
+    """Activity does not establish permission to display online presence."""
+    return (not entry.get("restricted", False)
+            and entry.get("isOnline", entry.get("lastKnownPresence") == "available") is True)
+
+
+def activity(entry):
+    state = entry.get("lastKnownPresence", "")
+    return state if state in ACTIVITY else ""
 
 
 def timestamp(value):
@@ -39,24 +52,35 @@ def is_subscribed(owner, jid):
     return any(key in subscribed for key in (jid, *aliases(owner, jid)))
 
 
-def cached(owner, jid, *, now=None, fresh=True):
+def cached(owner, jid, *, now=None, fresh=True, chat=None):
     cache = getattr(owner, "_presence_cache", {})
-    entries = [cache[key] for key in aliases(owner, jid) if key in cache]
+    keys = [(chat, key) if chat else key for key in aliases(owner, jid)]
+    entries = [cache[key] for key in keys if key in cache]
     entry = max(entries, key=lambda x: x.get("_received", 0), default={})
     now = time.monotonic() if now is None else now
     # Metadata-free entries support old providers/test fixtures; all new writes
     # go through merge() and carry freshness metadata.
     if fresh and "_received" in entry and now - entry["_received"] >= FRESH_SECONDS:
         return {}
+    if fresh and "_online_received" in entry and now - entry["_online_received"] >= FRESH_SECONDS:
+        entry = {**entry, "isOnline": None}
+        if not activity(entry):
+            entry["lastKnownPresence"] = ""
+    if fresh and activity(entry) and "_activity_received" in entry and now - entry["_activity_received"] >= ACTIVITY_SECONDS:
+        entry = {**entry, "lastKnownPresence": "available" if visible_online(entry) else
+                 "unavailable" if entry.get("isOnline") is False else ""}
     if fresh and entry.get("lastSeen") and now - entry.get("_seen_received", now) >= FRESH_SECONDS:
         return {**entry, "lastSeen": None}
     return entry
 
 
-def merge(owner, jid, data, *, now=None):
-    """Merge a verified snapshot/event; reject reordered WPP events."""
+def merge(owner, jid, data, *, now=None, chat=None):
+    """Merge a verified snapshot/event; reject reordered WPP events.
+
+    Group chatstate belongs to (chat, participant), never the private contact.
+    """
     now = time.monotonic() if now is None else now
-    old = cached(owner, jid, now=now, fresh=False)
+    old = cached(owner, jid, now=now, fresh=False, chat=chat)
     raw_event = data.get("eventTimestamp")
     event = float(raw_event) if timestamp(raw_event) is not None else None
     if event is not None and event <= 1_000_000_000_000:
@@ -67,12 +91,21 @@ def merge(owner, jid, data, *, now=None):
     state = data.get("lastKnownPresence", "")
     if state not in ONLINE | {"unavailable", "paused"}:
         state = ""
-    if data.get("isOnline") is True and state not in ("composing", "recording"):
-        state = "available"
-    elif data.get("isOnline") is False:
-        state = "unavailable"
-    elif state == "paused":
-        state = ""
+    current = cached(owner, jid, now=now, chat=chat)
+    online = data.get("isOnline")
+    online_received = now
+    if not isinstance(online, bool):
+        if state in ("available", "unavailable"):
+            online = state == "available"
+        else:
+            online = current.get("isOnline")
+            online_received = old.get("_online_received", now)
+    restricted = data.get("restricted") is True
+    if restricted:
+        online = None
+    # A real activity event may coexist with a hidden/offline online flag.
+    if state not in ACTIVITY:
+        state = "available" if online is True else "unavailable" if online is False else ""
     # A missing field is not an explicit privacy denial. Never retain a
     # last-seen value across an online transition or after its own expiry.
     last_seen = timestamp(data.get("lastSeen"))
@@ -81,16 +114,18 @@ def merge(owner, jid, data, *, now=None):
         if now - old.get("_seen_received", -FRESH_SECONDS) < FRESH_SECONDS:
             last_seen = old.get("lastSeen")
             seen_at = old.get("_seen_received", now)
-    if state in ONLINE or data.get("restricted") is True:
+    if state in ACTIVITY or online is True or restricted:
         last_seen = None
     entry = {"lastKnownPresence": state, "lastSeen": last_seen,
+             "isOnline": online, "restricted": restricted,
+             "_online_received": online_received, "_activity_received": now,
              "_received": now, "_seen_received": seen_at,
              "_version": old.get("_version", 0) + 1,
              "_event": event or previous_event}
     if not hasattr(owner, "_presence_cache"):
         owner._presence_cache = {}
     for key in aliases(owner, jid):
-        owner._presence_cache[key] = entry
+        owner._presence_cache[(chat, key) if chat else key] = entry
     return entry
 
 

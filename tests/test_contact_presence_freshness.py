@@ -33,6 +33,10 @@ class Owner(ContactPresenceMixin):
     def _normalize_jid(jid):
         return jid.replace("@c.us", "@s.whatsapp.net")
 
+    def on_presence_update(self, jid, presences, **kwargs):
+        for participant, data in presences.items():
+            merge(self, participant, data)
+
 
 @pytest.mark.parametrize("value,expected", [
     (None, None), (True, None), (False, None), (0, None), (-1, None),

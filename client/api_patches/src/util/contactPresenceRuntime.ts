@@ -20,12 +20,13 @@ export const CONTACT_PRESENCE_SOURCE = String.raw`function (id) {
     const restricted = state.deny === true;
     const value = state.t;
     const number = typeof value === 'boolean' || value == null ? NaN : Number(value);
-    const lastSeen = !restricted && !online && Number.isFinite(number) && number > 0
-      ? Math.floor(number > 1e12 ? number / 1000 : number) : null;
     const type = { typing: 'composing', recording_audio: 'recording',
       online: 'available', offline: 'unavailable' }[state.type] || state.type;
+    const active = type === 'composing' || type === 'recording';
+    const lastSeen = !restricted && !online && !active && Number.isFinite(number) && number > 0
+      ? Math.floor(number > 1e12 ? number / 1000 : number) : null;
     return { status: 'ready', restricted, isOnline: online,
-      state: online ? (type === 'composing' || type === 'recording' ? type : 'available')
+      state: active ? type : online ? 'available'
         : 'unavailable', lastSeen };
   } catch (_) {
     return { status: 'pending' };
