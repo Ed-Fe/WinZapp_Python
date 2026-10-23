@@ -49,6 +49,8 @@ class Sessao:
         self.laco = laco
         self.cliente = None
         self.simular_codigo = False
+        self.online = False         # janela do app em foco (set-online-presence)
+        self.aberta = ""            # conversa aberta no app (subscribe-presence)
         self.thread = None
         self.status = "CLOSED"      # CLOSED INITIALIZING QRCODE CONNECTED
         self.urlcode = None
@@ -129,6 +131,10 @@ class Sessao:
                 if e.Info.Pushname and not o.IsFromMe:
                     self.bd.contato(jid_texto(o.Sender), pushname=e.Info.Pushname)
                 self.emitir("received-message", {"session": self.nome, "response": w})
+                # o WhatsApp Web marca como lida a conversa aberta com a janela em foco
+                if not o.IsFromMe and self.online and self.aberta == chat:
+                    threading.Thread(target=self.marcar_lidas, args=(chat,),
+                                     daemon=True).start()
             except Exception:
                 log.exception("mensagem recebida")
 
@@ -253,6 +259,32 @@ class Sessao:
                 self.bd.conversa(jid_texto(g.JID), name=g.GroupName.Name)
         except Exception:
             log.exception("grupos")
+
+    def marcar_lidas(self, conversa):
+        """Manda o recibo de leitura das mensagens recebidas e ainda nao lidas."""
+        if self.cliente is None or self.status != "CONNECTED":
+            return 0
+        a_ler = self.bd.recebidas_a_ler(conversa)
+        if not a_ler:
+            return 0
+        from neonize.utils import build_jid
+        from neonize.utils.enum import ReceiptType
+
+        def jid_de(texto):
+            u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
+            return build_jid(u, srv)
+
+        por_autor = {}
+        for mid, autor, ts in a_ler:
+            por_autor.setdefault(autor, []).append(mid)
+        for autor, ids in por_autor.items():
+            try:
+                self.cliente.mark_read(*ids, chat=jid_de(conversa), sender=jid_de(autor),
+                                       receipt=ReceiptType.READ)
+            except Exception:
+                log.exception("mark_read")
+        log.info("lidas %d mensagem(ns) em %s", len(a_ler), conversa[:6] + "...")
+        return len(a_ler)
 
     def parar(self):
         c = self.cliente
@@ -477,31 +509,34 @@ def criar_app(pasta, fixa=""):
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone and s.cliente is not None and s.status == "CONNECTED":
-            conversa = msgmap.jid_whatsmeow(fone)
-            a_ler = s.bd.recebidas_a_ler(conversa)
-            if a_ler:
+        if fone:
+            await asyncio.get_running_loop().run_in_executor(
+                None, s.marcar_lidas, msgmap.jid_whatsmeow(fone))
+        return vazio_ok_resp()
+
+    async def subscribe_presence(req):
+        s = sessao(req)
+        corpo = await req.json()
+        fone = corpo.get("phone")
+        fone = fone[0] if isinstance(fone, list) else fone
+        if fone:
+            s.aberta = msgmap.jid_whatsmeow(fone)
+            if s.cliente is not None and s.status == "CONNECTED":
                 from neonize.utils import build_jid
-                from neonize.utils.enum import ReceiptType
+                u, _, srv = s.aberta.partition("@")
+                try:
+                    await asyncio.get_running_loop().run_in_executor(
+                        None, s.cliente.subscribe_presence, build_jid(u, srv))
+                except Exception:
+                    log.info("subscribe_presence nao aceito para %s", s.aberta[:6])
+        return ok(status="success", response={})
 
-                def jid_de(texto):
-                    u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
-                    return build_jid(u, srv)
-
-                por_autor = {}
-                for mid, autor, ts in a_ler:
-                    por_autor.setdefault(autor, []).append(mid)
-
-                def marcar():
-                    for autor, ids in por_autor.items():
-                        try:
-                            s.cliente.mark_read(*ids, chat=jid_de(conversa),
-                                                sender=jid_de(autor),
-                                                receipt=ReceiptType.READ)
-                        except Exception:
-                            log.exception("mark_read")
-                await asyncio.get_running_loop().run_in_executor(None, marcar)
-                log.info("lidas %d mensagem(ns) em %s", len(a_ler), conversa[:6] + "...")
+    async def set_online(req):
+        s = sessao(req)
+        corpo = await req.json()
+        s.online = bool(corpo.get("isOnline"))
+        if s.online and s.aberta:      # voltou ao foco: le o que chegou enquanto isso
+            await asyncio.get_running_loop().run_in_executor(None, s.marcar_lidas, s.aberta)
         return vazio_ok_resp()
 
     def vazio_ok_resp():
@@ -515,7 +550,8 @@ def criar_app(pasta, fixa=""):
     r.add_get("/api/{tok}/blocklist", blocklist)
     r.add_get("/api/{tok}/history-sync-status", history_status)
     r.add_post("/api/{tok}/unblock-history-sync", history_status)
-    r.add_post("/api/{tok}/set-online-presence", vazio_ok)
+    r.add_post("/api/{tok}/set-online-presence", set_online)
+    r.add_post("/api/{tok}/subscribe-presence", subscribe_presence)
     r.add_post("/api/{tok}/list-chats", list_chats)
     r.add_get("/api/{tok}/list-chats", list_chats)
     r.add_get("/api/{tok}/all-contacts", all_contacts)
