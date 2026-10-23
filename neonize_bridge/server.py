@@ -154,6 +154,14 @@ class Sessao:
             except Exception:
                 log.exception("mensagem recebida")
 
+        @cli.event(nev.GroupInfoEv)
+        def _grupo(c, e):
+            try:
+                if e.Name and e.Name.Name:
+                    self.bd.conversa(jid_texto(e.JID), name=e.Name.Name)
+            except Exception:
+                log.exception("grupo mudou")
+
         @cli.event(nev.ReceiptEv)
         def _recibo(c, e):
             try:
@@ -679,6 +687,68 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": str(erro)}, status=500)
         return guardar_enviada(s, destino, resp)
 
+    def jid_de_texto(texto):
+        from neonize.utils import build_jid
+        u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
+        return build_jid(u, srv)
+
+    def grupo_para_wpp(g):
+        """GroupInfo do neonize -> o dicionario que o WinZapp le em group-info."""
+        participantes = []
+        for p in g.Participants:
+            fone = jid_texto(p.PhoneNumber)
+            jid = fone or jid_texto(p.JID) or jid_texto(p.LID)
+            participantes.append({
+                "id": jid, "lid": jid_texto(p.LID),
+                "admin": "superadmin" if p.IsSuperAdmin else ("admin" if p.IsAdmin else None),
+                "isAdmin": bool(p.IsAdmin or p.IsSuperAdmin),
+                "isSuperAdmin": bool(p.IsSuperAdmin)})
+        dono = jid_texto(g.OwnerPN) or jid_texto(g.OwnerJID)
+        return {
+            "id": jid_texto(g.JID), "name": g.GroupName.Name, "subject": g.GroupName.Name,
+            "desc": g.GroupTopic.Topic, "announce": bool(g.GroupAnnounce.IsAnnounce),
+            "restrict": bool(g.GroupLocked.isLocked), "owner": dono,
+            "creation": msgmap.segundos(g.GroupCreated),
+            "participants": participantes}
+
+    async def group_info(req):
+        s = sessao(req)
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        jid = jid_de_texto(req.match_info["jid"])
+        try:
+            g = await asyncio.get_running_loop().run_in_executor(
+                None, s.cliente.get_group_info, jid)
+        except Exception as erro:
+            log.info("group-info falhou: %r", erro)
+            return web.json_response({"status": "error", "message": str(erro)}, status=404)
+        info = grupo_para_wpp(g)
+        if info["name"]:
+            s.bd.conversa(info["id"], name=info["name"])
+        return ok(status="success", response=info)
+
+    async def acao_de_grupo(req, funcao):
+        s = sessao(req)
+        corpo = await req.json()
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                None, funcao, s.cliente, jid_de_texto(corpo["groupId"]), corpo)
+        except Exception as erro:
+            log.exception("grupo")
+            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+        return ok(status="success", response={})
+
+    async def leave_group(req):
+        return await acao_de_grupo(req, lambda c, jid, corpo: c.leave_group(jid))
+
+    async def group_subject(req):
+        return await acao_de_grupo(req, lambda c, jid, corpo: c.set_group_name(jid, corpo["title"]))
+
+    r.add_get("/api/{tok}/group-info/{jid}", group_info)
+    r.add_post("/api/{tok}/leave-group", leave_group)
+    r.add_post("/api/{tok}/group-subject", group_subject)
     r.add_post("/api/{tok}/send-file", send_file)
     r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
