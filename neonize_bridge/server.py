@@ -477,8 +477,31 @@ def criar_app(pasta, fixa=""):
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone:
-            s.bd.conversa(msgmap.jid_whatsmeow(fone), unread=0)
+        if fone and s.cliente is not None and s.status == "CONNECTED":
+            conversa = msgmap.jid_whatsmeow(fone)
+            a_ler = s.bd.recebidas_a_ler(conversa)
+            if a_ler:
+                from neonize.utils import build_jid
+                from neonize.utils.enum import ReceiptType
+
+                def jid_de(texto):
+                    u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
+                    return build_jid(u, srv)
+
+                por_autor = {}
+                for mid, autor, ts in a_ler:
+                    por_autor.setdefault(autor, []).append(mid)
+
+                def marcar():
+                    for autor, ids in por_autor.items():
+                        try:
+                            s.cliente.mark_read(*ids, chat=jid_de(conversa),
+                                                sender=jid_de(autor),
+                                                receipt=ReceiptType.READ)
+                        except Exception:
+                            log.exception("mark_read")
+                await asyncio.get_running_loop().run_in_executor(None, marcar)
+                log.info("lidas %d mensagem(ns) em %s", len(a_ler), conversa[:6] + "...")
         return vazio_ok_resp()
 
     def vazio_ok_resp():

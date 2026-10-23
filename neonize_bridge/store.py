@@ -28,6 +28,10 @@ class Armazem:
         self._trava = threading.RLock()
         with self._trava:
             self._bd.executescript(ESQUEMA)
+            try:    # bancos criados antes desta coluna
+                self._bd.execute("ALTER TABLE chats ADD COLUMN read_ts INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
 
     # ---------------------------------------------------------- conversas
     def conversa(self, jid, **campos):
@@ -105,6 +109,25 @@ class Armazem:
                     "ORDER BY ts DESC, rowid DESC LIMIT ?",
                     (conversa, limite, limite, antes_de, quantidade)).fetchall()
         return [json.loads(r["data"]) for r in reversed(linhas)]
+
+    def recebidas_a_ler(self, conversa):
+        """Mensagens recebidas depois da ultima leitura marcada: lista de
+        (id, remetente_wpp, ts); marca a conversa como lida ate a mais nova."""
+        with self._trava:
+            r = self._bd.execute("SELECT read_ts FROM chats WHERE jid=?", (conversa,)).fetchone()
+            desde = r["read_ts"] if r else 0
+            linhas = self._bd.execute(
+                "SELECT data FROM msgs WHERE chat=? AND ts>? ORDER BY ts", (conversa, desde)).fetchall()
+            achadas = []
+            for linha in linhas:
+                w = json.loads(linha["data"])
+                if not w.get("fromMe"):
+                    achadas.append((w["id"]["id"], w.get("author") or w.get("from") or conversa, w["t"]))
+            if achadas:
+                self._bd.execute("UPDATE chats SET read_ts=?, unread=0 WHERE jid=?",
+                                 (max(a[2] for a in achadas), conversa))
+                self._bd.commit()
+        return achadas
 
     def contagens(self):
         with self._trava:
