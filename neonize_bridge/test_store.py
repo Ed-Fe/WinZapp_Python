@@ -31,3 +31,24 @@ def test_ficha_da_midia_por_id(tmp_path):
     a.mensagem("c", _msg("m2", 2))
     assert a.ficha("m1") == b"ficha"
     assert a.ficha("m2") is None and a.ficha("nao-existe") is None
+
+
+def test_contato_de_mescla_formas_do_jid(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.contato("1@lid", pushname="Ana")
+    a.contato("5551@s.whatsapp.net", name="Ana Silva")
+    assert a.contato_de("1@lid", "5551@s.whatsapp.net") == {"pushname": "Ana", "name": "Ana Silva"}
+    assert a.contato_de("x@lid", "") == {}
+
+
+def test_recebidas_a_ler_so_as_ultimas_nao_lidas(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    for n in range(10):
+        w = _msg(f"m{n}", 100 + n)
+        w.update(fromMe=(n == 9), **{"from": "x@s.whatsapp.net"})
+        a.mensagem("c", w)
+    a.conversa("c", unread=3)
+    achadas = a.recebidas_a_ler("c")
+    assert [i for i, _, _ in achadas] == ["m6", "m7", "m8"]     # m9 e minha
+    assert a.conversas()[0]["unread"] == 0
+    assert a.recebidas_a_ler("c") == []                          # ja lidas

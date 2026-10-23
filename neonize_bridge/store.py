@@ -74,6 +74,16 @@ class Armazem:
                                  (pushname, jid))
             self._bd.commit()
 
+    def contato_de(self, *jids):
+        """Nome e apelido de um contato (mescla as formas do JID dadas)."""
+        achado = {}
+        with self._trava:
+            for jid in [j for j in jids if j]:
+                r = self._bd.execute("SELECT name, pushname FROM contacts WHERE jid=?", (jid,)).fetchone()
+                if r:
+                    achado.update({k: r[k] for k in ("name", "pushname") if r[k]})
+        return achado
+
     def contatos(self):
         with self._trava:
             return [dict(r) for r in self._bd.execute("SELECT * FROM contacts")]
@@ -120,23 +130,27 @@ class Armazem:
                     (conversa, limite, limite, antes_de, quantidade)).fetchall()
         return [json.loads(r["data"]) for r in reversed(linhas)]
 
-    def recebidas_a_ler(self, conversa):
-        """Mensagens recebidas depois da ultima leitura marcada: lista de
-        (id, remetente_wpp, ts); marca a conversa como lida ate a mais nova."""
+    def recebidas_a_ler(self, conversa, limite=3000):
+        """As ultimas mensagens recebidas que contam como nao lidas: tantas
+        quantas o contador da conversa diz (as do historico e as ao vivo).
+        Devolve [(id, remetente_wpp, ts)] e zera a conversa."""
         with self._trava:
-            r = self._bd.execute("SELECT read_ts FROM chats WHERE jid=?", (conversa,)).fetchone()
-            desde = r["read_ts"] if r else 0
-            linhas = self._bd.execute(
-                "SELECT data FROM msgs WHERE chat=? AND ts>? ORDER BY ts", (conversa, desde)).fetchall()
+            r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()
+            n = min(int(r["unread"] or 0), limite) if r else 0
             achadas = []
-            for linha in linhas:
-                w = json.loads(linha["data"])
-                if not w.get("fromMe"):
-                    achadas.append((w["id"]["id"], w.get("author") or w.get("from") or conversa, w["t"]))
-            if achadas:
-                self._bd.execute("UPDATE chats SET read_ts=?, unread=0 WHERE jid=?",
-                                 (max(a[2] for a in achadas), conversa))
-                self._bd.commit()
+            if n > 0:
+                linhas = self._bd.execute(
+                    "SELECT data FROM msgs WHERE chat=? ORDER BY ts DESC, rowid DESC LIMIT ?",
+                    (conversa, n * 3 + 50)).fetchall()
+                for linha in linhas:
+                    w = json.loads(linha["data"])
+                    if not w.get("fromMe"):
+                        achadas.append((w["id"]["id"], w.get("author") or w.get("from") or conversa, w["t"]))
+                        if len(achadas) == n:
+                            break
+                achadas.reverse()
+            self._bd.execute("UPDATE chats SET unread=0 WHERE jid=?", (conversa,))
+            self._bd.commit()
         return achadas
 
     def contagens(self):

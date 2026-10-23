@@ -533,10 +533,13 @@ def criar_app(pasta, fixa=""):
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone:
+        if fone and corpo.get("unread"):        # "marcar como nao lida": so guarda aqui
+            s.bd.conversa(msgmap.jid_whatsmeow(fone), unread=1)
+        elif fone:
             await asyncio.get_running_loop().run_in_executor(
                 None, s.marcar_lidas, msgmap.jid_whatsmeow(fone))
-        return vazio_ok_resp()
+        # o app so aceita a confirmacao neste formato: response.data = [true]
+        return ok(status="success", response={"data": [True]})
 
     async def subscribe_presence(req):
         s = sessao(req)
@@ -746,6 +749,33 @@ def criar_app(pasta, fixa=""):
     async def group_subject(req):
         return await acao_de_grupo(req, lambda c, jid, corpo: c.set_group_name(jid, corpo["title"]))
 
+    async def contact_profile(req):
+        """Perfil de um contato (nome, apelido e, para LID, o numero)."""
+        s = sessao(req)
+        jid = msgmap.jid_whatsmeow(req.match_info["jid"].replace("~", ""))
+        usuario, _, servidor = jid.partition("@")
+        lid = jid if servidor == "lid" else ""
+        fone = "" if servidor == "lid" else jid
+        if lid and s.cliente is not None and s.status == "CONNECTED":
+            from neonize.utils import build_jid
+            try:
+                pn = await asyncio.get_running_loop().run_in_executor(
+                    None, s.cliente.get_pn_from_lid, build_jid(usuario, "lid"))
+                fone = jid_texto(pn)
+            except Exception:
+                fone = ""
+        achado = s.bd.contato_de(jid, fone)
+        nome = achado.get("name") or ""
+        apelido = achado.get("pushname") or ""
+        corpo = {"id": {"_serialized": msgmap.jid_wpp(fone or jid)},
+                 "name": nome or apelido or None, "pushname": apelido or None,
+                 "formattedName": nome or apelido or None,
+                 "isMyContact": bool(nome)}
+        if fone:
+            corpo["phoneNumber"] = {"_serialized": msgmap.jid_wpp(fone)}
+        return ok(status="success", response=corpo)
+
+    r.add_get("/api/{tok}/contact/{jid}", contact_profile)
     r.add_get("/api/{tok}/group-info/{jid}", group_info)
     r.add_post("/api/{tok}/leave-group", leave_group)
     r.add_post("/api/{tok}/group-subject", group_subject)
