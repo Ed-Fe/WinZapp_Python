@@ -164,6 +164,37 @@ class Sessao:
             except Exception:
                 log.exception("grupo mudou")
 
+        def chat_local(c, jid_obj):
+            """O JID com que a conversa esta guardada (o numero ou o LID)."""
+            jid = jid_texto(jid_obj)
+            if not self.bd.existe_conversa(jid) and jid.endswith("@s.whatsapp.net"):
+                try:
+                    lid = jid_texto(c.get_lid_from_pn(jid_obj))
+                    if lid and self.bd.existe_conversa(lid):
+                        return lid
+                except Exception:
+                    pass
+            return jid
+
+        def avisar_lida(jid, antes, novo):
+            chat_w = msgmap.jid_wpp(jid)
+            self.emitir("chats-update", {"session": self.nome, "data": [{
+                "remoteJid": chat_w, "id": chat_w, "unreadCount": novo,
+                "previousUnreadCount": antes}]})
+
+        def lida_em_outro_aparelho(c, e):
+            """Recibo de leitura que vem de mim mesmo: li essas mensagens no celular."""
+            jid = chat_local(c, e.MessageSource.Chat)
+            antes = self.bd.nao_lidas(jid)
+            ids = set(e.MessageIDs)
+            ultima = self.bd.ultima_recebida(jid)
+            novo = 0 if (ultima and ultima in ids) else max(0, antes - len(ids))
+            if novo == antes:
+                return
+            self.bd.conversa(jid, unread=novo)
+            log.info("lidas no celular: %d mensagem(ns), nao lidas %d -> %d", len(ids), antes, novo)
+            avisar_lida(jid, antes, novo)
+
         @cli.event(nev.ChatMarkAsReadEv)
         def _lida_no_celular(c, e):
             """Conversa lida (ou marcada como nao lida) no celular: o app acompanha."""
@@ -217,8 +248,15 @@ class Sessao:
                     .values_by_number[e.Type].name
                 ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(tipo)
                 chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
-                log.info("recibo %s (%d mensagem(ns)) em %s... -> ack %s", tipo,
-                         len(e.MessageIDs), chat[:6], ack)
+                meu = bool(e.MessageSource.IsFromMe)
+                log.info("recibo %s%s (%d mensagem(ns)) em %s... -> ack %s", tipo,
+                         " [meu]" if meu else "", len(e.MessageIDs), chat[:6], ack)
+                # recibo de leitura que vem de mim: li no celular (ou em outro aparelho)
+                if tipo == "READ_SELF" or (tipo == "READ" and meu):
+                    lida_em_outro_aparelho(c, e)
+                    return
+                if tipo == "PLAYED_SELF" or (tipo == "PLAYED" and meu):
+                    return
                 if ack is None:
                     return
                 for mid in e.MessageIDs:
@@ -1063,7 +1101,7 @@ def main():
         log_neonize.setLevel(logging.DEBUG)
         for nome in ("whatsmeow", "Whatsmeow"):
             logging.getLogger(nome).setLevel(logging.DEBUG)
-        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate", re.I)
+        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate|<receipt|<notification|read-self", re.I)
 
         class SoEstado(logging.Filter):
             def filter(self, rec):

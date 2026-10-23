@@ -52,3 +52,13 @@ def test_recebidas_a_ler_so_as_ultimas_nao_lidas(tmp_path):
     assert [i for i, _, _ in achadas] == ["m6", "m7", "m8"]     # m9 e minha
     assert a.conversas()[0]["unread"] == 0
     assert a.recebidas_a_ler("c") == []                          # ja lidas
+
+
+def test_ultima_recebida_ignora_as_minhas(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    for n, minha in ((1, False), (2, False), (3, True)):
+        w = _msg(f"m{n}", 100 + n)
+        w["fromMe"] = minha
+        a.mensagem("c", w)
+    assert a.ultima_recebida("c") == "m2"
+    assert a.ultima_recebida("vazia") == ""

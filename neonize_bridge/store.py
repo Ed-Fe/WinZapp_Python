@@ -169,6 +169,13 @@ class Armazem:
         with self._trava:
             return self._bd.execute("SELECT 1 FROM chats WHERE jid=?", (jid,)).fetchone() is not None
 
+    def ultima_recebida(self, conversa):
+        """O id da mensagem recebida mais recente da conversa, ou ''."""
+        for w in reversed(self.mensagens(conversa, 60)):
+            if not w.get("fromMe"):
+                return w["id"]["id"]
+        return ""
+
     def nao_lidas(self, conversa):
         with self._trava:
             r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()
