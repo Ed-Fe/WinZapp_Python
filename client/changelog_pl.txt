@@ -4,6 +4,10 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
+- Aktualizacja WinZapp lub WPPConnect nie zawiesza już całego komputera w połowie procesu. Kroki instalacji i kompilacji działają teraz z niższym priorytetem, więc czytnik ekranu mówi płynnie.
+
+- WPPConnect Server zaktualizowany do wersji 2.10.63, z WPPConnect 2.3.6 i WA-JS 4.7.2. Przeglądarka obsługiwana przez WinZapp jest pełniej zwalniana, gdy sesja się zamyka lub nie uruchamia, przywrócona sesja jest szybciej rozpoznawana jako zalogowana, a rozłączenie telefonu jest zgłaszane dopiero po rzeczywistym odparowaniu.
+
 - Wskaźniki pisania i nagrywania wiadomości głosowej w czatach prywatnych pozostają dostępne, gdy WhatsApp informuje, że kontakt jest offline. Aktywność jest pokazywana oddzielnie od widoczności online i wygasa, gdy nie jest odświeżana. Aktywność jest przypisana do czatu, w którym występuje: grupy i czaty prywatne są śledzone oddzielnie.
 
 - Przypięte wiadomości: otwarcie przypiętych wiadomości w grupie, w której przypięcia są starsze niż to, co WhatsApp Web trzyma w pamięci, nie kończy się już błędem „Nie udało się wczytać przypiętych wiadomości”, a licznik na przycisku pokazuje właściwą liczbę.
@@ -21,6 +25,8 @@ NOWOŚCI
 - Przyciski w wiadomościach firm można już używać: przycisk odpowiedzi wysyła odpowiedź tak samo jak WhatsApp Web (przyciski odpowiedzi zwykłych wiadomości, szybkie odpowiedzi wiadomości interaktywnych, przyciski szablonów i wiersze list), przycisk linku otwiera link, przycisk kopiowania kopiuje kod, a przycisk połączenia odczytuje numer. Przyciski pojawiają się pod listą wiadomości, gdy wiadomość jest zaznaczona.
 
 - WPPConnect Server 2.10.61 jest teraz oferowany jako aktualizacja bez czekania na nową wersję WinZapp. Aktualizuje tylko zależności i nie wpływa na zmiany, które WinZapp wprowadza w serwerze.
+
+- WPPConnect Server 2.10.63 jest teraz oferowany jako aktualizacja bez czekania na nową wersję WinZapp. Aktualizuje tylko zależności i nie wpływa na zmiany, które WinZapp wprowadza w serwerze.
 
 - Aktualizacje macOS wyjaśniają, czy weryfikacja nie powiodła się z powodu połączenia, certyfikatu, serwera lub limitu żądań GitHub oraz czy nie można sprawdzić pliku weryfikacji czy oficjalnego tagu wydania. Tymczasowe błędy połączenia i serwera powodują jedną ponowną próbę; limity żądań pokazują czas oczekiwania i nie powodują kolejnych żądań w tym czasie.
 

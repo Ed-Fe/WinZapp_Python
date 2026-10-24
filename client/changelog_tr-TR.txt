@@ -4,6 +4,10 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- WinZapp veya WPPConnect güncellenirken bilgisayarın tamamı artık işlemin ortasında donmuyor. Kurulum ve derleme adımları artık daha düşük öncelikle çalışıyor, bu yüzden ekran okuyucu kesintisiz konuşmaya devam ediyor.
+
+- WPPConnect Server 2.10.63 sürümüne, WPPConnect 2.3.6 ve WA-JS 4.7.2 ile birlikte güncellendi. WinZapp'ın kullandığı tarayıcı, bir oturum kapandığında veya başlatılamadığında artık daha eksiksiz serbest bırakılıyor, geri yüklenen oturum daha erken oturum açmış sayılıyor ve telefonun bağlantısının kesilmesi yalnızca gerçek bir eşleşme kaldırmadan sonra bildiriliyor.
+
 - Özel sohbetlerde WhatsApp kişiyi çevrim dışı bildirse de yazıyor ve ses kaydediyor bilgileri korunur. Bu etkinlikler çevrim içi görünürlükten ayrı gösterilir; yenilenmediklerinde süreleri dolar. Etkinlik, gerçekleştiği sohbete aittir; grup ve özel sohbetler ayrı izlenir.
 
 - Sabitlenmiş mesajlar: sabitlemeleri WhatsApp Web'in bellekte tuttuğundan eski olan bir grubun sabitlenmiş mesajlarını açmak artık "Sabitlenmiş mesajlar yüklenemedi" hatasıyla başarısız olmuyor ve düğmedeki sayı doğru değeri gösteriyor.
@@ -21,6 +25,8 @@ YENİLİKLER
 - İşletme mesajlarındaki düğmeler artık kullanılabiliyor: bir yanıt düğmesi yanıtı WhatsApp Web ile aynı şekilde gönderir (düz mesajların yanıt düğmeleri, etkileşimli mesajların hızlı yanıtları, şablon düğmeleri ve listelerin satırları), bağlantı düğmesi bağlantıyı açar, kopyalama düğmesi kodu kopyalar, arama düğmesi numarayı söyler. Mesaj seçildiğinde düğmeler mesaj listesinin altında görünür.
 
 - WPPConnect Server 2.10.61 artık yeni bir WinZapp sürümü beklenmeden güncelleme olarak sunuluyor. Yalnızca bağımlılıkları günceller ve WinZapp'ın sunucuda yaptığı değişiklikleri etkilemez.
+
+- WPPConnect Server 2.10.63 artık yeni bir WinZapp sürümü beklenmeden güncelleme olarak sunuluyor. Yalnızca bağımlılıkları günceller ve WinZapp'ın sunucuda yaptığı değişiklikleri etkilemez.
 
 - macOS güncellemelerinde doğrulamanın bağlantı, sertifika, sunucu veya GitHub istek sınırı nedeniyle mi başarısız olduğu ve doğrulama dosyasının mı, resmî sürüm etiketinin mi kontrol edilemediği açıklanır. Geçici bağlantı ve sunucu hatalarında bir kez yeniden denenir; istek sınırında bekleme süresi gösterilir ve bu süre boyunca tekrar istek gönderilmez.
 

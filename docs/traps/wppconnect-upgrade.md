@@ -115,6 +115,13 @@ Verified on a scratch checkout of 2.10.58 with the patches laid over it: `tsc --
 
 Verified by building 2.10.62 with `setup_api.py` (TypeScript compiled with the patch, all `node_modules` patches reported applied).
 
+## 2.10.62 → 2.10.63, with the pair wppconnect 2.3.5 → 2.3.6 and wa-js 4.7.1 → 4.7.2 (2026-10-24)
+
+Server 2.10.63 changed only `CHANGELOG.md`, `package.json` (a dev dependency) and `yarn.lock`: nothing WinZapp overrides moved. The pair did move, and together: wppconnect 2.3.6 declares `@wppconnect/wa-js ^4.7.2`, so one cannot be taken without the other.
+
+- `host.layer.js` link-code hooks: 2.3.6 routes every `page.exposeFunction(...)` through a new `exposePageFunction(...)` (drops a stale binding on a reused page). The hooks patch did not match; `MANAGED_V236_*_LINK_CODE_HOOKS` now carry the same body behind the new call. All other host/status/sender/wa-js patches applied unchanged on a scratch build.
+- **Not verified on a live WhatsApp Web session**: `chatListsRuntime.ts` `nativeContractVersions` now also lists `'4.7.2'` (the maintainer asked for it so alpha testers can find a break early); the native list contract was not measured on 4.7.2, only carried over from 4.7.1. `tests/test_chat_lists_current_native_contract.py` runs the same cases on 4.7.1 and 4.7.2 and pins 4.7.0, 4.7.3 and 4.8.0 as unverified. wa-js 4.7.2 touches module-id resolution (`loader/lazyModules.ts`, `loader/blacklist.ts`, `tools/updateModuleID.ts`), so sends, pairing and `findOrCreateLatestChat` still need a real-device check, as in the 2.3.3 → 2.3.4 example above.
+
 ## wa-js 4.6.1 -> 4.7.1 with wppconnect 2.3.4 -> 2.3.5 (2026-10-15)
 
 **Symptom.** Voice messages and documents failed to send: `send-voice-base64 failed: Cannot read properties of undefined (reading 'prepRawMedia')`, HTTP 201 from the server with the error in the body, so the client's "invalid success response" path. Texts, and a source tree installed hours earlier, kept working: `@wppconnect/wa-version` is reached only through WPPConnect's own `^1.5.4472`, so a fresh install resolves whatever WhatsApp Web build is newest (1.5.5046, published 21:28Z) and `start.js` serves exactly that build. It moved `prepRawMedia` out of the object wa-js 4.6.1 reads it from. wa-js 4.7.1 (22:34Z) is "split MediaPrep bindings after WhatsApp moved prepRawMedia and uploadProductImage".

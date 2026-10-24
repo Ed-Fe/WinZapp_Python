@@ -4,6 +4,10 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
+- Actualizar WinZapp o WPPConnect ya no congela todo el equipo a mitad del proceso. Los pasos de instalación y compilación se ejecutan ahora con menor prioridad, y el lector de pantalla sigue hablando con fluidez.
+
+- WPPConnect Server actualizado a la 2.10.63, con WPPConnect 2.3.6 y WA-JS 4.7.2. El navegador que maneja WinZapp se libera de forma más completa cuando una sesión se cierra o no llega a iniciarse, una sesión restaurada se reconoce antes como iniciada y la desconexión del teléfono solo se comunica tras una desvinculación real.
+
 - Los indicadores de escritura y grabación de audio en chats privados siguen disponibles cuando WhatsApp informa de que el contacto está desconectado. La actividad se muestra por separado de la visibilidad en línea y caduca si deja de actualizarse. La actividad pertenece a la conversación donde ocurre: los grupos y los chats privados se siguen por separado.
 
 - Mensajes fijados: abrir los mensajes fijados de un grupo cuyas fijaciones son más antiguas que lo que WhatsApp Web guarda en memoria ya no falla con «No se pudieron cargar los mensajes fijados», y el contador del botón muestra el número correcto.
@@ -21,6 +25,8 @@ NOVEDADES
 - Ya se pueden usar los botones de los mensajes de empresas: un botón de respuesta envía la respuesta igual que WhatsApp Web (botones de respuesta de mensajes simples, respuestas rápidas de mensajes interactivos, botones de plantilla y filas de listas), un botón de enlace abre el enlace, un botón de copiar copia el código y un botón de llamada dice el número. Los botones aparecen debajo de la lista de mensajes cuando el mensaje está seleccionado.
 
 - WPPConnect Server 2.10.61 ya se ofrece como actualización sin esperar a una nueva versión de WinZapp. Solo actualiza dependencias y no afecta a los cambios que WinZapp hace en el servidor.
+
+- WPPConnect Server 2.10.63 ya se ofrece como actualización sin esperar a una nueva versión de WinZapp. Solo actualiza dependencias y no afecta a los cambios que WinZapp hace en el servidor.
 
 - Las actualizaciones de macOS explican si la verificación ha fallado por un problema de conexión, certificado, servidor o límite de solicitudes de GitHub, y si no se ha podido comprobar el archivo de verificación o la etiqueta de la versión oficial. Los fallos temporales de conexión y servidor se reintentan una vez; los límites de solicitudes muestran un tiempo de espera y no generan nuevas solicitudes durante ese período.
 
