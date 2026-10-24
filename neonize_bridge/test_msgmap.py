@@ -127,3 +127,15 @@ def test_campo_de_midia():
     msg.imageMessage.caption = "x"
     assert msgmap.campo_de_midia(msg) == "imageMessage"
     assert msgmap.campo_de_midia(Message(conversation="oi")) == ""
+
+
+def test_aviso_de_fixar_e_soltar_mensagem():
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import PinInChatMessage
+    msg = Message()
+    msg.pinInChatMessage.key.ID = "ALVO"
+    msg.pinInChatMessage.type = PinInChatMessage.PIN_FOR_ALL
+    msg.messageContextInfo.messageAddOnDurationInSecs = 604800
+    assert msgmap.fixacao(msg) == ("ALVO", True, 604800)
+    msg.pinInChatMessage.type = PinInChatMessage.UNPIN_FOR_ALL
+    assert msgmap.fixacao(msg)[1] is False
+    assert msgmap.fixacao(Message(conversation="oi")) is None

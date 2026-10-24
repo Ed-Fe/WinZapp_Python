@@ -140,6 +140,45 @@ class Sessao:
             "reactionText": emoji, "text": emoji, "timestamp": ts}})
         return True
 
+    # -------------------------------------------------------------- fixadas
+    def _fixacao_recebida(self, chat, e):
+        """True se a mensagem era o aviso de fixar ou soltar uma mensagem."""
+        dados = msgmap.fixacao(e.Message)
+        if dados is None:
+            return False
+        alvo, fixar, duracao = dados
+        self.bd.fixar_mensagem(alvo, chat, fixar, msgmap.segundos(e.Info.Timestamp), duracao)
+        return True
+
+    def fixar_mensagem(self, serial, fixar, duracao=7 * 86400):
+        """Fixa ou solta uma mensagem na conversa (visivel a todos)."""
+        de_mim, conversa, mid, autor = self.partes_do_id(serial)
+        if self.cliente is None or self.status != "CONNECTED":
+            return False
+        from neonize.proto.waCommon.WACommon_pb2 import MessageKey
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
+            Message, MessageContextInfo, PinInChatMessage)
+        from neonize.utils import build_jid
+        chave = MessageKey(remoteJID=conversa, fromMe=de_mim, ID=mid)
+        if conversa.endswith("@g.us") and not de_mim and autor:
+            chave.participant = autor
+        mensagem = Message(pinInChatMessage=PinInChatMessage(
+            key=chave,
+            type=PinInChatMessage.PIN_FOR_ALL if fixar else PinInChatMessage.UNPIN_FOR_ALL,
+            senderTimestampMS=int(time.time() * 1000)))
+        if fixar:
+            mensagem.messageContextInfo.CopyFrom(MessageContextInfo(
+                messageAddOnDurationInSecs=duracao,
+                messageAddOnExpiryType=MessageContextInfo.STATIC))
+        u, _, srv = conversa.partition("@")
+        try:
+            self.cliente.send_message(build_jid(u, srv), mensagem)
+        except Exception:
+            log.exception("fixar mensagem")
+            return False
+        self.bd.fixar_mensagem(mid, conversa, fixar, int(time.time()), duracao if fixar else 0)
+        return True
+
     # -------------------------------------------------------------- edicao
     def marcar_editada(self, alvo, chat_w, id_edicao, de_mim, **campos):
         """Poe o texto novo na mensagem guardada, com a marca de editada
@@ -447,6 +486,8 @@ class Sessao:
                 if self._voto_recebido(o, e):
                     return
                 if self._edicao_recebida(chat, o, e):
+                    return
+                if self._fixacao_recebida(chat, e):
                     return
                 w = msgmap.montar(
                     conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
@@ -1924,8 +1965,25 @@ def criar_app(pasta, fixa=""):
         return ok(status="success", response={"compatible": True})
 
     async def pinned_messages(req):
-        """Mensagens fixadas: ainda nao lidas pela ponte, entao nenhuma."""
-        return ok(status="success", response=[])
+        """Mensagens fixadas nas conversas pedidas (a ponte guarda os avisos de
+        fixar e soltar que passam por ela)."""
+        s = sessao(req)
+        corpo = await req.json()
+        chats = [msgmap.jid_whatsmeow(c) for c in corpo.get("chatIds") or []]
+        fixadas = s.bd.fixadas_de(chats, time.time())
+        return ok(status="success", response=[{**w, "pinInChat": True} for w in fixadas])
+
+    async def pin_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        fixar = bool(corpo.get("pin", True))
+        feito = await em_thread(s.fixar_mensagem, corpo["messageId"], fixar)
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"messageId": corpo["messageId"], "pinned": fixar})
 
     async def mark_played(req):
         s = sessao(req)
@@ -1962,6 +2020,7 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/vote-poll", vote_poll)
     r.add_get("/api/{tok}/send-capabilities", send_capabilities)
     r.add_post("/api/{tok}/pinned-messages", pinned_messages)
+    r.add_post("/api/{tok}/pin-message", pin_message)
     r.add_get("/api/{tok}/reactions/{id}", reactions)
     r.add_post("/api/{tok}/delete-message", delete_message)
     async def recuperar_estado(req):

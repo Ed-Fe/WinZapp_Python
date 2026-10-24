@@ -153,6 +153,20 @@ def edicao(mensagem):
     return p.key.ID, p.editedMessage
 
 
+def fixacao(mensagem):
+    """(id da mensagem, fixar?, duracao em segundos) de um aviso de fixar ou
+    soltar uma mensagem, ou None."""
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import PinInChatMessage
+    interna = desembrulhar(mensagem)
+    if _campo(interna) != "pinInChatMessage":
+        return None
+    p = interna.pinInChatMessage
+    if not p.key.ID:
+        return None
+    duracao = int(interna.messageContextInfo.messageAddOnDurationInSecs or 0)
+    return p.key.ID, p.type == PinInChatMessage.PIN_FOR_ALL, duracao
+
+
 def campo_de_midia(mensagem):
     """Nome do campo de midia preenchido (imageMessage...) ou ''."""
     for nome in MIDIAS:

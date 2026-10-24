@@ -93,3 +93,16 @@ def test_votos_trocam_e_somem(tmp_path):
     assert dict(a.votos_de("p1")) == {"eu": [2], "5551@c.us": [1, 2]}
     a.votar("p1", "eu", [], 4)                   # tirou o voto
     assert a.votos_de("p1") == [("5551@c.us", [1, 2])]
+
+
+def test_mensagens_fixadas_respeitam_o_prazo(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagens_em_lote([("c", _msg("m1", 10)), ("c", _msg("m2", 20)), ("d", _msg("m3", 30))])
+    a.fixar_mensagem("m1", "c", True, ts=100, duracao=50)     # vence em 150
+    a.fixar_mensagem("m2", "c", True, ts=100, duracao=0)      # sem prazo conhecido
+    a.fixar_mensagem("m3", "d", True, ts=100, duracao=500)
+    assert [m["body"] for m in a.fixadas_de(["c"], 120)] == ["m1", "m2"]
+    assert [m["body"] for m in a.fixadas_de(["c"], 200)] == ["m2"]
+    assert [m["body"] for m in a.fixadas_de(["c", "d"], 200)] == ["m2", "m3"]
+    a.fixar_mensagem("m2", "c", False)
+    assert a.fixadas_de(["c"], 200) == []

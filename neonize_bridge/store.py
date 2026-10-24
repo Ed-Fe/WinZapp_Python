@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
     raw BLOB, PRIMARY KEY(chat, id));
 CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
+CREATE TABLE IF NOT EXISTS fixadas(
+    msg TEXT PRIMARY KEY, chat TEXT NOT NULL, ts INTEGER DEFAULT 0, duracao INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS votos(
     msg TEXT NOT NULL, quem TEXT NOT NULL, ids TEXT NOT NULL, ts INTEGER DEFAULT 0,
     PRIMARY KEY(msg, quem));
@@ -149,6 +151,33 @@ class Armazem:
             else:
                 self._bd.execute("DELETE FROM reacoes WHERE msg=? AND quem=?", (id_msg, quem))
             self._bd.commit()
+
+    def fixar_mensagem(self, id_msg, chat, fixar, ts=0, duracao=0):
+        """Fixa (ou solta) uma mensagem na conversa. `duracao` em segundos; 0 =
+        sem fim conhecido."""
+        with self._trava:
+            if fixar:
+                self._bd.execute(
+                    "INSERT OR REPLACE INTO fixadas(msg, chat, ts, duracao) VALUES (?,?,?,?)",
+                    (id_msg, chat, ts, duracao))
+            else:
+                self._bd.execute("DELETE FROM fixadas WHERE msg=?", (id_msg,))
+            self._bd.commit()
+
+    def fixadas_de(self, chats, agora):
+        """Mensagens (formato WhatsApp Web) fixadas nas conversas dadas, sem as
+        que ja passaram do prazo."""
+        achadas = []
+        with self._trava:
+            linhas = [r for chat in chats for r in self._bd.execute(
+                "SELECT msg, ts, duracao FROM fixadas WHERE chat=? ORDER BY ts", (chat,))]
+        for r in linhas:
+            if r["duracao"] and r["ts"] and r["ts"] + r["duracao"] <= agora:
+                continue
+            w = self.mensagem_wpp(r["msg"])
+            if w is not None:
+                achadas.append(w)
+        return achadas
 
     def votar(self, id_msg, quem, indices, ts=0):
         """Guarda o voto de `quem` numa enquete (posicoes das opcoes); lista vazia
