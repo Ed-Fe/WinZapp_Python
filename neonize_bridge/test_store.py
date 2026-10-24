@@ -62,3 +62,13 @@ def test_ultima_recebida_ignora_as_minhas(tmp_path):
         a.mensagem("c", w)
     assert a.ultima_recebida("c") == "m2"
     assert a.ultima_recebida("vazia") == ""
+
+
+def test_aplicar_revogacoes_poe_a_original_como_apagada(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagem("c", {"id": {"id": "ORIG"}, "t": 1, "type": "chat", "body": "oi"})
+    a.mensagem("c", {"id": {"id": "AVISO"}, "t": 2, "type": "revoked", "body": "",
+                     "protocolMessageKey": {"id": "ORIG"}})
+    assert a.aplicar_revogacoes() == 1
+    original = a.mensagem_wpp("ORIG")
+    assert original["type"] == "revoked" and original["body"] == ""

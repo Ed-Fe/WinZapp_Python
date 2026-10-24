@@ -74,6 +74,9 @@ class Sessao:
         self.lid = ""
         os.makedirs(pasta, exist_ok=True)
         self.bd = Armazem(os.path.join(pasta, "ponte.db"))
+        feitas = self.bd.aplicar_revogacoes()
+        if feitas:
+            log.info("%d mensagem(ns) apagada(s) para todos aplicada(s) ao armazenamento", feitas)
 
     # ------------------------------------------------------------ eventos
     def emitir(self, evento, dados):
@@ -146,6 +149,9 @@ class Sessao:
                     mensagem=e.Message, nome_de_quem=e.Info.Pushname)
                 if w is None:
                     return
+                if w.get("type") == "revoked" and w.get("protocolMessageKey"):
+                    # apagada para todos por quem enviou: a original tambem vira apagada
+                    self.bd.mudar_mensagem(w["protocolMessageKey"]["id"], type="revoked", body="")
                 self.bd.mensagem(chat, w, msgmap.ficha_midia(e.Message))
                 self.bd.ao_chegar(chat, w["t"], w["fromMe"])
                 if e.Info.Pushname and not o.IsFromMe:
@@ -1569,7 +1575,7 @@ def main():
         log_neonize.setLevel(logging.DEBUG)
         for nome in ("whatsmeow", "Whatsmeow"):
             logging.getLogger(nome).setLevel(logging.DEBUG)
-        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate|<receipt|<notification|read-self", re.I)
+        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate|<receipt|<notification|<message|read-self", re.I)
 
         class SoEstado(logging.Filter):
             def filter(self, rec):

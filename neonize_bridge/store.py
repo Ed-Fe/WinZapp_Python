@@ -119,6 +119,20 @@ class Armazem:
             self._bd.commit()
         return True
 
+    def aplicar_revogacoes(self):
+        """Poe como apagada, no lugar, a mensagem original de cada aviso de
+        'apagar para todos' guardado (ate agora so o aviso era guardado, e a
+        mensagem voltava a aparecer quando o app recarregava a conversa)."""
+        with self._trava:
+            alvos = [json.loads(r["data"]).get("protocolMessageKey", {}).get("id")
+                     for r in self._bd.execute(
+                         "SELECT data FROM msgs WHERE json_extract(data,'$.type')='revoked'")]
+        feitas = 0
+        for alvo in [a for a in alvos if a]:
+            if self.mudar_mensagem(alvo, type="revoked", body=""):
+                feitas += 1
+        return feitas
+
     def apagar_mensagem(self, id_msg):
         with self._trava:
             self._bd.execute("DELETE FROM msgs WHERE id=?", (id_msg,))
