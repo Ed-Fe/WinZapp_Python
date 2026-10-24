@@ -1663,7 +1663,7 @@ msgid "WinZapp API failed to start in time. The program will now close."
 msgstr ""
 "A API do WinZapp não iniciou no tempo esperado. O programa será encerrado."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_type_ask_message"
 msgid ""
 "Do you want to use the default local API server (Recommended)?\n"
@@ -1674,7 +1674,7 @@ msgstr ""
 "\n"
 "Escolha 'Sim' para o modo local padrão (recomendado), ou 'Não' se deseja especificar e configurar um servidor de API remoto/personalizado."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_type_ask_title"
 msgid "API Server Configuration"
 msgstr "Configuração do Servidor de API"
@@ -4519,6 +4519,55 @@ msgstr "Chave &de API (Secret Key):"
 msgctxt "connection_custom_api_label"
 msgid "&Use custom API (remote server)"
 msgstr "&Usar API personalizada (servidor remoto)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_message"
+msgid ""
+"Choose how WinZapp connects to WhatsApp. You can change this later in "
+"Settings, Connection."
+msgstr ""
+"Escolha como o WinZapp se conecta ao WhatsApp. Você pode mudar isso depois "
+"em Configurações, Conexão."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_title"
+msgid "Connection engine"
+msgstr "Motor de conexão"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_custom"
+msgid "Custom server (remote compatible API)"
+msgstr "Servidor personalizado (API compatível, remota)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_hint"
+msgid ""
+"Neonize connects without a browser through the local bridge on port 6300, "
+"which must be running. Changing the engine takes effect after restarting "
+"WinZapp."
+msgstr ""
+"O Neonize conecta sem navegador pela ponte local na porta 6300, que precisa "
+"estar em execução. Trocar o motor só tem efeito depois de reiniciar o "
+"WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_label"
+msgid "Connection &engine:"
+msgstr "&Motor de conexão:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_neonize"
+msgid "Neonize (direct connection, experimental)"
+msgstr "Neonize (conexão direta, experimental)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_wppconnect"
+msgid "WPPConnect (default, uses the Windows browser)"
+msgstr "WPPConnect (padrão, usa o navegador do Windows)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/ui/dialogs/connect.py

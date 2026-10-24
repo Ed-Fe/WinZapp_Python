@@ -3,7 +3,9 @@ import os
 import sys
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
+from core import connection_engine as engines
 from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
+from ui.dialogs import engine_picker
 from core.i18n import LANGUAGE_NAMES
 from core.combo_search import bind_incremental_search
 from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
@@ -597,9 +599,14 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._conn_page = wx.Panel(self._notebook)
         conn_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # The engine picker drives the (now hidden) custom-API switch below,
+        # which stays the flag the rest of the client reads.
+        (self._engine_label, self._engine_choice,
+         self._engine_hint) = engine_picker.build_row(self._conn_page, conn_sizer, i18n)
         self._custom_api_check = wx.CheckBox(
             self._conn_page, label=i18n.t("connection_custom_api_label")
         )
+        self._custom_api_check.Show(False)
         conn_sizer.Add(self._custom_api_check, 0, wx.ALL, 8)
 
         self._server_label = wx.StaticText(self._conn_page, label=i18n.t("connection_server_label"))
@@ -625,6 +632,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._conn_page.SetSizer(conn_sizer)
 
         self._custom_api_check.Bind(wx.EVT_CHECKBOX, self._on_custom_api_toggle)
+        self._engine_choice.Bind(wx.EVT_CHOICE, self._on_engine_choice)
 
         # ── Audio Devices tab ────────────────────────────────────────────────
         self._audio_devices_page = ScrollingPage(self._notebook)
@@ -2509,6 +2517,13 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # The rest of the connection block is loaded by _load_install_wide_values().
         self._port_field.SetValue(str(self.main_window.wpp_port))
 
+        # The engine is read off the connection fields (the neonize bridge is
+        # a custom API at a fixed local address), so it needs the port too.
+        self._engine_choice.SetSelection(engines.index_of(engines.engine_of(
+            self._custom_api_check.GetValue(), self._server_field.GetValue(),
+            self._ws_server_field.GetValue(), self._port_field.GetValue())))
+        self._loaded_engine = engines.engine_at(self._engine_choice.GetSelection())
+
         self._update_fields_state()
 
         # Audio devices
@@ -2949,8 +2964,24 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             wx.OK | wx.ICON_INFORMATION, self,
         )
 
+    def _on_engine_choice(self, event):
+        """Pick an engine: the switch and the addresses follow it. Neonize has
+        a fixed local address; only the custom engine lets the user type one."""
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        self._custom_api_check.SetValue(engines.uses_custom_api(engine))
+        fixed = engines.fixed_address(engine)
+        if fixed is not None:
+            server, ws_server, port = fixed
+            self._server_field.SetValue(server)
+            self._ws_server_field.SetValue(ws_server)
+            self._port_field.SetValue(str(port))
+        self._update_fields_state()
+        self._sync_fixed_port_field()
+        event.Skip()
+
     def _update_fields_state(self):
-        is_custom = self._custom_api_check.GetValue()
+        is_custom = engines.addresses_editable(
+            engines.engine_at(self._engine_choice.GetSelection()))
         self._server_field.Enable(is_custom)
         self._ws_server_field.Enable(is_custom)
         self._api_key_field.Enable(is_custom)
@@ -3897,6 +3928,10 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         # Connection: this account's own port. Server, websocket, key and the
         # custom-API switch are install-wide (_apply_install_wide_values()).
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if engine != self._loaded_engine:
+            self._loaded_engine = engine
+            self._restart_required = True
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port
@@ -4459,6 +4494,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._apply_btn.SetLabel(i18n.t("apply"))
         self._audio_speed_label.SetLabel(i18n.t("audio_speed_label"))
         self._custom_api_check.SetLabel(i18n.t("connection_custom_api_label"))
+        engine_picker.relabel(self._engine_label, self._engine_choice,
+                              self._engine_hint, i18n)
         self._server_label.SetLabel(i18n.t("connection_server_label"))
         self._ws_server_label.SetLabel(i18n.t("connection_ws_server_label"))
         self._port_label.SetLabel(i18n.t("wpp_port_label"))

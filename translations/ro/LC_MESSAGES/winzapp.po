@@ -1657,7 +1657,7 @@ msgctxt "api_startup_warning"
 msgid "WinZapp API failed to start in time. The program will now close."
 msgstr "WinZapp API nu a pornit la timp. Programul se va închide acum."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_type_ask_message"
 msgid ""
 "Do you want to use the default local API server (Recommended)?\n"
@@ -1668,7 +1668,7 @@ msgstr ""
 "\n"
 "Alegeți „Da” pentru modul local implicit (recomandat) sau „Nu” dacă doriți să specificați și să configurați un server API personalizat/la distanță."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_type_ask_title"
 msgid "API Server Configuration"
 msgstr "Configurare server API"
@@ -4517,6 +4517,55 @@ msgstr "Cheie API (Cheie &secretă):"
 msgctxt "connection_custom_api_label"
 msgid "&Use custom API (remote server)"
 msgstr "&Utilizați API personalizat (server la distanță)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_message"
+msgid ""
+"Choose how WinZapp connects to WhatsApp. You can change this later in "
+"Settings, Connection."
+msgstr ""
+"Alege cum se conectează WinZapp la WhatsApp. Poți schimba asta mai târziu în"
+" Setări, Conexiune."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_title"
+msgid "Connection engine"
+msgstr "Motor de conectare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_custom"
+msgid "Custom server (remote compatible API)"
+msgstr "Server personalizat (API compatibil, la distanță)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_hint"
+msgid ""
+"Neonize connects without a browser through the local bridge on port 6300, "
+"which must be running. Changing the engine takes effect after restarting "
+"WinZapp."
+msgstr ""
+"Neonize se conectează fără browser prin puntea locală de pe portul 6300, "
+"care trebuie să ruleze. Schimbarea motorului are efect după repornirea "
+"WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_label"
+msgid "Connection &engine:"
+msgstr "&Motor de conectare:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_neonize"
+msgid "Neonize (direct connection, experimental)"
+msgstr "Neonize (conexiune directă, experimental)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_wppconnect"
+msgid "WPPConnect (default, uses the Windows browser)"
+msgstr "WPPConnect (implicit, folosește browserul Windows)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/ui/dialogs/connect.py

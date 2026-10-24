@@ -82,7 +82,8 @@ class SettingsMixin:
 
     def _check_api_type_first_run(self):
         """
-        Check if we need to ask the user to choose between local and custom/remote API on first launch.
+        On the first launch, ask which connection engine to use (WPPConnect,
+        Neonize or a custom server). Changeable later in Settings > Connection.
         """
         if self.background_mode:
             return
@@ -91,47 +92,40 @@ class SettingsMixin:
         if gen.get("api_type_first_run_asked", False):
             return
 
-        msg = self.i18n.t("api_type_ask_message")
-        title = self.i18n.t("api_type_ask_title")
+        from core import connection_engine as engines
+        from ui.dialogs import engine_picker
 
-        result = wx.MessageBox(
-            msg,
-            title,
-            wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION,
-        )
+        engine = engine_picker.ask_first_run(self.i18n)
+        if engine is None:
+            # Closed without choosing. Exit.
+            sys.exit(0)
 
-        if result == wx.YES:
-            # User wants local API (default)
-            self.settings.setdefault("connection", {})["wpp_custom_api"] = False
-            self.wpp_custom_api = False
-            self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
-            self.save_settings()
-        elif result == wx.NO:
-            # User wants to specify a custom/remote API
-            self.settings.setdefault("connection", {})["wpp_custom_api"] = True
-            self.wpp_custom_api = True
-            self.save_settings()
+        connection = self.settings.setdefault("connection", {})
+        connection["wpp_custom_api"] = engines.uses_custom_api(engine)
+        self.wpp_custom_api = connection["wpp_custom_api"]
+        fixed = engines.fixed_address(engine)
+        if fixed is not None:
+            connection["wpp_server"], connection["wpp_ws_server"], connection["wpp_port"] = fixed
+            self.wpp_server, self.wpp_ws_server, self.wpp_port = fixed
+        self.save_settings()
 
-            # Open settings dialog on the Connection tab
+        if engine == engines.CUSTOM:
+            # Open settings dialog on the Connection tab to type the server
             from ui.dialogs.settings_dialog import SettingsDialog
             dlg = SettingsDialog(self)
             dlg._notebook.SetSelection(dlg._notebook.FindPage(dlg._conn_page))
             settings_res = dlg.ShowModal()
             dlg.Destroy()
 
-            if settings_res == wx.ID_OK:
-                # Successfully configured! Mark as asked.
-                self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
-                self.save_settings()
-            else:
+            if settings_res != wx.ID_OK:
                 # User cancelled or closed settings dialog. Roll back and exit.
-                self.settings.setdefault("connection", {})["wpp_custom_api"] = False
+                connection["wpp_custom_api"] = False
                 self.wpp_custom_api = False
                 self.save_settings()
                 sys.exit(0)
-        else:
-            # User cancelled or closed the question box. Exit.
-            sys.exit(0)
+
+        self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
+        self.save_settings()
 
     def _check_first_run(self):
         """
