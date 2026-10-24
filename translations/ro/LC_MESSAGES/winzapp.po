@@ -7655,6 +7655,24 @@ msgctxt "my_status_update"
 msgid "update status"
 msgstr "actualizați statusul"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py
+msgctxt "neonize_bridge_unavailable_message"
+msgid ""
+"WinZapp could not start the Neonize bridge, so it cannot connect to WhatsApp"
+" with this engine. Check the log, or choose another connection engine in "
+"Settings, Connection."
+msgstr ""
+"WinZapp nu a putut porni puntea Neonize, așa că nu se poate conecta la "
+"WhatsApp cu acest motor. Verifică jurnalul (log) sau alege alt motor de "
+"conectare în Setări, Conexiune."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py
+msgctxt "neonize_bridge_unavailable_title"
+msgid "Neonize bridge"
+msgstr "Puntea Neonize"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"

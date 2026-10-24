@@ -280,6 +280,7 @@ from main_window.call_hotkeys import CallHotkeysMixin
 from main_window.identity import IdentityMixin
 from main_window.message_events import MessageEventsMixin
 from main_window.wpp_server import WppServerMixin
+from main_window.neonize_bridge import NeonizeBridgeMixin
 from main_window.api_start_behind_window import ApiStartBehindWindowMixin, wait_for_api_start
 from main_window.sending import SendingMixin
 from main_window.poll_sending import PollSendingMixin
@@ -344,6 +345,7 @@ class MainWindow(
     IdentityMixin,
     MessageEventsMixin,
     WppServerMixin,
+    NeonizeBridgeMixin,
     ApiStartBehindWindowMixin,
     SendingMixin,
     PollSendingMixin,
@@ -787,6 +789,8 @@ class MainWindow(
         # Handle API execution configuration
         if self.wpp_custom_api:
             logging.info("MainWindow: Custom API enabled — preserving all local API files, cache, and remote session state.")
+            # The Neonize engine runs its own local bridge: start or find it.
+            self._start_neonize_bridge_if_needed()
         else:
             # Check API modules and start WPPConnect Server synchronously BEFORE
             # init_UI so the startup dialog shows first before opening the main

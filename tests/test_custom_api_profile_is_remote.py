@@ -40,6 +40,9 @@ class _Stub:
     def _shutdown_audit(self, line):
         self.audits.append(line)
 
+    def _stop_neonize_bridge(self):
+        self.bridge_stopped = True
+
 
 @pytest.mark.parametrize("owner,expected", [
     (types.SimpleNamespace(), True),

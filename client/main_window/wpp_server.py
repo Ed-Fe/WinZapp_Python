@@ -1537,6 +1537,9 @@ class WppServerMixin:
             # remote) must not be tree-killed on the way out. Our own session
             # on it was closed above.
             self._shutdown_audit("custom API — the server is not ours to stop")
+            # ...except the neonize bridge this client started or joined: the
+            # last client out stops it.
+            self._stop_neonize_bridge()
             return
         elif proc is None:
             # This session never spawned WPPConnect itself — it found the port
