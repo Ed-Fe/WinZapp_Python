@@ -2,6 +2,7 @@
 WPPConnect devolve (type "chat", body, id "false_<conversa>_<ID>", from, to, t).
 Sem dependencia de servidor: funcao pura, testada em test_msgmap.py."""
 import base64
+import hashlib
 
 # camadas que so embrulham outra mensagem
 EMBRULHOS = ("ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2",
@@ -133,6 +134,21 @@ def _campo(msg):
     return ""
 
 
+def indices_do_voto(nomes, selecionados):
+    """Posicoes das opcoes de um voto: o WhatsApp manda o SHA-256 do texto de
+    cada opcao marcada."""
+    por_hash = {hashlib.sha256(n.encode()).digest(): i for i, n in enumerate(nomes)}
+    return sorted({por_hash[bytes(h)] for h in selecionados if bytes(h) in por_hash})
+
+
+def voto(mensagem):
+    """(id da enquete, ) de uma mensagem de voto, ou None."""
+    interna = desembrulhar(mensagem)
+    if _campo(interna) != "pollUpdateMessage":
+        return None
+    return interna.pollUpdateMessage.pollCreationMessageKey.ID or None
+
+
 def reacao(mensagem):
     """(id da mensagem alvo, emoji, key.fromMe, participante) de uma mensagem
     de reacao, ou None se a mensagem nao e uma reacao. Emoji vazio = reacao
@@ -216,7 +232,9 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
         enquete = getattr(interna, campo)
         saida.update(type="poll_creation", body=enquete.name,
                      pollName=enquete.name,
-                     pollOptions=[{"name": o.optionName} for o in enquete.options])
+                     pollSelectableOptionsCount=int(enquete.selectableOptionsCount or 0),
+                     pollOptions=[{"name": o.optionName, "localId": i}
+                                  for i, o in enumerate(enquete.options)])
     elif campo in ("reactionMessage", "pollUpdateMessage", "keepInChatMessage", ""):
         return None
     else:

@@ -85,3 +85,25 @@ def test_reacao_e_reconhecida_e_nao_vira_mensagem():
     msg.reactionMessage.text = ""
     assert msgmap.reacao(msg)[1] == ""          # reacao tirada
     assert msgmap.reacao(Message(conversation="oi")) is None
+
+
+def test_enquete_leva_posicao_e_limite_das_opcoes():
+    msg = Message()
+    msg.pollCreationMessage.name = "Almoco?"
+    msg.pollCreationMessage.selectableOptionsCount = 1
+    for nome in ("Sim", "Nao"):
+        msg.pollCreationMessage.options.add().optionName = nome
+    m = msgmap.montar(conversa="1@g.us", de_mim=False, id="P", remetente="2@s.whatsapp.net",
+                      ts=5, mensagem=msg)
+    assert m["type"] == "poll_creation" and m["pollSelectableOptionsCount"] == 1
+    assert m["pollOptions"] == [{"name": "Sim", "localId": 0}, {"name": "Nao", "localId": 1}]
+
+
+def test_voto_e_reconhecido_e_as_opcoes_saem_do_hash():
+    import hashlib
+    msg = Message()
+    msg.pollUpdateMessage.pollCreationMessageKey.ID = "P"
+    assert msgmap.voto(msg) == "P" and msgmap.voto(Message(conversation="x")) is None
+    hashes = [hashlib.sha256(n.encode()).digest() for n in ("Nao", "Talvez")]
+    assert msgmap.indices_do_voto(["Sim", "Nao", "Talvez"], hashes) == [1, 2]
+    assert msgmap.indices_do_voto(["Sim"], [b"outro"]) == []

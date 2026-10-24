@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
     raw BLOB, PRIMARY KEY(chat, id));
 CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
+CREATE TABLE IF NOT EXISTS votos(
+    msg TEXT NOT NULL, quem TEXT NOT NULL, ids TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, quem));
 CREATE TABLE IF NOT EXISTS reacoes(
     msg TEXT NOT NULL, quem TEXT NOT NULL, emoji TEXT NOT NULL, ts INTEGER DEFAULT 0,
     PRIMARY KEY(msg, quem));
@@ -146,6 +149,24 @@ class Armazem:
             else:
                 self._bd.execute("DELETE FROM reacoes WHERE msg=? AND quem=?", (id_msg, quem))
             self._bd.commit()
+
+    def votar(self, id_msg, quem, indices, ts=0):
+        """Guarda o voto de `quem` numa enquete (posicoes das opcoes); lista vazia
+        tira o voto."""
+        with self._trava:
+            if indices:
+                self._bd.execute(
+                    "INSERT OR REPLACE INTO votos(msg, quem, ids, ts) VALUES (?,?,?,?)",
+                    (id_msg, quem, json.dumps(list(indices)), ts))
+            else:
+                self._bd.execute("DELETE FROM votos WHERE msg=? AND quem=?", (id_msg, quem))
+            self._bd.commit()
+
+    def votos_de(self, id_msg):
+        """[(quem, [posicoes])] dos votos de uma enquete."""
+        with self._trava:
+            return [(r["quem"], json.loads(r["ids"])) for r in self._bd.execute(
+                "SELECT quem, ids FROM votos WHERE msg=? ORDER BY ts, rowid", (id_msg,))]
 
     def reacoes_de(self, id_msg):
         """[(quem, emoji)] das reacoes a uma mensagem, da mais antiga a mais nova."""

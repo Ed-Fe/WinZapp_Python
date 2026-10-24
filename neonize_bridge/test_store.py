@@ -83,3 +83,13 @@ def test_reacoes_trocam_e_somem(tmp_path):
     a.reagir("m1", "eu", "", 4)                  # tirou
     assert a.reacoes_de("m1") == [("5551@c.us", "B")]
     assert a.reacoes_de("outra") == []
+
+
+def test_votos_trocam_e_somem(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.votar("p1", "eu", [0], 1)
+    a.votar("p1", "5551@c.us", [1, 2], 2)
+    a.votar("p1", "eu", [2], 3)                  # mudou o voto
+    assert dict(a.votos_de("p1")) == {"eu": [2], "5551@c.us": [1, 2]}
+    a.votar("p1", "eu", [], 4)                   # tirou o voto
+    assert a.votos_de("p1") == [("5551@c.us", [1, 2])]

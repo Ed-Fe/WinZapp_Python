@@ -47,6 +47,30 @@ def props_do_aparelho(dias):
     return props
 
 
+def consertar_decifrar_voto(cliente):
+    """O neonize 0.5.2 esqueceu `DecryptPollVote` na lista das funcoes cujo
+    retorno (um ponteiro de bytes do Go) vira `bytes`: sem isso, decifrar um
+    voto levanta TypeError. Poe o mesmo tratamento das outras. Roda uma vez."""
+    import ctypes
+    go = next((getattr(cliente, a) for a in dir(cliente) if a.endswith("__client")), None)
+    funcao = getattr(go, "DecryptPollVote", None)
+    if funcao is None or getattr(funcao, "errcheck", None) is not None:
+        return False
+
+    def consumir(resultado, func, argumentos):
+        if not resultado:
+            return b""
+        try:
+            conteudo = resultado.contents
+            if not conteudo.ptr or conteudo.size == 0:
+                return b""
+            return ctypes.string_at(conteudo.ptr, conteudo.size)
+        finally:
+            go.FreeBytesStruct(resultado)
+    funcao.errcheck = consumir
+    return True
+
+
 def jid_texto(jid) -> str:
     """JID do neonize -> 'usuario@servidor' (vazio se nao ha)."""
     if jid is None or not getattr(jid, "User", ""):
@@ -114,6 +138,110 @@ class Sessao:
             "msgId": self.serial_do_alvo(chat_w, grupo, alvo_id, reagiu_eu,
                                          key_de_mim, participante),
             "reactionText": emoji, "text": emoji, "timestamp": ts}})
+        return True
+
+    # ------------------------------------------------------------ enquetes
+    def _voto_recebido(self, o, e):
+        """True se a mensagem era um voto em enquete (decifra e guarda). O
+        voto vem cifrado com o segredo da enquete, que o neonize guarda quando
+        a pergunta passa por ele: votos de enquetes anteriores nao se leem."""
+        alvo = msgmap.voto(e.Message)
+        if alvo is None:
+            return False
+        original = self.bd.mensagem_wpp(alvo) or {}
+        nomes = [x["name"] for x in original.get("pollOptions") or []]
+        try:
+            consertar_decifrar_voto(self.cliente)
+            dado = self.cliente.decrypt_poll_vote(e)
+        except Exception as erro:
+            log.info("voto que nao consegui decifrar (%s: %s)", type(erro).__name__,
+                     str(erro)[:100])
+            return True
+        quem = "eu" if o.IsFromMe else msgmap.jid_wpp(jid_texto(o.Sender))
+        self.bd.votar(alvo, quem, msgmap.indices_do_voto(nomes, dado.selectedOptions),
+                      msgmap.segundos(e.Info.Timestamp))
+        return True
+
+    def enquete_wpp(self, serial):
+        """A enquete e seus votos, ou None se a mensagem nao e uma enquete."""
+        _, _, mid, _ = self.partes_do_id(serial)
+        original = self.bd.mensagem_wpp(mid)
+        if not original or original.get("type") != "poll_creation":
+            return None
+        opcoes = [{"name": x["name"], "localId": x.get("localId", i)}
+                  for i, x in enumerate(original.get("pollOptions") or [])]
+        return mid, opcoes, self.bd.votos_de(mid)
+
+    def votos_wpp(self, serial):
+        """Entrada de /poll-votes: {voters, options:[{name, localId, votes, mine}]}."""
+        achada = self.enquete_wpp(serial)
+        if achada is None:
+            return None
+        _, opcoes, votos = achada
+        contagem = {}
+        minhas = set()
+        votantes = 0
+        for quem, ids in votos:
+            if not ids:
+                continue
+            votantes += 1
+            for i in ids:
+                contagem[i] = contagem.get(i, 0) + 1
+                if quem == "eu":
+                    minhas.add(i)
+        return {"voters": votantes, "options": [
+            {**op, "votes": contagem.get(op["localId"], 0),
+             "mine": op["localId"] in minhas} for op in opcoes]}
+
+    def votantes_wpp(self, serial):
+        """Resposta de /poll-voters: quem votou em que."""
+        achada = self.enquete_wpp(serial)
+        if achada is None:
+            return {"ok": False, "error": "poll_voters_unavailable"}
+        _, opcoes, votos = achada
+        eu = msgmap.jid_wpp(self.eu)
+        votantes = []
+        for quem, ids in votos:
+            if not ids:
+                continue
+            sender = eu if quem == "eu" else quem
+            nome = self.bd.contato_de(msgmap.jid_whatsmeow(sender)) if quem != "eu" else {}
+            votantes.append({"sender": sender, "mine": quem == "eu",
+                             "name": nome.get("name") or nome.get("pushname") or "",
+                             "localIds": ids})
+        return {"ok": True, "options": opcoes, "voters": votantes}
+
+    def votar_em_enquete(self, serial, local_ids):
+        """Vota (ou, sem ids, tira o voto) numa enquete."""
+        achada = self.enquete_wpp(serial)
+        if achada is None or self.cliente is None or self.status != "CONNECTED":
+            return False
+        mid, opcoes, _ = achada
+        nomes_por_id = {op["localId"]: op["name"] for op in opcoes}
+        if not all(i in nomes_por_id for i in local_ids):
+            return False
+        from neonize.proto.Neonize_pb2 import MessageInfo, MessageSource
+        from neonize.utils import build_jid
+        de_mim, conversa, _, autor = self.partes_do_id(serial)
+        grupo = conversa.endswith("@g.us")
+        dono = self.eu if de_mim else (autor or conversa)
+
+        def jid(texto):
+            u, _, srv = texto.partition("@")
+            return build_jid(u.split(":")[0], srv)
+        vazio = build_jid("", "")
+        origem = MessageSource(
+            Chat=jid(conversa), Sender=jid(dono), IsFromMe=de_mim, IsGroup=grupo,
+            SenderAlt=vazio, RecipientAlt=vazio, BroadcastListOwner=vazio)
+        info = MessageInfo(MessageSource=origem, ID=mid, ServerID=0, Type="", Pushname="",
+                           Timestamp=0, Category="", Multicast=False, MediaType="", Edit="")
+        try:
+            self.cliente.send_message(jid(conversa), self.cliente.build_poll_vote(
+                info, [nomes_por_id[i] for i in local_ids]))
+        except Exception:
+            log.exception("votar em enquete")
+            return False
+        self.bd.votar(mid, "eu", sorted(local_ids), int(time.time()))
         return True
 
     def reagir(self, serial, emoji):
@@ -218,6 +346,8 @@ class Sessao:
                 o = e.Info.MessageSource
                 chat = jid_texto(o.Chat)
                 if self._reacao_recebida(chat, o, e):
+                    return
+                if self._voto_recebido(o, e):
                     return
                 w = msgmap.montar(
                     conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
@@ -1577,6 +1707,58 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={"isMuted": segundos != 0})
 
+    async def send_poll_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        from neonize.utils.enum import VoteType
+        fone = corpo["phone"]
+        fone = fone[0] if isinstance(fone, list) else fone
+        if corpo.get("isGroup") and "@" not in fone:
+            fone += "@g.us"
+        destino = destino_de(fone)
+        multipla = int((corpo.get("options") or {}).get("selectableCount", 1)) != 1
+
+        def enviar():
+            criada = s.cliente.build_poll_vote_creation(
+                corpo["name"], list(corpo["choices"]),
+                VoteType.MULTIPLE if multipla else VoteType.SINGLE)
+            return s.cliente.send_message(destino, criada)
+        resp = await em_thread(enviar)
+        return guardar_enviada(s, destino, resp)
+
+    async def poll_votes(req):
+        s = sessao(req)
+        corpo = await req.json()
+        resposta = {}
+        for serial in corpo.get("messageIds") or []:
+            votos = s.votos_wpp(serial)
+            if votos is not None:
+                resposta[serial] = votos
+        return ok(status="success", response=resposta)
+
+    async def poll_voters(req):
+        s = sessao(req)
+        corpo = await req.json()
+        resposta = s.votantes_wpp(corpo.get("messageId") or "")
+        if not resposta.get("ok"):
+            return web.json_response({"status": "error", "code": resposta["error"]}, status=503)
+        return ok(status="success", response=resposta)
+
+    async def vote_poll(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        feito = await em_thread(s.votar_em_enquete, corpo["messageId"],
+                                [int(i) for i in corpo.get("localIds") or []])
+        if not feito:
+            return web.json_response({"status": "error", "code": "poll_vote_failed"}, status=503)
+        return ok(status="success")
+
     async def react_message(req):
         s = sessao(req)
         corpo = await req.json()
@@ -1624,6 +1806,10 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/send-mute", send_mute)
     r.add_post("/api/{tok}/mark-played", mark_played)
     r.add_post("/api/{tok}/react-message", react_message)
+    r.add_post("/api/{tok}/send-poll-message", send_poll_message)
+    r.add_post("/api/{tok}/poll-votes", poll_votes)
+    r.add_post("/api/{tok}/poll-voters", poll_voters)
+    r.add_post("/api/{tok}/vote-poll", vote_poll)
     r.add_get("/api/{tok}/send-capabilities", send_capabilities)
     r.add_post("/api/{tok}/pinned-messages", pinned_messages)
     r.add_get("/api/{tok}/reactions/{id}", reactions)
