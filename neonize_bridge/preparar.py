@@ -5,7 +5,7 @@ test build of neonize that the bridge needs.
 
 The bridge uses events and functions that exist only in the test build of
 neonize 0.5.2 published at
-https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.1
+https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2
 (they are open pull requests to neonize). This script installs neonize 0.5.2
 and extracts that build over it, after checking its SHA-256.
 
@@ -22,8 +22,8 @@ import urllib.request
 import zipfile
 
 BUILD_URL = ("https://github.com/reffehcsoibaf/neonize/releases/download/"
-             "0.5.2-winzapp-teste.1/neonize-0.5.2-winzapp-teste.zip")
-BUILD_SHA256 = "8b7037dfd88dfcbc92aa0c8f73b85ac6b8fab60a4189431c29201fb7a35a0dc2"
+             "0.5.2-winzapp-teste.2/neonize-0.5.2-winzapp-teste.zip")
+BUILD_SHA256 = "06f6cba995d9ea021f85bc3179c004a8e39f3c4707f117cb0372a5efef8d117a"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VENV = os.path.join(HERE, ".venv")

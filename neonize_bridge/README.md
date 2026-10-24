@@ -33,7 +33,7 @@ The bridge listens to what the phone does (archive, pin, mute, star, lock,
 read, delete) instead of polling for it. Those events, and a few functions to
 repair the app state, are open pull requests to neonize (#227 to #232). Until
 they are merged, `preparar.py` installs a build that has them from
-https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.1.
+https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2.
 The Go sources of the changes are in the pull requests and in
 https://github.com/reffehcsoibaf/TeleZapp/tree/main/docs/neonize.
 
