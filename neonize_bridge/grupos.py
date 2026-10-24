@@ -61,6 +61,27 @@ def ja_participa(erro: Exception) -> bool:
     return "already" in texto or "participant" in texto
 
 
+def pedido_para_wpp(pedido, fone_do_lid="", nome="") -> dict:
+    """GroupParticipantRequest do neonize -> uma linha de
+    `group-membership-requests` como o cliente le: {id, phone, name, method, t}.
+    O id e o da pessoa (numero@c.us ou numero@lid); `fone_do_lid` e o numero
+    que esta por tras de um @lid, quando se sabe."""
+    jid = pedido.Participant
+    servidor = "lid" if jid.Server == "lid" else "c.us"
+    linha = {"id": "%s@%s" % (usuario_de(jid.User), servidor), "method": "",
+             "t": int(pedido.TimeAt or 0)}
+    if servidor == "lid" and fone_do_lid:
+        linha["phone"] = "%s@c.us" % usuario_de(fone_do_lid)
+    if nome:
+        linha["name"] = nome
+    return linha
+
+
+def nao_e_administrador(erro: Exception) -> bool:
+    texto = str(erro).lower()
+    return "not-authorized" in texto or "forbidden" in texto or "403" in texto
+
+
 def usuarios_em_comum(grupos, procurados) -> list:
     """Os ids dos grupos em que alguma das pessoas procuradas participa."""
     achados = []
@@ -223,6 +244,64 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
         achados = usuarios_em_comum(grupos, procurados - {""})
         return ok(status="success", response=[jid_texto(j) for j in achados])
 
+    async def listar_pedidos(req):
+        s = sessao(req)
+        if not conectada(s):
+            return erro("Disconnected", 400)
+        jid = jid_de_texto(req.match_info["groupId"])
+        try:
+            pedidos = await executar(s.cliente.get_group_request_participants, jid)
+        except Exception as e:
+            if nao_e_administrador(e):
+                return erro("not an administrator", 403)
+            log.exception("group-membership-requests")
+            return erro(e)
+        linhas = []
+        for pedido in pedidos:
+            fone = ""
+            if pedido.Participant.Server == "lid":
+                try:
+                    fone = (await executar(s.cliente.get_pn_from_lid,
+                                           pedido.Participant)).User
+                except Exception:
+                    fone = ""
+            nome = ""
+            try:
+                achado = s.bd.contato_de(jid_texto(pedido.Participant), fone)
+                nome = achado.get("name") or achado.get("pushname") or ""
+            except Exception:
+                pass
+            linhas.append(pedido_para_wpp(pedido, fone, nome))
+        return ok(status="success", response={"requests": linhas, "refreshed": True})
+
+    async def responder_pedidos(req, aprovar):
+        s = sessao(req)
+        corpo = await req.json()
+        if not conectada(s):
+            return erro("Disconnected", 400)
+        if not hasattr(s.cliente, "update_group_request_participants"):
+            return erro("This neonize build cannot answer join requests yet "
+                        "(it needs the 0.5.2-winzapp-teste.2 build).", 501)
+        from neonize.utils.enum import ParticipantRequestChange
+        acao = (ParticipantRequestChange.APPROVE if aprovar
+                else ParticipantRequestChange.REJECT)
+        try:
+            await executar(s.cliente.update_group_request_participants,
+                           jid_de_texto(req.match_info["groupId"]),
+                           [jid_de_texto(x) for x in corpo.get("participants") or []], acao)
+        except Exception as e:
+            if nao_e_administrador(e):
+                return erro("not an administrator", 403)
+            log.exception("group-membership-requests answer")
+            return erro(e)
+        return ok(status="success", response={})
+
+    async def aprovar_pedidos(req):
+        return await responder_pedidos(req, True)
+
+    async def recusar_pedidos(req):
+        return await responder_pedidos(req, False)
+
     r.add_post("/api/{tok}/create-group", create_group)
     r.add_post("/api/{tok}/add-participant-group", add_participant)
     r.add_post("/api/{tok}/remove-participant-group", remove_participant)
@@ -234,3 +313,6 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
     r.add_get("/api/{tok}/group-invitation/{groupId}", group_invitation)
     r.add_post("/api/{tok}/group-invitation/{groupId}/reset", group_invitation_reset)
     r.add_get("/api/{tok}/common-groups/{wid}", common_groups)
+    r.add_get("/api/{tok}/group-membership-requests/{groupId}", listar_pedidos)
+    r.add_post("/api/{tok}/group-membership-requests/{groupId}/approve", aprovar_pedidos)
+    r.add_post("/api/{tok}/group-membership-requests/{groupId}/reject", recusar_pedidos)

@@ -52,3 +52,20 @@ def test_grupos_em_comum_pelo_jid_lid_ou_numero():
     g3 = N(JID="g3@g.us", Participants=[pessoa("999")])
     assert grupos.usuarios_em_comum([g1, g2, g3], {"111", "333"}) == ["g1@g.us", "g2@g.us"]
     assert grupos.usuarios_em_comum([g1], set()) == []
+
+
+def pedido(usuario, servidor="s.whatsapp.net", quando=1700000000):
+    return N(Participant=N(User=usuario, Server=servidor), TimeAt=quando)
+
+
+def test_pedido_de_entrada_vira_a_linha_que_o_cliente_le():
+    assert grupos.pedido_para_wpp(pedido("111")) == {
+        "id": "111@c.us", "method": "", "t": 1700000000}
+    linha = grupos.pedido_para_wpp(pedido("333", "lid"), fone_do_lid="5511999", nome="Ana")
+    assert linha == {"id": "333@lid", "method": "", "t": 1700000000,
+                     "phone": "5511999@c.us", "name": "Ana"}
+
+
+def test_erro_de_nao_administrador():
+    assert grupos.nao_e_administrador(Exception("iq error: 403 forbidden"))
+    assert not grupos.nao_e_administrador(Exception("timeout"))
