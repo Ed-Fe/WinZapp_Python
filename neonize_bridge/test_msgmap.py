@@ -107,3 +107,23 @@ def test_voto_e_reconhecido_e_as_opcoes_saem_do_hash():
     hashes = [hashlib.sha256(n.encode()).digest() for n in ("Nao", "Talvez")]
     assert msgmap.indices_do_voto(["Sim", "Nao", "Talvez"], hashes) == [1, 2]
     assert msgmap.indices_do_voto(["Sim"], [b"outro"]) == []
+
+
+def test_aviso_de_edicao_e_reconhecido_e_nao_vira_mensagem():
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ProtocolMessage
+    msg = Message()
+    msg.protocolMessage.type = ProtocolMessage.MESSAGE_EDIT
+    msg.protocolMessage.key.ID = "ORIG"
+    msg.protocolMessage.editedMessage.conversation = "texto novo"
+    alvo, nova = msgmap.edicao(msg)
+    assert alvo == "ORIG" and nova.conversation == "texto novo"
+    assert msgmap.edicao(Message(conversation="oi")) is None
+    assert msgmap.montar(conversa="1@s.whatsapp.net", de_mim=False, id="E",
+                         remetente="1@s.whatsapp.net", ts=1, mensagem=msg) is None
+
+
+def test_campo_de_midia():
+    msg = Message()
+    msg.imageMessage.caption = "x"
+    assert msgmap.campo_de_midia(msg) == "imageMessage"
+    assert msgmap.campo_de_midia(Message(conversation="oi")) == ""

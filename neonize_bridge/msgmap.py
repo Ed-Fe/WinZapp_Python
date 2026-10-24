@@ -141,6 +141,29 @@ def indices_do_voto(nomes, selecionados):
     return sorted({por_hash[bytes(h)] for h in selecionados if bytes(h) in por_hash})
 
 
+def edicao(mensagem):
+    """(id da mensagem editada, mensagem nova) de um aviso de edicao, ou None."""
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ProtocolMessage
+    interna = desembrulhar(mensagem)
+    if _campo(interna) != "protocolMessage":
+        return None
+    p = interna.protocolMessage
+    if p.type != ProtocolMessage.MESSAGE_EDIT or not p.key.ID:
+        return None
+    return p.key.ID, p.editedMessage
+
+
+def campo_de_midia(mensagem):
+    """Nome do campo de midia preenchido (imageMessage...) ou ''."""
+    for nome in MIDIAS:
+        try:
+            if mensagem.HasField(nome):
+                return nome
+        except ValueError:
+            pass
+    return ""
+
+
 def voto(mensagem):
     """(id da enquete, ) de uma mensagem de voto, ou None."""
     interna = desembrulhar(mensagem)

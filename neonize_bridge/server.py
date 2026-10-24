@@ -140,6 +140,103 @@ class Sessao:
             "reactionText": emoji, "text": emoji, "timestamp": ts}})
         return True
 
+    # -------------------------------------------------------------- edicao
+    def marcar_editada(self, alvo, chat_w, id_edicao, de_mim, **campos):
+        """Poe o texto novo na mensagem guardada, com a marca de editada
+        (latestEditMsgKey, que o app le), e devolve a mensagem."""
+        self.bd.mudar_mensagem(
+            alvo, **campos,
+            latestEditMsgKey={"id": id_edicao, "remote": chat_w, "fromMe": bool(de_mim)},
+            latestEditSenderTimestampMs=int(time.time() * 1000))
+        return self.bd.mensagem_wpp(alvo)
+
+    def _edicao_recebida(self, chat, o, e):
+        """True se a mensagem era o aviso de que alguem editou uma mensagem."""
+        dados = msgmap.edicao(e.Message)
+        if dados is None:
+            return False
+        alvo, nova = dados
+        original = self.bd.mensagem_wpp(alvo)
+        if original is None:           # mensagem de antes da ponte: nada a trocar
+            return True
+        w = msgmap.montar(
+            conversa=chat, de_mim=bool(original.get("fromMe")), id=alvo,
+            remetente=self.eu if original.get("fromMe") else jid_texto(o.Sender),
+            ts=original["t"], mensagem=nova)
+        if w is None:
+            return True
+        campos = {"body": w.get("body", "")} if w.get("type") == "chat" \
+            else {"caption": w.get("caption", "")}
+        editada = self.marcar_editada(alvo, msgmap.jid_wpp(chat), e.Info.ID,
+                                      o.IsFromMe, **campos)
+        self.emitir("received-message", {"session": self.nome, "response": editada})
+        return True
+
+    def editar(self, serial, texto, mencoes=()):
+        """Edita uma mensagem minha (o WhatsApp so aceita por ~15 minutos)."""
+        de_mim, conversa, mid, _ = self.partes_do_id(serial)
+        original = self.bd.mensagem_wpp(mid)
+        if not de_mim or original is None or self.cliente is None \
+                or self.status != "CONNECTED":
+            return False
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
+            ContextInfo, ExtendedTextMessage, Message)
+        from neonize.utils import build_jid
+        u, _, srv = conversa.partition("@")
+        ficha = self.bd.ficha(mid)
+        if ficha and original.get("type") != "chat":        # legenda de midia
+            nova = Message.FromString(ficha)
+            campo = msgmap.campo_de_midia(nova)
+            if not campo:
+                return False
+            getattr(nova, campo).caption = texto
+            campos = {"caption": texto}
+        else:
+            if mencoes:
+                ctx = ContextInfo()
+                ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in mencoes)
+                nova = Message(extendedTextMessage=ExtendedTextMessage(
+                    text=texto, contextInfo=ctx))
+            else:
+                nova = Message(conversation=texto)
+            campos = {"body": texto}
+        try:
+            self.cliente.edit_message(build_jid(u, srv), mid, nova)
+        except Exception:
+            log.exception("editar mensagem")
+            return False
+        self.marcar_editada(mid, msgmap.jid_wpp(conversa), mid, True, **campos)
+        return True
+
+    def mensagem_para_encaminhar(self, serial, manter_voz=False):
+        """A mensagem guardada, pronta para ser enviada como encaminhada, ou
+        None se o tipo ainda nao e suportado."""
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
+            ContextInfo, ExtendedTextMessage, Message)
+        _, _, mid, _ = self.partes_do_id(serial)
+        original = self.bd.mensagem_wpp(mid)
+        if original is None:
+            return None
+        ficha = self.bd.ficha(mid)
+        if ficha:
+            msg = Message.FromString(ficha)
+            campo = msgmap.campo_de_midia(msg)
+            if not campo:
+                return None
+            sub = getattr(msg, campo)
+            if hasattr(sub, "caption") and original.get("caption"):
+                sub.caption = original["caption"]
+            if campo == "audioMessage" and not manter_voz:
+                sub.PTT = False
+            sub.contextInfo.isForwarded = True
+            sub.contextInfo.forwardingScore = 1
+            return msg
+        if original.get("type") == "chat" and original.get("body"):
+            return Message(extendedTextMessage=ExtendedTextMessage(
+                text=original["body"],
+                contextInfo=ContextInfo(isForwarded=True, forwardingScore=1)))
+        return None
+
     # ------------------------------------------------------------ enquetes
     def _voto_recebido(self, o, e):
         """True se a mensagem era um voto em enquete (decifra e guarda). O
@@ -348,6 +445,8 @@ class Sessao:
                 if self._reacao_recebida(chat, o, e):
                     return
                 if self._voto_recebido(o, e):
+                    return
+                if self._edicao_recebida(chat, o, e):
                     return
                 w = msgmap.montar(
                     conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
@@ -1759,6 +1858,53 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "code": "poll_vote_failed"}, status=503)
         return ok(status="success")
 
+    async def edit_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        mencoes = (corpo.get("options") or {}).get("mentionedJidList") or []
+        feito = await em_thread(s.editar, corpo["id"], corpo["newText"], mencoes)
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"edited": True})
+
+    async def forward_messages(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        fone = corpo["phone"]
+        fone = fone[0] if isinstance(fone, list) else fone
+        destino = destino_de(fone)
+        ids = corpo["messageId"]
+        ids = ids if isinstance(ids, list) else [ids]
+        enviadas = []
+        for serial in ids:
+            msg = await em_thread(s.mensagem_para_encaminhar, serial,
+                                  bool(corpo.get("keepVoice")))
+            if msg is None:
+                return web.json_response(
+                    {"status": "error", "message": "tipo de mensagem ainda nao encaminhavel"},
+                    status=501)
+            try:
+                resp = await em_thread(s.cliente.send_message, destino, msg)
+            except Exception as erro_envio:
+                log.exception("encaminhar")
+                return web.json_response({"status": "error", "message": str(erro_envio)},
+                                         status=500)
+            enviadas.append(guardar_enviada(s, destino, resp))
+        return ok(status="success", response=[{"forwarded": len(enviadas)}])
+
+    async def older_history(req):
+        """O neonize nao tem o pedido de historico sob demanda (o do 'clique
+        aqui para ver mensagens mais antigas'): diz que o resto so existe no
+        celular, e o app para de pedir. O historico que chega e o do pareamento."""
+        return ok(status="success", response={
+            "requested": False, "primaryHasMore": True, "phoneOnly": True})
+
     async def react_message(req):
         s = sessao(req)
         corpo = await req.json()
@@ -1806,6 +1952,10 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/send-mute", send_mute)
     r.add_post("/api/{tok}/mark-played", mark_played)
     r.add_post("/api/{tok}/react-message", react_message)
+    r.add_post("/api/{tok}/edit-message", edit_message)
+    r.add_post("/api/{tok}/forward-messages", forward_messages)
+    r.add_post("/api/{tok}/request-older-messages/{jid}", older_history)
+    r.add_get("/api/{tok}/older-history-state/{jid}", older_history)
     r.add_post("/api/{tok}/send-poll-message", send_poll_message)
     r.add_post("/api/{tok}/poll-votes", poll_votes)
     r.add_post("/api/{tok}/poll-voters", poll_voters)
