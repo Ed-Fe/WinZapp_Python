@@ -50,7 +50,7 @@ mute and delete, kept in step with the phone.
 Untested: video, sticker and GIF sending and receiving, and posting or
 deleting your own status. Missing: calls, channels, communities, creating and
 editing groups, business features, and most WPPConnect routes: the bridge
-implements 57 of the 220 that WPPConnect Server defines for WinZapp.
+implements 66 of the 220 that WPPConnect Server defines for WinZapp.
 [COBERTURA.md](COBERTURA.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.
