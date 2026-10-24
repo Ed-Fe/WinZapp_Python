@@ -78,6 +78,80 @@ class Sessao:
         if feitas:
             log.info("%d mensagem(ns) apagada(s) para todos aplicada(s) ao armazenamento", feitas)
 
+    # ------------------------------------------------------------- reacoes
+    def serial_do_alvo(self, chat_w, grupo, alvo_id, reagiu_eu, key_de_mim, participante):
+        """Id serializado (formato WPPConnect) da mensagem alvo de uma reacao.
+        Usa a mensagem guardada; senao deduz: key.fromMe vem de quem reagiu."""
+        guardada = self.bd.mensagem_wpp(alvo_id)
+        if guardada is not None:
+            return guardada["id"]["_serialized"]
+        minha = key_de_mim if reagiu_eu else not key_de_mim
+        if grupo:
+            minha = bool(participante) and participante == msgmap.jid_wpp(self.eu)
+        serial = f"{'true' if minha else 'false'}_{chat_w}_{alvo_id}"
+        if grupo and not minha and participante:
+            serial += f"_{participante}"
+        return serial
+
+    def _reacao_recebida(self, chat, o, e):
+        """True se a mensagem era uma reacao (guarda e avisa o app)."""
+        dados = msgmap.reacao(e.Message)
+        if dados is None:
+            return False
+        alvo_id, emoji, key_de_mim, participante = dados
+        chat_w = msgmap.jid_wpp(chat)
+        grupo = chat_w.endswith("@g.us")
+        reagiu_eu = bool(o.IsFromMe)
+        remetente_w = msgmap.jid_wpp(jid_texto(o.Sender))
+        quem = "eu" if reagiu_eu else remetente_w
+        ts = msgmap.segundos(e.Info.Timestamp)
+        self.bd.reagir(alvo_id, quem, emoji, ts)
+        serial_reacao = f"{'true' if reagiu_eu else 'false'}_{chat_w}_{e.Info.ID}"
+        if grupo:
+            serial_reacao += f"_{remetente_w}"
+        self.emitir("onreactionmessage", {"session": self.nome, "response": {
+            "id": serial_reacao,
+            "msgId": self.serial_do_alvo(chat_w, grupo, alvo_id, reagiu_eu,
+                                         key_de_mim, participante),
+            "reactionText": emoji, "text": emoji, "timestamp": ts}})
+        return True
+
+    def reagir(self, serial, emoji):
+        """Reage (ou, com emoji vazio, tira a reacao) a uma mensagem."""
+        if self.cliente is None or self.status != "CONNECTED":
+            return False
+        from neonize.utils import build_jid
+        de_mim, conversa, mid, autor = self.partes_do_id(serial)
+        autor_jid = self.eu if de_mim else (autor or conversa)
+        cu, _, csrv = conversa.partition("@")
+        au, _, asrv = autor_jid.partition("@")
+        try:
+            msg = self.cliente.build_reaction(
+                build_jid(cu, csrv), build_jid(au.split(":")[0], asrv), mid, emoji)
+            self.cliente.send_message(build_jid(cu, csrv), msg)
+        except Exception:
+            log.exception("reagir")
+            return False
+        self.bd.reagir(mid, "eu", emoji, int(time.time()))
+        return True
+
+    def reacoes_wpp(self, serial):
+        """Resposta de GET /reactions/<id>: agrupada por emoji, no formato do
+        WPPConnect (senders com senderUserJid e reactionText)."""
+        _, _, mid, _ = self.partes_do_id(serial)
+        eu = msgmap.jid_wpp(self.eu)
+        grupos, minha = {}, ""
+        for quem, emoji in self.bd.reacoes_de(mid):
+            jid = eu if quem == "eu" else quem
+            if quem == "eu":
+                minha = emoji
+            grupos.setdefault(emoji, []).append(
+                {"senderUserJid": jid, "reactionText": emoji})
+        itens = [{"aggregateEmoji": emoji, "hasReactionByMe": any(
+                      x["senderUserJid"] == eu for x in senders),
+                  "senders": senders} for emoji, senders in grupos.items()]
+        return {"reactionByMe": minha, "reactions": itens}
+
     # ------------------------------------------------------------ eventos
     def emitir(self, evento, dados):
         asyncio.run_coroutine_threadsafe(self.sio.emit(evento, dados), self.laco)
@@ -143,6 +217,8 @@ class Sessao:
             try:
                 o = e.Info.MessageSource
                 chat = jid_texto(o.Chat)
+                if self._reacao_recebida(chat, o, e):
+                    return
                 w = msgmap.montar(
                     conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
                     remetente=jid_texto(o.Sender), ts=e.Info.Timestamp,
@@ -1501,6 +1577,28 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={"isMuted": segundos != 0})
 
+    async def react_message(req):
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        feito = await em_thread(s.reagir, corpo["msgId"], corpo.get("reaction") or "")
+        if not feito:
+            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        return ok(status="success", response={"sendMsgResult": "ok"})
+
+    async def reactions(req):
+        s = sessao(req)
+        return ok(status="success", response=s.reacoes_wpp(req.match_info["id"]))
+
+    async def send_capabilities(req):
+        return ok(status="success", response={"compatible": True})
+
+    async def pinned_messages(req):
+        """Mensagens fixadas: ainda nao lidas pela ponte, entao nenhuma."""
+        return ok(status="success", response=[])
+
     async def mark_played(req):
         s = sessao(req)
         corpo = await req.json()
@@ -1525,6 +1623,10 @@ def criar_app(pasta, fixa=""):
     r.add_get("/api/{tok}/message-by-id/{msgid}", message_by_id)
     r.add_post("/api/{tok}/send-mute", send_mute)
     r.add_post("/api/{tok}/mark-played", mark_played)
+    r.add_post("/api/{tok}/react-message", react_message)
+    r.add_get("/api/{tok}/send-capabilities", send_capabilities)
+    r.add_post("/api/{tok}/pinned-messages", pinned_messages)
+    r.add_get("/api/{tok}/reactions/{id}", reactions)
     r.add_post("/api/{tok}/delete-message", delete_message)
     async def recuperar_estado(req):
         s = sessao(req)

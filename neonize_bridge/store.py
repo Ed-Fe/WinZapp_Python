@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
     raw BLOB, PRIMARY KEY(chat, id));
 CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
+CREATE TABLE IF NOT EXISTS reacoes(
+    msg TEXT NOT NULL, quem TEXT NOT NULL, emoji TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, quem));
 """
 
 CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
@@ -132,6 +135,23 @@ class Armazem:
             if self.mudar_mensagem(alvo, type="revoked", body=""):
                 feitas += 1
         return feitas
+
+    def reagir(self, id_msg, quem, emoji, ts=0):
+        """Guarda a reacao de `quem` a uma mensagem; emoji vazio tira a reacao."""
+        with self._trava:
+            if emoji:
+                self._bd.execute(
+                    "INSERT OR REPLACE INTO reacoes(msg, quem, emoji, ts) VALUES (?,?,?,?)",
+                    (id_msg, quem, emoji, ts))
+            else:
+                self._bd.execute("DELETE FROM reacoes WHERE msg=? AND quem=?", (id_msg, quem))
+            self._bd.commit()
+
+    def reacoes_de(self, id_msg):
+        """[(quem, emoji)] das reacoes a uma mensagem, da mais antiga a mais nova."""
+        with self._trava:
+            return [(r["quem"], r["emoji"]) for r in self._bd.execute(
+                "SELECT quem, emoji FROM reacoes WHERE msg=? ORDER BY ts, rowid", (id_msg,))]
 
     def apagar_mensagem(self, id_msg):
         with self._trava:

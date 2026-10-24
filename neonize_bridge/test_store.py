@@ -72,3 +72,14 @@ def test_aplicar_revogacoes_poe_a_original_como_apagada(tmp_path):
     assert a.aplicar_revogacoes() == 1
     original = a.mensagem_wpp("ORIG")
     assert original["type"] == "revoked" and original["body"] == ""
+
+
+def test_reacoes_trocam_e_somem(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.reagir("m1", "eu", "A", 1)
+    a.reagir("m1", "5551@c.us", "B", 2)
+    a.reagir("m1", "eu", "C", 3)                 # trocou a propria reacao
+    assert dict(a.reacoes_de("m1")) == {"eu": "C", "5551@c.us": "B"}
+    a.reagir("m1", "eu", "", 4)                  # tirou
+    assert a.reacoes_de("m1") == [("5551@c.us", "B")]
+    assert a.reacoes_de("outra") == []

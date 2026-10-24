@@ -133,6 +133,19 @@ def _campo(msg):
     return ""
 
 
+def reacao(mensagem):
+    """(id da mensagem alvo, emoji, key.fromMe, participante) de uma mensagem
+    de reacao, ou None se a mensagem nao e uma reacao. Emoji vazio = reacao
+    tirada. `fromMe` e do ponto de vista de quem reagiu."""
+    interna = desembrulhar(mensagem)
+    if _campo(interna) != "reactionMessage":
+        return None
+    r = interna.reactionMessage
+    if not r.key.ID:
+        return None
+    return r.key.ID, r.text, bool(r.key.fromMe), jid_wpp(r.key.participant)
+
+
 def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
            mensagem, nome_de_quem: str = ""):
     """Objeto no formato WPPConnect, ou None se for so controle/reacao."""

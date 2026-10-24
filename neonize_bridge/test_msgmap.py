@@ -71,3 +71,17 @@ def test_participante_citado():
     assert msgmap.participante_citado({"fromMe": True}, "eu@s.whatsapp.net") == "eu@s.whatsapp.net"
     assert msgmap.participante_citado({"author": "5@c.us"}, "x") == "5@s.whatsapp.net"
     assert msgmap.participante_citado({"from": "9@lid"}, "x") == "9@lid"
+
+
+def test_reacao_e_reconhecida_e_nao_vira_mensagem():
+    msg = Message()
+    msg.reactionMessage.key.ID = "ALVO"
+    msg.reactionMessage.key.fromMe = True
+    msg.reactionMessage.key.participant = "5551:3@s.whatsapp.net"
+    msg.reactionMessage.text = "\U0001F44D"
+    assert msgmap.reacao(msg) == ("ALVO", "\U0001F44D", True, "5551@c.us")
+    assert msgmap.montar(conversa="1@s.whatsapp.net", de_mim=False, id="R",
+                         remetente="1@s.whatsapp.net", ts=1, mensagem=msg) is None
+    msg.reactionMessage.text = ""
+    assert msgmap.reacao(msg)[1] == ""          # reacao tirada
+    assert msgmap.reacao(Message(conversation="oi")) is None
