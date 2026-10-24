@@ -207,6 +207,7 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
     conversa_w = jid_wpp(conversa)
     remetente_w = jid_wpp(remetente)
     grupo = conversa_w.endswith("@g.us")
+    status = conversa_w == "status@broadcast"      # o autor e quem publicou
     serial = f"{'true' if de_mim else 'false'}_{conversa_w}_{id}"
     if grupo:
         serial += f"_{remetente_w}"
@@ -214,14 +215,14 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
         "id": {"fromMe": de_mim, "remote": conversa_w, "id": id,
                "_serialized": serial},
         "fromMe": de_mim,
-        "from": "" if de_mim else (remetente_w if grupo else conversa_w),
+        "from": "" if de_mim else (remetente_w if (grupo or status) else conversa_w),
         "to": conversa_w,
         "t": segundos(ts), "timestamp": segundos(ts),
         "isStatus": conversa_w == "status@broadcast",
         "notifyName": nome_de_quem,
         "type": "chat", "body": "",
     }
-    if grupo and not de_mim:
+    if (grupo or status) and not de_mim:
         saida["author"] = remetente_w
     if campo == "conversation":
         saida["body"] = interna.conversation
@@ -289,3 +290,12 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
         saida["quotedStanzaID"] = ctx.stanzaID
         saida["quotedParticipant"] = jid_wpp(ctx.participant)
     return saida
+
+
+def cor_argb(texto, padrao=0xFF1B8755):
+    """'#25D366' -> 0xFF25D366 (cor de fundo do status de texto)."""
+    t = (texto or "").lstrip("#")
+    try:
+        return 0xFF000000 | int(t, 16) if len(t) == 6 else padrao
+    except ValueError:
+        return padrao

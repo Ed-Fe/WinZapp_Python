@@ -140,6 +140,39 @@ class Sessao:
             "reactionText": emoji, "text": emoji, "timestamp": ts}})
         return True
 
+    # --------------------------------------------------------------- status
+    def status_wpp(self):
+        """Resposta de GET /statuses: os status das ultimas 24 h guardados,
+        os meus e os dos contatos agrupados por quem publicou."""
+        limite = time.time() - 86400
+        meus, por_autor = [], {}
+        for w in self.bd.mensagens("status@broadcast", 1000):
+            if w["t"] < limite or w.get("type") in ("revoked", "protocol"):
+                continue
+            if w.get("fromMe"):
+                meus.append(w)
+                continue
+            autor = w.get("author") or w.get("from")
+            if autor and autor != "status@broadcast":
+                por_autor.setdefault(autor, []).append(w)
+        return {"myStatus": meus, "myStatusReady": True,
+                "contacts": [{"jid": a, "msgs": ms} for a, ms in por_autor.items()]}
+
+    def apagar_status(self, id_status):
+        """Apaga um status meu para todos."""
+        if self.cliente is None or self.status != "CONNECTED":
+            return False
+        from neonize.utils import build_jid
+        eu_u, _, eu_srv = self.eu.partition("@")
+        try:
+            self.cliente.revoke_message(build_jid("status", "broadcast"),
+                                        build_jid(eu_u.split(":")[0], eu_srv), id_status)
+        except Exception:
+            log.exception("apagar status")
+            return False
+        self.bd.mudar_mensagem(id_status, type="revoked", body="")
+        return True
+
     # -------------------------------------------------------------- fixadas
     def _fixacao_recebida(self, chat, e):
         """True se a mensagem era o aviso de fixar ou soltar uma mensagem."""
@@ -1647,6 +1680,86 @@ def criar_app(pasta, fixa=""):
             return web.json_response({"status": "error", "message": str(erro)}, status=500)
         return guardar_enviada(s, destino, resp)
 
+    async def publicar_status(req, montar_e_enviar):
+        """Publica um status: `montar_e_enviar(s, destino, corpo)` devolve o envio."""
+        s = sessao(req)
+        corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        destino = destino_de("status@broadcast")
+        try:
+            resp = await em_thread(montar_e_enviar, s, destino, corpo)
+        except Exception as falha:
+            log.exception("publicar status")
+            return web.json_response({"status": "error", "message": str(falha)}, status=500)
+        chat = jid_texto(destino)
+        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
+                          ts=resp.Timestamp or time.time(), mensagem=resp.Message)
+        serial = f"true_status@broadcast_{resp.ID}"
+        if w is not None:
+            s.bd.mensagem(chat, w, msgmap.ficha_midia(resp.Message))
+            serial = w["id"]["_serialized"]
+        # o app confere sendMsgResult.messageSendResult de cada item
+        return ok(status="success", response=[{
+            "id": serial, "ack": 1, "sendMsgResult": {"messageSendResult": "OK"}}])
+
+    def arquivo_do_corpo(corpo):
+        """Bytes do campo path (data URI base64 ou caminho de arquivo)."""
+        import base64 as b64
+        caminho = corpo.get("path") or ""
+        if caminho.startswith("data:"):
+            return b64.b64decode(caminho.split(",", 1)[-1])
+        with open(caminho, "rb") as f:
+            return f.read()
+
+    def status_de_texto(s, destino, corpo):
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ExtendedTextMessage, Message
+        opcoes = corpo.get("options") or {}
+        return s.cliente.send_message(destino, Message(extendedTextMessage=ExtendedTextMessage(
+            text=corpo["text"], textArgb=0xFFFFFFFF,
+            backgroundArgb=msgmap.cor_argb(opcoes.get("backgroundColor")),
+            font=int(opcoes.get("font") or 0))))
+
+    def status_de_imagem(s, destino, corpo):
+        return enviar_midia(s, destino, "image", arquivo_do_corpo(corpo),
+                            corpo.get("caption") or "", "", "", False)
+
+    def status_de_video(s, destino, corpo):
+        return enviar_midia(s, destino, "video", arquivo_do_corpo(corpo),
+                            corpo.get("caption") or "", "", "", False)
+
+    def status_de_voz(s, destino, corpo):
+        import base64 as b64
+        dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
+        return enviar_midia(s, destino, "audio", dados, "", "", "", True)
+
+    async def send_text_storie(req):
+        return await publicar_status(req, status_de_texto)
+
+    async def send_image_storie(req):
+        return await publicar_status(req, status_de_imagem)
+
+    async def send_video_storie(req):
+        return await publicar_status(req, status_de_video)
+
+    async def send_status_voice(req):
+        return await publicar_status(req, status_de_voz)
+
+    async def statuses(req):
+        return ok(status="success", response=sessao(req).status_wpp())
+
+    async def delete_status(req):
+        s = sessao(req)
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        feito = await em_thread(s.apagar_status, req.match_info["id"])
+        if not feito:
+            return web.json_response({"status": "error", "code": "status_delete_failed"},
+                                     status=500)
+        return ok(status="success")
+
     def jid_de_texto(texto):
         from neonize.utils import build_jid
         u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
@@ -1768,6 +1881,12 @@ def criar_app(pasta, fixa=""):
     async def send_mentioned(req):
         return await texto_com_contexto(req, True)
 
+    r.add_post("/api/{tok}/send-text-storie", send_text_storie)
+    r.add_post("/api/{tok}/send-image-storie", send_image_storie)
+    r.add_post("/api/{tok}/send-video-storie", send_video_storie)
+    r.add_post("/api/{tok}/send-status-voice-base64", send_status_voice)
+    r.add_get("/api/{tok}/statuses", statuses)
+    r.add_post("/api/{tok}/status/{id}/delete", delete_status)
     r.add_post("/api/{tok}/send-reply", send_reply)
     r.add_post("/api/{tok}/send-mentioned", send_mentioned)
     r.add_post("/api/{tok}/send-file", send_file)

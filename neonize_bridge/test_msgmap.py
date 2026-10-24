@@ -139,3 +139,19 @@ def test_aviso_de_fixar_e_soltar_mensagem():
     msg.pinInChatMessage.type = PinInChatMessage.UNPIN_FOR_ALL
     assert msgmap.fixacao(msg)[1] is False
     assert msgmap.fixacao(Message(conversation="oi")) is None
+
+
+def test_status_leva_quem_publicou_como_origem_e_autor():
+    m = msgmap.montar(conversa="status@broadcast", de_mim=False, id="S",
+                      remetente="5551:7@s.whatsapp.net", ts=5,
+                      mensagem=Message(conversation="bom dia"))
+    assert m["isStatus"] and m["from"] == "5551@c.us" and m["author"] == "5551@c.us"
+    meu = msgmap.montar(conversa="status@broadcast", de_mim=True, id="T",
+                        remetente="1@s.whatsapp.net", ts=5,
+                        mensagem=Message(conversation="oi"))
+    assert meu["fromMe"] and meu["from"] == ""
+
+
+def test_cor_do_status():
+    assert msgmap.cor_argb("#25D366") == 0xFF25D366
+    assert msgmap.cor_argb("lixo") == 0xFF1B8755 and msgmap.cor_argb(None) == 0xFF1B8755
