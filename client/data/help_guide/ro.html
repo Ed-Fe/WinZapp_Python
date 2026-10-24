@@ -836,7 +836,7 @@
   <tr><td class="field-name">AI online: transcrieri și descrieri</td><td>Vezi secțiunea Transcriere și descriere.</td></tr>
   <tr><td class="field-name">Transcriere locală</td><td>Vezi secțiunea Transcriere și descriere.</td></tr>
   <tr><td class="field-name">Setări WhatsApp</td><td>Confidențialitate și Profil: vezi secțiunea Setări WhatsApp.</td></tr>
-  <tr><td class="field-name">Conexiune</td><td>Folosește API personalizat (server la distanță): adresa serverului, adresa WebSocket, portul și cheia API.</td></tr>
+  <tr><td class="field-name">Conexiune</td><td>Motor de conectare: WPPConnect (cel implicit), Neonize (experimental: se conectează la WhatsApp fără browser, printr-o punte locală pe care WinZapp o pornește singur) sau server personalizat (adresa serverului, adresa WebSocket, portul și cheia API). Schimbarea motorului are efect doar după repornirea WinZapp; întrebarea apare și la prima pornire. Pentru a folosi Neonize, rulează mai întâi neonize_bridge/preparar.py, așa cum explică README-ul din acel folder.</td></tr>
 </table>
 
 <h3>Exportul și importul setărilor</h3>
@@ -1272,6 +1272,7 @@
 <p class="lead">Fiecare alfa nou care aduce funcții este adăugat în ghid. Această listă arată până la ce alfa este complet ghidul și ce a intrat în fiecare rundă.</p>
 <table class="field-table">
   <tr><th>Alfa</th><th>Ce a intrat în ghid</th></tr>
+  <tr><td class="field-name">Nelansat încă</td><td>Motor de conectare Neonize (experimental) în Setări, Conexiune și la prima pornire.</td></tr>
   <tr><td class="field-name">Nelansat încă</td><td>Actualizarea WinZapp sau a WPPConnect: instalarea și compilarea rulează cu prioritate mai mică, ca computerul și cititorul de ecran să nu se blocheze la jumătatea actualizării.</td></tr>
   <tr><td class="field-name">Nelansat încă</td><td>Indicatorii de scriere și de înregistrare audio din conversațiile private rămân disponibili când WhatsApp raportează contactul ca deconectat. Activitatea este afișată separat de vizibilitatea online și expiră când nu mai este actualizată. Activitatea aparține conversației în care are loc: grupurile și conversațiile private sunt urmărite separat.</td></tr>
   <tr><td class="field-name">Încă nepublicat</td><td>Mesaje fixate în grupuri: lista mesajelor fixate încarcă și fixările mai vechi decât ce păstrează WhatsApp Web în memorie.</td></tr>

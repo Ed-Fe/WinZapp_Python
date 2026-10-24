@@ -4,6 +4,8 @@ Esta versão traz as comunidades e uma janela de configurações reorganizada, a
 
 NOVIDADES
 
+- Novo motor de conexão, experimental: o Neonize conecta ao WhatsApp sem navegador, por uma ponte local. Escolha em Configurações, Conexão (ou na pergunta da primeira abertura) e reinicie o WinZapp; o WPPConnect continua sendo o padrão. Para preparar a ponte, execute neonize_bridge/preparar.py (veja o README da pasta).
+
 - Atualizar o WinZapp ou a WPPConnect não congela mais o computador inteiro no meio do processo. As etapas de instalação e compilação agora rodam com prioridade menor, e o leitor de tela continua falando sem engasgos.
 
 - O WPPConnect Server foi atualizado para a 2.10.63, com o WPPConnect 2.3.6 e o WA-JS 4.7.2. O navegador que o WinZapp controla agora é liberado por completo quando uma sessão fecha ou não consegue iniciar, uma sessão restaurada é reconhecida como conectada mais cedo e a desconexão do telefone só é informada depois de um desvínculo real.

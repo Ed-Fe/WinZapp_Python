@@ -836,7 +836,7 @@
   <tr><td class="field-name">IA online: Transcrições e Descrições</td><td>Veja a seção Transcrição e descrição.</td></tr>
   <tr><td class="field-name">Transcrição local</td><td>Veja a seção Transcrição e descrição.</td></tr>
   <tr><td class="field-name">Configurações do WhatsApp</td><td>Privacidade e Perfil: veja a seção Configurações do WhatsApp.</td></tr>
-  <tr><td class="field-name">Conexão</td><td>Usar API personalizada (servidor remoto): endereço do servidor, do WebSocket, porta e chave de API.</td></tr>
+  <tr><td class="field-name">Conexão</td><td>Motor de conexão: WPPConnect (o padrão), Neonize (experimental: conecta ao WhatsApp sem navegador, por uma ponte local que o WinZapp inicia sozinho) ou servidor personalizado (endereço do servidor, do WebSocket, porta e chave de API). Trocar o motor só vale depois de reiniciar o WinZapp; a primeira abertura também faz essa pergunta. Para usar o Neonize, execute antes o neonize_bridge/preparar.py, como explica o README da pasta.</td></tr>
 </table>
 
 <h3>Exportar e importar configurações</h3>
@@ -1272,6 +1272,7 @@
 <p class="lead">Cada alpha nova que traz funcionalidades é acrescentada ao guia. Esta lista mostra até que alpha o guia está completo e o que foi acrescentado em cada rodada.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>O que entrou no guia</th></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Motor de conexão Neonize (experimental) em Configurações, Conexão e na primeira abertura.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizar o WinZapp ou a WPPConnect: a instalação e a compilação rodam com prioridade menor, para o computador e o leitor de tela não travarem no meio da atualização.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Os indicadores de digitação e gravação de áudio em conversas individuais continuam disponíveis quando o WhatsApp informa que o contato está offline. A atividade aparece separada da visibilidade online e expira quando deixa de ser atualizada. A atividade pertence à conversa em que ocorre: grupos e conversas privadas são acompanhados separadamente.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Mensagens fixadas em grupos: a lista de mensagens fixadas também carrega fixações mais antigas do que o WhatsApp Web mantém na memória.</td></tr>

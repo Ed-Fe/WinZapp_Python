@@ -836,7 +836,7 @@
   <tr><td class="field-name">Online AI: Transcriptions and Descriptions</td><td>See the Transcription and description section.</td></tr>
   <tr><td class="field-name">Local Transcription</td><td>See the Transcription and description section.</td></tr>
   <tr><td class="field-name">WhatsApp settings</td><td>Privacy and Profile: see the WhatsApp settings section.</td></tr>
-  <tr><td class="field-name">Connection</td><td>Use custom API (remote server): server address, WebSocket address, port and API key.</td></tr>
+  <tr><td class="field-name">Connection</td><td>Connection engine: WPPConnect (the default), Neonize (experimental: connects to WhatsApp without a browser, through a local bridge that WinZapp starts by itself) or custom server (server address, WebSocket address, port and API key). Changing the engine only takes effect after restarting WinZapp; the first launch also asks this question. To use Neonize, first run neonize_bridge/preparar.py, as the README in that folder explains.</td></tr>
 </table>
 
 <h3>Export and import settings</h3>
@@ -1272,6 +1272,7 @@
 <p class="lead">Every new alpha that brings features is added to the guide. This list shows up to which alpha the guide is complete and what was added in each round.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
+  <tr><td class="field-name">Not yet released</td><td>Neonize connection engine (experimental) in Settings, Connection and on the first launch.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Updating WinZapp or WPPConnect: installation and build run at lower priority, so the computer and the screen reader do not freeze half-way through the update.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Typing and voice-recording indicators in private chats remain available when WhatsApp reports the contact as offline. Activity is shown separately from online visibility and expires when it stops being refreshed. Activity belongs to the conversation where it occurs: groups and private chats are tracked separately.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Pinned messages in groups: the list of pinned messages also loads pins older than what WhatsApp Web keeps in memory.</td></tr>
