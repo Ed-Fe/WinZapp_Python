@@ -23,7 +23,8 @@ def _bridge(tmp_path, with_python=True):
 
 
 def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
-            killed=None, proc=None, my_pid=100):
+            killed=None, proc=None, my_pid=100, created=lambda pid: f"t{pid}",
+            rotate=lambda path: False):
     spawned = [] if spawned is None else spawned
     killed = [] if killed is None else killed
 
@@ -34,7 +35,7 @@ def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
     clock = iter(range(0, 10_000))
     return nb.NeonizeBridge(
         bridge, 6300, is_open=lambda port: port_open() if callable(port_open) else port_open,
-        alive=alive, start_process=start_process, kill=killed.append,
+        alive=alive, created=created, rotate=rotate, start_process=start_process, kill=killed.append,
         sleep=lambda s: None, clock=lambda: next(clock), my_pid=my_pid)
 
 
@@ -140,3 +141,71 @@ def test_the_secret_is_read_from_the_bridge_data_folder(tmp_path):
 
 def test_no_secret_file_means_an_empty_secret(tmp_path):
     assert nb.read_secret(str(tmp_path)) == ""
+
+
+def test_the_stop_kills_only_the_process_that_was_started(tmp_path):
+    bridge, killed = _bridge(tmp_path), []
+    opened = iter([False, True])
+    handle = _handle(bridge, port_open=lambda: next(opened, True), alive=lambda pid: True,
+                     killed=killed, proc=_Proc(pid=900), created=lambda pid: "t1")
+    handle.start()
+    assert open(handle._pid_file, encoding="utf-8").read().split() == ["900", "t1"]
+    assert handle.stop() is True and killed == [900]
+
+
+def test_a_reused_pid_is_not_killed(tmp_path):
+    bridge, killed = _bridge(tmp_path), []
+    opened = iter([False, True])
+    stamps = iter(["t1", "t2"])                  # at spawn, then at stop
+    handle = _handle(bridge, port_open=lambda: next(opened, True), alive=lambda pid: True,
+                     killed=killed, proc=_Proc(pid=900), created=lambda pid: next(stamps))
+    handle.start()
+    assert handle.stop() is False and killed == []
+    assert not os.path.exists(handle._pid_file)  # stale: it named another program
+
+
+def test_an_unverifiable_pid_is_left_alone(tmp_path):
+    bridge, killed = _bridge(tmp_path), []
+    handle = _handle(bridge, alive=lambda pid: True, killed=killed, my_pid=100)
+    os.makedirs(nb.run_dir(bridge))
+    with open(handle._pid_file, "w", encoding="utf-8") as stream:
+        stream.write("900")                      # written without a creation time
+    assert handle.stop() is False and killed == []
+
+    with open(handle._pid_file, "w", encoding="utf-8") as stream:
+        stream.write("900\nt1")
+    unreadable = _handle(bridge, alive=lambda pid: True, killed=killed, created=lambda pid: "")
+    assert unreadable.stop() is False and killed == []
+    assert os.path.exists(handle._pid_file)      # not proven stale, kept
+
+
+def test_the_output_file_is_rotated_when_it_is_too_big():
+    moved = []
+    assert nb.rotate_output("o.log", 100, getsize=lambda p: 101,
+                            replace=lambda a, b: moved.append((a, b))) is True
+    assert moved == [("o.log", "o.log.1")]
+
+
+def test_a_small_output_file_is_kept():
+    moved = []
+    assert nb.rotate_output("o.log", 100, getsize=lambda p: 100,
+                            replace=lambda a, b: moved.append((a, b))) is False
+    assert moved == []
+
+
+def test_rotation_failures_never_stop_the_start():
+    def missing(path):
+        raise FileNotFoundError(path)
+
+    def locked(a, b):
+        raise PermissionError(b)
+
+    assert nb.rotate_output("o.log", getsize=missing) is False
+    assert nb.rotate_output("o.log", 1, getsize=lambda p: 2, replace=locked) is False
+
+
+def test_starting_the_bridge_rotates_its_output_first(tmp_path):
+    rotated = []
+    handle = _handle(_bridge(tmp_path), proc=_Proc(pid=900), rotate=rotated.append)
+    handle.start()
+    assert rotated == [os.path.join(nb.run_dir(handle.bridge), nb.OUTPUT_FILE)]
