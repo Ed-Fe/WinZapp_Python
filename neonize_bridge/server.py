@@ -23,6 +23,7 @@ from aiohttp import web
 import canais
 import administracao
 import chamadas
+import entradas
 import etiquetas
 import comunidades
 import contatos
@@ -504,7 +505,7 @@ class Sessao:
                 log.exception("get_me")
             self.urlcode = None
             self.status = "CONNECTED"
-            log.info("conectado como %s", self.eu)
+            log.info("conectado")
             if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
                 self.emitir("session-logged", {"session": self.nome, "status": True})
             threading.Thread(target=self._carregar_nomes, daemon=True).start()
@@ -1310,6 +1311,8 @@ def criar_app(pasta, fixa=""):
     def sessao(req):
         tok = req.match_info["tok"]
         nome = estado["fixa"] or tok.split(":", 1)[0]
+        if not entradas.nome_de_sessao_valido(nome):
+            raise web.HTTPBadRequest(reason="invalid session name")
         s = estado["sessoes"].get(nome)
         if s is None:
             s = estado["sessoes"][nome] = Sessao(
@@ -1728,13 +1731,8 @@ def criar_app(pasta, fixa=""):
             "id": serial, "ack": 1, "sendMsgResult": {"messageSendResult": "OK"}}])
 
     def arquivo_do_corpo(corpo):
-        """Bytes do campo path (data URI base64 ou caminho de arquivo)."""
-        import base64 as b64
-        caminho = corpo.get("path") or ""
-        if caminho.startswith("data:"):
-            return b64.b64decode(caminho.split(",", 1)[-1])
-        with open(caminho, "rb") as f:
-            return f.read()
+        """Bytes do campo path (base64, nunca um caminho do disco)."""
+        return entradas.bytes_do_corpo(corpo)
 
     def status_de_texto(s, destino, corpo):
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ExtendedTextMessage, Message
