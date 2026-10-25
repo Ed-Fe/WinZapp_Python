@@ -28,7 +28,7 @@ from aiohttp import web
 log = logging.getLogger("ponte")
 
 PROTOCOLO = 1
-STATUS_CONHECIDOS = ("CLOSED", "INITIALIZING", "QRCODE", "CONNECTED")
+STATUS_CONHECIDOS = ("CLOSED", "INITIALIZING", "QRCODE", "CONNECTED", "notLogged")
 ARQUIVO_DA_SESSAO = "sessao.db"
 
 
@@ -103,12 +103,15 @@ def resposta_qrcode(iniciada, status, urlcode, data_url_do_qr):
     return "json", {"status": status, "message": "QRCode is not available..."}
 
 
-def resposta_reconexao(status, conectado):
+def resposta_reconexao(status, thread_viva):
     """POST reconnect-socket-stream: (http, corpo). O cliente usa isto como um
-    cutucao: 200 diz que a conexao com o WhatsApp esta de pe; um erro, tres vezes
-    seguidas, o leva a reiniciar a sessao. O whatsmeow reconecta sozinho, entao
-    aqui nao ha o que forcar: so se informa o estado real."""
-    if status == "CONNECTED" and conectado:
+    cutucao: 200 diz que a sessao esta de pe; um erro, tres vezes seguidas, o
+    leva a reiniciar a sessao (close + start). O whatsmeow reconecta sozinho,
+    entao aqui nao ha o que forcar: so se diz se ha sessao viva. Perguntar ao
+    socket (`is_connected`) respondia 400 durante uma reconexao normal e fazia o
+    cliente derrubar uma sessao que ia se recuperar. Como a rota real, so recusa
+    quando nao ha nada de pe (a pagina morta do WPPConnect)."""
+    if thread_viva and status not in ("CLOSED", "notLogged"):
         return 200, {"status": "success", "response": {"ok": True}}
     return 400, {"status": "error", "message": "The WhatsApp session is not active."}
 
@@ -145,7 +148,8 @@ def registrar(r, *, sessao, ok, estado, pasta, marcar_ativa, qr_data_url):
         for nome in nomes:
             # sessao() so le match_info["tok"]: cria (ou acha) a conta pelo nome.
             s = sessao(SimpleNamespace(match_info={"tok": nome}))
-            s.iniciar()
+            # iniciar() pode esperar a thread antiga: fora do laco do aiohttp
+            await asyncio.get_running_loop().run_in_executor(None, s.iniciar)
             marcar_ativa(nome, True)
         return web.json_response(
             {"status": "success", "message": "Starting all sessions"}, status=201)
@@ -159,14 +163,8 @@ def registrar(r, *, sessao, ok, estado, pasta, marcar_ativa, qr_data_url):
 
     async def reconnect_socket_stream(req):
         s = sessao(req)
-        conectado = False
-        if s.status == "CONNECTED" and s.cliente is not None:
-            try:
-                conectado = bool(await asyncio.get_running_loop().run_in_executor(
-                    None, lambda: s.cliente.is_connected))
-            except Exception:
-                log.exception("reconnect-socket-stream")
-        http, corpo = resposta_reconexao(s.status, conectado)
+        viva = bool(s.thread is not None and s.thread.is_alive())
+        http, corpo = resposta_reconexao(s.status, viva)
         return web.json_response(corpo, status=http)
 
     r.add_get("/winzapp/identity", winzapp_identity)
