@@ -106,3 +106,71 @@ def test_mensagens_fixadas_respeitam_o_prazo(tmp_path):
     assert [m["body"] for m in a.fixadas_de(["c", "d"], 200)] == ["m2", "m3"]
     a.fixar_mensagem("m2", "c", False)
     assert a.fixadas_de(["c"], 200) == []
+
+
+def test_ancora_desconhecida_nao_devolve_as_mais_novas(tmp_path):
+    """direction=before com um id que a ponte nao tem lia, no cliente, como
+    'pagina anterior' as mensagens mais novas, repetidas."""
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagens_em_lote([("111@lid", _msg(f"M{n}", 100 + n)) for n in range(1, 5)])
+    assert [m["body"] for m in a.mensagens("111@lid", 3, "M3")] == ["M1", "M2"]
+    assert a.mensagens("111@lid", 3, "ZZZ") == []
+
+
+def test_ancora_achada_sob_outro_endereco_da_conversa(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagens_em_lote([("111@lid", _msg("M1", 101)), ("111@lid", _msg("M2", 102))])
+    a.mensagens_em_lote([("55@s.whatsapp.net", _msg("M3", 103))])
+    # pedida so por um endereco, a ancora esta no outro: ainda acha o instante dela
+    assert [m["body"] for m in a.mensagens("55@s.whatsapp.net", 5, "M2")] == []
+    assert [m["body"] for m in a.mensagens(("55@s.whatsapp.net", "111@lid"), 5, "M3")] == ["M1", "M2"]
+
+
+def test_mensagens_junta_os_dois_enderecos_em_ordem(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.mensagens_em_lote([("111@lid", _msg("M1", 101)), ("55@s.whatsapp.net", _msg("M2", 102)),
+                         ("111@lid", _msg("M3", 103)), ("outra@lid", _msg("X", 104))])
+    assert [m["body"] for m in a.mensagens(["55@s.whatsapp.net", "111@lid"], 10)] == [
+        "M1", "M2", "M3"]
+    assert [m["body"] for m in a.mensagens("111@lid", 10)] == ["M1", "M3"]
+
+
+def test_para_resposta_poe_star_booleano_sempre(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    sem = _msg("M1", 1)
+    com = {**_msg("M2", 2), "star": True}
+    saida = a.para_resposta([sem, com])
+    assert [w["star"] for w in saida] == [False, True]
+    assert "star" not in sem                    # nao mexe nas guardadas
+
+
+def test_para_resposta_poe_ack_nas_minhas_a_partir_dos_recibos(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+
+    def minha(i):
+        return {**_msg(i, 1), "fromMe": True}
+    a.recibo("A", "5@c.us", "delivered", 5)
+    a.recibo("B", "5@c.us", "delivered", 5)
+    a.recibo("B", "5@c.us", "read", 6)
+    a.recibo("C", "5@c.us", "played", 7)
+    saida = {w["id"]["id"]: w for w in a.para_resposta(
+        [minha("A"), minha("B"), minha("C"), minha("D"), _msg("E", 1)])}
+    assert [saida[i]["ack"] for i in "ABCD"] == [2, 3, 4, 1]     # sem recibo: enviada
+    assert "ack" not in saida["E"]                               # recebida nao tem
+
+
+def test_ack_dos_recibos_ignora_etapa_desconhecida():
+    from store import ack_dos_recibos
+    assert ack_dos_recibos([]) == 1
+    assert ack_dos_recibos([("a", "sent", 1)]) == 1
+
+
+def test_copiar_estado_acompanha_a_conversa_sob_dois_enderecos(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.conversa("111@lid", archived=1, pinned=77, muted=9)
+    a.conversa("55@s.whatsapp.net", name="Ana")
+    a.copiar_estado("111@lid", "55@s.whatsapp.net")
+    par = {c["jid"]: c for c in a.conversas()}["55@s.whatsapp.net"]
+    assert (par["archived"], par["pinned"], par["muted"], par["name"]) == (1, 77, 9, "Ana")
+    a.copiar_estado("nao-existe", "55@s.whatsapp.net")          # origem ausente: nada muda
+    assert {c["jid"]: c for c in a.conversas()}["55@s.whatsapp.net"]["archived"] == 1
