@@ -24,6 +24,8 @@ import administracao
 import autenticacao
 import chamadas
 import ciclo_sessao
+import comentarios
+import comentarios_rotas
 import entradas
 import eventos_grupos
 import eventos_contatos
@@ -673,6 +675,8 @@ class Sessao(conversas_alias.AliasDeConversa, recibos_de_grupo.RecibosDeGrupo):
                 if self._reacao_recebida(chat, o, e):
                     return
                 if self._voto_recebido(o, e):
+                    return
+                if comentarios.receber(self, chat, o, e):    # comentario de aviso
                     return
                 if self._edicao_recebida(chat, o, e):
                     return
@@ -2212,6 +2216,7 @@ def criar_app(pasta, fixa=""):
     etiquetas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                         jid_texto=jid_texto)
     comunidades.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
+    comentarios_rotas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
     grupos_extra.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                            jid_texto=jid_texto, qr_data_url=qr_data_url)
     perfil.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
