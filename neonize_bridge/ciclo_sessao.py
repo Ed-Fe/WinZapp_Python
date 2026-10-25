@@ -21,10 +21,21 @@ CONNECTED = "CONNECTED"
 # que o cliente (connection_state.UNLINKED_STATES) le como "desvinculada" pela
 # consulta de estado; CLOSED o faria reiniciar a sessao e pedir um QR sem aviso.
 NOT_LOGGED = "notLogged"
+# Falha terminal (banimento, versao antiga, outro aparelho tomou a conexao).
+# Com CLOSED o health check do cliente (a cada 30 s) chamaria start-session sem
+# parar, e reconectar uma conta banida so piora. Qualquer outro texto que nao
+# seja CLOSED/DESTROYED/vazio nem um estado de desvinculo o cliente le como
+# "sessao em estado ativo": fica offline e nao reinicia sozinho
+# (main_window/connection.py::check_wa_connection_http). So um start-session
+# pedido de fora (ou o fim da falha) tira a sessao daqui.
+TERMINAL = "terminalFailure"
 
 # Estados em que a sessao foi encerrada: uma thread ainda viva ali esta so
 # terminando, e um novo start-session pode substitui-la.
-ENCERRADOS = (CLOSED, NOT_LOGGED)
+ENCERRADOS = (CLOSED, NOT_LOGGED, TERMINAL)
+
+# Os que um close-session do cliente nao apaga: o aviso continua valendo.
+PERMANENTES = (NOT_LOGGED, TERMINAL)
 
 # Quanto o start-session espera a thread antiga terminar depois do stop().
 PRAZO_DA_THREAD_ANTIGA = 10.0
@@ -75,7 +86,9 @@ def proximo_estado(status, degradada, evento):
         return status, degradada
     if evento == SAIU:
         return NOT_LOGGED, False
-    if evento in (FALHA_TERMINAL, FIM_DA_THREAD):
+    if evento == FALHA_TERMINAL:
+        return (status, degradada) if status in PERMANENTES else (TERMINAL, False)
+    if evento == FIM_DA_THREAD:
         return (status, degradada) if status in ENCERRADOS else (CLOSED, False)
     return status, degradada
 
@@ -100,13 +113,13 @@ class Ciclo:
 
     def encerrar(self, status=None):
         """Invalida a geracao atual: o que ela ainda disser e ignorado. Sem
-        `status`, vira CLOSED, menos uma conta desvinculada, que continua
-        desvinculada (o close-session que o cliente manda depois nao apaga o
-        aviso)."""
+        `status`, vira CLOSED, menos uma conta desvinculada ou com falha
+        terminal, que continuam como estao (o close-session que o cliente manda
+        depois nao apaga o aviso)."""
         with self._trava:
             self.geracao += 1
             if status is None:
-                status = NOT_LOGGED if self.status == NOT_LOGGED else CLOSED
+                status = self.status if self.status in PERMANENTES else CLOSED
             self.status = status
             self.degradada = False
 

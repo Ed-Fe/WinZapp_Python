@@ -47,6 +47,7 @@ def test_metricas_contam_as_sessoes_por_estado():
     assert 'winzapp_bridge_sessions{status="CONNECTED"} 2' in texto
     assert 'winzapp_bridge_sessions{status="QRCODE"} 1' in texto
     assert 'winzapp_bridge_sessions{status="CLOSED"} 0' in texto
+    assert 'winzapp_bridge_sessions{status="terminalFailure"} 0' in texto
     assert "winzapp_bridge_uptime_seconds 12\n" in texto
     assert texto.endswith("\n")
 
@@ -80,7 +81,7 @@ def test_reconexao_responde_200_com_a_sessao_viva_mesmo_reconectando():
     for status in ("CONNECTED", "INITIALIZING", "QRCODE"):
         assert administracao.resposta_reconexao(status, True) == ok
     for status, viva in (("CONNECTED", False), ("CLOSED", True), ("CLOSED", False),
-                         ("notLogged", True)):
+                         ("notLogged", True), ("terminalFailure", True)):
         http, corpo = administracao.resposta_reconexao(status, viva)
         assert http == 400 and corpo["status"] == "error"
 

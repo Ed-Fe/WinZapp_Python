@@ -25,10 +25,13 @@ from types import SimpleNamespace
 
 from aiohttp import web
 
+import ciclo_sessao
+
 log = logging.getLogger("ponte")
 
 PROTOCOLO = 1
-STATUS_CONHECIDOS = ("CLOSED", "INITIALIZING", "QRCODE", "CONNECTED", "notLogged")
+STATUS_CONHECIDOS = ("CLOSED", "INITIALIZING", "QRCODE", "CONNECTED", "notLogged",
+                     ciclo_sessao.TERMINAL)
 ARQUIVO_DA_SESSAO = "sessao.db"
 
 
@@ -117,7 +120,7 @@ def resposta_reconexao(status, thread_viva):
     socket (`is_connected`) respondia 400 durante uma reconexao normal e fazia o
     cliente derrubar uma sessao que ia se recuperar. Como a rota real, so recusa
     quando nao ha nada de pe (a pagina morta do WPPConnect)."""
-    if thread_viva and status not in ("CLOSED", "notLogged"):
+    if thread_viva and status not in ciclo_sessao.ENCERRADOS:
         return 200, {"status": "success", "response": {"ok": True}}
     return 400, {"status": "error", "message": "The WhatsApp session is not active."}
 
