@@ -102,6 +102,16 @@ def e_jpeg(dados: bytes) -> bool:
     return bytes(dados[:3]) == b"\xff\xd8\xff"
 
 
+def foto_de_perfil(dados: bytes) -> bytes:
+    """A foto no unico formato que o whatsmeow envia (JPEG). O cliente tambem
+    deixa escolher PNG (core/whatsapp_profile.py): converte, como na foto de
+    grupo. JPEG passa como veio; um arquivo que nao e imagem levanta excecao."""
+    if e_jpeg(dados):
+        return dados
+    from grupos_extra import foto_para_jpeg
+    return foto_para_jpeg(dados)
+
+
 def perfil_proprio(nome, recado, tem_foto) -> dict:
     """`{name, status, photo}` de `my-profile`: o que nao se leu vai como None
     (o cliente mostra o resto), e o texto vazio tambem e 'nao sei'."""
@@ -225,10 +235,13 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto):
             return erro("file is required", 400)
         if len(dados) > FOTO_MAXIMA:
             return erro("photo is too large", 413)
-        if not e_jpeg(dados):
-            return erro("only JPEG photos are accepted by the Neonize engine", 415)
         try:
-            await executar(s.cliente.set_profile_photo, dados)
+            jpeg = await executar(foto_de_perfil, dados)
+        except Exception as e:
+            log.info("set-profile-pic: imagem nao convertida (%s)", type(e).__name__)
+            return erro("unsupported image", 415)
+        try:
+            await executar(s.cliente.set_profile_photo, jpeg)
         except Exception as e:
             log.warning("set-profile-pic: %s", type(e).__name__)
             return erro(e)

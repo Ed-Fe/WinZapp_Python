@@ -24,6 +24,7 @@ import time
 from aiohttp import web
 
 import msgmap
+from grupos import formas_do_numero
 
 log = logging.getLogger("ponte")
 
@@ -49,6 +50,17 @@ def chave(jid) -> str:
     if "@" not in texto:
         texto += "@c.us"
     return msgmap.jid_wpp(texto)
+
+
+def chaves_equivalentes(k) -> list:
+    """A chave e, para um celular brasileiro (`@c.us`), a outra forma dele (com ou
+    sem o 9o digito). Um LID fica so como veio: os digitos dele nao sao telefone."""
+    usuario, _, servidor = str(k or "").partition("@")
+    if not k:
+        return []
+    if servidor != "c.us" or not usuario.isdigit():
+        return [k]
+    return [f"{u}@c.us" for u in formas_do_numero(usuario)]
 
 
 def chaves_da_pessoa(principal, alternativo="") -> list:
@@ -113,10 +125,15 @@ class Presencas:
     def ler(self, id_pessoa, agora):
         """O que se sabe de uma pessoa agora, ou None se nada vale mais:
         {"estado", "isOnline", "lastSeen"}. Digitar/gravar recente conta como
-        online (a pessoa esta com a conversa aberta)."""
-        k = chave(id_pessoa)
-        if not k:
-            return None
+        online (a pessoa esta com a conversa aberta). Um celular brasileiro
+        pode estar guardado com ou sem o 9o digito: tenta as duas formas."""
+        for k in chaves_equivalentes(chave(id_pessoa)):
+            dado = self._ler_chave(k, agora)
+            if dado is not None:
+                return dado
+        return None
+
+    def _ler_chave(self, k, agora):
         ativ = self._atividade.get((k, k))
         if ativ and agora - ativ[1] < VALIDADE_ATIVIDADE:
             return {"estado": ativ[0], "isOnline": True, "lastSeen": None}

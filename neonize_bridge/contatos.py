@@ -16,7 +16,8 @@ import time
 
 from aiohttp import web
 
-from grupos import usuario_de
+import msgmap
+from grupos import formas_do_numero, usuario_de
 
 log = logging.getLogger("ponte")
 
@@ -56,21 +57,89 @@ def alvo_de_contato(texto) -> str:
     return f"{usuario}@s.whatsapp.net" if len(usuario) >= _MINIMO_DIGITOS else ""
 
 
+_GRUPO = re.compile(r"^[\d-]+@g\.us$")
+
+
+def alvo_de_assinatura(texto) -> str:
+    """O que `subscribe-presence` recebeu -> 'usuario@servidor' do whatsmeow: uma
+    pessoa ou um grupo; '' para o resto (lista de transmissao, texto livre). Se
+    o WhatsApp aceita assinar um grupo quem diz e a resposta dele, nao a ponte."""
+    texto = str(texto or "").strip()
+    return texto if _GRUPO.match(texto) else alvo_de_contato(texto)
+
+
 def primeiro_destino(valor):
     """O campo `phone` chega como texto ou como lista com um destino."""
     return valor[0] if isinstance(valor, list) and valor else valor
 
 
-def formas_do_numero(digitos: str) -> list:
-    """O numero e, para um celular brasileiro, tambem a outra forma dele (com ou
-    sem o 9o digito): o WhatsApp so conhece uma das duas."""
-    formas = [digitos]
-    if digitos.startswith("55"):
-        if len(digitos) == 13 and digitos[4] == "9":
-            formas.append(digitos[:4] + digitos[5:])
-        elif len(digitos) == 12 and digitos[4] in "6789":
-            formas.append(digitos[:4] + "9" + digitos[4:])
-    return formas
+def jids_equivalentes(jid: str) -> list:
+    """O JID e, para um celular brasileiro (`@s.whatsapp.net`), a outra forma dele
+    (com ou sem o 9o digito). A forma pedida vem por ultimo, porque
+    `Armazem.contato_de` deixa valer o ultimo que achar. Um LID nunca ganha
+    forma alternativa: os digitos dele nao sao um telefone."""
+    usuario, _, servidor = str(jid or "").partition("@")
+    usuario = usuario.split(":")[0]
+    if not usuario:
+        return []
+    if servidor not in ("s.whatsapp.net", "c.us") or not usuario.isdigit():
+        return [jid]
+    formas = formas_do_numero(usuario)
+    return [f"{u}@s.whatsapp.net" for u in reversed(formas)]
+
+
+def entrada_de_bloqueio(jid: str, fone_jid: str = "") -> dict:
+    """Uma linha de `blocklist`. O cliente trata `phone` como digitos de TELEFONE
+    (main_window/chat_actions.py::is_contact_blocked), entao um bloqueio guardado
+    por LID sai com os digitos do numero (`fone_jid`, de `get_pn_from_lid`); o
+    LID fica em `id`. Sem o numero (LID ainda nao mapeado) saem os digitos do
+    LID, que ao menos casam com a conversa do proprio LID."""
+    usuario, _, servidor = str(jid or "").partition("@")
+    digitos = usuario.split(":")[0]
+    if servidor == "lid" and fone_jid and not fone_jid.endswith("@lid"):
+        digitos = usuario_de(fone_jid)
+    return {"phone": digitos, "id": {"_serialized": msgmap.jid_wpp(jid)}}
+
+
+def resposta_pn_lid(fone: str, lid: str, achado: dict) -> dict:
+    """O corpo de `contact/pn-lid/:x`. `phoneNumber` e `contact` sao os campos
+    que o cliente le (main_window/identity.py::resolve_lid_jids_via_api);
+    `phone` e `id` sao os de `resolve_self_lid`. `name` e so o nome salvo na
+    agenda, nunca o apelido publico (que vai em `pushname`)."""
+    numero = {"_serialized": msgmap.jid_wpp(fone)}
+    return {"lid": {"_serialized": lid}, "phone": numero, "id": numero,
+            "phoneNumber": numero,
+            "contact": {"name": achado.get("name") or None,
+                        "pushname": achado.get("pushname") or None}}
+
+
+def corpo_do_contato(jid: str, fone: str, achado: dict, nome_verificado: str = "") -> dict:
+    """O `response` de `contact/:phone`. `verifiedName`/`isBusiness` alimentam as
+    linhas "conta comercial" e "nome verificado" do cliente
+    (core/contact_identity.py); `isBusiness` e sempre booleano."""
+    nome = achado.get("name") or ""
+    apelido = achado.get("pushname") or ""
+    corpo = {"id": {"_serialized": msgmap.jid_wpp(fone or jid)},
+             "name": nome or apelido or None, "pushname": apelido or None,
+             "formattedName": nome or apelido or None,
+             "isMyContact": bool(nome), "isBusiness": bool(nome_verificado)}
+    if nome_verificado:
+        corpo["verifiedName"] = nome_verificado
+    if fone:
+        corpo["phoneNumber"] = {"_serialized": msgmap.jid_wpp(fone)}
+    return corpo
+
+
+def registro_da_agenda(contato: dict, id_wpp: dict, meus_jids) -> dict:
+    """Uma linha de `all-contacts`. O cliente ignora linhas sem `isMyContact` e
+    `syncToAddressbook` (core/phone_contacts.py): um nome na agenda e o que diz
+    que o contato continua salvo no celular. `meus_jids`: os ids da propria
+    conta (numero e LID) no formato do WhatsApp Web."""
+    nome = contato["name"] or None
+    return {"id": id_wpp, "name": nome, "pushname": contato["pushname"] or None,
+            "shortName": nome, "isMyContact": bool(nome),
+            "syncToAddressbook": bool(nome),
+            "isMe": id_wpp["_serialized"] in meus_jids}
 
 
 def achado_na_consulta(respostas):

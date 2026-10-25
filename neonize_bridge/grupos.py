@@ -22,6 +22,28 @@ def usuario_de(texto: str) -> str:
     return str(texto).split("@")[0].split(":")[0]
 
 
+def formas_do_numero(digitos: str) -> list:
+    """O numero e, para um celular brasileiro, tambem a outra forma dele (com ou
+    sem o 9o digito): o WhatsApp so conhece uma das duas."""
+    formas = [digitos]
+    if digitos.startswith("55"):
+        if len(digitos) == 13 and digitos[4] == "9":
+            formas.append(digitos[:4] + digitos[5:])
+        elif len(digitos) == 12 and digitos[4] in "6789":
+            formas.append(digitos[:4] + "9" + digitos[4:])
+    return formas
+
+
+def usuarios_do_pedido(texto) -> list:
+    """Os digitos pedidos e, para um numero brasileiro, a outra forma dele (com
+    ou sem o 9o digito). O `@lid` so vale por inteiro: os digitos dele nao sao
+    um telefone."""
+    usuario = usuario_de(texto)
+    if str(texto).endswith("@lid") or not usuario.isdigit():
+        return [usuario]
+    return formas_do_numero(usuario)
+
+
 def resultado_de_participantes(pedidos, participantes) -> dict:
     """{pedido: {"code": ...}} no formato do WPPConnect, um item por quem foi
     pedido (na chave que o cliente mandou).
@@ -37,7 +59,7 @@ def resultado_de_participantes(pedidos, participantes) -> dict:
                 por_usuario[u] = p
     saida = {}
     for pedido in pedidos:
-        p = por_usuario.get(usuario_de(pedido))
+        p = next((por_usuario[u] for u in usuarios_do_pedido(pedido) if u in por_usuario), None)
         if p is None:
             saida[pedido] = {"code": CODIGO_RECUSADO}
             continue
@@ -50,15 +72,28 @@ def resultado_de_participantes(pedidos, participantes) -> dict:
     return saida
 
 
-def pedido_de_entrada_pendente(erro: Exception) -> bool:
-    """O WhatsApp aceitou o pedido, mas um administrador precisa aprovar."""
-    texto = str(erro).lower()
-    return "approval" in texto or "request" in texto
+# Textos de erro do whatsmeow (errors de group.go) e do IQ do servidor. Casar
+# pedaco de palavra solta ("request", "participant") confundia um "bad-request"
+# com "pedido enviado": so entra aqui o que se sabe que quer dizer aquilo.
+_ENTRADA_PENDENTE = ("membership_approval_request", "membership approval",
+                     "pending approval", "approval required")
+_ENTRADA_JA_MEMBRO = ("already a participant", "already in that group",
+                      "already in the group", "returned status 409")
+_ENTRADA_LINK_RUIM = ("invite link is not valid", "invite link has been revoked")
 
 
-def ja_participa(erro: Exception) -> bool:
+def resultado_da_entrada(erro: Exception) -> str:
+    """O que um erro de `join_group_with_link` quer dizer: 'pendente' (um
+    administrador precisa aprovar), 'membro' (a conta ja esta no grupo), 'link'
+    (convite invalido ou revogado) ou 'falha' (qualquer outra coisa: nunca vira
+    sucesso)."""
     texto = str(erro).lower()
-    return "already" in texto or "participant" in texto
+    for resultado, marcas in (("pendente", _ENTRADA_PENDENTE),
+                              ("membro", _ENTRADA_JA_MEMBRO),
+                              ("link", _ENTRADA_LINK_RUIM)):
+        if any(m in texto for m in marcas):
+            return resultado
+    return "falha"
 
 
 def pedido_para_wpp(pedido, fone_do_lid="", nome="") -> dict:
@@ -197,13 +232,15 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
         try:
             await executar(s.cliente.join_group_with_link, codigo)
         except Exception as e:
-            if ja_participa(e):
+            resultado = resultado_da_entrada(e)
+            if resultado == "membro":
                 return erro("already a participant", 409)
-            if pedido_de_entrada_pendente(e):
-                pendente = True
-            else:
-                log.exception("join-code")
-                return erro(e)
+            if resultado == "link":
+                return erro("invalid or revoked invite link", 404)
+            if resultado != "pendente":
+                log.warning("join-code: %s", type(e).__name__)
+                return erro("could not join the group")
+            pendente = True
         return ok(status="success", response={"id": jid, "pendingApproval": pendente})
 
     async def convite(req, revogar):
@@ -229,11 +266,11 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
         if not conectada(s):
             return erro("Disconnected", 400)
         wid = req.match_info["wid"]
-        procurados = {usuario_de(wid)}
+        procurados = set(usuarios_do_pedido(wid))
         if wid.endswith("@lid"):
             try:
                 pn = await executar(s.cliente.get_pn_from_lid, jid_de_texto(wid))
-                procurados.add(pn.User)
+                procurados.update(usuarios_do_pedido(pn.User))
             except Exception:
                 pass
         try:

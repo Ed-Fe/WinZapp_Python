@@ -239,3 +239,20 @@ def test_rotas_respondem_da_memoria(monkeypatch):
 def test_sem_memoria_as_rotas_dizem_unsupported():
     assert _pegar(None, "/api/tok/last-seen/5511")[1]["presence"] == {"status": "unsupported"}
     assert _pegar(None, "/api/tok/chat-is-online/5511")[1]["response"] is False
+
+
+def test_ler_acha_a_pessoa_guardada_com_ou_sem_o_nono_digito():
+    memoria = presenca.Presencas()
+    memoria.definir_presenca(["551199990000@c.us"], True, None, 1000)       # sem o 9o digito
+    assert memoria.ler("5511999990000@c.us", 1001)["isOnline"] is True
+    memoria.definir_atividade("5511988880000@c.us", "5511988880000@c.us", "composing", 1000)
+    assert memoria.ler("551188880000", 1001)["estado"] == "composing"       # com o 9o digito guardado
+    assert memoria.ler("5511777770000", 1001) is None
+
+
+def test_chaves_equivalentes_nao_inventam_forma_para_lid_nem_fixo():
+    assert presenca.chaves_equivalentes("5511999990000@c.us") == [
+        "5511999990000@c.us", "551199990000@c.us"]
+    assert presenca.chaves_equivalentes("5511999990000@lid") == ["5511999990000@lid"]
+    assert presenca.chaves_equivalentes("551133334444@c.us") == ["551133334444@c.us"]
+    assert presenca.chaves_equivalentes("") == []
