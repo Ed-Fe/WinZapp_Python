@@ -41,3 +41,8 @@ def test_only_a_different_engine_asks_for_a_restart():
     assert not engines.needs_restart(engines.WPPCONNECT, engines.WPPCONNECT)
     assert engines.needs_restart(engines.WPPCONNECT, engines.NEONIZE)
     assert engines.needs_restart(engines.NEONIZE, engines.CUSTOM)
+
+
+def test_the_first_run_question_hides_neonize_without_a_bridge():
+    assert engines.first_run_engines(False) == (engines.WPPCONNECT, engines.CUSTOM)
+    assert engines.first_run_engines(True) == engines.ENGINES

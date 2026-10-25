@@ -34,13 +34,18 @@ def relabel(label, choice, hint, i18n):
 def ask_first_run(i18n):
     """The first-run question. Returns the chosen engine, or None if the user
     closed it without choosing."""
+    from core import neonize_bridge_process as bridge
+
+    offered = engines.first_run_engines(bridge.command(bridge.bridge_dir()) is not None)
     dialog = wx.SingleChoiceDialog(
         None, i18n.t("connection_engine_ask_message"),
-        i18n.t("connection_engine_ask_title"), labels(i18n))
+        i18n.t("connection_engine_ask_title"),
+        [i18n.t(engines.LABEL_KEYS[e]) for e in offered])
     dialog.SetSelection(0)
     try:
         if dialog.ShowModal() != wx.ID_OK:
             return None
-        return engines.engine_at(dialog.GetSelection())
+        selection = dialog.GetSelection()
+        return offered[selection] if 0 <= selection < len(offered) else engines.WPPCONNECT
     finally:
         dialog.Destroy()
