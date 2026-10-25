@@ -26,6 +26,7 @@ import chamadas
 import etiquetas
 import comunidades
 import grupos
+import grupos_extra
 import msgmap
 import negocio
 from store import Armazem
@@ -1868,6 +1869,8 @@ def criar_app(pasta, fixa=""):
     etiquetas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                         jid_texto=jid_texto)
     comunidades.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
+    grupos_extra.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
+                           jid_texto=jid_texto, qr_data_url=qr_data_url)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
