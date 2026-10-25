@@ -286,17 +286,21 @@ class Armazem:
                     (*chats, limite, limite, antes_de, quantidade)).fetchall()
         return [json.loads(r["data"]) for r in reversed(linhas)]
 
-    def para_resposta(self, mensagens):
+    def para_resposta(self, mensagens, ack_de=None):
         """Copias das mensagens no formato que get-messages e message-by-id
         devolvem: `star` sempre booleano (sem ele o cliente nunca reconcilia as
         estrelas locais) e, nas minhas, `ack` (1 enviada, 2 entregue, 3 lida,
         4 ouvida) vindo dos recibos guardados, no minimo 1: o cliente monta os
-        tiques so do `ack` e a sincronizacao troca o registro local pelo lido."""
+        tiques so do `ack` e a sincronizacao troca o registro local pelo lido.
+        `ack_de(mensagem)` (opcional) decide o ack das mensagens de grupo (todos
+        os membros, recibos_de_grupo.py); None = vale o dos recibos."""
         saida = []
         for w in mensagens:
             w = {**w, "star": bool(w.get("star"))}
             if w.get("fromMe"):
-                w["ack"] = ack_dos_recibos(self.recibos_de(w["id"]["id"]))
+                ack = ack_de(w) if ack_de else None
+                w["ack"] = ack if ack is not None else ack_dos_recibos(
+                    self.recibos_de(w["id"]["id"]))
             saida.append(w)
         return saida
 

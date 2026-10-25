@@ -141,6 +141,10 @@ def grupo_mudou(c, s, e, agora=None):
     evento: um segundo registro apagaria o primeiro), que chama esta funcao.
     Nao testado contra uma conta real."""
     try:
+        s.elenco_mudou(e)       # entradas e saidas, para o ack de grupo (recibos_de_grupo)
+    except Exception:
+        log.exception("membros do grupo")
+    try:
         itens = atualizacoes_do_evento(e, lambda j: id_de_pessoa(c, j))
         log.info("grupo %s mudou (%d item(ns))",
                  redigir(jid_texto(getattr(e, "JID", None))), len(itens))
@@ -165,6 +169,10 @@ def registrar_eventos(cli, s):
 
     @cli.event(nev.JoinedGroupEv)
     def _entrou_no_grupo(c, e):
+        try:
+            s.elenco_registrar(getattr(e, "GroupInfo", None))   # recibos_de_grupo
+        except Exception:
+            log.exception("membros do grupo")
         try:
             itens = atualizacoes_de_entrada(e)
             log.info("entrada em grupo (%d item(ns))", len(itens))

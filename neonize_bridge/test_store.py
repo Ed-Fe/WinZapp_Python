@@ -174,3 +174,15 @@ def test_copiar_estado_acompanha_a_conversa_sob_dois_enderecos(tmp_path):
     assert (par["archived"], par["pinned"], par["muted"], par["name"]) == (1, 77, 9, "Ana")
     a.copiar_estado("nao-existe", "55@s.whatsapp.net")          # origem ausente: nada muda
     assert {c["jid"]: c for c in a.conversas()}["55@s.whatsapp.net"]["archived"] == 1
+
+
+def test_para_resposta_deixa_o_ack_de_grupo_para_ack_de(tmp_path):
+    a = Armazem(str(tmp_path / "x.db"))
+    a.recibo("A", "5@c.us", "read", 6)
+
+    def minha(i):
+        return {**_msg(i, 1), "fromMe": True}
+    saida = a.para_resposta([minha("A"), minha("B")],
+                            ack_de=lambda w: 2 if w["id"]["id"] == "A" else None)
+    # "A" tem recibo de leitura, mas ack_de decidiu 2; "B" (None) usa os recibos
+    assert [w["ack"] for w in saida] == [2, 1]
