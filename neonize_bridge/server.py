@@ -34,6 +34,7 @@ import conversas_restantes
 import grupos
 import grupos_extra
 import msgmap
+import pareamento
 import negocio
 import perfil
 import presenca
@@ -789,6 +790,8 @@ class Sessao:
                         self.emitir("session-logged", {"session": self.nome,
                                                        "status": True})
                     return
+                info_do_erro = {"name": "LinkCodeError", "message": "falha ao gerar o codigo",
+                                "rateLimited": False}
                 for tentativa in range(5):
                     try:
                         cod = cli.PairPhone("".join(ch for ch in telefone if ch.isdigit()),
@@ -798,9 +801,11 @@ class Sessao:
                     except Exception as erro:
                         log.warning("codigo de pareamento, tentativa %d: %s",
                                     tentativa + 1, type(erro).__name__)
+                        info_do_erro = pareamento.erro_do_codigo(erro)
+                        if info_do_erro["rateLimited"]:
+                            break           # a quota e do numero: repetir a mantem viva
                         time.sleep(3)
-                self.emitir("phoneCodeError", {"session": self.nome,
-                                               "error": "falha ao gerar o codigo"})
+                self.emitir("phoneCodeError", {"session": self.nome, **info_do_erro})
             threading.Thread(target=_codigo, daemon=True).start()
 
         try:
