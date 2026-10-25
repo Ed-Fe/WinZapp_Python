@@ -24,6 +24,11 @@ import secrets
 from aiohttp import web
 
 ARQUIVO_DO_SEGREDO = "segredo"
+# Teto de um corpo lido de uma vez (JSON: voz e status em base64, campos de
+# texto). 100 MiB de midia em base64 ficam em ~134 MiB; sobra margem. O
+# send-file nao conta: le o multipart em blocos direto para o disco, e e por
+# la que passam os 2 GiB (documento) e 1 GiB (midia) que o cliente aceita.
+TAMANHO_MAXIMO_DO_CORPO = 160 * 1024**2
 HOSTS_PERMITIDOS = ("127.0.0.1", "localhost", "[::1]")
 ROTAS_ABERTAS = ("/healthz", "/winzapp/identity", "/api-docs", "/metrics")
 ROTAS_DE_ADMINISTRACAO = ("show-all-sessions", "start-all")
@@ -61,6 +66,12 @@ def credencial_valida(segredo: str, token) -> bool:
     if not (nome and separador and hash_recebido):
         return False
     return hmac.compare_digest(hash_recebido, token_da_sessao(segredo, nome))
+
+
+def nome_da_credencial(token) -> str:
+    """O nome da sessao no `<sessao>:<hash>`; so tem sentido depois de
+    `credencial_valida`."""
+    return str(token or "").partition(":")[0]
 
 
 def host_permitido(cabecalho) -> bool:

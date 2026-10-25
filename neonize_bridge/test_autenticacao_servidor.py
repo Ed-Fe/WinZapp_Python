@@ -43,3 +43,44 @@ async def test_nome_de_sessao_invalido_nao_gera_token(tmp_path):
         assert resposta.status == 400
     finally:
         await cliente.close()
+
+
+def test_o_app_nasce_com_o_teto_de_corpo_da_ponte(tmp_path):
+    app = server.criar_app(str(tmp_path))
+    assert app._client_max_size == aut.TAMANHO_MAXIMO_DO_CORPO
+    # abaixo dos 2 GiB de antes, mas acima de 100 MiB de midia em base64 (~134 MiB)
+    assert 134 * 1024**2 < aut.TAMANHO_MAXIMO_DO_CORPO < 2 * 1024**3
+
+
+@pytest.mark.asyncio
+async def test_multipart_em_blocos_passa_do_teto_e_json_grande_nao():
+    """O send-file le o multipart por blocos (`read_chunk`), que o
+    client_max_size nao conta; o corpo lido de uma vez (`req.json()`) conta."""
+    from aiohttp import FormData, web
+
+    async def enviar(req):
+        total = 0
+        leitor = await req.multipart()
+        while (parte := await leitor.next()) is not None:
+            while bloco := await parte.read_chunk(1 << 16):
+                total += len(bloco)
+        return web.json_response({"bytes": total})
+
+    async def json_(req):
+        return web.json_response(await req.json())
+
+    app = web.Application(client_max_size=1024)
+    app.router.add_post("/enviar", enviar)
+    app.router.add_post("/json", json_)
+    cliente = TestClient(TestServer(app))
+    await cliente.start_server()
+    try:
+        form = FormData()
+        form.add_field("file", b"x" * 200_000, filename="a.bin",
+                       content_type="application/octet-stream")
+        resposta = await cliente.post("/enviar", data=form)
+        assert resposta.status == 200
+        assert (await resposta.json())["bytes"] == 200_000
+        assert (await cliente.post("/json", json={"x": "y" * 5000})).status == 413
+    finally:
+        await cliente.close()

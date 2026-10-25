@@ -182,7 +182,7 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
             return await executar(s.cliente.get_group_info,
                                   jid_de_texto(jid_do_grupo(req.match_info["groupId"]))), None
         except Exception as e:
-            log.info("%s: %r", nome, e)
+            log.info("%s: %s", nome, type(e).__name__)
             return None, erro(e, 404)
 
     async def all_groups(req):
