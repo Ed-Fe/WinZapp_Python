@@ -272,14 +272,20 @@ def test_grupo_mudou_sobrevive_a_sessao_sem_armazem():
     eg.grupo_mudou(_Cli(), s, grupo(Name=N(Name="Novo")), agora=AGORA)
 
 
-def test_o_fim_de_chamada_registra_pelo_manipulador(monkeypatch):
+def _eventos_falsos(monkeypatch):
     eventos = types.ModuleType("neonize.events")
     eventos.CallOfferEv = type("CallOfferEv", (), {})
+    eventos.CallAcceptEv = type("CallAcceptEv", (), {})
     eventos.CallTerminateEv = type("CallTerminateEv", (), {})
     pacote = types.ModuleType("neonize")
     pacote.events = eventos
     monkeypatch.setitem(sys.modules, "neonize", pacote)
     monkeypatch.setitem(sys.modules, "neonize.events", eventos)
+    return eventos
+
+
+def test_o_fim_de_chamada_registra_pelo_manipulador(monkeypatch):
+    eventos = _eventos_falsos(monkeypatch)
     cli, s = _Cli(), Sessao()
     chamadas.registrar_eventos(cli, s)
     s.chamadas_tocando.lembrar("C1", jid("5511"), 1)
@@ -288,3 +294,38 @@ def test_o_fim_de_chamada_registra_pelo_manipulador(monkeypatch):
     assert w["callOutcome"] == "Canceled"
     assert [e for e, _ in s.enviados] == ["incomingcall", "callstate", "received-message"]
     cli.manipuladores[eventos.CallTerminateEv](cli, N())      # quebrado: nao levanta
+
+
+def test_accept_seguido_do_fim_registra_atendida_em_outro_aparelho_pelo_manipulador(monkeypatch):
+    eventos = _eventos_falsos(monkeypatch)
+    cli, s = _Cli(), Sessao()
+    chamadas.registrar_eventos(cli, s)
+    s.chamadas_tocando.lembrar("C1", jid("5511"), 1)
+    accept = N(basicCallMeta=N(callID="C1", timestamp=AGORA - 33, callCreator=jid("5511"),
+                               callCreatorAlt=jid("")))
+    cli.manipuladores[eventos.CallAcceptEv](cli, accept)
+    cli.manipuladores[eventos.CallAcceptEv](cli, N())         # quebrado: nao levanta
+    cli.manipuladores[eventos.CallTerminateEv](cli, fim(motivo=""))
+    (w,) = s.bd.mensagens("5511@s.whatsapp.net")
+    assert w["callOutcome"] == "AcceptedElsewhere" and w["callDuration"] == 30
+    callstate = [d for e, d in s.enviados if e == "callstate"][0]
+    assert callstate["data"]["state"] == "HANDLED_REMOTELY"
+
+
+def test_chamada_atendida_no_celular_nao_vira_perdida_e_leva_a_duracao():
+    """Um fim sem motivo depois de um CallAccept era gravado como "Canceled", que
+    o cliente conta como perdida, embora o usuario tivesse atendido no celular."""
+    s = Sessao()
+    e = fim(motivo="")
+    dados = chamadas.refinar_fim(chamadas.evento_de_fim(e, AGORA), (AGORA - 33, AGORA - 33))
+    assert chamadas.registrar_fim(s, e, dados, True, AGORA)
+    (w,) = s.bd.mensagens("5511@s.whatsapp.net")
+    assert (w["callOutcome"], w["finalCallOutcome"]) == ("AcceptedElsewhere", "AcceptedElsewhere")
+    assert w["callDuration"] == 30                  # (AGORA - 3) - (AGORA - 33)
+
+
+def test_fim_sem_motivo_e_sem_accept_continua_cancelada():
+    s = Sessao()
+    assert terminar(s, fim(motivo=""), tocava=True)
+    (w,) = s.bd.mensagens("5511@s.whatsapp.net")
+    assert (w["callOutcome"], w["callDuration"]) == ("Canceled", 0)
