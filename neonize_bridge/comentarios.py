@@ -33,6 +33,7 @@ import sqlite3
 import time
 
 import msgmap
+import recibos_de_grupo
 
 log = logging.getLogger("ponte")
 
@@ -315,7 +316,7 @@ def receber(s, chat: str, o, e) -> bool:
     if interna.HasField("protocolMessage"):
         p = interna.protocolMessage
         if p.type == 0 and p.key.ID:    # REVOKE
-            return _comentario_apagado(s, chat, p.key.ID)
+            return _comentario_apagado(s, chat, p.key.ID, o)
     return False
 
 
@@ -339,7 +340,17 @@ def _comentario_recebido(s, chat, o, e, enc) -> bool:
     return True
 
 
-def _comentario_apagado(s, chat, id_comentario) -> bool:
+def _comentario_apagado(s, chat, id_comentario, o) -> bool:
+    guardado = s.bd.autor_do_comentario(chat, id_comentario)
+    if guardado is None:
+        return False       # apagou outra coisa: segue o caminho das mensagens
+    autor, do_proprio_aparelho = guardado
+    if not ((o.IsFromMe and do_proprio_aparelho)
+            or recibos_de_grupo.chaves_de(jid_texto(o.Sender)) & recibos_de_grupo.chaves_de(autor)):
+        # so o autor apaga o proprio comentario (a remocao por administrador de
+        # grupo nao e tratada: o comentario segue visivel); a mensagem e consumida
+        log.info("aviso de apagar comentario de outra pessoa ignorado")
+        return True
     achado = s.bd.revogar_comentario(chat, id_comentario)
     if achado is None:
         return False       # apagou outra coisa: segue o caminho das mensagens

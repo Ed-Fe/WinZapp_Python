@@ -330,6 +330,14 @@ class Armazem:
                  serial_pai))
             self._bd.commit()
 
+    def autor_do_comentario(self, chat, id_msg):
+        """(autor, from_me) de um comentario ainda nao apagado, ou None."""
+        with self._trava:
+            r = self._bd.execute(
+                "SELECT author, from_me FROM comentarios WHERE chat=? AND id=?"
+                " AND type!='revoked'", (chat, id_msg)).fetchone()
+        return None if r is None else (r["author"], bool(r["from_me"]))
+
     def revogar_comentario(self, chat, id_msg):
         """Marca o comentario como apagado. (id da mensagem comentada, serial
         dela) se havia um comentario ainda nao apagado com esse id; senao None."""

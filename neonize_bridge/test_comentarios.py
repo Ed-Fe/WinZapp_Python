@@ -341,6 +341,18 @@ def test_apagar_comentario_baixa_a_contagem_e_a_previa(sessao):
     assert sessao.eventos[1][1]["preview"]["msgKey"].split("_")[2] == "C1"
 
 
+def test_so_o_autor_apaga_o_proprio_comentario(sessao):
+    o, e = evento_de(comentario_cifrado("meu"), id_msg="C1")
+    com.receber(sessao, GRUPO, o, e)
+    sessao.eventos.clear()
+    aviso = Message(protocolMessage=ProtocolMessage(
+        type=ProtocolMessage.REVOKE, key=MessageKey(remoteJID=GRUPO, ID="C1")))
+    o, e = evento_de(aviso, id_msg="R1", quem="5599888877777@s.whatsapp.net")
+    assert com.receber(sessao, GRUPO, o, e) is True        # consumido, nao vira mensagem
+    assert sessao.bd.comentarios_de(GRUPO, "P")[0]["type"] != "revoked"
+    assert sessao.eventos == []
+
+
 def test_apagar_mensagem_comum_nao_e_comentario(sessao):
     aviso = Message(protocolMessage=ProtocolMessage(
         type=ProtocolMessage.REVOKE, key=MessageKey(remoteJID=GRUPO, ID="QUALQUER")))
