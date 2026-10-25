@@ -34,6 +34,7 @@ from core.utils import (
     migrate_wpp_reinstall_notice,
 )
 from core.i18n import I18n
+from core.profile_recovery import profile_is_local
 from version import __version__
 from core.settings_transfer import connection_runtime as _connection_runtime
 from main_window.win32_helpers import _vk_mod_to_str
@@ -237,6 +238,8 @@ class SettingsMixin:
         general = self.settings.get("general", {})
         if not general.get("wpp_reinstall_notice_pending", False):
             return
+        if not profile_is_local(self):
+            return      # no local WPPConnect to reinstall; stays pending
 
         # Pending means only "this settings.json predates 2.0", not "this
         # WPPConnect lacks calls". An install reinstalled since — every alpha

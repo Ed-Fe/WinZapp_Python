@@ -21,6 +21,7 @@ from core.utils import (
     search_normalization_mode,
 )
 from window_title import format_window_title
+from core.profile_recovery import profile_is_local
 
 
 class WindowChromeMixin:
@@ -237,7 +238,8 @@ class WindowChromeMixin:
         help_menu.AppendSeparator()
         help_menu.Append(self._ID_FORCE_UPDATE, self.i18n.t("menu_force_update"))
         help_menu.Append(self._ID_FORCE_REINSTALL_ZIP, self.i18n.t("menu_force_reinstall_zip"))
-        help_menu.Append(self._ID_FORCE_REINSTALL_WPP, self.i18n.t("menu_force_reinstall_wpp"))
+        if profile_is_local(self):
+            help_menu.Append(self._ID_FORCE_REINSTALL_WPP, self.i18n.t("menu_force_reinstall_wpp"))
         help_menu.AppendSeparator()
         help_menu.Append(self._ID_WHATS_NEW, self.i18n.t("menu_whats_new"))
         help_menu.Append(self._ID_WHATS_NEW_SINCE, self.i18n.t("menu_whats_new_since"))
@@ -968,9 +970,9 @@ class WindowChromeMixin:
             help_menu.FindItemById(self._ID_FORCE_REINSTALL_ZIP).SetItemLabel(
                 self.i18n.t("menu_force_reinstall_zip")
             )
-            help_menu.FindItemById(self._ID_FORCE_REINSTALL_WPP).SetItemLabel(
-                self.i18n.t("menu_force_reinstall_wpp")
-            )
+            wpp_item = help_menu.FindItemById(self._ID_FORCE_REINSTALL_WPP)
+            if wpp_item is not None:    # absent with Neonize or a custom server
+                wpp_item.SetItemLabel(self.i18n.t("menu_force_reinstall_wpp"))
             help_menu.FindItemById(self._ID_WHATS_NEW).SetItemLabel(
                 self.i18n.t("menu_whats_new")
             )
