@@ -24,6 +24,7 @@ import administracao
 import autenticacao
 import chamadas
 import entradas
+import eventos_contatos
 import etiquetas
 import comunidades
 import contatos
@@ -500,6 +501,7 @@ class Sessao:
                                        props=props_do_aparelho(HISTORICO_DIAS))
         chamadas.registrar_eventos(cli, self)
         presenca.registrar_eventos(cli, self)
+        eventos_contatos.registrar_eventos(cli, self)
 
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
