@@ -1,6 +1,6 @@
 """Rotas de envio de tipos de mensagem que o cliente nao manda por send-file:
 localizacao, link com previa, figurinha (e figurinha animada), imagem e arquivo
-em base64 e nota de voz por URL. Todas respondem como `send-message`
+em base64 e nota de voz em base64. Todas respondem como `send-message`
 (`guardar_enviada` do server.py), o formato que o WinZapp le.
 
 Nada aqui foi testado contra uma conta real: o neonize nao instala fora do
@@ -19,6 +19,7 @@ import re
 log = logging.getLogger("ponte")
 
 _URL = re.compile(r"^https?://", re.IGNORECASE)
+_ESQUEMA = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _DATA_URI = re.compile(r"^data:([^;,]*)(?:;[^,]*)?,", re.IGNORECASE)
 
 
@@ -60,12 +61,15 @@ def dados_de_base64(texto):
 
 
 def fonte_do_arquivo(texto):
-    """O que o neonize recebe como arquivo: a propria URL (http/https), que ele
-    baixa, ou os bytes de um base64. Caminho de disco nunca: a rota nao pode
-    servir para ler arquivos da maquina."""
+    """Os bytes que o neonize recebe como arquivo, de um base64 ou data URI.
+    URL (http/https/ftp/file...) e caminho de disco sao recusados: o neonize
+    baixa a URL e abre o caminho dentro da maquina do usuario (loopback, rede
+    interna, metadados de nuvem; arquivos locais) e encaminha o resultado a um
+    contato. O cliente nunca manda URL a estas rotas, entao nao ha o que
+    preservar."""
     texto = str(texto or "").strip()
-    if _URL.match(texto):
-        return texto, ""
+    if _ESQUEMA.match(texto):
+        raise ValueError("url sources are not supported: send base64 or a data URI")
     return dados_de_base64(texto)
 
 

@@ -44,13 +44,39 @@ def test_dados_de_base64_recusa_o_invalido(texto):
         ce.dados_de_base64(texto)
 
 
-def test_fonte_do_arquivo_aceita_url_e_base64_mas_nunca_caminho_de_disco():
-    assert ce.fonte_do_arquivo("https://a.com/x.webp") == ("https://a.com/x.webp", "")
+def test_fonte_do_arquivo_aceita_so_base64_e_data_uri():
     assert ce.fonte_do_arquivo(base64.b64encode(b"zz").decode())[0] == b"zz"
+    uri = "data:image/webp;base64," + base64.b64encode(b"zz").decode()
+    assert ce.fonte_do_arquivo(uri) == (b"zz", "image/webp")
+
+
+@pytest.mark.parametrize("texto", [
+    "https://a.com/x.webp",
+    "http://127.0.0.1:6311/api/x",
+    "http://localhost/x",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://0.0.0.0/",
+    "http://[::ffff:127.0.0.1]/",
+    "http://[::1]/",
+    "http://2130706433/",      # 127.0.0.1 em decimal
+    "http://0177.0.0.1/",      # octal
+    "http://0x7f.0.0.1/",      # hexa
+    "  HTTPS://A.COM/X.PNG  ",
+    "ftp://a.com/x",
+    "file:///etc/passwd",
+    "gopher://127.0.0.1:6379/_x",
+])
+def test_fonte_do_arquivo_recusa_url_de_qualquer_esquema(texto):
+    with pytest.raises(ValueError, match="url sources"):
+        ce.fonte_do_arquivo(texto)
+
+
+@pytest.mark.parametrize("texto", [
+    "/etc/passwd", "C:\\Users\\a\\x.png", "\\\\servidor\\pasta\\x.png",
+    "../x.png", "file:/etc/passwd", "http:/127.0.0.1/", "x.png"])
+def test_fonte_do_arquivo_recusa_caminho_de_disco(texto):
     with pytest.raises(ValueError):
-        ce.fonte_do_arquivo("/etc/passwd")
-    with pytest.raises(ValueError):
-        ce.fonte_do_arquivo("C:\\Users\\a\\x.png")
+        ce.fonte_do_arquivo(texto)
 
 
 def test_tipo_do_arquivo_pelo_mime_ou_pelo_nome():
@@ -105,6 +131,16 @@ def test_rota_de_arquivo_com_base64_invalido_e_400():
 def test_rota_de_voz_recusa_caminho_de_disco():
     (status, _), _ = pedir("/api/t/send-voice", {"phone": "55", "path": "/etc/passwd"}, True)
     assert status == 400
+
+
+@pytest.mark.parametrize("rota,campo", [
+    ("send-voice", "path"), ("send-sticker", "path"), ("send-sticker", "base64"),
+    ("send-sticker-gif", "path"), ("send-sticker-gif", "base64")])
+def test_rotas_de_voz_e_figurinha_recusam_url_sem_baixar(rota, campo):
+    # conectada: se a URL passasse da validacao, a rota chegaria ao neonize
+    (status, corpo), _ = pedir(
+        "/api/t/" + rota, {"phone": "55", campo: "http://169.254.169.254/latest/"}, True)
+    assert status == 400 and "url sources" in corpo["message"]
 
 
 def test_rota_sem_conexao_responde_400_sem_enviar():
