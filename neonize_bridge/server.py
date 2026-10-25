@@ -20,6 +20,7 @@ import segno
 import socketio
 from aiohttp import web
 
+import contatos
 import grupos
 import msgmap
 from store import Armazem
@@ -1852,6 +1853,9 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/group-subject", group_subject)
     grupos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                      jid_texto=jid_texto, qr_data_url=qr_data_url)
+    contatos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
+                       jid_texto=jid_texto, destino_de=destino_de,
+                       guardar_enviada=guardar_enviada, contexto_citado=contexto_citado)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
