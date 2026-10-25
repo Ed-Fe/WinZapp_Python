@@ -5,6 +5,7 @@ With the Neonize connection engine the client starts the neonize bridge itself
 client to leave stops it.
 """
 
+import atexit
 import logging
 import threading
 
@@ -29,18 +30,27 @@ class NeonizeBridgeMixin:
         way it does when the custom server is down."""
         if not self._uses_neonize():
             return
-        from core.neonize_bridge_process import NeonizeBridge
+        from core.neonize_bridge_process import NeonizeBridge, port_open
 
         # The lease is how the other accounts, "Quit all accounts" and the
         # updater know this account's process is running; only the Node path
         # used to write one. _stop_wpp_server() releases it at shutdown.
         self._register_node_lease()
         self.neonize_bridge = NeonizeBridge(port=self.wpp_port)
+        if not getattr(self, "background_mode", False) and not port_open(self.wpp_port):
+            # Starting a bridge takes up to a minute on this thread (the window
+            # is not up yet): say so, like the WPPConnect start does.
+            self.output(self.i18n.t("starting_api"), interrupt=True)
         ok = False
         try:
             ok = self.neonize_bridge.start()
         except Exception:
             logging.exception("MainWindow: starting the neonize bridge failed")
+        # Like the Node path (_start_wpp_background): a process that exits
+        # without going through the window's own shutdown (a crash handler, a
+        # plain sys.exit) still leaves, and the last one out stops the bridge
+        # instead of leaving it running with connected sessions and no client.
+        atexit.register(self._stop_neonize_bridge, force=True)
         if ok:
             logging.info("MainWindow: neonize bridge ready on port %s", self.wpp_port)
             self._use_neonize_bridge_secret()

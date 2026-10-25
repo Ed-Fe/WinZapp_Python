@@ -26,6 +26,8 @@ def _window(custom_api=True, background_mode=False, **overrides):
         wpp_api_key="wz-local-api-key", **{**LOCAL, **overrides})
     window._uses_neonize = lambda: NeonizeBridgeMixin._uses_neonize(window)
     window._use_neonize_bridge_secret = lambda: window.__dict__.setdefault("secret_used", True)
+    window.output = lambda text, interrupt=False: window.__dict__.setdefault("spoken", []).append(text)
+    window._stop_neonize_bridge = lambda force=False: None
     window._register_node_lease = lambda: window.__dict__.setdefault("leases", []).append(1)
     window._finish_pending_deletions_on_bridge = lambda: window.__dict__.setdefault(
         "pending_deletions_retried", True)
@@ -202,3 +204,31 @@ def test_an_install_already_on_neonize_keeps_it_while_its_bridge_is_missing():
     assert engines.can_choose(engines.NEONIZE, False, engines.NEONIZE) is True
     assert engines.can_choose(engines.NEONIZE, False, engines.CUSTOM) is False
     assert engines.can_choose(engines.CUSTOM, False, engines.WPPCONNECT) is True
+
+
+# -- audit F4, M4b and M4c ------------------------------------------------
+
+def test_a_slow_start_is_announced_before_the_wait(boxes, monkeypatch):
+    monkeypatch.setattr(bridge_process, "port_open", lambda *a, **k: False)
+    window = _window()
+    NeonizeBridgeMixin._start_neonize_bridge_if_needed(window)
+    assert window.spoken == ["starting_api"]
+
+
+def test_nothing_is_announced_when_the_bridge_is_already_up_or_in_the_background(boxes, monkeypatch):
+    monkeypatch.setattr(bridge_process, "port_open", lambda *a, **k: True)
+    up = _window()
+    NeonizeBridgeMixin._start_neonize_bridge_if_needed(up)
+    monkeypatch.setattr(bridge_process, "port_open", lambda *a, **k: False)
+    quiet = _window(background_mode=True)
+    NeonizeBridgeMixin._start_neonize_bridge_if_needed(quiet)
+    assert "spoken" not in up.__dict__ and "spoken" not in quiet.__dict__
+
+
+def test_the_bridge_is_left_at_interpreter_exit_too(boxes, monkeypatch):
+    registered = []
+    monkeypatch.setattr(mixin_module.atexit, "register",
+                        lambda fn, *a, **k: registered.append((fn, a, k)))
+    window = _window()
+    NeonizeBridgeMixin._start_neonize_bridge_if_needed(window)
+    assert registered == [(window._stop_neonize_bridge, (), {"force": True})]
