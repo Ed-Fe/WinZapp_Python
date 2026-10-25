@@ -117,15 +117,14 @@ def _ligar(monkeypatch, pares=None):
 
 def test_grupo_mudou_emite_groups_update_da_sessao(monkeypatch):
     cli, s, ev = _ligar(monkeypatch)
-    cli.manipuladores[ev.GroupInfoEv](cli, grupo(Name=N(Name="Novo nome")))
+    eg.grupo_mudou(cli, s, grupo(Name=N(Name="Novo nome")))
     assert s.enviados == [("groups.update", {
         "session": "s1", "data": [{"id": "120@g.us", "subject": "Novo nome"}]})]
 
 
 def test_membro_lid_vira_numero_quando_se_sabe_e_fica_lid_quando_nao(monkeypatch):
     cli, s, ev = _ligar(monkeypatch, {"99@lid": jid("5511")})
-    cli.manipuladores[ev.GroupInfoEv](
-        cli, grupo(Join=[jid("99", "lid"), jid("77", "lid")]))
+    eg.grupo_mudou(cli, s, grupo(Join=[jid("99", "lid"), jid("77", "lid")]))
     # 77@lid nao tem par: get_pn_from_lid levanta KeyError e o LID fica
     assert s.enviados[0][1]["data"] == [{
         "id": "120@g.us", "participants": ["5511@c.us", "77@lid"], "action": "add"}]
@@ -133,8 +132,8 @@ def test_membro_lid_vira_numero_quando_se_sabe_e_fica_lid_quando_nao(monkeypatch
 
 def test_evento_sem_mudanca_ou_com_erro_nao_emite_nem_levanta(monkeypatch):
     cli, s, ev = _ligar(monkeypatch)
-    cli.manipuladores[ev.GroupInfoEv](cli, grupo())
-    cli.manipuladores[ev.GroupInfoEv](cli, None)
+    eg.grupo_mudou(cli, s, grupo())
+    eg.grupo_mudou(cli, s, None)
     cli.manipuladores[ev.JoinedGroupEv](cli, N())
     assert s.enviados == []
 
@@ -145,3 +144,10 @@ def test_entrada_emite_groups_update(monkeypatch):
     cli.manipuladores[ev.JoinedGroupEv](cli, N(GroupInfo=info))
     assert s.enviados[0] == ("groups.update", {
         "session": "s1", "data": [{"id": "120@g.us", "subject": "Novo"}]})
+
+
+def test_registrar_eventos_nao_toma_o_lugar_do_manipulador_do_servidor(monkeypatch):
+    """O neonize guarda um manipulador por tipo: o GroupInfoEv e do server.py."""
+    cli, s, ev = _ligar(monkeypatch)
+    assert ev.GroupInfoEv not in cli.manipuladores
+    assert ev.JoinedGroupEv in cli.manipuladores

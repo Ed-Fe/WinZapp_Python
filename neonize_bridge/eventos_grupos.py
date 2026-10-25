@@ -111,43 +111,49 @@ def atualizacoes_de_entrada(e) -> list:
     return [item] if item else []
 
 
-def registrar_eventos(cli, s):
-    """Liga GroupInfoEv e JoinedGroupEv do cliente neonize `cli` a sessao `s`
-    (precisa de `s.nome` e `s.emitir`). Chamado na thread do neonize. Nao
-    testado contra uma conta real."""
-    import neonize.events as nev
-
-    def id_de_pessoa(c, jid):
-        """Numero antes do LID (o app nao sabe mostrar um LID); sem par, o LID."""
-        texto = jid_texto(jid)
-        if jid is not None and getattr(jid, "Server", "") == "lid":
-            try:
-                par = jid_texto(c.get_pn_from_lid(jid))
-                if par and not par.endswith("@lid"):
-                    texto = par
-            except Exception:
-                pass
-        return msgmap.jid_wpp(texto)
-
-    def emitir(itens):
-        if itens:
-            s.emitir("groups.update", {"session": s.nome, "data": itens})
-
-    @cli.event(nev.GroupInfoEv)
-    def _grupo_mudou(c, e):
+def id_de_pessoa(c, jid):
+    """Numero antes do LID (o app nao sabe mostrar um LID); sem par, o LID."""
+    texto = jid_texto(jid)
+    if jid is not None and getattr(jid, "Server", "") == "lid":
         try:
-            itens = atualizacoes_do_evento(e, lambda j: id_de_pessoa(c, j))
-            log.info("grupo %s mudou (%d item(ns))",
-                     redigir(jid_texto(getattr(e, "JID", None))), len(itens))
-            emitir(itens)
+            par = jid_texto(c.get_pn_from_lid(jid))
+            if par and not par.endswith("@lid"):
+                texto = par
         except Exception:
-            log.exception("grupo mudou")
+            pass
+    return msgmap.jid_wpp(texto)
+
+
+def emitir_itens(s, itens):
+    if itens:
+        s.emitir("groups.update", {"session": s.nome, "data": itens})
+
+
+def grupo_mudou(c, s, e):
+    """GroupInfoEv -> groups.update. Quem registra o GroupInfoEv e o server.py
+    (o neonize guarda UM manipulador por tipo de evento: um segundo registro
+    apagaria o primeiro), que chama esta funcao. Nao testado contra uma conta
+    real."""
+    try:
+        itens = atualizacoes_do_evento(e, lambda j: id_de_pessoa(c, j))
+        log.info("grupo %s mudou (%d item(ns))",
+                 redigir(jid_texto(getattr(e, "JID", None))), len(itens))
+        emitir_itens(s, itens)
+    except Exception:
+        log.exception("grupo mudou")
+
+
+def registrar_eventos(cli, s):
+    """Liga o JoinedGroupEv do cliente neonize `cli` a sessao `s` (precisa de
+    `s.nome` e `s.emitir`). Chamado na thread do neonize. O GroupInfoEv NAO
+    e registrado aqui: ver grupo_mudou(). Nao testado contra uma conta real."""
+    import neonize.events as nev
 
     @cli.event(nev.JoinedGroupEv)
     def _entrou_no_grupo(c, e):
         try:
             itens = atualizacoes_de_entrada(e)
             log.info("entrada em grupo (%d item(ns))", len(itens))
-            emitir(itens)
+            emitir_itens(s, itens)
         except Exception:
             log.exception("entrada em grupo")

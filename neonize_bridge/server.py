@@ -560,6 +560,7 @@ class Sessao:
                 self.bd.ao_chegar(chat, w["t"], w["fromMe"])
                 if e.Info.Pushname and not o.IsFromMe:
                     self.bd.contato(jid_texto(o.Sender), pushname=e.Info.Pushname)
+                    eventos_contatos.anunciar_nome(c, self, o.Sender, e.Info.Pushname)
                 self.emitir("received-message", {"session": self.nome, "response": w})
                 # o WhatsApp Web marca como lida a conversa aberta com a janela em foco
                 if not o.IsFromMe and self.online and self.aberta == chat:
@@ -575,6 +576,7 @@ class Sessao:
                     self.bd.conversa(jid_texto(e.JID), name=e.Name.Name)
             except Exception:
                 log.exception("grupo mudou")
+            eventos_grupos.grupo_mudou(c, self, e)    # groups.update (ver eventos_grupos)
 
         def chat_local(c, jid_obj):
             """O JID com que a conversa esta guardada (o numero ou o LID)."""
