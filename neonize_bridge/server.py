@@ -1451,10 +1451,9 @@ def criar_app(pasta, fixa=""):
 
     async def all_contacts(req):
         s = sessao(req)
-        return ok(status="success", response=[{
-            "id": id_wpp(c["jid"]), "name": c["name"] or None,
-            "pushname": c["pushname"] or None, "shortName": c["name"] or None,
-            "isMyContact": bool(c["name"])} for c in s.bd.contatos()])
+        meus = {msgmap.jid_wpp(j) for j in (s.eu, s.lid) if j}
+        return ok(status="success", response=[
+            contatos.registro_da_agenda(c, id_wpp(c["jid"]), meus) for c in s.bd.contatos()])
 
     async def get_messages(req):
         s = sessao(req)
@@ -1519,19 +1518,32 @@ def criar_app(pasta, fixa=""):
         fone, lid = await asyncio.get_running_loop().run_in_executor(None, consultar)
         if not fone or not lid:
             return web.json_response({"status": "error", "message": "mapeamento nao encontrado"}, status=404)
-        return ok(lid={"_serialized": lid}, phone={"_serialized": msgmap.jid_wpp(fone)},
-                  id={"_serialized": msgmap.jid_wpp(fone)})
+        achado = s.bd.contato_de(lid, *contatos.jids_equivalentes(fone))
+        return web.json_response(contatos.resposta_pn_lid(fone, lid, achado))
 
     async def blocklist(req):
+        """Os bloqueados, no formato do WPPConnect. Uma falha NAO vira lista vazia:
+        o cliente troca a lista que guardou pela resposta e a grava."""
         s = sessao(req)
-        try:
-            lista = await asyncio.get_running_loop().run_in_executor(
-                None, lambda: list(s.cliente.get_blocklist().JIDs))
-            itens = [{"phone": j.User, "id": {"_serialized": msgmap.jid_wpp(jid_texto(j))}}
-                     for j in lista]
-        except Exception:
-            log.exception("blocklist")
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
+
+        def consultar():
             itens = []
+            for j in s.cliente.get_blocklist().JIDs:
+                fone = ""
+                if j.Server == "lid":      # o cliente le `phone` como telefone
+                    try:
+                        fone = jid_texto(s.cliente.get_pn_from_lid(j))
+                    except Exception:
+                        fone = ""
+                itens.append(contatos.entrada_de_bloqueio(jid_texto(j), fone))
+            return itens
+        try:
+            itens = await asyncio.get_running_loop().run_in_executor(None, consultar)
+        except Exception as erro:
+            log.warning("blocklist: %s", type(erro).__name__)
+            return web.json_response({"status": "error", "message": "blocklist unavailable"}, status=502)
         return ok(status="success", response=itens)
 
     async def history_status(req):
@@ -1557,26 +1569,41 @@ def criar_app(pasta, fixa=""):
         return ok(status="success", response={"data": [True]})
 
     async def subscribe_presence(req):
+        """Assina a presenca de uma pessoa. So confirma o que o WhatsApp aceitou: o
+        cliente marca o alvo como assinado ao ver `success`. Nao grava `s.aberta`
+        (o cliente assina muitos contatos, nao so a conversa aberta)."""
         s = sessao(req)
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone:
-            s.aberta = msgmap.jid_whatsmeow(fone)
-            if s.cliente is not None and s.status == "CONNECTED":
-                from neonize.utils import build_jid
-                u, _, srv = s.aberta.partition("@")
-                try:
-                    await asyncio.get_running_loop().run_in_executor(
-                        None, s.cliente.subscribe_presence, build_jid(u, srv))
-                except Exception:
-                    log.info("subscribe_presence nao aceito para %s", redigir(s.aberta))
+        alvo = contatos.alvo_de_assinatura(fone)
+        if not alvo:
+            return web.json_response({"status": "error", "message": "invalid contact"}, status=400)
+        if s.cliente is None or s.status != "CONNECTED":
+            return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
+        from neonize.utils import build_jid
+        usuario, _, servidor = alvo.partition("@")
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                None, s.cliente.subscribe_presence, build_jid(usuario, servidor))
+        except Exception as erro:
+            log.info("subscribe_presence recusado (%s) para %s", type(erro).__name__, redigir(alvo))
+            return web.json_response({"status": "error", "message": "subscribe refused"}, status=502)
         return ok(status="success", response={})
 
     async def set_online(req):
         s = sessao(req)
         corpo = await req.json()
         s.online = bool(corpo.get("isOnline"))
+        if s.cliente is not None and s.status == "CONNECTED":
+            from neonize.utils.enum import Presence
+            presenca = Presence.AVAILABLE if s.online else Presence.UNAVAILABLE
+            try:    # sem isto os contatos nunca veem a conta online/offline
+                await asyncio.get_running_loop().run_in_executor(
+                    None, s.cliente.send_presence, presenca)
+            except Exception as erro:
+                log.info("set-online-presence recusado (%s)", type(erro).__name__)
+                return web.json_response({"status": "error", "message": "presence refused"}, status=502)
         if s.online and s.aberta:      # voltou ao foco: le o que chegou enquanto isso
             await asyncio.get_running_loop().run_in_executor(None, s.marcar_lidas, s.aberta)
         return vazio_ok_resp()
@@ -1885,30 +1912,39 @@ def criar_app(pasta, fixa=""):
         return await acao_de_grupo(req, lambda c, jid, corpo: c.set_group_name(jid, corpo["title"]))
 
     async def contact_profile(req):
-        """Perfil de um contato (nome, apelido e, para LID, o numero)."""
+        """Perfil de um contato (nome, apelido, conta comercial e, para LID, o numero)."""
         s = sessao(req)
         jid = msgmap.jid_whatsmeow(req.match_info["jid"].replace("~", ""))
         usuario, _, servidor = jid.partition("@")
         lid = jid if servidor == "lid" else ""
         fone = "" if servidor == "lid" else jid
-        if lid and s.cliente is not None and s.status == "CONNECTED":
+        verificado = ""
+        if s.cliente is not None and s.status == "CONNECTED" and servidor in ("lid", "s.whatsapp.net"):
             from neonize.utils import build_jid
-            try:
-                pn = await asyncio.get_running_loop().run_in_executor(
-                    None, s.cliente.get_pn_from_lid, build_jid(usuario, "lid"))
-                fone = jid_texto(pn)
-            except Exception:
-                fone = ""
-        achado = s.bd.contato_de(jid, fone)
-        nome = achado.get("name") or ""
-        apelido = achado.get("pushname") or ""
-        corpo = {"id": {"_serialized": msgmap.jid_wpp(fone or jid)},
-                 "name": nome or apelido or None, "pushname": apelido or None,
-                 "formattedName": nome or apelido or None,
-                 "isMyContact": bool(nome)}
-        if fone:
-            corpo["phoneNumber"] = {"_serialized": msgmap.jid_wpp(fone)}
-        return ok(status="success", response=corpo)
+            laco = asyncio.get_running_loop()
+            if lid:
+                try:
+                    pn = await laco.run_in_executor(
+                        None, s.cliente.get_pn_from_lid, build_jid(usuario, "lid"))
+                    fone = jid_texto(pn)
+                except Exception:
+                    fone = ""
+            else:   # o apelido pode ter ficado guardado so sob o LID
+                try:
+                    lid = jid_texto(await laco.run_in_executor(
+                        None, s.cliente.get_lid_from_pn, build_jid(usuario, servidor)))
+                except Exception:
+                    lid = ""
+            if fone:    # nome verificado de conta comercial, da loja local do neonize
+                try:
+                    u, _, srv = fone.partition("@")
+                    info = await laco.run_in_executor(
+                        None, s.cliente.contact.get_contact, build_jid(u, srv))
+                    verificado = (info.BusinessName or "").strip()
+                except Exception:
+                    verificado = ""
+        achado = s.bd.contato_de(jid, lid, *contatos.jids_equivalentes(fone))
+        return ok(status="success", response=contatos.corpo_do_contato(jid, fone, achado, verificado))
 
     r.add_get("/api/{tok}/contact/{jid}", contact_profile)
     r.add_get("/api/{tok}/group-info/{jid}", group_info)

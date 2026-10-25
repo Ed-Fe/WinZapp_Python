@@ -41,9 +41,35 @@ def test_a_pessoa_e_achada_pelo_lid_ou_pelo_numero():
 
 
 def test_erros_de_entrada_por_convite():
-    assert grupos.pedido_de_entrada_pendente(Exception("membership approval required"))
-    assert not grupos.pedido_de_entrada_pendente(Exception("expired"))
-    assert grupos.ja_participa(Exception("already a participant"))
+    assert grupos.resultado_da_entrada(Exception("membership_approval_request")) == "pendente"
+    assert grupos.resultado_da_entrada(Exception("Membership approval required")) == "pendente"
+    assert grupos.resultado_da_entrada(Exception("already a participant")) == "membro"
+    assert grupos.resultado_da_entrada(
+        Exception("info query returned status 409: conflict")) == "membro"
+    assert grupos.resultado_da_entrada(
+        Exception("that group invite link has been revoked")) == "link"
+
+
+def test_erro_qualquer_de_entrada_nunca_vira_pedido_pendente_nem_membro():
+    # "request" e "participant" soltos no texto davam "pedido enviado" / "ja e membro"
+    for texto in ("info query returned status 400: bad-request", "expired",
+                  "participant list unavailable", "request timed out", ""):
+        assert grupos.resultado_da_entrada(Exception(texto)) == "falha"
+
+
+def test_participante_pedido_com_o_nono_digito_acha_o_que_voltou_sem_ele():
+    sem_nono = pessoa("551199990000")
+    assert grupos.resultado_de_participantes(["5511999990000@c.us"], [sem_nono]) == {
+        "5511999990000@c.us": {"code": 200}}
+    # um LID nao ganha forma alternativa
+    assert grupos.resultado_de_participantes(["5511999990000@lid"], [sem_nono]) == {
+        "5511999990000@lid": {"code": 403}}
+
+
+def test_usuarios_do_pedido():
+    assert grupos.usuarios_do_pedido("5511999990000@c.us") == ["5511999990000", "551199990000"]
+    assert grupos.usuarios_do_pedido("5511999990000@lid") == ["5511999990000"]
+    assert grupos.usuarios_do_pedido("1203-44@g.us") == ["1203-44"]
 
 
 def test_grupos_em_comum_pelo_jid_lid_ou_numero():

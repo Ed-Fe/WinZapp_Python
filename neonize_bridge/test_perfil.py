@@ -74,6 +74,27 @@ def test_so_jpeg_vai_como_foto_de_perfil():
     assert not perfil.e_jpeg(b"")
 
 
+def _imagem(formato):
+    import io
+
+    from PIL import Image
+    saida = io.BytesIO()
+    Image.new("RGB", (16, 16), "blue").save(saida, format=formato)
+    return saida.getvalue()
+
+
+def test_foto_de_perfil_converte_png_e_deixa_o_jpeg_passar():
+    jpeg = _imagem("JPEG")
+    assert perfil.foto_de_perfil(jpeg) is jpeg
+    assert perfil.e_jpeg(perfil.foto_de_perfil(_imagem("PNG")))
+
+
+def test_foto_de_perfil_recusa_o_que_nao_e_imagem():
+    import pytest
+    with pytest.raises(Exception):
+        perfil.foto_de_perfil(b"texto qualquer")
+
+
 def test_perfil_proprio_marca_none_o_que_nao_se_leu():
     assert perfil.perfil_proprio(" Ana ", "Ocupada", True) == {
         "name": "Ana", "status": "Ocupada", "photo": True}

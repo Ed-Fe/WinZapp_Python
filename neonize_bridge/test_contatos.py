@@ -183,3 +183,66 @@ def test_registrar_liga_as_rotas_de_contato():
         ("POST", "/api/{tok}/save-contact"),
         ("POST", "/api/{tok}/contact-vcard"),
     }
+
+
+def test_jids_equivalentes_poe_a_forma_pedida_por_ultimo():
+    assert contatos.jids_equivalentes("5511999990000@s.whatsapp.net") == [
+        "551199990000@s.whatsapp.net", "5511999990000@s.whatsapp.net"]
+    assert contatos.jids_equivalentes("551199990000@s.whatsapp.net") == [
+        "5511999990000@s.whatsapp.net", "551199990000@s.whatsapp.net"]
+    assert contatos.jids_equivalentes("") == []
+
+
+def test_jids_equivalentes_deixa_lid_e_outros_paises_como_estao():
+    assert contatos.jids_equivalentes("5511999990000@lid") == ["5511999990000@lid"]
+    assert contatos.jids_equivalentes("14155550123@s.whatsapp.net") == [
+        "14155550123@s.whatsapp.net"]
+    assert contatos.jids_equivalentes("1203-44@g.us") == ["1203-44@g.us"]
+
+
+def test_entrada_de_bloqueio_usa_o_numero_quando_o_bloqueio_esta_no_lid():
+    assert contatos.entrada_de_bloqueio("123456789012345@lid", "5511999990000@s.whatsapp.net") == {
+        "phone": "5511999990000", "id": {"_serialized": "123456789012345@lid"}}
+    assert contatos.entrada_de_bloqueio("5511999990000:12@s.whatsapp.net") == {
+        "phone": "5511999990000", "id": {"_serialized": "5511999990000@c.us"}}
+    # sem o mapa, ou com um "numero" que e outro LID, ficam os digitos do proprio LID
+    assert contatos.entrada_de_bloqueio("123456789012345@lid")["phone"] == "123456789012345"
+    assert contatos.entrada_de_bloqueio("123456789012345@lid", "999@lid")["phone"] == "123456789012345"
+
+
+def test_resposta_pn_lid_traz_os_campos_dos_dois_leitores_do_cliente():
+    r = contatos.resposta_pn_lid("5511999990000@s.whatsapp.net", "123@lid",
+                                 {"name": "Ana", "pushname": ""})
+    numero = {"_serialized": "5511999990000@c.us"}
+    assert r == {"lid": {"_serialized": "123@lid"}, "phone": numero, "id": numero,
+                 "phoneNumber": numero, "contact": {"name": "Ana", "pushname": None}}
+
+
+def test_corpo_do_contato_marca_conta_comercial_so_com_nome_verificado():
+    comercial = contatos.corpo_do_contato("5511@s.whatsapp.net", "5511@s.whatsapp.net",
+                                          {"pushname": "Loja"}, "Loja Oficial")
+    assert comercial["isBusiness"] is True and comercial["verifiedName"] == "Loja Oficial"
+    assert comercial["phoneNumber"] == {"_serialized": "5511@c.us"}
+    comum = contatos.corpo_do_contato("9@lid", "", {"name": "Ana"})
+    assert comum["isBusiness"] is False and "verifiedName" not in comum
+    assert comum["id"] == {"_serialized": "9@lid"} and "phoneNumber" not in comum
+    assert comum["isMyContact"] is True and comum["name"] == "Ana"
+
+
+def test_registro_da_agenda_so_sincroniza_quem_tem_nome_e_acha_a_propria_conta():
+    meus = {"5511@c.us", "9@lid"}
+    com_nome = contatos.registro_da_agenda(
+        {"name": "Ana", "pushname": ""}, {"_serialized": "5522@c.us"}, meus)
+    assert com_nome["syncToAddressbook"] is True and com_nome["isMyContact"] is True
+    assert com_nome["isMe"] is False and com_nome["pushname"] is None
+    sem_nome = contatos.registro_da_agenda(
+        {"name": "", "pushname": "ap"}, {"_serialized": "9@lid"}, meus)
+    assert sem_nome["syncToAddressbook"] is False and sem_nome["isMe"] is True
+
+
+def test_alvo_de_assinatura_aceita_pessoa_e_grupo_e_nada_mais():
+    assert contatos.alvo_de_assinatura("5511999990000@c.us") == "5511999990000@s.whatsapp.net"
+    assert contatos.alvo_de_assinatura("123456789012@lid") == "123456789012@lid"
+    assert contatos.alvo_de_assinatura("1203-44@g.us") == "1203-44@g.us"
+    for ruim in ("", None, "status@broadcast", "abc", "5511999990000@newsletter"):
+        assert contatos.alvo_de_assinatura(ruim) == ""
