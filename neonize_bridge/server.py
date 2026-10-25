@@ -33,6 +33,7 @@ import conversas
 import conversas_restantes
 import grupos
 import grupos_extra
+import limpeza
 import msgmap
 import pareamento
 import negocio
@@ -1921,6 +1922,7 @@ def criar_app(pasta, fixa=""):
                      jid_texto=jid_texto)
     administracao.registrar(r, sessao=sessao, ok=ok, estado=estado, pasta=pasta,
                             marcar_ativa=marcar_ativa, qr_data_url=qr_data_url)
+    limpeza.registrar(r, ok=ok, estado=estado, pasta=pasta, marcar_ativa=marcar_ativa)
     chamadas.registrar(r, sessao=sessao, ok=ok)
     presenca.registrar(r, sessao=sessao, ok=ok)
     etiquetas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,

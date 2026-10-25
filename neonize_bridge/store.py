@@ -56,6 +56,11 @@ class Armazem:
             except sqlite3.OperationalError:
                 pass
 
+    def fechar(self):
+        """Solta o arquivo (no Windows uma pasta com banco aberto nao se apaga)."""
+        with self._trava:
+            self._bd.close()
+
     # ---------------------------------------------------------- conversas
     def conversa(self, jid, **campos):
         """Cria a conversa se nao existir e grava so os campos dados."""
