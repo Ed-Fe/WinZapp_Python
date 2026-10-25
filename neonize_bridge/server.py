@@ -32,6 +32,7 @@ import grupos_extra
 import msgmap
 import negocio
 import perfil
+import presenca
 from store import Armazem
 
 log = logging.getLogger("ponte")
@@ -491,6 +492,7 @@ class Sessao:
         cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"),
                                        props=props_do_aparelho(HISTORICO_DIAS))
         chamadas.registrar_eventos(cli, self)
+        presenca.registrar_eventos(cli, self)
 
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
@@ -1878,6 +1880,7 @@ def criar_app(pasta, fixa=""):
     administracao.registrar(r, sessao=sessao, ok=ok, estado=estado, pasta=pasta,
                             marcar_ativa=marcar_ativa, qr_data_url=qr_data_url)
     chamadas.registrar(r, sessao=sessao, ok=ok)
+    presenca.registrar(r, sessao=sessao, ok=ok)
     etiquetas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                         jid_texto=jid_texto)
     comunidades.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)

@@ -241,13 +241,18 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto):
         return ok(status="success", response=msgmap.jid_wpp(s.eu), mapper="device")
 
     async def last_seen(req):
-        # O WhatsApp so entrega presenca por evento e a ponte ainda nao assina
-        # esses eventos: "unsupported" e a resposta que o cliente entende como
-        # "este servidor nao sabe", sem insistir.
+        # A resposta vem da memoria de presenca (presenca.py), alimentada pelos
+        # eventos; "unsupported" e o que o cliente entende como "sem dado ou
+        # escondido", sem insistir.
         if not id_de_pessoa_valido(req.match_info["phone"]):
             return web.json_response(
                 {"status": "error", "response": "Invalid contact id"}, status=400)
-        return ok(status="success", response=False, presence={"status": "unsupported"})
+        import time
+
+        import presenca
+        memoria = getattr(sessao(req), "presencas", None)
+        dado = memoria.ler(req.match_info["phone"], time.time()) if memoria else None
+        return ok(status="success", **presenca.resposta_last_seen(dado))
 
     async def privacy(req):
         s = sessao(req)
