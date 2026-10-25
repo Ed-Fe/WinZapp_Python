@@ -45,6 +45,7 @@ import presenca
 import regras_de_mensagem
 import respostas
 import restantes
+import redacao
 from redacao import redigir
 from store import Armazem
 
@@ -2578,6 +2579,8 @@ def main():
     HISTORICO_DIAS = a.historico_dias
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    for h in logging.getLogger().handlers:      # o ponte.log circula em relatos de erro
+        h.addFilter(redacao.FiltroDeRedacao())
     if a.log_estado:
         import re
         from neonize.utils import log as log_neonize
