@@ -25,6 +25,7 @@ import autenticacao
 import chamadas
 import entradas
 import eventos_grupos
+import eventos_contatos
 import etiquetas
 import comunidades
 import contatos
@@ -502,6 +503,7 @@ class Sessao:
         chamadas.registrar_eventos(cli, self)
         presenca.registrar_eventos(cli, self)
         eventos_grupos.registrar_eventos(cli, self)
+        eventos_contatos.registrar_eventos(cli, self)
 
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
