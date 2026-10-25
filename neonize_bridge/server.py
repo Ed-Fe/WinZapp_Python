@@ -114,7 +114,7 @@ class Sessao(conversas_alias.AliasDeConversa):
         self.cliente = None
         self.simular_codigo = False
         self.online = False         # janela do app em foco (set-online-presence)
-        self.aberta = ""            # conversa aberta no app (subscribe-presence)
+        self.aberta = ""            # conversa aberta no app (o ultimo send-seen)
         self.thread = None
         self.ciclo = ciclo_sessao.Ciclo()   # estado + geracao (ciclo_sessao.py)
         self._trava_do_ciclo = threading.RLock()    # iniciar/parar um de cada vez
@@ -1782,6 +1782,7 @@ def criar_app(pasta, fixa=""):
             await em_thread(s.marcar_nao_lida, chaves[0])
             confirmado = True
         else:
+            s.aberta = chaves[0]       # o app so manda send-seen da conversa que o usuario abriu
             confirmado = True
             for chave in chaves:
                 _, enviados = await em_thread(s.ler_e_confirmar, chave, True)

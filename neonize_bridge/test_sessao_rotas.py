@@ -214,7 +214,9 @@ async def test_apagar_status_que_nao_existe_ou_nao_e_meu_responde_not_found(tmp_
             assert corpo["code"] == "not_found" and corpo["status"] == "error"
         # um status meu existente segue o caminho de antes (aqui, sem conexao)
         s.bd.mensagem("status@broadcast", _status("MEU"))
-        assert (await cliente.post(f"/api/{token}/status/MEU/delete")).status == 400
+        resposta = await cliente.post(f"/api/{token}/status/MEU/delete")
+        assert resposta.status == 404                 # "Disconnected", como o WPPConnect
+        assert (await resposta.json()).get("code") != "not_found"
     finally:
         await cliente.close()
 

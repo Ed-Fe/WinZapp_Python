@@ -266,6 +266,22 @@ async def test_send_seen_acha_a_conversa_pelo_outro_endereco_e_confirma(tmp_path
 
 
 @pytest.mark.asyncio
+async def test_send_seen_guarda_a_conversa_aberta_e_marcar_como_nao_lida_nao(tmp_path, sessoes):
+    ponte = await _abrir(tmp_path, sessoes)
+    try:
+        ponte.s.bd.conversa(PN, unread=0)
+        ponte.s.estado_lida = lambda conversa, lida: True
+        assert ponte.s.aberta == ""
+        await ponte.post("send-seen", {"phone": PN})
+        assert ponte.s.aberta == PN
+        ponte.s.aberta = ""
+        await ponte.post("send-seen", {"phone": PN, "unread": True})
+        assert ponte.s.aberta == ""
+    finally:
+        await ponte.http.close()
+
+
+@pytest.mark.asyncio
 async def test_send_seen_com_recibo_que_nao_saiu_nao_confirma(tmp_path, sessoes):
     ponte = await _abrir(tmp_path, sessoes)
     try:
