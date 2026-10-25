@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS reacoes(
 CREATE TABLE IF NOT EXISTS recibos(
     msg TEXT NOT NULL, quem TEXT NOT NULL, etapa TEXT NOT NULL, ts INTEGER DEFAULT 0,
     PRIMARY KEY(msg, quem, etapa));
+CREATE TABLE IF NOT EXISTS comentarios(
+    chat TEXT NOT NULL, id TEXT NOT NULL, parent_id TEXT NOT NULL,
+    author TEXT DEFAULT '', ts INTEGER DEFAULT 0, type TEXT NOT NULL,
+    body TEXT DEFAULT '', from_me INTEGER DEFAULT 0, serial_pai TEXT DEFAULT '',
+    PRIMARY KEY(chat, id));
+CREATE INDEX IF NOT EXISTS comentarios_por_pai ON comentarios(chat, parent_id, ts);
 """
 
 # Mensagens que a ponte fabrica a partir de eventos (mensagens_de_sistema.py):
@@ -293,12 +299,74 @@ class Armazem:
         4 ouvida) vindo dos recibos guardados, no minimo 1: o cliente monta os
         tiques so do `ack` e a sincronizacao troca o registro local pelo lido."""
         saida = []
+        respostas = self.contagens_de_comentarios()
         for w in mensagens:
             w = {**w, "star": bool(w.get("star"))}
+            if w["id"]["id"] in respostas:
+                w["replyCount"] = respostas[w["id"]["id"]]
             if w.get("fromMe"):
                 w["ack"] = ack_dos_recibos(self.recibos_de(w["id"]["id"]))
             saida.append(w)
         return saida
+
+    # -------------------------------------------- comentarios dos avisos
+    _CONTA = "type IN ('comment','ciphertext')"     # o apagado nao conta
+
+    def guardar_comentario(self, id_msg, id_pai, chat, autor, ts, tipo, corpo, de_mim,
+                           serial_pai=""):
+        """Guarda um comentario de aviso. Repetido (o servidor reentrega) nao
+        muda nada, a nao ser que o guardado fosse ilegivel e este abra."""
+        with self._trava:
+            self._bd.execute(
+                "INSERT INTO comentarios(chat, id, parent_id, author, ts, type, body, from_me,"
+                " serial_pai) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(chat, id) DO UPDATE SET"
+                " type=excluded.type, body=excluded.body, author=excluded.author"
+                " WHERE comentarios.type='ciphertext' AND excluded.type='comment'",
+                (chat, id_msg, id_pai, autor, int(ts), tipo, corpo, int(bool(de_mim)),
+                 serial_pai))
+            self._bd.commit()
+
+    def revogar_comentario(self, chat, id_msg):
+        """Marca o comentario como apagado. (id da mensagem comentada, serial
+        dela) se havia um comentario ainda nao apagado com esse id; senao None."""
+        with self._trava:
+            r = self._bd.execute(
+                "SELECT parent_id, serial_pai FROM comentarios WHERE chat=? AND id=?"
+                " AND type!='revoked'", (chat, id_msg)).fetchone()
+            if r is None:
+                return None
+            self._bd.execute("UPDATE comentarios SET type='revoked', body='' WHERE chat=? AND id=?",
+                             (chat, id_msg))
+            self._bd.commit()
+        return r["parent_id"], r["serial_pai"]
+
+    def comentarios_de(self, chat, id_pai):
+        """Os comentarios de uma mensagem, do mais antigo ao mais novo."""
+        with self._trava:
+            return [dict(r) for r in self._bd.execute(
+                "SELECT * FROM comentarios WHERE chat=? AND parent_id=? ORDER BY ts, rowid",
+                (chat, id_pai))]
+
+    def contar_comentarios(self, chat, id_pai):
+        with self._trava:
+            return self._bd.execute(
+                f"SELECT COUNT(*) FROM comentarios WHERE chat=? AND parent_id=? AND {self._CONTA}",
+                (chat, id_pai)).fetchone()[0]
+
+    def contagens_de_comentarios(self):
+        """{id da mensagem comentada: quantos comentarios} de tudo que ha."""
+        with self._trava:
+            return {r[0]: r[1] for r in self._bd.execute(
+                f"SELECT parent_id, COUNT(*) FROM comentarios WHERE {self._CONTA}"
+                " GROUP BY parent_id")}
+
+    def ultimo_comentario(self, chat):
+        """O comentario mais novo da conversa que nao foi apagado, ou None."""
+        with self._trava:
+            r = self._bd.execute(
+                f"SELECT * FROM comentarios WHERE chat=? AND {self._CONTA}"
+                " ORDER BY ts DESC, rowid DESC LIMIT 1", (chat,)).fetchone()
+        return dict(r) if r else None
 
     def recebidas_a_ler(self, conversa, limite=3000):
         """As ultimas mensagens recebidas que contam como nao lidas: tantas
