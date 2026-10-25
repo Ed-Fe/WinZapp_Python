@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS recibos(
     PRIMARY KEY(msg, quem, etapa));
 """
 
+# Mensagens que a ponte fabrica a partir de eventos (mensagens_de_sistema.py):
+# nao sao de ninguem a ler nem a marcar como lidas.
+TIPOS_DE_SISTEMA = ("gp2", "call_log")
+
 CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
 
 
@@ -258,7 +262,7 @@ class Armazem:
                     (conversa, n * 3 + 50)).fetchall()
                 for linha in linhas:
                     w = json.loads(linha["data"])
-                    if not w.get("fromMe"):
+                    if not w.get("fromMe") and w.get("type") not in TIPOS_DE_SISTEMA:
                         achadas.append((w["id"]["id"], w.get("author") or w.get("from") or conversa, w["t"]))
                         if len(achadas) == n:
                             break
@@ -287,7 +291,7 @@ class Armazem:
     def ultima_recebida(self, conversa):
         """O id da mensagem recebida mais recente da conversa, ou ''."""
         for w in reversed(self.mensagens(conversa, 60)):
-            if not w.get("fromMe"):
+            if not w.get("fromMe") and w.get("type") not in TIPOS_DE_SISTEMA:
                 return w["id"]["id"]
         return ""
 
