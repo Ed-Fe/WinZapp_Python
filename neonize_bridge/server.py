@@ -42,6 +42,7 @@ import pareamento
 import negocio
 import perfil
 import presenca
+import recibos_de_grupo
 import regras_de_mensagem
 import respostas
 import restantes
@@ -104,7 +105,7 @@ def jid_texto(jid) -> str:
     return f"{jid.User}@{jid.Server}"
 
 
-class Sessao(conversas_alias.AliasDeConversa):
+class Sessao(conversas_alias.AliasDeConversa, recibos_de_grupo.RecibosDeGrupo):
     """Uma conta: o cliente neonize, o estado no vocabulario do WPPConnect e
     a ponte entre a thread do neonize e o laco do aiohttp."""
 
@@ -879,6 +880,17 @@ class Sessao(conversas_alias.AliasDeConversa):
                             self.bd.recibo(mid, quem, etapa, msgmap.segundos(e.Timestamp))
                     except Exception:
                         log.exception("guardar recibo")
+                if chat.endswith("@g.us"):
+                    # grupo: o ack so avanca quando TODOS os membros chegaram la
+                    # (recibos_de_grupo.py); um recibo so nao basta
+                    for mid in e.MessageIDs:
+                        em_grupo = self.ack_de_grupo_a_emitir(chat, mid)
+                        if em_grupo:
+                            self.emitir("onack", {
+                                "session": self.nome, "ack": em_grupo, "to": chat, "from": chat,
+                                "id": {"fromMe": True, "remote": chat, "id": mid,
+                                       "_serialized": f"true_{chat}_{mid}"}})
+                    return
                 for mid in e.MessageIDs:
                     self.emitir("onack", {
                         "session": self.nome, "ack": ack, "to": chat, "from": chat,
@@ -1210,6 +1222,7 @@ class Sessao(conversas_alias.AliasDeConversa):
         try:
             for g in self.cliente.get_joined_groups():
                 self.bd.conversa(jid_texto(g.JID), name=g.GroupName.Name)
+                self.elenco_registrar(g)    # membros, para o ack de grupo (recibos_de_grupo)
         except Exception:
             log.exception("grupos")
 
@@ -1664,7 +1677,7 @@ def criar_app(pasta, fixa=""):
         # a conversa pode estar guardada pelo numero ou pelo LID (ou pelos dois)
         chaves = await em_thread(s.chaves_da_conversa, jid) or [msgmap.jid_whatsmeow(jid)]
         itens = s.bd.mensagens(chaves, int(q.get("count", 20)), antes)
-        return ok(status="success", response=s.bd.para_resposta(itens))
+        return ok(status="success", response=s.bd.para_resposta(itens, s.ack_da_mensagem))
 
     async def send_message(req):
         s = sessao(req)
@@ -2313,7 +2326,7 @@ def criar_app(pasta, fixa=""):
         if original is None:
             return web.json_response({"status": "error", "message": "message not found"}, status=404)
         # {data: mensagem}, como o servidor real (main_window/calls.py so le .data)
-        return ok(status="success", response={"data": s.bd.para_resposta([original])[0]})
+        return ok(status="success", response={"data": s.bd.para_resposta([original], s.ack_da_mensagem)[0]})
 
     async def send_mute(req):
         s = sessao(req)

@@ -348,12 +348,19 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         corpo, falha = await corpo_de(req)
         if falha is not None:
             return falha
-        de_mim, _, mid, _ = s.partes_do_id(str(corpo.get("messageId") or ""))
-        participantes = participantes_do_recibo(s.bd.recibos_de(mid)) if de_mim else []
+        de_mim, chat, mid, _ = s.partes_do_id(str(corpo.get("messageId") or ""))
+        linhas, esperados = (s.bd.recibos_de(mid) if de_mim else []), 0
+        if de_mim and chat.endswith("@g.us"):
+            # grupo: so os recibos de quem e destinatario, uma linha por pessoa
+            resumo = await em_thread(s.resumo_de_recibos, chat, mid)
+            if resumo is not None:
+                linhas, esperados = resumo
+        participantes = participantes_do_recibo(linhas)
         if not participantes:
             return erro("no receipts recorded for this message", 404)
-        return ok(status="success",
-                  response={"participants": participantes, "deliveryRemaining": 0})
+        return ok(status="success", response={
+            "participants": participantes,
+            "deliveryRemaining": max(0, esperados - len(participantes))})
 
     p = "/api/{tok}/"
     r.add_post(p + "clear-chat", clear_chat)
