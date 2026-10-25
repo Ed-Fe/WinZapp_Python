@@ -32,6 +32,7 @@ import grupos_extra
 import msgmap
 import negocio
 import perfil
+import restantes
 from store import Armazem
 
 log = logging.getLogger("ponte")
@@ -1888,6 +1889,7 @@ def criar_app(pasta, fixa=""):
     contatos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                        jid_texto=jid_texto, destino_de=destino_de,
                        guardar_enviada=guardar_enviada, contexto_citado=contexto_citado)
+    restantes.registrar(r, sessao=sessao, ok=ok)
     conversas.registrar(r, sessao=sessao, ok=ok, id_wpp=id_wpp, destino_de=destino_de,
                         guardar_enviada=guardar_enviada, enviar_midia=enviar_midia,
                         contexto_citado=contexto_citado)
