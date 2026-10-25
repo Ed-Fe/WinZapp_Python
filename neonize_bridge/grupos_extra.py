@@ -14,7 +14,9 @@ import base64
 import binascii
 import io
 import logging
+import time
 
+import mensagens_efemeras
 import msgmap
 
 log = logging.getLogger("ponte")
@@ -22,8 +24,9 @@ log = logging.getLogger("ponte")
 LADO_MAXIMO_FOTO = 640       # o WhatsApp Web recorta a foto do grupo em 640x640
 
 # propriedade do WPPConnect (group-property) -> o que o neonize sabe mudar.
-# `ephemeral`, `no_frequently_forwarded` e os modos de aprovacao/adicao de
-# membros nao entram: o neonize 0.5.2 nao tem chamada confirmada para eles.
+# `ephemeral` tem ramo proprio em group_property (mensagens_efemeras.py).
+# `no_frequently_forwarded` e os modos de aprovacao/adicao de membros nao
+# entram: o neonize 0.5.2 nao tem chamada confirmada para eles.
 PROPRIEDADES = {"announce": "announce", "announcement": "announce",
                 "restrict": "locked", "locked": "locked"}
 
@@ -244,7 +247,30 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
             return falha(e, nome)
         return ok(status="success", response={})
 
+    async def grupo_efemero(req, corpo):
+        """property=ephemeral: `value` em segundos (0 desliga) ou booleano."""
+        s = sessao(req)
+        try:
+            segundos = mensagens_efemeras.segundos_do_timer(corpo.get("value"))
+        except ValueError as e:
+            return erro(e, 400)
+        alvos = grupos_do_corpo(corpo)
+        if not alvos:
+            return erro("groupId is required", 400)
+        if not conectada(s):
+            return erro("Disconnected", 400)
+        try:
+            for alvo in alvos:
+                await executar(mensagens_efemeras.aplicar_timer, s.cliente,
+                               jid_de_texto(alvo), segundos, time.time())
+        except Exception as e:
+            return falha(e, "group-property")
+        return ok(status="success", response={})
+
     async def group_property(req):
+        corpo = await req.json()
+        if mensagens_efemeras.e_propriedade_efemera(corpo.get("property")):
+            return await grupo_efemero(req, corpo)
         return await ajustar(req, "group-property", "value")
 
     async def messages_admins_only(req):
