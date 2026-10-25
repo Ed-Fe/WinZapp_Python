@@ -31,14 +31,18 @@ import etiquetas
 import comunidades
 import contatos
 import conversas
+import conversas_alias
 import conversas_restantes
 import grupos
 import grupos_extra
+import historico_progresso
 import msgmap
 import pareamento
 import negocio
 import perfil
 import presenca
+import regras_de_mensagem
+import respostas
 import restantes
 from redacao import redigir
 from store import Armazem
@@ -98,7 +102,7 @@ def jid_texto(jid) -> str:
     return f"{jid.User}@{jid.Server}"
 
 
-class Sessao:
+class Sessao(conversas_alias.AliasDeConversa):
     """Uma conta: o cliente neonize, o estado no vocabulario do WPPConnect e
     a ponte entre a thread do neonize e o laco do aiohttp."""
 
@@ -957,6 +961,16 @@ class Sessao:
             self.emitir("phoneCodeError", ciclo_sessao.aviso_de_codigo_expirado(self.nome))
 
     def _guardar_historico(self, dados):
+        progresso = historico_progresso.progresso_de(self, time.monotonic())
+        progresso.comecou(time.monotonic())
+        percentual = None
+        try:
+            percentual = self._guardar_bloco_do_historico(dados)
+        finally:
+            progresso.terminou(time.monotonic(), percentual)
+
+    def _guardar_bloco_do_historico(self, dados):
+        """Guarda um bloco do historico; devolve o progresso (0-100) que ele traz."""
         for x in dados.pushnames:
             if x.ID and x.pushname:
                 self.bd.contato(x.ID, pushname=x.pushname)
@@ -972,6 +986,9 @@ class Sessao:
             if c.HasField("archived"):
                 campos["archived"] = int(bool(c.archived))
             if c.HasField("pinned"):
+                # nao sei dizer a unidade (ordem ou hora de fixar); o app so olha
+                # se e maior que zero. A ponte tambem nao impoe o limite de 3
+                # conversas fixadas: o WhatsApp recusa a quarta
                 campos["pinned"] = int(c.pinned)
             if c.HasField("muteEndTime"):
                 campos["muted"] = int(c.muteEndTime)
@@ -996,6 +1013,7 @@ class Sessao:
             total += len(linhas)
         log.info("historico: %d conversas, %d mensagens (%s%%)",
                  len(dados.conversations), total, dados.progress)
+        return dados.progress
 
     COLECOES = ("regular_high", "regular_low", "regular",
                 "critical_unblock_low", "critical_block")
@@ -1338,13 +1356,18 @@ class Sessao:
         return ok_
 
     def apagar_para_todos(self, serial):
-        de_mim, conversa, mid, _ = self.partes_do_id(serial)
-        if not de_mim or self.cliente is None or self.status != "CONNECTED":
+        de_mim, conversa, mid, autor = self.partes_do_id(serial)
+        if self.cliente is None or self.status != "CONNECTED":
+            return False
+        quem = regras_de_mensagem.autor_da_revogacao(
+            de_mim, conversa.endswith("@g.us"), self.eu, autor,
+            self.bd.mensagem_wpp(mid) or {})
+        if not quem:
             return False
         from neonize.utils import build_jid
         u, _, srv = conversa.partition("@")
         try:
-            eu_u, _, eu_srv = self.eu.partition("@")
+            eu_u, _, eu_srv = quem.partition("@")
             self.cliente.revoke_message(build_jid(u, srv), build_jid(eu_u, eu_srv), mid)
         except Exception:
             log.exception("revogar")
@@ -1377,16 +1400,23 @@ class Sessao:
             self.estado_lida(conversa, False)
 
     def marcar_lidas(self, conversa, forcar=False):
+        """Quantas mensagens receberam o recibo de leitura (ver ler_e_confirmar)."""
+        return self.ler_e_confirmar(conversa, forcar)[0]
+
+    def ler_e_confirmar(self, conversa, forcar=False):
         """Manda o recibo de leitura das mensagens recebidas e ainda nao lidas
-        e marca a conversa como lida tambem no celular."""
+        e marca a conversa como lida tambem no celular. Devolve (quantas, ok):
+        ok e False se algum recibo nao saiu (send-seen so confirma o que saiu).
+        Um aviso de estado recusado (a conversa continua nao lida no celular)
+        fica no log: os recibos, que o contato ve, e que contam aqui."""
         if self.cliente is None or self.status != "CONNECTED":
-            return 0
+            return 0, False
         tinha_nao_lidas = self.bd.nao_lidas(conversa) > 0
         a_ler = self.bd.recebidas_a_ler(conversa)
         if tinha_nao_lidas or forcar:     # forcar: o app pediu (o celular pode ainda ter o contador)
             self.estado_lida(conversa, True)
         if not a_ler:
-            return 0
+            return 0, True
         from neonize.utils import build_jid
         from neonize.utils.enum import ReceiptType
 
@@ -1397,14 +1427,16 @@ class Sessao:
         por_autor = {}
         for mid, autor, ts in a_ler:
             por_autor.setdefault(autor, []).append(mid)
+        enviados = True
         for autor, ids in por_autor.items():
             try:
                 self.cliente.mark_read(*ids, chat=jid_de(conversa), sender=jid_de(autor),
                                        receipt=ReceiptType.READ)
             except Exception:
                 log.exception("mark_read")
+                enviados = False
         log.info("lidas %d mensagem(ns) em %s", len(a_ler), redigir(conversa))
-        return len(a_ler)
+        return len(a_ler), enviados
 
     def parar(self, status=None):
         """Fecha a sessao: disconnect() fecha o socket e stop() cancela o
@@ -1627,15 +1659,16 @@ def criar_app(pasta, fixa=""):
         jid = req.match_info["phone"]
         if "@" not in jid:
             jid += "@c.us"
-        conversa = msgmap.jid_whatsmeow(jid)
-        itens = s.bd.mensagens(conversa, int(q.get("count", 20)), antes)
-        return ok(status="success", response=itens)
+        # a conversa pode estar guardada pelo numero ou pelo LID (ou pelos dois)
+        chaves = await em_thread(s.chaves_da_conversa, jid) or [msgmap.jid_whatsmeow(jid)]
+        itens = s.bd.mensagens(chaves, int(q.get("count", 20)), antes)
+        return ok(status="success", response=s.bd.para_resposta(itens))
 
     async def send_message(req):
         s = sessao(req)
         corpo = await req.json()
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         from neonize.utils import build_jid
         fone = corpo["phone"]
         if isinstance(fone, list):      # o WinZapp manda uma lista de destinos
@@ -1645,8 +1678,17 @@ def criar_app(pasta, fixa=""):
             destino = build_jid(u, srv)
         else:
             destino = build_jid(fone)
-        resp = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: s.cliente.send_message(destino, corpo["message"]))
+        conteudo = corpo["message"]
+        previa = msgmap.previa_de_link(corpo.get("options"))
+        if previa:      # o cartao do link que o cliente ja montou
+            from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ExtendedTextMessage, Message
+            conteudo = Message(extendedTextMessage=ExtendedTextMessage(text=conteudo, **previa))
+        try:
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: s.cliente.send_message(destino, conteudo))
+        except Exception as erro:
+            log.exception("send-message")
+            return web.json_response({"status": "error", "message": str(erro)}, status=500)
         return guardar_enviada(s, destino, resp)
 
     async def saude(req):
@@ -1710,26 +1752,41 @@ def criar_app(pasta, fixa=""):
         return ok(status="success", response=itens)
 
     async def history_status(req):
+        """history-sync-status e unblock-history-sync: o historico so e dado por
+        completo quando o progresso chega a 100 ou passa um tempo sem bloco
+        novo (historico_progresso.py)."""
         s = sessao(req)
+        contagens = s.bd.contagens()
+        estado = historico_progresso.progresso_de(s, time.monotonic()).estado(
+            time.monotonic(), contagens["chat"])
         return ok(status="success", response={
-            "backendWorkerBridgeReady": True, "unprocessedChunks": 0,
-            "initialSyncComplete": True, "recentCompleted": True,
-            "onDemandEnabled": False, "chunkStatus": {},
-            "storeCounts": s.bd.contagens()})
+            "backendWorkerBridgeReady": True, **estado,
+            "unprocessed": estado["unprocessedChunks"], "restarted": False, "removed": [],
+            "onDemandEnabled": False, "chunkStatus": {}, "storeCounts": contagens})
 
     async def send_seen(req):
         s = sessao(req)
         corpo = await req.json()
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        if fone and corpo.get("unread"):        # "marcar como nao lida"
-            await asyncio.get_running_loop().run_in_executor(
-                None, s.marcar_nao_lida, msgmap.jid_whatsmeow(fone))
-        elif fone:
-            await asyncio.get_running_loop().run_in_executor(
-                None, s.marcar_lidas, msgmap.jid_whatsmeow(fone), True)
-        # o app so aceita a confirmacao neste formato: response.data = [true]
-        return ok(status="success", response={"data": [True]})
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
+        # o app so aceita a confirmacao neste formato: response.data = [true], e
+        # so desfaz a leitura local quando ela falta. Ele tenta os enderecos da
+        # conversa (numero, LID) um a um: o que a ponte nao conhece e [false]
+        chaves = await em_thread(s.chaves_da_conversa, fone) if fone else []
+        if not chaves:
+            return ok(status="success", response={"data": [False]})
+        if corpo.get("unread"):        # "marcar como nao lida"
+            await em_thread(s.marcar_nao_lida, chaves[0])
+            confirmado = True
+        else:
+            confirmado = True
+            for chave in chaves:
+                _, enviados = await em_thread(s.ler_e_confirmar, chave, True)
+                confirmado = confirmado and enviados
+        return ok(status="success", response={"data": [confirmado]})
 
     async def subscribe_presence(req):
         """Assina a presenca de uma pessoa. So confirma o que o WhatsApp aceitou: o
@@ -1784,7 +1841,7 @@ def criar_app(pasta, fixa=""):
         if ficha is None:
             return web.json_response({"status": "error", "message": "midia nao encontrada"}, status=404)
         if s.cliente is None or s.status != "CONNECTED":
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
         mensagem = Message.FromString(ficha)
         try:
@@ -1880,7 +1937,7 @@ def criar_app(pasta, fixa=""):
         import tempfile
         s = sessao(req)
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         campos, caminho, mime = {}, None, ""
         leitor = await req.multipart()
         try:
@@ -1908,7 +1965,8 @@ def criar_app(pasta, fixa=""):
             destino = destino_de(campos.get("phone") or campos.get("phone[]") or [""])
             ctx = contexto_citado(s, um("quotedMessageId")) if um("quotedMessageId") else None
             if um("quotedMessageId") and ctx is None:
-                log.info("mensagem citada nao guardada: enviando sem citar")
+                log.info("mensagem citada nao guardada: envio recusado")
+                return respostas.citacao_ausente()
             resp = await asyncio.get_running_loop().run_in_executor(
                 None, enviar_midia, s, destino, um("type", "document"), caminho,
                 um("caption"), um("filename"), mime, um("isPtt") == "true", ctx)
@@ -1928,7 +1986,7 @@ def criar_app(pasta, fixa=""):
         s = sessao(req)
         corpo = await req.json()
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
         destino = destino_de(corpo["phone"])
         ctx = contexto_citado(s, corpo["quotedMessageId"]) if corpo.get("quotedMessageId") else None
@@ -2151,17 +2209,17 @@ def criar_app(pasta, fixa=""):
         s = sessao(req)
         corpo = await req.json()
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         destino = destino_de(corpo["phone"])
         ctx = ContextInfo()
         citado = corpo.get("messageId")
         if citado and contexto_citado(s, citado, ctx) is None:
-            return web.json_response(
-                {"status": "error", "message": "quoted message not found"}, status=404)
+            return respostas.citacao_ausente()
         if com_mencoes:
             ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in corpo.get("mentioned", []))
         mensagem = Message(extendedTextMessage=ExtendedTextMessage(
-            text=corpo["message"], contextInfo=ctx))
+            text=corpo["message"], contextInfo=ctx,
+            **(msgmap.previa_de_link(corpo.get("options")) or {})))
         try:
             resp = await asyncio.get_running_loop().run_in_executor(
                 None, s.cliente.send_message, destino, mensagem)
@@ -2193,9 +2251,8 @@ def criar_app(pasta, fixa=""):
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
-        feito = await asyncio.get_running_loop().run_in_executor(
-            None, s.arquivar, msgmap.jid_whatsmeow(fone), bool(corpo.get("value", True)))
+            return respostas.desconectada()
+        feito = await no_estado_da_conversa(s, fone, s.arquivar, bool(corpo.get("value", True)))
         if not feito:
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={})
@@ -2206,10 +2263,9 @@ def criar_app(pasta, fixa=""):
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
         if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
+            return respostas.desconectada()
         fixar = str(corpo.get("state", "true")).lower() == "true"
-        feito = await asyncio.get_running_loop().run_in_executor(
-            None, s.fixar, msgmap.jid_whatsmeow(fone), fixar)
+        feito = await no_estado_da_conversa(s, fone, s.fixar, fixar)
         if not feito:
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={})
@@ -2218,10 +2274,22 @@ def criar_app(pasta, fixa=""):
         return await asyncio.get_running_loop().run_in_executor(None, funcao, *args)
 
     def sem_conexao(s):
-        if s.status != "CONNECTED" or s.cliente is None:
-            return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
-        return None
+        return respostas.sem_conexao(s)
 
+    async def no_estado_da_conversa(s, fone, acao, valor):
+        """Arquivar, fixar ou silenciar: `acao(chave, valor)` na chave com que a
+        conversa esta guardada (o numero ou o LID; sem linha, a dada) e, se o
+        WhatsApp aceitou, o mesmo estado nas outras chaves dela. Sem isso a
+        acao criava uma linha vazia sob o endereco errado e o list-chats
+        seguinte voltava como estava."""
+        jid = msgmap.jid_whatsmeow(fone)
+        chaves = await em_thread(s.chaves_da_conversa, jid)
+        alvo = chaves[0] if chaves else jid
+        feito = await em_thread(acao, alvo, valor)
+        if feito:
+            for outra in chaves[1:]:
+                s.bd.copiar_estado(alvo, outra)
+        return feito
     async def star_message(req):
         s = sessao(req)
         corpo = await req.json()
@@ -2240,7 +2308,8 @@ def criar_app(pasta, fixa=""):
         original = s.bd.mensagem_wpp(mid)
         if original is None:
             return web.json_response({"status": "error", "message": "message not found"}, status=404)
-        return ok(status="success", response={**original, "star": bool(original.get("star"))})
+        # {data: mensagem}, como o servidor real (main_window/calls.py so le .data)
+        return ok(status="success", response={"data": s.bd.para_resposta([original])[0]})
 
     async def send_mute(req):
         s = sessao(req)
@@ -2256,7 +2325,7 @@ def criar_app(pasta, fixa=""):
             segundos = -1                       # "para sempre"
         fone = corpo.get("phone")
         fone = fone[0] if isinstance(fone, list) else fone
-        feito = await em_thread(s.silenciar, msgmap.jid_whatsmeow(fone), segundos)
+        feito = await no_estado_da_conversa(s, fone, s.silenciar, segundos)
         if not feito:
             return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
         return ok(status="success", response={"isMuted": segundos != 0})
@@ -2280,7 +2349,12 @@ def criar_app(pasta, fixa=""):
                 corpo["name"], list(corpo["choices"]),
                 VoteType.MULTIPLE if multipla else VoteType.SINGLE)
             return s.cliente.send_message(destino, criada)
-        resp = await em_thread(enviar)
+        try:
+            resp = await em_thread(enviar)
+        except Exception as erro_envio:
+            log.exception("send-poll-message")
+            return web.json_response({"status": "error", "message": str(erro_envio)},
+                                     status=500)
         return guardar_enviada(s, destino, resp)
 
     async def poll_votes(req):
@@ -2319,6 +2393,12 @@ def criar_app(pasta, fixa=""):
         erro = sem_conexao(s)
         if erro is not None:
             return erro
+        # recusas que acontecem antes de enviar algo: o cliente so desfaz o texto
+        # otimista quando o corpo as diz (respostas.edicao_recusada)
+        de_mim, _, mid, _ = s.partes_do_id(corpo["id"])
+        motivo = regras_de_mensagem.motivo_da_recusa(de_mim, s.bd.mensagem_wpp(mid), time.time())
+        if motivo:
+            return respostas.edicao_recusada(motivo)
         mencoes = (corpo.get("options") or {}).get("mentionedJidList") or []
         feito = await em_thread(s.editar, corpo["id"], corpo["newText"], mencoes)
         if not feito:
@@ -2336,7 +2416,7 @@ def criar_app(pasta, fixa=""):
         destino = destino_de(fone)
         ids = corpo["messageId"]
         ids = ids if isinstance(ids, list) else [ids]
-        enviadas = []
+        enviadas, ids_novos = [], []
         for serial in ids:
             msg = await em_thread(s.mensagem_para_encaminhar, serial,
                                   bool(corpo.get("keepVoice")))
@@ -2351,7 +2431,16 @@ def criar_app(pasta, fixa=""):
                 return web.json_response({"status": "error", "message": str(erro_envio)},
                                          status=500)
             enviadas.append(guardar_enviada(s, destino, resp))
-        return ok(status="success", response=[{"forwarded": len(enviadas)}])
+            ids_novos.append(resp.ID)
+        # Sem eco: o servidor real avisa o encaminhamento por received-message e
+        # o cliente conta com isso para atualizar a conversa de destino, mas aqui
+        # o aviso e arriscado (o cliente casa o eco por tipo e pode trocar o id de
+        # um envio pendente do mesmo tipo na mesma conversa). Sem ele, a conversa
+        # de destino e a previa so mudam no proximo list-chats do cliente; os ids
+        # novos vao na resposta para o cliente poder atualizar a conversa ao
+        # receber o sucesso (ele ainda nao o faz).
+        return ok(status="success", response=[{"forwarded": len(enviadas),
+                                               "messageIds": ids_novos}])
 
     async def older_history(req):
         """O neonize nao tem o pedido de historico sob demanda (o do 'clique
@@ -2380,7 +2469,12 @@ def criar_app(pasta, fixa=""):
 
     async def pinned_messages(req):
         """Mensagens fixadas nas conversas pedidas (a ponte guarda os avisos de
-        fixar e soltar que passam por ela)."""
+        fixar e soltar que passam por ela). A lista e PARCIAL: so o que a ponte
+        viu passar (o aviso de fixar que chegou ou que ela mesma mandou); o que
+        foi fixado antes do pareamento ou com a ponte desligada nao aparece, e o
+        cliente (_apply_pinned_message_flags) trata a lista como completa e
+        limpa o pinInChat do resto. Nao ha conserto barato: o neonize nao lista
+        as fixadas de uma conversa."""
         s = sessao(req)
         corpo = await req.json()
         chats = [msgmap.jid_whatsmeow(c) for c in corpo.get("chatIds") or []]
@@ -2402,6 +2496,9 @@ def criar_app(pasta, fixa=""):
     async def mark_played(req):
         s = sessao(req)
         corpo = await req.json()
+        erro = sem_conexao(s)
+        if erro is not None:
+            return erro
         feito = await em_thread(s.marcar_ouvida, corpo["messageId"])
         return ok(status="success", response={"played": bool(feito)})
 
@@ -2446,8 +2543,6 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/archive-chat", archive_chat)
     r.add_post("/api/{tok}/pin-chat", pin_chat)
     r.add_post("/api/{tok}/send-seen", send_seen)
-    r.add_post("/api/{tok}/typing", vazio_ok)
-    r.add_post("/api/{tok}/recording", vazio_ok)
     r.add_post("/api/{tok}/set-limit", vazio_ok)
     r.add_get("/api/{tok}/contact/pn-lid/{jid}", pn_lid)
     r.add_get("/api/{tok}/blocklist", blocklist)

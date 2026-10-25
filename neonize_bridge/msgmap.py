@@ -376,6 +376,23 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
     return saida
 
 
+def previa_de_link(opcoes):
+    """`options.linkPreview` dos envios de texto -> campos do ExtendedTextMessage
+    (cartao do link), ou None. O cliente ja buscou a pagina na maquina dele: a
+    ponte so repassa os campos, nunca busca a URL (o neonize buscaria da maquina
+    do usuario a partir de uma URL escolhida por quem chama: SSRF)."""
+    previa = opcoes.get("linkPreview") if isinstance(opcoes, dict) else None
+    if not isinstance(previa, dict):
+        return None
+    url = str(previa.get("canonicalUrl") or previa.get("matchedText") or "")
+    titulo = str(previa.get("title") or "")
+    if not url and not titulo:
+        return None
+    # no proto o endereco da pagina e o matchedText (nao ha campo canonicalURL)
+    return {"title": titulo, "description": str(previa.get("description") or ""),
+            "matchedText": url}
+
+
 def cor_argb(texto, padrao=0xFF1B8755):
     """'#25D366' -> 0xFF25D366 (cor de fundo do status de texto)."""
     t = (texto or "").lstrip("#")

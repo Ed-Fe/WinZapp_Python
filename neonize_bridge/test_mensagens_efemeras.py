@@ -112,7 +112,7 @@ def test_rota_recusa_pedido_ruim_e_sem_conexao():
     assert pedir({"value": True})[0] == 400
     assert pedir({"phone": "5511", "value": 5})[0] == 400
     status, corpo, chamadas = pedir({"phone": "5511"}, conectada=False)
-    assert status == 400 and corpo["message"] == "Disconnected" and not chamadas
+    assert status == 404 and corpo["status"] == "Disconnected" and not chamadas
 
 
 def test_rota_devolve_500_quando_o_whatsapp_recusa():

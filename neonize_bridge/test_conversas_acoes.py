@@ -102,6 +102,7 @@ def pedir(tmp_path, caminho, corpo, preparar=lambda bd: None, conectada=True):
     preparar(bd)
     s = N(bd=bd, cliente=object() if conectada else None,
           status="CONNECTED" if conectada else "CLOSED",
+          chaves_da_conversa=lambda jid: [], chat_existente=lambda jid: "",
           partes_do_id=staticmethod(lambda serial: (
               serial.startswith("true_"), "", serial.split("_")[2] if serial.count("_") >= 2 else serial, "")))
 
@@ -147,7 +148,7 @@ def test_clear_chat_valida_o_corpo_e_a_conexao(tmp_path):
     status, _ = pedir(tmp_path, "/api/t/clear-chat", {"isGroup": False})
     assert status == 400
     status, corpo = pedir(tmp_path, "/api/t/clear-chat", {"phone": ["55@c.us"]}, conectada=False)
-    assert status == 400 and corpo["message"] == "Disconnected"
+    assert status == 404 and corpo["status"] == "Disconnected"
 
 
 def test_clear_chat_responde_no_formato_que_o_cliente_confere(tmp_path, monkeypatch):

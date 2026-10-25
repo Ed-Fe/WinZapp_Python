@@ -36,6 +36,16 @@ TIPOS_DE_SISTEMA = ("gp2", "call_log")
 CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
 
 
+#: etapa de recibo -> ack do WhatsApp Web
+ACK_DA_ETAPA = {"delivered": 2, "read": 3, "played": 4}
+
+
+def ack_dos_recibos(recibos):
+    """O ack mais alto entre os recibos [(quem, etapa, ts)]; 1 (enviada) se
+    nenhum chegou."""
+    return max([1] + [ACK_DA_ETAPA.get(etapa, 1) for _, etapa, _ in recibos])
+
+
 class Armazem:
     def __init__(self, caminho):
         self._bd = sqlite3.connect(caminho, check_same_thread=False)
@@ -67,6 +77,18 @@ class Armazem:
                 self._bd.execute(f"UPDATE chats SET {sets} WHERE jid=?",
                                  (*campos.values(), jid))
             self._bd.commit()
+
+    def copiar_estado(self, origem, destino):
+        """Poe em `destino` o arquivada/fixada/silenciada de `origem`: a mesma
+        conversa guardada sob dois enderecos (numero e LID) muda junta."""
+        with self._trava:
+            r = self._bd.execute(
+                "SELECT archived, pinned, muted FROM chats WHERE jid=?", (origem,)).fetchone()
+            if r is not None:
+                self._bd.execute(
+                    "UPDATE chats SET archived=?, pinned=?, muted=? WHERE jid=?",
+                    (r["archived"], r["pinned"], r["muted"], destino))
+                self._bd.commit()
 
     def ao_chegar(self, jid, ts, de_mim):
         """Mensagem nova: sobe a data da conversa e conta nao lida."""
@@ -230,23 +252,48 @@ class Armazem:
 
     def mensagens(self, conversa, quantidade=20, antes_de=None):
         """As `quantidade` mais recentes (ou as anteriores a `antes_de`, um id
-        de mensagem), em ordem cronologica."""
+        de mensagem), em ordem cronologica. `conversa` e uma chave ou varias
+        (os dois enderecos, numero e LID, da mesma conversa). Uma ancora
+        desconhecida devolve [] e nunca as mais novas: o cliente leria como
+        pagina anterior o que na verdade e o fim da conversa."""
+        chats = (conversa,) if isinstance(conversa, str) else tuple(conversa)
+        marcas = ",".join("?" * len(chats))
         with self._trava:
             limite = None
             if antes_de:
-                r = self._bd.execute("SELECT ts FROM msgs WHERE chat=? AND id=?",
-                                     (conversa, antes_de)).fetchone()
-                limite = r["ts"] if r else None
+                r = self._bd.execute(
+                    f"SELECT ts FROM msgs WHERE chat IN ({marcas}) AND id=?",
+                    (*chats, antes_de)).fetchone()
+                if r is None:       # a ancora pode estar sob outro endereco da conversa
+                    r = self._bd.execute("SELECT ts FROM msgs WHERE id=? LIMIT 1",
+                                         (antes_de,)).fetchone()
+                if r is None:
+                    return []
+                limite = r["ts"]
             if limite is None:
                 linhas = self._bd.execute(
-                    "SELECT data FROM msgs WHERE chat=? ORDER BY ts DESC, rowid DESC "
-                    "LIMIT ?", (conversa, quantidade)).fetchall()
+                    f"SELECT data FROM msgs WHERE chat IN ({marcas}) "
+                    "ORDER BY ts DESC, rowid DESC LIMIT ?", (*chats, quantidade)).fetchall()
             else:
                 linhas = self._bd.execute(
-                    "SELECT data FROM msgs WHERE chat=? AND (ts<? OR (ts=? AND id<?)) "
-                    "ORDER BY ts DESC, rowid DESC LIMIT ?",
-                    (conversa, limite, limite, antes_de, quantidade)).fetchall()
+                    f"SELECT data FROM msgs WHERE chat IN ({marcas}) "
+                    "AND (ts<? OR (ts=? AND id<?)) ORDER BY ts DESC, rowid DESC LIMIT ?",
+                    (*chats, limite, limite, antes_de, quantidade)).fetchall()
         return [json.loads(r["data"]) for r in reversed(linhas)]
+
+    def para_resposta(self, mensagens):
+        """Copias das mensagens no formato que get-messages e message-by-id
+        devolvem: `star` sempre booleano (sem ele o cliente nunca reconcilia as
+        estrelas locais) e, nas minhas, `ack` (1 enviada, 2 entregue, 3 lida,
+        4 ouvida) vindo dos recibos guardados, no minimo 1: o cliente monta os
+        tiques so do `ack` e a sincronizacao troca o registro local pelo lido."""
+        saida = []
+        for w in mensagens:
+            w = {**w, "star": bool(w.get("star"))}
+            if w.get("fromMe"):
+                w["ack"] = ack_dos_recibos(self.recibos_de(w["id"]["id"]))
+            saida.append(w)
+        return saida
 
     def recebidas_a_ler(self, conversa, limite=3000):
         """As ultimas mensagens recebidas que contam como nao lidas: tantas
