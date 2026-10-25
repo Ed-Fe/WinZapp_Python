@@ -18,7 +18,9 @@ import time
 
 from aiohttp import web
 
+import mensagens_de_sistema
 import msgmap
+from redacao import redigir
 
 log = logging.getLogger("ponte")
 
@@ -117,6 +119,42 @@ def evento_de_fim(e, agora) -> dict:
     }
 
 
+def conversa_da_chamada(bd, meta, grupo) -> str:
+    """A chave (formato whatsmeow) da conversa onde o registro da chamada vai: o
+    grupo, ou o par. O par pode estar guardado pelo numero ou pelo LID; vale a
+    forma que ja tem conversa, e na falta dela o numero."""
+    if grupo:
+        return msgmap.jid_whatsmeow(grupo)
+    formas = [msgmap.jid_whatsmeow(j) for j in (_jid_texto(meta.callCreator),
+                                                _jid_texto(meta.callCreatorAlt)) if j]
+    formas.sort(key=lambda j: j.endswith("@lid"))          # o numero primeiro
+    for forma in formas:
+        if bd.existe_conversa(forma):
+            return forma
+    return formas[0] if formas else ""
+
+
+def registrar_fim(s, e, dados, tocava, agora):
+    """O fim de uma chamada recebida vira o registro `call_log` na conversa (o
+    que o WhatsApp Web mostra como "Ligacao de voz perdida"). `dados` e o
+    `evento_de_fim`; `tocava` diz se a oferta ainda estava tocando aqui. Nao
+    registra a chamada que eu mesmo fiz (de outro aparelho): nao da para saber
+    com quem foi so pelo evento. False se nada foi registrado."""
+    desfecho = mensagens_de_sistema.desfecho_da_chamada(dados["state"], tocava)
+    criador = dados["peerJid"]
+    meus = {msgmap.jid_wpp(getattr(s, "eu", "")), msgmap.jid_wpp(getattr(s, "lid", ""))} - {""}
+    if desfecho is None or not dados["id"] or not criador or criador in meus:
+        return False
+    chat = conversa_da_chamada(s.bd, e.basicCallMeta, dados["groupJid"])
+    if not chat:
+        return False
+    w = mensagens_de_sistema.registro_de_chamada(
+        id_chamada=dados["id"], conversa_w=msgmap.jid_wpp(chat), criador_w=criador,
+        desfecho=desfecho, video=dados["isVideo"],
+        ts=dados["timestamp"] or int(agora))
+    return mensagens_de_sistema.guardar_e_emitir(s, chat, w, agora)
+
+
 class Pendentes:
     """Chamadas que estao tocando: id -> o JID de quem ligou, EXATAMENTE como veio
     na oferta (o RejectCall exige isso)."""
@@ -180,11 +218,17 @@ def registrar_eventos(cli, s):
     def _fim(c, e):
         try:
             dados = evento_de_fim(e, time.time())
+            tocava = s.chamadas_tocando.criador_de(dados["id"]) is not None
             s.chamadas_tocando.esquecer(dados["id"])
             log.info("chamada terminou (%s)", dados["state"])
             avisar(dados)
         except Exception:
             log.exception("fim de chamada")
+            return
+        try:
+            registrar_fim(s, e, dados, tocava, time.time())
+        except Exception:
+            log.exception("registro da chamada %s", redigir(dados["id"]))
 
 
 def registrar(r, *, sessao, ok):

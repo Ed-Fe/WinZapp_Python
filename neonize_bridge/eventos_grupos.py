@@ -12,12 +12,17 @@ conversas). Os demais campos seguem a forma do Baileys/WPPConnect (`desc`,
 `announce`, `restrict`, `participants` + `action`) e o cliente os ignora; um item
 sem `subject` e descartado la, entao emiti-los e inofensivo e deixa o dado pronto.
 
+Os avisos de grupo (`gp2`) que o WhatsApp Web mostra na conversa sao montados
+em mensagens_de_sistema.py e saem pelo `received-message`.
+
 As funcoes puras ficam no topo (testadas em test_eventos_grupos.py) e nao
 importam o neonize; `registrar_eventos` liga os eventos a uma sessao. Os
 manipuladores NAO foram provados contra uma conta real.
 """
 import logging
+import time
 
+import mensagens_de_sistema
 import msgmap
 from redacao import redigir
 
@@ -129,11 +134,12 @@ def emitir_itens(s, itens):
         s.emitir("groups.update", {"session": s.nome, "data": itens})
 
 
-def grupo_mudou(c, s, e):
-    """GroupInfoEv -> groups.update. Quem registra o GroupInfoEv e o server.py
-    (o neonize guarda UM manipulador por tipo de evento: um segundo registro
-    apagaria o primeiro), que chama esta funcao. Nao testado contra uma conta
-    real."""
+def grupo_mudou(c, s, e, agora=None):
+    """GroupInfoEv -> groups.update e as mensagens `gp2` da conversa (entrou,
+    saiu, promovido, nome novo...; ver mensagens_de_sistema). Quem registra o
+    GroupInfoEv e o server.py (o neonize guarda UM manipulador por tipo de
+    evento: um segundo registro apagaria o primeiro), que chama esta funcao.
+    Nao testado contra uma conta real."""
     try:
         itens = atualizacoes_do_evento(e, lambda j: id_de_pessoa(c, j))
         log.info("grupo %s mudou (%d item(ns))",
@@ -141,6 +147,14 @@ def grupo_mudou(c, s, e):
         emitir_itens(s, itens)
     except Exception:
         log.exception("grupo mudou")
+    try:
+        agora = time.time() if agora is None else agora
+        avisos = mensagens_de_sistema.avisos_de_grupo(e, lambda j: id_de_pessoa(c, j), agora)
+        chat = jid_texto(getattr(e, "JID", None))
+        for w in avisos:
+            mensagens_de_sistema.guardar_e_emitir(s, chat, w, agora)
+    except Exception:
+        log.exception("aviso de grupo")
 
 
 def registrar_eventos(cli, s):
