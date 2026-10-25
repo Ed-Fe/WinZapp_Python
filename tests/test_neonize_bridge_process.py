@@ -22,9 +22,15 @@ def _bridge(tmp_path, with_python=True):
     return str(root)
 
 
+def _bridge_says(pid=900, ppid=1):
+    """What a real bridge answers at /winzapp/identity."""
+    return lambda port: {"installation_id": "", "instance_id": "",
+                         "protocol_version": 1, "pid": pid, "ppid": ppid}
+
+
 def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
             killed=None, proc=None, my_pid=100, created=lambda pid: f"t{pid}",
-            rotate=lambda path: False):
+            rotate=lambda path: False, identity=None):
     spawned = [] if spawned is None else spawned
     killed = [] if killed is None else killed
 
@@ -36,7 +42,8 @@ def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
     return nb.NeonizeBridge(
         bridge, 6300, is_open=lambda port: port_open() if callable(port_open) else port_open,
         alive=alive, created=created, rotate=rotate, start_process=start_process, kill=killed.append,
-        sleep=lambda s: None, clock=lambda: next(clock), my_pid=my_pid)
+        sleep=lambda s: None, clock=lambda: next(clock), my_pid=my_pid,
+        identity=identity or _bridge_says())
 
 
 def test_the_command_uses_the_bridge_virtualenv_and_the_fixed_port(tmp_path):
@@ -72,7 +79,7 @@ def test_a_closed_port_spawns_the_bridge_and_waits_for_it(tmp_path):
                      spawned=spawned, proc=_Proc(pid=900))
     assert handle.start() is True
     assert len(spawned) == 1
-    assert nb._read_pid(handle._pid_file) == 900
+    assert nb._read_pid_file(handle._pid_file)[0] == 900
 
 
 def test_a_bridge_that_dies_at_once_is_a_failure(tmp_path):
@@ -249,7 +256,8 @@ def test_two_clients_starting_together_spawn_one_bridge(tmp_path):
         handle = nb.NeonizeBridge(
             bridge, 6300, is_open=lambda port: state["open"], alive=lambda p: False,
             created=lambda p: "t", rotate=lambda p: False, start_process=start_process,
-            kill=lambda p: None, sleep=lambda s: time.sleep(0.01), my_pid=pid)
+            kill=lambda p: None, sleep=lambda s: time.sleep(0.01), my_pid=pid,
+            identity=_bridge_says())
         results.append(handle.start())
 
     results = []
@@ -261,7 +269,7 @@ def test_two_clients_starting_together_spawn_one_bridge(tmp_path):
 
     assert results == [True, True]
     assert len(spawned) == 1
-    assert nb._read_pid(os.path.join(nb.run_dir(bridge), nb.BRIDGE_PID_FILE)) == 900
+    assert nb._read_pid_file(os.path.join(nb.run_dir(bridge), nb.BRIDGE_PID_FILE))[0] == 900
 
 
 def test_a_start_lock_that_never_frees_is_a_failure_not_a_hang(tmp_path):
@@ -282,3 +290,99 @@ def test_a_start_lock_that_never_frees_is_a_failure_not_a_hang(tmp_path):
     handle = _handle(_bridge(tmp_path), port_open=lambda: next(opened, True), spawned=spawned)
     handle._lock = _Stuck
     assert handle.start() is False and spawned == []
+
+
+# -- an open port is only trusted when what listens on it is the bridge
+
+def _write_pid_file(handle, pid, stamp):
+    os.makedirs(nb.run_dir(handle.bridge), exist_ok=True)
+    with open(handle._pid_file, "w", encoding="utf-8") as stream:
+        stream.write(f"{pid}\n{stamp}")
+
+
+def test_identity_matches_the_pid_ponte_pid_names_or_its_child():
+    good = {"protocol_version": 1, "pid": 900, "ppid": 5}
+    assert nb.identity_matches(good, 900)
+    assert nb.identity_matches({"protocol_version": 1, "pid": 901, "ppid": 900}, 900)  # launcher
+    assert not nb.identity_matches({"protocol_version": 1, "pid": 901, "ppid": 5}, 900)
+
+
+def test_identity_without_a_pid_to_compare_only_needs_the_bridge_shape():
+    assert nb.identity_matches({"protocol_version": 1, "pid": 7}, 0)
+    for bad in (None, [], "x", {}, {"pid": 7}, {"protocol_version": 1},
+                {"protocol_version": "1", "pid": 7}, {"protocol_version": 1, "pid": True}):
+        assert not nb.identity_matches(bad, 0)
+
+
+def test_a_listener_that_is_not_our_bridge_is_refused_and_gets_nothing(tmp_path):
+    asked = []
+    handle = _handle(_bridge(tmp_path), port_open=True, alive=lambda pid: pid == 900,
+                     identity=lambda port: asked.append(port) or {
+                         "protocol_version": 1, "pid": 31337, "ppid": 1})
+    _write_pid_file(handle, 900, "t900")
+    assert handle.start() is False
+    assert asked == [6300]
+
+
+def test_a_listener_that_does_not_answer_like_a_bridge_is_refused(tmp_path):
+    handle = _handle(_bridge(tmp_path), port_open=True, identity=lambda port: None)
+    assert handle.start() is False
+
+
+def test_a_listener_whose_identity_check_raises_is_refused(tmp_path):
+    def boom(port):
+        raise RuntimeError("x")
+    assert _handle(_bridge(tmp_path), port_open=True, identity=boom).start() is False
+
+
+def test_the_bridge_ponte_pid_names_is_trusted_even_behind_a_launcher(tmp_path):
+    handle = _handle(_bridge(tmp_path), port_open=True, alive=lambda pid: pid == 900,
+                     identity=_bridge_says(pid=901, ppid=900))
+    _write_pid_file(handle, 900, "t900")
+    assert handle.start() is True
+
+
+def test_a_stale_ponte_pid_does_not_block_a_bridge_started_by_hand(tmp_path):
+    # the recorded process is gone, or its pid now belongs to another program
+    bridge = _bridge(tmp_path)
+    for alive, created in ((lambda pid: False, lambda pid: "t900"),
+                           (lambda pid: True, lambda pid: "other")):
+        handle = _handle(bridge, port_open=True, alive=alive,
+                         created=created, identity=_bridge_says(pid=31337, ppid=1))
+        _write_pid_file(handle, 900, "t900")
+        assert handle.start() is True
+
+
+def _handle_whose_port_opens_when_spawned(bridge, **kwargs):
+    """A handle whose port is closed until it spawns, then open."""
+    state = {"up": False}
+    handle = _handle(bridge, port_open=lambda: state["up"], **kwargs)
+    real_spawn = handle._spawn
+
+    def spawn(*args, **kw):
+        state["up"] = True
+        return real_spawn(*args, **kw)
+
+    handle._spawn = spawn
+    return handle
+
+
+def test_a_port_taken_while_we_spawn_is_refused(tmp_path):
+    # our process exits (it could not bind) and a stranger answers on the port
+    handle = _handle_whose_port_opens_when_spawned(_bridge(tmp_path),
+                                                   proc=_Proc(pid=900, exits=1))
+    assert handle.start() is False
+
+
+def test_a_spawned_bridge_that_is_not_the_one_on_the_port_is_refused(tmp_path):
+    handle = _handle_whose_port_opens_when_spawned(
+        _bridge(tmp_path), proc=_Proc(pid=900), alive=lambda pid: pid == 900,
+        identity=_bridge_says(pid=31337, ppid=1))
+    assert handle.start() is False
+
+
+def test_a_spawned_bridge_that_is_the_one_on_the_port_is_used(tmp_path):
+    handle = _handle_whose_port_opens_when_spawned(
+        _bridge(tmp_path), proc=_Proc(pid=900), alive=lambda pid: pid == 900,
+        identity=_bridge_says(pid=901, ppid=900))
+    assert handle.start() is True

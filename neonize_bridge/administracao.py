@@ -32,13 +32,19 @@ STATUS_CONHECIDOS = ("CLOSED", "INITIALIZING", "QRCODE", "CONNECTED", "notLogged
 ARQUIVO_DA_SESSAO = "sessao.db"
 
 
-def identidade(ambiente, pid) -> dict:
+def identidade(ambiente, pid, ppid=0) -> dict:
     """Corpo de GET /winzapp/identity. O cliente compara `installation_id` com o
     da instalacao dele; a ponte e um processo compartilhado que o cliente nao
-    sobe com essas variaveis, entao vazias = "nao e o Node deste cliente"."""
+    sobe com essas variaveis, entao vazias = "nao e o Node deste cliente".
+
+    `pid` e `ppid` (processo e processo pai) deixam o cliente conferir que quem
+    escuta a porta e a ponte que ele mesmo registrou em `ponte.pid` antes de
+    mandar o segredo: o pai entra porque, no Windows, o que o cliente lanca
+    (o python.exe do venv, ou o .exe empacotado) pode ser um lancador que roda a
+    ponte como processo filho. Sao so numeros de processo, nunca segredos."""
     return {"installation_id": ambiente.get("WINZAPP_INSTALLATION_ID", ""),
             "instance_id": ambiente.get("WINZAPP_INSTANCE_ID", ""),
-            "protocol_version": PROTOCOLO, "pid": pid}
+            "protocol_version": PROTOCOLO, "pid": pid, "ppid": ppid}
 
 
 def documento_openapi(rotas, versao="1") -> dict:
@@ -128,7 +134,7 @@ def registrar(r, *, sessao, ok, estado, pasta, marcar_ativa, qr_data_url):
         return saida
 
     async def winzapp_identity(req):
-        return web.json_response(identidade(os.environ, os.getpid()))
+        return web.json_response(identidade(os.environ, os.getpid(), os.getppid()))
 
     async def api_docs(req):
         return web.json_response(documento_openapi(rotas_registradas()))

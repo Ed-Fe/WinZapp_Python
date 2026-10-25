@@ -14,9 +14,15 @@ was created: a pid alone could name some other program after a reboot or a
 crash, and the last client out would kill it. Without a matching creation time
 nothing is killed.
 
+A listener on the port is not trusted just for being there: the client is about
+to hand it the bridge's secret. Before using an already-open port the client asks
+the bridge's open route ``/winzapp/identity`` who it is and compares the answer
+with ``ponte.pid`` (``identity_matches``); a program that merely took port 6300
+is refused.
+
 Everything that touches the system (is the port open, is the pid alive, when
-the process was created, how to spawn, how to kill) is a parameter, so the rules
-are tested without processes.
+the process was created, how to spawn, how to kill, what the listener says it
+is) is a parameter, so the rules are tested without processes.
 """
 
 import logging
@@ -152,6 +158,51 @@ def process_created(pid: int) -> str:
         kernel32.CloseHandle(handle)
 
 
+IDENTITY_TIMEOUT = 3.0
+
+
+def fetch_identity(port: int = PORT, host: str = "127.0.0.1",
+                   timeout: float = IDENTITY_TIMEOUT):
+    """What the listener on ``port`` answers at ``/winzapp/identity`` (an open
+    route: nothing secret is sent), or None when it does not answer like a
+    bridge. Proxies are ignored: this is a loopback call."""
+    import requests
+    try:
+        with requests.Session() as session:
+            session.trust_env = False
+            response = session.get(f"http://{host}:{port}/winzapp/identity",
+                                   timeout=timeout)
+            body = response.json() if response.status_code == 200 else None
+    except Exception:
+        return None
+    return body if isinstance(body, dict) else None
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def identity_matches(identity, expected_pid: int) -> bool:
+    """Whether the listener's ``/winzapp/identity`` answer is the bridge this
+    client expects.
+
+    ``expected_pid`` is the pid ``ponte.pid`` names (0 when there is none to
+    trust: a bridge started by hand, or a stale file). With a pid, the listener
+    must be that process or its child: on Windows what the client launches (the
+    virtualenv's python.exe, the packaged exe) can be a launcher that runs the
+    real bridge as a child process, and the bridge reports its parent for that.
+    Without one, the best that can be asked is that it answers in the bridge's
+    shape. Pure."""
+    if not isinstance(identity, dict):
+        return False
+    pid, parent = identity.get("pid"), identity.get("ppid")
+    if not _is_number(identity.get("protocol_version")) or not _is_number(pid):
+        return False
+    if expected_pid <= 0:
+        return True
+    return pid == expected_pid or (_is_number(parent) and parent == expected_pid)
+
+
 def rotate_output(path: str, limit: int = OUTPUT_LIMIT, *,
                   getsize=os.path.getsize, replace=os.replace) -> bool:
     """Keep the bridge's output file from growing forever: past ``limit`` bytes
@@ -210,7 +261,7 @@ class NeonizeBridge:
     def __init__(self, bridge=None, port=PORT, *, is_open=port_open,
                  alive=pid_alive, created=process_created, rotate=rotate_output,
                  start_process=spawn, kill=kill_tree, sleep=time.sleep, clock=time.monotonic, my_pid=None,
-                 lock=neonize_bridge_lock):
+                 lock=neonize_bridge_lock, identity=fetch_identity):
         self.bridge = bridge or bridge_dir()
         self.port = port
         self._is_open, self._alive = is_open, alive
@@ -218,6 +269,7 @@ class NeonizeBridge:
         self._spawn, self._kill = start_process, kill
         self._sleep, self._clock = sleep, clock
         self._lock = lock
+        self._identity = identity
         self.pid = my_pid or os.getpid()
         self.proc = None
 
@@ -256,6 +308,35 @@ class NeonizeBridge:
                     pass
         return live
 
+    def _expected_bridge_pid(self) -> int:
+        """The pid ``ponte.pid`` names, if it can still be believed: the process
+        is alive and (where the creation time can be read) it is the one that was
+        recorded. 0 means there is no bridge of ours to compare with."""
+        pid, stamp = _read_pid_file(self._pid_file)
+        if not pid or not self._alive(pid):
+            return 0
+        now = self._created(pid)
+        if stamp and now and now != stamp:
+            return 0
+        return pid
+
+    def _listener_is_the_bridge(self, expected_pid=None) -> bool:
+        """The port is open: is what listens on it the bridge, before the
+        client sends it the secret? ``expected_pid`` is the process this client
+        just spawned; otherwise the one ``ponte.pid`` names. Logs only the
+        verdict, never what the listener said."""
+        if expected_pid is None:
+            expected_pid = self._expected_bridge_pid()
+        try:
+            answer = self._identity(self.port)
+        except Exception:
+            answer = None
+        if identity_matches(answer, expected_pid):
+            return True
+        log.error("port %s is taken by a program that is not the neonize bridge "
+                  "(answer type: %s); refusing to use it", self.port, type(answer).__name__)
+        return False
+
     # -- life cycle
     def start(self) -> bool:
         """Make sure the bridge answers on its port. False if it could not be
@@ -268,7 +349,7 @@ class NeonizeBridge:
             return False
         self._register()
         if self._is_open(self.port):
-            return True
+            return self._listener_is_the_bridge()
         os.makedirs(data_dir(self.bridge), exist_ok=True)
         os.makedirs(run_dir(self.bridge), exist_ok=True)
         # Two accounts starting together (at login) must not both find the port
@@ -277,7 +358,7 @@ class NeonizeBridge:
         try:
             with self._lock(run_dir(self.bridge)):
                 if self._is_open(self.port):       # the other client got there first
-                    return True
+                    return self._listener_is_the_bridge()
                 return self._spawn_and_wait(cmd)
         except LockTimeout:
             log.error("neonize bridge start: another client held the start lock too long")
@@ -292,6 +373,14 @@ class NeonizeBridge:
         deadline = self._clock() + START_TIMEOUT
         while self._clock() < deadline:
             if self._is_open(self.port):
+                # Our process may have lost the bind to a program that took the
+                # port meanwhile: the port is open, but not with our bridge.
+                if self.proc.poll() is not None:
+                    log.error("neonize bridge exited with code %s but port %s is open "
+                              "(taken by another program)", self.proc.returncode, self.port)
+                    return False
+                if not self._listener_is_the_bridge(self.proc.pid):
+                    return False
                 log.info("neonize bridge up on port %s (pid %s)", self.port, self.proc.pid)
                 return True
             if self.proc.poll() is not None:
