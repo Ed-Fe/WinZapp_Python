@@ -251,10 +251,6 @@ def _read_pid_file(path: str):
         return 0, ""
 
 
-def _read_pid(path: str) -> int:
-    return _read_pid_file(path)[0]
-
-
 class NeonizeBridge:
     """One client's handle on the shared bridge."""
 
