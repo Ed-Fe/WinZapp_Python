@@ -113,3 +113,9 @@ async def test_middleware_recusa_host_de_fora_mesmo_com_credencial():
         assert resposta.status == 403
     finally:
         await cliente.close()
+
+
+def test_nome_da_credencial_e_o_prefixo_do_token():
+    assert aut.nome_da_credencial("conta1:abc") == "conta1"
+    assert aut.nome_da_credencial("sem-separador") == "sem-separador"
+    assert aut.nome_da_credencial(None) == ""

@@ -174,7 +174,7 @@ def registrar(r, *, sessao, ok, jid_de_texto, jid_texto, qr_data_url):
         try:
             info = await executar(s.cliente.get_group_info_from_link, corpo["invitecode"])
         except Exception as e:
-            log.info("group-info-from-invite-link: %r", e)
+            log.info("group-info-from-invite-link: %s", type(e).__name__)
             return erro(e, 404)
         dados = {"id": jid_texto(info.JID), "subject": info.GroupName.Name,
                  "desc": info.GroupTopic.Topic}

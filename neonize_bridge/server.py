@@ -36,6 +36,7 @@ import negocio
 import perfil
 import presenca
 import restantes
+from redacao import redigir
 from store import Armazem
 
 log = logging.getLogger("ponte")
@@ -466,7 +467,10 @@ class Sessao:
 
     # ------------------------------------------------------------ eventos
     def emitir(self, evento, dados):
-        asyncio.run_coroutine_threadsafe(self.sio.emit(evento, dados), self.laco)
+        # so o socket desta sessao (a sala do connect); sem room, todos os
+        # sockets conectados receberiam os eventos de todas as contas
+        asyncio.run_coroutine_threadsafe(
+            self.sio.emit(evento, dados, room=self.nome), self.laco)
 
     def _estado(self, status):
         self.status = status
@@ -720,8 +724,8 @@ class Sessao:
                 ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(tipo)
                 chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
                 meu = bool(e.MessageSource.IsFromMe)
-                log.info("recibo %s%s (%d mensagem(ns)) em %s... -> ack %s", tipo,
-                         " [meu]" if meu else "", len(e.MessageIDs), chat[:6], ack)
+                log.info("recibo %s%s (%d mensagem(ns)) em %s -> ack %s", tipo,
+                         " [meu]" if meu else "", len(e.MessageIDs), redigir(chat), ack)
                 # recibo de leitura que vem de mim: li no celular (ou em outro aparelho)
                 if tipo == "READ_SELF" or (tipo == "READ" and meu):
                     lida_em_outro_aparelho(c, e)
@@ -786,8 +790,8 @@ class Sessao:
                         self.emitir("phoneCode", {"session": self.nome, "data": cod})
                         return
                     except Exception as erro:
-                        log.warning("codigo de pareamento, tentativa %d: %r",
-                                    tentativa + 1, erro)
+                        log.warning("codigo de pareamento, tentativa %d: %s",
+                                    tentativa + 1, type(erro).__name__)
                         time.sleep(3)
                 self.emitir("phoneCodeError", {"session": self.nome,
                                                "error": "falha ao gerar o codigo"})
@@ -1248,7 +1252,7 @@ class Sessao:
                                        receipt=ReceiptType.READ)
             except Exception:
                 log.exception("mark_read")
-        log.info("lidas %d mensagem(ns) em %s", len(a_ler), conversa[:6] + "...")
+        log.info("lidas %d mensagem(ns) em %s", len(a_ler), redigir(conversa))
         return len(a_ler)
 
     def parar(self):
@@ -1275,7 +1279,7 @@ def criar_app(pasta, fixa=""):
     # Sem cors_allowed_origins="*": so a mesma origem (o cliente do WinZapp nao manda Origin).
     sio = socketio.AsyncServer(async_mode="aiohttp", logger=False, engineio_logger=False)
     segredo = autenticacao.carregar_segredo(pasta)
-    app = web.Application(client_max_size=2 * 1024**3,
+    app = web.Application(client_max_size=autenticacao.TAMANHO_MAXIMO_DO_CORPO,
                           middlewares=[autenticacao.criar_middleware(segredo)])
     sio.attach(app)
     estado = {"sessoes": {}, "fixa": fixa}
@@ -1306,7 +1310,7 @@ def criar_app(pasta, fixa=""):
                 s = estado["sessoes"][nome] = Sessao(
                     nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
                 s.iniciar()
-                log.info("sessao retomada ao iniciar: %s...", nome[:6])
+                log.info("sessao retomada ao iniciar: %s", redigir(nome))
     app.on_startup.append(retomar)
 
     def chave_da(req):
@@ -1334,7 +1338,11 @@ def criar_app(pasta, fixa=""):
         cred = (auth or {}).get("token") or environ.get("HTTP_APIKEY", "")
         if not autenticacao.credencial_valida(segredo, cred):
             raise socketio.exceptions.ConnectionRefusedError("sem credencial")
-        log.info("socket conectado (%s)", (auth or {}).get("session", "?"))
+        # a sala e o nome do token ja conferido, nunca o `auth.session`, que o
+        # cliente escreve sozinho; Sessao.nome e o mesmo nome (tambem em --sessao-unica)
+        nome = autenticacao.nome_da_credencial(cred)
+        await sio.enter_room(sid, nome)
+        log.info("socket conectado (%s)", redigir(nome))
 
     async def gerar_token(req):
         nome = req.match_info["session"]
@@ -1355,9 +1363,11 @@ def criar_app(pasta, fixa=""):
         marcar_ativa(chave_da(req), True)
         if s.status == "CONNECTED":     # ja logada: o cliente espera os avisos
             if corpo.get("phone") and s.simular_codigo:
-                await sio.emit("phoneCode", {"session": s.nome, "data": "TEST-0000"})
+                await sio.emit("phoneCode", {"session": s.nome, "data": "TEST-0000"},
+                               room=s.nome)
                 await asyncio.sleep(2)
-            await sio.emit("session-logged", {"session": s.nome, "status": True})
+            await sio.emit("session-logged", {"session": s.nome, "status": True},
+                           room=s.nome)
         return ok(status=s.status, qrcode=None, urlcode=s.urlcode)
 
     async def status_session(req):
@@ -1533,7 +1543,7 @@ def criar_app(pasta, fixa=""):
                     await asyncio.get_running_loop().run_in_executor(
                         None, s.cliente.subscribe_presence, build_jid(u, srv))
                 except Exception:
-                    log.info("subscribe_presence nao aceito para %s", s.aberta[:6])
+                    log.info("subscribe_presence nao aceito para %s", redigir(s.aberta))
         return ok(status="success", response={})
 
     async def set_online(req):
@@ -1597,7 +1607,7 @@ def criar_app(pasta, fixa=""):
         asyncio.get_running_loop().call_later(0.6, lambda: asyncio.ensure_future(
             sio.emit("onack", {"session": s.nome, "ack": 1, "to": chat_w, "from": chat_w,
                                "id": {"fromMe": True, "remote": chat_w, "id": resp.ID,
-                                      "_serialized": serial}})))
+                                      "_serialized": serial}}, room=s.nome)))
         return ok(status="success", response=[{"id": serial, "ack": 1}])
 
     def contexto_citado(s, citado, ctx=None):
@@ -1821,7 +1831,7 @@ def criar_app(pasta, fixa=""):
             g = await asyncio.get_running_loop().run_in_executor(
                 None, s.cliente.get_group_info, jid)
         except Exception as erro:
-            log.info("group-info falhou: %r", erro)
+            log.info("group-info falhou: %s", type(erro).__name__)
             return web.json_response({"status": "error", "message": str(erro)}, status=404)
         info = grupo_para_wpp(g)
         if info["name"]:
