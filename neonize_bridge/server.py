@@ -22,6 +22,7 @@ from aiohttp import web
 
 import grupos
 import msgmap
+import negocio
 from store import Armazem
 
 log = logging.getLogger("ponte")
@@ -1852,6 +1853,7 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/group-subject", group_subject)
     grupos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                      jid_texto=jid_texto, qr_data_url=qr_data_url)
+    negocio.registrar(r, sessao=sessao, ok=ok)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
