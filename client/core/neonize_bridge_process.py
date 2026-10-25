@@ -9,8 +9,14 @@ shared by every account on this machine, like the WPPConnect port is. So:
   prunes the dead ones, and the last one out stops the bridge;
 * a bridge the user started by hand has no ``ponte.pid`` and is never stopped.
 
-Everything that touches the system (is the port open, is the pid alive, how to
-spawn, how to kill) is a parameter, so the rules are tested without processes.
+``ponte.pid`` holds the bridge's pid and, on the next line, when that process
+was created: a pid alone could name some other program after a reboot or a
+crash, and the last client out would kill it. Without a matching creation time
+nothing is killed.
+
+Everything that touches the system (is the port open, is the pid alive, when
+the process was created, how to spawn, how to kill) is a parameter, so the rules
+are tested without processes.
 """
 
 import logging
@@ -30,6 +36,7 @@ BRIDGE_PID_FILE = "ponte.pid"
 CLIENTS_DIR = "clientes"
 EXTRA_PATH_FILE = "path_extra.txt"    # one folder per line, e.g. where ffprobe lives
 OUTPUT_FILE = "ponte.log"
+OUTPUT_LIMIT = 5 * 1024 * 1024   # bytes; past this the next start keeps one older copy
 HISTORY_DAYS = "180"
 SECRET_FILE = "segredo"         # written by the bridge in its data folder
 
@@ -122,6 +129,42 @@ def pid_alive(pid: int) -> bool:
         kernel32.CloseHandle(handle)
 
 
+def process_created(pid: int) -> str:
+    """When the process was created, as a string that only means something
+    next to the same pid ("" if it cannot be read, or off Windows, where the
+    bridge is never started by this feature)."""
+    if sys.platform != "win32" or pid <= 0:
+        return ""
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x1000, False, pid)   # QUERY_LIMITED_INFORMATION
+    if not handle:
+        return ""
+    try:
+        created, ignored = wintypes.FILETIME(), wintypes.FILETIME()
+        if not kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(ignored),
+                                        ctypes.byref(ignored), ctypes.byref(ignored)):
+            return ""
+        return str((created.dwHighDateTime << 32) | created.dwLowDateTime)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def rotate_output(path: str, limit: int = OUTPUT_LIMIT, *,
+                  getsize=os.path.getsize, replace=os.replace) -> bool:
+    """Keep the bridge's output file from growing forever: past ``limit`` bytes
+    it becomes ``<path>.1`` (replacing the previous copy) and the next start
+    writes a fresh file. Returns whether it rotated."""
+    try:
+        if getsize(path) <= limit:
+            return False
+        replace(path, path + ".1")
+    except OSError:                # no file yet, or another program holds it
+        return False
+    return True
+
+
 def spawn(cmd, env, cwd, output=None):
     """Start the bridge hidden, its output going to the ``output`` file."""
     flags = 0
@@ -145,23 +188,31 @@ def kill_tree(pid: int):
         os.kill(pid, 15)
 
 
-def _read_pid(path: str) -> int:
+def _read_pid_file(path: str):
+    """(pid, creation stamp) from ponte.pid; (0, "") if unreadable, and an
+    empty stamp for a file written without one."""
     try:
         with open(path, encoding="utf-8") as stream:
-            return int(stream.read().strip())
-    except (OSError, ValueError):
-        return 0
+            lines = stream.read().split()
+        return int(lines[0]), (lines[1] if len(lines) > 1 else "")
+    except (OSError, ValueError, IndexError):
+        return 0, ""
+
+
+def _read_pid(path: str) -> int:
+    return _read_pid_file(path)[0]
 
 
 class NeonizeBridge:
     """One client's handle on the shared bridge."""
 
     def __init__(self, bridge=None, port=PORT, *, is_open=port_open,
-                 alive=pid_alive, start_process=spawn, kill=kill_tree,
-                 sleep=time.sleep, clock=time.monotonic, my_pid=None):
+                 alive=pid_alive, created=process_created, rotate=rotate_output,
+                 start_process=spawn, kill=kill_tree, sleep=time.sleep, clock=time.monotonic, my_pid=None):
         self.bridge = bridge or bridge_dir()
         self.port = port
         self._is_open, self._alive = is_open, alive
+        self._created, self._rotate = created, rotate
         self._spawn, self._kill = start_process, kill
         self._sleep, self._clock = sleep, clock
         self.pid = my_pid or os.getpid()
@@ -215,10 +266,11 @@ class NeonizeBridge:
             return False
         os.makedirs(data_dir(self.bridge), exist_ok=True)
         os.makedirs(run_dir(self.bridge), exist_ok=True)
-        self.proc = self._spawn(cmd, environment(self.bridge), self.bridge,
-                                os.path.join(run_dir(self.bridge), OUTPUT_FILE))
+        output = os.path.join(run_dir(self.bridge), OUTPUT_FILE)
+        self._rotate(output)
+        self.proc = self._spawn(cmd, environment(self.bridge), self.bridge, output)
         with open(self._pid_file, "w", encoding="utf-8") as stream:
-            stream.write(str(self.proc.pid))
+            stream.write(f"{self.proc.pid}\n{self._created(self.proc.pid)}")
         deadline = self._clock() + START_TIMEOUT
         while self._clock() < deadline:
             if self._is_open(self.port):
@@ -240,8 +292,19 @@ class NeonizeBridge:
             pass
         if self._live_clients():
             return False
-        bridge_pid = _read_pid(self._pid_file)
+        bridge_pid, stamp = _read_pid_file(self._pid_file)
         if not bridge_pid or not self._alive(bridge_pid):
+            return False
+        now = self._created(bridge_pid)
+        if not stamp or not now:
+            log.warning("neonize bridge pid %s not verified, left running", bridge_pid)
+            return False
+        if now != stamp:               # the pid now belongs to another program
+            log.info("neonize bridge pid %s was reused, nothing to stop", bridge_pid)
+            try:
+                os.remove(self._pid_file)
+            except OSError:
+                pass
             return False
         self._kill(bridge_pid)
         try:

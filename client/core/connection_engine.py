@@ -73,6 +73,15 @@ def engine_at(index: int) -> str:
     return ENGINES[index] if 0 <= index < len(ENGINES) else WPPCONNECT
 
 
+def first_run_engines(bridge_available: bool) -> tuple:
+    """The engines the first-run question offers. Neonize needs a bridge
+    installed next to WinZapp (a packaged build has none yet, a repository
+    checkout needs ``neonize_bridge/preparar.py``), so it is not offered to
+    someone who could only end up with an error; Settings > Connection still
+    lists it."""
+    return tuple(e for e in ENGINES if e != NEONIZE or bridge_available)
+
+
 def needs_restart(loaded: str, chosen: str) -> bool:
     """Changing the engine only takes effect after a restart."""
     return chosen != loaded
