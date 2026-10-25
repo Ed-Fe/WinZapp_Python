@@ -1531,7 +1531,13 @@ class WppServerMixin:
         # Chrome processes forever (observed: 22 chrome-headless shells after a
         # few pairings). Never touch another account's ACTIVE session: we only
         # close sessions whose own status is not connected.
-        if getattr(self, "wpp_custom_api", False):
+        # Not on the neonize bridge: there is no browser to pile up, the bridge
+        # answers 401 to check-connection-session / close-session by bare name
+        # (which the sweep would count as "closed"), and the sessions it holds
+        # are other accounts' of this install -- one still starting would be
+        # closed, and close-session drops it from the bridge's list of accounts
+        # to resume.
+        if getattr(self, "wpp_custom_api", False) and not self._uses_neonize():
             try:
                 self._close_orphaned_server_sessions()
             except Exception:
