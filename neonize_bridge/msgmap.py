@@ -5,6 +5,7 @@ import base64
 import hashlib
 
 import botoes
+import mensagens_de_comercio
 
 # camadas que so embrulham outra mensagem
 EMBRULHOS = ("ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2",
@@ -267,6 +268,10 @@ def _conteudo(interna, campo, conversa_w, saida) -> bool:
                      pollSelectableOptionsCount=int(enquete.selectableOptionsCount or 0),
                      pollOptions=[{"name": o.optionName, "localId": i}
                                   for i, o in enumerate(enquete.options)])
+    elif campo == "orderMessage":
+        saida.update(mensagens_de_comercio.campos_do_pedido(interna.orderMessage))
+    elif campo == "productMessage":
+        saida.update(mensagens_de_comercio.campos_do_produto(interna.productMessage))
     elif campo in ("reactionMessage", "pollUpdateMessage", "keepInChatMessage", ""):
         return False
     else:

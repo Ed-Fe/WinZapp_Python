@@ -22,6 +22,8 @@ formato confirmado, a ponte o recusa em vez de adivinhar.
 
 Nada aqui foi testado contra uma conta real.
 """
+import mensagens_de_comercio
+
 SOURCES = ("dynamic", "native", "template", "list")
 
 
@@ -94,9 +96,14 @@ def campos_de_botoes(mensagem) -> dict:
         i = mensagem.interactiveMessage
         if not _tem(i, "nativeFlowMessage"):
             return {}
-        return {"body": i.body.text, "interactivePayload": {"buttons": [
+        botoes = i.nativeFlowMessage.buttons
+        campos = {"body": i.body.text, "interactivePayload": {"buttons": [
             {"name": b.name, "buttonParamsJson": b.buttonParamsJSON}
-            for b in i.nativeFlowMessage.buttons]}}
+            for b in botoes]}}
+        fluxo = mensagens_de_comercio.fluxo_nativo(botoes[0].name) if botoes else ""
+        if fluxo:           # o cliente separa o aviso de pedido do resto por aqui
+            campos["nativeFlowName"] = fluxo
+        return campos
     return {}
 
 
