@@ -150,3 +150,50 @@ def test_nome_da_credencial_e_o_prefixo_do_token():
     assert aut.nome_da_credencial("conta1:abc") == "conta1"
     assert aut.nome_da_credencial("sem-separador") == "sem-separador"
     assert aut.nome_da_credencial(None) == ""
+
+
+def test_bearer_vale_com_o_segredo_ou_o_hash_da_sessao_como_no_wppconnect():
+    hash_ = aut.token_da_sessao(SEGREDO, "conta1")
+    por_cab = aut.credencial_por_cabecalho
+    assert por_cab(SEGREDO, "conta1", f"Bearer {SEGREDO}")
+    assert por_cab(SEGREDO, "conta1", f"Bearer {hash_}")
+    assert por_cab(SEGREDO, "conta1", SEGREDO)              # o cabecalho inteiro, sem "Bearer"
+    assert por_cab(SEGREDO, "conta1", f"bearer  {hash_} ")
+    # o hash de OUTRA sessao, lixo, vazio e tipos errados nao valem
+    assert not por_cab(SEGREDO, "conta1", f"Bearer {aut.token_da_sessao(SEGREDO, 'conta2')}")
+    assert not por_cab(SEGREDO, "conta1", "Bearer errado")
+    assert not por_cab(SEGREDO, "conta1", "Bearer ")
+    assert not por_cab(SEGREDO, "conta1", "")
+    assert not por_cab(SEGREDO, "conta1", None)
+    assert not por_cab(SEGREDO, "", f"Bearer {SEGREDO}")
+    assert not por_cab(SEGREDO, None, f"Bearer {SEGREDO}")
+    # um nome que ja traz ":" so vale pelo proprio hash do caminho
+    assert not por_cab(SEGREDO, "conta1:x", f"Bearer {SEGREDO}")
+
+
+@pytest.mark.asyncio
+async def test_middleware_aceita_bearer_quando_o_caminho_so_traz_o_nome():
+    """O cliente chama com o nome da sessao sem `:hash` em varios pontos
+    (check_connection_status no arranque, fechar a sessao antes de parear)."""
+    cliente = await _cliente()
+    try:
+        hash_ = aut.token_da_sessao(SEGREDO, "conta1")
+        for cabecalho in (f"Bearer {SEGREDO}", f"Bearer {hash_}"):
+            resposta = await cliente.get("/api/conta1/status-session",
+                                         headers={"Authorization": cabecalho})
+            assert resposta.status == 200, cabecalho
+        for cabecalho in ("Bearer errado", f"Bearer {aut.token_da_sessao(SEGREDO, 'outra')}"):
+            resposta = await cliente.get("/api/conta1/status-session",
+                                         headers={"Authorization": cabecalho})
+            assert resposta.status == 401, cabecalho
+        # sem cabecalho continua recusando; e o cabecalho nao abre as rotas de chave
+        assert (await cliente.get("/api/conta1/status-session")).status == 401
+        resposta = await cliente.post("/api/conta1/chave-errada/generate-token",
+                                      headers={"Authorization": f"Bearer {SEGREDO}"})
+        assert resposta.status == 401
+        # com ":hash" no caminho o cabecalho nao troca a credencial do caminho
+        resposta = await cliente.get("/api/conta1:errado/status-session",
+                                     headers={"Authorization": f"Bearer {SEGREDO}"})
+        assert resposta.status == 401
+    finally:
+        await cliente.close()
