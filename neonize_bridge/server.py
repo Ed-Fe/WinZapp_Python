@@ -29,6 +29,7 @@ import grupos
 import grupos_extra
 import msgmap
 import negocio
+import perfil
 from store import Armazem
 
 log = logging.getLogger("ponte")
@@ -1871,6 +1872,8 @@ def criar_app(pasta, fixa=""):
     comunidades.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
     grupos_extra.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                            jid_texto=jid_texto, qr_data_url=qr_data_url)
+    perfil.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
+                     jid_texto=jid_texto)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
