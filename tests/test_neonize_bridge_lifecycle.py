@@ -156,3 +156,49 @@ def test_a_neonize_account_shows_up_among_the_running_accounts(boxes, tmp_path):
 
     leases = node_coord.live_node_leases(str(tmp_path), is_alive=lambda pid, created: True)
     assert [lease.get("account_id") for lease in leases] == ["a" * 32]
+
+
+# -- audit F4, M7: Settings > Connection does not offer Neonize without a bridge --
+
+def _choice_dialog(selected, shown, loaded, monkeypatch, bridge_installed):
+    from ui.dialogs import settings_dialog as module
+    boxes, picked = [], []
+    monkeypatch.setattr(module.wx, "MessageBox", lambda *a, **k: boxes.append(a))
+    monkeypatch.setattr(bridge_process, "command",
+                        lambda *a, **k: ["bridge"] if bridge_installed else None)
+    dialog = SimpleNamespace(
+        _engine_choice=SimpleNamespace(
+            GetSelection=lambda: engines.index_of(selected),
+            SetSelection=lambda index: picked.append(engines.engine_at(index))),
+        _loaded_engine=loaded, _engine_shown=shown, main_window=SimpleNamespace(i18n=_I18n()),
+        _custom_api_check=SimpleNamespace(SetValue=lambda v: picked.append(("api", v))),
+        _server_field=SimpleNamespace(SetValue=lambda v: None),
+        _ws_server_field=SimpleNamespace(SetValue=lambda v: None),
+        _port_field=SimpleNamespace(SetValue=lambda v: None),
+        _update_fields_state=lambda: None, _sync_fixed_port_field=lambda: None)
+    dialog._bridge_allows = lambda engine: SettingsDialog._bridge_allows(dialog, engine)
+    return dialog, boxes, picked
+
+
+def test_neonize_is_refused_when_no_bridge_is_installed(monkeypatch):
+    dialog, boxes, picked = _choice_dialog(
+        engines.NEONIZE, engines.WPPCONNECT, engines.WPPCONNECT, monkeypatch, False)
+    skipped = []
+    SettingsDialog._on_engine_choice(dialog, SimpleNamespace(Skip=lambda: skipped.append(1)))
+    assert len(boxes) == 1 and boxes[0][0] == "neonize_bridge_unavailable_message"
+    assert picked == [engines.WPPCONNECT]          # back to what it showed
+    assert dialog._engine_shown == engines.WPPCONNECT
+
+
+def test_neonize_is_chosen_when_a_bridge_is_installed(monkeypatch):
+    dialog, boxes, picked = _choice_dialog(
+        engines.NEONIZE, engines.WPPCONNECT, engines.WPPCONNECT, monkeypatch, True)
+    SettingsDialog._on_engine_choice(dialog, SimpleNamespace(Skip=lambda: None))
+    assert boxes == [] and ("api", True) in picked
+    assert dialog._engine_shown == engines.NEONIZE
+
+
+def test_an_install_already_on_neonize_keeps_it_while_its_bridge_is_missing():
+    assert engines.can_choose(engines.NEONIZE, False, engines.NEONIZE) is True
+    assert engines.can_choose(engines.NEONIZE, False, engines.CUSTOM) is False
+    assert engines.can_choose(engines.CUSTOM, False, engines.WPPCONNECT) is True

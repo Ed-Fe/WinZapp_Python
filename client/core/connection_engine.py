@@ -109,6 +109,13 @@ def first_run_engines(bridge_available: bool) -> tuple:
     return tuple(e for e in ENGINES if e != NEONIZE or bridge_available)
 
 
+def can_choose(engine: str, bridge_available: bool, current: str) -> bool:
+    """Whether Settings > Connection may switch to ``engine``. The same rule as
+    first_run_engines(): Neonize needs a bridge installed, except for an
+    install that already runs on it (its bridge may be mid-repair)."""
+    return engine != NEONIZE or bridge_available or current == NEONIZE
+
+
 def needs_restart(loaded: str, chosen: str) -> bool:
     """Changing the engine only takes effect after a restart."""
     return chosen != loaded

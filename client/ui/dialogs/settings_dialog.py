@@ -2045,7 +2045,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             {**conn, "wpp_engine": conn.get("wpp_engine", ""),
              "wpp_port": getattr(self.main_window, "wpp_port", None)})
         self._engine_choice.SetSelection(engines.index_of(engine))
-        self._loaded_engine = engine
+        self._loaded_engine = self._engine_shown = engine
 
         server = conn.get("wpp_server", "http://127.0.0.1")
         self._server_field.SetValue(server)
@@ -2976,6 +2976,17 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         """Pick an engine: the switch and the addresses follow it. Neonize has
         a fixed local address; only the custom engine lets the user type one."""
         engine = engines.engine_at(self._engine_choice.GetSelection())
+        if not self._bridge_allows(engine):
+            # Same rule as the first-run question: not offered an engine that
+            # could only end in an error (no bridge installed next to WinZapp).
+            i18n = self.main_window.i18n
+            wx.MessageBox(i18n.t("neonize_bridge_unavailable_message"),
+                          i18n.t("neonize_bridge_unavailable_title"),
+                          wx.OK | wx.ICON_ERROR, self)
+            self._engine_choice.SetSelection(engines.index_of(self._engine_shown))
+            event.Skip()
+            return
+        self._engine_shown = engine
         self._custom_api_check.SetValue(engines.uses_custom_api(engine))
         fixed = engines.fixed_address(engine)
         if fixed is not None:
@@ -2986,6 +2997,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._update_fields_state()
         self._sync_fixed_port_field()
         event.Skip()
+
+    def _bridge_allows(self, engine) -> bool:
+        from core import neonize_bridge_process as bridge
+        return engines.can_choose(
+            engine, bridge.command(bridge.bridge_dir()) is not None, self._loaded_engine)
 
     def _update_fields_state(self):
         is_custom = engines.addresses_editable(
