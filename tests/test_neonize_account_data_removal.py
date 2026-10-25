@@ -203,12 +203,13 @@ class TestAbandonedPairingAttempts:
         window = types.SimpleNamespace(
             token=f"{SESSION_A}:hash", global_dir="unused", _get_session_store=lambda: store,
             _protected_session_names=lambda: set(protected),
+            _session_engine_name=lambda: "neonize",
             _neonize_session_deleter=lambda: deleter)
         return window
 
     def test_a_superseded_attempt_is_deleted_on_the_bridge_and_forgotten(self):
-        store = _Store([{"name": SESSION_B, "status": "abandoned"},
-                        {"name": SESSION_A, "status": "active"}])
+        store = _Store([{"name": SESSION_B, "status": "abandoned", "engine": "neonize"},
+                        {"name": SESSION_A, "status": "active", "engine": "neonize"}])
         asked = []
         window = self._window(store, lambda name: asked.append(name) or True)
 
@@ -217,7 +218,7 @@ class TestAbandonedPairingAttempts:
         assert asked == [SESSION_B] and store.removed == [SESSION_B]
 
     def test_a_refusal_keeps_the_row_for_the_next_start(self):
-        store = _Store([{"name": SESSION_B, "status": "abandoned"}])
+        store = _Store([{"name": SESSION_B, "status": "abandoned", "engine": "neonize"}])
         window = self._window(store, lambda name: False)
 
         NeonizeBridgeMixin._cleanup_abandoned_bridge_sessions(window)
@@ -225,10 +226,20 @@ class TestAbandonedPairingAttempts:
         assert store.removed == []
 
     def test_a_name_another_account_uses_is_never_deleted(self):
-        store = _Store([{"name": SESSION_B, "status": "abandoned"}])
+        store = _Store([{"name": SESSION_B, "status": "abandoned", "engine": "neonize"}])
         asked = []
         window = self._window(store, lambda name: asked.append(name) or True,
                               protected={SESSION_B})
+
+        NeonizeBridgeMixin._cleanup_abandoned_bridge_sessions(window)
+
+        assert asked == [] and store.removed == []
+
+    def test_a_session_of_the_other_engine_is_left_alone(self):
+        store = _Store([{"name": SESSION_B, "status": "abandoned",
+                         "token": f"{SESSION_B}:$2b$10$abcdef"}])
+        asked = []
+        window = self._window(store, lambda name: asked.append(name) or True)
 
         NeonizeBridgeMixin._cleanup_abandoned_bridge_sessions(window)
 

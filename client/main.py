@@ -791,6 +791,10 @@ class MainWindow(
             self._check_first_run()
             self._check_hotkey_first_run()
 
+        # A session belongs to the engine that made it: set aside the one of
+        # another engine before anything asks this engine about it.
+        self._reconcile_session_engine()
+
         # Handle API execution configuration
         if self.wpp_custom_api:
             logging.info("MainWindow: Custom API enabled — preserving all local API files, cache, and remote session state.")

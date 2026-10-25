@@ -35,7 +35,7 @@ class _FakeStore:
     def list(self):
         return list(self.sessions)
 
-    def ensure_from_legacy_token(self, name, token):
+    def ensure_from_legacy_token(self, name, token, engine=None):
         self.seeded.append((name, token))
         return {"name": name, "status": "active"}
 
@@ -45,6 +45,7 @@ class _Stub:
 
     retrieve_token = MainWindow.retrieve_token
     _uses_neonize = MainWindow._uses_neonize
+    _session_engine_name = MainWindow._session_engine_name
 
     def __init__(self, token="sess-abc:hash-xyz"):
         self.settings = {"privateinfo": {"paired": True}}

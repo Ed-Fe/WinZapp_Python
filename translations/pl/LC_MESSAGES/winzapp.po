@@ -5481,6 +5481,24 @@ msgctxt "emoji_picker_title"
 msgid "Select emoji"
 msgstr "Wybierz emoji"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/session_tokens.py
+msgctxt "engine_switch_pair_again_message"
+msgid ""
+"You changed the connection engine, so this account has to be paired again on"
+" it. Your messages stay on this computer, and switching back to the previous"
+" engine picks its connection up where it was."
+msgstr ""
+"Zmieniono silnik połączenia, więc to konto trzeba ponownie sparować z nowym "
+"silnikiem. Twoje wiadomości zostają na tym komputerze, a powrót do "
+"poprzedniego silnika wznawia jego połączenie tam, gdzie je przerwano."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/session_tokens.py
+msgctxt "engine_switch_pair_again_title"
+msgid "Connection engine changed"
+msgstr "Zmieniono silnik połączenia"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "enter_phone"
 msgid "&Enter your phone number"
