@@ -24,6 +24,7 @@ As funcoes puras ficam no topo (testadas em test_mensagens_efemeras.py);
 import logging
 from datetime import timedelta
 
+import respostas
 from conversas_acoes import telefones
 from conversas_listagem import booleano, jid_da_conversa
 
@@ -91,7 +92,7 @@ def registrar(r, *, sessao, ok, erro, destino_de, em_thread, agora):
         except ValueError as e:
             return erro(e, 400)
         if s.cliente is None or s.status != "CONNECTED":
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         grupo = booleano(corpo.get("isGroup"), False)
         try:
             for fone in fones:

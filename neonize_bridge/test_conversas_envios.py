@@ -136,7 +136,7 @@ def test_rotas_de_voz_e_figurinha_recusam_url_sem_baixar(rota, campo):
 def test_rota_sem_conexao_responde_400_sem_enviar():
     (status, corpo), _ = pedir(
         "/api/t/send-location", {"phone": "55", "lat": 1, "lng": 2}, False)
-    assert status == 400 and corpo["message"] == "Disconnected"
+    assert status == 404 and corpo["status"] == "Disconnected"
 
 
 def test_isgroup_vira_jid_de_grupo_no_destino():

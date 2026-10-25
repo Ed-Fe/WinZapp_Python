@@ -16,6 +16,8 @@ import logging
 import mimetypes
 import re
 
+import respostas
+
 log = logging.getLogger("ponte")
 
 _ESQUEMA = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
@@ -95,7 +97,7 @@ def registrar(r, *, sessao, ok, erro, destino_de, guardar_enviada, enviar_midia,
         except (KeyError, ValueError) as e:
             return erro("invalid request: %s" % e, 400)
         if not conectada(s):
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         try:
             resp = await em_thread(preparado)
         except Exception as e:

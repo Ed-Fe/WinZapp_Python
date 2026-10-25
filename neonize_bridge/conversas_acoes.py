@@ -20,6 +20,7 @@ import logging
 import time
 
 import msgmap
+import respostas
 from conversas_listagem import booleano, jid_da_conversa
 
 log = logging.getLogger("ponte")
@@ -63,6 +64,13 @@ def estado_de_digitacao(valor):
         return ESTADOS_DE_DIGITACAO[int(valor)]
     except (KeyError, TypeError, ValueError):
         raise ValueError("chatstate must be 0 (typing), 1 (recording) or 2 (paused)") from None
+
+
+def estado_da_digitacao(ativo, gravando):
+    """typing/recording (value, qual dos dois) -> o chatstate de ESTADOS_DE_DIGITACAO."""
+    if not ativo:
+        return 2
+    return 1 if gravando else 0
 
 
 def participantes_do_recibo(linhas):
@@ -147,10 +155,12 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         except ValueError:
             return None, erro("invalid JSON body", 400)
 
-    async def por_telefone(req, nome, acao, eco=lambda corpo: {}):
+    async def por_telefone(req, nome, acao, eco=lambda corpo: {}, espelho=None):
         """`acao(s, jid, corpo)` -> aceito?, para cada telefone do corpo. Responde
         {data: {telefone: True}} como o clear-chat do WPPConnect, mais o que
-        `eco(corpo)` devolver."""
+        `eco(corpo)` devolver. A conversa guardada sob os dois enderecos (numero
+        e LID) recebe a acao no primeiro e `espelho(s, outra_chave, corpo)` nos
+        demais, depois que o WhatsApp aceitou."""
         s = sessao(req)
         corpo, falha = await corpo_de(req)
         if falha is not None:
@@ -160,12 +170,18 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         except ValueError as e:
             return erro(e, 400)
         if not conectada(s):
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         grupo = booleano(corpo.get("isGroup"), False)
         resultado = {}
         for fone in fones:
             try:
-                resultado[fone] = bool(await em_thread(acao, s, jid_da_conversa(fone, grupo), corpo))
+                jid = jid_da_conversa(fone, grupo)
+                chaves = await em_thread(s.chaves_da_conversa, jid)
+                alvo = chaves[0] if chaves else jid
+                resultado[fone] = bool(await em_thread(acao, s, alvo, corpo))
+                if resultado[fone] and espelho is not None:
+                    for outra in chaves[1:]:
+                        espelho(s, outra, corpo)
             except Exception:
                 log.exception(nome)
                 resultado[fone] = False
@@ -178,11 +194,14 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         return await por_telefone(
             req, "clear-chat",
             lambda s, jid, corpo: limpar_no_celular(s, jid, manter_estrelas(corpo)),
-            eco=lambda corpo: {"keepStarred": manter_estrelas(corpo)})
+            eco=lambda corpo: {"keepStarred": manter_estrelas(corpo)},
+            espelho=lambda s, outra, corpo: s.bd.limpar_conversa(
+                outra, manter_estrelas=manter_estrelas(corpo)))
 
     async def delete_chat(req):
         return await por_telefone(
-            req, "delete-chat", lambda s, jid, corpo: apagar_no_celular(s, jid))
+            req, "delete-chat", lambda s, jid, corpo: apagar_no_celular(s, jid),
+            espelho=lambda s, outra, corpo: s.bd.apagar_conversa(outra))
 
     async def em_todas(req, nome, acao, so_se=lambda c, corpo: True):
         """Aplica `acao(s, jid, corpo)` a cada conversa do armazem; responde
@@ -192,7 +211,7 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         if falha is not None:
             return falha
         if not conectada(s):
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         alvos = [c["jid"] for c in s.bd.conversas()
                  if c["jid"] != "status@broadcast" and so_se(c, corpo)]
         feitas = 0
@@ -228,11 +247,28 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         except ValueError as e:
             return erro(e, 400)
         if not conectada(s):
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         grupo = booleano(corpo.get("isGroup"), False)
         for fone in fones:
-            await em_thread(s.marcar_nao_lida, jid_da_conversa(fone, grupo))
+            jid = jid_da_conversa(fone, grupo)
+            await em_thread(s.marcar_nao_lida, await em_thread(s.chat_existente, jid) or jid)
         return ok(status="success", response={"unseen": True})
+
+    async def avisar_presenca(s, corpo, fones, estado, nome):
+        """Manda a presenca (digitando, gravando, parou) de `estado` a cada telefone."""
+        from neonize.utils import build_jid
+        from neonize.utils.enum import ChatPresence, ChatPresenceMedia
+        presenca, midia = estado_de_digitacao(estado)
+        grupo = booleano(corpo.get("isGroup"), False)
+        for fone in fones:
+            u, _, srv = jid_da_conversa(fone, grupo).partition("@")
+            try:
+                await em_thread(s.cliente.send_chat_presence, build_jid(u, srv),
+                                ChatPresence[presenca], ChatPresenceMedia[midia])
+            except Exception as e:
+                log.exception(nome)
+                return erro(e)
+        return None
 
     async def chat_state(req):
         s = sessao(req)
@@ -241,23 +277,40 @@ def registrar(r, *, sessao, ok, erro, em_thread):
             return falha
         try:
             fones = telefones(corpo)
-            presenca, midia = estado_de_digitacao(corpo.get("chatstate"))
+            estado_de_digitacao(corpo.get("chatstate"))
         except ValueError as e:
             return erro(e, 400)
         if not conectada(s):
-            return erro("Disconnected", 400)
-        from neonize.utils import build_jid
-        from neonize.utils.enum import ChatPresence, ChatPresenceMedia
-        grupo = booleano(corpo.get("isGroup"), False)
-        for fone in fones:
-            u, _, srv = jid_da_conversa(fone, grupo).partition("@")
-            try:
-                await em_thread(s.cliente.send_chat_presence, build_jid(u, srv),
-                                ChatPresence[presenca], ChatPresenceMedia[midia])
-            except Exception as e:
-                log.exception("chat-state")
-                return erro(e)
+            return respostas.desconectada()
+        falhou = await avisar_presenca(s, corpo, fones, corpo.get("chatstate"), "chat-state")
+        if falhou is not None:
+            return falhou
         return ok(status="success", response={"chatstate": int(corpo["chatstate"])})
+
+    async def digitando(req, nome, gravando):
+        """typing e recording: o cliente manda {phone, value, isGroup}; value
+        true avisa 'digitando' (ou 'gravando audio'), false 'parou'."""
+        s = sessao(req)
+        corpo, falha = await corpo_de(req)
+        if falha is not None:
+            return falha
+        try:
+            fones = telefones(corpo)
+        except ValueError as e:
+            return erro(e, 400)
+        if not conectada(s):
+            return respostas.desconectada()
+        falhou = await avisar_presenca(
+            s, corpo, fones, estado_da_digitacao(booleano(corpo.get("value"), True), gravando), nome)
+        if falhou is not None:
+            return falhou
+        return ok(status="success", response={})
+
+    async def typing(req):
+        return await digitando(req, "typing", False)
+
+    async def recording(req):
+        return await digitando(req, "recording", True)
 
     async def download_media(req):
         """Baixa e decifra a midia de uma mensagem guardada; base64 no corpo da
@@ -274,7 +327,7 @@ def registrar(r, *, sessao, ok, erro, em_thread):
         if ficha is None:
             return erro("media not found", 404)
         if not conectada(s):
-            return erro("Disconnected", 400)
+            return respostas.desconectada()
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
         try:
             dados = await em_thread(s.cliente.download_any, Message.FromString(ficha))
@@ -310,5 +363,7 @@ def registrar(r, *, sessao, ok, erro, em_thread):
     r.add_post(p + "archive-all-chats", archive_all_chats)
     r.add_post(p + "mark-unseen", mark_unseen)
     r.add_post(p + "chat-state", chat_state)
+    r.add_post(p + "typing", typing)
+    r.add_post(p + "recording", recording)
     r.add_post(p + "download-media", download_media)
     r.add_post(p + "message-ack", message_ack)
