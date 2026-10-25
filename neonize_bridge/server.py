@@ -8,7 +8,6 @@ Uso:  .venv\\Scripts\\python server.py [--porta 6300] [--pasta dados]
 import argparse
 import asyncio
 import base64
-import hashlib
 import json
 import io
 import logging
@@ -22,6 +21,7 @@ from aiohttp import web
 
 import canais
 import administracao
+import autenticacao
 import chamadas
 import entradas
 import etiquetas
@@ -1272,9 +1272,11 @@ class Sessao:
 
 # ---------------------------------------------------------------- HTTP
 def criar_app(pasta, fixa=""):
-    sio = socketio.AsyncServer(async_mode="aiohttp", cors_allowed_origins="*",
-                               logger=False, engineio_logger=False)
-    app = web.Application(client_max_size=2 * 1024**3)
+    # Sem cors_allowed_origins="*": so a mesma origem (o cliente do WinZapp nao manda Origin).
+    sio = socketio.AsyncServer(async_mode="aiohttp", logger=False, engineio_logger=False)
+    segredo = autenticacao.carregar_segredo(pasta)
+    app = web.Application(client_max_size=2 * 1024**3,
+                          middlewares=[autenticacao.criar_middleware(segredo)])
     sio.attach(app)
     estado = {"sessoes": {}, "fixa": fixa}
     arquivo_ativas = os.path.join(pasta, "ativas.json")
@@ -1330,13 +1332,16 @@ def criar_app(pasta, fixa=""):
     @sio.event
     async def connect(sid, environ, auth):
         cred = (auth or {}).get("token") or environ.get("HTTP_APIKEY", "")
-        if not cred:
+        if not autenticacao.credencial_valida(segredo, cred):
             raise socketio.exceptions.ConnectionRefusedError("sem credencial")
         log.info("socket conectado (%s)", (auth or {}).get("session", "?"))
 
     async def gerar_token(req):
-        nome, chave = req.match_info["session"], req.match_info["key"]
-        tok = hashlib.sha256((nome + chave).encode()).hexdigest()
+        nome = req.match_info["session"]
+        if not entradas.nome_de_sessao_valido(nome):
+            return web.json_response({"status": "error", "message": "invalid session name"},
+                                     status=400)
+        tok = autenticacao.token_da_sessao(segredo, nome)
         return web.json_response({"status": "success", "session": nome,
                                   "token": tok, "full": f"{nome}:{tok}"})
 

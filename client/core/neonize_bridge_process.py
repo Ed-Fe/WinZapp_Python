@@ -31,6 +31,7 @@ CLIENTS_DIR = "clientes"
 EXTRA_PATH_FILE = "path_extra.txt"    # one folder per line, e.g. where ffprobe lives
 OUTPUT_FILE = "ponte.log"
 HISTORY_DAYS = "180"
+SECRET_FILE = "segredo"         # written by the bridge in its data folder
 
 
 def bridge_dir() -> str:
@@ -41,6 +42,16 @@ def data_dir(bridge: str) -> str:
     """Where the bridge keeps its sessions and messages (every sub-folder in
     here is a session, so nothing else may live in it)."""
     return os.path.join(bridge, "dados-real")
+
+
+def read_secret(bridge: str) -> str:
+    """The bridge's secret (the key the client presents to it), or "" when the
+    bridge has not written one: a bridge started by hand with another --pasta."""
+    try:
+        with open(os.path.join(data_dir(bridge), SECRET_FILE), encoding="utf-8") as stream:
+            return stream.read().strip()
+    except OSError:
+        return ""
 
 
 def run_dir(bridge: str) -> str:

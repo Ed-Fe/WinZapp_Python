@@ -27,6 +27,22 @@ Voice notes, video and stickers need `ffmpeg` and `ffprobe` on the bridge's
 `PATH`. `client/lib` is added automatically; to add other folders, list them
 in `neonize_bridge/path_extra.txt` (one per line, ignored by git).
 
+## Who can talk to the bridge
+
+The bridge listens on 127.0.0.1 only, but a web page open in your browser can
+also reach 127.0.0.1, so it does not trust the network. It creates a secret the
+first time it runs, in `neonize_bridge/dados-real/segredo` (readable by your
+user only on systems that support it). WinZapp reads that file and uses the
+secret instead of the API key: `generate-token` answers only to it, every
+session token is a keyed hash of the session name, the Socket.IO connection
+needs a valid token, and requests whose `Host` is not this machine are refused.
+A bridge you start by hand must use the same `--pasta` as WinZapp, or the
+client cannot find the secret. The helper scripts in this folder
+(`consultar.py`, `esperar.py`, `parear.py`, `teste_fumaca.py`) predate this and
+need the secret passed in place of their fixed key. Deleting the `segredo` file
+makes the bridge create a new one at the next start; WinZapp then renews its
+session token on its own.
+
 ## Why a test build of neonize
 
 The bridge listens to what the phone does (archive, pin, mute, star, lock,

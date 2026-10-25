@@ -36,6 +36,7 @@ class NeonizeBridgeMixin:
             logging.exception("MainWindow: starting the neonize bridge failed")
         if ok:
             logging.info("MainWindow: neonize bridge ready on port %s", self.wpp_port)
+            self._use_neonize_bridge_secret()
             return
         logging.error("MainWindow: neonize bridge is not available")
         if not getattr(self, "background_mode", False):
@@ -44,6 +45,18 @@ class NeonizeBridgeMixin:
                 self.i18n.t("neonize_bridge_unavailable_title"),
                 wx.OK | wx.ICON_ERROR,
             )
+
+    def _use_neonize_bridge_secret(self):
+        """The bridge only answers to its own secret. It stands in for the API key
+        for this run only: it is never written to the settings."""
+        from core.neonize_bridge_process import read_secret
+
+        secret = read_secret(self.neonize_bridge.bridge)
+        if secret:
+            self.wpp_api_key = secret
+        else:
+            logging.error("MainWindow: the neonize bridge has no secret file; a bridge "
+                          "started by hand must use the same --pasta as WinZapp")
 
     def _stop_neonize_bridge(self):
         """Called at shutdown: this client leaves; the last one out stops it."""

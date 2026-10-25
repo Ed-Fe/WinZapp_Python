@@ -337,9 +337,12 @@ class SessionTokensMixin:
                     self._set_wa_token(token)
             except Exception:
                 pass
-        if token and ":" not in token:
+        # The Neonize bridge derives the hash from its own secret, so a token made
+        # with the old public key is renewed at every start (same name, same hash).
+        if token and (":" not in token or self._uses_neonize()):
+            token_name = token.split(":", 1)[0]
             try:
-                url = f"{self.wpp_server}:{self.wpp_port}/api/{token}/{self.wpp_api_key}/generate-token"
+                url = f"{self.wpp_server}:{self.wpp_port}/api/{token_name}/{self.wpp_api_key}/generate-token"
                 import requests
                 response = api_post(url, timeout=10)
                 if response.status_code in (200, 201):
@@ -347,7 +350,7 @@ class SessionTokensMixin:
                     hash_token = data.get("token")
                     if hash_token:
                         hash_token = hash_token.replace("/", "_").replace("+", "-")
-                        token = f"{token}:{hash_token}"
+                        token = f"{token_name}:{hash_token}"
                         self._set_wa_token(token)
             except Exception as e:
                 logging.error("[retrieve_token] Failed to migrate WPPConnect token: %s", e)

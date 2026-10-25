@@ -137,8 +137,7 @@ def registrar(r, *, sessao, ok, estado, pasta, marcar_ativa, qr_data_url):
                             headers={"X-Content-Type-Options": "nosniff"})
 
     async def show_all_sessions(req):
-        # A chave secreta do WPPConnect nao existe aqui (generate-token tambem a
-        # ignora); a ponte so escuta em 127.0.0.1.
+        # O segredo da ponte ja foi conferido pelo middleware (autenticacao.py).
         return ok(response=sorted(estado["sessoes"]))
 
     async def start_all(req):

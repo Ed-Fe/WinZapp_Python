@@ -129,3 +129,14 @@ def test_the_environment_puts_ffmpeg_folders_first(tmp_path):
     parts = env["PATH"].split(os.pathsep)
     assert str(extra) in parts and str(tmp_path / "missing") not in parts
     assert parts[-1] == "C:\\base"
+
+
+def test_the_secret_is_read_from_the_bridge_data_folder(tmp_path):
+    folder = tmp_path / "dados-real"
+    folder.mkdir()
+    (folder / "segredo").write_text("abc123\n", encoding="utf-8")
+    assert nb.read_secret(str(tmp_path)) == "abc123"
+
+
+def test_no_secret_file_means_an_empty_secret(tmp_path):
+    assert nb.read_secret(str(tmp_path)) == ""
