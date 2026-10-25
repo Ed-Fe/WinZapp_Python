@@ -89,7 +89,7 @@ def test_a_missing_bridge_is_a_failure_not_a_crash(tmp_path):
 def test_the_last_client_out_stops_the_bridge(tmp_path):
     bridge, killed = _bridge(tmp_path), []
     alive = lambda pid: pid in (100, 200, 900)
-    opened = iter([False, True])
+    opened = iter([False, False, True])    # before the lock, inside it, then up
     first = _handle(bridge, port_open=lambda: next(opened, True), alive=alive,
                     killed=killed, my_pid=100, proc=_Proc(pid=900))
     assert first.start() is True
@@ -104,7 +104,7 @@ def test_the_last_client_out_stops_the_bridge(tmp_path):
 def test_dead_clients_do_not_keep_the_bridge_alive(tmp_path):
     bridge, killed = _bridge(tmp_path), []
     alive = lambda pid: pid in (100, 900)              # 200 crashed
-    opened = iter([False, True])
+    opened = iter([False, False, True])    # before the lock, inside it, then up
     first = _handle(bridge, port_open=lambda: next(opened, True), alive=alive,
                     killed=killed, my_pid=100, proc=_Proc(pid=900))
     first.start()
@@ -145,7 +145,7 @@ def test_no_secret_file_means_an_empty_secret(tmp_path):
 
 def test_the_stop_kills_only_the_process_that_was_started(tmp_path):
     bridge, killed = _bridge(tmp_path), []
-    opened = iter([False, True])
+    opened = iter([False, False, True])    # before the lock, inside it, then up
     handle = _handle(bridge, port_open=lambda: next(opened, True), alive=lambda pid: True,
                      killed=killed, proc=_Proc(pid=900), created=lambda pid: "t1")
     handle.start()
@@ -155,7 +155,7 @@ def test_the_stop_kills_only_the_process_that_was_started(tmp_path):
 
 def test_a_reused_pid_is_not_killed(tmp_path):
     bridge, killed = _bridge(tmp_path), []
-    opened = iter([False, True])
+    opened = iter([False, False, True])    # before the lock, inside it, then up
     stamps = iter(["t1", "t2"])                  # at spawn, then at stop
     handle = _handle(bridge, port_open=lambda: next(opened, True), alive=lambda pid: True,
                      killed=killed, proc=_Proc(pid=900), created=lambda pid: next(stamps))
@@ -209,3 +209,76 @@ def test_starting_the_bridge_rotates_its_output_first(tmp_path):
     handle = _handle(_bridge(tmp_path), proc=_Proc(pid=900), rotate=rotated.append)
     handle.start()
     assert rotated == [os.path.join(nb.run_dir(handle.bridge), nb.OUTPUT_FILE)]
+
+
+# -- audit F4, M4a and M7 -------------------------------------------------
+
+def test_an_install_with_no_bridge_leaves_no_client_file_behind(tmp_path):
+    """A packaged build without a bridge: start() used to register the client
+    (and create execucao/clientes) before finding out there was nothing to start."""
+    bridge = _bridge(tmp_path, with_python=False)
+    handle = _handle(bridge)
+    assert handle.start() is False
+    assert not os.path.exists(nb.run_dir(bridge))
+
+
+def test_a_bridge_started_by_hand_is_still_joined_when_the_install_has_no_command(tmp_path):
+    bridge = _bridge(tmp_path, with_python=False)
+    handle = _handle(bridge, port_open=True)
+    assert handle.start() is True
+    assert os.path.exists(os.path.join(handle._clients, "100"))
+
+
+def test_two_clients_starting_together_spawn_one_bridge(tmp_path):
+    """Two accounts launched at login: both found the port closed and both
+    spawned; the loser failed to bind and ponte.pid could name the dead one."""
+    import threading
+    import time
+
+    bridge = _bridge(tmp_path)
+    state = {"open": False}
+    spawned = []
+
+    def start_process(cmd, env, cwd, output=None):
+        spawned.append(cmd)
+        time.sleep(0.2)             # the window the race lived in
+        state["open"] = True
+        return _Proc(pid=900)
+
+    def client(pid):
+        handle = nb.NeonizeBridge(
+            bridge, 6300, is_open=lambda port: state["open"], alive=lambda p: False,
+            created=lambda p: "t", rotate=lambda p: False, start_process=start_process,
+            kill=lambda p: None, sleep=lambda s: time.sleep(0.01), my_pid=pid)
+        results.append(handle.start())
+
+    results = []
+    threads = [threading.Thread(target=client, args=(pid,)) for pid in (101, 102)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+
+    assert results == [True, True]
+    assert len(spawned) == 1
+    assert nb._read_pid(os.path.join(nb.run_dir(bridge), nb.BRIDGE_PID_FILE)) == 900
+
+
+def test_a_start_lock_that_never_frees_is_a_failure_not_a_hang(tmp_path):
+    from coord_locks import LockTimeout
+
+    class _Stuck:
+        def __init__(self, run):
+            pass
+
+        def __enter__(self):
+            raise LockTimeout("busy")
+
+        def __exit__(self, *exc):
+            return False
+
+    opened = iter([False])          # closed once; a spawn would find it open
+    spawned = []
+    handle = _handle(_bridge(tmp_path), port_open=lambda: next(opened, True), spawned=spawned)
+    handle._lock = _Stuck
+    assert handle.start() is False and spawned == []
