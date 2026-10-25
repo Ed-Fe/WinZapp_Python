@@ -130,7 +130,8 @@ class NeonizeBridgeMixin:
                                       "aborting the bridge cleanup (fail-closed)")
                     return
                 protected.add(current)
-                for stale in session_store.sessions_to_close(store.list(), current):
+                for stale in session_store.sessions_to_close(
+                        store.list(), current, engine=self._session_engine_name()):
                     name = stale.get("name") or ""
                     if not name or name in protected:
                         continue

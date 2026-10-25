@@ -51,6 +51,8 @@ class _Store:
 class _Stub:
     _cleanup_abandoned_sessions_worker = MainWindow._cleanup_abandoned_sessions_worker
     _logout_abandoned_session = MainWindow._logout_abandoned_session
+    _session_engine_name = MainWindow._session_engine_name
+    wpp_engine = "wppconnect"
 
     def __init__(self, store):
         self._store = store
