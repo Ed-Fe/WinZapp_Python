@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS votos(
 CREATE TABLE IF NOT EXISTS reacoes(
     msg TEXT NOT NULL, quem TEXT NOT NULL, emoji TEXT NOT NULL, ts INTEGER DEFAULT 0,
     PRIMARY KEY(msg, quem));
+CREATE TABLE IF NOT EXISTS recibos(
+    msg TEXT NOT NULL, quem TEXT NOT NULL, etapa TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, quem, etapa));
 """
 
 CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
@@ -301,3 +304,42 @@ class Armazem:
     def ultima(self, conversa):
         itens = self.mensagens(conversa, 1)
         return itens[0] if itens else None
+
+    # ------------------------------------------- limpar / apagar conversa
+    def limpar_conversa(self, jid, manter_estrelas=True):
+        """Apaga as mensagens guardadas da conversa (so as sem estrela, se
+        `manter_estrelas`) e zera o contador de nao lidas. Devolve quantas
+        mensagens sairam."""
+        with self._trava:
+            filtro = " AND COALESCE(json_extract(data,'$.star'),0)=0" if manter_estrelas else ""
+            apagadas = self._bd.execute(
+                "DELETE FROM msgs WHERE chat=?" + filtro, (jid,)).rowcount
+            self._bd.execute(
+                "DELETE FROM fixadas WHERE chat=? AND msg NOT IN (SELECT id FROM msgs WHERE chat=?)",
+                (jid, jid))
+            self._bd.execute("UPDATE chats SET unread=0 WHERE jid=?", (jid,))
+            self._bd.commit()
+        return apagadas
+
+    def apagar_conversa(self, jid):
+        """Tira a conversa da lista, com todas as mensagens (estreladas tambem)."""
+        with self._trava:
+            self.limpar_conversa(jid, manter_estrelas=False)
+            self._bd.execute("DELETE FROM chats WHERE jid=?", (jid,))
+            self._bd.commit()
+
+    # ----------------------------------------------------------- recibos
+    def recibo(self, id_msg, quem, etapa, ts=0):
+        """Guarda que `quem` chegou a `etapa` ("delivered", "read", "played")
+        de uma mensagem nossa. Fica a primeira hora em que a etapa foi vista."""
+        with self._trava:
+            self._bd.execute(
+                "INSERT OR IGNORE INTO recibos(msg, quem, etapa, ts) VALUES (?,?,?,?)",
+                (id_msg, quem, etapa, ts))
+            self._bd.commit()
+
+    def recibos_de(self, id_msg):
+        """[(quem, etapa, ts)] dos recibos guardados de uma mensagem."""
+        with self._trava:
+            return [(r["quem"], r["etapa"], r["ts"]) for r in self._bd.execute(
+                "SELECT quem, etapa, ts FROM recibos WHERE msg=? ORDER BY rowid", (id_msg,))]

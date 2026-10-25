@@ -26,6 +26,7 @@ import chamadas
 import etiquetas
 import comunidades
 import contatos
+import conversas
 import grupos
 import grupos_extra
 import msgmap
@@ -1878,6 +1879,9 @@ def criar_app(pasta, fixa=""):
     contatos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
                        jid_texto=jid_texto, destino_de=destino_de,
                        guardar_enviada=guardar_enviada, contexto_citado=contexto_citado)
+    conversas.registrar(r, sessao=sessao, ok=ok, id_wpp=id_wpp, destino_de=destino_de,
+                        guardar_enviada=guardar_enviada, enviar_midia=enviar_midia,
+                        contexto_citado=contexto_citado)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
