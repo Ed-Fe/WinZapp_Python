@@ -26,6 +26,7 @@ def _window(custom_api=True, background_mode=False, **overrides):
         wpp_api_key="wz-local-api-key", **{**LOCAL, **overrides})
     window._uses_neonize = lambda: NeonizeBridgeMixin._uses_neonize(window)
     window._use_neonize_bridge_secret = lambda: window.__dict__.setdefault("secret_used", True)
+    window._register_node_lease = lambda: window.__dict__.setdefault("leases", []).append(1)
     window._finish_pending_deletions_on_bridge = lambda: window.__dict__.setdefault(
         "pending_deletions_retried", True)
     return window
@@ -63,6 +64,7 @@ def test_other_engines_never_start_a_bridge(boxes):
     window = _window(custom_api=False)
     NeonizeBridgeMixin._start_neonize_bridge_if_needed(window)
     assert _FakeBridge.instances == [] and boxes == []
+    assert "leases" not in window.__dict__
 
 
 def test_a_custom_server_on_another_port_is_not_neonize(boxes):
@@ -78,6 +80,7 @@ def test_the_neonize_engine_starts_the_bridge_on_its_port_and_takes_its_secret(b
     assert bridge.started and bridge.port == 6300
     assert window.neonize_bridge is bridge and window.secret_used is True
     assert window.pending_deletions_retried is True      # removals waiting for the bridge
+    assert window.leases == [1]      # the other accounts and the updater see this one running
     assert boxes == []
 
 
@@ -137,3 +140,19 @@ def test_the_settings_dialog_flags_a_restart_only_when_the_engine_changed(
     SettingsDialog._flag_restart_if_engine_changed(dialog)
     assert dialog._restart_required is restart
     assert dialog._loaded_engine == selected
+
+
+def test_a_neonize_account_shows_up_among_the_running_accounts(boxes, tmp_path):
+    """Audit F4, M3: only the Node path wrote a lease, so with the bridge
+    "Quit all accounts" and the updater's list of peers were always empty."""
+    import node_coord
+    from main_window.wpp_server import WppServerMixin
+
+    window = _window()
+    window.global_dir, window.account_id = str(tmp_path), "a" * 32
+    window._register_node_lease = lambda: WppServerMixin._register_node_lease(window)
+
+    NeonizeBridgeMixin._start_neonize_bridge_if_needed(window)
+
+    leases = node_coord.live_node_leases(str(tmp_path), is_alive=lambda pid, created: True)
+    assert [lease.get("account_id") for lease in leases] == ["a" * 32]

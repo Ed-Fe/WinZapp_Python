@@ -31,6 +31,10 @@ class NeonizeBridgeMixin:
             return
         from core.neonize_bridge_process import NeonizeBridge
 
+        # The lease is how the other accounts, "Quit all accounts" and the
+        # updater know this account's process is running; only the Node path
+        # used to write one. _stop_wpp_server() releases it at shutdown.
+        self._register_node_lease()
         self.neonize_bridge = NeonizeBridge(port=self.wpp_port)
         ok = False
         try:
