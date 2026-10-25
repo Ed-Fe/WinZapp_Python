@@ -17,8 +17,8 @@ new engine. Pure functions, no wx.
 
 from core import connection_engine as engines
 
-# Sessions stored before the engine was recorded all came from the bundled
-# WPPConnect: it was the only engine that made them.
+# Fallback owner of a session with no token to tell by: the bundled
+# WPPConnect, the only engine there was before the engine was recorded.
 LEGACY_ENGINE = engines.WPPCONNECT
 
 # The keys of ``privateinfo`` that describe the live session. The local
@@ -33,10 +33,35 @@ PARKED = "parked"
 RESTORED = "restored"
 
 
-def entry_engine(entry) -> str:
-    """The engine a ``sessions.json`` entry belongs to."""
+def _is_bridge_token(token) -> bool:
+    """Whether a session token was minted by the neonize bridge: its signature
+    is a SHA-256 hex digest, where WPPConnect's is a bcrypt hash ($2b$10$...)."""
+    signature = (token or "").partition(":")[2]
+    return len(signature) == 64 and all(c in "0123456789abcdef" for c in signature)
+
+
+def infer_engine(token, current: str) -> str:
+    """The engine a session saved before the engine was recorded belongs to.
+
+    The token says which it was made by. A bcrypt token is WPPConnect's, or --
+    when this process is on a custom server -- that server's, which is how
+    installs that used a custom API before the engine setting keep their
+    session. Without a token there is nothing to tell apart: it is the current
+    engine's."""
+    if not token:
+        return current
+    if _is_bridge_token(token):
+        return engines.NEONIZE
+    return engines.CUSTOM if current == engines.CUSTOM else LEGACY_ENGINE
+
+
+def entry_engine(entry, current: str = LEGACY_ENGINE) -> str:
+    """The engine a ``sessions.json`` entry belongs to; ``entry`` is a store
+    entry as ``SessionStore.list()`` returns it (token decrypted)."""
     engine = (entry or {}).get("engine")
-    return engine if engine in engines.ENGINES else LEGACY_ENGINE
+    if engine in engines.ENGINES:
+        return engine
+    return infer_engine((entry or {}).get("token"), current)
 
 
 def has_session(private_info: dict) -> bool:
@@ -46,17 +71,21 @@ def has_session(private_info: dict) -> bool:
                 or private_info.get("paired"))
 
 
-def reconcile(private_info: dict, current: str) -> str:
+def reconcile(private_info: dict, current: str, token: str = "") -> str:
     """Make ``private_info`` agree with the engine this process runs on.
 
-    Returns ``UNCHANGED`` when it already did (or no session was involved),
-    ``PARKED`` when the session of another engine was set aside and the account
-    now starts unpaired, and
-    ``RESTORED`` when that engine had a session parked earlier and it is back.
+    ``token`` is the stored session token, used only when no engine was
+    recorded yet (``infer_engine``).
+
+    Returns ``UNCHANGED`` when it already did (or no session was involved, in
+    which case stale session keys are simply dropped), ``PARKED`` when the
+    session of another engine was set aside and the account now starts
+    unpaired, and ``RESTORED`` when that engine had a session parked earlier
+    and it is back.
     """
     owner = private_info.get(ENGINE_KEY)
     if owner not in engines.ENGINES:
-        owner = LEGACY_ENGINE if has_session(private_info) else current
+        owner = infer_engine(token, current) if has_session(private_info) else current
     if owner == current:
         private_info[ENGINE_KEY] = current
         return UNCHANGED

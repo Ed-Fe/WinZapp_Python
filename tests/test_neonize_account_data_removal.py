@@ -236,7 +236,8 @@ class TestAbandonedPairingAttempts:
         assert asked == [] and store.removed == []
 
     def test_a_session_of_the_other_engine_is_left_alone(self):
-        store = _Store([{"name": SESSION_B, "status": "abandoned"}])
+        store = _Store([{"name": SESSION_B, "status": "abandoned",
+                         "token": f"{SESSION_B}:$2b$10$abcdef"}])
         asked = []
         window = self._window(store, lambda name: asked.append(name) or True)
 

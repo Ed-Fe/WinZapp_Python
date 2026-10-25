@@ -63,7 +63,7 @@ class SessionTokensMixin:
         private_info = self.settings.setdefault("privateinfo", {})
         engine = self._session_engine_name()
         before = private_info.get(session_engine.ENGINE_KEY)
-        outcome = session_engine.reconcile(private_info, engine)
+        outcome = session_engine.reconcile(private_info, engine, self._get_wa_token())
         if outcome == session_engine.UNCHANGED and before == engine:
             return
         self.save_settings()
@@ -157,7 +157,7 @@ class SessionTokensMixin:
                     # engine's active session is parked, not replaced.
                     for s in store.list():
                         if (s.get("status") == "active" and s.get("name") != new_name
-                                and session_engine.entry_engine(s) == engine):
+                                and session_engine.entry_engine(s, engine) == engine):
                             store.set_status(s["name"], "abandoned")
                     store.register(new_name, token=token, status="active", engine=engine)
                 if gd:
@@ -312,7 +312,7 @@ class SessionTokensMixin:
             engine = self._session_engine_name()
             active = [s for s in store.list()
                       if s.get("status") == "active" and s.get("token")
-                      and session_engine.entry_engine(s) == engine]
+                      and session_engine.entry_engine(s, engine) == engine]
         except Exception:
             logging.exception("[token-recovery] Failed to read the session store")
             return ""

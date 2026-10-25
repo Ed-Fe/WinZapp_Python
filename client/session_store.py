@@ -145,4 +145,4 @@ def sessions_to_close(sessions: list[dict], current_session: str,
     leave them behind for good."""
     return [s for s in sessions
             if s.get("status") == "abandoned" and s.get("name") != current_session
-            and (engine is None or session_engine.entry_engine(s) == engine)]
+            and (engine is None or session_engine.entry_engine(s, engine) == engine)]
