@@ -23,6 +23,7 @@ import canais
 import administracao
 import autenticacao
 import chamadas
+import ciclo_sessao
 import entradas
 import eventos_grupos
 import eventos_contatos
@@ -111,7 +112,9 @@ class Sessao:
         self.online = False         # janela do app em foco (set-online-presence)
         self.aberta = ""            # conversa aberta no app (subscribe-presence)
         self.thread = None
-        self.status = "CLOSED"      # CLOSED INITIALIZING QRCODE CONNECTED
+        self.ciclo = ciclo_sessao.Ciclo()   # estado + geracao (ciclo_sessao.py)
+        self._trava_do_ciclo = threading.RLock()    # iniciar/parar um de cada vez
+        self.ao_desvincular = None  # chamado quando o celular remove o aparelho
         self.urlcode = None
         self.eu = ""                # JID proprio (usuario@s.whatsapp.net)
         self.lid = ""
@@ -120,6 +123,15 @@ class Sessao:
         feitas = self.bd.aplicar_revogacoes()
         if feitas:
             log.info("%d mensagem(ns) apagada(s) para todos aplicada(s) ao armazenamento", feitas)
+
+    @property
+    def status(self):
+        """CLOSED INITIALIZING QRCODE CONNECTED notLogged"""
+        return self.ciclo.status
+
+    @status.setter
+    def status(self, valor):
+        self.ciclo.status = valor
 
     # ------------------------------------------------------------- reacoes
     def serial_do_alvo(self, chat_w, grupo, alvo_id, reagiu_eu, key_de_mim, participante):
@@ -174,7 +186,10 @@ class Sessao:
             autor = w.get("author") or w.get("from")
             if autor and autor != "status@broadcast":
                 por_autor.setdefault(autor, []).append(w)
-        return {"myStatus": meus, "myStatusReady": True,
+        # myStatusReady diz ao cliente que uma lista vazia e a palavra final do
+        # WhatsApp (ele apaga as historias em cache que nao estao nela). O
+        # armazem so tem o que a ponte viu: vazio nao prova que nao ha historias.
+        return {"myStatus": meus, "myStatusReady": bool(meus),
                 "contacts": [{"jid": a, "msgs": ms} for a, ms in por_autor.items()]}
 
     def apagar_status(self, id_status):
@@ -475,30 +490,124 @@ class Sessao:
         asyncio.run_coroutine_threadsafe(
             self.sio.emit(evento, dados, room=self.nome), self.laco)
 
-    def _estado(self, status):
-        self.status = status
-        self.emitir("status-find", {"session": self.nome, "status": {
-            "CONNECTED": "inChat", "QRCODE": "notLogged",
-            "CLOSED": "browserClose", "INITIALIZING": "initBrowser",
-        }.get(status, status)})
-
     # --------------------------------------------------------- ciclo de vida
-    def iniciar(self, telefone=None):
-        if self.thread and self.thread.is_alive():
-            if not (telefone and self.status == "QRCODE"):
-                return
-            # tentativa de pareamento parada (o tempo do QR acabou): recomeca
-            self.parar()
-            self.thread.join(10)
-        self.status = "INITIALIZING"
-        self.thread = threading.Thread(
-            target=self._rodar, args=(telefone,), daemon=True, name="neonize")
-        self.thread.start()
+    def _thread_viva(self):
+        return bool(self.thread and self.thread.is_alive())
 
-    def _rodar(self, telefone):
+    def iniciar(self, telefone=None):
+        """Sobe a sessao. Bloqueia ate a thread antiga terminar (so quando ha
+        uma): chame fora do laco do aiohttp. True se uma thread nova subiu."""
+        with self._trava_do_ciclo:
+            decisao = ciclo_sessao.decidir_inicio(
+                self._thread_viva(), self.status, telefone)
+            if decisao == ciclo_sessao.IGNORAR:
+                return False
+            if decisao == ciclo_sessao.REINICIAR:
+                # pareamento parado, ou uma sessao fechada cuja thread ainda
+                # termina: o connect() do neonize so volta depois do stop()
+                self.parar()
+                self.thread.join(ciclo_sessao.PRAZO_DA_THREAD_ANTIGA)
+                if self._thread_viva():
+                    log.warning("a thread antiga da sessao %s nao terminou; nao inicio outra",
+                                redigir(self.nome))
+                    return False
+            geracao = self.ciclo.abrir()
+            self.thread = threading.Thread(
+                target=self._rodar, args=(telefone, geracao), daemon=True, name="neonize")
+            self.thread.start()
+            return True
+
+    def _aplicar(self, geracao, evento):
+        """Aplica um evento ao estado se `geracao` ainda e a vigente (None se nao)."""
+        return self.ciclo.aplicar(geracao, evento)
+
+    def _parar_em_segundo_plano(self, cliente):
+        """stop() fora da thread do evento: o Go pode estar esperando este
+        manipulador voltar, e o Stop espera o Go."""
+        def parar():
+            try:
+                cliente.stop()
+            except Exception:
+                log.exception("stop")
+        threading.Thread(target=parar, daemon=True, name="neonize-stop").start()
+
+    def _ao_conectar(self, geracao, c, telefone):
+        if not self.ciclo.vigente(geracao):
+            return
+        try:
+            me = c.get_me()
+            self.eu = jid_texto(me.JID)
+            self.lid = jid_texto(me.LID)
+        except Exception:
+            log.exception("get_me")
+        if self._aplicar(geracao, ciclo_sessao.CONECTOU) is None:
+            return
+        self.urlcode = None
+        log.info("conectado")
+        if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
+            self.emitir("session-logged", {"session": self.nome, "status": True})
+        threading.Thread(target=self._carregar_nomes, daemon=True).start()
+        threading.Thread(target=self._conferir_estado, daemon=True).start()
+        threading.Thread(target=self._conferir_sempre, daemon=True).start()
+        threading.Thread(target=self._copia_sempre, daemon=True).start()
+
+    def _ao_ser_desvinculada(self, geracao, c):
+        """O celular removeu o aparelho (LoggedOutEv, ou ConnectFailure de logout)."""
+        mudou = self._aplicar(geracao, ciclo_sessao.SAIU)
+        if mudou is None or mudou[0] == ciclo_sessao.NOT_LOGGED:
+            return          # evento de uma sessao antiga, ou o segundo aviso do mesmo logout
+        log.info("conta desvinculada pelo celular")
+        self.eu = self.lid = ""
+        self.urlcode = None
+        # sem stop() o Go reconecta sem credencial e fica gerando QR sem ninguem olhando
+        self._parar_em_segundo_plano(c)
+        if self.ao_desvincular is not None:
+            self.ao_desvincular()
+        for atraso, evento, dados in ciclo_sessao.avisos_de_logout(self.nome):
+            if atraso:
+                temporizador = threading.Timer(atraso, self.emitir, args=(evento, dados))
+                temporizador.daemon = True
+                temporizador.start()
+            else:
+                self.emitir(evento, dados)
+
+    def _ao_cair(self, geracao, evento, o_que):
+        """Queda que o whatsmeow tenta consertar sozinho: o cliente ganha a
+        carencia dele (INITIALIZING) em vez de ler CONNECTED com o socket morto."""
+        mudou = self._aplicar(geracao, evento)
+        if mudou is not None and mudou[0] != mudou[1]:
+            log.info("%s: %s -> %s", o_que, mudou[0], mudou[1])
+        else:
+            log.info(o_que)
+
+    def _ao_falhar(self, geracao, c, motivo):
+        """ConnectFailureEv: logout, falha terminal (banimento, versao antiga) ou passageira."""
+        tipo = ciclo_sessao.classificar_falha(motivo)
+        log.warning("falha de conexao do WhatsApp, motivo %s (%s)", motivo, tipo)
+        if tipo == ciclo_sessao.SAIU:
+            self._ao_ser_desvinculada(geracao, c)
+        elif tipo == ciclo_sessao.FALHA_TERMINAL:
+            self._ao_falha_terminal(geracao, c, f"falha de conexao, motivo {motivo}")
+        else:
+            self._ao_cair(geracao, ciclo_sessao.CAIU, "falha passageira do servidor")
+
+    def _ao_falha_terminal(self, geracao, c, o_que):
+        """Nao adianta tentar de novo (banimento, versao antiga, outro aparelho
+        tomou a conexao): a sessao fecha em vez de ficar em INITIALIZING para sempre."""
+        if self._aplicar(geracao, ciclo_sessao.FALHA_TERMINAL) is None:
+            return
+        log.error("sessao encerrada: %s", o_que)
+        self._parar_em_segundo_plano(c)
+
+    def _rodar(self, telefone, geracao):
         import neonize.events as nev
         from neonize.client import NewClient
         os.makedirs(self.pasta, exist_ok=True)
+        # Um NewClient novo por inicio, nunca reaproveitado: iniciar() ja esperou
+        # a thread anterior terminar (o connect() so volta depois do stop()).
+        # Trocar `self.cliente` solta o antigo, e o neonize chama Stop(uuid) quando
+        # um NewClient e coletado (weakref.finalize); por isso a troca acontece
+        # aqui, antes do connect() novo, e nunca com a thread antiga ainda de pe.
         cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"),
                                        props=props_do_aparelho(HISTORICO_DIAS))
         chamadas.registrar_eventos(cli, self)
@@ -506,34 +615,47 @@ class Sessao:
         eventos_grupos.registrar_eventos(cli, self)
         eventos_contatos.registrar_eventos(cli, self)
 
+        # Cada evento do ciclo de vida e registrado UMA vez (o neonize guarda um
+        # manipulador por tipo; test_um_manipulador_por_evento.py).
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
-            try:
-                me = c.get_me()
-                self.eu = jid_texto(me.JID)
-                self.lid = jid_texto(me.LID)
-            except Exception:
-                log.exception("get_me")
-            self.urlcode = None
-            self.status = "CONNECTED"
-            log.info("conectado")
-            if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
-                self.emitir("session-logged", {"session": self.nome, "status": True})
-            threading.Thread(target=self._carregar_nomes, daemon=True).start()
-            threading.Thread(target=self._conferir_estado, daemon=True).start()
-            threading.Thread(target=self._conferir_sempre, daemon=True).start()
-            threading.Thread(target=self._copia_sempre, daemon=True).start()
+            self._ao_conectar(geracao, c, telefone)
 
         @cli.event(nev.LoggedOutEv)
         def _saiu(c, e):
-            self.status = "CLOSED"
-            self.emitir("status-find", {"session": self.nome,
-                                        "status": "disconnectedMobile"})
-            self.emitir("session-logged", {"session": self.nome, "status": False})
+            self._ao_ser_desvinculada(geracao, c)
 
         @cli.event(nev.DisconnectedEv)
         def _caiu(c, e):
-            log.info("desconectado")
+            self._ao_cair(geracao, ciclo_sessao.CAIU, "desconectado")
+
+        @cli.event(nev.ConnectFailureEv)
+        def _falhou(c, e):
+            self._ao_falhar(geracao, c, int(e.Reason))
+
+        @cli.event(nev.ClientOutdatedEv)
+        def _desatualizado(c, e):
+            self._ao_falha_terminal(geracao, c, "versao do cliente recusada pelo WhatsApp")
+
+        @cli.event(nev.TemporaryBanEv)
+        def _banido(c, e):
+            self._ao_falha_terminal(geracao, c, "banimento temporario")
+
+        @cli.event(nev.StreamReplacedEv)
+        def _substituido(c, e):
+            self._ao_falha_terminal(geracao, c, "outro aparelho tomou a conexao")
+
+        @cli.event(nev.StreamErrorEv)
+        def _erro_de_fluxo(c, e):
+            self._ao_cair(geracao, ciclo_sessao.CAIU, "erro de fluxo " + str(e.Code)[:40])
+
+        @cli.event(nev.KeepAliveTimeoutEv)
+        def _sem_resposta(c, e):
+            self._ao_cair(geracao, ciclo_sessao.CAIU, "keep-alive sem resposta")
+
+        @cli.event(nev.KeepAliveRestoredEv)
+        def _respondeu(c, e):
+            self._ao_cair(geracao, ciclo_sessao.VOLTOU, "keep-alive restaurado")
 
         @cli.event(nev.MessageEv)
         def _mensagem(c, e):
@@ -769,8 +891,9 @@ class Sessao:
         @cli.event.qr
         def _qr(c, dados):
             codigo = dados.decode() if isinstance(dados, bytes) else str(dados)
+            if self._aplicar(geracao, ciclo_sessao.QR) is None:
+                return
             self.urlcode = codigo
-            self.status = "QRCODE"
             self.emitir("qrCode", {"session": self.nome, "urlcode": codigo,
                                    "data": qr_data_url(codigo)})
 
@@ -779,9 +902,11 @@ class Sessao:
                 from neonize.utils.enum import ClientName, ClientType
                 # espera a conexao decidir: ja pareada (CONNECTED) nao precisa de codigo
                 for _ in range(40):
-                    if self.status in ("QRCODE", "CONNECTED"):
+                    if self.status in ("QRCODE", "CONNECTED") or not self.ciclo.vigente(geracao):
                         break
                     time.sleep(0.5)
+                if not self.ciclo.vigente(geracao):
+                    return                      # a sessao foi fechada ou reiniciada
                 if self.status == "CONNECTED":
                     if self.simular_codigo:     # so no modo de teste (--sessao-unica)
                         self.emitir("phoneCode", {"session": self.nome,
@@ -793,10 +918,13 @@ class Sessao:
                 info_do_erro = {"name": "LinkCodeError", "message": "falha ao gerar o codigo",
                                 "rateLimited": False}
                 for tentativa in range(5):
+                    if not self.ciclo.vigente(geracao):
+                        return
                     try:
                         cod = cli.PairPhone("".join(ch for ch in telefone if ch.isdigit()),
                                             True, ClientName.WINDOWS, ClientType.EDGE)
                         self.emitir("phoneCode", {"session": self.nome, "data": cod})
+                        self._vigiar_codigo(geracao)
                         return
                     except Exception as erro:
                         log.warning("codigo de pareamento, tentativa %d: %s",
@@ -809,12 +937,24 @@ class Sessao:
             threading.Thread(target=_codigo, daemon=True).start()
 
         try:
-            cli.connect()      # bloqueia ate desconectar
+            cli.connect()      # bloqueia ate o stop()
         except Exception:
             log.exception("connect")
         finally:
-            if self.status != "CLOSED":
-                self.status = "CLOSED"
+            self._aplicar(geracao, ciclo_sessao.FIM_DA_THREAD)
+
+    def _vigiar_codigo(self, geracao, vida=ciclo_sessao.VIDA_DO_CODIGO, passo=1.0):
+        """Depois do phoneCode: se o codigo vence sem parear, avisa o cliente
+        (LinkCodeExpired) para o usuario nao ficar com um codigo morto. Nao
+        gera outro codigo: sem ninguem pedindo isso gasta a cota por numero
+        (docs/traps/pairing-flow.md). Roda na thread do codigo."""
+        fim = time.monotonic() + vida
+        while time.monotonic() < fim:
+            if not self.ciclo.vigente(geracao) or self.status != "QRCODE":
+                return                  # pareou, fechou ou reiniciou: nada a avisar
+            time.sleep(min(passo, max(0.0, fim - time.monotonic())))
+        if self.ciclo.vigente(geracao) and self.status == "QRCODE":
+            self.emitir("phoneCodeError", ciclo_sessao.aviso_de_codigo_expirado(self.nome))
 
     def _guardar_historico(self, dados):
         for x in dados.pushnames:
@@ -1266,14 +1406,19 @@ class Sessao:
         log.info("lidas %d mensagem(ns) em %s", len(a_ler), redigir(conversa))
         return len(a_ler)
 
-    def parar(self):
-        c = self.cliente
-        if c is not None:
-            try:
-                c.disconnect()
-            except Exception:
-                log.exception("disconnect")
-        self.status = "CLOSED"
+    def parar(self, status=None):
+        """Fecha a sessao: disconnect() fecha o socket e stop() cancela o
+        contexto do Go, o unico jeito de o connect() da thread voltar. A thread
+        termina sozinha; iniciar() espera por ela. Idempotente."""
+        with self._trava_do_ciclo:
+            self.ciclo.encerrar(status)
+            c = self.cliente
+            if c is not None:
+                for acao in (c.disconnect, c.stop):
+                    try:
+                        acao()
+                    except Exception:
+                        log.exception("parar sessao")
 
     def sair(self):
         c = self.cliente
@@ -1282,7 +1427,10 @@ class Sessao:
                 c.logout()
             except Exception:
                 log.exception("logout")
-        self.parar()
+        with self._trava_do_ciclo:
+            self.eu = self.lid = ""
+            self.urlcode = None
+            self.parar(ciclo_sessao.CLOSED)
 
 
 # ---------------------------------------------------------------- HTTP
@@ -1320,14 +1468,22 @@ def criar_app(pasta, fixa=""):
         with open(arquivo_ativas, "w", encoding="utf-8") as f:
             json.dump(lista, f)
 
+    def nova_sessao(nome):
+        """A Sessao de `nome`, guardada no estado. Se o celular a desvincular,
+        deixa de ser retomada quando a ponte reiniciar: sem credencial, ela so
+        geraria QR sem ninguem olhando."""
+        s = estado["sessoes"][nome] = Sessao(
+            nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
+        s.ao_desvincular = lambda: marcar_ativa(nome, False)
+        return s
+
     async def retomar(_app):
         if estado["fixa"]:
             return
         for nome in ler_ativas():
             if os.path.exists(os.path.join(pasta, nome, "sessao.db")):
-                s = estado["sessoes"][nome] = Sessao(
-                    nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
-                s.iniciar()
+                s = nova_sessao(nome)
+                await asyncio.get_running_loop().run_in_executor(None, s.iniciar)
                 log.info("sessao retomada ao iniciar: %s", redigir(nome))
     app.on_startup.append(retomar)
 
@@ -1341,8 +1497,7 @@ def criar_app(pasta, fixa=""):
             raise web.HTTPBadRequest(reason="invalid session name")
         s = estado["sessoes"].get(nome)
         if s is None:
-            s = estado["sessoes"][nome] = Sessao(
-                nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
+            s = nova_sessao(nome)
         if estado["fixa"]:      # os eventos levam o nome que o cliente usa
             s.nome = tok.split(":", 1)[0]
             s.simular_codigo = True
@@ -1386,7 +1541,8 @@ def criar_app(pasta, fixa=""):
             corpo = await req.json()
         except Exception:
             corpo = {}
-        s.iniciar(corpo.get("phone"))
+        # iniciar() espera a thread antiga terminar: nunca dentro do laco do aiohttp
+        await asyncio.get_running_loop().run_in_executor(None, s.iniciar, corpo.get("phone"))
         marcar_ativa(chave_da(req), True)
         if s.status == "CONNECTED":     # ja logada: o cliente espera os avisos
             if corpo.get("phone") and s.simular_codigo:
@@ -1404,24 +1560,30 @@ def criar_app(pasta, fixa=""):
 
     async def check_connection(req):
         s = sessao(req)
-        conectado = s.status == "CONNECTED"
+        conectado = False
+        if s.status == "CONNECTED" and s.cliente is not None:
+            # o estado em cache nao basta: apos uma queda de rede continua CONNECTED
+            try:
+                conectado = bool(await asyncio.get_running_loop().run_in_executor(
+                    None, lambda: s.cliente.is_connected))
+            except Exception:
+                log.exception("check-connection-session")
         return ok(status=conectado, message="Connected" if conectado else "Disconnected")
 
     async def close_session(req):
-        sessao(req).parar()
+        await asyncio.get_running_loop().run_in_executor(None, sessao(req).parar)
         marcar_ativa(chave_da(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def logout_session(req):
-        sessao(req).sair()
+        await asyncio.get_running_loop().run_in_executor(None, sessao(req).sair)
         marcar_ativa(chave_da(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def host_device(req):
         s = sessao(req)
-        return ok(status="success", response={
-            "phoneNumber": {"_serialized": s.eu}, "wid": {"_serialized": s.eu},
-            "lid": {"_serialized": s.lid}})
+        http, corpo = ciclo_sessao.resposta_host_device(s.status, s.eu, s.lid)
+        return web.json_response(corpo, status=http)
 
     async def vazio_ok(req):
         return ok(status="success", response={})
@@ -1489,7 +1651,8 @@ def criar_app(pasta, fixa=""):
         return guardar_enviada(s, destino, resp)
 
     async def saude(req):
-        return ok(status="ok")
+        # o cliente (wpp_update_health.wait_for_api) espera {"message": "OK"}, como o Node
+        return web.json_response({"message": "OK"})
 
     r = app.router
     r.add_post("/api/{session}/{key}/generate-token", gerar_token)
@@ -1816,6 +1979,10 @@ def criar_app(pasta, fixa=""):
 
     async def delete_status(req):
         s = sessao(req)
+        if not ciclo_sessao.status_apagavel(s.bd.mensagem_wpp(req.match_info["id"])):
+            # expirado, ja apagado ou nunca meu: nao ha o que apagar (o cliente le o `code`)
+            return web.json_response({"status": "error", "code": "not_found",
+                                      "retrySafe": False}, status=404)
         erro = sem_conexao(s)
         if erro is not None:
             return erro
