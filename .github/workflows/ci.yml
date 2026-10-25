@@ -115,3 +115,33 @@ jobs:
 
       - name: Run the dependency and build-environment checks under the venv
         run: venv\Scripts\python.exe -m pytest tests/test_requirements_in_sync.py tests/test_uv_build_architecture.py --run-wx-gui -q
+
+  # A ponte do Neonize (neonize_bridge/) tem a própria suíte, o próprio
+  # pytest.ini e as próprias dependências; o `pytest` da raiz só coleta
+  # `tests/`, então nenhum dos outros jobs a executa. Ali ficam os testes da
+  # autenticação da porta local (neonize_bridge/test_autenticacao*.py), da
+  # extração do zip do preparar.py e da regra de um manipulador por evento do
+  # neonize: sem este job, uma regressão neles passaria verde.
+  # Só no CI de PR, como o pip-compat. Para bloquear o merge, um admin precisa
+  # marcar "Neonize bridge tests" no ruleset (o agregado `Run test suite` não
+  # inclui este job de propósito: quem não usa a ponte não deve depender dele).
+  neonize-bridge:
+    name: Neonize bridge tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install the bridge's requirements and the test tooling into a venv
+        run: |
+          python -m venv venv
+          venv\Scripts\python.exe -m pip install --upgrade pip --quiet
+          venv\Scripts\python.exe -m pip install -r neonize_bridge/requirements.txt -r requirements-dev.txt --quiet
+
+      - name: Run the bridge's tests
+        run: venv\Scripts\python.exe -m pytest neonize_bridge -q
