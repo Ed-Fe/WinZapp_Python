@@ -22,6 +22,7 @@ from aiohttp import web
 
 import canais
 import administracao
+import chamadas
 import grupos
 import msgmap
 import negocio
@@ -483,6 +484,7 @@ class Sessao:
         os.makedirs(self.pasta, exist_ok=True)
         cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"),
                                        props=props_do_aparelho(HISTORICO_DIAS))
+        chamadas.registrar_eventos(cli, self)
 
         @cli.event(nev.ConnectedEv)
         def _conectou(c, e):
@@ -1860,6 +1862,7 @@ def criar_app(pasta, fixa=""):
                      jid_texto=jid_texto)
     administracao.registrar(r, sessao=sessao, ok=ok, estado=estado, pasta=pasta,
                             marcar_ativa=marcar_ativa, qr_data_url=qr_data_url)
+    chamadas.registrar(r, sessao=sessao, ok=ok)
     async def texto_com_contexto(req, com_mencoes):
         """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
