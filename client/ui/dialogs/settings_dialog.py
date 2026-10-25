@@ -3684,6 +3684,13 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         for idx, key in enumerate(GROUP_MEDIA_TYPES):
             self._group_media_types_list.CheckItem(idx, key in saved)
 
+    def _flag_restart_if_engine_changed(self):
+        """The connection engine is read at startup: a new choice needs a restart."""
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if engines.needs_restart(self._loaded_engine, engine):
+            self._loaded_engine = engine
+            self._restart_required = True
+
     def _apply_values(self) -> bool:
         """Validate, save, and apply all settings. Returns True on success."""
         if not self._validate_shortcut_values():
@@ -3928,10 +3935,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         # Connection: this account's own port. Server, websocket, key and the
         # custom-API switch are install-wide (_apply_install_wide_values()).
-        engine = engines.engine_at(self._engine_choice.GetSelection())
-        if engine != self._loaded_engine:
-            self._loaded_engine = engine
-            self._restart_required = True
+        self._flag_restart_if_engine_changed()
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port

@@ -71,3 +71,8 @@ def index_of(engine: str) -> int:
 
 def engine_at(index: int) -> str:
     return ENGINES[index] if 0 <= index < len(ENGINES) else WPPCONNECT
+
+
+def needs_restart(loaded: str, chosen: str) -> bool:
+    """Changing the engine only takes effect after a restart."""
+    return chosen != loaded

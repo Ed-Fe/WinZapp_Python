@@ -35,3 +35,9 @@ def test_index_and_engine_are_inverse_and_safe_out_of_range():
     assert engines.engine_at(-1) == engines.WPPCONNECT
     assert engines.engine_at(99) == engines.WPPCONNECT
     assert engines.index_of("nope") == 0
+
+
+def test_only_a_different_engine_asks_for_a_restart():
+    assert not engines.needs_restart(engines.WPPCONNECT, engines.WPPCONNECT)
+    assert engines.needs_restart(engines.WPPCONNECT, engines.NEONIZE)
+    assert engines.needs_restart(engines.NEONIZE, engines.CUSTOM)
