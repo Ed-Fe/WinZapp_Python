@@ -26,6 +26,8 @@ def _window(custom_api=True, background_mode=False, **overrides):
         wpp_api_key="wz-local-api-key", **{**LOCAL, **overrides})
     window._uses_neonize = lambda: NeonizeBridgeMixin._uses_neonize(window)
     window._use_neonize_bridge_secret = lambda: window.__dict__.setdefault("secret_used", True)
+    window._finish_pending_deletions_on_bridge = lambda: window.__dict__.setdefault(
+        "pending_deletions_retried", True)
     return window
 
 
@@ -75,6 +77,7 @@ def test_the_neonize_engine_starts_the_bridge_on_its_port_and_takes_its_secret(b
     bridge, = _FakeBridge.instances
     assert bridge.started and bridge.port == 6300
     assert window.neonize_bridge is bridge and window.secret_used is True
+    assert window.pending_deletions_retried is True      # removals waiting for the bridge
     assert boxes == []
 
 

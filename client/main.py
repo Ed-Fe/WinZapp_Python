@@ -1945,7 +1945,8 @@ if __name__ == "__main__":
         # while in use) is finished before anything starts.
         try:
             from account_removal import finish_pending_deletions
-            finish_pending_deletions(_registry, gd)
+            from core.neonize_session_data import startup_deleter
+            finish_pending_deletions(_registry, gd, startup_deleter(gd))
         except Exception:
             logging.exception("[startup] finishing pending account removals failed")
         _startup = resolve_startup(sys.argv, _registry)

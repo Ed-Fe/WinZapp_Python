@@ -495,6 +495,14 @@ class SessionTokensMixin:
         # browser via this cleanup). Let the external server manage its own
         # sessions; never clean under custom API (plan Zad 3.2 + user config).
         if getattr(self, "wpp_custom_api", False):
+            if self._uses_neonize():
+                # The bridge is ours (started or joined by this client) and its
+                # sessions are the ones in the store: it deletes them itself.
+                try:
+                    self._cleanup_abandoned_bridge_sessions()
+                except Exception:
+                    logging.exception("[sessions] bridge cleanup failed (non-fatal)")
+                return
             logging.info("[sessions] custom API active — skipping abandoned-session cleanup")
             return
         # A Node still starting behind the window (issue #407) refuses the

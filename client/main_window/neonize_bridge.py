@@ -40,6 +40,7 @@ class NeonizeBridgeMixin:
         if ok:
             logging.info("MainWindow: neonize bridge ready on port %s", self.wpp_port)
             self._use_neonize_bridge_secret()
+            self._finish_pending_deletions_on_bridge()
             return
         logging.error("MainWindow: neonize bridge is not available")
         if not getattr(self, "background_mode", False):
@@ -61,10 +62,81 @@ class NeonizeBridgeMixin:
             logging.error("MainWindow: the neonize bridge has no secret file; a bridge "
                           "started by hand must use the same --pasta as WinZapp")
 
-    def _stop_neonize_bridge(self):
-        """Called at shutdown: this client leaves; the last one out stops it."""
+    def _neonize_session_deleter(self):
+        """``name -> bool`` that deletes a session's data on the bridge
+        (account_removal.py), or None when this process is not on Neonize."""
+        if not self._uses_neonize():
+            return None
+        from core.neonize_session_data import bridge_deleter
+
+        return bridge_deleter(f"{self.wpp_server}:{self.wpp_port}", self.wpp_api_key)
+
+    def _finish_pending_deletions_on_bridge(self):
+        """Accounts left 'deleting' whose data is on the bridge could not be
+        finished before it was running: retry now, off the UI thread (logging
+        a device out of WhatsApp is a network round trip)."""
+        registry = getattr(self, "registry", None)
+        if registry is None:
+            return
+
+        def _finish():
+            try:
+                from account_removal import finish_pending_deletions
+                finish_pending_deletions(
+                    registry, self.global_dir, self._neonize_session_deleter())
+            except Exception:
+                logging.exception("MainWindow: finishing pending removals on the bridge failed")
+
+        threading.Thread(target=_finish, name="neonize-pending-deletions",
+                         daemon=True).start()
+
+    def _cleanup_abandoned_bridge_sessions(self):
+        """The abandoned-session cleanup (session_tokens.py) for the Neonize
+        engine, which has no browser profile to delete: each pairing attempt
+        or re-pairing left a folder in the bridge's data (the WhatsApp keys and
+        every message), and the device may still be linked on the phone. The
+        bridge removes it (``delete-session``); the store row goes only once it
+        confirmed, so a refusal is retried at the next start. Runs on the
+        cleanup worker, never the UI thread."""
+        from coord_locks import LockTimeout, sessions_lock
+        import session_store
+
+        deleter = self._neonize_session_deleter()
+        store = self._get_session_store()
+        current = (getattr(self, "token", "") or "").split(":")[0]
+        gd = getattr(self, "global_dir", None)
+        if deleter is None or store is None or not current or not gd:
+            return      # no confirmed current session: delete nothing
+        try:
+            with sessions_lock(gd):
+                try:
+                    protected = self._protected_session_names()    # fail-closed
+                except Exception:
+                    logging.exception("[sessions] a sessions.json is unreadable — "
+                                      "aborting the bridge cleanup (fail-closed)")
+                    return
+                protected.add(current)
+                for stale in session_store.sessions_to_close(store.list(), current):
+                    name = stale.get("name") or ""
+                    if not name or name in protected:
+                        continue
+                    if deleter(name):
+                        store.remove(name)
+                        logging.info("[sessions] cleaned abandoned bridge session %s", name[:12])
+        except LockTimeout:
+            logging.info("[sessions] sessions_lock busy — skipping the bridge cleanup this start")
+
+    def _stop_neonize_bridge(self, force=False):
+        """Called at shutdown: this client leaves; the last one out stops it.
+
+        Removing the account this window runs (Accounts > Manage > Delete on the
+        only account) is still to come once the session is closed, and it asks
+        the bridge to delete the account's data: the bridge stays up until
+        ``_purge_account_if_requested`` has run and stops it with ``force``."""
         bridge = getattr(self, "neonize_bridge", None)
         if bridge is None:
+            return
+        if getattr(self, "_purge_account_on_exit", None) and not force:
             return
         try:
             bridge.stop()
