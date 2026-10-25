@@ -4,6 +4,8 @@ Sem dependencia de servidor: funcao pura, testada em test_msgmap.py."""
 import base64
 import hashlib
 
+import botoes
+
 # camadas que so embrulham outra mensagem
 EMBRULHOS = ("ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2",
              "viewOnceMessageV2Extension", "documentWithCaptionMessage",
@@ -277,6 +279,7 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
         return None
     else:
         saida["type"] = "unknown"
+        saida.update(botoes.campos_de_botoes(interna))
     ctx = None
     for nome in ("extendedTextMessage", "imageMessage", "videoMessage",
                  "audioMessage", "documentMessage", "stickerMessage"):
