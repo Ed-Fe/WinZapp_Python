@@ -114,6 +114,10 @@ class _Stub:
         self.token = "stale:token"
         self.saved = 0
         self.audit = []
+        self.announced = 0
+
+    def _announce_engine_switch(self):
+        self.announced += 1
 
     def save_settings(self):
         self.saved += 1
@@ -130,6 +134,26 @@ class TestStartupReconcile:
         assert stub.saved == 1
         assert "paired" not in stub.settings["privateinfo"]
         assert stub.audit == ["engine switch (unrecorded) -> neonize: parked"]
+
+    def test_the_user_is_told_once_why_pairing_is_asked_again(self):
+        stub = _Stub(engines.NEONIZE, _paired())
+        stub._reconcile_session_engine()
+        stub._reconcile_session_engine()
+        assert stub.announced == 1
+
+    def test_a_background_start_does_not_open_a_box(self):
+        stub = _Stub(engines.NEONIZE, _paired())
+        stub.background_mode = True
+        stub._reconcile_session_engine()
+        assert stub.announced == 0
+
+    def test_going_back_to_a_parked_session_needs_no_explanation(self):
+        info = _paired()
+        session_engine.reconcile(info, engines.NEONIZE)
+        stub = _Stub(engines.WPPCONNECT, info)
+        stub._reconcile_session_engine()
+        assert stub.announced == 0
+        assert stub.settings["privateinfo"]["paired"] is True
 
     def test_a_second_start_on_the_same_engine_does_not_save_again(self):
         stub = _Stub(engines.NEONIZE, _paired())

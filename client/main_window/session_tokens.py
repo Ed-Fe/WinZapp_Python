@@ -72,6 +72,17 @@ class SessionTokensMixin:
         if outcome != session_engine.UNCHANGED:
             self.token = ""
             self._shutdown_audit("engine switch %s -> %s: %s" % (before, engine, outcome))
+        if outcome == session_engine.PARKED and not getattr(self, "background_mode", False):
+            self._announce_engine_switch()
+
+    def _announce_engine_switch(self) -> None:
+        """Say why the pairing dialog is about to appear for an account that was
+        paired a moment ago."""
+        wx.MessageBox(
+            self.i18n.t("engine_switch_pair_again_message"),
+            self.i18n.t("engine_switch_pair_again_title"),
+            wx.OK | wx.ICON_INFORMATION,
+        )
 
     def _get_wa_token(self) -> str:
         """Read the WPPConnect session token, transparently migrating a
