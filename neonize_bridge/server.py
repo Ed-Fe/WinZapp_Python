@@ -46,6 +46,7 @@ import regras_de_mensagem
 import respostas
 import restantes
 import redacao
+import transferencias
 from redacao import redigir
 from store import Armazem
 
@@ -1848,8 +1849,12 @@ def criar_app(pasta, fixa=""):
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
         mensagem = Message.FromString(ficha)
         try:
-            dados = await asyncio.get_running_loop().run_in_executor(
-                None, s.cliente.download_any, mensagem)
+            corpo = await req.json()
+        except Exception:
+            corpo = None            # o corpo e opcional: so leva o progressId
+        try:
+            dados = await transferencias.baixar_com_progresso_async(
+                s.cliente, mensagem, corpo, s.emitir, s.nome)
         except Exception as erro:
             log.exception("download")
             texto = str(erro).lower()
@@ -1902,8 +1907,9 @@ def criar_app(pasta, fixa=""):
         ctx.quotedMessage.CopyFrom(msgmap.citada(original))
         return ctx
 
-    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt, ctx=None):
-        c = s.cliente
+    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt, ctx=None,
+                     cliente=None):
+        c = s.cliente if cliente is None else cliente
         if tipo == "audio":
             # o neonize detecta so "audio/ogg"; o WhatsApp quer "audio/ogg; codecs=opus"
             # (sem isso a voz pode nem aparecer em alguns aparelhos)
@@ -1970,9 +1976,11 @@ def criar_app(pasta, fixa=""):
             if um("quotedMessageId") and ctx is None:
                 log.info("mensagem citada nao guardada: envio recusado")
                 return respostas.citacao_ausente()
-            resp = await asyncio.get_running_loop().run_in_executor(
-                None, enviar_midia, s, destino, um("type", "document"), caminho,
-                um("caption"), um("filename"), mime, um("isPtt") == "true", ctx)
+            resp = await transferencias.enviar_com_progresso_async(
+                s.cliente, caminho, um("uploadId"), s.emitir, s.nome,
+                lambda c: enviar_midia(s, destino, um("type", "document"), caminho,
+                                       um("caption"), um("filename"), mime,
+                                       um("isPtt") == "true", ctx, cliente=c))
             return guardar_enviada(s, destino, resp)
         except Exception as erro:
             log.exception("send-file")
