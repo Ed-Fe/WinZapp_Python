@@ -117,6 +117,7 @@ class _Window(CallHotkeysMixin):
 
 class _AnsweringWindow(_Window):
     """The real answer path: the alert stops, then the call is recorded."""
+    _uses_neonize = lambda self: False      # these tests are about the WPPConnect engine
     accept_incoming_call = CallsMixin.accept_incoming_call
     stop_incoming_call_alert = CallsMixin.stop_incoming_call_alert
     _sync_incoming_call_bar = CallsMixin._sync_incoming_call_bar

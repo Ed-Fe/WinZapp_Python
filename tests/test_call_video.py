@@ -638,6 +638,7 @@ class _NoThread:
 
 
 class _SelfChatMainWindow:
+    _uses_neonize = lambda self: False      # these tests are about the WPPConnect engine
     _start_individual_call = MainWindow._start_individual_call
     _start_call = MainWindow._start_call
     _normalize_jid = staticmethod(MainWindow._normalize_jid)
