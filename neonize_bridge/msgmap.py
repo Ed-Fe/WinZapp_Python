@@ -201,6 +201,148 @@ def reacao(mensagem):
     return r.key.ID, r.text, bool(r.key.fromMe), jid_wpp(r.key.participant)
 
 
+def _conteudo(interna, campo, conversa_w, saida) -> bool:
+    """Preenche `saida` com o tipo e o conteudo da mensagem; False se for so
+    controle/reacao (nada a mostrar)."""
+    if campo == "conversation":
+        saida["body"] = interna.conversation
+    elif campo == "extendedTextMessage":
+        e = interna.extendedTextMessage
+        saida["body"] = e.text
+        if e.title or e.description:
+            saida.update(title=e.title, description=e.description,
+                         canonicalUrl=e.matchedText)
+    elif campo in MIDIAS or campo == "ptvMessage":
+        # video redondo: mesmos campos do video, com o type proprio do cliente
+        tipo, mime = MIDIAS["videoMessage" if campo == "ptvMessage" else campo]
+        m = getattr(interna, campo)
+        if campo == "audioMessage":
+            tipo = "ptt" if m.PTT else "audio"
+            saida["isPtt"] = bool(m.PTT)
+        saida.update(type="ptv" if campo == "ptvMessage" else tipo,
+                     mimetype=m.mimetype or mime,
+                     mediaKey=_b64(m.mediaKey),
+                     clientUrl=m.URL or m.directPath,
+                     size=int(m.fileLength or 0))
+        for nome in ("caption", "seconds", "fileName", "title"):
+            if hasattr(m, nome) and getattr(m, nome):
+                saida[{"seconds": "duration"}.get(nome, nome)] = getattr(m, nome)
+        if campo in ("videoMessage", "ptvMessage"):
+            saida["isGif"] = bool(m.gifPlayback)
+        if campo == "documentMessage":
+            saida["filename"] = m.fileName or m.title
+    elif campo == "locationMessage":
+        loc = interna.locationMessage
+        saida.update(type="location", lat=loc.degreesLatitude,
+                     lng=loc.degreesLongitude,
+                     loc=loc.name or loc.address, body=loc.name)
+    elif campo == "liveLocationMessage":
+        loc = interna.liveLocationMessage
+        saida.update(type="liveLocation", lat=loc.degreesLatitude,
+                     lng=loc.degreesLongitude, loc=loc.caption, body=loc.caption)
+    elif campo == "contactMessage":
+        saida.update(type="vcard", body=interna.contactMessage.vcard,
+                     displayName=interna.contactMessage.displayName)
+    elif campo == "contactsArrayMessage":
+        # o cliente so tem o cartao unico ("vcard"): vira um cartao cujo nome e
+        # o do conjunto ("Ana e outros 2"); os cartoes seguem juntos no corpo
+        lista = interna.contactsArrayMessage
+        saida.update(type="vcard",
+                     body="\n".join(c.vcard for c in lista.contacts if c.vcard),
+                     displayName=lista.displayName or next(
+                         (c.displayName for c in lista.contacts if c.displayName), ""))
+    elif campo == "protocolMessage":
+        p = interna.protocolMessage
+        if p.type != 0:        # so a revogacao (apagar para todos) importa
+            return False
+        alvo = p.key.ID
+        ser = f"{'true' if p.key.fromMe else 'false'}_{conversa_w}_{alvo}"
+        saida.update(type="revoked", body="", protocolMessageKey={
+            "id": alvo, "remote": conversa_w, "fromMe": bool(p.key.fromMe),
+            "_serialized": ser})
+    elif campo.startswith("pollCreationMessage"):
+        enquete = getattr(interna, campo)
+        saida.update(type="poll_creation", body=enquete.name,
+                     pollName=enquete.name,
+                     pollSelectableOptionsCount=int(enquete.selectableOptionsCount or 0),
+                     pollOptions=[{"name": o.optionName, "localId": i}
+                                  for i, o in enumerate(enquete.options)])
+    elif campo in ("reactionMessage", "pollUpdateMessage", "keepInChatMessage", ""):
+        return False
+    else:
+        saida["type"] = "unknown"
+        saida.update(botoes.campos_de_botoes(interna))
+    return True
+
+
+# campos de conteudo que carregam contextInfo (resposta, mencao, encaminhada)
+CONTEXTO = ("extendedTextMessage", "imageMessage", "videoMessage", "ptvMessage",
+            "audioMessage", "documentMessage", "stickerMessage", "locationMessage",
+            "liveLocationMessage", "contactMessage", "contactsArrayMessage")
+
+# o que o cliente le de uma citacao: o resto (chaves, miniatura...) so incharia
+# o que ele guarda (core/utils.py _slim_quoted_message)
+CAMPOS_DA_CITADA = ("type", "body", "caption", "filename", "isPtt")
+
+
+def _ctx_de(interna):
+    """contextInfo do campo de conteudo preenchido, ou None."""
+    for nome in CONTEXTO:
+        try:
+            if interna.HasField(nome):
+                return getattr(interna, nome).contextInfo
+        except ValueError:
+            pass
+    return None
+
+
+def _citada_wpp(quotada, conversa_w):
+    """Mensagem citada (proto) -> dicionario no formato `quotedMsg` do
+    WPPConnect, ou None se nao ha o que mostrar. Midia leva so tipo, legenda e
+    nome do arquivo; o que nao tem previa propria vira texto (a previa do
+    cliente so mostra legenda para foto, video, audio, documento e figurinha)."""
+    interna = desembrulhar(quotada)
+    q = {"type": "chat", "body": ""}
+    if not _conteudo(interna, _campo(interna), conversa_w, q):
+        return None
+    tipo = q.get("type")
+    if tipo in ("image", "video", "ptv", "audio", "ptt", "document", "sticker"):
+        q["type"] = "video" if tipo == "ptv" else tipo
+        q.pop("body", None)
+        q["caption"] = q.get("caption") or ""
+    elif tipo == "vcard":
+        q = {"type": "contact", "caption": q.get("displayName") or ""}
+    else:
+        # texto, enquete, localizacao...: a previa e o texto da mensagem
+        q = {"type": "chat", "body": q.get("body") or ""}
+    saida = {k: q[k] for k in CAMPOS_DA_CITADA if k in q}
+    ctx = _ctx_de(interna)       # as mencoes da propria citada, ainda a resolver
+    mencionados = [jid_wpp(j) for j in ctx.mentionedJID if j] if ctx is not None else []
+    if mencionados:
+        saida["mentionedJidList"] = mencionados
+    return saida
+
+
+def _contexto(ctx, conversa_w):
+    """contextInfo (proto) -> campos de resposta, mencao e encaminhamento do
+    formato WPPConnect. `@lid` continua `@lid`: so o `@s.whatsapp.net` vira
+    `@c.us` (jid_wpp)."""
+    saida = {}
+    if ctx.stanzaID:
+        saida["quotedStanzaID"] = ctx.stanzaID
+        saida["quotedParticipant"] = jid_wpp(ctx.participant)
+        if ctx.HasField("quotedMessage"):
+            citada_w = _citada_wpp(ctx.quotedMessage, conversa_w)
+            if citada_w:
+                saida["quotedMsg"] = citada_w
+    mencionados = [jid_wpp(j) for j in ctx.mentionedJID if j]
+    if mencionados:
+        saida["mentionedJidList"] = mencionados
+    if ctx.isForwarded:
+        saida["isForwarded"] = True
+    return saida
+
+
 def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
            mensagem, nome_de_quem: str = ""):
     """Objeto no formato WPPConnect, ou None se for so controle/reacao."""
@@ -226,72 +368,11 @@ def montar(*, conversa: str, de_mim: bool, id: str, remetente: str, ts,
     }
     if (grupo or status) and not de_mim:
         saida["author"] = remetente_w
-    if campo == "conversation":
-        saida["body"] = interna.conversation
-    elif campo == "extendedTextMessage":
-        e = interna.extendedTextMessage
-        saida["body"] = e.text
-        if e.title or e.description:
-            saida.update(title=e.title, description=e.description,
-                         canonicalUrl=e.matchedText)
-    elif campo in MIDIAS:
-        tipo, mime = MIDIAS[campo]
-        m = getattr(interna, campo)
-        if campo == "audioMessage":
-            tipo = "ptt" if m.PTT else "audio"
-            saida["isPtt"] = bool(m.PTT)
-        saida.update(type=tipo, mimetype=m.mimetype or mime,
-                     mediaKey=_b64(m.mediaKey),
-                     clientUrl=m.URL or m.directPath,
-                     size=int(m.fileLength or 0))
-        for nome in ("caption", "seconds", "fileName", "title"):
-            if hasattr(m, nome) and getattr(m, nome):
-                saida[{"seconds": "duration"}.get(nome, nome)] = getattr(m, nome)
-        if campo == "videoMessage":
-            saida["isGif"] = bool(m.gifPlayback)
-        if campo == "documentMessage":
-            saida["filename"] = m.fileName or m.title
-    elif campo == "locationMessage":
-        loc = interna.locationMessage
-        saida.update(type="location", lat=loc.degreesLatitude,
-                     lng=loc.degreesLongitude,
-                     loc=loc.name or loc.address, body=loc.name)
-    elif campo == "contactMessage":
-        saida.update(type="vcard", body=interna.contactMessage.vcard,
-                     displayName=interna.contactMessage.displayName)
-    elif campo == "protocolMessage":
-        p = interna.protocolMessage
-        if p.type != 0:        # so a revogacao (apagar para todos) importa
-            return None
-        alvo = p.key.ID
-        ser = f"{'true' if p.key.fromMe else 'false'}_{conversa_w}_{alvo}"
-        saida.update(type="revoked", body="", protocolMessageKey={
-            "id": alvo, "remote": conversa_w, "fromMe": bool(p.key.fromMe),
-            "_serialized": ser})
-    elif campo.startswith("pollCreationMessage"):
-        enquete = getattr(interna, campo)
-        saida.update(type="poll_creation", body=enquete.name,
-                     pollName=enquete.name,
-                     pollSelectableOptionsCount=int(enquete.selectableOptionsCount or 0),
-                     pollOptions=[{"name": o.optionName, "localId": i}
-                                  for i, o in enumerate(enquete.options)])
-    elif campo in ("reactionMessage", "pollUpdateMessage", "keepInChatMessage", ""):
+    if not _conteudo(interna, campo, conversa_w, saida):
         return None
-    else:
-        saida["type"] = "unknown"
-        saida.update(botoes.campos_de_botoes(interna))
-    ctx = None
-    for nome in ("extendedTextMessage", "imageMessage", "videoMessage",
-                 "audioMessage", "documentMessage", "stickerMessage"):
-        try:
-            if interna.HasField(nome):
-                ctx = getattr(interna, nome).contextInfo
-                break
-        except ValueError:
-            pass
-    if ctx is not None and ctx.stanzaID:
-        saida["quotedStanzaID"] = ctx.stanzaID
-        saida["quotedParticipant"] = jid_wpp(ctx.participant)
+    ctx = _ctx_de(interna)
+    if ctx is not None:
+        saida.update(_contexto(ctx, conversa_w))
     return saida
 
 

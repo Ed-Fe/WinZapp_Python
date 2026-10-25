@@ -155,3 +155,138 @@ def test_status_leva_quem_publicou_como_origem_e_autor():
 def test_cor_do_status():
     assert msgmap.cor_argb("#25D366") == 0xFF25D366
     assert msgmap.cor_argb("lixo") == 0xFF1B8755 and msgmap.cor_argb(None) == 0xFF1B8755
+
+
+def _montar(msg, conversa="1203@g.us"):
+    return msgmap.montar(conversa=conversa, de_mim=False, id="M",
+                         remetente="5551@s.whatsapp.net", ts=5, mensagem=msg)
+
+
+def test_mencao_encaminhada_e_resposta_de_texto():
+    msg = Message()
+    e = msg.extendedTextMessage
+    e.text = "oi @a @b"
+    e.contextInfo.mentionedJID.extend(["5551:3@s.whatsapp.net", "777@lid"])
+    e.contextInfo.isForwarded = True
+    e.contextInfo.stanzaID = "ORIG"
+    e.contextInfo.participant = "5552@s.whatsapp.net"
+    e.contextInfo.quotedMessage.conversation = "texto citado"
+    m = _montar(msg)
+    assert m["mentionedJidList"] == ["5551@c.us", "777@lid"]
+    assert m["isForwarded"] is True
+    assert m["quotedStanzaID"] == "ORIG" and m["quotedParticipant"] == "5552@c.us"
+    assert m["quotedMsg"] == {"type": "chat", "body": "texto citado"}
+
+
+def test_sem_contexto_nao_leva_campos_de_contexto():
+    m = _montar(Message(conversation="oi"))
+    for chave in ("mentionedJidList", "isForwarded", "quotedMsg", "quotedStanzaID"):
+        assert chave not in m
+
+
+def test_so_encaminhada_ou_so_mencao_sem_resposta():
+    msg = Message()
+    msg.imageMessage.contextInfo.isForwarded = True
+    m = _montar(msg)
+    assert m["isForwarded"] is True and "quotedMsg" not in m and "quotedStanzaID" not in m
+    msg = Message()
+    msg.extendedTextMessage.text = "@x"
+    msg.extendedTextMessage.contextInfo.mentionedJID.append("9@lid")
+    m = _montar(msg)
+    assert m["mentionedJidList"] == ["9@lid"] and "isForwarded" not in m
+
+
+def test_citada_de_midia_leva_tipo_legenda_e_nome_sem_chaves():
+    msg = Message()
+    msg.imageMessage.caption = "resposta"
+    c = msg.imageMessage.contextInfo
+    c.stanzaID = "Q"
+    c.quotedMessage.documentMessage.fileName = "a.pdf"
+    c.quotedMessage.documentMessage.caption = "contrato"
+    c.quotedMessage.documentMessage.mediaKey = b"\x01"
+    c.quotedMessage.documentMessage.JPEGThumbnail = b"\xff"
+    q = _montar(msg)["quotedMsg"]
+    assert q == {"type": "document", "caption": "contrato", "filename": "a.pdf"}
+
+
+def test_citada_de_nota_de_voz_figurinha_video_redondo_contato_e_enquete():
+    def citando(preencher):
+        msg = Message()
+        msg.extendedTextMessage.contextInfo.stanzaID = "Q"
+        preencher(msg.extendedTextMessage.contextInfo.quotedMessage)
+        return _montar(msg)["quotedMsg"]
+    assert citando(lambda q: setattr(q.audioMessage, "PTT", True)) == {
+        "type": "ptt", "caption": "", "isPtt": True}
+    assert citando(lambda q: setattr(q.stickerMessage, "isAnimated", False)) == {
+        "type": "sticker", "caption": ""}
+    assert citando(lambda q: setattr(q.ptvMessage, "seconds", 3))["type"] == "video"
+
+    def contato(q):
+        q.contactMessage.displayName = "Ana"
+    assert citando(contato) == {"type": "contact", "caption": "Ana"}
+
+    def enquete(q):
+        q.pollCreationMessage.name = "Almoco?"
+    assert citando(enquete) == {"type": "chat", "body": "Almoco?"}
+
+
+def test_citada_dentro_de_embrulho_e_com_mencoes_proprias():
+    msg = Message()
+    msg.extendedTextMessage.contextInfo.stanzaID = "Q"
+    interna = msg.extendedTextMessage.contextInfo.quotedMessage
+    e = interna.ephemeralMessage.message.extendedTextMessage
+    e.text = "oi @x"
+    e.contextInfo.mentionedJID.append("5@s.whatsapp.net")
+    assert _montar(msg)["quotedMsg"] == {
+        "type": "chat", "body": "oi @x", "mentionedJidList": ["5@c.us"]}
+
+
+def test_citacao_de_reacao_nao_vira_quotedmsg():
+    msg = Message()
+    msg.extendedTextMessage.contextInfo.stanzaID = "Q"
+    msg.extendedTextMessage.contextInfo.quotedMessage.reactionMessage.text = "x"
+    m = _montar(msg)
+    assert m["quotedStanzaID"] == "Q" and "quotedMsg" not in m
+
+
+def test_video_redondo_vira_ptv_com_os_campos_do_video():
+    msg = Message()
+    msg.ptvMessage.seconds = 7
+    msg.ptvMessage.mediaKey = b"\x01\x02"
+    msg.ptvMessage.directPath = "/v/x"
+    msg.ptvMessage.contextInfo.isForwarded = True
+    m = _montar(msg)
+    assert m["type"] == "ptv" and m["duration"] == 7 and m["mediaKey"] == "AQI="
+    assert m["mimetype"] == "video/mp4" and m["clientUrl"] == "/v/x" and m["isGif"] is False
+    assert m["isForwarded"] is True
+
+
+def test_localizacao_em_tempo_real_vira_liveLocation():
+    msg = Message()
+    msg.liveLocationMessage.degreesLatitude = -30.5
+    msg.liveLocationMessage.degreesLongitude = -51.25
+    msg.liveLocationMessage.caption = "Cheguei"
+    m = _montar(msg)
+    assert m["type"] == "liveLocation" and m["lat"] == -30.5 and m["lng"] == -51.25
+    assert m["loc"] == "Cheguei" and m["body"] == "Cheguei"
+
+
+def test_varios_contatos_viram_um_cartao_com_o_nome_do_conjunto():
+    msg = Message()
+    msg.contactsArrayMessage.displayName = "Ana e outros 1"
+    for nome in ("Ana", "Beto"):
+        c = msg.contactsArrayMessage.contacts.add()
+        c.displayName = nome
+        c.vcard = f"BEGIN:VCARD\nFN:{nome}\nEND:VCARD"
+    m = _montar(msg)
+    assert m["type"] == "vcard" and m["displayName"] == "Ana e outros 1"
+    assert m["body"].count("BEGIN:VCARD") == 2
+    msg.contactsArrayMessage.displayName = ""
+    assert _montar(msg)["displayName"] == "Ana"
+
+
+def test_protocolo_que_nao_e_revogacao_continua_sem_mensagem():
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ProtocolMessage
+    msg = Message()
+    msg.protocolMessage.type = ProtocolMessage.EPHEMERAL_SETTING
+    assert _montar(msg) is None
