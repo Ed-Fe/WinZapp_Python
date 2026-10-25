@@ -556,3 +556,24 @@ async def test_revogar_mensagem_minha_continua_assinada_por_mim(tmp_path, sessoe
         assert ponte.falso.revogadas == [(PN, EU, "MINHA")]
     finally:
         await ponte.http.close()
+
+
+# -------------------------------------------------------------- encaminhar
+@pytest.mark.asyncio
+async def test_forward_messages_devolve_os_ids_novos_e_guarda_a_copia_no_destino(
+        tmp_path, sessoes):
+    """Sem eco received-message (arriscado para o casamento por tipo do cliente):
+    a conversa de destino e a copia ficam guardadas na ponte e os ids vao na resposta."""
+    ponte = await _abrir(tmp_path, sessoes)
+    try:
+        ponte.s.bd.mensagem(PN, _msg("ORIG", 100, PN))
+        destino = "5522888880000@s.whatsapp.net"
+        status, corpo = await ponte.post("forward-messages", {
+            "phone": ["5522888880000@c.us"], "messageId": [f"false_{PN}_ORIG"]})
+        assert status == 200
+        assert corpo["response"] == [{"forwarded": 1, "messageIds": ["NOVA1"]}]
+        assert ponte.falso.enviadas[0][1].extendedTextMessage.contextInfo.isForwarded
+        assert ponte.s.bd.existe_conversa(destino)
+        assert ponte.s.bd.mensagem_wpp("NOVA1") is not None
+    finally:
+        await ponte.http.close()

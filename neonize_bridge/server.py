@@ -846,6 +846,9 @@ class Sessao(conversas_alias.AliasDeConversa):
             if c.HasField("archived"):
                 campos["archived"] = int(bool(c.archived))
             if c.HasField("pinned"):
+                # nao sei dizer a unidade (ordem ou hora de fixar); o app so olha
+                # se e maior que zero. A ponte tambem nao impoe o limite de 3
+                # conversas fixadas: o WhatsApp recusa a quarta
                 campos["pinned"] = int(c.pinned)
             if c.HasField("muteEndTime"):
                 campos["muted"] = int(c.muteEndTime)
@@ -2210,7 +2213,7 @@ def criar_app(pasta, fixa=""):
         destino = destino_de(fone)
         ids = corpo["messageId"]
         ids = ids if isinstance(ids, list) else [ids]
-        enviadas = []
+        enviadas, ids_novos = [], []
         for serial in ids:
             msg = await em_thread(s.mensagem_para_encaminhar, serial,
                                   bool(corpo.get("keepVoice")))
@@ -2225,7 +2228,16 @@ def criar_app(pasta, fixa=""):
                 return web.json_response({"status": "error", "message": str(erro_envio)},
                                          status=500)
             enviadas.append(guardar_enviada(s, destino, resp))
-        return ok(status="success", response=[{"forwarded": len(enviadas)}])
+            ids_novos.append(resp.ID)
+        # Sem eco: o servidor real avisa o encaminhamento por received-message e
+        # o cliente conta com isso para atualizar a conversa de destino, mas aqui
+        # o aviso e arriscado (o cliente casa o eco por tipo e pode trocar o id de
+        # um envio pendente do mesmo tipo na mesma conversa). Sem ele, a conversa
+        # de destino e a previa so mudam no proximo list-chats do cliente; os ids
+        # novos vao na resposta para o cliente poder atualizar a conversa ao
+        # receber o sucesso (ele ainda nao o faz).
+        return ok(status="success", response=[{"forwarded": len(enviadas),
+                                               "messageIds": ids_novos}])
 
     async def older_history(req):
         """O neonize nao tem o pedido de historico sob demanda (o do 'clique
@@ -2254,7 +2266,12 @@ def criar_app(pasta, fixa=""):
 
     async def pinned_messages(req):
         """Mensagens fixadas nas conversas pedidas (a ponte guarda os avisos de
-        fixar e soltar que passam por ela)."""
+        fixar e soltar que passam por ela). A lista e PARCIAL: so o que a ponte
+        viu passar (o aviso de fixar que chegou ou que ela mesma mandou); o que
+        foi fixado antes do pareamento ou com a ponte desligada nao aparece, e o
+        cliente (_apply_pinned_message_flags) trata a lista como completa e
+        limpa o pinInChat do resto. Nao ha conserto barato: o neonize nao lista
+        as fixadas de uma conversa."""
         s = sessao(req)
         corpo = await req.json()
         chats = [msgmap.jid_whatsmeow(c) for c in corpo.get("chatIds") or []]
