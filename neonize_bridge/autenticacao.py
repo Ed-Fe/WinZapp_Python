@@ -14,7 +14,9 @@ basta: uma pagina aberta no navegador tambem alcanca 127.0.0.1. Por isso:
 
 Funcoes puras, testadas em test_autenticacao.py. A pagina de outro site nao
 conhece o segredo nem pode ler o arquivo, e o navegador nao a deixa mandar o
-cabecalho Authorization sem um preflight que a ponte nao responde.
+cabecalho Authorization sem um preflight que a ponte nao responde; por isso a
+ponte pode aceitar, como o WPPConnect, `Authorization: Bearer` no lugar do
+`:hash` do caminho.
 """
 import hashlib
 import hmac
@@ -105,6 +107,25 @@ def credencial_valida(segredo: str, token) -> bool:
     return _igual(hash_recebido, token_da_sessao(segredo, nome))
 
 
+def credencial_por_cabecalho(segredo: str, nome, authorization) -> bool:
+    """O `Authorization: Bearer X` que o WPPConnect Server aceita (auth.ts) quando
+    o caminho traz so o NOME da sessao, sem `:hash`: vale se X e o segredo da
+    ponte ou o hash desta sessao. O cabecalho inteiro igual ao segredo tambem
+    vale. O cliente do WinZapp chama assim em varios pontos (check_connection_status,
+    fechar a sessao antes de parear, ...). Um nome que ja traz `:` nunca chega aqui."""
+    if not isinstance(authorization, str) or not isinstance(nome, str) or not nome \
+            or ":" in nome:
+        return False
+    cabecalho = authorization.strip()
+    if segredo_valido(segredo, cabecalho):
+        return True
+    _, _, valor = cabecalho.partition(" ")
+    valor = valor.strip()
+    if not valor:
+        return False
+    return segredo_valido(segredo, valor) or credencial_valida(segredo, f"{nome}:{valor}")
+
+
 def nome_da_credencial(token) -> str:
     """O nome da sessao no `<sessao>:<hash>`; so tem sentido depois de
     `credencial_valida`."""
@@ -147,8 +168,11 @@ def criar_middleware(segredo: str):
         if recurso is None:                 # sem rota: o roteador responde 404/405
             return await handler(request)
         tipo, valor = exigencia(recurso.canonical, request.match_info)
+        sessao_ok = tipo == "sessao" and (
+            credencial_valida(segredo, valor)
+            or credencial_por_cabecalho(segredo, valor, request.headers.get("Authorization")))
         if tipo == "negada" or (tipo == "chave" and not segredo_valido(segredo, valor)) or (
-                tipo == "sessao" and not credencial_valida(segredo, valor)):
+                tipo == "sessao" and not sessao_ok):
             return web.json_response(
                 {"status": "error", "message": "unauthorized"}, status=401)
         return await handler(request)

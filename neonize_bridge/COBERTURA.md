@@ -54,7 +54,7 @@ These answer, but not everything the WPPConnect route does. None of the routes a
 - `all-new-messages`: cursor kept in memory per session; the first call returns `[]` and a restart resets it.
 - `reply-button/:messageId`: answers `dynamic`, `list` and `template` buttons only; `source: native` answers 501.
 - `temporary-messages`: accepts 0, 24 hours, 7 days or 90 days.
-- `meta-ai-terms`: always `UNKNOWN`; `meta-ai-terms/accept` calls the library's `AcceptTOSNotice` with a guessed stage.
+- `meta-ai-terms`: always `UNKNOWN`; `meta-ai-terms/accept` answers 501 (accepting is not verified for this neonize build).
 - `clear-chat`, `delete-chat` and the `*-all-chats` routes, `save-contact`, and the label routes send app-state patches written from the WhatsApp Web layout, not confirmed on a real account.
 
 ## Registered but answering 501

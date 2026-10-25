@@ -72,24 +72,36 @@ def test_qrcode_sem_codigo_explica_o_porque():
         "json", {"status": "CONNECTED", "message": "QRCode is not available..."})
 
 
-def test_reconexao_so_da_certo_com_a_conexao_de_pe():
-    assert administracao.resposta_reconexao("CONNECTED", True) == (
-        200, {"status": "success", "response": {"ok": True}})
-    for status, conectado in (("CONNECTED", False), ("CLOSED", True), ("QRCODE", False)):
-        http, corpo = administracao.resposta_reconexao(status, conectado)
+def test_reconexao_responde_200_com_a_sessao_viva_mesmo_reconectando():
+    """O whatsmeow reconecta sozinho: 400 durante a queda fazia o cliente, apos
+    tres respostas, fechar e reiniciar uma sessao que ia se recuperar."""
+    ok = (200, {"status": "success", "response": {"ok": True}})
+    for status in ("CONNECTED", "INITIALIZING", "QRCODE"):
+        assert administracao.resposta_reconexao(status, True) == ok
+    for status, viva in (("CONNECTED", False), ("CLOSED", True), ("CLOSED", False),
+                         ("notLogged", True)):
+        http, corpo = administracao.resposta_reconexao(status, viva)
         assert http == 400 and corpo["status"] == "error"
 
 
+class ThreadFalsa:
+    def __init__(self, viva=True):
+        self.viva = viva
+
+    def is_alive(self):
+        return self.viva
+
+
 class SessaoFalsa:
-    def __init__(self, nome, status="CLOSED", urlcode=None, conectado=True):
+    def __init__(self, nome, status="CLOSED", urlcode=None, conectado=True, viva=None):
         self.nome, self.status, self.urlcode = nome, status, urlcode
-        self.thread = None
+        self.thread = None if viva is None else ThreadFalsa(viva)
         self.cliente = N(is_connected=conectado)
         self.iniciada = 0
 
     def iniciar(self):
         self.iniciada += 1
-        self.thread = object()
+        self.thread = ThreadFalsa()
 
 
 def montar(tmp_path, fixa=""):
@@ -171,7 +183,7 @@ def test_start_all_no_modo_de_conta_unica_inicia_so_ela(tmp_path):
 def test_qrcode_session_png_e_json(tmp_path):
     app, estado, _ = montar(tmp_path)
     estado["sessoes"]["com"] = SessaoFalsa("com", "QRCODE", urlcode="2@abc")
-    estado["sessoes"]["com"].thread = object()
+    estado["sessoes"]["com"].thread = ThreadFalsa()
 
     async def roteiro(c):
         png = await c.get("/api/com:tok/qrcode-session")
@@ -184,10 +196,11 @@ def test_qrcode_session_png_e_json(tmp_path):
     assert sem["status"] is None
 
 
-def test_reconnect_socket_stream_reflete_a_conexao(tmp_path):
+def test_reconnect_socket_stream_olha_a_thread_nao_o_socket(tmp_path):
     app, estado, _ = montar(tmp_path)
-    estado["sessoes"]["viva"] = SessaoFalsa("viva", "CONNECTED", conectado=True)
-    estado["sessoes"]["caida"] = SessaoFalsa("caida", "CONNECTED", conectado=False)
+    estado["sessoes"]["viva"] = SessaoFalsa("viva", "CONNECTED", conectado=True, viva=True)
+    # socket momentaneamente caido, sessao de pe: o whatsmeow reconecta, nao e erro
+    estado["sessoes"]["caida"] = SessaoFalsa("caida", "CONNECTED", conectado=False, viva=True)
 
     async def roteiro(c):
         viva = await c.post("/api/viva:tok/reconnect-socket-stream")
@@ -195,4 +208,4 @@ def test_reconnect_socket_stream_reflete_a_conexao(tmp_path):
         parada = await c.post("/api/parada:tok/reconnect-socket-stream")
         return viva.status, caida.status, parada.status
 
-    assert com_cliente(app, roteiro) == (200, 400, 400)
+    assert com_cliente(app, roteiro) == (200, 200, 400)
