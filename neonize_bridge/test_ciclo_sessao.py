@@ -36,12 +36,38 @@ def test_queda_so_tira_de_connected_e_a_volta_so_devolve_o_que_a_queda_tirou():
     assert cs.proximo_estado("INITIALIZING", True, cs.CONECTOU) == ("CONNECTED", False)
 
 
-def test_falha_terminal_e_fim_da_thread_fecham_mas_nao_desfazem_o_desvinculo():
-    for evento in (cs.FALHA_TERMINAL, cs.FIM_DA_THREAD):
-        assert cs.proximo_estado("INITIALIZING", False, evento)[0] == "CLOSED"
-        assert cs.proximo_estado("CONNECTED", False, evento)[0] == "CLOSED"
-        assert cs.proximo_estado("notLogged", False, evento)[0] == "notLogged"
+def test_fim_da_thread_fecha_mas_nao_desfaz_o_desvinculo_nem_a_falha_terminal():
+    assert cs.proximo_estado("INITIALIZING", False, cs.FIM_DA_THREAD)[0] == "CLOSED"
+    assert cs.proximo_estado("CONNECTED", False, cs.FIM_DA_THREAD)[0] == "CLOSED"
+    assert cs.proximo_estado("notLogged", False, cs.FIM_DA_THREAD)[0] == "notLogged"
+    assert cs.proximo_estado("terminalFailure", False, cs.FIM_DA_THREAD)[0] == "terminalFailure"
     assert cs.proximo_estado("CONNECTED", False, cs.SAIU)[0] == "notLogged"
+
+
+def test_falha_terminal_nao_vira_closed_senao_o_cliente_reinicia_a_cada_30_s():
+    """O health check do cliente chama start-session quando le CLOSED/DESTROYED/"";
+    qualquer outro texto (fora os de desvinculo) ele so mostra como offline."""
+    for antes in ("INITIALIZING", "CONNECTED", "QRCODE", "CLOSED"):
+        depois = cs.proximo_estado(antes, False, cs.FALHA_TERMINAL)[0]
+        assert depois == cs.TERMINAL == "terminalFailure"
+    assert cs.proximo_estado("notLogged", False, cs.FALHA_TERMINAL)[0] == "notLogged"
+    assert cs.TERMINAL not in ("CLOSED", "DESTROYED", "", "notLogged", "QRCODE",
+                               "disconnectedMobile", "UNPAIRED", "UNPAIRED_IDLE")
+
+
+def test_falha_terminal_e_encerrada_e_um_start_session_pode_substituir_a_thread():
+    assert cs.decidir_inicio(True, cs.TERMINAL, "") == cs.REINICIAR
+    assert cs.decidir_inicio(False, cs.TERMINAL, "") == cs.INICIAR
+
+
+def test_close_session_depois_da_falha_terminal_nao_a_apaga():
+    c = cs.Ciclo()
+    g = c.abrir()
+    assert c.aplicar(g, cs.FALHA_TERMINAL) == ("INITIALIZING", "terminalFailure")
+    c.encerrar()                    # o close-session que o cliente manda depois
+    assert c.status == "terminalFailure"
+    c.encerrar("CLOSED")            # logout explicito
+    assert c.status == "CLOSED"
 
 
 def test_evento_de_geracao_antiga_nao_mexe_no_estado():
@@ -302,9 +328,10 @@ def test_queda_vira_initializing_e_a_volta_restaura(sessao):
 def test_falha_terminal_fecha_a_sessao_e_para_o_cliente(sessao):
     g, cli = _conectada(sessao)
     sessao._ao_falha_terminal(g, cli, "banimento temporario")
-    assert sessao.status == "CLOSED"
+    assert sessao.status == "terminalFailure"       # nao CLOSED: o cliente reiniciaria
     assert _espera(lambda: "stop" in cli.chamadas)
     sessao.thread.join(3)
+    assert sessao.status == "terminalFailure"       # o fim do connect() nao a apaga
 
 
 def test_connect_failure_por_motivo(sessao):
@@ -312,7 +339,7 @@ def test_connect_failure_por_motivo(sessao):
     sessao._ao_falhar(g, cli, 8)                    # falha do servidor: passageira
     assert sessao.status == "INITIALIZING"
     sessao._ao_falhar(g, cli, 6)                    # versao antiga: terminal
-    assert sessao.status == "CLOSED"
+    assert sessao.status == "terminalFailure"
     sessao.thread.join(3)
 
 

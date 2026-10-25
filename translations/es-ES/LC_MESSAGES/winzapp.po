@@ -1666,22 +1666,6 @@ msgid "WinZapp API failed to start in time. The program will now close."
 msgstr "La API de WinZapp no se inició a tiempo. El programa se cerrará."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "api_type_ask_message"
-msgid ""
-"Do you want to use the default local API server (Recommended)?\n"
-"\n"
-"Choose 'Yes' for the default local mode (recommended), or 'No' if you want to specify and configure a custom/remote API server."
-msgstr ""
-"¿Desea utilizar el servidor de API local predeterminado (Recomendado)?\n"
-"\n"
-"Elija 'Sí' para el modo local predeterminado (recomendado), o 'No' si desea especificar y configurar un servidor de API remoto/personalizado."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
-msgctxt "api_type_ask_title"
-msgid "API Server Configuration"
-msgstr "Configuración del Servidor de API"
-
-#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_update_continue"
 msgid "&Continue with current WPPConnect version (not recommended)"
 msgstr "&Continuar con la versión actual de WPPConnect (no recomendado)"

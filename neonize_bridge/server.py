@@ -136,7 +136,7 @@ class Sessao(conversas_alias.AliasDeConversa, recibos_de_grupo.RecibosDeGrupo):
 
     @property
     def status(self):
-        """CLOSED INITIALIZING QRCODE CONNECTED notLogged"""
+        """CLOSED INITIALIZING QRCODE CONNECTED notLogged terminalFailure"""
         return self.ciclo.status
 
     @status.setter

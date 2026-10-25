@@ -119,6 +119,29 @@ def evento_de_fim(e, agora) -> dict:
     }
 
 
+def refinar_fim(dados, aceitou) -> dict:
+    """Um fim sem motivo ("ENDED") de uma chamada que ALGUEM ATENDEU antes e uma
+    chamada atendida em outro aparelho (o celular): nao e a ligacao que o autor
+    cancelou, e o cliente conta essa como perdida. `aceitou` e o que `Pendentes`
+    guardou do CallAccept: (instante do servidor, instante local) ou None.
+    Devolve `dados` com o estado e a duracao (segundos da conversa) acertados;
+    qualquer outro fim, inclusive o que traz motivo, fica como veio."""
+    if dados["state"] != "ENDED" or not aceitou:
+        return dados
+    return {**dados, "state": "HANDLED_REMOTELY",
+            "callDuration": duracao_da_chamada(aceitou, dados["timestamp"], dados["observedAt"])}
+
+
+def duracao_da_chamada(aceitou, terminou_servidor, terminou_local) -> int:
+    """Segundos entre o CallAccept e o CallTerminate: pelos instantes do
+    servidor quando os dois existem (o relogio daqui pode estar errado), senao
+    pelos locais. Nunca negativa."""
+    servidor, local = aceitou
+    if servidor and terminou_servidor:
+        return max(0, int(terminou_servidor) - int(servidor))
+    return max(0, int(terminou_local) - int(local))
+
+
 def conversa_da_chamada(bd, meta, grupo) -> str:
     """A chave (formato whatsmeow) da conversa onde o registro da chamada vai: o
     grupo, ou o par. O par pode estar guardado pelo numero ou pelo LID; vale a
@@ -151,7 +174,7 @@ def registrar_fim(s, e, dados, tocava, agora):
     w = mensagens_de_sistema.registro_de_chamada(
         id_chamada=dados["id"], conversa_w=msgmap.jid_wpp(chat), criador_w=criador,
         desfecho=desfecho, video=dados["isVideo"],
-        ts=dados["timestamp"] or int(agora))
+        ts=dados["timestamp"] or int(agora), duracao=dados.get("callDuration", 0))
     return mensagens_de_sistema.guardar_e_emitir(s, chat, w, agora)
 
 
@@ -161,6 +184,17 @@ class Pendentes:
 
     def __init__(self):
         self._toques = {}
+        self._aceitas = {}
+
+    def aceitar(self, id_chamada, ts_servidor, agora):
+        """O CallAccept: alguem (nao este cliente, que nao atende) atendeu."""
+        self._aceitas = {i: t for i, t in self._aceitas.items()
+                         if agora - t[1] < VALIDADE_DO_TOQUE}
+        self._aceitas[id_chamada] = (ts_servidor, agora)
+
+    def aceitou(self, id_chamada):
+        """(instante do servidor, instante local) do CallAccept, ou None."""
+        return self._aceitas.get(id_chamada)
 
     def lembrar(self, id_chamada, criador, agora):
         self._toques = {i: t for i, t in self._toques.items()
@@ -169,6 +203,7 @@ class Pendentes:
 
     def esquecer(self, id_chamada):
         self._toques.pop(id_chamada, None)
+        self._aceitas.pop(id_chamada, None)
 
     def criador_de(self, id_chamada):
         achado = self._toques.get(id_chamada)
@@ -214,10 +249,20 @@ def registrar_eventos(cli, s):
         except Exception:
             log.exception("oferta de chamada")
 
+    @cli.event(nev.CallAcceptEv)
+    def _atendida(c, e):
+        try:
+            if e.basicCallMeta.callID:
+                s.chamadas_tocando.aceitar(
+                    e.basicCallMeta.callID, msgmap.segundos(e.basicCallMeta.timestamp), time.time())
+        except Exception:
+            log.exception("chamada atendida")
+
     @cli.event(nev.CallTerminateEv)
     def _fim(c, e):
         try:
             dados = evento_de_fim(e, time.time())
+            dados = refinar_fim(dados, s.chamadas_tocando.aceitou(dados["id"]))
             tocava = s.chamadas_tocando.criador_de(dados["id"]) is not None
             s.chamadas_tocando.esquecer(dados["id"])
             log.info("chamada terminou (%s)", dados["state"])

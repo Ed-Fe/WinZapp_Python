@@ -174,3 +174,48 @@ def test_rotas_impossiveis_respondem_501_no_formato_de_erro():
     assert s.chamadas_tocando.criador_de("C1") == "criador-1"
     # o texto nao se confunde com falha de inicializacao do VoIP do Chrome
     assert "voip" not in chamadas.MOTIVO_IMPOSSIVEL.lower()
+
+
+# ---------------------------------------- chamada atendida em outro aparelho
+def fim_de(motivo="", ts=1700000060, id_chamada="C1"):
+    return N(basicCallMeta=meta(id_chamada, ts=ts), reason=motivo, data=no("terminate"))
+
+
+def test_fim_sem_motivo_depois_de_um_accept_e_atendida_em_outro_aparelho():
+    p = chamadas.Pendentes()
+    p.lembrar("C1", "criador-1", 1700000000)
+    p.aceitar("C1", 1700000010, 1700000011)          # o celular atendeu
+    dados = chamadas.refinar_fim(chamadas.evento_de_fim(fim_de(), 1700000061), p.aceitou("C1"))
+    assert dados["state"] == "HANDLED_REMOTELY"
+    assert dados["callDuration"] == 50               # 1700000060 - 1700000010
+
+
+def test_fim_sem_motivo_e_sem_accept_continua_sendo_so_um_fim():
+    dados = chamadas.evento_de_fim(fim_de(), 1700000061)
+    assert chamadas.refinar_fim(dados, None) is dados
+    assert dados["state"] == "ENDED"
+
+
+def test_o_motivo_do_fim_vale_mais_que_o_accept():
+    for motivo, estado in (("timeout", "NOT_ANSWERED"), ("reject", "REJECTED")):
+        dados = chamadas.evento_de_fim(fim_de(motivo), 1700000061)
+        assert chamadas.refinar_fim(dados, (1700000010, 1700000011)) is dados
+        assert dados["state"] == estado
+
+
+def test_duracao_usa_o_relogio_do_servidor_e_nunca_e_negativa():
+    assert chamadas.duracao_da_chamada((100, 5000), 130, 9999) == 30
+    assert chamadas.duracao_da_chamada((0, 5000), 130, 5042) == 42      # sem hora do servidor
+    assert chamadas.duracao_da_chamada((100, 5000), 90, 9999) == 0
+    assert chamadas.duracao_da_chamada((0, 5000), 0, 4000) == 0
+
+
+def test_pendentes_esquece_o_accept_junto_com_o_toque_e_o_accept_antigo():
+    p = chamadas.Pendentes()
+    p.aceitar("A", 1, 100)
+    assert p.aceitou("A") == (1, 100)
+    p.esquecer("A")
+    assert p.aceitou("A") is None
+    p.aceitar("velha", 1, 0)
+    p.aceitar("nova", 2, chamadas.VALIDADE_DO_TOQUE + 1)
+    assert p.aceitou("velha") is None and p.aceitou("nova") is not None

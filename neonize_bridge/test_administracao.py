@@ -2,6 +2,7 @@
 sessoes de mentira (nada de neonize)."""
 import asyncio
 import base64
+import os
 from types import SimpleNamespace as N
 
 from aiohttp import web
@@ -18,9 +19,9 @@ def data_url(texto):
 
 def test_identidade_usa_o_ambiente_e_o_protocolo_1():
     corpo = administracao.identidade(
-        {"WINZAPP_INSTALLATION_ID": "inst", "WINZAPP_INSTANCE_ID": "node"}, 42)
+        {"WINZAPP_INSTALLATION_ID": "inst", "WINZAPP_INSTANCE_ID": "node"}, 42, 41)
     assert corpo == {"installation_id": "inst", "instance_id": "node",
-                     "protocol_version": 1, "pid": 42}
+                     "protocol_version": 1, "pid": 42, "ppid": 41}
 
 
 def test_identidade_sem_ambiente_nao_e_de_nenhuma_instalacao():
@@ -46,6 +47,7 @@ def test_metricas_contam_as_sessoes_por_estado():
     assert 'winzapp_bridge_sessions{status="CONNECTED"} 2' in texto
     assert 'winzapp_bridge_sessions{status="QRCODE"} 1' in texto
     assert 'winzapp_bridge_sessions{status="CLOSED"} 0' in texto
+    assert 'winzapp_bridge_sessions{status="terminalFailure"} 0' in texto
     assert "winzapp_bridge_uptime_seconds 12\n" in texto
     assert texto.endswith("\n")
 
@@ -79,7 +81,7 @@ def test_reconexao_responde_200_com_a_sessao_viva_mesmo_reconectando():
     for status in ("CONNECTED", "INITIALIZING", "QRCODE"):
         assert administracao.resposta_reconexao(status, True) == ok
     for status, viva in (("CONNECTED", False), ("CLOSED", True), ("CLOSED", False),
-                         ("notLogged", True)):
+                         ("notLogged", True), ("terminalFailure", True)):
         http, corpo = administracao.resposta_reconexao(status, viva)
         assert http == 400 and corpo["status"] == "error"
 
@@ -139,6 +141,9 @@ def test_rotas_de_identidade_docs_e_metricas(tmp_path):
 
     identidade, docs, metricas = com_cliente(app, roteiro)
     assert identidade["protocol_version"] == 1
+    # o cliente confere estes dois contra `ponte.pid` antes de mandar o segredo
+    assert identidade["pid"] == os.getpid() and identidade["ppid"] == os.getppid()
+    assert "segredo" not in identidade and "secret" not in identidade
     assert "/winzapp/identity" in docs["paths"]
     assert "/api/{tok}/qrcode-session" in docs["paths"]
     assert 'winzapp_bridge_sessions{status="CONNECTED"} 1' in metricas

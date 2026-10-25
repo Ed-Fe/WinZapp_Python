@@ -141,19 +141,21 @@ def desfecho_da_chamada(estado, tocava):
     """O `callOutcome` de uma chamada recebida que terminou, ou None se nao da
     para dizer. Um fim sem motivo ("ENDED") de uma chamada que ainda tocava aqui
     e o autor desligando antes de alguem atender ("Canceled", que o cliente conta
-    como perdida, como o proprio WhatsApp).
+    como perdida, como o proprio WhatsApp). Quando houve um CallAccept, quem
+    chama aqui (chamadas.refinar_fim) ja trocou o estado por HANDLED_REMOTELY,
+    entao este "Canceled" e so o que sobra sem nenhum sinal de que atenderam.
     Sem ter visto a oferta nao se sabe se alguem atendeu, e nada e registrado."""
     if estado in DESFECHOS:
         return DESFECHOS[estado]
     return "Canceled" if (estado == "ENDED" and tocava) else None
 
 
-def registro_de_chamada(*, id_chamada, conversa_w, criador_w, desfecho, video, ts) -> dict:
+def registro_de_chamada(*, id_chamada, conversa_w, criador_w, desfecho, video, ts, duracao=0) -> dict:
     """Mensagem `call_log` (id = id da chamada). `conversa_w` e o par numa
     chamada comum e o grupo numa de grupo; `criador_w` quem ligou."""
     w = _base(conversa_w, id_chamada, ts, "call_log", criador_w)
     w.update(callOutcome=desfecho, finalCallOutcome=desfecho, isVideoCall=bool(video),
-             callDuration=0, callCreator=criador_w)
+             callDuration=int(duracao or 0), callCreator=criador_w)
     return w
 
 
