@@ -21,16 +21,6 @@ def test_coordenadas_recusa_o_invalido(lat, lng):
         ce.coordenadas(lat, lng)
 
 
-def test_texto_do_link():
-    assert ce.texto_do_link("https://a.com") == "https://a.com"
-    assert ce.texto_do_link("https://a.com", "veja") == "veja https://a.com"
-    assert ce.texto_do_link("https://a.com", "veja https://a.com") == "veja https://a.com"
-    with pytest.raises(ValueError):
-        ce.texto_do_link("ftp://a.com")
-    with pytest.raises(ValueError):
-        ce.texto_do_link("")
-
-
 def test_dados_de_base64_com_e_sem_prefixo():
     b64 = base64.b64encode(b"abc").decode()
     assert ce.dados_de_base64(b64) == (b"abc", "")
@@ -145,11 +135,21 @@ def test_rotas_de_voz_e_figurinha_recusam_url_sem_baixar(rota, campo):
 
 def test_rota_sem_conexao_responde_400_sem_enviar():
     (status, corpo), _ = pedir(
-        "/api/t/send-link-preview", {"phone": "55", "url": "https://a.com"}, False)
+        "/api/t/send-location", {"phone": "55", "lat": 1, "lng": 2}, False)
     assert status == 400 and corpo["message"] == "Disconnected"
 
 
 def test_isgroup_vira_jid_de_grupo_no_destino():
-    _, chamadas = pedir("/api/t/send-link-preview",
-                        {"phone": "1203", "isGroup": True, "url": "https://a.com"}, False)
+    _, chamadas = pedir("/api/t/send-location",
+                        {"phone": "1203", "isGroup": True, "lat": 1, "lng": 2}, False)
     assert chamadas == ["1203@g.us"]
+
+
+def test_send_link_preview_responde_501_e_nunca_chega_ao_neonize():
+    """O neonize buscaria a pagina (e a og:image) da maquina do usuario: SSRF."""
+    for conectada in (True, False):
+        (status, corpo), chamadas = pedir(
+            "/api/t/send-link-preview",
+            {"phone": "55", "url": "http://169.254.169.254/latest/"}, conectada)
+        assert status == 501 and "link previews are not available" in corpo["message"]
+        assert chamadas == []

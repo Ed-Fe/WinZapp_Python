@@ -1286,6 +1286,12 @@ class Sessao:
 
 
 # ---------------------------------------------------------------- HTTP
+# Sem access_log: ele grava cada URL, e nela vao o segredo da ponte, o token de
+# cada sessao e telefones (/api/<token>/get-messages/5511...@c.us). O ponte.log
+# e o arquivo que o usuario manda num relatorio de erro.
+OPCOES_DO_SERVIDOR = {"host": "127.0.0.1", "print": None, "access_log": None}
+
+
 def criar_app(pasta, fixa=""):
     # Sem cors_allowed_origins="*": so a mesma origem (o cliente do WinZapp nao manda Origin).
     sio = socketio.AsyncServer(async_mode="aiohttp", logger=False, engineio_logger=False)
@@ -1293,6 +1299,7 @@ def criar_app(pasta, fixa=""):
     app = web.Application(client_max_size=autenticacao.TAMANHO_MAXIMO_DO_CORPO,
                           middlewares=[autenticacao.criar_middleware(segredo)])
     sio.attach(app)
+    app["sio"] = sio                        # os testes olham quem esta conectado
     estado = {"sessoes": {}, "fixa": fixa}
     arquivo_ativas = os.path.join(pasta, "ativas.json")
 
@@ -1346,13 +1353,22 @@ def criar_app(pasta, fixa=""):
 
     @sio.event
     async def connect(sid, environ, auth):
-        cred = (auth or {}).get("token") or environ.get("HTTP_APIKEY", "")
-        if not autenticacao.credencial_valida(segredo, cred):
+        # Qualquer erro aqui recusa a conexao: o python-socketio ja registrou o
+        # socket antes de chamar este manipulador, e uma excecao qualquer o
+        # deixaria conectado sem credencial.
+        try:
+            token = auth.get("token") if isinstance(auth, dict) else None
+            cred = token if isinstance(token, str) and token else environ.get("HTTP_APIKEY", "")
+            if not autenticacao.credencial_valida(segredo, cred):
+                raise socketio.exceptions.ConnectionRefusedError("sem credencial")
+            # a sala e o nome do token ja conferido, nunca o `auth.session`, que o
+            # cliente escreve sozinho; Sessao.nome e o mesmo nome (tambem em --sessao-unica)
+            nome = autenticacao.nome_da_credencial(cred)
+            await sio.enter_room(sid, nome)
+        except socketio.exceptions.ConnectionRefusedError:
+            raise
+        except Exception:
             raise socketio.exceptions.ConnectionRefusedError("sem credencial")
-        # a sala e o nome do token ja conferido, nunca o `auth.session`, que o
-        # cliente escreve sozinho; Sessao.nome e o mesmo nome (tambem em --sessao-unica)
-        nome = autenticacao.nome_da_credencial(cred)
-        await sio.enter_room(sid, nome)
         log.info("socket conectado (%s)", redigir(nome))
 
     async def gerar_token(req):
@@ -2274,7 +2290,7 @@ def main():
                 return rec.levelno >= logging.WARNING or rec.name == "ponte"                     or bool(padrao.search(rec.getMessage()))
         for h in logging.getLogger().handlers:
             h.addFilter(SoEstado())
-    web.run_app(criar_app(a.pasta, a.sessao_unica), host="127.0.0.1", port=a.porta, print=None)
+    web.run_app(criar_app(a.pasta, a.sessao_unica), port=a.porta, **OPCOES_DO_SERVIDOR)
 
 
 if __name__ == "__main__":

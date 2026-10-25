@@ -111,3 +111,77 @@ async def test_socket_sem_credencial_valida_e_recusado(tmp_path, sessoes):
                               auth={"token": "a:errado", "session": "a"})
     finally:
         await cliente.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("auth", [
+    ["token"], "token", 7, {"token": ["a:b"]}, {"token": 7}, {"token": "é:éé"},
+    {"token": ""}, {}, None])
+async def test_credencial_malformada_recusa_a_conexao_sem_derrubar_nada(tmp_path, sessoes, auth):
+    """Achado M2: uma excecao no connect deixava o socket conectado sem credencial."""
+    cliente, segredo = await _ponte(tmp_path)
+    sio = socketio.AsyncClient()
+    try:
+        with pytest.raises(socketio.exceptions.ConnectionError):
+            await sio.connect(str(cliente.make_url("/")), socketio_path="socket.io",
+                              auth=auth, headers={"apikey": "éé"})
+        assert not sio.connected
+        await asyncio.sleep(0.1)
+        servidor = cliente.server.app["sio"]
+        assert list(servidor.manager.get_participants("/", None)) == []
+    finally:
+        await sio.disconnect()
+        await cliente.close()
+
+
+def test_o_servidor_nao_liga_o_log_de_acesso():
+    """Achado H1: o log de acesso grava cada URL, e nela vao o segredo e os telefones."""
+    assert server.OPCOES_DO_SERVIDOR["access_log"] is None
+    assert server.OPCOES_DO_SERVIDOR["host"] == "127.0.0.1"
+
+
+@pytest.mark.asyncio
+async def test_nenhum_log_leva_o_segredo_nem_o_telefone_de_uma_requisicao(tmp_path, caplog):
+    import logging
+    import aiohttp
+    from aiohttp import web
+    app = server.criar_app(str(tmp_path))
+    runner = web.AppRunner(app, access_log=server.OPCOES_DO_SERVIDOR["access_log"])
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    porta = site._server.sockets[0].getsockname()[1]
+    segredo = (tmp_path / aut.ARQUIVO_DO_SEGREDO).read_text(encoding="utf-8")
+    try:
+        with caplog.at_level(logging.DEBUG):
+            async with aiohttp.ClientSession() as http:
+                base = f"http://127.0.0.1:{porta}"
+                await http.post(f"{base}/api/conta1/{segredo}/generate-token")
+                token = f"conta1:{aut.token_da_sessao(segredo, 'conta1')}"
+                await http.get(f"{base}/api/{token}/get-messages/5511999998888@c.us?count=2")
+    finally:
+        await runner.cleanup()
+    texto = caplog.text
+    assert segredo not in texto and aut.token_da_sessao(segredo, "conta1") not in texto
+    assert "5511999998888" not in texto
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pacote", [
+    '40["x"]', '40"x"', '407', '40{"token":["a"]}', '40{"token":7}', '40{"token":"é:éé"}'])
+async def test_conectar_cru_com_credencial_malformada_nao_deixa_socket_registrado(
+        tmp_path, sessoes, pacote):
+    """O achado M2 como a revisao o reproduziu: handshake de polling e um pacote
+    CONNECT malformado. O socket nao pode ficar conectado ao servidor."""
+    import json
+    cliente, segredo = await _ponte(tmp_path)
+    try:
+        resposta = await cliente.get("/socket.io/?EIO=4&transport=polling")
+        sid = json.loads((await resposta.text())[1:])["sid"]
+        await cliente.post(f"/socket.io/?EIO=4&transport=polling&sid={sid}",
+                           data=pacote.encode("utf-8"))
+        await asyncio.sleep(0.3)
+        servidor = cliente.server.app["sio"]
+        assert list(servidor.manager.get_participants("/", None)) == []
+    finally:
+        await cliente.close()

@@ -18,7 +18,6 @@ import re
 
 log = logging.getLogger("ponte")
 
-_URL = re.compile(r"^https?://", re.IGNORECASE)
 _ESQUEMA = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
 _DATA_URI = re.compile(r"^data:([^;,]*)(?:;[^,]*)?,", re.IGNORECASE)
 
@@ -32,15 +31,6 @@ def coordenadas(lat, lng):
     if not (-90 <= a <= 90 and -180 <= o <= 180):
         raise ValueError("lat/lng out of range")
     return a, o
-
-
-def texto_do_link(url, legenda=""):
-    """O texto enviado com a previa do link: a legenda e o endereco."""
-    url = str(url or "").strip()
-    if not _URL.match(url):
-        raise ValueError("url must start with http:// or https://")
-    legenda = str(legenda or "").strip()
-    return f"{legenda} {url}" if legenda and url not in legenda else (legenda or url)
 
 
 def dados_de_base64(texto):
@@ -129,10 +119,11 @@ def registrar(r, *, sessao, ok, erro, destino_de, guardar_enviada, enviar_midia,
         return await enviar(req, "send-location", montar)
 
     async def send_link_preview(req):
-        def montar(s, corpo, destino):
-            texto = texto_do_link(corpo["url"], corpo.get("caption"))
-            return lambda: s.cliente.send_message(destino, texto, link_preview=True)
-        return await enviar(req, "send-link-preview", montar)
+        # O neonize gera o cartao buscando a pagina (e a imagem og:image) da
+        # maquina do usuario, a partir de uma URL escolhida por quem chama: o
+        # mesmo SSRF das figurinhas. O WinZapp nao usa esta rota.
+        return erro("link previews are not available through neonize: it would fetch "
+                    "the page from this machine", 501)
 
     def figurinha(animada):
         def montar_com(s, corpo, destino):

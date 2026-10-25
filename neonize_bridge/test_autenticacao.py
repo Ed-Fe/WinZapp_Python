@@ -56,20 +56,51 @@ def test_outro_host_e_recusado_contra_dns_rebinding(host):
     assert not aut.host_permitido(host)
 
 
-@pytest.mark.parametrize("caminho,esperado", [
-    ("/healthz", ("aberta", "")),
-    ("/winzapp/identity", ("aberta", "")),
-    ("/metrics", ("aberta", "")),
-    ("/socket.io/", ("aberta", "")),
-    ("/api/conta1/KEY/generate-token", ("chave", "KEY")),
-    ("/api/SEGREDO/show-all-sessions", ("chave", "SEGREDO")),
-    ("/api/SEGREDO/start-all", ("chave", "SEGREDO")),
-    ("/api/conta1:abc/send-message", ("sessao", "conta1:abc")),
-    ("/api/conta1:abc/group-info/123@g.us", ("sessao", "conta1:abc")),
-    ("/api/conta1:abc/delete-all-chats", ("sessao", "conta1:abc")),
+@pytest.mark.parametrize("modelo,partes,esperado", [
+    ("/healthz", {}, ("aberta", "")),
+    ("/health", {}, ("aberta", "")),
+    ("/winzapp/identity", {}, ("aberta", "")),
+    ("/metrics", {}, ("aberta", "")),
+    ("/socket.io/", {}, ("aberta", "")),
+    ("/api/{session}/{key}/generate-token", {"session": "conta1", "key": "KEY"}, ("chave", "KEY")),
+    ("/api/{secretkey}/show-all-sessions", {"secretkey": "SEGREDO"}, ("chave", "SEGREDO")),
+    ("/api/{secretkey}/start-all", {"secretkey": "SEGREDO"}, ("chave", "SEGREDO")),
+    ("/api/{tok}/send-message", {"tok": "conta1:abc"}, ("sessao", "conta1:abc")),
+    ("/api/{tok}/group-info/{groupId}", {"tok": "conta1:abc", "groupId": "1@g.us"}, ("sessao", "conta1:abc")),
+    ("/api/{tok}/delete-all-chats", {"tok": "conta1:abc"}, ("sessao", "conta1:abc")),
+    ("/api/{tok}/send-message", {"tok": "/"}, ("sessao", "/")),
 ])
-def test_o_que_cada_rota_exige(caminho, esperado):
-    assert aut.exigencia(caminho) == esperado
+def test_o_que_cada_rota_exige(modelo, partes, esperado):
+    assert aut.exigencia(modelo, partes) == esperado
+
+
+@pytest.mark.parametrize("modelo", ["/", "/outra", "/api/{x}/y", "/api", "/static/{p}"])
+def test_rota_desconhecida_e_negada_por_padrao(modelo):
+    assert aut.exigencia(modelo, {})[0] == "negada"
+
+
+def test_comparacao_nao_falha_com_caracteres_fora_do_ascii():
+    assert not aut.credencial_valida(SEGREDO, "conta1:\u00e9\u00e9\u00e9")
+    assert not aut.segredo_valido(SEGREDO, "\u00e9" * 64)
+    assert not aut.credencial_valida(SEGREDO, ["conta1", "x"])
+    assert not aut.credencial_valida(SEGREDO, {"a": 1})
+    assert not aut.segredo_valido(SEGREDO, ["x"])
+
+
+def test_duas_pontes_criando_o_segredo_juntas_ficam_com_o_mesmo(tmp_path):
+    import threading
+    pasta = str(tmp_path / "dados")
+    resultados = []
+
+    def criar():
+        resultados.append(aut.carregar_segredo(pasta))
+    threads = [threading.Thread(target=criar) for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(resultados) == 12 and len(set(resultados)) == 1
+    assert resultados[0] == (tmp_path / "dados" / aut.ARQUIVO_DO_SEGREDO).read_text(encoding="utf-8")
 
 
 async def _cliente():

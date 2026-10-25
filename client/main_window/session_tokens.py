@@ -353,7 +353,10 @@ class SessionTokensMixin:
                         token = f"{token_name}:{hash_token}"
                         self._set_wa_token(token)
             except Exception as e:
-                logging.error("[retrieve_token] Failed to migrate WPPConnect token: %s", e)
+                # not %s of the exception: a requests error repeats the URL, and the
+                # Neonize bridge's secret is in it (/api/<name>/<secret>/generate-token)
+                logging.error("[retrieve_token] Failed to migrate WPPConnect token: %s",
+                              type(e).__name__)
         if not token:
             if not wx.IsMainThread():
                 logging.error("[retrieve_token] No token on post_ui_init's thread — quitting from the UI thread.")

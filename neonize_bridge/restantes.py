@@ -25,8 +25,6 @@ nenhum que se possa conferir.
 As funcoes puras ficam no topo (testadas em test_restantes.py); `registrar` liga
 as rotas. Nada aqui foi testado contra uma conta real.
 """
-import asyncio
-import ctypes
 import logging
 
 from aiohttp import web
@@ -53,14 +51,15 @@ IMPOSSIVEIS = (
      "neonize cannot delete a channel"),
     ("GET", "get-battery-level", "battery_unsupported",
      "a linked device does not receive the phone battery level"),
+    ("POST", "meta-ai-terms/accept", "meta_ai_terms_unsupported",
+     "accepting the Meta AI terms is not verified for this neonize build"),
 )
 
 # O aviso de termos da Meta AI que o WhatsApp Web usa (deviceController.ts,
-# META_AI_NOTICE_ID_FALLBACK) e o estagio que o whatsmeow documenta para ACEITAR
-# um aviso (o exemplo dele, para outro aviso: AcceptTOSNotice("20601218", "5")).
-# O estagio e o ponto fraco: nada confirma que o aviso da Meta AI use o mesmo.
+# META_AI_NOTICE_ID_FALLBACK). Aceita-lo (AcceptTOSNotice) fica de fora: o estagio
+# que a biblioteca pede nao esta confirmado para este aviso, e registrar um
+# consentimento errado na conta do usuario nao se desfaz.
 AVISO_META_AI = "20250502"
-ESTAGIO_ACEITO = "5"
 
 
 def plataforma_da_mensagem(serial) -> str:
@@ -80,28 +79,6 @@ def plataforma_da_mensagem(serial) -> str:
     return "unknown"
 
 
-def go_do_cliente(cliente):
-    """A biblioteca Go (CDLL) por tras de um cliente neonize, ou None."""
-    return next((getattr(cliente, a) for a in dir(cliente) if a.endswith("__client")), None)
-
-
-def aceitar_aviso(go, uuid, aviso, estagio) -> str:
-    """Chama `AcceptTOSNotice(id, noticeID, stage)` do goneonize (exportada pela
-    biblioteca, mas sem funcao em Python no neonize 0.5.2) e devolve o texto do
-    erro, ou '' se deu certo. A resposta e um `*C.char` alocado no Go: o ponteiro
-    precisa de restype c_void_p para nao ser truncado, e e liberado com FreeString."""
-    funcao = go.AcceptTOSNotice
-    funcao.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-    funcao.restype = ctypes.c_void_p
-    ponteiro = funcao(uuid, aviso.encode(), estagio.encode())
-    if not ponteiro:
-        return ""
-    try:
-        return ctypes.string_at(ponteiro).decode("utf-8", "replace")
-    finally:
-        go.FreeString(ponteiro)
-
-
 def termos_da_meta_ai(estado) -> dict:
     """O `response` de meta-ai-terms: `state` em maiusculas, como o cliente le."""
     return {"noticeId": AVISO_META_AI, "state": estado}
@@ -114,9 +91,6 @@ def registrar(r, *, sessao, ok):
         return web.json_response(
             {"status": "error", "code": codigo, "message": mensagem}, status=status)
 
-    def conectada(s):
-        return s.cliente is not None and s.status == "CONNECTED"
-
     def impossivel(codigo, motivo):
         async def tratar(req):
             return erro(codigo, 501, motivo)
@@ -127,31 +101,11 @@ def registrar(r, *, sessao, ok):
         # cliente entende como "nao sei", sem bloquear o envio.
         return ok(status="success", response=termos_da_meta_ai("UNKNOWN"))
 
-    async def meta_ai_terms_accept(req):
-        s = sessao(req)
-        if not conectada(s):
-            return erro("disconnected", 400, "Disconnected")
-        go = go_do_cliente(s.cliente)
-        if go is None or not hasattr(go, "AcceptTOSNotice"):
-            return erro("meta_ai_terms_unsupported", 501,
-                        "this neonize build does not export AcceptTOSNotice")
-        try:
-            falha = await asyncio.get_running_loop().run_in_executor(
-                None, aceitar_aviso, go, s.cliente.uuid, AVISO_META_AI, ESTAGIO_ACEITO)
-        except Exception as e:
-            log.warning("meta-ai-terms/accept: %s", type(e).__name__)
-            return erro("meta_ai_terms_failed", 502)
-        if falha:
-            log.warning("meta-ai-terms/accept: o WhatsApp recusou (%s)", falha)
-            return erro("meta_ai_terms_failed", 502)
-        return ok(status="success", response=termos_da_meta_ai("ACCEPTED"))
-
     async def platform_from_message(req):
         # Como o servidor de referencia: o corpo e a propria palavra, em JSON.
         return web.json_response(plataforma_da_mensagem(req.match_info["messageId"]))
 
     r.add_get("/api/{tok}/meta-ai-terms", meta_ai_terms)
-    r.add_post("/api/{tok}/meta-ai-terms/accept", meta_ai_terms_accept)
     r.add_get("/api/{tok}/get-platform-from-message/{messageId}", platform_from_message)
     for metodo, rota, codigo, motivo in IMPOSSIVEIS:
         r.add_route(metodo, "/api/{tok}/" + rota, impossivel(codigo, motivo))

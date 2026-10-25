@@ -1,6 +1,5 @@
 """Rotas restantes: a plataforma de uma mensagem, os termos da Meta AI e os 501."""
 import asyncio
-import ctypes
 from types import SimpleNamespace as N
 
 import pytest
@@ -30,48 +29,6 @@ def test_plataforma_no_limite_de_21_caracteres():
     assert restantes.plataforma_da_mensagem("x_y_" + "B" * 22) == "android"
 
 
-class GoFalso:
-    """Imita a CDLL do goneonize: AcceptTOSNotice devolve um ponteiro para uma
-    string em memoria (ou 0) e FreeString anota o que liberou."""
-
-    def __init__(self, resposta=b""):
-        self._buffer = ctypes.create_string_buffer(resposta) if resposta else None
-        self.chamadas = []
-        self.liberados = []
-
-        # funcao simples (nao metodo), como a da CDLL: aceita argtypes e restype
-        def aceitar(uuid, aviso, estagio):
-            self.chamadas.append((uuid, aviso, estagio))
-            return ctypes.addressof(self._buffer) if self._buffer else None
-        self.AcceptTOSNotice = aceitar
-
-    def FreeString(self, ponteiro):
-        self.liberados.append(ponteiro)
-
-
-def test_aceitar_aviso_devolve_vazio_quando_o_go_nao_reclama():
-    go = GoFalso()
-    assert restantes.aceitar_aviso(go, b"u1", "20250502", "5") == ""
-    assert go.chamadas == [(b"u1", b"20250502", b"5")]
-    assert go.AcceptTOSNotice.restype is ctypes.c_void_p
-    assert go.AcceptTOSNotice.argtypes == [ctypes.c_char_p] * 3
-    assert go.liberados == []
-
-
-def test_aceitar_aviso_le_o_erro_do_go_e_libera_o_ponteiro():
-    go = GoFalso(b"info query returned status 400")
-    assert restantes.aceitar_aviso(go, b"u1", "20250502", "5") == \
-        "info query returned status 400"
-    assert go.liberados == [ctypes.addressof(go._buffer)]
-
-
-def test_go_do_cliente_acha_o_atributo_do_cliente_go():
-    class Cliente:
-        _NewClient__client = "go"
-    assert restantes.go_do_cliente(Cliente()) == "go"
-    assert restantes.go_do_cliente(object()) is None
-
-
 def rodar(s, requisicoes):
     """Sobe um servidor aiohttp so com estas rotas e faz os pedidos."""
     async def principal():
@@ -98,7 +55,7 @@ def test_rotas_impossiveis_respondem_501_com_codigo_e_motivo():
     pedidos = [(m, "/" + r.replace("{communityId}", "1@g.us").replace("{subgroupId}", "2@g.us")
                 .replace("{id}", "123")) for m, r, _, _ in restantes.IMPOSSIVEIS]
     saidas = rodar(s, pedidos)
-    assert len(saidas) == 8
+    assert len(saidas) == len(restantes.IMPOSSIVEIS)
     for (status, corpo), (_, _, codigo, _) in zip(saidas, restantes.IMPOSSIVEIS):
         assert status == 501 and corpo["status"] == "error"
         assert corpo["code"] == codigo and corpo["message"]
@@ -115,27 +72,16 @@ def test_meta_ai_terms_diz_unknown_sem_precisar_de_conexao():
     assert corpo["response"] == {"noticeId": "20250502", "state": "UNKNOWN"}
 
 
-def test_accept_chama_o_go_e_responde_o_estado_que_o_cliente_confere():
-    go = GoFalso()
-    (status, corpo), = rodar(sessao(go), [("POST", "/meta-ai-terms/accept")])
-    assert status == 200 and corpo["response"]["state"] == "ACCEPTED"
-    assert go.chamadas == [(b"u1", b"20250502", b"5")]
-
-
-def test_accept_com_erro_do_whatsapp_e_502_sem_dizer_aceito():
-    go = GoFalso(b"recusado")
-    (status, corpo), = rodar(sessao(go), [("POST", "/meta-ai-terms/accept")])
-    assert status == 502 and corpo["code"] == "meta_ai_terms_failed"
+def test_aceitar_os_termos_da_meta_ai_responde_501_e_nao_registra_consentimento():
+    (status, corpo), = rodar(sessao(), [("POST", "/meta-ai-terms/accept")])
+    assert status == 501 and corpo["code"] == "meta_ai_terms_unsupported"
     assert "response" not in corpo
 
 
-def test_accept_sem_a_funcao_no_go_e_501_e_desconectado_e_400():
-    class GoSemFuncao:
-        pass
-    (status, corpo), = rodar(sessao(GoSemFuncao()), [("POST", "/meta-ai-terms/accept")])
-    assert status == 501 and corpo["code"] == "meta_ai_terms_unsupported"
-    (status, _), = rodar(sessao(GoFalso(), status="CLOSED"), [("POST", "/meta-ai-terms/accept")])
-    assert status == 400
+def test_restantes_nao_chama_codigo_nativo():
+    """O consentimento nao e registrado por ctypes: nada de AcceptTOSNotice aqui."""
+    codigo = open(restantes.__file__, encoding="utf-8").read()
+    assert "ctypes" not in codigo
 
 
 def test_get_platform_from_message_responde_a_palavra_em_json():

@@ -84,3 +84,51 @@ async def test_multipart_em_blocos_passa_do_teto_e_json_grande_nao():
         assert (await cliente.post("/json", json={"x": "y" * 5000})).status == 413
     finally:
         await cliente.close()
+
+
+def _url_de(canonical, tok):
+    """Preenche o modelo de rota: o token com o valor dado, o resto com 'x'."""
+    import re
+    return re.sub(r"\{(\w+)\}", lambda m: tok if m.group(1) in ("tok", "session", "secretkey") else "x", canonical)
+
+
+@pytest.mark.asyncio
+async def test_nenhuma_rota_real_responde_sem_credencial_nem_com_token_disfarcado(tmp_path):
+    """O achado M1 da revisao: `%2F` no lugar do token fazia o middleware ler outro
+    caminho. Varre TODA rota registrada, em todos os metodos, com varios disfarces."""
+    app = server.criar_app(str(tmp_path))
+    abertas = set(aut.ROTAS_ABERTAS)
+    cliente = TestClient(TestServer(app))
+    await cliente.start_server()
+    try:
+        vistas = 0
+        for recurso in app.router.resources():
+            canonical = recurso.canonical
+            if canonical in abertas:
+                continue
+            for rota in recurso:
+                if rota.method in ("HEAD",):
+                    continue
+                for tok in ("%2F", "%2f", "x", "%252F", "..", "a%00b", "conta1:", ":x"):
+                    resposta = await cliente.request(
+                        rota.method if rota.method != "*" else "GET", _url_de(canonical, tok))
+                    assert resposta.status in (401, 404, 405), (
+                        rota.method, canonical, tok, resposta.status)
+                    vistas += 1
+        assert vistas > 500
+    finally:
+        await cliente.close()
+
+
+@pytest.mark.asyncio
+async def test_caminho_com_barras_extras_nao_sai_do_modelo_da_rota(tmp_path):
+    cliente = TestClient(TestServer(server.criar_app(str(tmp_path))))
+    await cliente.start_server()
+    try:
+        for caminho in ("/api/%2F/meta-ai-terms", "/api//meta-ai-terms", "/api/%2F/typing",
+                        "/api/x/../x/meta-ai-terms"):
+            resposta = await cliente.get(caminho)
+            assert resposta.status in (401, 404, 405), (caminho, resposta.status)
+    finally:
+        await cliente.close()
+
