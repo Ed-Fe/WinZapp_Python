@@ -47,10 +47,14 @@ mute and delete, kept in step with the phone.
 
 ## What is untested or missing
 
-Untested: video, sticker and GIF sending and receiving, and posting or
-deleting your own status. Missing: calls, channels, communities, creating and
-editing groups, business features, and most WPPConnect routes: the bridge
-implements 71 of the 220 that WPPConnect Server defines for WinZapp.
+Untested: video, sticker and GIF sending and receiving, posting or deleting
+your own status, and every route added in the second round (chats and messages,
+profile and privacy, contacts, labels, communities, group settings, channels,
+call rejection, server management): they pass their tests against stubs but
+have not run against a real account. Missing: placing, answering or carrying
+calls (whatsmeow cannot), business and catalog features (neonize has no
+catalog messages), QR pairing, and some WPPConnect-only routes: the bridge
+implements 149 of the 220 that WPPConnect Server defines for WinZapp.
 [COBERTURA.md](COBERTURA.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.

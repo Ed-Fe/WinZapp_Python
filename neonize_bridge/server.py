@@ -726,6 +726,15 @@ class Sessao:
                     return
                 if ack is None:
                     return
+                if not meu:
+                    try:
+                        quem = msgmap.jid_wpp(jid_texto(e.MessageSource.Sender))
+                        etapa = {"DELIVERED": "delivered", "READ": "read",
+                                 "PLAYED": "played"}[tipo]
+                        for mid in e.MessageIDs:
+                            self.bd.recibo(mid, quem, etapa, msgmap.segundos(e.Timestamp))
+                    except Exception:
+                        log.exception("guardar recibo")
                 for mid in e.MessageIDs:
                     self.emitir("onack", {
                         "session": self.nome, "ack": ack, "to": chat, "from": chat,
