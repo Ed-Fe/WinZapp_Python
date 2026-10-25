@@ -7587,7 +7587,7 @@ msgid "update status"
 msgstr "durumu güncelle"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/main_window/neonize_bridge.py
+#: client/main_window/neonize_bridge.py client/ui/dialogs/settings_dialog.py
 msgctxt "neonize_bridge_unavailable_message"
 msgid ""
 "WinZapp could not start the Neonize bridge, so it cannot connect to WhatsApp"
@@ -7599,7 +7599,7 @@ msgstr ""
 "bir bağlantı motoru seçin."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/main_window/neonize_bridge.py
+#: client/main_window/neonize_bridge.py client/ui/dialogs/settings_dialog.py
 msgctxt "neonize_bridge_unavailable_title"
 msgid "Neonize bridge"
 msgstr "Neonize köprüsü"
@@ -11614,6 +11614,7 @@ msgstr ""
 "Shift+F5 ile eşitleyin; değişiklik zaten uygulanmış olabilir."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py
 msgctxt "starting_api"
 msgid "Starting WinZapp, please wait..."
 msgstr "WinZapp başlatılıyor, lütfen bekleyin..."

@@ -57,6 +57,7 @@ class _Response:
 
 
 class _MainStub:
+    _uses_neonize = lambda self: False      # these tests are about the WPPConnect engine
     _start_individual_call = MainWindow._start_individual_call
     _start_call = MainWindow._start_call
     _abandon_outgoing_call = MainWindow._abandon_outgoing_call

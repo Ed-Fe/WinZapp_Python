@@ -65,6 +65,11 @@ _DEFAULTS: dict[str, Any] = {
     # on every new-account pairing under the multi-account flow.
     "wpp_api_key": "70733f08be1ed195bda1c31b6e135f5ebeb9fb8c6c28530a3a46e4093357b037",
     "wpp_custom_api": False,
+    # The connection engine ("wppconnect", "neonize" or "custom",
+    # core/connection_engine.py). Global like the keys above: one install, one
+    # engine. "" means not stored yet; _apply_global_settings() fills it in
+    # from the connection keys an older install already had.
+    "wpp_engine": "",
     # Where the Whisper transcription models are downloaded to. Global rather
     # than per-account because the files themselves are shared — a single model
     # is up to 3 GB, which is exactly why model_store.default_models_dir() puts
@@ -99,7 +104,8 @@ _GENERAL_GLOBAL = ("language", "updates_enabled", "alpha_updates_enabled",
                    "show_tray_icon", "autostart",
                    "first_run", "hotkey_first_run_asked", "api_type_first_run_asked",
                    "switch_behavior")
-_CONNECTION_GLOBAL = ("wpp_server", "wpp_ws_server", "wpp_api_key", "wpp_custom_api")
+_CONNECTION_GLOBAL = ("wpp_server", "wpp_ws_server", "wpp_api_key", "wpp_custom_api",
+                      "wpp_engine")
 
 
 def _default(key: str) -> Any:

@@ -11,6 +11,7 @@ import wx
 
 from app_paths import resource_path
 from core import api_staging
+from core.profile_recovery import profile_is_local
 from core.dialog_foreground import bring_to_front_if_hidden, message_box
 from core.wpp_runtime import homologated_wpp_tag
 from core.wpp_update_health import wait_for_port_closed
@@ -119,7 +120,17 @@ class UpdatesMixin:
             return False
         return not getattr(self, "_pairing_in_progress", False)
 
+    # The checks below manage a WPPConnect install under client/api/, which
+    # only the bundled engine has (profile_is_local() is that gate, shared
+    # with the Chrome profile code). With the Neonize bridge or a custom
+    # server the update/reinstall flow would stop the live session (and the
+    # bridge), build WPPConnect and start a Node on the bridge's port.
+
     def _start_wpp_update_checker(self, force: bool = False):
+        if not profile_is_local(self):
+            logging.info("[wpp_update] No local WPPConnect to update with this "
+                         "connection engine — update check skipped.")
+            return
         updates_enabled = self.settings.get("general", {}).get("updates_enabled", True)
         if not updates_enabled and not force:
             return
@@ -151,6 +162,8 @@ class UpdatesMixin:
         the periodic checker uses, just without the "is it older" comparison
         first. Meant to recover a broken/corrupted API install.
         """
+        if not profile_is_local(self):
+            return
         if self._wpp_update_checker is None:
             from updater import WppUpdateChecker
             self._wpp_update_checker = WppUpdateChecker(self)
@@ -174,6 +187,10 @@ class UpdatesMixin:
         restored if the new API cannot start. *in_place* selects foreground
         progress for the existing caller; it never overwrites the old tree.
         """
+        if not profile_is_local(self):
+            logging.info("[wpp_update] Not updating to %s: no local WPPConnect "
+                         "with this connection engine.", target_tag)
+            return False
         if getattr(self, "_wpp_staging", None):
             # Being built in the background: say so, the user may have asked
             # for a reinstall from the menu and would otherwise hear nothing.

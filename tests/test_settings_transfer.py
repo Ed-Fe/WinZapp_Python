@@ -61,7 +61,7 @@ class TestWhatStaysBehind:
         assert exported["general"]["language"] == "pt-BR"
         assert exported["user_interface"]["messages_page_size"] == 200
         # The bundled API's address is this install's own (CUSTOM_API_KEYS).
-        assert "wpp_server" not in exported["connection"]
+        assert "wpp_server" not in exported.get("connection", {})
         assert exported["profile_backup"]["close_snapshot_min_hours"] == 24
 
     def test_a_section_this_build_never_declared_is_not_exported(self):
@@ -91,21 +91,21 @@ class TestTheApiThisAccountTalksTo:
         settings["connection"].update({
             "wpp_custom_api": True, "wpp_server": "https://api.exemplo.com",
             "wpp_ws_server": "wss://api.exemplo.com", "wpp_port": 8443,
-            "wpp_api_key": "minha-chave",
+            "wpp_api_key": "minha-chave", "wpp_engine": "custom",
         })
         return settings
 
     def test_the_bundled_api_keeps_its_port_and_key_here(self):
         exported = transfer.exportable_settings(_settings())
-        assert "wpp_port" not in exported["connection"]
-        assert "wpp_api_key" not in exported["connection"]
+        assert "wpp_port" not in exported.get("connection", {})
+        assert "wpp_api_key" not in exported.get("connection", {})
 
     def test_a_custom_api_travels_whole(self):
         exported = transfer.exportable_settings(self._custom())
         assert exported["connection"] == {
             "wpp_custom_api": True, "wpp_server": "https://api.exemplo.com",
             "wpp_ws_server": "wss://api.exemplo.com", "wpp_port": 8443,
-            "wpp_api_key": "minha-chave",
+            "wpp_api_key": "minha-chave", "wpp_engine": "custom",
         }
 
     def test_importing_one_points_this_install_at_the_same_server(self):
@@ -127,8 +127,9 @@ class TestTheApiThisAccountTalksTo:
         merged, applied, ignored = transfer.merge_settings(current, incoming)
         assert merged["connection"]["wpp_port"] == current["connection"]["wpp_port"]
         assert merged["connection"]["wpp_api_key"] == current["connection"]["wpp_api_key"]
-        assert applied == 1        # only wpp_custom_api itself
-        assert sorted(ignored) == ["connection.wpp_api_key", "connection.wpp_port"]
+        assert sorted(ignored) == ["connection.wpp_api_key", "connection.wpp_custom_api",
+                                   "connection.wpp_port"]
+        assert applied == 0
 
     def test_a_file_on_the_bundled_api_cannot_set_the_server_either(self):
         """Every request carries the session token to wpp_server. A file that
@@ -146,8 +147,8 @@ class TestTheApiThisAccountTalksTo:
 
     def test_the_bundled_api_exports_no_address(self):
         exported = transfer.exportable_settings(_settings())
-        assert "wpp_server" not in exported["connection"]
-        assert "wpp_ws_server" not in exported["connection"]
+        assert "wpp_server" not in exported.get("connection", {})
+        assert "wpp_ws_server" not in exported.get("connection", {})
 
     def test_api_change_names_both_addresses_the_token_goes_to(self):
         """REST calls carry the token to wpp_server; Socket.IO sends it as

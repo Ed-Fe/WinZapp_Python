@@ -31,6 +31,7 @@ making the imported settings take effect.
 import copy
 from urllib.parse import urlsplit
 
+from core.connection_engine import CUSTOM, engine_from_connection
 from core.call_logic import CALL_HOTKEY_DEFAULTS, call_hotkey_is_valid, saved_call_hotkey
 from core.utils import DEFAULT_SETTINGS
 
@@ -97,6 +98,14 @@ CUSTOM_API_KEYS = ("wpp_server", "wpp_ws_server", "wpp_port", "wpp_api_key")
 
 _CONNECTION_KEYS = ("wpp_custom_api",) + CUSTOM_API_KEYS
 
+#: Install-wide keys that say WHICH engine this install runs on. They travel
+#: only with a custom server, the one engine whose address is the person's own:
+#: WPPConnect and Neonize are this install's (the engine is chosen in Settings
+#: > Connection and needs a restart), so a file from either must not move
+#: another install's engine. Without this a WPPConnect export imported on a
+#: Neonize install switched it back to WPPConnect, live and without asking.
+ENGINE_KEYS = ("wpp_custom_api", "wpp_engine")
+
 
 #: One-shot migration flags (core/utils.py). Carrying one would stop the
 #: migration running on the other install, leaving it on the old value.
@@ -140,12 +149,16 @@ def connection_runtime(settings, fallback=None):
 
 
 def uses_custom_api(settings) -> bool:
-    """Whether these settings describe a WPPConnect the user runs themselves."""
+    """Whether these settings describe a WPPConnect the user runs themselves
+    (not the bundled one, and not the Neonize bridge, which is also a
+    "custom API" at a fixed local address)."""
     section = (settings or {}).get("connection") if isinstance(settings, dict) else None
     # `is True`, not truthiness: merge_settings() only ever saves a real bool
     # here, so a file saying "yes" must not be asked about (api_change) as if
     # it moved the API and then be saved with the flag still False.
-    return section.get("wpp_custom_api") is True if isinstance(section, dict) else False
+    if not isinstance(section, dict) or section.get("wpp_custom_api") is not True:
+        return False
+    return engine_from_connection(section) == CUSTOM
 
 
 def is_excluded(section, key, settings=None) -> bool:
@@ -159,7 +172,7 @@ def is_excluded(section, key, settings=None) -> bool:
         return False
     if (section, key) in EXCLUDED_KEYS:
         return True
-    if section == "connection" and key in CUSTOM_API_KEYS:
+    if section == "connection" and (key in CUSTOM_API_KEYS or key in ENGINE_KEYS):
         return not uses_custom_api(settings)
     return str(key).endswith(_MIGRATION_FLAG_SUFFIX)
 
@@ -391,7 +404,11 @@ def api_change(current, incoming):
     if not uses_custom_api(incoming) or not custom_api_is_valid(current, incoming):
         return None
     after, here = _connection_after_import(current, incoming)
-    if all(after[key] == here.get(key) for key in _CONNECTION_KEYS):
+    # Moving to a custom server from the bundled API or Neonize is a change
+    # even when the address is the one already stored (a WPPConnect typed in
+    # at 127.0.0.1:6300 while the install runs the bridge there).
+    if engine_from_connection(here) == CUSTOM and all(
+            after[key] == here.get(key) for key in _CONNECTION_KEYS):
         return None
     return {
         "server": api_endpoint(after["wpp_server"], after["wpp_port"], _REST_SCHEMES),
@@ -504,8 +521,15 @@ def merge_settings(current, incoming, include_connection=True):
                 # install really can name one.
                 ignored.append(f"{section}.{key}")
                 continue
+            if section == "connection" and key == "wpp_engine" and item != CUSTOM:
+                ignored.append(f"{section}.{key}")
+                continue
             target[key] = copy.deepcopy(item)
             applied += 1
+        if section == "connection" and uses_custom_api(incoming):
+            # A file from before wpp_engine existed: the server it describes
+            # is a custom one, whatever engine this install had stored.
+            target["wpp_engine"] = CUSTOM
     _undo_clashing_call_hotkeys(current, merged, incoming, ignored)
     return merged, applied, ignored
 

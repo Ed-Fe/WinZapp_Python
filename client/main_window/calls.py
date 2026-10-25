@@ -847,6 +847,14 @@ class CallsMixin:
         if getattr(self, "_active_voice_call", None) is not None:
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
+        if self._uses_neonize():
+            # The bridge reports incoming calls and can reject them, but cannot
+            # answer (501 on call/accept): do not open the microphone and the
+            # speakers first. The ring and Reject keep working.
+            t = self.i18n.t
+            self.output(t("incoming_call_answer_failed").format(
+                error=t("call_log_action_unavailable")), interrupt=True)
+            return
         details = dict(getattr(self, "_incoming_call_details", {}).get(identity, {}))
         # The call TYPE never changes with `with_video` — a video offer stays
         # a video call (remote video keeps arriving, the video window still
@@ -1365,6 +1373,14 @@ class CallsMixin:
             or bool(getattr(self, "_active_incoming_calls", {}))
         ):
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
+            return
+        if self._uses_neonize():
+            # The bridge cannot place calls (501 on call/offer): say so now,
+            # before the microphone and the speakers are opened for a call that
+            # cannot exist -- the attempt used to end in a spoken "HTTP 501".
+            t = self.i18n.t
+            self.output(t("voice_call_start_failed").format(
+                error=t("call_log_action_unavailable")), interrupt=True)
             return
         identity = f"outgoing:{peer_jid}"
         details = {

@@ -963,13 +963,20 @@ class WppServerMixin:
     def _resolve_wpp_port(self, conn: dict) -> int:
         """Resolve THIS account's stable WPPConnect Node port.
 
+        Neonize: the bridge's own port, for every account (the bridge is one
+        process for the install; an account that had an automatic port from
+        its WPPConnect days must not keep it).
         Custom API: honour the user's configured port untouched. Otherwise keep
         a valid saved port (stable Node/userDataDir across launches), or allocate
         the lowest free port not used by a peer on first run — then persist it so
         it never drifts. This is what gives each account its own isolated Node.
         """
         import node_ports
-        from core import local_api_port
+        from core import connection_engine, local_api_port
+        bridge_address = connection_engine.fixed_address(
+            connection_engine.engine_from_connection(conn))
+        if bridge_address is not None:
+            return bridge_address[2]
         if conn.get("wpp_custom_api"):
             saved = conn.get("wpp_port")
             return saved if isinstance(saved, int) and not isinstance(saved, bool) else node_ports.BASE_PORT
@@ -1524,7 +1531,13 @@ class WppServerMixin:
         # Chrome processes forever (observed: 22 chrome-headless shells after a
         # few pairings). Never touch another account's ACTIVE session: we only
         # close sessions whose own status is not connected.
-        if getattr(self, "wpp_custom_api", False):
+        # Not on the neonize bridge: there is no browser to pile up, the bridge
+        # answers 401 to check-connection-session / close-session by bare name
+        # (which the sweep would count as "closed"), and the sessions it holds
+        # are other accounts' of this install -- one still starting would be
+        # closed, and close-session drops it from the bridge's list of accounts
+        # to resume.
+        if getattr(self, "wpp_custom_api", False) and not self._uses_neonize():
             try:
                 self._close_orphaned_server_sessions()
             except Exception:

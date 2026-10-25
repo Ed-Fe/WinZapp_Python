@@ -34,6 +34,7 @@ from core.utils import (
     migrate_wpp_reinstall_notice,
 )
 from core.i18n import I18n
+from core.profile_recovery import profile_is_local
 from version import __version__
 from core.settings_transfer import connection_runtime as _connection_runtime
 from main_window.win32_helpers import _vk_mod_to_str
@@ -103,6 +104,7 @@ class SettingsMixin:
         connection = self.settings.setdefault("connection", {})
         connection["wpp_custom_api"] = engines.uses_custom_api(engine)
         self.wpp_custom_api = connection["wpp_custom_api"]
+        connection["wpp_engine"] = self.wpp_engine = engine
         fixed = engines.fixed_address(engine)
         if fixed is not None:
             connection["wpp_server"], connection["wpp_ws_server"], connection["wpp_port"] = fixed
@@ -121,6 +123,7 @@ class SettingsMixin:
                 # User cancelled or closed settings dialog. Roll back and exit.
                 connection["wpp_custom_api"] = False
                 self.wpp_custom_api = False
+                connection["wpp_engine"] = self.wpp_engine = engines.WPPCONNECT
                 self.save_settings()
                 sys.exit(0)
 
@@ -235,6 +238,8 @@ class SettingsMixin:
         general = self.settings.get("general", {})
         if not general.get("wpp_reinstall_notice_pending", False):
             return
+        if not profile_is_local(self):
+            return      # no local WPPConnect to reinstall; stays pending
 
         # Pending means only "this settings.json predates 2.0", not "this
         # WPPConnect lacks calls". An install reinstalled since — every alpha
@@ -512,6 +517,14 @@ class SettingsMixin:
             for k in _GENERAL_GLOBAL:
                 general[k] = app.get(k)
             connection = self.settings.setdefault("connection", {})
+            # One-shot migration: an install from before wpp_engine existed
+            # keeps the engine its connection keys stood for. The shared file
+            # takes the value only while it holds none, so the first account
+            # to start decides it (by its own port).
+            from core import connection_engine as engines
+            app.update("wpp_engine", lambda stored: engines.engine_to_keep(
+                stored, app.get("wpp_custom_api"), app.get("wpp_server"),
+                app.get("wpp_ws_server"), connection.get("wpp_port")))
             for k in _CONNECTION_GLOBAL:
                 connection[k] = app.get(k)
             # What this account last saw in the shared file — the baseline
@@ -698,10 +711,11 @@ class SettingsMixin:
           but only while the window is not the active one; see
           _apply_pending_language_switch(). core.i18n makes every helper
           follow the window's language, so nothing switches on its own first.
-        - wpp_server / wpp_ws_server / wpp_api_key / wpp_custom_api: NOT
-          applied. They say where this process's session lives; moving it
-          mid-session abandons the Node it runs. The attributes (self.wpp_*)
-          stay the source of truth for this process until the next start.
+        - wpp_server / wpp_ws_server / wpp_api_key / wpp_custom_api /
+          wpp_engine: NOT applied. They say where this process's session
+          lives; moving it mid-session abandons the Node it runs. The
+          attributes (self.wpp_*) stay the source of truth for this process
+          until the next start.
         - updates_enabled / alpha_updates_enabled / switch_behavior /
           autostart / the first-run flags: nothing to do. Each is read where
           it is used, from this copy or the shared file, or mirrors state
@@ -1082,6 +1096,8 @@ class SettingsMixin:
             self._announce_settings_transfer(error, error=True)
             return
         self._announce_settings_transfer("settings_import_done", count=applied)
+        if getattr(self, "_engine_restart_pending", False):
+            self._announce_settings_transfer("restart_required_message")
 
     def _confirm_imported_api(self, change: dict) -> bool:
         """Ask, naming both addresses, before an import moves this install to
@@ -1204,10 +1220,16 @@ class SettingsMixin:
             for k in keys
             if k in incoming[section] and f"{section}.{k}" not in ignored
         ]
+        if "wpp_custom_api" in imported_global and "wpp_engine" not in imported_global:
+            # merge_settings() stored the engine that goes with the server the
+            # file describes (an export from before the engine was a setting
+            # of its own does not name one).
+            imported_global.append("wpp_engine")
         with self._save_lock:
             self.settings.update(merged)
             self._persist_global_settings(explicit=imported_global)
         self.save_settings()
+        self._engine_restart_pending = False
         self.apply_settings_live(imported_global)
         logging.info("[settings-transfer] %d setting(s) imported from %s", applied, path)
         return "", applied
@@ -1260,6 +1282,7 @@ class SettingsMixin:
             "wpp_ws_server": self.wpp_ws_server,
             "wpp_port": getattr(self, "wpp_port", None),
             "wpp_api_key": getattr(self, "wpp_api_key", None),
+            "wpp_engine": getattr(self, "wpp_engine", None),
         }
         source = self.settings
         if imported_global is not None:
@@ -1270,6 +1293,17 @@ class SettingsMixin:
                     connection[key] = in_use[key]
             source = {**self.settings, "connection": connection}
         runtime = _connection_runtime(source, in_use)
+        # The engine is read once, at start (the bridge or Node it needs is
+        # started then): a file that changes it is saved and takes effect on
+        # the next start, never applied to this process -- moving the address
+        # of a live session would send its token to a server nobody started
+        # for it. Only a custom server's own address follows live.
+        from core import connection_engine as engines
+        engine_now = getattr(self, "wpp_engine", None)
+        if engine_now in engines.ENGINES and engines.engine_from_connection(
+                source.get("connection")) != engine_now:
+            runtime = _connection_runtime({}, in_use)
+            self._engine_restart_pending = True
         socket_moved = (runtime["wpp_ws_server"] != getattr(self, "wpp_ws_server", None)
                         or runtime["wpp_port"] != getattr(self, "wpp_port", None))
         self.wpp_custom_api = runtime["wpp_custom_api"]

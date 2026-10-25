@@ -17,6 +17,7 @@ import os
 
 import pytest
 
+from core import connection_engine as engines
 from core import save_location
 from core.spell_checker import SPELL_CHECK_MODES
 from core.utils import GROUP_MEDIA_TYPES, AUTO_DOWNLOAD_MEDIA_TYPES
@@ -151,6 +152,12 @@ SCENARIOS = {
         shows=lambda d, t: (d._server_field.GetValue(), d._ws_server_field.GetValue(),
                             d._port_field.GetValue(), d._api_key_field.GetValue())
         == ("http://10.0.0.5", "ws://10.0.0.5", "6400", "chave-de-teste"),
+    ),
+    "connection_engine": dict(
+        saves={("connection", "wpp_engine"): "custom"},
+        set=lambda d, t: (d._engine_choice.SetSelection(engines.index_of(engines.CUSTOM)),
+                          d._custom_api_check.SetValue(True)),
+        shows=lambda d, t: d._engine_choice.GetSelection() == engines.index_of(engines.CUSTOM),
     ),
     "storage_limits": dict(
         saves={("storage", "media_max_days"): 12, ("storage", "media_max_mb"): 34},

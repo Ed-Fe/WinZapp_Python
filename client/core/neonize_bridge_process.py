@@ -27,6 +27,7 @@ import sys
 import time
 
 from app_paths import resource_path
+from coord_locks import LockTimeout, neonize_bridge_lock
 
 log = logging.getLogger("neonize_bridge")
 
@@ -208,13 +209,15 @@ class NeonizeBridge:
 
     def __init__(self, bridge=None, port=PORT, *, is_open=port_open,
                  alive=pid_alive, created=process_created, rotate=rotate_output,
-                 start_process=spawn, kill=kill_tree, sleep=time.sleep, clock=time.monotonic, my_pid=None):
+                 start_process=spawn, kill=kill_tree, sleep=time.sleep, clock=time.monotonic, my_pid=None,
+                 lock=neonize_bridge_lock):
         self.bridge = bridge or bridge_dir()
         self.port = port
         self._is_open, self._alive = is_open, alive
         self._created, self._rotate = created, rotate
         self._spawn, self._kill = start_process, kill
         self._sleep, self._clock = sleep, clock
+        self._lock = lock
         self.pid = my_pid or os.getpid()
         self.proc = None
 
@@ -257,15 +260,30 @@ class NeonizeBridge:
     def start(self) -> bool:
         """Make sure the bridge answers on its port. False if it could not be
         started (no bridge in this install, or it never came up)."""
+        cmd = command(self.bridge, self.port)
+        # Before anything is written: an install with no bridge (a packaged
+        # build without one) must not leave client files behind.
+        if cmd is None and not self._is_open(self.port):
+            log.error("no neonize bridge to start in %s", self.bridge)
+            return False
         self._register()
         if self._is_open(self.port):
             return True
-        cmd = command(self.bridge, self.port)
-        if cmd is None:
-            log.error("no neonize bridge to start in %s", self.bridge)
-            return False
         os.makedirs(data_dir(self.bridge), exist_ok=True)
         os.makedirs(run_dir(self.bridge), exist_ok=True)
+        # Two accounts starting together (at login) must not both find the port
+        # closed and spawn: the loser fails to bind, ponte.pid may name the dead
+        # one, and the last client out then never stops the real bridge.
+        try:
+            with self._lock(run_dir(self.bridge)):
+                if self._is_open(self.port):       # the other client got there first
+                    return True
+                return self._spawn_and_wait(cmd)
+        except LockTimeout:
+            log.error("neonize bridge start: another client held the start lock too long")
+            return False
+
+    def _spawn_and_wait(self, cmd) -> bool:
         output = os.path.join(run_dir(self.bridge), OUTPUT_FILE)
         self._rotate(output)
         self.proc = self._spawn(cmd, environment(self.bridge), self.bridge, output)

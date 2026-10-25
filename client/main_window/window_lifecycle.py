@@ -539,9 +539,17 @@ class WindowLifecycleMixin:
             return
         try:
             import account_removal
-            account_removal.purge_account(self.registry, self.global_dir, account_id)
+            deleter = getattr(self, "_neonize_session_deleter", None)
+            account_removal.purge_account(
+                self.registry, self.global_dir, account_id,
+                deleter() if deleter else None)
         except Exception:
             logging.exception("[shutdown] removing the account failed")
+        finally:
+            # Held back by _stop_neonize_bridge() until the data was deleted.
+            stop_bridge = getattr(self, "_stop_neonize_bridge", None)
+            if stop_bridge:
+                stop_bridge(force=True)
 
     def _perform_shutdown(self) -> bool:
         """Reversible shutdown: stop timers/threads, gracefully close the WPP
