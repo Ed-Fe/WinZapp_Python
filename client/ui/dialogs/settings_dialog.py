@@ -1966,6 +1966,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                 "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
             ),
             "wpp_custom_api": self._custom_api_check.GetValue(),
+            "wpp_engine": engines.engine_at(self._engine_choice.GetSelection()),
             "wpp_server": self._server_field.GetValue().strip(),
             "wpp_ws_server": self._ws_server_field.GetValue().strip(),
             "wpp_api_key": self._api_key_field.GetValue().strip(),
@@ -2037,6 +2038,14 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         conn = install_wide.get("connection", {})
         custom_api = conn.get("wpp_custom_api", False)
         self._custom_api_check.SetValue(custom_api)
+
+        # The stored engine, not one read off the address fields: the port
+        # is this account's own and says nothing about the install's engine.
+        engine = engines.engine_from_connection(
+            {**conn, "wpp_engine": conn.get("wpp_engine", ""),
+             "wpp_port": getattr(self.main_window, "wpp_port", None)})
+        self._engine_choice.SetSelection(engines.index_of(engine))
+        self._loaded_engine = engine
 
         server = conn.get("wpp_server", "http://127.0.0.1")
         self._server_field.SetValue(server)
@@ -2111,6 +2120,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         if self._global_control_changed("wpp_custom_api", custom_api):
             choices["wpp_custom_api"] = custom_api
             self.main_window.wpp_custom_api = custom_api
+
+        # The process keeps the engine it started with (main_window.wpp_engine)
+        # until the restart _flag_restart_if_engine_changed() asks for.
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if self._global_control_changed("wpp_engine", engine):
+            choices["wpp_engine"] = engine
 
         server = self._server_field.GetValue().strip()
         if self._global_control_changed("wpp_server", server):
@@ -2516,13 +2531,6 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         # The rest of the connection block is loaded by _load_install_wide_values().
         self._port_field.SetValue(str(self.main_window.wpp_port))
-
-        # The engine is read off the connection fields (the neonize bridge is
-        # a custom API at a fixed local address), so it needs the port too.
-        self._engine_choice.SetSelection(engines.index_of(engines.engine_of(
-            self._custom_api_check.GetValue(), self._server_field.GetValue(),
-            self._ws_server_field.GetValue(), self._port_field.GetValue())))
-        self._loaded_engine = engines.engine_at(self._engine_choice.GetSelection())
 
         self._update_fields_state()
 

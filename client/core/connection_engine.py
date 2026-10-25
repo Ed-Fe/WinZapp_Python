@@ -9,10 +9,17 @@ API, so the rest of the client does not care which one is behind it:
 * ``custom``     -- any WPPConnect-compatible server the user types in.
 
 ``connection.wpp_custom_api`` stays the switch the rest of the client reads
-(``neonize`` and ``custom`` both turn it on). No new setting is stored: the
+(``neonize`` and ``custom`` both turn it on). The choice itself is stored in
+the install-wide ``connection.wpp_engine`` (app_settings._CONNECTION_GLOBAL).
+It used to be inferred from the address and port, but the port is per account
+while the engine is shared by all of them: an account on an automatic port
+read as "custom" after another one switched the install to neonize, and a
+real WPPConnect typed in at 127.0.0.1:6300 read as neonize.
+``engine_from_connection()`` still infers it for an install that predates the
+setting (and for a stored value that contradicts ``wpp_custom_api``); the
 neonize bridge is a WPPConnect-compatible server at a fixed local address, so
-"custom API pointing at that address" *is* the neonize engine, and the picker
-only shows and sets those same keys. Pure functions, no wx.
+"custom API pointing at that address" is how an older install chose it.
+Pure functions, no wx.
 """
 
 WPPCONNECT = "wppconnect"
@@ -44,6 +51,26 @@ def engine_of(custom_api: bool, server: str, ws_server: str, port) -> str:
                                   (ws_server or "").strip().rstrip("/"), port):
         return NEONIZE
     return CUSTOM
+
+
+def engine_from_connection(conn) -> str:
+    """The engine of a ``connection`` settings block: the stored
+    ``wpp_engine`` when it agrees with ``wpp_custom_api``, otherwise what the
+    block's addresses stand for (engine_of)."""
+    conn = conn if isinstance(conn, dict) else {}
+    custom_api = conn.get("wpp_custom_api") is True
+    stored = conn.get("wpp_engine")
+    if stored in ENGINES and uses_custom_api(stored) == custom_api:
+        return stored
+    return engine_of(custom_api, conn.get("wpp_server"), conn.get("wpp_ws_server"),
+                     conn.get("wpp_port"))
+
+
+def engine_to_keep(stored, custom_api, server, ws_server, port) -> str:
+    """What ``wpp_engine`` holds from now on: the stored value, or -- for an
+    install older than the setting -- the engine its connection keys stood
+    for."""
+    return stored if stored in ENGINES else engine_of(custom_api, server, ws_server, port)
 
 
 def uses_custom_api(engine: str) -> bool:

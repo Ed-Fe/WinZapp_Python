@@ -963,13 +963,20 @@ class WppServerMixin:
     def _resolve_wpp_port(self, conn: dict) -> int:
         """Resolve THIS account's stable WPPConnect Node port.
 
+        Neonize: the bridge's own port, for every account (the bridge is one
+        process for the install; an account that had an automatic port from
+        its WPPConnect days must not keep it).
         Custom API: honour the user's configured port untouched. Otherwise keep
         a valid saved port (stable Node/userDataDir across launches), or allocate
         the lowest free port not used by a peer on first run — then persist it so
         it never drifts. This is what gives each account its own isolated Node.
         """
         import node_ports
-        from core import local_api_port
+        from core import connection_engine, local_api_port
+        bridge_address = connection_engine.fixed_address(
+            connection_engine.engine_from_connection(conn))
+        if bridge_address is not None:
+            return bridge_address[2]
         if conn.get("wpp_custom_api"):
             saved = conn.get("wpp_port")
             return saved if isinstance(saved, int) and not isinstance(saved, bool) else node_ports.BASE_PORT

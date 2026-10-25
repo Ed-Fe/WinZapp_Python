@@ -15,6 +15,9 @@ from core import connection_engine as engines
 
 class NeonizeBridgeMixin:
     def _uses_neonize(self) -> bool:
+        engine = getattr(self, "wpp_engine", None)
+        if engine in engines.ENGINES:
+            return engine == engines.NEONIZE
         return engines.engine_of(
             getattr(self, "wpp_custom_api", False), getattr(self, "wpp_server", ""),
             getattr(self, "wpp_ws_server", ""), getattr(self, "wpp_port", 0),

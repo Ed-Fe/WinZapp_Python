@@ -72,6 +72,7 @@ from core.message_edit import (
     response_not_sent,
 )
 from core.i18n import I18n
+from core import connection_engine
 from core import log_level
 from core.remote_deletions import (
     comparable_local_ids,
@@ -635,6 +636,10 @@ class MainWindow(
         self.wpp_ws_server = conn.get("wpp_ws_server", "ws://127.0.0.1")
         self.wpp_api_key   = conn.get("wpp_api_key",   "wz-local-api-key")
         self.wpp_custom_api = conn.get("wpp_custom_api", False)
+        # The engine this process runs on until the next start (install-wide;
+        # core/connection_engine.py), not inferred from the port, which is
+        # per account.
+        self.wpp_engine = connection_engine.engine_from_connection(conn)
         # Per-account Node port (revised multi-account architecture): each
         # account runs its OWN WPPConnect Node on its OWN port so sessions never
         # share a server and can't race/kill each other. The port is resolved

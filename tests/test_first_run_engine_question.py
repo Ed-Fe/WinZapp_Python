@@ -87,9 +87,10 @@ def test_the_bundled_server_is_saved_and_marked_as_asked(monkeypatch):
     mw = _Stub()
     _choose(monkeypatch, engines.WPPCONNECT)
     mw._check_api_type_first_run()
-    assert mw.settings["connection"] == {"wpp_custom_api": False}
+    assert mw.settings["connection"] == {"wpp_custom_api": False, "wpp_engine": "wppconnect"}
     assert mw.settings["general"]["api_type_first_run_asked"] is True
     assert mw.wpp_custom_api is False and mw.wpp_port == 1234
+    assert mw.wpp_engine == engines.WPPCONNECT
 
 
 def test_neonize_saves_its_fixed_address_without_the_settings_dialog(monkeypatch):
@@ -99,8 +100,9 @@ def test_neonize_saves_its_fixed_address_without_the_settings_dialog(monkeypatch
     mw._check_api_type_first_run()
     assert log == []
     assert mw.settings["connection"] == {
-        "wpp_custom_api": True, "wpp_server": "http://127.0.0.1",
+        "wpp_custom_api": True, "wpp_engine": "neonize", "wpp_server": "http://127.0.0.1",
         "wpp_ws_server": "ws://127.0.0.1", "wpp_port": 6300}
+    assert mw.wpp_engine == engines.NEONIZE
     assert (mw.wpp_server, mw.wpp_ws_server, mw.wpp_port) == (
         "http://127.0.0.1", "ws://127.0.0.1", 6300)
     assert mw.settings["general"]["api_type_first_run_asked"] is True
@@ -112,7 +114,7 @@ def test_a_confirmed_custom_server_is_kept_and_marked_as_asked(monkeypatch):
     log = _settings_dialog(monkeypatch, settings_module.wx.ID_OK)
     mw._check_api_type_first_run()
     assert ("page", "connection") in log and "destroyed" in log
-    assert mw.settings["connection"] == {"wpp_custom_api": True}
+    assert mw.settings["connection"] == {"wpp_custom_api": True, "wpp_engine": "custom"}
     assert mw.settings["general"]["api_type_first_run_asked"] is True
 
 
@@ -123,7 +125,7 @@ def test_a_cancelled_custom_server_is_rolled_back_and_not_marked_as_asked(monkey
     with pytest.raises(SystemExit) as exit_info:
         mw._check_api_type_first_run()
     assert exit_info.value.code == 0
-    assert mw.settings["connection"] == {"wpp_custom_api": False}
+    assert mw.settings["connection"] == {"wpp_custom_api": False, "wpp_engine": "wppconnect"}
     assert mw.wpp_custom_api is False
     assert "api_type_first_run_asked" not in mw.settings.get("general", {})
-    assert mw.saved[-1]["connection"] == {"wpp_custom_api": False}
+    assert mw.saved[-1]["connection"] == {"wpp_custom_api": False, "wpp_engine": "wppconnect"}

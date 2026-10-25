@@ -1055,7 +1055,8 @@ DEFAULT_SETTINGS = {
         "wpp_port": 6300,
         "wpp_ws_server": "ws://127.0.0.1",
         "wpp_api_key": "70733f08be1ed195bda1c31b6e135f5ebeb9fb8c6c28530a3a46e4093357b037",
-        "wpp_custom_api": False
+        "wpp_custom_api": False,
+        "wpp_engine": ""
     },
     "general": {
         "language": "",
