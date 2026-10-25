@@ -50,6 +50,12 @@ read, delete) instead of polling for it. Those events, and a few functions to
 repair the app state, are open pull requests to neonize (#227 to #232). Until
 they are merged, `preparar.py` installs a build that has them from
 https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2.
+`preparar.py` checks the SHA-256 of the download and also what is inside it: it
+only extracts files under `neonize/` with the types the package has (`.py`,
+`.pyi`, `.pyc`, `.dll`, `.typed`), refuses links, paths that leave the folder,
+a `.pth` or `sitecustomize.py`, and archives larger than expected. The hash and
+these limits do not tell you what the DLL does: someone has to compare it with
+the source linked below before you trust it with a WhatsApp session.
 The Go sources of the changes are in the pull requests and in
 https://github.com/reffehcsoibaf/TeleZapp/tree/main/docs/neonize.
 
