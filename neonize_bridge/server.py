@@ -1,9 +1,9 @@
-"""Servidor-ponte: fala a API do WPPConnect Server (HTTP + Socket.IO) e, por
-tras, usa o neonize. Fase 0: login (QR e codigo), estado, host-device, enviar
-texto e receber texto. O cliente do WinZapp aponta para ca pela opcao
-"servidor personalizado" (wpp_custom_api).
+"""Bridge server: speaks the WPPConnect Server API (HTTP + Socket.IO) and, behind
+it, uses neonize. Phase 0: login (QR and code), state, host-device, send text
+and receive text. The WinZapp client points here through the "custom server"
+option (wpp_custom_api).
 
-Uso:  .venv\\Scripts\\python server.py [--porta 6300] [--pasta dados]
+Usage:  .venv\\Scripts\\python server.py [--port 6300] [--folder data]
 """
 import argparse
 import asyncio
@@ -19,330 +19,330 @@ import segno
 import socketio
 from aiohttp import web
 
-import canais
-import administracao
-import autenticacao
-import chamadas
-import ciclo_sessao
-import comentarios
-import comentarios_rotas
-import entradas
-import eventos_grupos
-import eventos_contatos
-import etiquetas
-import comunidades
-import contatos
-import conversas
-import conversas_alias
-import conversas_restantes
-import grupos
-import grupos_extra
-import historico_progresso
-import limpeza
+import channels
+import administration
+import authentication
+import calls
+import session_lifecycle
+import comments
+import comment_routes
+import inputs
+import group_events
+import contact_events
+import labels
+import communities
+import contacts
+import chats
+import chat_aliases
+import chat_remaining
+import groups
+import groups_extra
+import history_progress
+import cleanup
 import msgmap
-import pareamento
-import negocio
-import perfil
-import presenca
-import recibos_de_grupo
-import regras_de_mensagem
-import respostas
-import restantes
-import redacao
-import transferencias
-from redacao import redigir
-from store import Armazem
+import pairing
+import business
+import profile_privacy
+import presence
+import group_receipts
+import message_rules
+import responses
+import remaining
+import redaction
+import transfers
+from redaction import redact
+from store import Store
 
-log = logging.getLogger("ponte")
+log = logging.getLogger("bridge")
 
 
-def qr_data_url(texto: str) -> str:
+def qr_data_url(text: str) -> str:
     buf = io.BytesIO()
-    segno.make(texto, error="m").save(buf, kind="png", scale=6, border=2)
+    segno.make(text, error="m").save(buf, kind="png", scale=6, border=2)
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-HISTORICO_DIAS = 180     # quanto historico pedir ao celular no pareamento (0 = padrao)
+HISTORY_DAYS = 180     # how much history to ask the phone for on pairing (0 = default)
 
 
-def props_do_aparelho(dias):
-    """DeviceProps: o nome que aparece no celular e quanto historico pedir."""
+def device_props(days):
+    """DeviceProps: the name that shows on the phone and how much history to ask for."""
     from neonize.proto.waCompanionReg.WAWebProtobufsCompanionReg_pb2 import DeviceProps
     props = DeviceProps(os="WinZapp", platformType=DeviceProps.DESKTOP)
-    if dias:
+    if days:
         props.requireFullSync = True
-        props.historySyncConfig.fullSyncDaysLimit = dias
+        props.historySyncConfig.fullSyncDaysLimit = days
         props.historySyncConfig.fullSyncSizeMbLimit = 102400
         props.historySyncConfig.storageQuotaMb = 102400
     return props
 
 
-def consertar_decifrar_voto(cliente):
-    """O neonize 0.5.2 esqueceu `DecryptPollVote` na lista das funcoes cujo
-    retorno (um ponteiro de bytes do Go) vira `bytes`: sem isso, decifrar um
-    voto levanta TypeError. Poe o mesmo tratamento das outras. Roda uma vez."""
+def fix_poll_vote_decryption(client):
+    """neonize 0.5.2 forgot `DecryptPollVote` in the list of the functions whose
+    return (a Go byte pointer) becomes `bytes`: without that, decrypting a vote
+    raises TypeError. Gives it the same treatment as the others. Runs once."""
     import ctypes
-    go = next((getattr(cliente, a) for a in dir(cliente) if a.endswith("__client")), None)
-    funcao = getattr(go, "DecryptPollVote", None)
-    if funcao is None or getattr(funcao, "errcheck", None) is not None:
+    go = next((getattr(client, a) for a in dir(client) if a.endswith("__client")), None)
+    func = getattr(go, "DecryptPollVote", None)
+    if func is None or getattr(func, "errcheck", None) is not None:
         return False
 
-    def consumir(resultado, func, argumentos):
-        if not resultado:
+    def consume(result, _func, arguments):
+        if not result:
             return b""
         try:
-            conteudo = resultado.contents
-            if not conteudo.ptr or conteudo.size == 0:
+            content = result.contents
+            if not content.ptr or content.size == 0:
                 return b""
-            return ctypes.string_at(conteudo.ptr, conteudo.size)
+            return ctypes.string_at(content.ptr, content.size)
         finally:
-            go.FreeBytesStruct(resultado)
-    funcao.errcheck = consumir
+            go.FreeBytesStruct(result)
+    func.errcheck = consume
     return True
 
 
-def jid_texto(jid) -> str:
-    """JID do neonize -> 'usuario@servidor' (vazio se nao ha)."""
+def jid_text(jid) -> str:
+    """neonize JID -> 'user@server' (empty if there is none)."""
     if jid is None or not getattr(jid, "User", ""):
         return ""
     return f"{jid.User}@{jid.Server}"
 
 
-class Sessao(conversas_alias.AliasDeConversa, recibos_de_grupo.RecibosDeGrupo):
-    """Uma conta: o cliente neonize, o estado no vocabulario do WPPConnect e
-    a ponte entre a thread do neonize e o laco do aiohttp."""
+class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
+    """One account: the neonize client, the state in WPPConnect's vocabulary and
+    the bridge between neonize's thread and the aiohttp loop."""
 
-    def __init__(self, nome, pasta, sio, laco):
-        self.nome = nome
-        self.pasta = pasta
+    def __init__(self, name, folder, sio, loop):
+        self.name = name
+        self.folder = folder
         self.sio = sio
-        self.laco = laco
-        self.cliente = None
-        self.simular_codigo = False
-        self.online = False         # janela do app em foco (set-online-presence)
-        self.aberta = ""            # conversa aberta no app (o ultimo send-seen)
+        self.loop = loop
+        self.client = None
+        self.simulate_code = False
+        self.online = False         # app window in focus (set-online-presence)
+        self.open_chat = ""         # chat open in the app (the last send-seen)
         self.thread = None
-        self.ciclo = ciclo_sessao.Ciclo()   # estado + geracao (ciclo_sessao.py)
-        self._trava_do_ciclo = threading.RLock()    # iniciar/parar um de cada vez
-        self.ao_desvincular = None  # chamado quando o celular remove o aparelho
+        self.lifecycle = session_lifecycle.Lifecycle()   # state + generation (session_lifecycle.py)
+        self._lifecycle_lock = threading.RLock()    # begin/stop one at a time
+        self.on_unlink = None       # called when the phone removes the device
         self.urlcode = None
-        self.eu = ""                # JID proprio (usuario@s.whatsapp.net)
+        self.me = ""                # own JID (user@s.whatsapp.net)
         self.lid = ""
-        os.makedirs(pasta, exist_ok=True)
-        self.bd = Armazem(os.path.join(pasta, "ponte.db"))
-        feitas = self.bd.aplicar_revogacoes()
-        if feitas:
-            log.info("%d mensagem(ns) apagada(s) para todos aplicada(s) ao armazenamento", feitas)
+        os.makedirs(folder, exist_ok=True)
+        self.db = Store(os.path.join(folder, "bridge.db"))
+        done = self.db.apply_revocations()
+        if done:
+            log.info("%d delete-for-everyone message(s) applied to the store", done)
 
     @property
     def status(self):
         """CLOSED INITIALIZING QRCODE CONNECTED notLogged terminalFailure"""
-        return self.ciclo.status
+        return self.lifecycle.status
 
     @status.setter
-    def status(self, valor):
-        self.ciclo.status = valor
+    def status(self, value):
+        self.lifecycle.status = value
 
-    # ------------------------------------------------------------- reacoes
-    def serial_do_alvo(self, chat_w, grupo, alvo_id, reagiu_eu, key_de_mim, participante):
-        """Id serializado (formato WPPConnect) da mensagem alvo de uma reacao.
-        Usa a mensagem guardada; senao deduz: key.fromMe vem de quem reagiu."""
-        guardada = self.bd.mensagem_wpp(alvo_id)
-        if guardada is not None:
-            return guardada["id"]["_serialized"]
-        minha = key_de_mim if reagiu_eu else not key_de_mim
-        if grupo:
-            minha = bool(participante) and participante == msgmap.jid_wpp(self.eu)
-        serial = f"{'true' if minha else 'false'}_{chat_w}_{alvo_id}"
-        if grupo and not minha and participante:
-            serial += f"_{participante}"
+    # ------------------------------------------------------------- reactions
+    def target_serial(self, chat_w, group, target_id, i_reacted, key_from_me, participant):
+        """Serialized id (WPPConnect format) of the target message of a reaction.
+        Uses the stored message; otherwise deduces: key.fromMe comes from whoever reacted."""
+        stored_message = self.db.wpp_message(target_id)
+        if stored_message is not None:
+            return stored_message["id"]["_serialized"]
+        own = key_from_me if i_reacted else not key_from_me
+        if group:
+            own = bool(participant) and participant == msgmap.jid_wpp(self.me)
+        serial = f"{'true' if own else 'false'}_{chat_w}_{target_id}"
+        if group and not own and participant:
+            serial += f"_{participant}"
         return serial
 
-    def _reacao_recebida(self, chat, o, e):
-        """True se a mensagem era uma reacao (guarda e avisa o app)."""
-        dados = msgmap.reacao(e.Message)
-        if dados is None:
+    def _reaction_received(self, chat, o, e):
+        """True if the message was a reaction (stores it and tells the app)."""
+        data = msgmap.reaction(e.Message)
+        if data is None:
             return False
-        alvo_id, emoji, key_de_mim, participante = dados
+        target_id, emoji, key_from_me, participant = data
         chat_w = msgmap.jid_wpp(chat)
-        grupo = chat_w.endswith("@g.us")
-        reagiu_eu = bool(o.IsFromMe)
-        remetente_w = msgmap.jid_wpp(jid_texto(o.Sender))
-        quem = "eu" if reagiu_eu else remetente_w
-        ts = msgmap.segundos(e.Info.Timestamp)
-        self.bd.reagir(alvo_id, quem, emoji, ts)
-        serial_reacao = f"{'true' if reagiu_eu else 'false'}_{chat_w}_{e.Info.ID}"
-        if grupo:
-            serial_reacao += f"_{remetente_w}"
-        self.emitir("onreactionmessage", {"session": self.nome, "response": {
-            "id": serial_reacao,
-            "msgId": self.serial_do_alvo(chat_w, grupo, alvo_id, reagiu_eu,
-                                         key_de_mim, participante),
+        group = chat_w.endswith("@g.us")
+        i_reacted = bool(o.IsFromMe)
+        sender_w = msgmap.jid_wpp(jid_text(o.Sender))
+        who = "me" if i_reacted else sender_w
+        ts = msgmap.seconds(e.Info.Timestamp)
+        self.db.react(target_id, who, emoji, ts)
+        reaction_serial = f"{'true' if i_reacted else 'false'}_{chat_w}_{e.Info.ID}"
+        if group:
+            reaction_serial += f"_{sender_w}"
+        self.emit("onreactionmessage", {"session": self.name, "response": {
+            "id": reaction_serial,
+            "msgId": self.target_serial(chat_w, group, target_id, i_reacted,
+                                        key_from_me, participant),
             "reactionText": emoji, "text": emoji, "timestamp": ts}})
         return True
 
     # --------------------------------------------------------------- status
     def status_wpp(self):
-        """Resposta de GET /statuses: os status das ultimas 24 h guardados,
-        os meus e os dos contatos agrupados por quem publicou."""
-        limite = time.time() - 86400
-        meus, por_autor = [], {}
-        for w in self.bd.mensagens("status@broadcast", 1000):
-            if w["t"] < limite or w.get("type") in ("revoked", "protocol"):
+        """Response of GET /statuses: the statuses of the last 24 h stored,
+        mine and the contacts' grouped by who posted."""
+        limit = time.time() - 86400
+        mine, by_author = [], {}
+        for w in self.db.messages("status@broadcast", 1000):
+            if w["t"] < limit or w.get("type") in ("revoked", "protocol"):
                 continue
             if w.get("fromMe"):
-                meus.append(w)
+                mine.append(w)
                 continue
-            autor = w.get("author") or w.get("from")
-            if autor and autor != "status@broadcast":
-                por_autor.setdefault(autor, []).append(w)
-        # myStatusReady diz ao cliente que uma lista vazia e a palavra final do
-        # WhatsApp (ele apaga as historias em cache que nao estao nela). O
-        # armazem so tem o que a ponte viu: vazio nao prova que nao ha historias.
-        return {"myStatus": meus, "myStatusReady": bool(meus),
-                "contacts": [{"jid": a, "msgs": ms} for a, ms in por_autor.items()]}
+            author = w.get("author") or w.get("from")
+            if author and author != "status@broadcast":
+                by_author.setdefault(author, []).append(w)
+        # myStatusReady tells the client that an empty list is WhatsApp's final
+        # word (it erases the cached stories that are not in it). The store only
+        # has what the bridge saw: empty does not prove there are no stories.
+        return {"myStatus": mine, "myStatusReady": bool(mine),
+                "contacts": [{"jid": a, "msgs": ms} for a, ms in by_author.items()]}
 
-    def apagar_status(self, id_status):
-        """Apaga um status meu para todos."""
-        if self.cliente is None or self.status != "CONNECTED":
+    def delete_status(self, status_id):
+        """Deletes a status of mine for everyone."""
+        if self.client is None or self.status != "CONNECTED":
             return False
         from neonize.utils import build_jid
-        eu_u, _, eu_srv = self.eu.partition("@")
+        me_u, _, me_srv = self.me.partition("@")
         try:
-            self.cliente.revoke_message(build_jid("status", "broadcast"),
-                                        build_jid(eu_u.split(":")[0], eu_srv), id_status)
+            self.client.revoke_message(build_jid("status", "broadcast"),
+                                       build_jid(me_u.split(":")[0], me_srv), status_id)
         except Exception:
-            log.exception("apagar status")
+            log.exception("delete status")
             return False
-        self.bd.mudar_mensagem(id_status, type="revoked", body="")
+        self.db.change_message(status_id, type="revoked", body="")
         return True
 
-    # -------------------------------------------------------------- fixadas
-    def _fixacao_recebida(self, chat, e):
-        """True se a mensagem era o aviso de fixar ou soltar uma mensagem."""
-        dados = msgmap.fixacao(e.Message)
-        if dados is None:
+    # -------------------------------------------------------------- pinned
+    def _pin_received(self, chat, e):
+        """True if the message was the notice of pinning or unpinning a message."""
+        data = msgmap.pin(e.Message)
+        if data is None:
             return False
-        alvo, fixar, duracao = dados
-        self.bd.fixar_mensagem(alvo, chat, fixar, msgmap.segundos(e.Info.Timestamp), duracao)
+        target, pin, duration = data
+        self.db.pin_message(target, chat, pin, msgmap.seconds(e.Info.Timestamp), duration)
         return True
 
-    def fixar_mensagem(self, serial, fixar, duracao=7 * 86400):
-        """Fixa ou solta uma mensagem na conversa (visivel a todos)."""
-        de_mim, conversa, mid, autor = self.partes_do_id(serial)
-        if self.cliente is None or self.status != "CONNECTED":
+    def pin_message(self, serial, pin, duration=7 * 86400):
+        """Pins or unpins a message in the chat (visible to everyone)."""
+        from_me, conversation, mid, author = self.id_parts(serial)
+        if self.client is None or self.status != "CONNECTED":
             return False
         from neonize.proto.waCommon.WACommon_pb2 import MessageKey
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
             Message, MessageContextInfo, PinInChatMessage)
         from neonize.utils import build_jid
-        chave = MessageKey(remoteJID=conversa, fromMe=de_mim, ID=mid)
-        if conversa.endswith("@g.us") and not de_mim and autor:
-            chave.participant = autor
-        mensagem = Message(pinInChatMessage=PinInChatMessage(
-            key=chave,
-            type=PinInChatMessage.PIN_FOR_ALL if fixar else PinInChatMessage.UNPIN_FOR_ALL,
+        key = MessageKey(remoteJID=conversation, fromMe=from_me, ID=mid)
+        if conversation.endswith("@g.us") and not from_me and author:
+            key.participant = author
+        message = Message(pinInChatMessage=PinInChatMessage(
+            key=key,
+            type=PinInChatMessage.PIN_FOR_ALL if pin else PinInChatMessage.UNPIN_FOR_ALL,
             senderTimestampMS=int(time.time() * 1000)))
-        if fixar:
-            mensagem.messageContextInfo.CopyFrom(MessageContextInfo(
-                messageAddOnDurationInSecs=duracao,
+        if pin:
+            message.messageContextInfo.CopyFrom(MessageContextInfo(
+                messageAddOnDurationInSecs=duration,
                 messageAddOnExpiryType=MessageContextInfo.STATIC))
-        u, _, srv = conversa.partition("@")
+        u, _, srv = conversation.partition("@")
         try:
-            self.cliente.send_message(build_jid(u, srv), mensagem)
+            self.client.send_message(build_jid(u, srv), message)
         except Exception:
-            log.exception("fixar mensagem")
+            log.exception("pin message")
             return False
-        self.bd.fixar_mensagem(mid, conversa, fixar, int(time.time()), duracao if fixar else 0)
+        self.db.pin_message(mid, conversation, pin, int(time.time()), duration if pin else 0)
         return True
 
-    # -------------------------------------------------------------- edicao
-    def marcar_editada(self, alvo, chat_w, id_edicao, de_mim, **campos):
-        """Poe o texto novo na mensagem guardada, com a marca de editada
-        (latestEditMsgKey, que o app le), e devolve a mensagem."""
-        self.bd.mudar_mensagem(
-            alvo, **campos,
-            latestEditMsgKey={"id": id_edicao, "remote": chat_w, "fromMe": bool(de_mim)},
+    # -------------------------------------------------------------- edit
+    def mark_edited(self, target, chat_w, edit_id, from_me, **fields):
+        """Puts the new text in the stored message, with the edited mark
+        (latestEditMsgKey, which the app reads), and returns the message."""
+        self.db.change_message(
+            target, **fields,
+            latestEditMsgKey={"id": edit_id, "remote": chat_w, "fromMe": bool(from_me)},
             latestEditSenderTimestampMs=int(time.time() * 1000))
-        return self.bd.mensagem_wpp(alvo)
+        return self.db.wpp_message(target)
 
-    def _edicao_recebida(self, chat, o, e):
-        """True se a mensagem era o aviso de que alguem editou uma mensagem."""
-        dados = msgmap.edicao(e.Message)
-        if dados is None:
+    def _edit_received(self, chat, o, e):
+        """True if the message was the notice that someone edited a message."""
+        data = msgmap.edit(e.Message)
+        if data is None:
             return False
-        alvo, nova = dados
-        original = self.bd.mensagem_wpp(alvo)
-        if original is None:           # mensagem de antes da ponte: nada a trocar
+        target, new = data
+        original = self.db.wpp_message(target)
+        if original is None:           # a message from before the bridge: nothing to replace
             return True
-        w = msgmap.montar(
-            conversa=chat, de_mim=bool(original.get("fromMe")), id=alvo,
-            remetente=self.eu if original.get("fromMe") else jid_texto(o.Sender),
-            ts=original["t"], mensagem=nova)
+        w = msgmap.build(
+            chat=chat, from_me=bool(original.get("fromMe")), id=target,
+            sender=self.me if original.get("fromMe") else jid_text(o.Sender),
+            ts=original["t"], message=new)
         if w is None:
             return True
-        campos = {"body": w.get("body", "")} if w.get("type") == "chat" \
+        fields = {"body": w.get("body", "")} if w.get("type") == "chat" \
             else {"caption": w.get("caption", "")}
-        editada = self.marcar_editada(alvo, msgmap.jid_wpp(chat), e.Info.ID,
-                                      o.IsFromMe, **campos)
-        self.emitir("received-message", {"session": self.nome, "response": editada})
+        edited = self.mark_edited(target, msgmap.jid_wpp(chat), e.Info.ID,
+                                  o.IsFromMe, **fields)
+        self.emit("received-message", {"session": self.name, "response": edited})
         return True
 
-    def editar(self, serial, texto, mencoes=()):
-        """Edita uma mensagem minha (o WhatsApp so aceita por ~15 minutos)."""
-        de_mim, conversa, mid, _ = self.partes_do_id(serial)
-        original = self.bd.mensagem_wpp(mid)
-        if not de_mim or original is None or self.cliente is None \
+    def edit(self, serial, text, mentions=()):
+        """Edits a message of mine (WhatsApp only accepts it for about 15 minutes)."""
+        from_me, conversation, mid, _ = self.id_parts(serial)
+        original = self.db.wpp_message(mid)
+        if not from_me or original is None or self.client is None \
                 or self.status != "CONNECTED":
             return False
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
             ContextInfo, ExtendedTextMessage, Message)
         from neonize.utils import build_jid
-        u, _, srv = conversa.partition("@")
-        ficha = self.bd.ficha(mid)
-        if ficha and original.get("type") != "chat":        # legenda de midia
-            nova = Message.FromString(ficha)
-            campo = msgmap.campo_de_midia(nova)
-            if not campo:
+        u, _, srv = conversation.partition("@")
+        record = self.db.media_record(mid)
+        if record and original.get("type") != "chat":        # media caption
+            new = Message.FromString(record)
+            field = msgmap.media_field(new)
+            if not field:
                 return False
-            getattr(nova, campo).caption = texto
-            campos = {"caption": texto}
+            getattr(new, field).caption = text
+            fields = {"caption": text}
         else:
-            if mencoes:
+            if mentions:
                 ctx = ContextInfo()
-                ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in mencoes)
-                nova = Message(extendedTextMessage=ExtendedTextMessage(
-                    text=texto, contextInfo=ctx))
+                ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in mentions)
+                new = Message(extendedTextMessage=ExtendedTextMessage(
+                    text=text, contextInfo=ctx))
             else:
-                nova = Message(conversation=texto)
-            campos = {"body": texto}
+                new = Message(conversation=text)
+            fields = {"body": text}
         try:
-            self.cliente.edit_message(build_jid(u, srv), mid, nova)
+            self.client.edit_message(build_jid(u, srv), mid, new)
         except Exception:
-            log.exception("editar mensagem")
+            log.exception("edit message")
             return False
-        self.marcar_editada(mid, msgmap.jid_wpp(conversa), mid, True, **campos)
+        self.mark_edited(mid, msgmap.jid_wpp(conversation), mid, True, **fields)
         return True
 
-    def mensagem_para_encaminhar(self, serial, manter_voz=False):
-        """A mensagem guardada, pronta para ser enviada como encaminhada, ou
-        None se o tipo ainda nao e suportado."""
+    def message_to_forward(self, serial, keep_voice=False):
+        """The stored message, ready to be sent as forwarded, or None if the
+        type is not supported yet."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
             ContextInfo, ExtendedTextMessage, Message)
-        _, _, mid, _ = self.partes_do_id(serial)
-        original = self.bd.mensagem_wpp(mid)
+        _, _, mid, _ = self.id_parts(serial)
+        original = self.db.wpp_message(mid)
         if original is None:
             return None
-        ficha = self.bd.ficha(mid)
-        if ficha:
-            msg = Message.FromString(ficha)
-            campo = msgmap.campo_de_midia(msg)
-            if not campo:
+        record = self.db.media_record(mid)
+        if record:
+            msg = Message.FromString(record)
+            field = msgmap.media_field(msg)
+            if not field:
                 return None
-            sub = getattr(msg, campo)
+            sub = getattr(msg, field)
             if hasattr(sub, "caption") and original.get("caption"):
                 sub.caption = original["caption"]
-            if campo == "audioMessage" and not manter_voz:
+            if field == "audioMessage" and not keep_voice:
                 sub.PTT = False
             sub.contextInfo.isForwarded = True
             sub.contextInfo.forwardingScore = 1
@@ -353,1206 +353,1205 @@ class Sessao(conversas_alias.AliasDeConversa, recibos_de_grupo.RecibosDeGrupo):
                 contextInfo=ContextInfo(isForwarded=True, forwardingScore=1)))
         return None
 
-    # ------------------------------------------------------------ enquetes
-    def _voto_recebido(self, o, e):
-        """True se a mensagem era um voto em enquete (decifra e guarda). O
-        voto vem cifrado com o segredo da enquete, que o neonize guarda quando
-        a pergunta passa por ele: votos de enquetes anteriores nao se leem."""
-        alvo = msgmap.voto(e.Message)
-        if alvo is None:
+    # ------------------------------------------------------------ polls
+    def _vote_received(self, o, e):
+        """True if the message was a vote in a poll (decrypts and stores it). The
+        vote comes encrypted with the poll's secret, which neonize keeps when the
+        question goes through it: votes of earlier polls cannot be read."""
+        target = msgmap.vote(e.Message)
+        if target is None:
             return False
-        original = self.bd.mensagem_wpp(alvo) or {}
-        nomes = [x["name"] for x in original.get("pollOptions") or []]
+        original = self.db.wpp_message(target) or {}
+        names = [x["name"] for x in original.get("pollOptions") or []]
         try:
-            consertar_decifrar_voto(self.cliente)
-            dado = self.cliente.decrypt_poll_vote(e)
-        except Exception as erro:
-            log.info("voto que nao consegui decifrar (%s: %s)", type(erro).__name__,
-                     str(erro)[:100])
+            fix_poll_vote_decryption(self.client)
+            datum = self.client.decrypt_poll_vote(e)
+        except Exception as error:
+            log.info("vote I could not decrypt (%s: %s)", type(error).__name__,
+                     str(error)[:100])
             return True
-        quem = "eu" if o.IsFromMe else msgmap.jid_wpp(jid_texto(o.Sender))
-        self.bd.votar(alvo, quem, msgmap.indices_do_voto(nomes, dado.selectedOptions),
-                      msgmap.segundos(e.Info.Timestamp))
+        who = "me" if o.IsFromMe else msgmap.jid_wpp(jid_text(o.Sender))
+        self.db.vote(target, who, msgmap.vote_indexes(names, datum.selectedOptions),
+                     msgmap.seconds(e.Info.Timestamp))
         return True
 
-    def enquete_wpp(self, serial):
-        """A enquete e seus votos, ou None se a mensagem nao e uma enquete."""
-        _, _, mid, _ = self.partes_do_id(serial)
-        original = self.bd.mensagem_wpp(mid)
+    def poll_wpp(self, serial):
+        """The poll and its votes, or None if the message is not a poll."""
+        _, _, mid, _ = self.id_parts(serial)
+        original = self.db.wpp_message(mid)
         if not original or original.get("type") != "poll_creation":
             return None
-        opcoes = [{"name": x["name"], "localId": x.get("localId", i)}
-                  for i, x in enumerate(original.get("pollOptions") or [])]
-        return mid, opcoes, self.bd.votos_de(mid)
+        options = [{"name": x["name"], "localId": x.get("localId", i)}
+                   for i, x in enumerate(original.get("pollOptions") or [])]
+        return mid, options, self.db.votes_of(mid)
 
-    def votos_wpp(self, serial):
-        """Entrada de /poll-votes: {voters, options:[{name, localId, votes, mine}]}."""
-        achada = self.enquete_wpp(serial)
-        if achada is None:
+    def votes_wpp(self, serial):
+        """Entry of /poll-votes: {voters, options:[{name, localId, votes, mine}]}."""
+        found = self.poll_wpp(serial)
+        if found is None:
             return None
-        _, opcoes, votos = achada
-        contagem = {}
-        minhas = set()
-        votantes = 0
-        for quem, ids in votos:
+        _, options, vote_rows = found
+        counts = {}
+        my_ids = set()
+        voters = 0
+        for who, ids in vote_rows:
             if not ids:
                 continue
-            votantes += 1
+            voters += 1
             for i in ids:
-                contagem[i] = contagem.get(i, 0) + 1
-                if quem == "eu":
-                    minhas.add(i)
-        return {"voters": votantes, "options": [
-            {**op, "votes": contagem.get(op["localId"], 0),
-             "mine": op["localId"] in minhas} for op in opcoes]}
+                counts[i] = counts.get(i, 0) + 1
+                if who == "me":
+                    my_ids.add(i)
+        return {"voters": voters, "options": [
+            {**op, "votes": counts.get(op["localId"], 0),
+             "mine": op["localId"] in my_ids} for op in options]}
 
-    def votantes_wpp(self, serial):
-        """Resposta de /poll-voters: quem votou em que."""
-        achada = self.enquete_wpp(serial)
-        if achada is None:
+    def voters_wpp(self, serial):
+        """Response of /poll-voters: who voted for what."""
+        found = self.poll_wpp(serial)
+        if found is None:
             return {"ok": False, "error": "poll_voters_unavailable"}
-        _, opcoes, votos = achada
-        eu = msgmap.jid_wpp(self.eu)
-        votantes = []
-        for quem, ids in votos:
+        _, options, vote_rows = found
+        me = msgmap.jid_wpp(self.me)
+        voters = []
+        for who, ids in vote_rows:
             if not ids:
                 continue
-            sender = eu if quem == "eu" else quem
-            nome = self.bd.contato_de(msgmap.jid_whatsmeow(sender)) if quem != "eu" else {}
-            votantes.append({"sender": sender, "mine": quem == "eu",
-                             "name": nome.get("name") or nome.get("pushname") or "",
-                             "localIds": ids})
-        return {"ok": True, "options": opcoes, "voters": votantes}
+            sender = me if who == "me" else who
+            name = self.db.contact_of(msgmap.jid_whatsmeow(sender)) if who != "me" else {}
+            voters.append({"sender": sender, "mine": who == "me",
+                           "name": name.get("name") or name.get("pushname") or "",
+                           "localIds": ids})
+        return {"ok": True, "options": options, "voters": voters}
 
-    def votar_em_enquete(self, serial, local_ids):
-        """Vota (ou, sem ids, tira o voto) numa enquete."""
-        achada = self.enquete_wpp(serial)
-        if achada is None or self.cliente is None or self.status != "CONNECTED":
+    def vote_in_poll(self, serial, local_ids):
+        """Votes (or, with no ids, removes the vote) in a poll."""
+        found = self.poll_wpp(serial)
+        if found is None or self.client is None or self.status != "CONNECTED":
             return False
-        mid, opcoes, _ = achada
-        nomes_por_id = {op["localId"]: op["name"] for op in opcoes}
-        if not all(i in nomes_por_id for i in local_ids):
+        mid, options, _ = found
+        names_by_id = {op["localId"]: op["name"] for op in options}
+        if not all(i in names_by_id for i in local_ids):
             return False
         from neonize.proto.Neonize_pb2 import MessageInfo, MessageSource
         from neonize.utils import build_jid
-        de_mim, conversa, _, autor = self.partes_do_id(serial)
-        grupo = conversa.endswith("@g.us")
-        dono = self.eu if de_mim else (autor or conversa)
+        from_me, conversation, _, author = self.id_parts(serial)
+        group = conversation.endswith("@g.us")
+        owner = self.me if from_me else (author or conversation)
 
-        def jid(texto):
-            u, _, srv = texto.partition("@")
+        def jid(text):
+            u, _, srv = text.partition("@")
             return build_jid(u.split(":")[0], srv)
-        vazio = build_jid("", "")
-        origem = MessageSource(
-            Chat=jid(conversa), Sender=jid(dono), IsFromMe=de_mim, IsGroup=grupo,
-            SenderAlt=vazio, RecipientAlt=vazio, BroadcastListOwner=vazio)
-        info = MessageInfo(MessageSource=origem, ID=mid, ServerID=0, Type="", Pushname="",
+        empty = build_jid("", "")
+        source = MessageSource(
+            Chat=jid(conversation), Sender=jid(owner), IsFromMe=from_me, IsGroup=group,
+            SenderAlt=empty, RecipientAlt=empty, BroadcastListOwner=empty)
+        info = MessageInfo(MessageSource=source, ID=mid, ServerID=0, Type="", Pushname="",
                            Timestamp=0, Category="", Multicast=False, MediaType="", Edit="")
         try:
-            self.cliente.send_message(jid(conversa), self.cliente.build_poll_vote(
-                info, [nomes_por_id[i] for i in local_ids]))
+            self.client.send_message(jid(conversation), self.client.build_poll_vote(
+                info, [names_by_id[i] for i in local_ids]))
         except Exception:
-            log.exception("votar em enquete")
+            log.exception("vote in poll")
             return False
-        self.bd.votar(mid, "eu", sorted(local_ids), int(time.time()))
+        self.db.vote(mid, "me", sorted(local_ids), int(time.time()))
         return True
 
-    def reagir(self, serial, emoji):
-        """Reage (ou, com emoji vazio, tira a reacao) a uma mensagem."""
-        if self.cliente is None or self.status != "CONNECTED":
+    def react(self, serial, emoji):
+        """Reacts (or, with an empty emoji, removes the reaction) to a message."""
+        if self.client is None or self.status != "CONNECTED":
             return False
         from neonize.utils import build_jid
-        de_mim, conversa, mid, autor = self.partes_do_id(serial)
-        autor_jid = self.eu if de_mim else (autor or conversa)
-        cu, _, csrv = conversa.partition("@")
-        au, _, asrv = autor_jid.partition("@")
+        from_me, conversation, mid, author = self.id_parts(serial)
+        author_jid = self.me if from_me else (author or conversation)
+        cu, _, csrv = conversation.partition("@")
+        au, _, asrv = author_jid.partition("@")
         try:
-            msg = self.cliente.build_reaction(
+            msg = self.client.build_reaction(
                 build_jid(cu, csrv), build_jid(au.split(":")[0], asrv), mid, emoji)
-            self.cliente.send_message(build_jid(cu, csrv), msg)
+            self.client.send_message(build_jid(cu, csrv), msg)
         except Exception:
-            log.exception("reagir")
+            log.exception("react")
             return False
-        self.bd.reagir(mid, "eu", emoji, int(time.time()))
+        self.db.react(mid, "me", emoji, int(time.time()))
         return True
 
-    def reacoes_wpp(self, serial):
-        """Resposta de GET /reactions/<id>: agrupada por emoji, no formato do
-        WPPConnect (senders com senderUserJid e reactionText)."""
-        _, _, mid, _ = self.partes_do_id(serial)
-        eu = msgmap.jid_wpp(self.eu)
-        grupos, minha = {}, ""
-        for quem, emoji in self.bd.reacoes_de(mid):
-            jid = eu if quem == "eu" else quem
-            if quem == "eu":
-                minha = emoji
-            grupos.setdefault(emoji, []).append(
+    def reactions_wpp(self, serial):
+        """Response of GET /reactions/<id>: grouped by emoji, in WPPConnect's
+        format (senders with senderUserJid and reactionText)."""
+        _, _, mid, _ = self.id_parts(serial)
+        me = msgmap.jid_wpp(self.me)
+        groups, own = {}, ""
+        for who, emoji in self.db.reactions_of(mid):
+            jid = me if who == "me" else who
+            if who == "me":
+                own = emoji
+            groups.setdefault(emoji, []).append(
                 {"senderUserJid": jid, "reactionText": emoji})
-        itens = [{"aggregateEmoji": emoji, "hasReactionByMe": any(
-                      x["senderUserJid"] == eu for x in senders),
-                  "senders": senders} for emoji, senders in grupos.items()]
-        return {"reactionByMe": minha, "reactions": itens}
+        items = [{"aggregateEmoji": emoji, "hasReactionByMe": any(
+                      x["senderUserJid"] == me for x in senders),
+                  "senders": senders} for emoji, senders in groups.items()]
+        return {"reactionByMe": own, "reactions": items}
 
-    # ------------------------------------------------------------ eventos
-    def emitir(self, evento, dados):
-        # so o socket desta sessao (a sala do connect); sem room, todos os
-        # sockets conectados receberiam os eventos de todas as contas
+    # ------------------------------------------------------------ events
+    def emit(self, event, data):
+        # only this session's socket (the connect room); without a room, every
+        # connected socket would receive the events of all the accounts
         asyncio.run_coroutine_threadsafe(
-            self.sio.emit(evento, dados, room=self.nome), self.laco)
+            self.sio.emit(event, data, room=self.name), self.loop)
 
-    # --------------------------------------------------------- ciclo de vida
-    def _thread_viva(self):
+    # --------------------------------------------------------- lifecycle
+    def _thread_alive(self):
         return bool(self.thread and self.thread.is_alive())
 
-    def iniciar(self, telefone=None):
-        """Sobe a sessao. Bloqueia ate a thread antiga terminar (so quando ha
-        uma): chame fora do laco do aiohttp. True se uma thread nova subiu."""
-        with self._trava_do_ciclo:
-            decisao = ciclo_sessao.decidir_inicio(
-                self._thread_viva(), self.status, telefone)
-            if decisao == ciclo_sessao.IGNORAR:
+    def begin(self, phone_number=None):
+        """Brings the session up. Blocks until the old thread finishes (only when
+        there is one): call it outside the aiohttp loop. True if a new thread came up."""
+        with self._lifecycle_lock:
+            decision = session_lifecycle.decide_start(
+                self._thread_alive(), self.status, phone_number)
+            if decision == session_lifecycle.IGNORE:
                 return False
-            if decisao == ciclo_sessao.REINICIAR:
-                # pareamento parado, ou uma sessao fechada cuja thread ainda
-                # termina: o connect() do neonize so volta depois do stop()
-                self.parar()
-                self.thread.join(ciclo_sessao.PRAZO_DA_THREAD_ANTIGA)
-                if self._thread_viva():
-                    log.warning("a thread antiga da sessao %s nao terminou; nao inicio outra",
-                                redigir(self.nome))
+            if decision == session_lifecycle.RESTART:
+                # a stalled pairing, or a closed session whose thread is still
+                # finishing: neonize's connect() only returns after stop()
+                self.stop()
+                self.thread.join(session_lifecycle.OLD_THREAD_DEADLINE)
+                if self._thread_alive():
+                    log.warning("the old thread of session %s did not finish; not starting another",
+                                redact(self.name))
                     return False
-            geracao = self.ciclo.abrir()
+            generation = self.lifecycle.open()
             self.thread = threading.Thread(
-                target=self._rodar, args=(telefone, geracao), daemon=True, name="neonize")
+                target=self._run, args=(phone_number, generation), daemon=True, name="neonize")
             self.thread.start()
             return True
 
-    def _aplicar(self, geracao, evento):
-        """Aplica um evento ao estado se `geracao` ainda e a vigente (None se nao)."""
-        return self.ciclo.aplicar(geracao, evento)
+    def _apply(self, generation, event):
+        """Applies an event to the state if `generation` is still the current one (None if not)."""
+        return self.lifecycle.apply(generation, event)
 
-    def _parar_em_segundo_plano(self, cliente):
-        """stop() fora da thread do evento: o Go pode estar esperando este
-        manipulador voltar, e o Stop espera o Go."""
-        def parar():
+    def _stop_in_background(self, client):
+        """stop() outside the event's thread: Go may be waiting for this handler
+        to return, and Stop waits for Go."""
+        def stop():
             try:
-                cliente.stop()
+                client.stop()
             except Exception:
                 log.exception("stop")
-        threading.Thread(target=parar, daemon=True, name="neonize-stop").start()
+        threading.Thread(target=stop, daemon=True, name="neonize-stop").start()
 
-    def _ao_conectar(self, geracao, c, telefone):
-        if not self.ciclo.vigente(geracao):
+    def _on_connect(self, generation, c, phone_number):
+        if not self.lifecycle.current(generation):
             return
         try:
             me = c.get_me()
-            self.eu = jid_texto(me.JID)
-            self.lid = jid_texto(me.LID)
+            self.me = jid_text(me.JID)
+            self.lid = jid_text(me.LID)
         except Exception:
             log.exception("get_me")
-        if self._aplicar(geracao, ciclo_sessao.CONECTOU) is None:
+        if self._apply(generation, session_lifecycle.CONNECTED_EVENT) is None:
             return
         self.urlcode = None
-        log.info("conectado")
-        if not (telefone and self.simular_codigo):   # a simulacao avisa depois do codigo
-            self.emitir("session-logged", {"session": self.nome, "status": True})
-        threading.Thread(target=self._carregar_nomes, daemon=True).start()
-        threading.Thread(target=self._conferir_estado, daemon=True).start()
-        threading.Thread(target=self._conferir_sempre, daemon=True).start()
-        threading.Thread(target=self._copia_sempre, daemon=True).start()
+        log.info("connected")
+        if not (phone_number and self.simulate_code):   # the simulation notifies after the code
+            self.emit("session-logged", {"session": self.name, "status": True})
+        threading.Thread(target=self._load_names, daemon=True).start()
+        threading.Thread(target=self._check_state, daemon=True).start()
+        threading.Thread(target=self._check_always, daemon=True).start()
+        threading.Thread(target=self._copy_always, daemon=True).start()
 
-    def _ao_ser_desvinculada(self, geracao, c):
-        """O celular removeu o aparelho (LoggedOutEv, ou ConnectFailure de logout)."""
-        mudou = self._aplicar(geracao, ciclo_sessao.SAIU)
-        if mudou is None or mudou[0] == ciclo_sessao.NOT_LOGGED:
-            return          # evento de uma sessao antiga, ou o segundo aviso do mesmo logout
-        log.info("conta desvinculada pelo celular")
-        self.eu = self.lid = ""
+    def _on_unlinked(self, generation, c):
+        """The phone removed the device (LoggedOutEv, or a logout ConnectFailure)."""
+        changed = self._apply(generation, session_lifecycle.LEFT)
+        if changed is None or changed[0] == session_lifecycle.NOT_LOGGED:
+            return          # an event of an old session, or the second notice of the same logout
+        log.info("account unlinked by the phone")
+        self.me = self.lid = ""
         self.urlcode = None
-        # sem stop() o Go reconecta sem credencial e fica gerando QR sem ninguem olhando
-        self._parar_em_segundo_plano(c)
-        if self.ao_desvincular is not None:
-            self.ao_desvincular()
-        for atraso, evento, dados in ciclo_sessao.avisos_de_logout(self.nome):
-            if atraso:
-                temporizador = threading.Timer(atraso, self.emitir, args=(evento, dados))
-                temporizador.daemon = True
-                temporizador.start()
+        # without stop() Go reconnects with no credential and keeps generating QRs with nobody looking
+        self._stop_in_background(c)
+        if self.on_unlink is not None:
+            self.on_unlink()
+        for delay, event, data in session_lifecycle.logout_notices(self.name):
+            if delay:
+                timer = threading.Timer(delay, self.emit, args=(event, data))
+                timer.daemon = True
+                timer.start()
             else:
-                self.emitir(evento, dados)
+                self.emit(event, data)
 
-    def _ao_cair(self, geracao, evento, o_que):
-        """Queda que o whatsmeow tenta consertar sozinho: o cliente ganha a
-        carencia dele (INITIALIZING) em vez de ler CONNECTED com o socket morto."""
-        mudou = self._aplicar(geracao, evento)
-        if mudou is not None and mudou[0] != mudou[1]:
-            log.info("%s: %s -> %s", o_que, mudou[0], mudou[1])
+    def _on_drop(self, generation, event, what):
+        """A drop that whatsmeow tries to fix by itself: the client gets its
+        grace (INITIALIZING) instead of reading CONNECTED with a dead socket."""
+        changed = self._apply(generation, event)
+        if changed is not None and changed[0] != changed[1]:
+            log.info("%s: %s -> %s", what, changed[0], changed[1])
         else:
-            log.info(o_que)
+            log.info(what)
 
-    def _ao_falhar(self, geracao, c, motivo):
-        """ConnectFailureEv: logout, falha terminal (banimento, versao antiga) ou passageira."""
-        tipo = ciclo_sessao.classificar_falha(motivo)
-        log.warning("falha de conexao do WhatsApp, motivo %s (%s)", motivo, tipo)
-        if tipo == ciclo_sessao.SAIU:
-            self._ao_ser_desvinculada(geracao, c)
-        elif tipo == ciclo_sessao.FALHA_TERMINAL:
-            self._ao_falha_terminal(geracao, c, f"falha de conexao, motivo {motivo}")
+    def _on_fail(self, generation, c, reason):
+        """ConnectFailureEv: logout, terminal failure (ban, outdated version) or transient."""
+        kind = session_lifecycle.classify_failure(reason)
+        log.warning("WhatsApp connection failure, reason %s (%s)", reason, kind)
+        if kind == session_lifecycle.LEFT:
+            self._on_unlinked(generation, c)
+        elif kind == session_lifecycle.TERMINAL_FAILURE:
+            self._on_terminal_failure(generation, c, f"connection failure, reason {reason}")
         else:
-            self._ao_cair(geracao, ciclo_sessao.CAIU, "falha passageira do servidor")
+            self._on_drop(generation, session_lifecycle.DROPPED, "transient server failure")
 
-    def _ao_falha_terminal(self, geracao, c, o_que):
-        """Nao adianta tentar de novo (banimento, versao antiga, outro aparelho
-        tomou a conexao): a sessao fecha em vez de ficar em INITIALIZING para sempre."""
-        if self._aplicar(geracao, ciclo_sessao.FALHA_TERMINAL) is None:
+    def _on_terminal_failure(self, generation, c, what):
+        """There is no point trying again (ban, outdated version, another device
+        took the connection): the session closes instead of staying in INITIALIZING forever."""
+        if self._apply(generation, session_lifecycle.TERMINAL_FAILURE) is None:
             return
-        log.error("sessao encerrada: %s", o_que)
-        self._parar_em_segundo_plano(c)
+        log.error("session ended: %s", what)
+        self._stop_in_background(c)
 
-    def _rodar(self, telefone, geracao):
+    def _run(self, phone_number, generation):
         import neonize.events as nev
         from neonize.client import NewClient
-        os.makedirs(self.pasta, exist_ok=True)
-        # Um NewClient novo por inicio, nunca reaproveitado: iniciar() ja esperou
-        # a thread anterior terminar (o connect() so volta depois do stop()).
-        # Trocar `self.cliente` solta o antigo, e o neonize chama Stop(uuid) quando
-        # um NewClient e coletado (weakref.finalize); por isso a troca acontece
-        # aqui, antes do connect() novo, e nunca com a thread antiga ainda de pe.
-        cli = self.cliente = NewClient(os.path.join(self.pasta, "sessao.db"),
-                                       props=props_do_aparelho(HISTORICO_DIAS))
-        chamadas.registrar_eventos(cli, self)
-        presenca.registrar_eventos(cli, self)
-        eventos_grupos.registrar_eventos(cli, self)
-        eventos_contatos.registrar_eventos(cli, self)
+        os.makedirs(self.folder, exist_ok=True)
+        # A new NewClient per start, never reused: begin() already waited for the
+        # previous thread to finish (connect() only returns after stop()).
+        # Replacing `self.client` releases the old one, and neonize calls Stop(uuid)
+        # when a NewClient is collected (weakref.finalize); that is why the swap
+        # happens here, before the new connect(), and never with the old thread still up.
+        cli = self.client = NewClient(os.path.join(self.folder, "session.db"),
+                                      props=device_props(HISTORY_DAYS))
+        calls.register_events(cli, self)
+        presence.register_events(cli, self)
+        group_events.register_events(cli, self)
+        contact_events.register_events(cli, self)
 
-        # Cada evento do ciclo de vida e registrado UMA vez (o neonize guarda um
-        # manipulador por tipo; test_um_manipulador_por_evento.py).
+        # Each lifecycle event is registered ONCE (neonize keeps one handler per
+        # type; test_one_handler_per_event.py).
         @cli.event(nev.ConnectedEv)
-        def _conectou(c, e):
-            self._ao_conectar(geracao, c, telefone)
+        def _connected(c, e):
+            self._on_connect(generation, c, phone_number)
 
         @cli.event(nev.LoggedOutEv)
-        def _saiu(c, e):
-            self._ao_ser_desvinculada(geracao, c)
+        def _left(c, e):
+            self._on_unlinked(generation, c)
 
         @cli.event(nev.DisconnectedEv)
-        def _caiu(c, e):
-            self._ao_cair(geracao, ciclo_sessao.CAIU, "desconectado")
+        def _dropped(c, e):
+            self._on_drop(generation, session_lifecycle.DROPPED, "disconnected")
 
         @cli.event(nev.ConnectFailureEv)
-        def _falhou(c, e):
-            self._ao_falhar(geracao, c, int(e.Reason))
+        def _failed(c, e):
+            self._on_fail(generation, c, int(e.Reason))
 
         @cli.event(nev.ClientOutdatedEv)
-        def _desatualizado(c, e):
-            self._ao_falha_terminal(geracao, c, "versao do cliente recusada pelo WhatsApp")
+        def _outdated(c, e):
+            self._on_terminal_failure(generation, c, "client version refused by WhatsApp")
 
         @cli.event(nev.TemporaryBanEv)
-        def _banido(c, e):
-            self._ao_falha_terminal(geracao, c, "banimento temporario")
+        def _banned(c, e):
+            self._on_terminal_failure(generation, c, "temporary ban")
 
         @cli.event(nev.StreamReplacedEv)
-        def _substituido(c, e):
-            self._ao_falha_terminal(geracao, c, "outro aparelho tomou a conexao")
+        def _replaced(c, e):
+            self._on_terminal_failure(generation, c, "another device took the connection")
 
         @cli.event(nev.StreamErrorEv)
-        def _erro_de_fluxo(c, e):
-            self._ao_cair(geracao, ciclo_sessao.CAIU, "erro de fluxo " + str(e.Code)[:40])
+        def _stream_error(c, e):
+            self._on_drop(generation, session_lifecycle.DROPPED, "stream error " + str(e.Code)[:40])
 
         @cli.event(nev.KeepAliveTimeoutEv)
-        def _sem_resposta(c, e):
-            self._ao_cair(geracao, ciclo_sessao.CAIU, "keep-alive sem resposta")
+        def _no_response(c, e):
+            self._on_drop(generation, session_lifecycle.DROPPED, "keep-alive without response")
 
         @cli.event(nev.KeepAliveRestoredEv)
-        def _respondeu(c, e):
-            self._ao_cair(geracao, ciclo_sessao.VOLTOU, "keep-alive restaurado")
+        def _responded(c, e):
+            self._on_drop(generation, session_lifecycle.RESTORED, "keep-alive restored")
 
         @cli.event(nev.MessageEv)
-        def _mensagem(c, e):
+        def _message(c, e):
             try:
                 o = e.Info.MessageSource
-                chat = jid_texto(o.Chat)
-                if self._reacao_recebida(chat, o, e):
+                chat = jid_text(o.Chat)
+                if self._reaction_received(chat, o, e):
                     return
-                if self._voto_recebido(o, e):
+                if self._vote_received(o, e):
                     return
-                if comentarios.receber(self, chat, o, e):    # comentario de aviso
+                if comments.receive(self, chat, o, e):    # announcement comment
                     return
-                if self._edicao_recebida(chat, o, e):
+                if self._edit_received(chat, o, e):
                     return
-                if self._fixacao_recebida(chat, e):
+                if self._pin_received(chat, e):
                     return
-                w = msgmap.montar(
-                    conversa=chat, de_mim=bool(o.IsFromMe), id=e.Info.ID,
-                    remetente=jid_texto(o.Sender), ts=e.Info.Timestamp,
-                    mensagem=e.Message, nome_de_quem=e.Info.Pushname)
+                w = msgmap.build(
+                    chat=chat, from_me=bool(o.IsFromMe), id=e.Info.ID,
+                    sender=jid_text(o.Sender), ts=e.Info.Timestamp,
+                    message=e.Message, sender_name=e.Info.Pushname)
                 if w is None:
                     return
                 if w.get("type") == "revoked" and w.get("protocolMessageKey"):
-                    # apagada para todos por quem enviou: a original tambem vira apagada
-                    self.bd.mudar_mensagem(w["protocolMessageKey"]["id"], type="revoked", body="")
-                self.bd.mensagem(chat, w, msgmap.ficha_midia(e.Message))
-                self.bd.ao_chegar(chat, w["t"], w["fromMe"])
+                    # deleted for everyone by whoever sent it: the original becomes deleted too
+                    self.db.change_message(w["protocolMessageKey"]["id"], type="revoked", body="")
+                self.db.message(chat, w, msgmap.media_record_of(e.Message))
+                self.db.on_arrival(chat, w["t"], w["fromMe"])
                 if e.Info.Pushname and not o.IsFromMe:
-                    self.bd.contato(jid_texto(o.Sender), pushname=e.Info.Pushname)
-                    eventos_contatos.anunciar_nome(c, self, o.Sender, e.Info.Pushname)
-                self.emitir("received-message", {"session": self.nome, "response": w})
-                # o WhatsApp Web marca como lida a conversa aberta com a janela em foco
-                if not o.IsFromMe and self.online and self.aberta == chat:
-                    threading.Thread(target=self.marcar_lidas, args=(chat,),
+                    self.db.contact(jid_text(o.Sender), pushname=e.Info.Pushname)
+                    contact_events.announce_name(c, self, o.Sender, e.Info.Pushname)
+                self.emit("received-message", {"session": self.name, "response": w})
+                # WhatsApp Web marks the chat open with the window in focus as read
+                if not o.IsFromMe and self.online and self.open_chat == chat:
+                    threading.Thread(target=self.mark_read, args=(chat,),
                                      daemon=True).start()
             except Exception:
-                log.exception("mensagem recebida")
+                log.exception("received message")
 
         @cli.event(nev.GroupInfoEv)
-        def _grupo(c, e):
+        def _group(c, e):
             try:
                 if e.Name and e.Name.Name:
-                    self.bd.conversa(jid_texto(e.JID), name=e.Name.Name)
+                    self.db.chat(jid_text(e.JID), name=e.Name.Name)
             except Exception:
-                log.exception("grupo mudou")
-            eventos_grupos.grupo_mudou(c, self, e)    # groups.update (ver eventos_grupos)
+                log.exception("group changed")
+            group_events.group_changed(c, self, e)    # groups.update (see group_events)
 
-        def chat_local(c, jid_obj):
-            """O JID com que a conversa esta guardada (o numero ou o LID)."""
-            jid = jid_texto(jid_obj)
-            if not self.bd.existe_conversa(jid) and jid.endswith("@s.whatsapp.net"):
+        def local_chat(c, jid_obj):
+            """The JID under which the chat is stored (the number or the LID)."""
+            jid = jid_text(jid_obj)
+            if not self.db.chat_exists(jid) and jid.endswith("@s.whatsapp.net"):
                 try:
-                    lid = jid_texto(c.get_lid_from_pn(jid_obj))
-                    if lid and self.bd.existe_conversa(lid):
+                    lid = jid_text(c.get_lid_from_pn(jid_obj))
+                    if lid and self.db.chat_exists(lid):
                         return lid
                 except Exception:
                     pass
             return jid
 
-        def avisar_lida(jid, antes, novo):
+        def announce_read(jid, before, new):
             chat_w = msgmap.jid_wpp(jid)
-            self.emitir("chats-update", {"session": self.nome, "data": [{
-                "remoteJid": chat_w, "id": chat_w, "unreadCount": novo,
-                "previousUnreadCount": antes}]})
+            self.emit("chats-update", {"session": self.name, "data": [{
+                "remoteJid": chat_w, "id": chat_w, "unreadCount": new,
+                "previousUnreadCount": before}]})
 
-        def lida_em_outro_aparelho(c, e):
-            """Recibo de leitura que vem de mim mesmo: li essas mensagens no celular."""
-            jid = chat_local(c, e.MessageSource.Chat)
-            antes = self.bd.nao_lidas(jid)
+        def read_on_another_device(c, e):
+            """Read receipt that comes from myself: I read those messages on the phone."""
+            jid = local_chat(c, e.MessageSource.Chat)
+            before = self.db.unread(jid)
             ids = set(e.MessageIDs)
-            ultima = self.bd.ultima_recebida(jid)
-            novo = 0 if (ultima and ultima in ids) else max(0, antes - len(ids))
-            if novo == antes:
+            last = self.db.last_received(jid)
+            new = 0 if (last and last in ids) else max(0, before - len(ids))
+            if new == before:
                 return
-            self.bd.conversa(jid, unread=novo)
-            log.info("lidas no celular: %d mensagem(ns), nao lidas %d -> %d", len(ids), antes, novo)
-            avisar_lida(jid, antes, novo)
+            self.db.chat(jid, unread=new)
+            log.info("read on the phone: %d message(s), unread %d -> %d", len(ids), before, new)
+            announce_read(jid, before, new)
 
-        def ouvida_em_outro_aparelho(c, e):
-            """Ouvi uma voz recebida no celular: o app mostra 'Reproduzida' (onack 4)."""
-            jid = chat_local(c, e.MessageSource.Chat)
+        def played_on_another_device(c, e):
+            """I played a received voice note on the phone: the app shows 'Played' (onack 4)."""
+            jid = local_chat(c, e.MessageSource.Chat)
             chat_w = msgmap.jid_wpp(jid)
             for mid in e.MessageIDs:
-                self.bd.mudar_mensagem(mid, played=True)
-                self.emitir("onack", {
-                    "session": self.nome, "ack": 4, "to": chat_w, "from": chat_w,
+                self.db.change_message(mid, played=True)
+                self.emit("onack", {
+                    "session": self.name, "ack": 4, "to": chat_w, "from": chat_w,
                     "id": {"fromMe": False, "remote": chat_w, "id": mid,
                            "_serialized": f"false_{chat_w}_{mid}"}})
-            log.info("%d voz(es) ouvida(s) no celular -> app", len(e.MessageIDs))
+            log.info("%d voice note(s) played on the phone -> app", len(e.MessageIDs))
 
         @cli.event(nev.ChatMarkAsReadEv)
-        def _lida_no_celular(c, e):
-            """Conversa lida (ou marcada como nao lida) no celular: o app acompanha."""
+        def _read_on_phone(c, e):
+            """Chat read (or marked as unread) on the phone: the app follows."""
             try:
-                acao = e.Action
-                jid = jid_texto(e.JID)
-                if not self.bd.existe_conversa(jid) and jid.endswith("@s.whatsapp.net"):
-                    try:        # a conversa pode estar guardada pelo endereco LID
-                        lid = jid_texto(c.get_lid_from_pn(e.JID))
-                        if lid and self.bd.existe_conversa(lid):
+                action = e.Action
+                jid = jid_text(e.JID)
+                if not self.db.chat_exists(jid) and jid.endswith("@s.whatsapp.net"):
+                    try:        # the chat may be stored under the LID address
+                        lid = jid_text(c.get_lid_from_pn(e.JID))
+                        if lid and self.db.chat_exists(lid):
                             jid = lid
                     except Exception:
                         pass
-                antes = self.bd.nao_lidas(jid)
-                if acao.read:
-                    ate = msgmap.segundos(acao.messageRange.lastMessageTimestamp)                         if acao.HasField("messageRange") else 0
-                    ultima = self.bd.ultima_bruta(jid)
-                    if ate and ultima is not None and ultima["t"] > ate + 5:
-                        log.info("lida no celular, mas ha mensagem mais nova: mantida")
+                before = self.db.unread(jid)
+                if action.read:
+                    until = msgmap.seconds(action.messageRange.lastMessageTimestamp)                         if action.HasField("messageRange") else 0
+                    last = self.db.raw_last(jid)
+                    if until and last is not None and last["t"] > until + 5:
+                        log.info("read on the phone, but there is a newer message: kept")
                         return
-                    self.bd.conversa(jid, unread=0)
-                    novo = 0
+                    self.db.chat(jid, unread=0)
+                    new = 0
                 else:
-                    self.bd.conversa(jid, unread=max(antes, 1))
-                    novo = -1
-                log.info("conversa marcada como %s no celular -> app",
-                         "lida" if acao.read else "nao lida")
+                    self.db.chat(jid, unread=max(before, 1))
+                    new = -1
+                log.info("chat marked as %s on the phone -> app",
+                         "read" if action.read else "unread")
                 chat_w = msgmap.jid_wpp(jid)
-                self.emitir("chats-update", {"session": self.nome, "data": [{
-                    "remoteJid": chat_w, "id": chat_w, "unreadCount": novo,
-                    "previousUnreadCount": antes}]})
+                self.emit("chats-update", {"session": self.name, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, "unreadCount": new,
+                    "previousUnreadCount": before}]})
             except Exception:
-                log.exception("conversa lida no celular")
+                log.exception("chat read on the phone")
 
         @cli.event(nev.ChatArchiveEv)
-        def _arquivada_no_celular(c, e):
+        def _archived_on_phone(c, e):
             try:
-                jid = chat_local(c, e.JID)
-                arq = bool(e.Action.archived)
-                self.bd.conversa(jid, archived=int(arq))
+                jid = local_chat(c, e.JID)
+                arch = bool(e.Action.archived)
+                self.db.chat(jid, archived=int(arch))
                 chat_w = msgmap.jid_wpp(jid)
-                log.info("conversa %s no celular -> app", "arquivada" if arq else "desarquivada")
-                self.emitir("chats-update", {"session": self.nome, "data": [{
-                    "remoteJid": chat_w, "id": chat_w, "archive": arq}]})
+                log.info("chat %s on the phone -> app", "archived" if arch else "unarchived")
+                self.emit("chats-update", {"session": self.name, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, "archive": arch}]})
             except Exception:
-                log.exception("arquivar no celular")
+                log.exception("archive on the phone")
 
         @cli.event(nev.ChatPinEv)
-        def _fixada_no_celular(c, e):
+        def _pinned_on_phone(c, e):
             try:
-                jid = chat_local(c, e.JID)
-                fix = bool(e.Action.pinned)
-                self.bd.conversa(jid, pinned=int(time.time()) if fix else 0)
+                jid = local_chat(c, e.JID)
+                pin = bool(e.Action.pinned)
+                self.db.chat(jid, pinned=int(time.time()) if pin else 0)
                 chat_w = msgmap.jid_wpp(jid)
-                log.info("conversa %s no celular -> app", "fixada" if fix else "desafixada")
-                self.emitir("chats-update", {"session": self.nome, "data": [{
+                log.info("chat %s on the phone -> app", "pinned" if pin else "unpinned")
+                self.emit("chats-update", {"session": self.name, "data": [{
                     "remoteJid": chat_w, "id": chat_w,
-                    "pin": int(time.time()) if fix else False}]})
+                    "pin": int(time.time()) if pin else False}]})
             except Exception:
-                log.exception("fixar no celular")
+                log.exception("pin on the phone")
 
         @cli.event(nev.MessageStarEv)
-        def _estrela_no_celular(c, e):
+        def _starred_on_phone(c, e):
             try:
-                self.bd.mudar_mensagem(e.MessageID, star=bool(e.Action.starred))
-                log.info("mensagem %s no celular", "favoritada" if e.Action.starred else "desfavoritada")
+                self.db.change_message(e.MessageID, star=bool(e.Action.starred))
+                log.info("message %s on the phone", "starred" if e.Action.starred else "unstarred")
             except Exception:
-                log.exception("estrela no celular")
+                log.exception("star on the phone")
 
         @cli.event(nev.MessageDeleteForMeEv)
-        def _apagada_no_celular(c, e):
+        def _deleted_on_phone(c, e):
             try:
                 if e.FromFullSync:
                     return
-                self.bd.apagar_mensagem(e.MessageID)
-                log.info("mensagem apagada no celular")
+                self.db.delete_message(e.MessageID)
+                log.info("message deleted on the phone")
             except Exception:
-                log.exception("apagar no celular")
+                log.exception("delete on the phone")
 
         @cli.event(nev.ChatLockEv)
-        def _trancada_no_celular(c, e):
+        def _locked_on_phone(c, e):
             try:
-                jid = chat_local(c, e.JID)
-                self.bd.conversa(jid, locked=int(bool(e.Action.locked)))
-                log.info("conversa %s no celular", "trancada" if e.Action.locked else "destrancada")
+                jid = local_chat(c, e.JID)
+                self.db.chat(jid, locked=int(bool(e.Action.locked)))
+                log.info("chat %s on the phone", "locked" if e.Action.locked else "unlocked")
             except Exception:
-                log.exception("trancar no celular")
+                log.exception("lock on the phone")
 
         @cli.event(nev.ChatMuteEv)
-        def _silenciada_no_celular(c, e):
+        def _muted_on_phone(c, e):
             try:
-                jid = chat_local(c, e.JID)
-                fim = 0
+                jid = local_chat(c, e.JID)
+                end = 0
                 if e.Action.muted:
-                    fim = msgmap.segundos(e.Action.muteEndTimestamp)                         if e.Action.muteEndTimestamp > 0 else 2**31 - 1
-                self.bd.conversa(jid, muted=int(fim))
-                log.info("conversa %s no celular", "silenciada" if e.Action.muted else "com som de novo")
+                    end = msgmap.seconds(e.Action.muteEndTimestamp)                         if e.Action.muteEndTimestamp > 0 else 2**31 - 1
+                self.db.chat(jid, muted=int(end))
+                log.info("chat %s on the phone", "muted" if e.Action.muted else "with sound again")
             except Exception:
-                log.exception("silenciar no celular")
+                log.exception("mute on the phone")
 
         @cli.event(nev.ReceiptEv)
-        def _recibo(c, e):
+        def _receipt(c, e):
             try:
                 from neonize.proto.Neonize_pb2 import Receipt
-                tipo = Receipt.DESCRIPTOR.fields_by_name["Type"].enum_type \
+                kind = Receipt.DESCRIPTOR.fields_by_name["Type"].enum_type \
                     .values_by_number[e.Type].name
-                ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(tipo)
-                chat = msgmap.jid_wpp(jid_texto(e.MessageSource.Chat))
-                meu = bool(e.MessageSource.IsFromMe)
-                log.info("recibo %s%s (%d mensagem(ns)) em %s -> ack %s", tipo,
-                         " [meu]" if meu else "", len(e.MessageIDs), redigir(chat), ack)
-                # recibo de leitura que vem de mim: li no celular (ou em outro aparelho)
-                if tipo == "READ_SELF" or (tipo == "READ" and meu):
-                    lida_em_outro_aparelho(c, e)
+                ack = {"DELIVERED": 2, "READ": 3, "PLAYED": 4}.get(kind)
+                chat = msgmap.jid_wpp(jid_text(e.MessageSource.Chat))
+                is_mine = bool(e.MessageSource.IsFromMe)
+                log.info("receipt %s%s (%d message(s)) in %s -> ack %s", kind,
+                         " [mine]" if is_mine else "", len(e.MessageIDs), redact(chat), ack)
+                # read receipt that comes from me: I read on the phone (or on another device)
+                if kind == "READ_SELF" or (kind == "READ" and is_mine):
+                    read_on_another_device(c, e)
                     return
-                if tipo == "PLAYED_SELF" or (tipo == "PLAYED" and meu):
-                    ouvida_em_outro_aparelho(c, e)
+                if kind == "PLAYED_SELF" or (kind == "PLAYED" and is_mine):
+                    played_on_another_device(c, e)
                     return
                 if ack is None:
                     return
-                if not meu:
+                if not is_mine:
                     try:
-                        quem = msgmap.jid_wpp(jid_texto(e.MessageSource.Sender))
-                        etapa = {"DELIVERED": "delivered", "READ": "read",
-                                 "PLAYED": "played"}[tipo]
+                        who = msgmap.jid_wpp(jid_text(e.MessageSource.Sender))
+                        stage = {"DELIVERED": "delivered", "READ": "read",
+                                 "PLAYED": "played"}[kind]
                         for mid in e.MessageIDs:
-                            self.bd.recibo(mid, quem, etapa, msgmap.segundos(e.Timestamp))
+                            self.db.receipt(mid, who, stage, msgmap.seconds(e.Timestamp))
                     except Exception:
-                        log.exception("guardar recibo")
+                        log.exception("store receipt")
                 if chat.endswith("@g.us"):
-                    # grupo: o ack so avanca quando TODOS os membros chegaram la
-                    # (recibos_de_grupo.py); um recibo so nao basta
+                    # group: the ack only advances when ALL the members got there
+                    # (group_receipts.py); a single receipt is not enough
                     for mid in e.MessageIDs:
-                        em_grupo = self.ack_de_grupo_a_emitir(chat, mid)
-                        if em_grupo:
-                            self.emitir("onack", {
-                                "session": self.nome, "ack": em_grupo, "to": chat, "from": chat,
+                        in_group = self.group_ack_to_emit(chat, mid)
+                        if in_group:
+                            self.emit("onack", {
+                                "session": self.name, "ack": in_group, "to": chat, "from": chat,
                                 "id": {"fromMe": True, "remote": chat, "id": mid,
                                        "_serialized": f"true_{chat}_{mid}"}})
                     return
                 for mid in e.MessageIDs:
-                    self.emitir("onack", {
-                        "session": self.nome, "ack": ack, "to": chat, "from": chat,
+                    self.emit("onack", {
+                        "session": self.name, "ack": ack, "to": chat, "from": chat,
                         "id": {"fromMe": True, "remote": chat, "id": mid,
                                "_serialized": f"true_{chat}_{mid}"}})
             except Exception:
-                log.exception("recibo")
+                log.exception("receipt")
 
         @cli.event(nev.HistorySyncEv)
-        def _historico(c, e):
+        def _history(c, e):
             try:
-                self._guardar_historico(e.Data)
+                self._store_history(e.Data)
             except Exception:
-                log.exception("historico")
+                log.exception("history")
 
         @cli.event.qr
-        def _qr(c, dados):
-            codigo = dados.decode() if isinstance(dados, bytes) else str(dados)
-            if self._aplicar(geracao, ciclo_sessao.QR) is None:
+        def _qr(c, data):
+            code = data.decode() if isinstance(data, bytes) else str(data)
+            if self._apply(generation, session_lifecycle.QR) is None:
                 return
-            self.urlcode = codigo
-            self.emitir("qrCode", {"session": self.nome, "urlcode": codigo,
-                                   "data": qr_data_url(codigo)})
+            self.urlcode = code
+            self.emit("qrCode", {"session": self.name, "urlcode": code,
+                                 "data": qr_data_url(code)})
 
-        if telefone:
-            def _codigo():
+        if phone_number:
+            def _phone_code():
                 from neonize.utils.enum import ClientName, ClientType
-                # espera a conexao decidir: ja pareada (CONNECTED) nao precisa de codigo
+                # waits for the connection to decide: already paired (CONNECTED) needs no code
                 for _ in range(40):
-                    if self.status in ("QRCODE", "CONNECTED") or not self.ciclo.vigente(geracao):
+                    if self.status in ("QRCODE", "CONNECTED") or not self.lifecycle.current(generation):
                         break
                     time.sleep(0.5)
-                if not self.ciclo.vigente(geracao):
-                    return                      # a sessao foi fechada ou reiniciada
+                if not self.lifecycle.current(generation):
+                    return                      # the session was closed or restarted
                 if self.status == "CONNECTED":
-                    if self.simular_codigo:     # so no modo de teste (--sessao-unica)
-                        self.emitir("phoneCode", {"session": self.nome,
-                                                  "data": "TEST-0000"})
+                    if self.simulate_code:      # only in test mode (--single-session)
+                        self.emit("phoneCode", {"session": self.name,
+                                                "data": "TEST-0000"})
                         time.sleep(2)
-                        self.emitir("session-logged", {"session": self.nome,
-                                                       "status": True})
+                        self.emit("session-logged", {"session": self.name,
+                                                     "status": True})
                     return
-                info_do_erro = {"name": "LinkCodeError", "message": "falha ao gerar o codigo",
-                                "rateLimited": False}
-                for tentativa in range(5):
-                    if not self.ciclo.vigente(geracao):
+                error_info = {"name": "LinkCodeError", "message": "failed to generate the code",
+                              "rateLimited": False}
+                for attempt in range(5):
+                    if not self.lifecycle.current(generation):
                         return
                     try:
-                        cod = cli.PairPhone("".join(ch for ch in telefone if ch.isdigit()),
-                                            True, ClientName.WINDOWS, ClientType.EDGE)
-                        self.emitir("phoneCode", {"session": self.nome, "data": cod})
-                        self._vigiar_codigo(geracao)
+                        pairing_code = cli.PairPhone("".join(ch for ch in phone_number if ch.isdigit()),
+                                                     True, ClientName.WINDOWS, ClientType.EDGE)
+                        self.emit("phoneCode", {"session": self.name, "data": pairing_code})
+                        self._watch_code(generation)
                         return
-                    except Exception as erro:
-                        log.warning("codigo de pareamento, tentativa %d: %s",
-                                    tentativa + 1, type(erro).__name__)
-                        info_do_erro = pareamento.erro_do_codigo(erro)
-                        if info_do_erro["rateLimited"]:
-                            break           # a quota e do numero: repetir a mantem viva
+                    except Exception as error:
+                        log.warning("pairing code, attempt %d: %s",
+                                    attempt + 1, type(error).__name__)
+                        error_info = pairing.code_error(error)
+                        if error_info["rateLimited"]:
+                            break           # the quota is the number's: repeating keeps it alive
                         time.sleep(3)
-                self.emitir("phoneCodeError", {"session": self.nome, **info_do_erro})
-            threading.Thread(target=_codigo, daemon=True).start()
+                self.emit("phoneCodeError", {"session": self.name, **error_info})
+            threading.Thread(target=_phone_code, daemon=True).start()
 
         try:
-            cli.connect()      # bloqueia ate o stop()
+            cli.connect()      # blocks until stop()
         except Exception:
             log.exception("connect")
         finally:
-            self._aplicar(geracao, ciclo_sessao.FIM_DA_THREAD)
+            self._apply(generation, session_lifecycle.THREAD_ENDED)
 
-    def _vigiar_codigo(self, geracao, vida=ciclo_sessao.VIDA_DO_CODIGO, passo=1.0):
-        """Depois do phoneCode: se o codigo vence sem parear, avisa o cliente
-        (LinkCodeExpired) para o usuario nao ficar com um codigo morto. Nao
-        gera outro codigo: sem ninguem pedindo isso gasta a cota por numero
-        (docs/traps/pairing-flow.md). Roda na thread do codigo."""
-        fim = time.monotonic() + vida
-        while time.monotonic() < fim:
-            if not self.ciclo.vigente(geracao) or self.status != "QRCODE":
-                return                  # pareou, fechou ou reiniciou: nada a avisar
-            time.sleep(min(passo, max(0.0, fim - time.monotonic())))
-        if self.ciclo.vigente(geracao) and self.status == "QRCODE":
-            self.emitir("phoneCodeError", ciclo_sessao.aviso_de_codigo_expirado(self.nome))
+    def _watch_code(self, generation, lifetime=session_lifecycle.CODE_LIFETIME, step=1.0):
+        """After the phoneCode: if the code expires without pairing, tells the client
+        (LinkCodeExpired) so the user is not left with a dead code. Does not
+        generate another code: with nobody asking, that spends the per-number
+        quota (docs/traps/pairing-flow.md). Runs on the code's thread."""
+        end = time.monotonic() + lifetime
+        while time.monotonic() < end:
+            if not self.lifecycle.current(generation) or self.status != "QRCODE":
+                return                  # paired, closed or restarted: nothing to warn about
+            time.sleep(min(step, max(0.0, end - time.monotonic())))
+        if self.lifecycle.current(generation) and self.status == "QRCODE":
+            self.emit("phoneCodeError", session_lifecycle.code_expired_notice(self.name))
 
-    def _guardar_historico(self, dados):
-        progresso = historico_progresso.progresso_de(self, time.monotonic())
-        progresso.comecou(time.monotonic())
-        percentual = None
+    def _store_history(self, data):
+        progress = history_progress.progress_of(self, time.monotonic())
+        progress.started(time.monotonic())
+        percent = None
         try:
-            percentual = self._guardar_bloco_do_historico(dados)
+            percent = self._store_history_block(data)
         finally:
-            progresso.terminou(time.monotonic(), percentual)
+            progress.finished(time.monotonic(), percent)
 
-    def _guardar_bloco_do_historico(self, dados):
-        """Guarda um bloco do historico; devolve o progresso (0-100) que ele traz."""
-        for x in dados.pushnames:
+    def _store_history_block(self, data):
+        """Stores a block of the history; returns the progress (0-100) it brings."""
+        for x in data.pushnames:
             if x.ID and x.pushname:
-                self.bd.contato(x.ID, pushname=x.pushname)
+                self.db.contact(x.ID, pushname=x.pushname)
         total = 0
-        for c in dados.conversations:
+        for c in data.conversations:
             jid = c.ID
             if not jid or jid.endswith("@broadcast") or jid.endswith("@newsletter"):
                 continue
-            campos = {"name": c.name or c.displayName or None,
-                      "ts": msgmap.segundos(c.conversationTimestamp or c.lastMsgTimestamp)}
+            fields = {"name": c.name or c.displayName or None,
+                      "ts": msgmap.seconds(c.conversationTimestamp or c.lastMsgTimestamp)}
             if c.HasField("unreadCount"):
-                campos["unread"] = int(c.unreadCount)
+                fields["unread"] = int(c.unreadCount)
             if c.HasField("archived"):
-                campos["archived"] = int(bool(c.archived))
+                fields["archived"] = int(bool(c.archived))
             if c.HasField("pinned"):
-                # nao sei dizer a unidade (ordem ou hora de fixar); o app so olha
-                # se e maior que zero. A ponte tambem nao impoe o limite de 3
-                # conversas fixadas: o WhatsApp recusa a quarta
-                campos["pinned"] = int(c.pinned)
+                # I cannot tell the unit (order or pinning time); the app only looks
+                # at whether it is greater than zero. The bridge does not enforce the
+                # limit of 3 pinned chats either: WhatsApp refuses the fourth
+                fields["pinned"] = int(c.pinned)
             if c.HasField("muteEndTime"):
-                campos["muted"] = int(c.muteEndTime)
+                fields["muted"] = int(c.muteEndTime)
             if c.HasField("locked"):
-                campos["locked"] = int(bool(c.locked))
-            self.bd.conversa(jid, **{k: v for k, v in campos.items() if v is not None})
-            linhas = []
+                fields["locked"] = int(bool(c.locked))
+            self.db.chat(jid, **{k: v for k, v in fields.items() if v is not None})
+            rows = []
             for h in c.messages:
                 m = h.message
-                chave = m.key
-                w = msgmap.montar(
-                    conversa=jid, de_mim=bool(chave.fromMe), id=chave.ID,
-                    remetente=chave.participant or m.participant
-                    or ("" if chave.fromMe else jid),
-                    ts=m.messageTimestamp, mensagem=m.message,
-                    nome_de_quem=m.pushName)
+                key = m.key
+                w = msgmap.build(
+                    chat=jid, from_me=bool(key.fromMe), id=key.ID,
+                    sender=key.participant or m.participant
+                    or ("" if key.fromMe else jid),
+                    ts=m.messageTimestamp, message=m.message,
+                    sender_name=m.pushName)
                 if w is not None and w["id"]["id"]:
                     if m.starred:
                         w["star"] = True
-                    linhas.append((jid, w, msgmap.ficha_midia(m.message)))
-            self.bd.mensagens_em_lote(linhas)
-            total += len(linhas)
-        log.info("historico: %d conversas, %d mensagens (%s%%)",
-                 len(dados.conversations), total, dados.progress)
-        return dados.progress
+                    rows.append((jid, w, msgmap.media_record_of(m.message)))
+            self.db.messages_in_batch(rows)
+            total += len(rows)
+        log.info("history: %d chats, %d messages (%s%%)",
+                 len(data.conversations), total, data.progress)
+        return data.progress
 
-    COLECOES = ("regular_high", "regular_low", "regular",
-                "critical_unblock_low", "critical_block")
+    COLLECTIONS = ("regular_high", "regular_low", "regular",
+                   "critical_unblock_low", "critical_block")
 
-    def _conferir_estado(self):
-        """Confere as colecoes do estado do app (lida/nao lida, fixar, silenciar...).
-        Uma colecao fora de sincronia ("mismatching LTHash") faz as mudancas do
-        celular pararem de chegar e as daqui serem recusadas."""
-        time.sleep(5)       # deixa a sincronia inicial terminar
-        for nome in self.COLECOES:
-            self.reparar_colecao(nome, forcar=False)
+    def _check_state(self):
+        """Checks the app state collections (read/unread, pin, mute...).
+        A collection out of sync ("mismatching LTHash") makes the phone's changes
+        stop arriving and the ones from here be refused."""
+        time.sleep(5)       # lets the initial sync finish
+        for name in self.COLLECTIONS:
+            self.repair_collection(name, force=False)
 
-    def _conferir_sempre(self):
-        """De minuto em minuto busca as mudancas do estado do app que o celular
-        fez e o aviso ao vivo deixou passar (ler uma conversa, por exemplo)."""
-        if getattr(self, "_busca_ativa", False):     # um laco so, mesmo reconectando
+    def _check_always(self):
+        """Every minute fetches the app state changes that the phone made and the
+        live notice let slip (reading a chat, for example)."""
+        if getattr(self, "_fetch_active", False):     # a single loop, even when reconnecting
             return
-        self._busca_ativa = True
+        self._fetch_active = True
         try:
             while self.status == "CONNECTED":
                 time.sleep(60)
-                self.buscar_mudancas()
+                self.fetch_changes()
         finally:
-            self._busca_ativa = False
+            self._fetch_active = False
 
-    INTERVALO_DA_COPIA = 300        # segundos entre dois pedidos de copia ao celular
+    COPY_INTERVAL = 300        # seconds between two copy requests to the phone
 
-    def pedir_copia_do_estado(self, nomes=("regular_low", "regular_high")):
-        """Pede ao celular a copia do estado. Mudancas que ele fez mas nao subiu
-        como atualizacao (acontece com arquivar) so chegam assim. O iPhone so
-        responde com o WhatsApp aberto na tela; sem resposta, tenta de novo
-        na proxima rodada. Devolve quantas mudancas novas chegaram."""
-        if self.cliente is None or self.status != "CONNECTED":
+    def request_state_copy(self, names=("regular_low", "regular_high")):
+        """Asks the phone for the copy of the state. Changes it made but did not
+        upload as an update (it happens with archiving) only arrive this way. The
+        iPhone only answers with WhatsApp open on the screen; with no answer, it
+        tries again in the next round. Returns how many new changes arrived."""
+        if self.client is None or self.status != "CONNECTED":
             return 0
-        antes = self.bd.contagem_de_estados()
-        for nome in nomes:
+        before = self.db.state_counts()
+        for name in names:
             try:
-                self.cliente.request_app_state_recovery(nome)
-            except Exception as erro:
-                log.info("pedido de copia do estado %s: %s", nome, erro)
+                self.client.request_app_state_recovery(name)
+            except Exception as error:
+                log.info("state copy request %s: %s", name, error)
                 continue
-            for _ in range(8):          # espera ate ~40 s pela resposta
+            for _ in range(8):          # waits up to ~40 s for the answer
                 time.sleep(5)
                 try:
-                    self.cliente.fetch_app_state(nome, full_sync=False)
-                except Exception as erro:
-                    if "LTHash" not in str(erro):
-                        log.info("estado %s: %s", nome, erro)
+                    self.client.fetch_app_state(name, full_sync=False)
+                except Exception as error:
+                    if "LTHash" not in str(error):
+                        log.info("state %s: %s", name, error)
                         break
-        depois = self.bd.contagem_de_estados()
-        log.info("copia do estado pedida: arquivadas %d -> %d, fixadas %d -> %d",
-                 antes[0], depois[0], antes[1], depois[1])
-        return abs(depois[0] - antes[0]) + abs(depois[1] - antes[1])
+        after = self.db.state_counts()
+        log.info("state copy requested: archived %d -> %d, pinned %d -> %d",
+                 before[0], after[0], before[1], after[1])
+        return abs(after[0] - before[0]) + abs(after[1] - before[1])
 
-    def _copia_sempre(self):
-        if getattr(self, "_copia_ativa", False):
+    def _copy_always(self):
+        if getattr(self, "_copy_active", False):
             return
-        self._copia_ativa = True
+        self._copy_active = True
         try:
             while self.status == "CONNECTED":
-                time.sleep(self.INTERVALO_DA_COPIA)
-                self.pedir_copia_do_estado()
+                time.sleep(self.COPY_INTERVAL)
+                self.request_state_copy()
         finally:
-            self._copia_ativa = False
+            self._copy_active = False
 
-    def conferir_ajustes(self):
-        """Le do armazem do whatsmeow (que os avisos de estado do celular mantem em
-        dia) se cada conversa esta arquivada, fixada e silenciada, e acompanha o
-        que mudou, do mesmo jeito que os avisos ao vivo. Mudancas que o celular
-        fez e nao chegaram como aviso (ou que chegaram antes de o app olhar)
-        aparecem aqui."""
-        c = self.cliente
+    def check_settings(self):
+        """Reads from whatsmeow's store (which the phone's state notices keep up to
+        date) whether each chat is archived, pinned and muted, and follows what
+        changed, the same way as the live notices. Changes the phone made that did
+        not arrive as a notice (or that arrived before the app looked) show up here."""
+        c = self.client
         if c is None or self.status != "CONNECTED" or not hasattr(c, "chat_settings"):
             return 0
         from neonize.utils import build_jid
-        mudou = 0
-        for conv in self.bd.conversas():
+        changed = 0
+        for conv in self.db.chats():
             jid = conv["jid"]
-            usuario, _, servidor = jid.partition("@")
-            if servidor in ("broadcast", "newsletter") or not usuario:
+            user, _, server = jid.partition("@")
+            if server in ("broadcast", "newsletter") or not user:
                 continue
-            candidatos = [build_jid(usuario, servidor)]
-            if servidor == "s.whatsapp.net":
+            candidates = [build_jid(user, server)]
+            if server == "s.whatsapp.net":
                 try:
-                    lid = c.get_lid_from_pn(candidatos[0])
+                    lid = c.get_lid_from_pn(candidates[0])
                     if lid.User:
-                        candidatos.append(lid)
+                        candidates.append(lid)
                 except Exception:
                     pass
-            dados = None
-            for alvo in candidatos:
+            data = None
+            for target in candidates:
                 try:
-                    achado = c.chat_settings.get_chat_settings(alvo)
+                    found = c.chat_settings.get_chat_settings(target)
                 except Exception:
                     continue
-                if achado.Found:
-                    dados = achado
+                if found.Found:
+                    data = found
                     break
-            if dados is None:
+            if data is None:
                 continue
-            arquivada, fixada = bool(dados.Archived), bool(dados.Pinned)
-            campos, avisos = {}, {}
-            if arquivada != bool(conv["archived"]):
-                campos["archived"] = int(arquivada)
-                avisos["archive"] = arquivada
-            if fixada != (conv["pinned"] > 0):
-                campos["pinned"] = int(time.time()) if fixada else 0
-                avisos["pin"] = campos["pinned"] if fixada else False
-            fim = int(dados.MutedUntil) if dados.MutedUntil > 0 else 0
-            if fim > 4e9:
-                fim = 2**31 - 1
-            if (fim > 0) != (conv["muted"] > 0):
-                campos["muted"] = fim
-            if not campos:
+            is_archived, is_pinned = bool(data.Archived), bool(data.Pinned)
+            fields, notices = {}, {}
+            if is_archived != bool(conv["archived"]):
+                fields["archived"] = int(is_archived)
+                notices["archive"] = is_archived
+            if is_pinned != (conv["pinned"] > 0):
+                fields["pinned"] = int(time.time()) if is_pinned else 0
+                notices["pin"] = fields["pinned"] if is_pinned else False
+            end = int(data.MutedUntil) if data.MutedUntil > 0 else 0
+            if end > 4e9:
+                end = 2**31 - 1
+            if (end > 0) != (conv["muted"] > 0):
+                fields["muted"] = end
+            if not fields:
                 continue
-            self.bd.conversa(jid, **campos)
-            mudou += 1
-            if avisos:
+            self.db.chat(jid, **fields)
+            changed += 1
+            if notices:
                 chat_w = msgmap.jid_wpp(jid)
-                self.emitir("chats-update", {"session": self.nome, "data": [{
-                    "remoteJid": chat_w, "id": chat_w, **avisos}]})
-        if mudou:
-            log.info("ajustes lidos do armazem: %d conversa(s) mudaram", mudou)
-        return mudou
+                self.emit("chats-update", {"session": self.name, "data": [{
+                    "remoteJid": chat_w, "id": chat_w, **notices}]})
+        if changed:
+            log.info("settings read from the store: %d chat(s) changed", changed)
+        return changed
 
-    def buscar_mudancas(self):
-        """fetch_app_state de regular_low/high: os avisos novos viram eventos."""
-        agora = time.monotonic()
-        if agora - getattr(self, "_ultima_busca", 0) < 15 or self.status != "CONNECTED":
+    def fetch_changes(self):
+        """fetch_app_state of regular_low/high: the new notices become events."""
+        now = time.monotonic()
+        if now - getattr(self, "_last_fetch", 0) < 15 or self.status != "CONNECTED":
             return
-        self._ultima_busca = agora
+        self._last_fetch = now
         try:
-            self.conferir_ajustes()
+            self.check_settings()
         except Exception:
-            log.exception("conferir ajustes")
-        for nome in ("regular_low", "regular_high"):
+            log.exception("check settings")
+        for name in ("regular_low", "regular_high"):
             try:
-                self.cliente.fetch_app_state(nome, full_sync=False)
-            except Exception as erro:
-                if "LTHash" in str(erro):
-                    self.reparar_colecao(nome, forcar=False)
+                self.client.fetch_app_state(name, full_sync=False)
+            except Exception as error:
+                if "LTHash" in str(error):
+                    self.repair_collection(name, force=False)
                 else:
-                    log.info("busca do estado %s: %s", nome, erro)
+                    log.info("state fetch %s: %s", name, error)
 
-    def reparar_colecao(self, nome, forcar=True):
-        c = self.cliente
+    def repair_collection(self, name, force=True):
+        c = self.client
         if c is None or self.status != "CONNECTED":
             return False
         try:
-            c.fetch_app_state(nome, full_sync=forcar)
-            log.info("estado %s conferido%s", nome, " (baixado de novo)" if forcar else "")
+            c.fetch_app_state(name, full_sync=force)
+            log.info("state %s checked%s", name, " (downloaded again)" if force else "")
             return True
-        except Exception as erro:
-            if "LTHash" not in str(erro):
-                log.warning("estado %s: %s", nome, erro)
+        except Exception as error:
+            if "LTHash" not in str(error):
+                log.warning("state %s: %s", name, error)
                 return False
-            if not forcar:
-                log.warning("estado %s fora de sincronia; baixando de novo", nome)
-                return self.reparar_colecao(nome, forcar=True)
-            return self._recuperar_colecao(nome)
+            if not force:
+                log.warning("state %s out of sync; downloading again", name)
+                return self.repair_collection(name, force=True)
+            return self._recover_collection(name)
 
-    def _recuperar_colecao(self, nome):
-        """Pede ao celular uma copia nova do estado (o iPhone so responde com o
-        WhatsApp aberto na tela)."""
-        log.warning("estado %s: pedindo ao celular uma copia nova", nome)
+    def _recover_collection(self, name):
+        """Asks the phone for a fresh copy of the state (the iPhone only answers with
+        WhatsApp open on the screen)."""
+        log.warning("state %s: asking the phone for a fresh copy", name)
         try:
-            self.cliente.request_app_state_recovery(nome)
-        except Exception as erro:
-            log.warning("nao consegui pedir a copia do estado: %s", erro)
+            self.client.request_app_state_recovery(name)
+        except Exception as error:
+            log.warning("could not request the state copy: %s", error)
             return False
         for _ in range(18):
             time.sleep(5)
             try:
-                self.cliente.fetch_app_state(nome)
-                log.info("estado %s recuperado com a copia do celular", nome)
+                self.client.fetch_app_state(name)
+                log.info("state %s recovered with the phone's copy", name)
                 return True
-            except Exception as erro:
-                if "LTHash" not in str(erro):
-                    log.warning("estado %s: %s", nome, erro)
+            except Exception as error:
+                if "LTHash" not in str(error):
+                    log.warning("state %s: %s", name, error)
                     return False
-        log.warning("o celular nao respondeu ao pedido do estado %s: abra o WhatsApp no celular", nome)
+        log.warning("the phone did not answer the request for state %s: open WhatsApp on the phone", name)
         return False
 
-    def _carregar_nomes(self):
+    def _load_names(self):
         try:
-            for c in self.cliente.contact.get_all_contacts():
-                nome = c.Info.FullName or c.Info.FirstName
-                self.bd.contato(jid_texto(c.JID), name=nome or None,
+            for c in self.client.contact.get_all_contacts():
+                name = c.Info.FullName or c.Info.FirstName
+                self.db.contact(jid_text(c.JID), name=name or None,
                                 pushname=c.Info.PushName or None)
         except Exception:
-            log.exception("contatos")
+            log.exception("contacts")
         try:
-            for g in self.cliente.get_joined_groups():
-                self.bd.conversa(jid_texto(g.JID), name=g.GroupName.Name)
-                self.elenco_registrar(g)    # membros, para o ack de grupo (recibos_de_grupo)
+            for g in self.client.get_joined_groups():
+                self.db.chat(jid_text(g.JID), name=g.GroupName.Name)
+                self.roster_register(g)    # members, for the group ack (group_receipts)
         except Exception:
-            log.exception("grupos")
+            log.exception("groups")
 
-    def estado_lida(self, conversa, lida):
-        """Marca a conversa como lida (ou nao lida) no celular e nos outros
-        aparelhos, pelo aviso de estado markChatAsRead."""
+    def state_read(self, conversation, read_flag):
+        """Marks the chat as read (or unread) on the phone and the other devices,
+        through the markChatAsRead state notice."""
         from neonize.proto.Neonize_pb2 import MutationInfo, PatchInfo
         from neonize.proto.waCommon.WACommon_pb2 import MessageKey
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             MarkChatAsReadAction, SyncActionMessage, SyncActionMessageRange,
             SyncActionValue)
-        ultima = self.bd.ultima_bruta(conversa)
-        faixa = SyncActionMessageRange()
-        if ultima is not None:
-            faixa.lastMessageTimestamp = int(ultima["t"])
-            chave = MessageKey(remoteJID=conversa, fromMe=bool(ultima.get("fromMe")),
-                               ID=ultima["id"]["id"])
-            if conversa.endswith("@g.us") and not ultima.get("fromMe") and ultima.get("author"):
-                chave.participant = msgmap.jid_whatsmeow(ultima["author"])
-            faixa.messages.append(SyncActionMessage(key=chave, timestamp=int(ultima["t"])))
+        last = self.db.raw_last(conversation)
+        range_ = SyncActionMessageRange()
+        if last is not None:
+            range_.lastMessageTimestamp = int(last["t"])
+            key = MessageKey(remoteJID=conversation, fromMe=bool(last.get("fromMe")),
+                             ID=last["id"]["id"])
+            if conversation.endswith("@g.us") and not last.get("fromMe") and last.get("author"):
+                key.participant = msgmap.jid_whatsmeow(last["author"])
+            range_.messages.append(SyncActionMessage(key=key, timestamp=int(last["t"])))
         patch = PatchInfo(
             Timestamp=time.time_ns(), Type=PatchInfo.REGULAR_LOW,
             Mutations=[MutationInfo(
-                Index=["markChatAsRead", conversa], Version=3,
+                Index=["markChatAsRead", conversation], Version=3,
                 Value=SyncActionValue(markChatAsReadAction=MarkChatAsReadAction(
-                    read=bool(lida), messageRange=faixa)))])
+                    read=bool(read_flag), messageRange=range_)))])
         try:
             try:
-                self.cliente.send_app_state(patch)
-            except Exception as erro:
-                if "LTHash" not in str(erro) and "409" not in str(erro):
+                self.client.send_app_state(patch)
+            except Exception as error:
+                if "LTHash" not in str(error) and "409" not in str(error):
                     raise
-                # colecao fora de sincronia: baixa de novo e tenta mais uma vez
-                if not self.reparar_colecao("regular_low"):
+                # collection out of sync: download it again and try once more
+                if not self.repair_collection("regular_low"):
                     raise
-                self.cliente.send_app_state(patch)
-            log.info("conversa marcada como %s no celular", "lida" if lida else "nao lida")
+                self.client.send_app_state(patch)
+            log.info("chat marked as %s on the phone", "read" if read_flag else "unread")
             return True
         except Exception:
-            log.exception("aviso de estado (lida) nao aceito")
+            log.exception("state notice (read) not accepted")
             return False
 
-    def enviar_estado(self, indice, versao, tipo, valor, conversa, extra=()):
-        """Aviso de estado generico (arquivar, fixar...): True se o WhatsApp aceitou."""
+    def send_state(self, index, version, kind, value, conversation, extra=()):
+        """Generic state notice (archive, pin...): True if WhatsApp accepted."""
         from neonize.proto.Neonize_pb2 import MutationInfo, PatchInfo
-        if self.cliente is None or self.status != "CONNECTED":
+        if self.client is None or self.status != "CONNECTED":
             return False
-        patch = PatchInfo(Timestamp=time.time_ns(), Type=tipo, Mutations=[
-            MutationInfo(Index=[indice, conversa, *extra], Version=versao, Value=valor)])
-        colecao = {PatchInfo.REGULAR_LOW: "regular_low",
-                   PatchInfo.REGULAR_HIGH: "regular_high"}.get(tipo, "regular_low")
+        patch = PatchInfo(Timestamp=time.time_ns(), Type=kind, Mutations=[
+            MutationInfo(Index=[index, conversation, *extra], Version=version, Value=value)])
+        collection = {PatchInfo.REGULAR_LOW: "regular_low",
+                      PatchInfo.REGULAR_HIGH: "regular_high"}.get(kind, "regular_low")
         try:
             try:
-                self.cliente.send_app_state(patch)
-            except Exception as erro:
-                if "LTHash" not in str(erro) and "409" not in str(erro):
+                self.client.send_app_state(patch)
+            except Exception as error:
+                if "LTHash" not in str(error) and "409" not in str(error):
                     raise
-                if not self.reparar_colecao(colecao):
+                if not self.repair_collection(collection):
                     raise
-                self.cliente.send_app_state(patch)
+                self.client.send_app_state(patch)
             return True
         except Exception:
-            log.exception("aviso de estado %s nao aceito", indice)
+            log.exception("state notice %s not accepted", index)
             return False
 
-    def arquivar(self, conversa, arquivar):
+    def archive(self, conversation, archive):
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             ArchiveChatAction, SyncActionMessageRange, SyncActionValue)
-        ultima = self.bd.ultima_bruta(conversa)
-        quando = int(ultima["t"]) if ultima else int(time.time())
-        ok_ = self.enviar_estado(
+        last = self.db.raw_last(conversation)
+        when = int(last["t"]) if last else int(time.time())
+        ok_ = self.send_state(
             "archive", 3, PatchInfo.REGULAR_LOW,
             SyncActionValue(archiveChatAction=ArchiveChatAction(
-                archived=bool(arquivar),
-                messageRange=SyncActionMessageRange(lastMessageTimestamp=quando))),
-            conversa)
+                archived=bool(archive),
+                messageRange=SyncActionMessageRange(lastMessageTimestamp=when))),
+            conversation)
         if ok_:
-            self.bd.conversa(conversa, archived=int(bool(arquivar)))
+            self.db.chat(conversation, archived=int(bool(archive)))
         return ok_
 
-    def fixar(self, conversa, fixar):
+    def pin(self, conversation, pin):
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             PinAction, SyncActionValue)
-        ok_ = self.enviar_estado(
+        ok_ = self.send_state(
             "pin_v1", 5, PatchInfo.REGULAR_LOW,
-            SyncActionValue(pinAction=PinAction(pinned=bool(fixar))), conversa)
+            SyncActionValue(pinAction=PinAction(pinned=bool(pin))), conversation)
         if ok_:
-            self.bd.conversa(conversa, pinned=int(time.time()) if fixar else 0)
+            self.db.chat(conversation, pinned=int(time.time()) if pin else 0)
         return ok_
 
     @staticmethod
-    def partes_do_id(serial):
-        """'true_<conversa>_<ID>[_autor]' -> (de_mim, conversa whatsmeow, ID, autor whatsmeow ou '')."""
+    def id_parts(serial):
+        """'true_<chat>_<ID>[_author]' -> (from_me, whatsmeow chat, ID, whatsmeow author or '')."""
         p = serial.split("_")
         if len(p) < 3:
             return False, "", serial, ""
         return p[0] == "true", msgmap.jid_whatsmeow(p[1]), p[2], \
             msgmap.jid_whatsmeow(p[3]) if len(p) > 3 else ""
 
-    def _indice_da_mensagem(self, serial):
-        de_mim, conversa, mid, autor = self.partes_do_id(serial)
-        participante = autor if (conversa.endswith("@g.us") and not de_mim and autor) else "0"
-        return conversa, mid, ("1" if de_mim else "0", participante)
+    def _message_index(self, serial):
+        from_me, conversation, mid, author = self.id_parts(serial)
+        participant = author if (conversation.endswith("@g.us") and not from_me and author) else "0"
+        return conversation, mid, ("1" if from_me else "0", participant)
 
-    def favoritar(self, serial, estrela):
+    def star(self, serial, starred):
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import StarAction, SyncActionValue
-        conversa, mid, (minha, participante) = self._indice_da_mensagem(serial)
-        ok_ = self.enviar_estado(
+        conversation, mid, (own, participant) = self._message_index(serial)
+        ok_ = self.send_state(
             "star", 2, PatchInfo.REGULAR_HIGH,
-            SyncActionValue(starAction=StarAction(starred=bool(estrela))),
-            conversa, extra=(mid, minha, participante))
+            SyncActionValue(starAction=StarAction(starred=bool(starred))),
+            conversation, extra=(mid, own, participant))
         if ok_:
-            self.bd.mudar_mensagem(mid, star=bool(estrela))
+            self.db.change_message(mid, star=bool(starred))
         return ok_
 
-    def silenciar(self, conversa, segundos):
-        """segundos: 0 = tirar o silencio; -1 = para sempre."""
+    def mute(self, conversation, seconds):
+        """seconds: 0 = remove the mute; -1 = forever."""
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import MuteAction, SyncActionValue
-        acao = MuteAction(muted=segundos != 0)
-        if segundos != 0:
-            acao.muteEndTimestamp = -1 if segundos < 0 else int((time.time() + segundos) * 1000)
-        ok_ = self.enviar_estado("mute", 2, PatchInfo.REGULAR_HIGH,
-                                 SyncActionValue(muteAction=acao), conversa)
+        action = MuteAction(muted=seconds != 0)
+        if seconds != 0:
+            action.muteEndTimestamp = -1 if seconds < 0 else int((time.time() + seconds) * 1000)
+        ok_ = self.send_state("mute", 2, PatchInfo.REGULAR_HIGH,
+                              SyncActionValue(muteAction=action), conversation)
         if ok_:
-            fim = 0 if segundos == 0 else (2**31 - 1 if segundos < 0 else int(time.time() + segundos))
-            self.bd.conversa(conversa, muted=fim)
+            end = 0 if seconds == 0 else (2**31 - 1 if seconds < 0 else int(time.time() + seconds))
+            self.db.chat(conversation, muted=end)
         return ok_
 
-    def apagar_para_mim(self, serial):
+    def delete_for_me(self, serial):
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             DeleteMessageForMeAction, SyncActionValue)
-        conversa, mid, (minha, participante) = self._indice_da_mensagem(serial)
-        original = self.bd.mensagem_wpp(mid) or {}
-        ok_ = self.enviar_estado(
+        conversation, mid, (own, participant) = self._message_index(serial)
+        original = self.db.wpp_message(mid) or {}
+        ok_ = self.send_state(
             "deleteMessageForMe", 3, PatchInfo.REGULAR_HIGH,
             SyncActionValue(deleteMessageForMeAction=DeleteMessageForMeAction(
                 deleteMedia=True, messageTimestamp=int(original.get("t", time.time())))),
-            conversa, extra=(mid, minha, participante))
+            conversation, extra=(mid, own, participant))
         if ok_:
-            self.bd.apagar_mensagem(mid)
+            self.db.delete_message(mid)
         return ok_
 
-    def apagar_para_todos(self, serial):
-        de_mim, conversa, mid, autor = self.partes_do_id(serial)
-        if self.cliente is None or self.status != "CONNECTED":
+    def delete_for_everyone(self, serial):
+        from_me, conversation, mid, author = self.id_parts(serial)
+        if self.client is None or self.status != "CONNECTED":
             return False
-        quem = regras_de_mensagem.autor_da_revogacao(
-            de_mim, conversa.endswith("@g.us"), self.eu, autor,
-            self.bd.mensagem_wpp(mid) or {})
-        if not quem:
+        who = message_rules.revocation_author(
+            from_me, conversation.endswith("@g.us"), self.me, author,
+            self.db.wpp_message(mid) or {})
+        if not who:
             return False
         from neonize.utils import build_jid
-        u, _, srv = conversa.partition("@")
+        u, _, srv = conversation.partition("@")
         try:
-            eu_u, _, eu_srv = quem.partition("@")
-            self.cliente.revoke_message(build_jid(u, srv), build_jid(eu_u, eu_srv), mid)
+            me_u, _, me_srv = who.partition("@")
+            self.client.revoke_message(build_jid(u, srv), build_jid(me_u, me_srv), mid)
         except Exception:
-            log.exception("revogar")
+            log.exception("revoke")
             return False
-        self.bd.mudar_mensagem(mid, type="revoked", body="")
+        self.db.change_message(mid, type="revoked", body="")
         return True
 
-    def marcar_ouvida(self, serial):
+    def mark_played(self, serial):
         from neonize.utils import build_jid
         from neonize.utils.enum import ReceiptType
-        de_mim, conversa, mid, autor = self.partes_do_id(serial)
-        if de_mim or self.cliente is None or self.status != "CONNECTED":
+        from_me, conversation, mid, author = self.id_parts(serial)
+        if from_me or self.client is None or self.status != "CONNECTED":
             return False
-        original = self.bd.mensagem_wpp(mid) or {}
-        quem = autor or msgmap.jid_whatsmeow(original.get("author") or original.get("from") or conversa)
-        cu, _, csrv = conversa.partition("@")
-        qu, _, qsrv = quem.partition("@")
+        original = self.db.wpp_message(mid) or {}
+        who = author or msgmap.jid_whatsmeow(original.get("author") or original.get("from") or conversation)
+        cu, _, csrv = conversation.partition("@")
+        qu, _, qsrv = who.partition("@")
         try:
-            self.cliente.mark_read(mid, chat=build_jid(cu, csrv), sender=build_jid(qu, qsrv),
-                                   receipt=ReceiptType.PLAYED)
+            self.client.mark_read(mid, chat=build_jid(cu, csrv), sender=build_jid(qu, qsrv),
+                                  receipt=ReceiptType.PLAYED)
         except Exception:
             log.exception("mark_played")
             return False
-        self.bd.mudar_mensagem(mid, played=True)
+        self.db.change_message(mid, played=True)
         return True
 
-    def marcar_nao_lida(self, conversa):
-        self.bd.conversa(conversa, unread=1)
-        if self.cliente is not None and self.status == "CONNECTED":
-            self.estado_lida(conversa, False)
+    def mark_unread(self, conversation):
+        self.db.chat(conversation, unread=1)
+        if self.client is not None and self.status == "CONNECTED":
+            self.state_read(conversation, False)
 
-    def marcar_lidas(self, conversa, forcar=False):
-        """Quantas mensagens receberam o recibo de leitura (ver ler_e_confirmar)."""
-        return self.ler_e_confirmar(conversa, forcar)[0]
+    def mark_read(self, conversation, force=False):
+        """How many messages received the read receipt (see read_and_confirm)."""
+        return self.read_and_confirm(conversation, force)[0]
 
-    def ler_e_confirmar(self, conversa, forcar=False):
-        """Manda o recibo de leitura das mensagens recebidas e ainda nao lidas
-        e marca a conversa como lida tambem no celular. Devolve (quantas, ok):
-        ok e False se algum recibo nao saiu (send-seen so confirma o que saiu).
-        Um aviso de estado recusado (a conversa continua nao lida no celular)
-        fica no log: os recibos, que o contato ve, e que contam aqui."""
-        if self.cliente is None or self.status != "CONNECTED":
+    def read_and_confirm(self, conversation, force=False):
+        """Sends the read receipt of the received messages not yet read and marks
+        the chat as read on the phone too. Returns (how many, ok): ok is False if
+        some receipt did not go out (send-seen only confirms what went out).
+        A refused state notice (the chat stays unread on the phone) is left in the
+        log: the receipts, which the contact sees, are what count here."""
+        if self.client is None or self.status != "CONNECTED":
             return 0, False
-        tinha_nao_lidas = self.bd.nao_lidas(conversa) > 0
-        a_ler = self.bd.recebidas_a_ler(conversa)
-        if tinha_nao_lidas or forcar:     # forcar: o app pediu (o celular pode ainda ter o contador)
-            self.estado_lida(conversa, True)
-        if not a_ler:
+        had_unread = self.db.unread(conversation) > 0
+        to_read = self.db.received_to_read(conversation)
+        if had_unread or force:     # force: the app asked (the phone may still have the counter)
+            self.state_read(conversation, True)
+        if not to_read:
             return 0, True
         from neonize.utils import build_jid
         from neonize.utils.enum import ReceiptType
 
-        def jid_de(texto):
-            u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
+        def jid_of(text):
+            u, _, srv = msgmap.jid_whatsmeow(text).partition("@")
             return build_jid(u, srv)
 
-        por_autor = {}
-        for mid, autor, ts in a_ler:
-            por_autor.setdefault(autor, []).append(mid)
-        enviados = True
-        for autor, ids in por_autor.items():
+        by_author = {}
+        for mid, author, ts in to_read:
+            by_author.setdefault(author, []).append(mid)
+        sent = True
+        for author, ids in by_author.items():
             try:
-                self.cliente.mark_read(*ids, chat=jid_de(conversa), sender=jid_de(autor),
-                                       receipt=ReceiptType.READ)
+                self.client.mark_read(*ids, chat=jid_of(conversation), sender=jid_of(author),
+                                      receipt=ReceiptType.READ)
             except Exception:
                 log.exception("mark_read")
-                enviados = False
-        log.info("lidas %d mensagem(ns) em %s", len(a_ler), redigir(conversa))
-        return len(a_ler), enviados
+                sent = False
+        log.info("read %d message(s) in %s", len(to_read), redact(conversation))
+        return len(to_read), sent
 
-    def parar(self, status=None):
-        """Fecha a sessao: disconnect() fecha o socket e stop() cancela o
-        contexto do Go, o unico jeito de o connect() da thread voltar. A thread
-        termina sozinha; iniciar() espera por ela. Idempotente."""
-        with self._trava_do_ciclo:
-            self.ciclo.encerrar(status)
-            c = self.cliente
+    def stop(self, status=None):
+        """Closes the session: disconnect() closes the socket and stop() cancels
+        Go's context, the only way for the thread's connect() to return. The
+        thread finishes on its own; begin() waits for it. Idempotent."""
+        with self._lifecycle_lock:
+            self.lifecycle.end(status)
+            c = self.client
             if c is not None:
-                for acao in (c.disconnect, c.stop):
+                for action in (c.disconnect, c.stop):
                     try:
-                        acao()
+                        action()
                     except Exception:
-                        log.exception("parar sessao")
+                        log.exception("stop session")
 
-    def sair(self):
-        c = self.cliente
+    def leave(self):
+        c = self.client
         if c is not None:
             try:
                 c.logout()
             except Exception:
                 log.exception("logout")
-        with self._trava_do_ciclo:
-            self.eu = self.lid = ""
+        with self._lifecycle_lock:
+            self.me = self.lid = ""
             self.urlcode = None
-            self.parar(ciclo_sessao.CLOSED)
+            self.stop(session_lifecycle.CLOSED)
 
 
 # ---------------------------------------------------------------- HTTP
-# Sem access_log: ele grava cada URL, e nela vao o segredo da ponte, o token de
-# cada sessao e telefones (/api/<token>/get-messages/5511...@c.us). O ponte.log
-# e o arquivo que o usuario manda num relatorio de erro.
-OPCOES_DO_SERVIDOR = {"host": "127.0.0.1", "print": None, "access_log": None}
+# No access_log: it records every URL, and in them go the bridge's secret, each
+# session's token and phones (/api/<token>/get-messages/5511...@c.us). The
+# bridge.log is the file the user sends in a bug report.
+SERVER_OPTIONS = {"host": "127.0.0.1", "print": None, "access_log": None}
 
 
-def criar_app(pasta, fixa=""):
-    # Sem cors_allowed_origins="*": so a mesma origem (o cliente do WinZapp nao manda Origin).
+def create_app(folder, fixed=""):
+    # Without cors_allowed_origins="*": same origin only (the WinZapp client sends no Origin).
     sio = socketio.AsyncServer(async_mode="aiohttp", logger=False, engineio_logger=False)
-    segredo = autenticacao.carregar_segredo(pasta)
-    app = web.Application(client_max_size=autenticacao.TAMANHO_MAXIMO_DO_CORPO,
-                          middlewares=[autenticacao.criar_middleware(segredo)])
+    secret = authentication.load_secret(folder)
+    app = web.Application(client_max_size=authentication.MAX_BODY_SIZE,
+                          middlewares=[authentication.create_middleware(secret)])
     sio.attach(app)
-    app["sio"] = sio                        # os testes olham quem esta conectado
-    estado = {"sessoes": {}, "fixa": fixa}
-    arquivo_ativas = os.path.join(pasta, "ativas.json")
+    app["sio"] = sio                        # the tests look at who is connected
+    state = {"sessions": {}, "fixed": fixed}
+    active_file = os.path.join(folder, "active.json")
 
-    def ler_ativas():
+    def read_active():
         try:
-            with open(arquivo_ativas, encoding="utf-8") as f:
+            with open(active_file, encoding="utf-8") as f:
                 return [str(n) for n in json.load(f)]
         except (OSError, ValueError):
             return []
 
-    def marcar_ativa(nome, ativa):
-        """Lembra quais contas estavam ligadas, para a ponte retomar sozinha
-        quando reiniciar (o app so chama start-session ao abrir)."""
-        lista = [n for n in ler_ativas() if n != nome]
-        if ativa:
-            lista.append(nome)
-        os.makedirs(pasta, exist_ok=True)
-        with open(arquivo_ativas, "w", encoding="utf-8") as f:
-            json.dump(lista, f)
+    def mark_active(name, active):
+        """Remembers which accounts were on, so the bridge resumes on its own
+        when it restarts (the app only calls start-session when it opens)."""
+        names = [n for n in read_active() if n != name]
+        if active:
+            names.append(name)
+        os.makedirs(folder, exist_ok=True)
+        with open(active_file, "w", encoding="utf-8") as f:
+            json.dump(names, f)
 
-    def nova_sessao(nome):
-        """A Sessao de `nome`, guardada no estado. Se o celular a desvincular,
-        deixa de ser retomada quando a ponte reiniciar: sem credencial, ela so
-        geraria QR sem ninguem olhando."""
-        s = estado["sessoes"][nome] = Sessao(
-            nome, os.path.join(pasta, nome), sio, asyncio.get_running_loop())
-        s.ao_desvincular = lambda: marcar_ativa(nome, False)
+    def new_session(name):
+        """The Session of `name`, kept in the state. If the phone unlinks it, it
+        stops being resumed when the bridge restarts: with no credential, it would
+        only generate QRs with nobody looking."""
+        s = state["sessions"][name] = Session(
+            name, os.path.join(folder, name), sio, asyncio.get_running_loop())
+        s.on_unlink = lambda: mark_active(name, False)
         return s
 
-    async def retomar(_app):
-        if estado["fixa"]:
+    async def resume(_app):
+        if state["fixed"]:
             return
-        for nome in ler_ativas():
-            if os.path.exists(os.path.join(pasta, nome, "sessao.db")):
-                s = nova_sessao(nome)
-                await asyncio.get_running_loop().run_in_executor(None, s.iniciar)
-                log.info("sessao retomada ao iniciar: %s", redigir(nome))
-    app.on_startup.append(retomar)
+        for name in read_active():
+            if os.path.exists(os.path.join(folder, name, "session.db")):
+                s = new_session(name)
+                await asyncio.get_running_loop().run_in_executor(None, s.begin)
+                log.info("session resumed on start: %s", redact(name))
+    app.on_startup.append(resume)
 
-    def chave_da(req):
-        return estado["fixa"] or req.match_info["tok"].split(":", 1)[0]
+    def key_of(req):
+        return state["fixed"] or req.match_info["tok"].split(":", 1)[0]
 
-    def sessao(req):
+    def session(req):
         tok = req.match_info["tok"]
-        nome = estado["fixa"] or tok.split(":", 1)[0]
-        if not entradas.nome_de_sessao_valido(nome):
+        name = state["fixed"] or tok.split(":", 1)[0]
+        if not inputs.valid_session_name(name):
             raise web.HTTPBadRequest(reason="invalid session name")
-        s = estado["sessoes"].get(nome)
+        s = state["sessions"].get(name)
         if s is None:
-            s = nova_sessao(nome)
-        if estado["fixa"]:      # os eventos levam o nome que o cliente usa
-            s.nome = tok.split(":", 1)[0]
-            s.simular_codigo = True
+            s = new_session(name)
+        if state["fixed"]:      # the events carry the name the client uses
+            s.name = tok.split(":", 1)[0]
+            s.simulate_code = True
         return s
 
     def ok(**kw):
@@ -1560,163 +1559,163 @@ def criar_app(pasta, fixa=""):
 
     @sio.event
     async def connect(sid, environ, auth):
-        # Qualquer erro aqui recusa a conexao: o python-socketio ja registrou o
-        # socket antes de chamar este manipulador, e uma excecao qualquer o
-        # deixaria conectado sem credencial.
+        # Any error here refuses the connection: python-socketio already registered
+        # the socket before calling this handler, and any exception would leave
+        # it connected without a credential.
         try:
             token = auth.get("token") if isinstance(auth, dict) else None
             cred = token if isinstance(token, str) and token else environ.get("HTTP_APIKEY", "")
-            if not autenticacao.credencial_valida(segredo, cred):
-                raise socketio.exceptions.ConnectionRefusedError("sem credencial")
-            # a sala e o nome do token ja conferido, nunca o `auth.session`, que o
-            # cliente escreve sozinho; Sessao.nome e o mesmo nome (tambem em --sessao-unica)
-            nome = autenticacao.nome_da_credencial(cred)
-            await sio.enter_room(sid, nome)
+            if not authentication.valid_credential(secret, cred):
+                raise socketio.exceptions.ConnectionRefusedError("no credential")
+            # the room is the name of the already checked token, never `auth.session`,
+            # which the client writes by itself; Session.name is the same name (also in --single-session)
+            name = authentication.credential_name(cred)
+            await sio.enter_room(sid, name)
         except socketio.exceptions.ConnectionRefusedError:
             raise
         except Exception:
-            raise socketio.exceptions.ConnectionRefusedError("sem credencial")
-        log.info("socket conectado (%s)", redigir(nome))
+            raise socketio.exceptions.ConnectionRefusedError("no credential")
+        log.info("socket connected (%s)", redact(name))
 
-    async def gerar_token(req):
-        nome = req.match_info["session"]
-        if not entradas.nome_de_sessao_valido(nome):
+    async def generate_token(req):
+        name = req.match_info["session"]
+        if not inputs.valid_session_name(name):
             return web.json_response({"status": "error", "message": "invalid session name"},
                                      status=400)
-        tok = autenticacao.token_da_sessao(segredo, nome)
-        return web.json_response({"status": "success", "session": nome,
-                                  "token": tok, "full": f"{nome}:{tok}"})
+        tok = authentication.session_token(secret, name)
+        return web.json_response({"status": "success", "session": name,
+                                  "token": tok, "full": f"{name}:{tok}"})
 
     async def start_session(req):
-        s = sessao(req)
+        s = session(req)
         try:
-            corpo = await req.json()
+            body = await req.json()
         except Exception:
-            corpo = {}
-        # iniciar() espera a thread antiga terminar: nunca dentro do laco do aiohttp
-        await asyncio.get_running_loop().run_in_executor(None, s.iniciar, corpo.get("phone"))
-        marcar_ativa(chave_da(req), True)
-        if s.status == "CONNECTED":     # ja logada: o cliente espera os avisos
-            if corpo.get("phone") and s.simular_codigo:
-                await sio.emit("phoneCode", {"session": s.nome, "data": "TEST-0000"},
-                               room=s.nome)
+            body = {}
+        # begin() waits for the old thread to finish: never inside the aiohttp loop
+        await asyncio.get_running_loop().run_in_executor(None, s.begin, body.get("phone"))
+        mark_active(key_of(req), True)
+        if s.status == "CONNECTED":     # already logged in: the client expects the notices
+            if body.get("phone") and s.simulate_code:
+                await sio.emit("phoneCode", {"session": s.name, "data": "TEST-0000"},
+                               room=s.name)
                 await asyncio.sleep(2)
-            await sio.emit("session-logged", {"session": s.nome, "status": True},
-                           room=s.nome)
+            await sio.emit("session-logged", {"session": s.name, "status": True},
+                           room=s.name)
         return ok(status=s.status, qrcode=None, urlcode=s.urlcode)
 
     async def status_session(req):
-        s = sessao(req)
+        s = session(req)
         return ok(status=s.status, qrcode=qr_data_url(s.urlcode) if s.urlcode else None,
-                  urlcode=s.urlcode, session=s.nome)
+                  urlcode=s.urlcode, session=s.name)
 
     async def check_connection(req):
-        s = sessao(req)
-        conectado = False
-        if s.status == "CONNECTED" and s.cliente is not None:
-            # o estado em cache nao basta: apos uma queda de rede continua CONNECTED
+        s = session(req)
+        is_up = False
+        if s.status == "CONNECTED" and s.client is not None:
+            # the cached state is not enough: after a network drop it stays CONNECTED
             try:
-                conectado = bool(await asyncio.get_running_loop().run_in_executor(
-                    None, lambda: s.cliente.is_connected))
+                is_up = bool(await asyncio.get_running_loop().run_in_executor(
+                    None, lambda: s.client.is_connected))
             except Exception:
                 log.exception("check-connection-session")
-        return ok(status=conectado, message="Connected" if conectado else "Disconnected")
+        return ok(status=is_up, message="Connected" if is_up else "Disconnected")
 
     async def close_session(req):
-        await asyncio.get_running_loop().run_in_executor(None, sessao(req).parar)
-        marcar_ativa(chave_da(req), False)
+        await asyncio.get_running_loop().run_in_executor(None, session(req).stop)
+        mark_active(key_of(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def logout_session(req):
-        await asyncio.get_running_loop().run_in_executor(None, sessao(req).sair)
-        marcar_ativa(chave_da(req), False)
+        await asyncio.get_running_loop().run_in_executor(None, session(req).leave)
+        mark_active(key_of(req), False)
         return ok(status=True, message="Session successfully closed")
 
     async def host_device(req):
-        s = sessao(req)
-        http, corpo = ciclo_sessao.resposta_host_device(s.status, s.eu, s.lid)
-        return web.json_response(corpo, status=http)
+        s = session(req)
+        http, body = session_lifecycle.host_device_response(s.status, s.me, s.lid)
+        return web.json_response(body, status=http)
 
-    async def vazio_ok(req):
+    async def empty_ok(req):
         return ok(status="success", response={})
 
-    def id_wpp(jid):
-        usuario, _, servidor = msgmap.jid_wpp(jid).partition("@")
-        return {"server": servidor, "user": usuario,
-                "_serialized": f"{usuario}@{servidor}"}
+    def wpp_id(jid):
+        user, _, server = msgmap.jid_wpp(jid).partition("@")
+        return {"server": server, "user": user,
+                "_serialized": f"{user}@{server}"}
 
     async def list_chats(req):
-        s = sessao(req)
-        threading.Thread(target=s.buscar_mudancas, daemon=True).start()
-        nomes = {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"]
-                 for c in s.bd.contatos()}
-        saida = []
-        for c in s.bd.conversas():
+        s = session(req)
+        threading.Thread(target=s.fetch_changes, daemon=True).start()
+        names = {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"]
+                 for c in s.db.contacts()}
+        out = []
+        for c in s.db.chats():
             jid = msgmap.jid_wpp(c["jid"])
-            saida.append({
-                "id": id_wpp(c["jid"]),
-                "name": c["name"] or nomes.get(jid) or None,
+            out.append({
+                "id": wpp_id(c["jid"]),
+                "name": c["name"] or names.get(jid) or None,
                 "isGroup": jid.endswith("@g.us"),
                 "unreadCount": c["unread"], "t": c["ts"],
                 "archive": bool(c["archived"]), "pin": c["pinned"] or False,
                 "muteExpiration": c["muted"], "isLocked": bool(c.get("locked")), "msgs": None,
             })
-        return web.json_response(saida)
+        return web.json_response(out)
 
     async def all_contacts(req):
-        s = sessao(req)
-        meus = {msgmap.jid_wpp(j) for j in (s.eu, s.lid) if j}
+        s = session(req)
+        mine = {msgmap.jid_wpp(j) for j in (s.me, s.lid) if j}
         return ok(status="success", response=[
-            contatos.registro_da_agenda(c, id_wpp(c["jid"]), meus) for c in s.bd.contatos()])
+            contacts.address_book_record(c, wpp_id(c["jid"]), mine) for c in s.db.contacts()])
 
     async def get_messages(req):
-        s = sessao(req)
+        s = session(req)
         q = req.query
-        antes = q.get("id") if q.get("direction") == "before" else None
-        if antes:   # vem serializado: true_<conversa>_<ID>[_autor]
-            partes = antes.split("_")
-            antes = partes[2] if len(partes) > 2 else antes
+        before = q.get("id") if q.get("direction") == "before" else None
+        if before:   # it comes serialized: true_<chat>_<ID>[_author]
+            parts = before.split("_")
+            before = parts[2] if len(parts) > 2 else before
         jid = req.match_info["phone"]
         if "@" not in jid:
             jid += "@c.us"
-        # a conversa pode estar guardada pelo numero ou pelo LID (ou pelos dois)
-        chaves = await em_thread(s.chaves_da_conversa, jid) or [msgmap.jid_whatsmeow(jid)]
-        itens = s.bd.mensagens(chaves, int(q.get("count", 20)), antes)
-        return ok(status="success", response=s.bd.para_resposta(itens, s.ack_da_mensagem))
+        # the chat may be stored by the number or by the LID (or both)
+        keys = await in_thread(s.chat_keys, jid) or [msgmap.jid_whatsmeow(jid)]
+        items = s.db.messages(keys, int(q.get("count", 20)), before)
+        return ok(status="success", response=s.db.for_response(items, s.message_ack))
 
     async def send_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
+        s = session(req)
+        body = await req.json()
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
         from neonize.utils import build_jid
-        fone = corpo["phone"]
-        if isinstance(fone, list):      # o WinZapp manda uma lista de destinos
-            fone = fone[0]
-        if "@" in fone:
-            u, _, srv = msgmap.jid_whatsmeow(fone).partition("@")
-            destino = build_jid(u, srv)
+        phone = body["phone"]
+        if isinstance(phone, list):      # WinZapp sends a list of destinations
+            phone = phone[0]
+        if "@" in phone:
+            u, _, srv = msgmap.jid_whatsmeow(phone).partition("@")
+            destination = build_jid(u, srv)
         else:
-            destino = build_jid(fone)
-        conteudo = corpo["message"]
-        previa = msgmap.previa_de_link(corpo.get("options"))
-        if previa:      # o cartao do link que o cliente ja montou
+            destination = build_jid(phone)
+        content = body["message"]
+        preview = msgmap.link_preview(body.get("options"))
+        if preview:      # the link card the client already built
             from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ExtendedTextMessage, Message
-            conteudo = Message(extendedTextMessage=ExtendedTextMessage(text=conteudo, **previa))
+            content = Message(extendedTextMessage=ExtendedTextMessage(text=content, **preview))
         try:
             resp = await asyncio.get_running_loop().run_in_executor(
-                None, lambda: s.cliente.send_message(destino, conteudo))
-        except Exception as erro:
+                None, lambda: s.client.send_message(destination, content))
+        except Exception as error:
             log.exception("send-message")
-            return web.json_response({"status": "error", "message": str(erro)}, status=500)
-        return guardar_enviada(s, destino, resp)
+            return web.json_response({"status": "error", "message": str(error)}, status=500)
+        return store_sent(s, destination, resp)
 
-    async def saude(req):
-        # o cliente (wpp_update_health.wait_for_api) espera {"message": "OK"}, como o Node
+    async def health(req):
+        # the client (wpp_update_health.wait_for_api) expects {"message": "OK"}, like Node
         return web.json_response({"message": "OK"})
 
     r = app.router
-    r.add_post("/api/{session}/{key}/generate-token", gerar_token)
+    r.add_post("/api/{session}/{key}/generate-token", generate_token)
     r.add_post("/api/{tok}/start-session", start_session)
     r.add_get("/api/{tok}/status-session", status_session)
     r.add_get("/api/{tok}/check-connection-session", check_connection)
@@ -1724,545 +1723,545 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/logout-session", logout_session)
     r.add_get("/api/{tok}/host-device", host_device)
     async def pn_lid(req):
-        """Mapeamento numero <-> LID (o neonize guarda no armazenamento do aparelho)."""
-        s = sessao(req)
+        """Number <-> LID mapping (neonize keeps it in the device's storage)."""
+        s = session(req)
         jid = msgmap.jid_whatsmeow(req.match_info["jid"].replace("~", ""))
-        if s.cliente is None or s.status != "CONNECTED":
+        if s.client is None or s.status != "CONNECTED":
             return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
         from neonize.utils import build_jid
-        usuario, _, servidor = jid.partition("@")
-        alvo = build_jid(usuario, servidor)
+        user, _, server = jid.partition("@")
+        target = build_jid(user, server)
 
-        def consultar():
+        def query():
             try:
-                if servidor == "lid":
-                    return jid_texto(s.cliente.get_pn_from_lid(alvo)), jid
-                return jid, jid_texto(s.cliente.get_lid_from_pn(alvo))
+                if server == "lid":
+                    return jid_text(s.client.get_pn_from_lid(target)), jid
+                return jid, jid_text(s.client.get_lid_from_pn(target))
             except Exception:
                 return "", ""
-        fone, lid = await asyncio.get_running_loop().run_in_executor(None, consultar)
-        if not fone or not lid:
-            return web.json_response({"status": "error", "message": "mapeamento nao encontrado"}, status=404)
-        achado = s.bd.contato_de(lid, *contatos.jids_equivalentes(fone))
-        return web.json_response(contatos.resposta_pn_lid(fone, lid, achado))
+        phone, lid = await asyncio.get_running_loop().run_in_executor(None, query)
+        if not phone or not lid:
+            return web.json_response({"status": "error", "message": "mapping not found"}, status=404)
+        found = s.db.contact_of(lid, *contacts.equivalent_jids(phone))
+        return web.json_response(contacts.pn_lid_response(phone, lid, found))
 
     async def blocklist(req):
-        """Os bloqueados, no formato do WPPConnect. Uma falha NAO vira lista vazia:
-        o cliente troca a lista que guardou pela resposta e a grava."""
-        s = sessao(req)
-        if s.cliente is None or s.status != "CONNECTED":
+        """The blocked ones, in WPPConnect's format. A failure does NOT become an empty list:
+        the client replaces the list it kept with the response and stores it."""
+        s = session(req)
+        if s.client is None or s.status != "CONNECTED":
             return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
 
-        def consultar():
-            itens = []
-            for j in s.cliente.get_blocklist().JIDs:
-                fone = ""
-                if j.Server == "lid":      # o cliente le `phone` como telefone
+        def query():
+            items = []
+            for j in s.client.get_blocklist().JIDs:
+                phone = ""
+                if j.Server == "lid":      # the client reads `phone` as a phone
                     try:
-                        fone = jid_texto(s.cliente.get_pn_from_lid(j))
+                        phone = jid_text(s.client.get_pn_from_lid(j))
                     except Exception:
-                        fone = ""
-                itens.append(contatos.entrada_de_bloqueio(jid_texto(j), fone))
-            return itens
+                        phone = ""
+                items.append(contacts.blocklist_entry(jid_text(j), phone))
+            return items
         try:
-            itens = await asyncio.get_running_loop().run_in_executor(None, consultar)
-        except Exception as erro:
-            log.warning("blocklist: %s", type(erro).__name__)
+            items = await asyncio.get_running_loop().run_in_executor(None, query)
+        except Exception as error:
+            log.warning("blocklist: %s", type(error).__name__)
             return web.json_response({"status": "error", "message": "blocklist unavailable"}, status=502)
-        return ok(status="success", response=itens)
+        return ok(status="success", response=items)
 
     async def history_status(req):
-        """history-sync-status e unblock-history-sync: o historico so e dado por
-        completo quando o progresso chega a 100 ou passa um tempo sem bloco
-        novo (historico_progresso.py)."""
-        s = sessao(req)
-        contagens = s.bd.contagens()
-        estado = historico_progresso.progresso_de(s, time.monotonic()).estado(
-            time.monotonic(), contagens["chat"])
+        """history-sync-status and unblock-history-sync: the history is only
+        called complete when the progress reaches 100 or a while passes with no
+        new block (history_progress.py)."""
+        s = session(req)
+        counts = s.db.counts()
+        state = history_progress.progress_of(s, time.monotonic()).state(
+            time.monotonic(), counts["chat"])
         return ok(status="success", response={
-            "backendWorkerBridgeReady": True, **estado,
-            "unprocessed": estado["unprocessedChunks"], "restarted": False, "removed": [],
-            "onDemandEnabled": False, "chunkStatus": {}, "storeCounts": contagens})
+            "backendWorkerBridgeReady": True, **state,
+            "unprocessed": state["unprocessedChunks"], "restarted": False, "removed": [],
+            "onDemandEnabled": False, "chunkStatus": {}, "storeCounts": counts})
 
     async def send_seen(req):
-        s = sessao(req)
-        corpo = await req.json()
-        fone = corpo.get("phone")
-        fone = fone[0] if isinstance(fone, list) else fone
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        # o app so aceita a confirmacao neste formato: response.data = [true], e
-        # so desfaz a leitura local quando ela falta. Ele tenta os enderecos da
-        # conversa (numero, LID) um a um: o que a ponte nao conhece e [false]
-        chaves = await em_thread(s.chaves_da_conversa, fone) if fone else []
-        if not chaves:
+        s = session(req)
+        body = await req.json()
+        phone = body.get("phone")
+        phone = phone[0] if isinstance(phone, list) else phone
+        error = without_connection(s)
+        if error is not None:
+            return error
+        # the app only accepts the confirmation in this format: response.data = [true], and
+        # only undoes the local read when it is missing. It tries the chat's addresses
+        # (number, LID) one by one: what the bridge does not know is [false]
+        keys = await in_thread(s.chat_keys, phone) if phone else []
+        if not keys:
             return ok(status="success", response={"data": [False]})
-        if corpo.get("unread"):        # "marcar como nao lida"
-            await em_thread(s.marcar_nao_lida, chaves[0])
-            confirmado = True
+        if body.get("unread"):        # "mark as unread"
+            await in_thread(s.mark_unread, keys[0])
+            confirmed = True
         else:
-            s.aberta = chaves[0]       # o app so manda send-seen da conversa que o usuario abriu
-            confirmado = True
-            for chave in chaves:
-                _, enviados = await em_thread(s.ler_e_confirmar, chave, True)
-                confirmado = confirmado and enviados
-        return ok(status="success", response={"data": [confirmado]})
+            s.open_chat = keys[0]      # the app only sends send-seen for the chat the user opened
+            confirmed = True
+            for key in keys:
+                _, sent = await in_thread(s.read_and_confirm, key, True)
+                confirmed = confirmed and sent
+        return ok(status="success", response={"data": [confirmed]})
 
     async def subscribe_presence(req):
-        """Assina a presenca de uma pessoa. So confirma o que o WhatsApp aceitou: o
-        cliente marca o alvo como assinado ao ver `success`. Nao grava `s.aberta`
-        (o cliente assina muitos contatos, nao so a conversa aberta)."""
-        s = sessao(req)
-        corpo = await req.json()
-        fone = corpo.get("phone")
-        fone = fone[0] if isinstance(fone, list) else fone
-        alvo = contatos.alvo_de_assinatura(fone)
-        if not alvo:
+        """Subscribes to a person's presence. Only confirms what WhatsApp accepted: the
+        client marks the target as subscribed when it sees `success`. Does not write `s.open_chat`
+        (the client subscribes to many contacts, not just the open chat)."""
+        s = session(req)
+        body = await req.json()
+        phone = body.get("phone")
+        phone = phone[0] if isinstance(phone, list) else phone
+        target = contacts.subscription_target(phone)
+        if not target:
             return web.json_response({"status": "error", "message": "invalid contact"}, status=400)
-        if s.cliente is None or s.status != "CONNECTED":
+        if s.client is None or s.status != "CONNECTED":
             return web.json_response({"status": "error", "message": "Disconnected"}, status=503)
         from neonize.utils import build_jid
-        usuario, _, servidor = alvo.partition("@")
+        user, _, server = target.partition("@")
         try:
             await asyncio.get_running_loop().run_in_executor(
-                None, s.cliente.subscribe_presence, build_jid(usuario, servidor))
-        except Exception as erro:
-            log.info("subscribe_presence recusado (%s) para %s", type(erro).__name__, redigir(alvo))
+                None, s.client.subscribe_presence, build_jid(user, server))
+        except Exception as error:
+            log.info("subscribe_presence refused (%s) for %s", type(error).__name__, redact(target))
             return web.json_response({"status": "error", "message": "subscribe refused"}, status=502)
         return ok(status="success", response={})
 
     async def set_online(req):
-        s = sessao(req)
-        corpo = await req.json()
-        s.online = bool(corpo.get("isOnline"))
-        if s.cliente is not None and s.status == "CONNECTED":
+        s = session(req)
+        body = await req.json()
+        s.online = bool(body.get("isOnline"))
+        if s.client is not None and s.status == "CONNECTED":
             from neonize.utils.enum import Presence
-            presenca = Presence.AVAILABLE if s.online else Presence.UNAVAILABLE
-            try:    # sem isto os contatos nunca veem a conta online/offline
+            presence = Presence.AVAILABLE if s.online else Presence.UNAVAILABLE
+            try:    # without this the contacts never see the account online/offline
                 await asyncio.get_running_loop().run_in_executor(
-                    None, s.cliente.send_presence, presenca)
-            except Exception as erro:
-                log.info("set-online-presence recusado (%s)", type(erro).__name__)
+                    None, s.client.send_presence, presence)
+            except Exception as error:
+                log.info("set-online-presence refused (%s)", type(error).__name__)
                 return web.json_response({"status": "error", "message": "presence refused"}, status=502)
-        if s.online and s.aberta:      # voltou ao foco: le o que chegou enquanto isso
-            await asyncio.get_running_loop().run_in_executor(None, s.marcar_lidas, s.aberta)
-        return vazio_ok_resp()
+        if s.online and s.open_chat:      # back in focus: reads what arrived in the meantime
+            await asyncio.get_running_loop().run_in_executor(None, s.mark_read, s.open_chat)
+        return empty_ok_resp()
 
-    def vazio_ok_resp():
+    def empty_ok_resp():
         return ok(status="success", response={})
 
     async def get_media(req):
-        """Baixa e decifra a midia de uma mensagem guardada (id serializado
-        'false_<conversa>_<ID>[_autor]'); bytes brutos ou JSON com base64."""
-        s = sessao(req)
-        partes = req.match_info["msgid"].split("_")
-        id_msg = partes[2] if len(partes) > 2 else partes[-1]
-        ficha = s.bd.ficha(id_msg)
-        if ficha is None:
-            return web.json_response({"status": "error", "message": "midia nao encontrada"}, status=404)
-        if s.cliente is None or s.status != "CONNECTED":
-            return respostas.desconectada()
+        """Downloads and decrypts the media of a stored message (serialized id
+        'false_<chat>_<ID>[_author]'); raw bytes or JSON with base64."""
+        s = session(req)
+        parts = req.match_info["msgid"].split("_")
+        msg_id = parts[2] if len(parts) > 2 else parts[-1]
+        record = s.db.media_record(msg_id)
+        if record is None:
+            return web.json_response({"status": "error", "message": "media not found"}, status=404)
+        if s.client is None or s.status != "CONNECTED":
+            return responses.disconnected()
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
-        mensagem = Message.FromString(ficha)
+        message = Message.FromString(record)
         try:
-            corpo = await req.json()
+            body = await req.json()
         except Exception:
-            corpo = None            # o corpo e opcional: so leva o progressId
+            body = None            # the body is optional: it only carries the progressId
         try:
-            dados = await transferencias.baixar_com_progresso_async(
-                s.cliente, mensagem, corpo, s.emitir, s.nome)
-        except Exception as erro:
+            data = await transfers.download_with_progress_async(
+                s.client, message, body, s.emit, s.name)
+        except Exception as error:
             log.exception("download")
-            texto = str(erro).lower()
-            # midia que saiu do servidor do WhatsApp: o app trata 410 como "expirada"
-            status = 410 if ("404" in texto or "410" in texto or "not found" in texto) else 500
-            return web.json_response({"status": "error", "message": str(erro)}, status=status)
+            text = str(error).lower()
+            # media that left WhatsApp's server: the app treats 410 as "expired"
+            status = 410 if ("404" in text or "410" in text or "not found" in text) else 500
+            return web.json_response({"status": "error", "message": str(error)}, status=status)
         if "octet-stream" in req.headers.get("Accept", ""):
-            return web.Response(body=dados, content_type="application/octet-stream")
+            return web.Response(body=data, content_type="application/octet-stream")
         import base64 as b64
-        return ok(base64=b64.b64encode(dados).decode())
+        return ok(base64=b64.b64encode(data).decode())
 
-    def destino_de(fone):
+    def destination_of(phone):
         from neonize.utils import build_jid
-        fone = fone[0] if isinstance(fone, list) else fone
-        if "@" in fone:
-            u, _, srv = msgmap.jid_whatsmeow(fone).partition("@")
+        phone = phone[0] if isinstance(phone, list) else phone
+        if "@" in phone:
+            u, _, srv = msgmap.jid_whatsmeow(phone).partition("@")
             return build_jid(u, srv)
-        return build_jid(fone)
+        return build_jid(phone)
 
-    def guardar_enviada(s, destino, resp, texto_ou_msg=None):
-        """Guarda a mensagem recem-enviada e devolve a resposta do WPPConnect."""
-        chat = jid_texto(destino)
-        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
-                          ts=resp.Timestamp or time.time(), mensagem=resp.Message)
+    def store_sent(s, destination, resp, text_or_msg=None):
+        """Stores the message just sent and returns WPPConnect's response."""
+        chat = jid_text(destination)
+        w = msgmap.build(chat=chat, from_me=True, id=resp.ID, sender=s.me,
+                         ts=resp.Timestamp or time.time(), message=resp.Message)
         if w is not None:
-            s.bd.mensagem(chat, w, msgmap.ficha_midia(resp.Message))
-            s.bd.ao_chegar(chat, w["t"], True)
+            s.db.message(chat, w, msgmap.media_record_of(resp.Message))
+            s.db.on_arrival(chat, w["t"], True)
         serial = w["id"]["_serialized"] if w else f"true_{msgmap.jid_wpp(chat)}_{resp.ID}"
         chat_w = msgmap.jid_wpp(chat)
-        # o WPPConnect avisa "enviada" (ack 1) logo depois do envio; o app so
-        # registra a mensagem depois da resposta HTTP, por isso o pequeno atraso
+        # WPPConnect says "sent" (ack 1) right after the send; the app only
+        # registers the message after the HTTP response, hence the small delay
         asyncio.get_running_loop().call_later(0.6, lambda: asyncio.ensure_future(
-            sio.emit("onack", {"session": s.nome, "ack": 1, "to": chat_w, "from": chat_w,
+            sio.emit("onack", {"session": s.name, "ack": 1, "to": chat_w, "from": chat_w,
                                "id": {"fromMe": True, "remote": chat_w, "id": resp.ID,
-                                      "_serialized": serial}}, room=s.nome)))
+                                      "_serialized": serial}}, room=s.name)))
         return ok(status="success", response=[{"id": serial, "ack": 1}])
 
-    def contexto_citado(s, citado, ctx=None):
-        """ContextInfo que cita a mensagem `citado` (id serializado), ou None se
-        ela nao esta guardada."""
+    def quoted_context(s, quoted, ctx=None):
+        """ContextInfo that quotes the message `quoted` (serialized id), or None if
+        it is not stored."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ContextInfo
-        partes = citado.split("_")
-        id_citado = partes[2] if len(partes) > 2 else partes[-1]
-        original = s.bd.mensagem_wpp(id_citado)
+        parts = quoted.split("_")
+        quoted_id = parts[2] if len(parts) > 2 else parts[-1]
+        original = s.db.wpp_message(quoted_id)
         if original is None:
             return None
         ctx = ctx if ctx is not None else ContextInfo()
-        ctx.stanzaID = id_citado
-        ctx.participant = msgmap.participante_citado(original, s.eu)
-        ctx.quotedMessage.CopyFrom(msgmap.citada(original))
+        ctx.stanzaID = quoted_id
+        ctx.participant = msgmap.quoted_participant(original, s.me)
+        ctx.quotedMessage.CopyFrom(msgmap.quoted(original))
         return ctx
 
-    def enviar_midia(s, destino, tipo, arquivo, legenda, nome, mime, ptt, ctx=None,
-                     cliente=None):
-        c = s.cliente if cliente is None else cliente
-        if tipo == "audio":
-            # o neonize detecta so "audio/ogg"; o WhatsApp quer "audio/ogg; codecs=opus"
-            # (sem isso a voz pode nem aparecer em alguns aparelhos)
-            m = c.build_audio_message(arquivo, ptt=ptt)
+    def send_media(s, destination, kind, file, caption, name, mime, ptt, ctx=None,
+                   client=None):
+        c = s.client if client is None else client
+        if kind == "audio":
+            # neonize only detects "audio/ogg"; WhatsApp wants "audio/ogg; codecs=opus"
+            # (without it the voice note may not even show up on some devices)
+            m = c.build_audio_message(file, ptt=ptt)
             if (m.audioMessage.mimetype or "").startswith("audio/ogg"):
                 m.audioMessage.mimetype = "audio/ogg; codecs=opus"
             if ctx is not None:
                 m.audioMessage.contextInfo.CopyFrom(ctx)
-            return c.send_message(destino, m)
-        if ctx is not None:     # com citacao: monta a mensagem, poe o contexto e envia
-            if tipo == "image":
-                m, campo = c.build_image_message(arquivo, caption=legenda or None), "imageMessage"
-            elif tipo == "video":
-                m, campo = c.build_video_message(arquivo, caption=legenda or None), "videoMessage"
-            elif tipo == "audio":
-                m, campo = c.build_audio_message(arquivo, ptt=ptt), "audioMessage"
+            return c.send_message(destination, m)
+        if ctx is not None:     # with a quote: builds the message, puts the context and sends
+            if kind == "image":
+                m, field = c.build_image_message(file, caption=caption or None), "imageMessage"
+            elif kind == "video":
+                m, field = c.build_video_message(file, caption=caption or None), "videoMessage"
+            elif kind == "audio":
+                m, field = c.build_audio_message(file, ptt=ptt), "audioMessage"
             else:
-                m, campo = c.build_document_message(
-                    arquivo, caption=legenda or None, filename=nome or None,
+                m, field = c.build_document_message(
+                    file, caption=caption or None, filename=name or None,
                     mimetype=mime or None), "documentMessage"
-            getattr(m, campo).contextInfo.CopyFrom(ctx)
-            return c.send_message(destino, m)
-        if tipo == "image":
-            return c.send_image(destino, arquivo, caption=legenda or None)
-        if tipo == "video":
-            return c.send_video(destino, arquivo, caption=legenda or None)
-        if tipo == "audio":
-            return c.send_audio(destino, arquivo, ptt=ptt)
-        return c.send_document(destino, arquivo, caption=legenda or None,
-                               filename=nome or None, mimetype=mime or None)
+            getattr(m, field).contextInfo.CopyFrom(ctx)
+            return c.send_message(destination, m)
+        if kind == "image":
+            return c.send_image(destination, file, caption=caption or None)
+        if kind == "video":
+            return c.send_video(destination, file, caption=caption or None)
+        if kind == "audio":
+            return c.send_audio(destination, file, ptt=ptt)
+        return c.send_document(destination, file, caption=caption or None,
+                               filename=name or None, mimetype=mime or None)
 
     async def send_file(req):
-        """Envio multipart (imagem, video, audio, documento) como o WPPConnect."""
+        """Multipart send (image, video, audio, document) like WPPConnect."""
         import tempfile
-        s = sessao(req)
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
-        campos, caminho, mime = {}, None, ""
-        leitor = await req.multipart()
+        s = session(req)
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
+        fields, path, mime = {}, None, ""
+        reader = await req.multipart()
         try:
             while True:
-                parte = await leitor.next()
-                if parte is None:
+                part = await reader.next()
+                if part is None:
                     break
-                if parte.filename is not None:      # o arquivo, direto para o disco
-                    sufixo = os.path.splitext(parte.filename)[1]
-                    mime = parte.headers.get("Content-Type", "")
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=sufixo) as f:
-                        caminho = f.name
+                if part.filename is not None:      # the file, straight to disk
+                    suffix = os.path.splitext(part.filename)[1]
+                    mime = part.headers.get("Content-Type", "")
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
+                        path = f.name
                         while True:
-                            bloco = await parte.read_chunk(1 << 20)
-                            if not bloco:
+                            chunk = await part.read_chunk(1 << 20)
+                            if not chunk:
                                 break
-                            f.write(bloco)
+                            f.write(chunk)
                 else:
-                    campos.setdefault(parte.name, []).append((await parte.text()))
-            if caminho is None:
-                return web.json_response({"status": "error", "message": "arquivo ausente"}, status=400)
+                    fields.setdefault(part.name, []).append((await part.text()))
+            if path is None:
+                return web.json_response({"status": "error", "message": "file missing"}, status=400)
 
-            def um(nome, padrao=""):
-                return (campos.get(nome) or [padrao])[0]
-            destino = destino_de(campos.get("phone") or campos.get("phone[]") or [""])
-            ctx = contexto_citado(s, um("quotedMessageId")) if um("quotedMessageId") else None
-            if um("quotedMessageId") and ctx is None:
-                log.info("mensagem citada nao guardada: envio recusado")
-                return respostas.citacao_ausente()
-            resp = await transferencias.enviar_com_progresso_async(
-                s.cliente, caminho, um("uploadId"), s.emitir, s.nome,
-                lambda c: enviar_midia(s, destino, um("type", "document"), caminho,
-                                       um("caption"), um("filename"), mime,
-                                       um("isPtt") == "true", ctx, cliente=c))
-            return guardar_enviada(s, destino, resp)
-        except Exception as erro:
+            def one(name, default=""):
+                return (fields.get(name) or [default])[0]
+            destination = destination_of(fields.get("phone") or fields.get("phone[]") or [""])
+            ctx = quoted_context(s, one("quotedMessageId")) if one("quotedMessageId") else None
+            if one("quotedMessageId") and ctx is None:
+                log.info("quoted message not stored: send refused")
+                return responses.missing_quote()
+            resp = await transfers.send_with_progress_async(
+                s.client, path, one("uploadId"), s.emit, s.name,
+                lambda c: send_media(s, destination, one("type", "document"), path,
+                                     one("caption"), one("filename"), mime,
+                                     one("isPtt") == "true", ctx, client=c))
+            return store_sent(s, destination, resp)
+        except Exception as error:
             log.exception("send-file")
-            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+            return web.json_response({"status": "error", "message": str(error)}, status=500)
         finally:
-            if caminho:
+            if path:
                 try:
-                    os.unlink(caminho)
+                    os.unlink(path)
                 except OSError:
                     pass
 
     async def send_voice_base64(req):
         import base64 as b64
-        s = sessao(req)
-        corpo = await req.json()
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
-        dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
-        destino = destino_de(corpo["phone"])
-        ctx = contexto_citado(s, corpo["quotedMessageId"]) if corpo.get("quotedMessageId") else None
+        s = session(req)
+        body = await req.json()
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
+        data = b64.b64decode(body["base64Ptt"].split(",", 1)[-1])
+        destination = destination_of(body["phone"])
+        ctx = quoted_context(s, body["quotedMessageId"]) if body.get("quotedMessageId") else None
         try:
             resp = await asyncio.get_running_loop().run_in_executor(
-                None, enviar_midia, s, destino, "audio", dados, "", "", "", True, ctx)
-        except Exception as erro:
+                None, send_media, s, destination, "audio", data, "", "", "", True, ctx)
+        except Exception as error:
             log.exception("send-voice-base64")
-            return web.json_response({"status": "error", "message": str(erro)}, status=500)
-        return guardar_enviada(s, destino, resp)
+            return web.json_response({"status": "error", "message": str(error)}, status=500)
+        return store_sent(s, destination, resp)
 
-    async def publicar_status(req, montar_e_enviar):
-        """Publica um status: `montar_e_enviar(s, destino, corpo)` devolve o envio."""
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        destino = destino_de("status@broadcast")
+    async def publish_status(req, build_and_send):
+        """Posts a status: `build_and_send(s, destination, body)` returns the send."""
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        destination = destination_of("status@broadcast")
         try:
-            resp = await em_thread(montar_e_enviar, s, destino, corpo)
-        except Exception as falha:
-            log.exception("publicar status")
-            return web.json_response({"status": "error", "message": str(falha)}, status=500)
-        chat = jid_texto(destino)
-        w = msgmap.montar(conversa=chat, de_mim=True, id=resp.ID, remetente=s.eu,
-                          ts=resp.Timestamp or time.time(), mensagem=resp.Message)
+            resp = await in_thread(build_and_send, s, destination, body)
+        except Exception as failure:
+            log.exception("publish status")
+            return web.json_response({"status": "error", "message": str(failure)}, status=500)
+        chat = jid_text(destination)
+        w = msgmap.build(chat=chat, from_me=True, id=resp.ID, sender=s.me,
+                         ts=resp.Timestamp or time.time(), message=resp.Message)
         serial = f"true_status@broadcast_{resp.ID}"
         if w is not None:
-            s.bd.mensagem(chat, w, msgmap.ficha_midia(resp.Message))
+            s.db.message(chat, w, msgmap.media_record_of(resp.Message))
             serial = w["id"]["_serialized"]
-        # o app confere sendMsgResult.messageSendResult de cada item
+        # the app checks the sendMsgResult.messageSendResult of each item
         return ok(status="success", response=[{
             "id": serial, "ack": 1, "sendMsgResult": {"messageSendResult": "OK"}}])
 
-    def arquivo_do_corpo(corpo):
-        """Bytes do campo path (base64, nunca um caminho do disco)."""
-        return entradas.bytes_do_corpo(corpo)
+    def file_from_body(body):
+        """Bytes of the path field (base64, never a disk path)."""
+        return inputs.body_bytes(body)
 
-    def status_de_texto(s, destino, corpo):
+    def text_status(s, destination, body):
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ExtendedTextMessage, Message
-        opcoes = corpo.get("options") or {}
-        return s.cliente.send_message(destino, Message(extendedTextMessage=ExtendedTextMessage(
-            text=corpo["text"], textArgb=0xFFFFFFFF,
-            backgroundArgb=msgmap.cor_argb(opcoes.get("backgroundColor")),
-            font=int(opcoes.get("font") or 0))))
+        options = body.get("options") or {}
+        return s.client.send_message(destination, Message(extendedTextMessage=ExtendedTextMessage(
+            text=body["text"], textArgb=0xFFFFFFFF,
+            backgroundArgb=msgmap.argb_color(options.get("backgroundColor")),
+            font=int(options.get("font") or 0))))
 
-    def status_de_imagem(s, destino, corpo):
-        return enviar_midia(s, destino, "image", arquivo_do_corpo(corpo),
-                            corpo.get("caption") or "", "", "", False)
+    def image_status(s, destination, body):
+        return send_media(s, destination, "image", file_from_body(body),
+                          body.get("caption") or "", "", "", False)
 
-    def status_de_video(s, destino, corpo):
-        return enviar_midia(s, destino, "video", arquivo_do_corpo(corpo),
-                            corpo.get("caption") or "", "", "", False)
+    def video_status(s, destination, body):
+        return send_media(s, destination, "video", file_from_body(body),
+                          body.get("caption") or "", "", "", False)
 
-    def status_de_voz(s, destino, corpo):
+    def voice_status(s, destination, body):
         import base64 as b64
-        dados = b64.b64decode(corpo["base64Ptt"].split(",", 1)[-1])
-        return enviar_midia(s, destino, "audio", dados, "", "", "", True)
+        data = b64.b64decode(body["base64Ptt"].split(",", 1)[-1])
+        return send_media(s, destination, "audio", data, "", "", "", True)
 
     async def send_text_storie(req):
-        return await publicar_status(req, status_de_texto)
+        return await publish_status(req, text_status)
 
     async def send_image_storie(req):
-        return await publicar_status(req, status_de_imagem)
+        return await publish_status(req, image_status)
 
     async def send_video_storie(req):
-        return await publicar_status(req, status_de_video)
+        return await publish_status(req, video_status)
 
     async def send_status_voice(req):
-        return await publicar_status(req, status_de_voz)
+        return await publish_status(req, voice_status)
 
     async def statuses(req):
-        return ok(status="success", response=sessao(req).status_wpp())
+        return ok(status="success", response=session(req).status_wpp())
 
     async def delete_status(req):
-        s = sessao(req)
-        if not ciclo_sessao.status_apagavel(s.bd.mensagem_wpp(req.match_info["id"])):
-            # expirado, ja apagado ou nunca meu: nao ha o que apagar (o cliente le o `code`)
+        s = session(req)
+        if not session_lifecycle.deletable_status(s.db.wpp_message(req.match_info["id"])):
+            # expired, already deleted or never mine: nothing to delete (the client reads the `code`)
             return web.json_response({"status": "error", "code": "not_found",
                                       "retrySafe": False}, status=404)
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        feito = await em_thread(s.apagar_status, req.match_info["id"])
-        if not feito:
+        error = without_connection(s)
+        if error is not None:
+            return error
+        done = await in_thread(s.delete_status, req.match_info["id"])
+        if not done:
             return web.json_response({"status": "error", "code": "status_delete_failed"},
                                      status=500)
         return ok(status="success")
 
-    def jid_de_texto(texto):
+    def jid_from_text(text):
         from neonize.utils import build_jid
-        u, _, srv = msgmap.jid_whatsmeow(texto).partition("@")
+        u, _, srv = msgmap.jid_whatsmeow(text).partition("@")
         return build_jid(u, srv)
 
-    def grupo_para_wpp(g):
-        """GroupInfo do neonize -> o dicionario que o WinZapp le em group-info."""
-        participantes = []
+    def group_to_wpp(g):
+        """neonize GroupInfo -> the dictionary WinZapp reads in group-info."""
+        participants = []
         for p in g.Participants:
-            fone = jid_texto(p.PhoneNumber)
-            jid = fone or jid_texto(p.JID) or jid_texto(p.LID)
-            participantes.append({
-                "id": jid, "lid": jid_texto(p.LID),
+            phone = jid_text(p.PhoneNumber)
+            jid = phone or jid_text(p.JID) or jid_text(p.LID)
+            participants.append({
+                "id": jid, "lid": jid_text(p.LID),
                 "admin": "superadmin" if p.IsSuperAdmin else ("admin" if p.IsAdmin else None),
                 "isAdmin": bool(p.IsAdmin or p.IsSuperAdmin),
                 "isSuperAdmin": bool(p.IsSuperAdmin)})
-        dono = jid_texto(g.OwnerPN) or jid_texto(g.OwnerJID)
+        owner = jid_text(g.OwnerPN) or jid_text(g.OwnerJID)
         return {
-            "id": jid_texto(g.JID), "name": g.GroupName.Name, "subject": g.GroupName.Name,
+            "id": jid_text(g.JID), "name": g.GroupName.Name, "subject": g.GroupName.Name,
             "desc": g.GroupTopic.Topic, "announce": bool(g.GroupAnnounce.IsAnnounce),
-            "restrict": bool(g.GroupLocked.isLocked), "owner": dono,
-            "creation": msgmap.segundos(g.GroupCreated),
-            "participants": participantes}
+            "restrict": bool(g.GroupLocked.isLocked), "owner": owner,
+            "creation": msgmap.seconds(g.GroupCreated),
+            "participants": participants}
 
     async def group_info(req):
-        s = sessao(req)
-        if s.cliente is None or s.status != "CONNECTED":
+        s = session(req)
+        if s.client is None or s.status != "CONNECTED":
             return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
-        jid = jid_de_texto(req.match_info["jid"])
+        jid = jid_from_text(req.match_info["jid"])
         try:
             g = await asyncio.get_running_loop().run_in_executor(
-                None, s.cliente.get_group_info, jid)
-        except Exception as erro:
-            log.info("group-info falhou: %s", type(erro).__name__)
-            return web.json_response({"status": "error", "message": str(erro)}, status=404)
-        info = grupo_para_wpp(g)
+                None, s.client.get_group_info, jid)
+        except Exception as error:
+            log.info("group-info failed: %s", type(error).__name__)
+            return web.json_response({"status": "error", "message": str(error)}, status=404)
+        info = group_to_wpp(g)
         if info["name"]:
-            s.bd.conversa(info["id"], name=info["name"])
+            s.db.chat(info["id"], name=info["name"])
         return ok(status="success", response=info)
 
-    async def acao_de_grupo(req, funcao):
-        s = sessao(req)
-        corpo = await req.json()
-        if s.cliente is None or s.status != "CONNECTED":
+    async def group_action(req, func):
+        s = session(req)
+        body = await req.json()
+        if s.client is None or s.status != "CONNECTED":
             return web.json_response({"status": "error", "message": "Disconnected"}, status=400)
         try:
             await asyncio.get_running_loop().run_in_executor(
-                None, funcao, s.cliente, jid_de_texto(corpo["groupId"]), corpo)
-        except Exception as erro:
-            log.exception("grupo")
-            return web.json_response({"status": "error", "message": str(erro)}, status=500)
+                None, func, s.client, jid_from_text(body["groupId"]), body)
+        except Exception as error:
+            log.exception("group")
+            return web.json_response({"status": "error", "message": str(error)}, status=500)
         return ok(status="success", response={})
 
     async def leave_group(req):
-        return await acao_de_grupo(req, lambda c, jid, corpo: c.leave_group(jid))
+        return await group_action(req, lambda c, jid, body: c.leave_group(jid))
 
     async def group_subject(req):
-        return await acao_de_grupo(req, lambda c, jid, corpo: c.set_group_name(jid, corpo["title"]))
+        return await group_action(req, lambda c, jid, body: c.set_group_name(jid, body["title"]))
 
     async def contact_profile(req):
-        """Perfil de um contato (nome, apelido, conta comercial e, para LID, o numero)."""
-        s = sessao(req)
+        """A contact's profile (name, nickname, business account and, for an LID, the number)."""
+        s = session(req)
         jid = msgmap.jid_whatsmeow(req.match_info["jid"].replace("~", ""))
-        usuario, _, servidor = jid.partition("@")
-        lid = jid if servidor == "lid" else ""
-        fone = "" if servidor == "lid" else jid
-        verificado = ""
-        if s.cliente is not None and s.status == "CONNECTED" and servidor in ("lid", "s.whatsapp.net"):
+        user, _, server = jid.partition("@")
+        lid = jid if server == "lid" else ""
+        phone = "" if server == "lid" else jid
+        verified = ""
+        if s.client is not None and s.status == "CONNECTED" and server in ("lid", "s.whatsapp.net"):
             from neonize.utils import build_jid
-            laco = asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
             if lid:
                 try:
-                    pn = await laco.run_in_executor(
-                        None, s.cliente.get_pn_from_lid, build_jid(usuario, "lid"))
-                    fone = jid_texto(pn)
+                    pn = await loop.run_in_executor(
+                        None, s.client.get_pn_from_lid, build_jid(user, "lid"))
+                    phone = jid_text(pn)
                 except Exception:
-                    fone = ""
-            else:   # o apelido pode ter ficado guardado so sob o LID
+                    phone = ""
+            else:   # the nickname may have been stored only under the LID
                 try:
-                    lid = jid_texto(await laco.run_in_executor(
-                        None, s.cliente.get_lid_from_pn, build_jid(usuario, servidor)))
+                    lid = jid_text(await loop.run_in_executor(
+                        None, s.client.get_lid_from_pn, build_jid(user, server)))
                 except Exception:
                     lid = ""
-            if fone:    # nome verificado de conta comercial, da loja local do neonize
+            if phone:    # verified name of a business account, from neonize's local store
                 try:
-                    u, _, srv = fone.partition("@")
-                    info = await laco.run_in_executor(
-                        None, s.cliente.contact.get_contact, build_jid(u, srv))
-                    verificado = (info.BusinessName or "").strip()
+                    u, _, srv = phone.partition("@")
+                    info = await loop.run_in_executor(
+                        None, s.client.contact.get_contact, build_jid(u, srv))
+                    verified = (info.BusinessName or "").strip()
                 except Exception:
-                    verificado = ""
-        achado = s.bd.contato_de(jid, lid, *contatos.jids_equivalentes(fone))
-        return ok(status="success", response=contatos.corpo_do_contato(jid, fone, achado, verificado))
+                    verified = ""
+        found = s.db.contact_of(jid, lid, *contacts.equivalent_jids(phone))
+        return ok(status="success", response=contacts.contact_body(jid, phone, found, verified))
 
     r.add_get("/api/{tok}/contact/{jid}", contact_profile)
     r.add_get("/api/{tok}/group-info/{jid}", group_info)
     r.add_post("/api/{tok}/leave-group", leave_group)
     r.add_post("/api/{tok}/group-subject", group_subject)
-    grupos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                     jid_texto=jid_texto, qr_data_url=qr_data_url)
-    negocio.registrar(r, sessao=sessao, ok=ok)
-    canais.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                     jid_texto=jid_texto)
-    administracao.registrar(r, sessao=sessao, ok=ok, estado=estado, pasta=pasta,
-                            marcar_ativa=marcar_ativa, qr_data_url=qr_data_url)
-    limpeza.registrar(r, ok=ok, estado=estado, pasta=pasta, marcar_ativa=marcar_ativa)
-    chamadas.registrar(r, sessao=sessao, ok=ok)
-    presenca.registrar(r, sessao=sessao, ok=ok)
-    etiquetas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                        jid_texto=jid_texto)
-    comunidades.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
-    comentarios_rotas.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto)
-    grupos_extra.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                           jid_texto=jid_texto, qr_data_url=qr_data_url)
-    perfil.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                     jid_texto=jid_texto)
-    contatos.registrar(r, sessao=sessao, ok=ok, jid_de_texto=jid_de_texto,
-                       jid_texto=jid_texto, destino_de=destino_de,
-                       guardar_enviada=guardar_enviada, contexto_citado=contexto_citado)
-    restantes.registrar(r, sessao=sessao, ok=ok)
-    conversas.registrar(r, sessao=sessao, ok=ok, id_wpp=id_wpp, destino_de=destino_de,
-                        guardar_enviada=guardar_enviada, enviar_midia=enviar_midia,
-                        contexto_citado=contexto_citado)
-    conversas_restantes.registrar(r, sessao=sessao, ok=ok, destino_de=destino_de,
-                                  contexto_citado=contexto_citado,
-                                  publicar_status=publicar_status,
-                                  status_de_texto=status_de_texto)
-    async def texto_com_contexto(req, com_mencoes):
-        """send-reply e send-mentioned: texto citando uma mensagem e/ou mencionando gente."""
+    groups.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                           jid_text=jid_text, qr_data_url=qr_data_url)
+    business.register_routes(r, session=session, ok=ok)
+    channels.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                             jid_text=jid_text)
+    administration.register_routes(r, session=session, ok=ok, state=state, folder=folder,
+                                   mark_active=mark_active, qr_data_url=qr_data_url)
+    cleanup.register_routes(r, ok=ok, state=state, folder=folder, mark_active=mark_active)
+    calls.register_routes(r, session=session, ok=ok)
+    presence.register_routes(r, session=session, ok=ok)
+    labels.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                           jid_text=jid_text)
+    communities.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text)
+    comment_routes.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text)
+    groups_extra.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                                 jid_text=jid_text, qr_data_url=qr_data_url)
+    profile_privacy.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                                    jid_text=jid_text)
+    contacts.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                             jid_text=jid_text, destination_of=destination_of,
+                             store_sent=store_sent, quoted_context=quoted_context)
+    remaining.register_routes(r, session=session, ok=ok)
+    chats.register_routes(r, session=session, ok=ok, wpp_id=wpp_id, destination_of=destination_of,
+                          store_sent=store_sent, send_media=send_media,
+                          quoted_context=quoted_context)
+    chat_remaining.register_routes(r, session=session, ok=ok, destination_of=destination_of,
+                                   quoted_context=quoted_context,
+                                   publish_status=publish_status,
+                                   text_status=text_status)
+    async def text_with_context(req, with_mentions):
+        """send-reply and send-mentioned: text quoting a message and/or mentioning people."""
         from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
             ContextInfo, ExtendedTextMessage, Message)
-        s = sessao(req)
-        corpo = await req.json()
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
-        destino = destino_de(corpo["phone"])
+        s = session(req)
+        body = await req.json()
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
+        destination = destination_of(body["phone"])
         ctx = ContextInfo()
-        citado = corpo.get("messageId")
-        if citado and contexto_citado(s, citado, ctx) is None:
-            return respostas.citacao_ausente()
-        if com_mencoes:
-            ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in corpo.get("mentioned", []))
-        mensagem = Message(extendedTextMessage=ExtendedTextMessage(
-            text=corpo["message"], contextInfo=ctx,
-            **(msgmap.previa_de_link(corpo.get("options")) or {})))
+        quoted = body.get("messageId")
+        if quoted and quoted_context(s, quoted, ctx) is None:
+            return responses.missing_quote()
+        if with_mentions:
+            ctx.mentionedJID.extend(msgmap.jid_whatsmeow(j) for j in body.get("mentioned", []))
+        message = Message(extendedTextMessage=ExtendedTextMessage(
+            text=body["message"], contextInfo=ctx,
+            **(msgmap.link_preview(body.get("options")) or {})))
         try:
             resp = await asyncio.get_running_loop().run_in_executor(
-                None, s.cliente.send_message, destino, mensagem)
-        except Exception as erro:
+                None, s.client.send_message, destination, message)
+        except Exception as error:
             log.exception("send-reply")
-            return web.json_response({"status": "error", "message": str(erro)}, status=500)
-        return guardar_enviada(s, destino, resp)
+            return web.json_response({"status": "error", "message": str(error)}, status=500)
+        return store_sent(s, destination, resp)
 
     async def send_reply(req):
-        return await texto_com_contexto(req, False)
+        return await text_with_context(req, False)
 
     async def send_mentioned(req):
-        return await texto_com_contexto(req, True)
+        return await text_with_context(req, True)
 
     r.add_post("/api/{tok}/send-text-storie", send_text_storie)
     r.add_post("/api/{tok}/send-image-storie", send_image_storie)
@@ -2276,275 +2275,275 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
     async def archive_chat(req):
-        s = sessao(req)
-        corpo = await req.json()
-        fone = corpo.get("phone")
-        fone = fone[0] if isinstance(fone, list) else fone
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
-        feito = await no_estado_da_conversa(s, fone, s.arquivar, bool(corpo.get("value", True)))
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        s = session(req)
+        body = await req.json()
+        phone = body.get("phone")
+        phone = phone[0] if isinstance(phone, list) else phone
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
+        done = await on_chat_state(s, phone, s.archive, bool(body.get("value", True)))
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
         return ok(status="success", response={})
 
     async def pin_chat(req):
-        s = sessao(req)
-        corpo = await req.json()
-        fone = corpo.get("phone")
-        fone = fone[0] if isinstance(fone, list) else fone
-        if s.status != "CONNECTED" or s.cliente is None:
-            return respostas.desconectada()
-        fixar = str(corpo.get("state", "true")).lower() == "true"
-        feito = await no_estado_da_conversa(s, fone, s.fixar, fixar)
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        s = session(req)
+        body = await req.json()
+        phone = body.get("phone")
+        phone = phone[0] if isinstance(phone, list) else phone
+        if s.status != "CONNECTED" or s.client is None:
+            return responses.disconnected()
+        pin = str(body.get("state", "true")).lower() == "true"
+        done = await on_chat_state(s, phone, s.pin, pin)
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
         return ok(status="success", response={})
 
-    async def em_thread(funcao, *args):
-        return await asyncio.get_running_loop().run_in_executor(None, funcao, *args)
+    async def in_thread(func, *args):
+        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
 
-    def sem_conexao(s):
-        return respostas.sem_conexao(s)
+    def without_connection(s):
+        return responses.without_connection(s)
 
-    async def no_estado_da_conversa(s, fone, acao, valor):
-        """Arquivar, fixar ou silenciar: `acao(chave, valor)` na chave com que a
-        conversa esta guardada (o numero ou o LID; sem linha, a dada) e, se o
-        WhatsApp aceitou, o mesmo estado nas outras chaves dela. Sem isso a
-        acao criava uma linha vazia sob o endereco errado e o list-chats
-        seguinte voltava como estava."""
-        jid = msgmap.jid_whatsmeow(fone)
-        chaves = await em_thread(s.chaves_da_conversa, jid)
-        alvo = chaves[0] if chaves else jid
-        feito = await em_thread(acao, alvo, valor)
-        if feito:
-            for outra in chaves[1:]:
-                s.bd.copiar_estado(alvo, outra)
-        return feito
+    async def on_chat_state(s, phone, action, value):
+        """Archive, pin or mute: `action(key, value)` on the key under which the
+        chat is stored (the number or the LID; with no row, the given one) and, if
+        WhatsApp accepted, the same state on its other keys. Without that the
+        action created an empty row under the wrong address and the next
+        list-chats came back as it was."""
+        jid = msgmap.jid_whatsmeow(phone)
+        keys = await in_thread(s.chat_keys, jid)
+        target = keys[0] if keys else jid
+        done = await in_thread(action, target, value)
+        if done:
+            for other in keys[1:]:
+                s.db.copy_state(target, other)
+        return done
     async def star_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        feito = await em_thread(s.favoritar, corpo["messageId"], bool(corpo.get("star", True)))
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
-        return ok(status="success", response={"star": bool(corpo.get("star", True))})
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        done = await in_thread(s.star, body["messageId"], bool(body.get("star", True)))
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
+        return ok(status="success", response={"star": bool(body.get("star", True))})
 
     async def message_by_id(req):
-        s = sessao(req)
+        s = session(req)
         serial = req.match_info["msgid"]
-        _, _, mid, _ = s.partes_do_id(serial)
-        original = s.bd.mensagem_wpp(mid)
+        _, _, mid, _ = s.id_parts(serial)
+        original = s.db.wpp_message(mid)
         if original is None:
             return web.json_response({"status": "error", "message": "message not found"}, status=404)
-        # {data: mensagem}, como o servidor real (main_window/calls.py so le .data)
-        return ok(status="success", response={"data": s.bd.para_resposta([original], s.ack_da_mensagem)[0]})
+        # {data: message}, like the real server (main_window/calls.py only reads .data)
+        return ok(status="success", response={"data": s.db.for_response([original], s.message_ack)[0]})
 
     async def send_mute(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        quantidade = float(corpo.get("time") or 0)
-        unidade = {"minutes": 60, "hours": 3600, "days": 86400, "weeks": 604800,
-                   "months": 2592000, "years": 31536000}.get(str(corpo.get("type", "hours")), 3600)
-        segundos = int(quantidade * unidade)
-        if segundos >= 8766 * 3600:
-            segundos = -1                       # "para sempre"
-        fone = corpo.get("phone")
-        fone = fone[0] if isinstance(fone, list) else fone
-        feito = await no_estado_da_conversa(s, fone, s.silenciar, segundos)
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
-        return ok(status="success", response={"isMuted": segundos != 0})
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        amount = float(body.get("time") or 0)
+        unit = {"minutes": 60, "hours": 3600, "days": 86400, "weeks": 604800,
+                "months": 2592000, "years": 31536000}.get(str(body.get("type", "hours")), 3600)
+        seconds = int(amount * unit)
+        if seconds >= 8766 * 3600:
+            seconds = -1                       # "forever"
+        phone = body.get("phone")
+        phone = phone[0] if isinstance(phone, list) else phone
+        done = await on_chat_state(s, phone, s.mute, seconds)
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
+        return ok(status="success", response={"isMuted": seconds != 0})
 
     async def send_poll_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
         from neonize.utils.enum import VoteType
-        fone = corpo["phone"]
-        fone = fone[0] if isinstance(fone, list) else fone
-        if corpo.get("isGroup") and "@" not in fone:
-            fone += "@g.us"
-        destino = destino_de(fone)
-        multipla = int((corpo.get("options") or {}).get("selectableCount", 1)) != 1
+        phone = body["phone"]
+        phone = phone[0] if isinstance(phone, list) else phone
+        if body.get("isGroup") and "@" not in phone:
+            phone += "@g.us"
+        destination = destination_of(phone)
+        multiple = int((body.get("options") or {}).get("selectableCount", 1)) != 1
 
-        def enviar():
-            criada = s.cliente.build_poll_vote_creation(
-                corpo["name"], list(corpo["choices"]),
-                VoteType.MULTIPLE if multipla else VoteType.SINGLE)
-            return s.cliente.send_message(destino, criada)
+        def send():
+            created = s.client.build_poll_vote_creation(
+                body["name"], list(body["choices"]),
+                VoteType.MULTIPLE if multiple else VoteType.SINGLE)
+            return s.client.send_message(destination, created)
         try:
-            resp = await em_thread(enviar)
-        except Exception as erro_envio:
+            resp = await in_thread(send)
+        except Exception as send_error:
             log.exception("send-poll-message")
-            return web.json_response({"status": "error", "message": str(erro_envio)},
+            return web.json_response({"status": "error", "message": str(send_error)},
                                      status=500)
-        return guardar_enviada(s, destino, resp)
+        return store_sent(s, destination, resp)
 
     async def poll_votes(req):
-        s = sessao(req)
-        corpo = await req.json()
-        resposta = {}
-        for serial in corpo.get("messageIds") or []:
-            votos = s.votos_wpp(serial)
-            if votos is not None:
-                resposta[serial] = votos
-        return ok(status="success", response=resposta)
+        s = session(req)
+        body = await req.json()
+        response = {}
+        for serial in body.get("messageIds") or []:
+            vote_rows = s.votes_wpp(serial)
+            if vote_rows is not None:
+                response[serial] = vote_rows
+        return ok(status="success", response=response)
 
     async def poll_voters(req):
-        s = sessao(req)
-        corpo = await req.json()
-        resposta = s.votantes_wpp(corpo.get("messageId") or "")
-        if not resposta.get("ok"):
-            return web.json_response({"status": "error", "code": resposta["error"]}, status=503)
-        return ok(status="success", response=resposta)
+        s = session(req)
+        body = await req.json()
+        response = s.voters_wpp(body.get("messageId") or "")
+        if not response.get("ok"):
+            return web.json_response({"status": "error", "code": response["error"]}, status=503)
+        return ok(status="success", response=response)
 
     async def vote_poll(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        feito = await em_thread(s.votar_em_enquete, corpo["messageId"],
-                                [int(i) for i in corpo.get("localIds") or []])
-        if not feito:
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        done = await in_thread(s.vote_in_poll, body["messageId"],
+                               [int(i) for i in body.get("localIds") or []])
+        if not done:
             return web.json_response({"status": "error", "code": "poll_vote_failed"}, status=503)
         return ok(status="success")
 
     async def edit_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        # recusas que acontecem antes de enviar algo: o cliente so desfaz o texto
-        # otimista quando o corpo as diz (respostas.edicao_recusada)
-        de_mim, _, mid, _ = s.partes_do_id(corpo["id"])
-        motivo = regras_de_mensagem.motivo_da_recusa(de_mim, s.bd.mensagem_wpp(mid), time.time())
-        if motivo:
-            return respostas.edicao_recusada(motivo)
-        mencoes = (corpo.get("options") or {}).get("mentionedJidList") or []
-        feito = await em_thread(s.editar, corpo["id"], corpo["newText"], mencoes)
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        # refusals that happen before anything is sent: the client only undoes the
+        # optimistic text when the body says so (responses.edit_refused)
+        from_me, _, mid, _ = s.id_parts(body["id"])
+        reason = message_rules.refusal_reason(from_me, s.db.wpp_message(mid), time.time())
+        if reason:
+            return responses.edit_refused(reason)
+        mentions = (body.get("options") or {}).get("mentionedJidList") or []
+        done = await in_thread(s.edit, body["id"], body["newText"], mentions)
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
         return ok(status="success", response={"edited": True})
 
     async def forward_messages(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        fone = corpo["phone"]
-        fone = fone[0] if isinstance(fone, list) else fone
-        destino = destino_de(fone)
-        ids = corpo["messageId"]
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        phone = body["phone"]
+        phone = phone[0] if isinstance(phone, list) else phone
+        destination = destination_of(phone)
+        ids = body["messageId"]
         ids = ids if isinstance(ids, list) else [ids]
-        enviadas, ids_novos = [], []
+        sent, new_ids = [], []
         for serial in ids:
-            msg = await em_thread(s.mensagem_para_encaminhar, serial,
-                                  bool(corpo.get("keepVoice")))
+            msg = await in_thread(s.message_to_forward, serial,
+                                  bool(body.get("keepVoice")))
             if msg is None:
                 return web.json_response(
-                    {"status": "error", "message": "tipo de mensagem ainda nao encaminhavel"},
+                    {"status": "error", "message": "message type not yet forwardable"},
                     status=501)
             try:
-                resp = await em_thread(s.cliente.send_message, destino, msg)
-            except Exception as erro_envio:
-                log.exception("encaminhar")
-                return web.json_response({"status": "error", "message": str(erro_envio)},
+                resp = await in_thread(s.client.send_message, destination, msg)
+            except Exception as send_error:
+                log.exception("forward")
+                return web.json_response({"status": "error", "message": str(send_error)},
                                          status=500)
-            enviadas.append(guardar_enviada(s, destino, resp))
-            ids_novos.append(resp.ID)
-        # Sem eco: o servidor real avisa o encaminhamento por received-message e
-        # o cliente conta com isso para atualizar a conversa de destino, mas aqui
-        # o aviso e arriscado (o cliente casa o eco por tipo e pode trocar o id de
-        # um envio pendente do mesmo tipo na mesma conversa). Sem ele, a conversa
-        # de destino e a previa so mudam no proximo list-chats do cliente; os ids
-        # novos vao na resposta para o cliente poder atualizar a conversa ao
-        # receber o sucesso (ele ainda nao o faz).
-        return ok(status="success", response=[{"forwarded": len(enviadas),
-                                               "messageIds": ids_novos}])
+            sent.append(store_sent(s, destination, resp))
+            new_ids.append(resp.ID)
+        # No echo: the real server announces the forwarding through received-message and
+        # the client counts on that to update the destination chat, but here
+        # the notice is risky (the client matches the echo by type and may swap the id of
+        # a pending send of the same type in the same chat). Without it, the destination
+        # chat and the preview only change at the client's next list-chats; the new ids
+        # go in the response so the client can update the chat when it
+        # receives the success (it does not do that yet).
+        return ok(status="success", response=[{"forwarded": len(sent),
+                                               "messageIds": new_ids}])
 
     async def older_history(req):
-        """O neonize nao tem o pedido de historico sob demanda (o do 'clique
-        aqui para ver mensagens mais antigas'): diz que o resto so existe no
-        celular, e o app para de pedir. O historico que chega e o do pareamento."""
+        """neonize has no on-demand history request (the one of the 'click
+        here to see older messages'): says the rest only exists on the
+        phone, and the app stops asking. The history that arrives is the pairing's."""
         return ok(status="success", response={
             "requested": False, "primaryHasMore": True, "phoneOnly": True})
 
     async def react_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        feito = await em_thread(s.reagir, corpo["msgId"], corpo.get("reaction") or "")
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        done = await in_thread(s.react, body["msgId"], body.get("reaction") or "")
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
         return ok(status="success", response={"sendMsgResult": "ok"})
 
     async def reactions(req):
-        s = sessao(req)
-        return ok(status="success", response=s.reacoes_wpp(req.match_info["id"]))
+        s = session(req)
+        return ok(status="success", response=s.reactions_wpp(req.match_info["id"]))
 
     async def send_capabilities(req):
         return ok(status="success", response={"compatible": True})
 
     async def pinned_messages(req):
-        """Mensagens fixadas nas conversas pedidas (a ponte guarda os avisos de
-        fixar e soltar que passam por ela). A lista e PARCIAL: so o que a ponte
-        viu passar (o aviso de fixar que chegou ou que ela mesma mandou); o que
-        foi fixado antes do pareamento ou com a ponte desligada nao aparece, e o
-        cliente (_apply_pinned_message_flags) trata a lista como completa e
-        limpa o pinInChat do resto. Nao ha conserto barato: o neonize nao lista
-        as fixadas de uma conversa."""
-        s = sessao(req)
-        corpo = await req.json()
-        chats = [msgmap.jid_whatsmeow(c) for c in corpo.get("chatIds") or []]
-        fixadas = s.bd.fixadas_de(chats, time.time())
-        return ok(status="success", response=[{**w, "pinInChat": True} for w in fixadas])
+        """Messages pinned in the requested chats (the bridge keeps the pin and
+        unpin notices that go through it). The list is PARTIAL: only what the bridge
+        saw go by (the pin notice that arrived or that it sent itself); what was
+        pinned before the pairing or with the bridge off does not show up, and the
+        client (_apply_pinned_message_flags) treats the list as complete and
+        clears the pinInChat of the rest. There is no cheap fix: neonize does not list
+        a chat's pinned messages."""
+        s = session(req)
+        body = await req.json()
+        chats = [msgmap.jid_whatsmeow(c) for c in body.get("chatIds") or []]
+        pinned = s.db.pinned_of(chats, time.time())
+        return ok(status="success", response=[{**w, "pinInChat": True} for w in pinned])
 
     async def pin_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        fixar = bool(corpo.get("pin", True))
-        feito = await em_thread(s.fixar_mensagem, corpo["messageId"], fixar)
-        if not feito:
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
-        return ok(status="success", response={"messageId": corpo["messageId"], "pinned": fixar})
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        pin = bool(body.get("pin", True))
+        done = await in_thread(s.pin_message, body["messageId"], pin)
+        if not done:
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
+        return ok(status="success", response={"messageId": body["messageId"], "pinned": pin})
 
     async def mark_played(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        feito = await em_thread(s.marcar_ouvida, corpo["messageId"])
-        return ok(status="success", response={"played": bool(feito)})
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        done = await in_thread(s.mark_played, body["messageId"])
+        return ok(status="success", response={"played": bool(done)})
 
     async def delete_message(req):
-        s = sessao(req)
-        corpo = await req.json()
-        erro = sem_conexao(s)
-        if erro is not None:
-            return erro
-        ids = corpo["messageId"]
+        s = session(req)
+        body = await req.json()
+        error = without_connection(s)
+        if error is not None:
+            return error
+        ids = body["messageId"]
         ids = ids if isinstance(ids, list) else [ids]
-        funcao = s.apagar_para_mim if corpo.get("onlyLocal") else s.apagar_para_todos
-        feitos = [await em_thread(funcao, i) for i in ids]
-        if not all(feitos):
-            return web.json_response({"status": "error", "message": "nao aceito"}, status=500)
-        return ok(status="success", response={"deleted": len(feitos)})
+        func = s.delete_for_me if body.get("onlyLocal") else s.delete_for_everyone
+        dones = [await in_thread(func, i) for i in ids]
+        if not all(dones):
+            return web.json_response({"status": "error", "message": "not accepted"}, status=500)
+        return ok(status="success", response={"deleted": len(dones)})
 
     r.add_post("/api/{tok}/star-message", star_message)
     r.add_get("/api/{tok}/message-by-id/{msgid}", message_by_id)
@@ -2564,16 +2563,16 @@ def criar_app(pasta, fixa=""):
     r.add_post("/api/{tok}/pin-message", pin_message)
     r.add_get("/api/{tok}/reactions/{id}", reactions)
     r.add_post("/api/{tok}/delete-message", delete_message)
-    async def recuperar_estado(req):
-        s = sessao(req)
-        mudou = await em_thread(s.pedir_copia_do_estado)
-        return ok(status="success", response={"mudancas": mudou})
+    async def recover_state(req):
+        s = session(req)
+        changed = await in_thread(s.request_state_copy)
+        return ok(status="success", response={"changes": changed})
 
-    r.add_post("/api/{tok}/recuperar-estado", recuperar_estado)
+    r.add_post("/api/{tok}/recover-state", recover_state)
     r.add_post("/api/{tok}/archive-chat", archive_chat)
     r.add_post("/api/{tok}/pin-chat", pin_chat)
     r.add_post("/api/{tok}/send-seen", send_seen)
-    r.add_post("/api/{tok}/set-limit", vazio_ok)
+    r.add_post("/api/{tok}/set-limit", empty_ok)
     r.add_get("/api/{tok}/contact/pn-lid/{jid}", pn_lid)
     r.add_get("/api/{tok}/blocklist", blocklist)
     r.add_get("/api/{tok}/history-sync-status", history_status)
@@ -2585,42 +2584,42 @@ def criar_app(pasta, fixa=""):
     r.add_get("/api/{tok}/all-contacts", all_contacts)
     r.add_get("/api/{tok}/get-messages/{phone}", get_messages)
     r.add_post("/api/{tok}/send-message", send_message)
-    r.add_get("/healthz", saude)
-    r.add_get("/health", saude)
+    r.add_get("/healthz", health)
+    r.add_get("/health", health)
     return app
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--porta", type=int, default=6300)
-    ap.add_argument("--sessao-unica", default="",
-                    help="todas as sessoes pedidas usam esta conta (testes)")
-    ap.add_argument("--historico-dias", type=int, default=180,
-                    help="historico a pedir no pareamento (0 = o padrao do WhatsApp)")
-    ap.add_argument("--log-estado", action="store_true",
-                    help="liga o registro tecnico do lado em Go, filtrado para o estado do app")
-    ap.add_argument("--pasta", default=os.path.join(os.path.dirname(__file__), "dados"))
+    ap.add_argument("--port", type=int, default=6300)
+    ap.add_argument("--single-session", default="",
+                    help="all the requested sessions use this account (tests)")
+    ap.add_argument("--history-days", type=int, default=180,
+                    help="history to ask for on pairing (0 = WhatsApp's default)")
+    ap.add_argument("--log-state", action="store_true",
+                    help="turns on the technical log of the Go side, filtered for the app state")
+    ap.add_argument("--folder", default=os.path.join(os.path.dirname(__file__), "data"))
     a = ap.parse_args()
-    global HISTORICO_DIAS
-    HISTORICO_DIAS = a.historico_dias
+    global HISTORY_DAYS
+    HISTORY_DAYS = a.history_days
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    for h in logging.getLogger().handlers:      # o ponte.log circula em relatos de erro
-        h.addFilter(redacao.FiltroDeRedacao())
-    if a.log_estado:
+    for h in logging.getLogger().handlers:      # the bridge.log gets passed around in bug reports
+        h.addFilter(redaction.RedactionFilter())
+    if a.log_state:
         import re
-        from neonize.utils import log as log_neonize
-        log_neonize.setLevel(logging.DEBUG)
-        for nome in ("whatsmeow", "Whatsmeow"):
-            logging.getLogger(nome).setLevel(logging.DEBUG)
-        padrao = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate|<receipt|<notification|<message|read-self", re.I)
+        from neonize.utils import log as neonize_log
+        neonize_log.setLevel(logging.DEBUG)
+        for name in ("whatsmeow", "Whatsmeow"):
+            logging.getLogger(name).setLevel(logging.DEBUG)
+        pattern = re.compile(r"app ?state|patch|snapshot|key ?share|sync ?key|lthash|mutation|appstate|<receipt|<notification|<message|read-self", re.I)
 
-        class SoEstado(logging.Filter):
+        class StateOnly(logging.Filter):
             def filter(self, rec):
-                return rec.levelno >= logging.WARNING or rec.name == "ponte"                     or bool(padrao.search(rec.getMessage()))
+                return rec.levelno >= logging.WARNING or rec.name == "bridge"                     or bool(pattern.search(rec.getMessage()))
         for h in logging.getLogger().handlers:
-            h.addFilter(SoEstado())
-    web.run_app(criar_app(a.pasta, a.sessao_unica), port=a.porta, **OPCOES_DO_SERVIDOR)
+            h.addFilter(StateOnly())
+    web.run_app(create_app(a.folder, a.single_session), port=a.port, **SERVER_OPTIONS)
 
 
 if __name__ == "__main__":

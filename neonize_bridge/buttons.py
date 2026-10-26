@@ -1,0 +1,160 @@
+"""Buttons of business messages: the fields WinZapp reads in a message
+(`client/core/business_buttons.py`) and the reply to a button. Pure functions,
+no server; `chat_interactive.py` wires the `reply-button` route.
+
+Two halves:
+
+- `button_fields(message)`: whatsmeow message (already unwrapped) -> the extra
+  fields of the WhatsApp Web format (`dynamicReplyButtons`, `list`,
+  `hydratedButtons`, `interactivePayload`). The POSITION of each button in the
+  list is what the client sends back as `index`, so a button the client does
+  not know how to use becomes `{}` instead of leaving the list.
+- `reply_plan(wpp, source, index)`: the stored message + the chosen button ->
+  what to send, as a plain dictionary; `build_reply` turns it into the proto.
+
+Replies that exist: reply button ("dynamic", ButtonsResponseMessage), list row
+("list", ListResponseMessage) and template button ("template",
+TemplateButtonReplyMessage). The "native" one (quick reply of an interactive
+message) is sent by the WhatsApp Web client as text with `selectedIndex` and
+`selectedId`, and neither field exists in ExtendedTextMessage: with no
+confirmed format, the bridge refuses it instead of guessing.
+
+Nothing here was tested against a real account.
+"""
+import commerce_messages
+
+SOURCES = ("dynamic", "native", "template", "list")
+
+
+class ButtonRefused(Exception):
+    """Refusal with the code and the HTTP status that the WinZapp server returns."""
+
+    def __init__(self, code, status):
+        super().__init__(code)
+        self.code = code
+        self.status = status
+
+
+def _has(message, field):
+    try:
+        return message.HasField(field)
+    except ValueError:
+        return False
+
+
+def _dynamic(body):
+    return [{"buttonId": b.buttonID,
+             "buttonText": {"displayText": b.buttonText.displayText}, "type": 1}
+            if b.buttonID and b.buttonText.displayText else {}
+            for b in body.buttons if b.type != 2]      # 2 = NATIVE_FLOW
+
+
+def _list(body):
+    return {"title": body.title, "description": body.description,
+            "buttonText": body.buttonText,
+            "sections": [{"title": sec.title, "rows": [
+                {"rowId": row.rowID, "title": row.title, "description": row.description}
+                for row in sec.rows]} for sec in body.sections]}
+
+
+def _template(body):
+    out = []
+    for i, b in enumerate(body.hydratedButtons):
+        if _has(b, "quickReplyButton"):
+            out.append({"index": i, "quickReplyButton": {
+                "displayText": b.quickReplyButton.displayText, "id": b.quickReplyButton.ID}})
+        elif _has(b, "urlButton"):
+            out.append({"index": i, "urlButton": {
+                "displayText": b.urlButton.displayText, "url": b.urlButton.URL}})
+        elif _has(b, "callButton"):
+            out.append({"index": i, "callButton": {
+                "displayText": b.callButton.displayText,
+                "phoneNumber": b.callButton.phoneNumber}})
+        else:
+            out.append({})
+    return out
+
+
+def button_fields(message) -> dict:
+    """Button fields of the whatsmeow message (already unwrapped); empty if it
+    has no buttons."""
+    if _has(message, "buttonsMessage"):
+        b = message.buttonsMessage
+        return {"body": b.contentText or b.text,
+                "dynamicReplyButtons": _dynamic(b)}
+    if _has(message, "listMessage"):
+        return {"type": "list", "body": message.listMessage.description,
+                "list": _list(message.listMessage)}
+    if _has(message, "templateMessage"):
+        t = message.templateMessage
+        template = t.hydratedTemplate if _has(t, "hydratedTemplate") else \
+            t.hydratedFourRowTemplate
+        return {"body": template.hydratedContentText,
+                "hydratedButtons": _template(template)}
+    if _has(message, "interactiveMessage"):
+        i = message.interactiveMessage
+        if not _has(i, "nativeFlowMessage"):
+            return {}
+        buttons = i.nativeFlowMessage.buttons
+        fields = {"body": i.body.text, "interactivePayload": {"buttons": [
+            {"name": b.name, "buttonParamsJson": b.buttonParamsJSON}
+            for b in buttons]}}
+        flow = commerce_messages.native_flow(buttons[0].name) if buttons else ""
+        if flow:            # the client tells the order notice from the rest by this
+            fields["nativeFlowName"] = flow
+        return fields
+    return {}
+
+
+def _item(items, index):
+    if not isinstance(items, list) or not 0 <= index < len(items) \
+            or not isinstance(items[index], dict) or not items[index]:
+        raise ButtonRefused("button_not_found", 404)
+    return items[index]
+
+
+def reply_plan(wpp, source, index):
+    """What to send when button `index` of `source` is tapped in message `wpp`
+    (WhatsApp Web format), or ButtonRefused."""
+    if source == "dynamic":
+        b = _item(wpp.get("dynamicReplyButtons"), index)
+        return {"kind": "button", "id": b["buttonId"],
+                "text": b["buttonText"]["displayText"]}
+    if source == "template":
+        b = _item(wpp.get("hydratedButtons"), index).get("quickReplyButton")
+        if not b:
+            raise ButtonRefused("button_not_found", 404)
+        return {"kind": "template", "id": b["id"], "text": b["displayText"],
+                "index": index}
+    if source == "list":
+        rows = [row for sec in (wpp.get("list") or {}).get("sections") or []
+                for row in sec.get("rows") or []]
+        row = _item(rows, index)
+        if not row.get("rowId") or not row.get("title"):
+            raise ButtonRefused("button_not_found", 404)
+        return {"kind": "list", "id": row["rowId"], "title": row["title"],
+                "description": row.get("description") or ""}
+    if source == "native":
+        button = _item((wpp.get("interactivePayload") or {}).get("buttons"), index)
+        if button.get("name") != "quick_reply":
+            raise ButtonRefused("button_not_found", 404)
+        raise ButtonRefused("reply_button_unavailable", 501)
+    raise ButtonRefused("invalid_request", 400)
+
+
+def build_reply(plan, ctx):
+    """The plan -> whatsmeow `Message`, quoting the message through `ctx`."""
+    from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
+        ButtonsResponseMessage, ListResponseMessage, Message, TemplateButtonReplyMessage)
+    if plan["kind"] == "button":
+        return Message(buttonsResponseMessage=ButtonsResponseMessage(
+            selectedButtonID=plan["id"], selectedDisplayText=plan["text"],
+            type=ButtonsResponseMessage.DISPLAY_TEXT, contextInfo=ctx))
+    if plan["kind"] == "template":
+        return Message(templateButtonReplyMessage=TemplateButtonReplyMessage(
+            selectedID=plan["id"], selectedDisplayText=plan["text"],
+            selectedIndex=plan["index"], contextInfo=ctx))
+    return Message(listResponseMessage=ListResponseMessage(
+        title=plan["title"], description=plan["description"],
+        listType=ListResponseMessage.SINGLE_SELECT, contextInfo=ctx,
+        singleSelectReply=ListResponseMessage.SingleSelectReply(selectedRowID=plan["id"])))
