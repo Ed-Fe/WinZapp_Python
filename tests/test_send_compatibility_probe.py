@@ -545,3 +545,10 @@ class TestTheNeonizeBridgeSaysWhetherItCarriesCalls:
         _answer(monkeypatch, 200, {"response": {"compatible": True, "missing": []}})
         stub._check_send_capabilities()
         assert stub._neonize_calls is False
+        assert stub._neonize_video_calls is False and stub._neonize_group_calls is False
+
+    def test_a_bridge_with_video_and_group_calls(self, stub, monkeypatch):
+        _answer(monkeypatch, 200, {"response": {"compatible": True, "calls": True,
+                                                "videoCalls": True, "groupCalls": True}})
+        stub._check_send_capabilities()
+        assert stub._neonize_video_calls is True and stub._neonize_group_calls is True

@@ -1377,9 +1377,11 @@ class CallsMixin:
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
         if engine_refuses_call(self._uses_neonize(), getattr(self, "_neonize_calls", False),
-                               placing=True, is_video=is_video, is_group=is_group):
-            # The bridge places one-to-one voice calls only, and only with the
-            # call layer (501 on call/offer otherwise): say so now, before the
+                               placing=True, is_video=is_video, is_group=is_group,
+                               bridge_has_video=getattr(self, "_neonize_video_calls", False),
+                               bridge_has_group_calls=getattr(self, "_neonize_group_calls", False)):
+            # The bridge places only the calls its /send-capabilities says it
+            # carries (501 on call/offer otherwise): say so now, before the
             # microphone and the speakers are opened for a call that cannot
             # exist -- the attempt used to end in a spoken "HTTP 501".
             t = self.i18n.t

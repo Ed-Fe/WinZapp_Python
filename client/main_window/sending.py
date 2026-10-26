@@ -204,9 +204,12 @@ class SendingMixin:
                         response.status_code, str(body)[:300],
                     )
                     continue
-                # The Neonize bridge says here whether it carries calls
-                # (WinZapp's neonize build); WPPConnect never sends the key.
+                # The Neonize bridge says here whether it carries calls, video
+                # calls and group calls (WinZapp's neonize build); WPPConnect
+                # never sends these keys.
                 self._neonize_calls = details.get("calls") is True
+                self._neonize_video_calls = details.get("videoCalls") is True
+                self._neonize_group_calls = details.get("groupCalls") is True
                 if details.get("compatible") is True:
                     logging.info("[startup] Send compatibility probe passed: %s", details)
                     return

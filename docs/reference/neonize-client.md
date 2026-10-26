@@ -51,13 +51,16 @@ WPPConnect typed in at `127.0.0.1:6300` read as Neonize.
 | Abandoned-session cleanup | asks the bridge to `delete-session` each stale name |
 | Removing an account | asks the bridge to `delete-session` each session name; the account stays `deleting` until it confirms (`account_removal.purge_account(bridge_delete=...)`) |
 | Node lease | registered when the bridge is started or joined (`_register_node_lease`), so "Quit all accounts" and the updater see the account |
-| Calls | one-to-one voice calls placed and answered when `send-capabilities` says `calls: true` (WinZapp's neonize build with the call layer, `neonize_bridge/call_media.py`); group and video calls refused up front (`core/call_logic.engine_refuses_call`); an incoming video or group call is answered with voice only; rejecting always works |
+| Calls | placed and answered when `send-capabilities` says `calls: true` (WinZapp's neonize build with the call layer, `neonize_bridge/call_media.py`); video calls, upgrading to video and the camera when it also says `videoCalls: true` (neonize 0008 and an ffmpeg on the bridge's PATH, `neonize_bridge/call_video.py`), group calls with `groupCalls: true`; the others are refused up front (`core/call_logic.engine_refuses_call`); rejecting always works |
 
 ## Known leftovers (not fixed)
 
-- Video and group call buttons are still shown with Neonize; they answer with
-  "This action is not available for calls." `send-capabilities` could carry
-  which kinds of call the bridge takes, so the client hides the others.
+- Video and group call buttons are still shown when the bridge cannot take
+  those calls (an older build, no ffmpeg); they answer with "This action is
+  not available for calls." `send-capabilities` already says which kinds it
+  takes (`videoCalls`, `groupCalls`), so the client could hide the others.
+- Video and group calls through meowcaller were not tried on a real account
+  yet; meowcaller marks its video media path "NOT VALIDATED".
 - `delete-session` logs the device out only if the session is connected on the
   bridge at that moment. The account removed while in use is closed first, so
   its device can stay linked on the phone (remove it there).

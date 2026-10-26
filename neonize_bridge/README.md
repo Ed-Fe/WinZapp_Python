@@ -93,10 +93,11 @@ profile and privacy, contacts, labels, communities, group settings, channels,
 call rejection, server management): they pass their tests against stubs but
 have not run against a real account. One-to-one voice calls (placing,
 answering, the audio both ways) go through meowcaller's call layer
-(`call_media.py`) and have not been tried on a real account yet. Missing:
-group and video calls (meowcaller has them; neonize does not export them
-yet), and a few WPPConnect-only routes: the bridge implements 208 of the 217
-that WPPConnect Server defines for WinZapp.
+(`call_media.py`) and have not been tried on a real account yet. Video and group
+calls go through meowcaller too (neonize 0008, with ffmpeg for the video) and
+have not been tried on a real account either. Missing: a few WPPConnect-only
+routes: the bridge implements 210 of the 217 that WPPConnect Server defines
+for WinZapp.
 [COVERAGE.md](COVERAGE.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.
