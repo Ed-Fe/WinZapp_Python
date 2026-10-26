@@ -10,6 +10,7 @@ answers 501 itself on an older build.
 Still impossible:
 
 - battery level: multi-device does not deliver the phone's battery;
+- a screenshot: there is no browser page to capture;
 - accepting the Meta AI terms: the stage the library asks for is not confirmed
   for this notice, and a wrong consent cannot be undone.
 
@@ -30,6 +31,7 @@ import channel_admin
 import community_membership
 import contact_removal
 import custom_lists
+import maintenance
 import status_privacy
 
 log = logging.getLogger("bridge")
@@ -40,6 +42,8 @@ log = logging.getLogger("bridge")
 IMPOSSIBLE = (
     ("GET", "get-battery-level", "battery_unsupported",
      "a linked device does not receive the phone battery level"),
+    ("GET", "take-screenshot", "screenshot_unsupported",
+     "neonize has no browser page to capture"),
     ("POST", "meta-ai-terms/accept", "meta_ai_terms_unsupported",
      "accepting the Meta AI terms is not verified for this neonize build"),
 )
@@ -73,8 +77,11 @@ def meta_ai_terms_response(state) -> dict:
     return {"noticeId": META_AI_NOTICE, "state": state}
 
 
-def register_routes(r, *, session, ok, jid_from_text, jid_text):
+def register_routes(r, *, session, ok, jid_from_text, jid_text, destination_of=None,
+                    store_sent=None, send_media=None):
     """Wire the remaining routes to the aiohttp router `r`."""
+    maintenance.register_routes(r, session=session, ok=ok, destination_of=destination_of,
+                                store_sent=store_sent, send_media=send_media)
     community_membership.register_routes(r, session=session)
     channel_admin.register_routes(r, session=session)
     status_privacy.register_routes(r, session=session)

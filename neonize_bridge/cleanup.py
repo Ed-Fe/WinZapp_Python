@@ -10,7 +10,9 @@ the name from `active.json`.
 
 It requires the session's normal credential (the middleware in authentication.py
 checks the `<name>:<hash>` of `/api/{tok}/...`), so an account can only delete
-itself.
+itself. `POST /api/<name>/<secret>/clear-session-data` (WPPConnect's
+miscController.clearSessionData) does the same for any account to whoever
+knows the bridge's secret, and answers `{"success": true}`.
 
 The pure functions are at the top (tested in test_cleanup.py). Nothing here
 imports neonize.
@@ -23,6 +25,7 @@ import shutil
 from aiohttp import web
 
 import inputs
+import session_backup
 from redaction import redact
 
 log = logging.getLogger("bridge")
@@ -79,17 +82,23 @@ def shut_down(session) -> bool:
         session.db.close()
     except Exception:
         log.exception("closing the storage")
+    mirror = getattr(session, "app_state", None)     # app_state_mirror's app_state.db
+    if mirror is not None:
+        try:
+            mirror.close()
+        except Exception:
+            log.exception("closing the app state copy")
     return was_connected
 
 
 def register_routes(r, *, ok, state, folder, mark_active):
     """Wire the route to the aiohttp router `r`."""
 
-    async def delete_session(req):
-        name = req.match_info["tok"].split(":", 1)[0]
+    async def remove_account(name):
+        """(None, logged out) when the account's data is gone, else (error response, _)."""
         if state["fixed"] or session_folder(folder, name) is None:
             return web.json_response(
-                {"status": "error", "message": "invalid session name"}, status=400)
+                {"status": "error", "message": "invalid session name"}, status=400), False
         loop = asyncio.get_running_loop()
         account = state["sessions"].pop(name, None)
         left = False
@@ -99,8 +108,22 @@ def register_routes(r, *, ok, state, folder, mark_active):
         if not await loop.run_in_executor(None, delete_folder, folder, name):
             return web.json_response(
                 {"status": "error", "message": "could not remove the session data"},
-                status=500)
+                status=500), left
         log.info("session deleted: %s", redact(name))
+        return None, left
+
+    async def delete_session(req):
+        failure, left = await remove_account(req.match_info["tok"].split(":", 1)[0])
+        if failure is not None:
+            return failure
         return ok(status="success", response={"removed": True, "loggedOut": left})
 
+    async def clear_session_data(req):
+        failure, _left = await remove_account(req.match_info["session"])
+        if failure is not None:
+            return failure
+        return web.json_response({"success": True})
+
     r.add_post("/api/{tok}/delete-session", delete_session)
+    r.add_post("/api/{session}/{secretkey}/clear-session-data", clear_session_data)
+    session_backup.register_routes(r, state=state, folder=folder)

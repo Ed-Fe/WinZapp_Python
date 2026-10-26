@@ -5,8 +5,10 @@ how to reject a call that is ringing (RejectCall). With WinZapp's neonize build 
 session also has `call_media` (call_media.py, meowcaller): then `call/offer`,
 `call/accept`, `call/end`, `call/ensure-ended`, `call/status` and
 `call/audio/enable` place, answer and carry one-to-one voice calls. Without it
-(an older build) they answer 501, as do group calls, video and diagnostics
-always, instead of pretending to have worked.
+(an older build) they answer 501, as do group calls and video always,
+instead of pretending to have worked. `call/diagnostics` answers what the
+bridge knows of its call layer (`diagnostics`): WPPConnect's version reads the
+page's VoIP stack, which does not exist here.
 
 The formats of the events are the ones the client reads in core/websocket_client.py
 (`incomingcall` and `callstate`); those of the refusal, the ones in
@@ -32,10 +34,10 @@ log = logging.getLogger("bridge")
 # ringing and would only take memory.
 RING_TTL = 600
 
-# Routes the call layer does not fulfil: it has no group calls, no video and
-# no diagnostics. `call/group/offer` is not in COVERAGE.md but the WPPConnect
-# server defines it, and the reason is the same.
-IMPOSSIBLE_ROUTES = ("call/diagnostics", "call/group/offer", "call/upgrade-video")
+# Routes the call layer does not fulfil: it has no group calls and no video.
+# `call/group/offer` is not in COVERAGE.md but the WPPConnect server defines
+# it, and the reason is the same.
+IMPOSSIBLE_ROUTES = ("call/group/offer", "call/upgrade-video")
 IMPOSSIBLE_REASON = "group and video calls are not available through neonize"
 # What needs the call layer (call_media.py); without it, also 501.
 MEDIA_ROUTES = ("call/offer", "call/accept", "call/end", "call/ensure-ended",
@@ -283,6 +285,14 @@ def register_events(cli, s):
             log.exception("call record %s", redact(data["id"]))
 
 
+def diagnostics(media, connected, ringing) -> dict:
+    """The body of `call/diagnostics`: the call layer as the bridge sees it."""
+    return {"engine": "neonize", "callLayer": media is not None, "connected": bool(connected),
+            "voice": media is not None, "video": False, "groupCalls": False,
+            "liveCall": bool(media is not None and media.live_call()),
+            "ringing": int(ringing)}
+
+
 def register_routes(r, *, session, ok):
     """Wire the call routes to the aiohttp router `r`."""
 
@@ -373,6 +383,15 @@ def register_routes(r, *, session, ok):
     async def audio_enable(media, body):
         return ok(status="success", response={"enabled": True})
 
+    async def call_diagnostics(req):
+        s = session(req)
+        ringing = getattr(s, "ringing_calls", None)
+        count = len(ringing.to_refuse({})) if ringing is not None else 0
+        return ok(status="success", response=diagnostics(
+            getattr(s, "call_media", None), s.client is not None and s.status == "CONNECTED",
+            count))
+
+    r.add_get("/api/{tok}/call/diagnostics", call_diagnostics)
     r.add_post("/api/{tok}/call/reject", reject)
     r.add_post("/api/{tok}/reject-call", reject)
     for route, action in (("call/offer", offer), ("call/accept", accept), ("call/end", end),

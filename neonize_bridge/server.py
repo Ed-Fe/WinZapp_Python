@@ -46,7 +46,7 @@ import history_progress
 import cleanup
 import msgmap
 import pairing
-import business
+import commerce_routes
 import profile_privacy
 import presence
 import group_receipts
@@ -2254,8 +2254,9 @@ def create_app(folder, fixed=""):
     r.add_post("/api/{tok}/group-subject", group_subject)
     groups.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                            jid_text=jid_text, qr_data_url=qr_data_url)
-    business.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
-                             jid_text=jid_text)
+    commerce_routes.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                                    jid_text=jid_text, destination_of=destination_of,
+                                    store_sent=store_sent, quoted_context=quoted_context)
     channels.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                              jid_text=jid_text)
     administration.register_routes(r, session=session, ok=ok, state=state, folder=folder,
@@ -2275,7 +2276,8 @@ def create_app(folder, fixed=""):
                              jid_text=jid_text, destination_of=destination_of,
                              store_sent=store_sent, quoted_context=quoted_context)
     remaining.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
-                              jid_text=jid_text)
+                              jid_text=jid_text, destination_of=destination_of,
+                              store_sent=store_sent, send_media=send_media)
     chats.register_routes(r, session=session, ok=ok, wpp_id=wpp_id, destination_of=destination_of,
                           store_sent=store_sent, send_media=send_media,
                           quoted_context=quoted_context)

@@ -166,11 +166,11 @@ def test_whatsmeow_error_on_refusal_is_500_and_the_call_stays_pending():
 
 def test_impossible_routes_answer_501_in_the_error_format():
     # a session without the call layer (an older neonize build): every call
-    # route but reject answers 501, group/video/diagnostics always do
+    # route but reject and diagnostics answers 501, group/video always do
     s = session_with_ring()
     routes = calls.IMPOSSIBLE_ROUTES + calls.MEDIA_ROUTES
     outputs = run(s, [("POST", "/" + route, {}) for route in routes])
-    assert len(outputs) == 9
+    assert len(outputs) == 8
     for status, body in outputs:
         assert status == 501 and body["status"] == "error" and body["message"]
     # a call that is still ringing is not touched by them
@@ -223,3 +223,18 @@ def test_pending_forgets_the_accept_along_with_the_ring_and_the_old_accept():
     p.accept("old", 1, 0)
     p.accept("new", 2, calls.RING_TTL + 1)
     assert p.accepted("old") is None and p.accepted("new") is not None
+
+
+def test_diagnostics_say_what_the_call_layer_is():
+    s = session_with_ring()
+    (status, body), = run(s, [("GET", "/call/diagnostics", None)])
+    assert status == 200
+    assert body["response"] == {"engine": "neonize", "callLayer": False, "connected": True,
+                                "voice": False, "video": False, "groupCalls": False,
+                                "liveCall": False, "ringing": 1}
+
+
+def test_diagnostics_with_a_live_call():
+    media = N(live_call=lambda: "CALL1")
+    assert calls.diagnostics(media, True, 0)["liveCall"] is True
+    assert calls.diagnostics(media, True, 0)["voice"] is True

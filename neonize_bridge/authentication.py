@@ -9,8 +9,8 @@ not enough: a page open in the browser can also reach 127.0.0.1. So:
 * `generate-token` only answers to whoever knows the secret, and a session's
   token is an HMAC of the session name with that secret;
 * every `/api/<token>/...` route checks that token; the administration routes
-  (`show-all-sessions`, `start-all`) ask for the secret itself in place of the
-  token;
+  (`show-all-sessions`, `start-all`, `backup-sessions`, `restore-sessions`,
+  `clear-session-data`) ask for the secret itself in place of the token;
 * the Host header has to be the machine's own (against DNS rebinding).
 
 Pure functions, tested in test_authentication.py. Another site's page does not
@@ -38,10 +38,14 @@ ALLOWED_HOSTS = ("127.0.0.1", "localhost", "[::1]")
 # raw path: the router matches the still-encoded path and only then decodes the
 # values, so `/api/%2F/x` would be read here as `/api///x`.
 OPEN_ROUTES = ("/healthz", "/health", "/winzapp/identity", "/api-docs", "/metrics",
+               "/unhealthy",                      # 503 only: it never ends the bridge
                "/socket.io/")                     # /socket.io/ is checked in `connect`
 TOKEN_TEMPLATE = "/api/{session}/{key}/generate-token"
 ADMINISTRATION_TEMPLATES = ("/api/{secretkey}/show-all-sessions",
-                            "/api/{secretkey}/start-all")
+                            "/api/{secretkey}/start-all",
+                            "/api/{secretkey}/backup-sessions",
+                            "/api/{secretkey}/restore-sessions",
+                            "/api/{session}/{secretkey}/clear-session-data")
 SESSION_PREFIX = "/api/{tok}/"
 
 
