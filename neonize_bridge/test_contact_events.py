@@ -232,6 +232,14 @@ def test_the_address_book_full_sync_reloads_the_names(monkeypatch, tmp_path):
     assert s.reloads == 1
 
 
+def test_a_full_sync_completes_the_app_state_mirror_of_that_collection(monkeypatch, tmp_path):
+    cli, s, ev = _bind_winzapp_build(monkeypatch, tmp_path)
+    completed = []
+    s.app_state_synced = completed.append     # set by app_state_mirror.register_events
+    cli.handlers[ev.AppStateSyncCompleteEv](cli, N(Name="regular", Version=9, Recovery=False))
+    assert completed == ["regular"]
+
+
 def test_a_new_nickname_is_kept_under_the_other_form_of_the_jid(monkeypatch, tmp_path):
     cli, s, ev = _bind_winzapp_build(monkeypatch, tmp_path)
     handle = cli.handlers[ev.PushNameUpdateEv]

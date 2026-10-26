@@ -84,11 +84,16 @@ user's.
 
 ### `bridge.db` and `session.db`
 
-Each session folder `neonize_bridge/data/<account id>/` holds two SQLite files:
+Each session folder `neonize_bridge/data/<account id>/` holds these SQLite files:
 
 - `bridge.db` is the bridge's own store (`chats`, `contacts`, `msgs`,
   `pinned`, `votes`, `reactions`, `receipts`, `comments`). Open it read-only
   while the bridge runs: `sqlite3.connect("file:<path>?mode=ro", uri=True)`.
+- `app_state.db` (`app_state_mirror.py`) is the bridge's copy of the app state
+  entries whatsmeow has no event for: labels and custom lists, status privacy.
+  `bridge.log` names each kind of mutation once
+  (`app state: regular label_edit v3 set`, the server of an address in
+  brackets, never its digits): that is how a new index is found.
 - `session.db` is whatsmeow's device state: the keys that *are* the login.
   Never open, copy, print or attach it.
 
@@ -103,6 +108,21 @@ Each session folder `neonize_bridge/data/<account id>/` holds two SQLite files:
   `docs/reference/neonize-build.md`). To try a behaviour,
   reproduce it against a fake client (`test_*_server.py` drive `create_app`
   that way).
+
+### Finding a stanza the bridge does not know yet
+
+whatsmeow has no function for many things WhatsApp Web does (catalogs,
+community joins, channel edits...). The reference is WhatsApp Web itself: with
+the account also linked on WPPConnect, switch the engine, and over CDP read the
+page's modules. A module's source is in the scripts the page loaded (fetch
+them in the page from the HTTP cache and split them at `__d("Name",`): the
+`modulesMap` drops a factory once it ran. A lazily loaded module (a modal's
+job) is loaded with `require("Bootloader").loadModules([...])`, which only
+fetches code and shows nothing. Look for the `WASmaxOut...Request` (the
+stanza), the `...Job` (what it is sent with and how the answer is read) and,
+for app state, the `...Sync` module (collection, index, version). Read only:
+never call a job. The bridge sends what you found with `send_iq` / `send_mex`
+(`raw_queries.py`) or `app_state_mirror.send`.
 
 ### Your change is not running yet
 

@@ -41,8 +41,17 @@ What the patches carry today:
   does not emit `ContactUpdate`: whatsmeow stores those names in bulk, and
   `AppStateSyncComplete` for `critical_unblock_low` says when they are there
   (`contact_events.py` reloads them).
+- **neonize 0006**: raw info queries and MEX (GraphQL) queries
+  (`goneonize/rawiq.go`: `SendIQ` / `SendMexIQ`, JSON in and out; the
+  client's `send_iq` / `send_mex`), `AppStateMutation` (57) for every app
+  state mutation, and `MutationInfo.Remove` so `send_app_state` can send a
+  REMOVE. The bridge's custom lists, community joins, channel edits, status
+  privacy and contact removal use them (`neonize_bridge/COVERAGE.md`).
 - **whatsmeow**: `events.Lock` for lock-chat mutations; button, list and flow
-  replies without the `<biz>` node (the server refuses them with 479).
+  replies without the `<biz>` node (the server refuses them with 479);
+  `MutationInfo.Operation` (REMOVE) and `events.AppStateMutation`, emitted for
+  every mutation with its collection and version, also during a full sync
+  (except the contacts a full sync stores in bulk).
 - **meowcaller**: go.mod/go.sum on neonize's whatsmeow pin; accept 2 s after
   Answer when no `mute_v2` arrives; resynchronize the SRTP receive ROC.
   meowcaller is pinned at 27a3c6b1, its last commit on `go.mau.fi/whatsmeow`:

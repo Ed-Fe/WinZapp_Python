@@ -64,8 +64,11 @@ WPPConnect typed in at `127.0.0.1:6300` read as Neonize.
 - Texts that send the user to Help > Force WPPConnect reinstall
   (`voice_call_voip_unavailable`, `clear_chat_starred_kept_on_phone`) are
   misleading with Neonize.
-- Custom-list filters and buttons are always shown; the bridge answers 404 and
-  the client says "unavailable" only after the click.
+- Custom-list filters and buttons are always shown; on a neonize build without
+  app state mutations the bridge answers 501 and the client says "unavailable"
+  only after the click. With WinZapp's build the first read of the lists
+  downloads the `regular` collection once and can take longer than the
+  client's 15 s budget: the next refresh answers.
 - Events the bridge never emits (announcement-replies, media-*-progress,
   `call:*:remote`, messages.update, presence.update) are harmless.
 - `reconnect-socket-stream` answering 400 counts strikes towards

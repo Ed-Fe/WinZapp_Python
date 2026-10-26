@@ -93,7 +93,7 @@ answering, the audio both ways) go through meowcaller's call layer
 (`call_media.py`) and have not been tried on a real account yet. Missing:
 group and video calls, business and catalog features (neonize has no
 catalog messages), QR pairing, and some WPPConnect-only routes: the bridge
-implements 164 of the 220 that WPPConnect Server defines for WinZapp.
+implements 171 of the 220 that WPPConnect Server defines for WinZapp.
 [COVERAGE.md](COVERAGE.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.

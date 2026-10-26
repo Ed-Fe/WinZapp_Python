@@ -30,15 +30,18 @@ def test_platform_at_the_21_character_limit():
 
 
 def run(s, requests):
-    """Brings up an aiohttp server with only these routes and makes the requests."""
+    """Brings up an aiohttp server with only these routes and makes the requests:
+    (method, path) or (method, path, JSON body)."""
     async def main():
         app = web.Application()
         remaining.register_routes(app.router, session=lambda req: s,
-                                  ok=lambda **kw: web.json_response(kw))
+                                  ok=lambda **kw: web.json_response(kw),
+                                  jid_from_text=lambda text: text, jid_text=str)
         async with TestClient(TestServer(app)) as http:
             outputs = []
-            for method, path in requests:
-                resp = await http.request(method, "/api/tok" + path)
+            for method, path, *body in requests:
+                resp = await http.request(method, "/api/tok" + path,
+                                          json=body[0] if body else None)
                 outputs.append((resp.status, await resp.json()))
             return outputs
     return asyncio.run(main())
@@ -59,6 +62,29 @@ def test_impossible_routes_answer_501_with_code_and_reason():
     for (status, body), (_, _, code, _) in zip(outputs, remaining.IMPOSSIBLE):
         assert status == 501 and body["status"] == "error"
         assert body["code"] == code and body["message"]
+
+
+# The routes that were impossible before WinZapp's neonize build, and the code
+# each answered: an older build still answers them so.
+FORMERLY_IMPOSSIBLE = [
+    ("POST", "/community-subgroups/1@g.us/2@g.us/join", None, "unavailable"),
+    ("POST", "/community-subgroups/1@g.us/2@g.us/cancel-request", None, "unavailable"),
+    ("POST", "/deactivate-community", {"id": "1@g.us"}, "unavailable"),
+    ("POST", "/privacy/status", {"setting": "contact", "list": []},
+     "status_privacy_unsupported"),
+    ("POST", "/remove-contact", {"phone": "5511999998888"}, "contact_operation_unsupported"),
+    ("PUT", "/newsletter/123", {"name": "New name"}, "newsletter_unsupported"),
+    ("DELETE", "/newsletter/123", None, "newsletter_unsupported"),
+    ("GET", "/custom-lists", None, "lists_not_available"),
+]
+
+
+def test_an_older_neonize_build_still_answers_501_with_the_old_codes(monkeypatch):
+    import app_state_mirror
+    monkeypatch.setattr(app_state_mirror, "supported", lambda: False)
+    outputs = run(session(), [(m, p, b) for m, p, b, _ in FORMERLY_IMPOSSIBLE])
+    for (status, body), (_, path, _, code) in zip(outputs, FORMERLY_IMPOSSIBLE):
+        assert (status, body["code"]) == (501, code), path
 
 
 def test_no_impossible_route_is_the_last_seen_or_presence_one():

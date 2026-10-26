@@ -229,6 +229,10 @@ def register_events(cli, s):
             try:
                 if address_book_synced(e.Name):
                     _in_background(_reload_names_safely, s)
+                # app_state_mirror's copy of the collection is complete now
+                synced = getattr(s, "app_state_synced", None)
+                if synced is not None:
+                    synced(e.Name)
             except Exception:
                 log.exception("app state synced")
 

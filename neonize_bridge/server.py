@@ -33,6 +33,7 @@ import inputs
 import legacy_layout
 import group_events
 import contact_events
+import app_state_mirror
 import labels
 import communities
 import contacts
@@ -651,6 +652,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         presence.register_events(cli, self)
         group_events.register_events(cli, self)
         contact_events.register_events(cli, self)
+        app_state_mirror.register_events(cli, self)
 
         # Each lifecycle event is registered ONCE (neonize keeps one handler per
         # type; test_one_handler_per_event.py).
@@ -2271,7 +2273,8 @@ def create_app(folder, fixed=""):
     contacts.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                              jid_text=jid_text, destination_of=destination_of,
                              store_sent=store_sent, quoted_context=quoted_context)
-    remaining.register_routes(r, session=session, ok=ok)
+    remaining.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                              jid_text=jid_text)
     chats.register_routes(r, session=session, ok=ok, wpp_id=wpp_id, destination_of=destination_of,
                           store_sent=store_sent, send_media=send_media,
                           quoted_context=quoted_context)

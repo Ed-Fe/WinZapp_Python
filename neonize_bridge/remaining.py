@@ -1,21 +1,17 @@
-"""Routes left over after the areas: what neonize 0.5.2 cannot do (501,
-with the reason), the Meta AI terms and the platform of a message.
+"""Routes left over after the areas: what neonize cannot do (501, with the
+reason), the Meta AI terms, the platform of a message, and the wiring of the
+routes WinZapp's neonize build made possible (raw queries and app state
+mutations, neonize_patches/): custom lists (custom_lists.py), joining and
+leaving a community's groups and deactivating it (community_membership.py),
+editing and deleting a channel (channel_admin.py), who sees my Status
+(status_privacy.py) and removing a contact (contact_removal.py). Each of those
+answers 501 itself on an older build.
 
-What was checked in the neonize 0.5.2 package (client.py, _binder.py, the proto and
-the goneonize source) and does not exist in it, so it answers 501 instead of pretending:
+Still impossible:
 
-- joining a community group, canceling the request and deactivating the community:
-  no function (whatsmeow only has LinkGroup/UnlinkGroup between parent and child);
-- changing who sees my Status (`privacy/status`): only `get_status_privacy` exists.
-  `SyncActionValue.statusPrivacy` exists in the proto, but the index and
-  collection of the state notice are unknown, and a wrong guess would say "private"
-  to someone who is not;
-- removing a contact: `send_app_state` takes `PatchInfo` with `MutationInfo`
-  (Index, Version, Value), with no operation field, and whatsmeow's `EncodePatch`
-  always writes `SyncdMutation_SET`; removing is the REMOVE operation;
-- editing or deleting a channel: whatsmeow has the query `mutationUpdateNewsletter`
-  but does not expose it, and `sendMexIQ` is private; there is no raw IQ in neonize;
-- battery level: multi-device does not deliver the phone's battery.
+- battery level: multi-device does not deliver the phone's battery;
+- accepting the Meta AI terms: the stage the library asks for is not confirmed
+  for this notice, and a wrong consent cannot be undone.
 
 `unhealthy` is left out on purpose: in the reference server it answers 503 and
 ends the process (it only serves to test an orchestrator), and the client does not use it.
@@ -24,11 +20,17 @@ ends the process (it only serves to test an orchestrator), and the client does n
 it can be checked.
 
 The pure functions are at the top (tested in test_remaining.py); `register_routes` wires
-the routes. Nothing here was tested against a real account.
+the routes.
 """
 import logging
 
 from aiohttp import web
+
+import channel_admin
+import community_membership
+import contact_removal
+import custom_lists
+import status_privacy
 
 log = logging.getLogger("bridge")
 
@@ -36,20 +38,6 @@ log = logging.getLogger("bridge")
 # message: "unavailable" is what the reference server uses when there is no
 # better answer (communityJoinController.ts).
 IMPOSSIBLE = (
-    ("POST", "community-subgroups/{communityId}/{subgroupId}/join", "unavailable",
-     "neonize has no way to join a community group"),
-    ("POST", "community-subgroups/{communityId}/{subgroupId}/cancel-request", "unavailable",
-     "neonize has no way to cancel a request to join a community group"),
-    ("POST", "deactivate-community", "unavailable",
-     "neonize has no way to deactivate a community"),
-    ("POST", "privacy/status", "status_privacy_unsupported",
-     "neonize can read, but not change, who sees my Status"),
-    ("POST", "remove-contact", "contact_operation_unsupported",
-     "neonize app state patches can only set an entry, not remove it"),
-    ("PUT", "newsletter/{id}", "newsletter_unsupported",
-     "neonize cannot edit a channel"),
-    ("DELETE", "newsletter/{id}", "newsletter_unsupported",
-     "neonize cannot delete a channel"),
     ("GET", "get-battery-level", "battery_unsupported",
      "a linked device does not receive the phone battery level"),
     ("POST", "meta-ai-terms/accept", "meta_ai_terms_unsupported",
@@ -85,8 +73,14 @@ def meta_ai_terms_response(state) -> dict:
     return {"noticeId": META_AI_NOTICE, "state": state}
 
 
-def register_routes(r, *, session, ok):
+def register_routes(r, *, session, ok, jid_from_text, jid_text):
     """Wire the remaining routes to the aiohttp router `r`."""
+    community_membership.register_routes(r, session=session)
+    channel_admin.register_routes(r, session=session)
+    status_privacy.register_routes(r, session=session)
+    contact_removal.register_routes(r, session=session, jid_from_text=jid_from_text)
+    custom_lists.register_routes(r, session=session, jid_from_text=jid_from_text,
+                                 jid_text=jid_text)
 
     def error(code, status, message=""):
         return web.json_response(
