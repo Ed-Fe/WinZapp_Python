@@ -128,6 +128,22 @@ def call_layer_on() -> bool:
     return True
 
 
+def new_call_media(name, uuid, emit, phone_of_lid):
+    """The session's calls: voice always; video when the DLL has it (neonize
+    0008) and there is an ffmpeg to encode and decode it; groups with 0008."""
+    import call_video
+    import neonize.calls as layer
+    import video_codec
+    layer_calls = layer.Calls(uuid)
+    has_video = layer.video_available()
+    codec = video_codec.FfmpegCodec.available() if has_video else None
+    if has_video and codec is None:
+        log.warning("call video: no ffmpeg on the PATH; video calls stay off")
+    video = call_video.CallVideo(name, layer_calls, emit, codec) if codec else None
+    return call_media.CallMedia(name, layer_calls, emit, phone_of_lid, video=video,
+                                group_calls=has_video)
+
+
 def jid_text(jid) -> str:
     """neonize JID -> 'user@server' (empty if there is none)."""
     if jid is None or not getattr(jid, "User", ""):
@@ -656,9 +672,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         cli = self.client = NewClient(os.path.join(self.folder, "session.db"),
                                       props=device_props(HISTORY_DAYS))
         if calls_on and getattr(cli, "uuid", None):
-            from neonize.calls import Calls
-            self.call_media = call_media.CallMedia(self.name, Calls(cli.uuid), self.emit,
-                                                   self._phone_of_lid)
+            self.call_media = new_call_media(self.name, cli.uuid, self.emit, self._phone_of_lid)
         calls.register_events(cli, self)
         presence.register_events(cli, self)
         group_events.register_events(cli, self)
@@ -2615,11 +2629,16 @@ def create_app(folder, fixed=""):
         return ok(status="success", response=s.reactions_wpp(req.match_info["id"]))
 
     async def send_capabilities(req):
-        # `calls`: this session places, answers and carries voice calls (the
-        # client only offers them then)
+        # `calls`: this session places, answers and carries voice calls;
+        # `videoCalls` and `groupCalls`: video and group calls too (the client
+        # only offers each then)
         media = getattr(session(req), "call_media", None)
         calls_ready = media is not None and media.calls.enabled()
-        return ok(status="success", response={"compatible": True, "calls": calls_ready})
+        can = calls.capabilities(media)
+        return ok(status="success", response={
+            "compatible": True, "calls": calls_ready,
+            "videoCalls": calls_ready and can["video"],
+            "groupCalls": calls_ready and can["groupCalls"]})
 
     async def media_of_socket(sid):
         try:
@@ -2640,6 +2659,24 @@ def create_app(folder, fixed=""):
         media = await media_of_socket(sid)
         if media is not None:
             media.stop_microphone()
+
+    @sio.on("call:video:camera")
+    async def call_video_camera(sid, data):
+        media = await media_of_socket(sid)
+        if media is not None:
+            media.camera_frame(data)
+
+    @sio.on("call:video:camera:stop")
+    async def call_video_camera_stop(sid, data=None):
+        media = await media_of_socket(sid)
+        if media is not None:
+            await asyncio.get_running_loop().run_in_executor(None, media.camera_stop, data)
+
+    @sio.on("call:video:camera:start")
+    async def call_video_camera_start(sid, data=None):
+        media = await media_of_socket(sid)
+        if media is not None:
+            await asyncio.get_running_loop().run_in_executor(None, media.camera_start)
 
     async def pinned_messages(req):
         """Messages pinned in the requested chats (the bridge keeps the pin and

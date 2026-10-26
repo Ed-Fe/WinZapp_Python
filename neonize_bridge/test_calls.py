@@ -166,9 +166,9 @@ def test_whatsmeow_error_on_refusal_is_500_and_the_call_stays_pending():
 
 def test_impossible_routes_answer_501_in_the_error_format():
     # a session without the call layer (an older neonize build): every call
-    # route but reject and diagnostics answers 501, group/video always do
+    # route but reject and diagnostics answers 501
     s = session_with_ring()
-    routes = calls.IMPOSSIBLE_ROUTES + calls.MEDIA_ROUTES
+    routes = calls.MEDIA_ROUTES
     outputs = run(s, [("POST", "/" + route, {}) for route in routes])
     assert len(outputs) == 8
     for status, body in outputs:
@@ -176,8 +176,8 @@ def test_impossible_routes_answer_501_in_the_error_format():
     # a call that is still ringing is not touched by them
     assert s.ringing_calls.creator_of("C1") == "creator-1"
     # the text is not confused with a failure to initialize Chrome's VoIP
-    assert "voip" not in calls.IMPOSSIBLE_REASON.lower()
-    assert "voip" not in calls.NO_MEDIA_REASON.lower()
+    for reason in (calls.NO_MEDIA_REASON, calls.NO_VIDEO_REASON, calls.NO_GROUP_REASON):
+        assert "voip" not in reason.lower()
 
 
 # ---------------------------------------- call answered on another device

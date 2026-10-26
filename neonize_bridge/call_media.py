@@ -1,14 +1,20 @@
-"""Voice calls carried by the bridge: WinZapp's neonize build places, answers
-and hangs up one-to-one voice calls through meowcaller (neonize/calls.py,
-neonize_patches/neonize/0003 and 0005), and the audio crosses here.
+"""Calls carried by the bridge: WinZapp's neonize build places, answers and
+hangs up calls through meowcaller (neonize/calls.py,
+neonize_patches/neonize/0003, 0005 and 0008), and the audio crosses here.
+Voice and video calls, one-to-one or to a group; the video itself is
+call_video.py (`video`, None without ffmpeg or on an older build, when video
+stays refused).
 
 The client talks to the bridge as it talks to WPPConnect (main_window/calls.py,
 core/websocket_client.py):
 
-- routes `call/offer`, `call/accept`, `call/end`, `call/ensure-ended`,
+- routes `call/offer` (`isVideo`), `call/group/offer` {groupJid, isVideo},
+  `call/upgrade-video`, `call/accept`, `call/end`, `call/ensure-ended`,
   `call/status`, `call/audio/enable` (calls.py wires them here when a session
-  has calls; `call/group/offer` and `call/upgrade-video` stay 501: the call
-  layer has neither);
+  has calls);
+- a voice call the other side turns into a video call is accepted at once,
+  as WhatsApp Web does (this side's camera stays off until the user turns it
+  on), and its `callstate` then says `isVideo`;
 - `callstate` events for the call's life (`ACTIVE` makes the client attach its
   audio and say "connected"; ENDED, REJECTED, NOT_ANSWERED, HANDLED_REMOTELY
   and FAILED end it). The offer of an incoming call still comes from
@@ -29,6 +35,7 @@ import threading
 import time
 
 import msgmap
+from call_video import VIDEO_ACCEPT, VIDEO_REQUEST
 
 log = logging.getLogger("bridge")
 
@@ -116,19 +123,33 @@ def layer_error():
 
 def state_event(call, *, state, event="state", now=None) -> dict:
     """The `data` of `callstate` for one of our calls (`call`: a dict with
-    id, peer, outgoing)."""
+    id, peer, outgoing, and video and group when it has them)."""
+    group = call.get("group") or ""
     return {"id": call["id"], "peerJid": call["peer"], "state": state, "event": event,
-            "outgoing": call["outgoing"], "isVideo": False, "isGroup": False, "groupJid": "",
+            "outgoing": call["outgoing"], "isVideo": bool(call.get("video")),
+            "isGroup": bool(group), "groupJid": group,
             "observedAt": int(now if now is not None else time.time())}
+
+
+def group_target(group_jid) -> str:
+    """The group's address as CallGroupDial takes it; ValueError when it is
+    not a group."""
+    jid = msgmap.jid_whatsmeow(str(group_jid or "").strip())
+    user, _, server = jid.partition("@")
+    if server != "g.us" or not user.replace("-", "").isdigit():
+        raise ValueError("groupJid is not a group")
+    return jid
 
 
 class CallMedia:
     """The calls of one session. `calls` is a neonize.calls.Calls (or a fake);
     `emit(event, data)` sends to the session's clients."""
 
-    def __init__(self, name, calls, emit, phone_of_lid=None):
+    def __init__(self, name, calls, emit, phone_of_lid=None, video=None, group_calls=False):
         self.name, self.calls, self.emit = name, calls, emit
         self.phone_of_lid = phone_of_lid
+        self.video = video                # call_video.CallVideo, or None
+        self.group_calls = group_calls
         self._lock = threading.Lock()
         self._calls = {}              # id -> {"id", "peer", "outgoing", "state"}
         self._mic = FrameAssembler()
@@ -156,7 +177,8 @@ class CallMedia:
         with self._lock:
             self._calls.setdefault(data["id"], {
                 "id": data["id"], "peer": data.get("peerJid", ""), "outgoing": False,
-                "state": "INCOMING_RING"})
+                "state": "INCOMING_RING", "video": bool(data.get("isVideo")),
+                "group": data.get("groupJid") or ""})
 
     def live_call(self):
         """The id of the call whose audio flows (the newest live one)."""
@@ -172,9 +194,13 @@ class CallMedia:
             return
         if kind == "incoming":
             with self._lock:
-                self._calls.setdefault(call_id, {
+                call = self._calls.setdefault(call_id, {
                     "id": call_id, "peer": msgmap.jid_wpp(str(ev.get("peer") or "")),
-                    "outgoing": False, "state": "INCOMING_RING"})
+                    "outgoing": False, "state": "INCOMING_RING", "group": ""})
+                call["video"] = bool(call.get("video") or ev.get("video"))
+            return
+        if kind == "video":
+            self._peer_video(call_id, ev)
             return
         if kind == "state":
             state = STATE_OF_PHASE.get(int(ev.get("phase") or 0))
@@ -194,6 +220,8 @@ class CallMedia:
             self._set_state(call_id, state, event)
             with self._lock:
                 self._calls.pop(call_id, None)
+            if self.video is not None:
+                self.video.end(call_id)
             if not self.live_call():
                 self._mic.clear()
 
@@ -229,6 +257,8 @@ class CallMedia:
     def _start_audio(self, call_id):
         threading.Thread(target=self._pump_audio, args=(call_id,), daemon=True,
                          name="call-audio").start()
+        if self.video is not None:
+            self.video.start_receiving(call_id)
 
     def _pump_audio(self, call_id):
         """The other side's frames, to the client, until the call ends."""
@@ -266,15 +296,78 @@ class CallMedia:
     def stop_microphone(self):
         self._mic.clear()
 
-    # ---------------------------------------------------------------- actions
-    def dial(self, to):
-        """Places a voice call; returns its id (CallError / ValueError on failure)."""
-        target = dial_target(to, self.phone_of_lid)
-        result = self.calls.dial(target)
-        call_id = str(result["call"])
-        peer = msgmap.jid_wpp(msgmap.jid_whatsmeow(to))
+    # ---------------------------------------------------------------- video
+    def _mark_video(self, call_id):
+        """The call became a video call: the client is told once."""
         with self._lock:
-            self._calls[call_id] = {"id": call_id, "peer": peer, "outgoing": True, "state": ""}
+            call = self._calls.get(call_id)
+            if call is None or call.get("video"):
+                return False
+            call["video"] = True
+            data = state_event(call, state=call["state"] or "CALLING")
+        self.emit("callstate", {"session": self.name, "data": data})
+        return True
+
+    def _peer_video(self, call_id, ev):
+        """A <video> of the other side: an upgrade is accepted at once (the
+        camera here stays off), and an active camera makes it a video call."""
+        if ev.get("upgrade"):
+            if self.video is None or not self.calls.video(call_id, VIDEO_ACCEPT):
+                log.warning("call video: the other side's upgrade was not accepted")
+                return
+        if ev.get("upgrade") or ev.get("active"):
+            self._mark_video(call_id)
+
+    def upgrade_video(self, call_id=""):
+        """Asks the other side to turn the connected call into a video call.
+        Returns (ok, already_video); LookupError when no call is connected."""
+        call_id = call_id or self._connected_call()
+        call = self._known(call_id) if call_id else None
+        if call is None or call["state"] != "ACTIVE":
+            raise LookupError("there is no ongoing call to upgrade to video")
+        if call.get("video"):
+            return True, True
+        if self.video is None or not self.calls.video(call_id, VIDEO_REQUEST):
+            return False, False
+        self._mark_video(call_id)
+        return True, False
+
+    def camera_frame(self, data):
+        if self.video is not None:
+            self.video.camera_frame(self._connected_call(), data)
+
+    def camera_stop(self, data=None):
+        if self.video is not None:
+            native = isinstance(data, dict) and data.get("native") is True
+            self.video.camera_stop(self._connected_call(), native)
+
+    def camera_start(self):
+        if self.video is not None:
+            self.video.camera_start(self._connected_call())
+
+    # ---------------------------------------------------------------- actions
+    def dial(self, to, video=False):
+        """Places a call; returns its id (CallError / ValueError on failure)."""
+        if video and self.video is None:
+            raise ValueError("video calls are not available here")
+        target = dial_target(to, self.phone_of_lid)
+        result = self.calls.dial(target, video=True) if video else self.calls.dial(target)
+        peer = msgmap.jid_wpp(msgmap.jid_whatsmeow(to))
+        return self._placed(str(result["call"]), peer, video, "")
+
+    def group_dial(self, group_jid, video=False):
+        """Calls every member of the group; returns the call's id."""
+        if not self.group_calls or (video and self.video is None):
+            raise ValueError("group calls are not available here")
+        target = group_target(group_jid)
+        result = self.calls.group_dial(target, video=video)
+        group = msgmap.jid_wpp(target)
+        return self._placed(str(result["call"]), group, video, group)
+
+    def _placed(self, call_id, peer, video, group):
+        with self._lock:
+            self._calls[call_id] = {"id": call_id, "peer": peer, "outgoing": True, "state": "",
+                                    "video": bool(video), "group": group}
         self._set_state(call_id, "CALLING")
         return call_id
 
@@ -300,7 +393,7 @@ class CallMedia:
         call = self._known(call_id)
         state = call["state"] if call else "ENDED"
         return {"id": call_id, "state": state, "live": state in LIVE_STATES,
-                "isVideo": False, "engine": "meowcaller"}
+                "isVideo": bool(call and call.get("video")), "engine": "meowcaller"}
 
     def knows(self, call_id):
         return self._known(call_id) is not None

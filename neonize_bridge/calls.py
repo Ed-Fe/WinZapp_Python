@@ -3,10 +3,12 @@
 It receives the offer and the end of a call (CallOffer, CallTerminate) and knows
 how to reject a call that is ringing (RejectCall). With WinZapp's neonize build a
 session also has `call_media` (call_media.py, meowcaller): then `call/offer`,
-`call/accept`, `call/end`, `call/ensure-ended`, `call/status` and
-`call/audio/enable` place, answer and carry one-to-one voice calls. Without it
-(an older build) they answer 501, as do group calls and video always,
-instead of pretending to have worked. `call/diagnostics` answers what the
+`call/group/offer`, `call/upgrade-video`, `call/accept`, `call/end`,
+`call/ensure-ended`, `call/status` and `call/audio/enable` place, answer and
+carry voice and video calls, one-to-one or to a group. Without it (an older
+build) they answer 501, and so do video (without ffmpeg, or a DLL without
+neonize 0008) and group calls (a DLL without 0008), instead of pretending to
+have worked. `call/diagnostics` answers what the
 bridge knows of its call layer (`diagnostics`): WPPConnect's version reads the
 page's VoIP stack, which does not exist here.
 
@@ -34,14 +36,11 @@ log = logging.getLogger("bridge")
 # ringing and would only take memory.
 RING_TTL = 600
 
-# Routes the call layer does not fulfil: it has no group calls and no video.
-# `call/group/offer` is not in COVERAGE.md but the WPPConnect server defines
-# it, and the reason is the same.
-IMPOSSIBLE_ROUTES = ("call/group/offer", "call/upgrade-video")
-IMPOSSIBLE_REASON = "group and video calls are not available through neonize"
-# What needs the call layer (call_media.py); without it, also 501.
-MEDIA_ROUTES = ("call/offer", "call/accept", "call/end", "call/ensure-ended",
-                "call/status", "call/audio/enable")
+NO_VIDEO_REASON = "video calls are not available through this bridge"
+NO_GROUP_REASON = "group calls are not available through this bridge"
+# What needs the call layer (call_media.py); without it, 501.
+MEDIA_ROUTES = ("call/offer", "call/group/offer", "call/upgrade-video", "call/accept",
+                "call/end", "call/ensure-ended", "call/status", "call/audio/enable")
 NO_MEDIA_REASON = "this neonize build cannot place, answer or carry calls"
 
 
@@ -288,9 +287,16 @@ def register_events(cli, s):
 def diagnostics(media, connected, ringing) -> dict:
     """The body of `call/diagnostics`: the call layer as the bridge sees it."""
     return {"engine": "neonize", "callLayer": media is not None, "connected": bool(connected),
-            "voice": media is not None, "video": False, "groupCalls": False,
+            "voice": media is not None, "video": capabilities(media)["video"],
+            "groupCalls": capabilities(media)["groupCalls"],
             "liveCall": bool(media is not None and media.live_call()),
             "ringing": int(ringing)}
+
+
+def capabilities(media) -> dict:
+    """What this session's calls can do (send-capabilities, diagnostics)."""
+    return {"video": media is not None and getattr(media, "video", None) is not None,
+            "groupCalls": media is not None and bool(getattr(media, "group_calls", False))}
 
 
 def register_routes(r, *, session, ok):
@@ -327,9 +333,6 @@ def register_routes(r, *, session, ok):
             return error(e)
         return ok(status="success", response=refusal_response(ids))
 
-    async def impossible(req):
-        return error(IMPOSSIBLE_REASON, 501)
-
     async def body_of(req):
         try:
             body = await req.json()
@@ -353,11 +356,9 @@ def register_routes(r, *, session, ok):
     async def in_thread(func, *args):
         return await asyncio.get_running_loop().run_in_executor(None, func, *args)
 
-    async def offer(media, body):
-        if body.get("isVideo"):
-            return error(IMPOSSIBLE_REASON, 501)
+    async def placed(place, *args):
         try:
-            call_id = await in_thread(media.dial, str(body.get("to") or ""))
+            call_id = await in_thread(place, *args)
         except ValueError as e:
             return error(e, 400)
         except Exception as e:
@@ -366,6 +367,35 @@ def register_routes(r, *, session, ok):
             return error("the call could not be placed")
         return ok(status="success", response={"id": call_id, "via": "neonize",
                                               "call": {"state": "CALLING"}})
+
+    async def offer(media, body):
+        video = body.get("isVideo") is True
+        if video and not capabilities(media)["video"]:
+            return error(NO_VIDEO_REASON, 501)
+        return await placed(media.dial, str(body.get("to") or ""), video)
+
+    async def group_offer(media, body):
+        video = body.get("isVideo") is True
+        if not capabilities(media)["groupCalls"]:
+            return error(NO_GROUP_REASON, 501)
+        if video and not capabilities(media)["video"]:
+            return error(NO_VIDEO_REASON, 501)
+        if not body.get("groupJid"):
+            return error("Parameter groupJid is required!", 400)
+        return await placed(media.group_dial, str(body["groupJid"]), video)
+
+    async def upgrade_video(media, body):
+        if not capabilities(media)["video"]:
+            return error(NO_VIDEO_REASON, 501)
+        try:
+            done, already = await in_thread(media.upgrade_video, str(body.get("callId") or ""))
+        except LookupError as e:
+            return error(e, 409)
+        if not done:
+            return error("the call could not be upgraded to video")
+        return ok(status="success", response={"handled": True, "via": "neonize",
+                                              "alreadyVideo": already,
+                                              "call": {"state": "ACTIVE", "isVideo": True}})
 
     async def accept(media, body):
         if not await in_thread(media.answer, str(body.get("callId") or "")):
@@ -394,10 +424,8 @@ def register_routes(r, *, session, ok):
     r.add_get("/api/{tok}/call/diagnostics", call_diagnostics)
     r.add_post("/api/{tok}/call/reject", reject)
     r.add_post("/api/{tok}/reject-call", reject)
-    for route, action in (("call/offer", offer), ("call/accept", accept), ("call/end", end),
-                          ("call/ensure-ended", end), ("call/status", status),
-                          ("call/audio/enable", audio_enable)):
+    for route, action in (("call/offer", offer), ("call/group/offer", group_offer),
+                          ("call/upgrade-video", upgrade_video), ("call/accept", accept),
+                          ("call/end", end), ("call/ensure-ended", end),
+                          ("call/status", status), ("call/audio/enable", audio_enable)):
         r.add_post("/api/{tok}/" + route, media_route(action))
-    for route in IMPOSSIBLE_ROUTES:
-        r.add_post("/api/{tok}/" + route, impossible)
-        r.add_get("/api/{tok}/" + route, impossible)
