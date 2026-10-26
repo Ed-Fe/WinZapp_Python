@@ -27,8 +27,6 @@ class TestWhenItIsDue:
         assert not engines.should_offer_neonize(engines.NEONIZE, True, False)
         assert not engines.should_offer_neonize(engines.CUSTOM, True, False)
 
-    def test_not_in_a_background_start(self):
-        assert not engines.should_offer_neonize(engines.WPPCONNECT, True, False, background=True)
 
 
 class _Stub:
@@ -106,7 +104,6 @@ def test_the_notice_is_marked_before_the_answer(monkeypatch, with_bridge):
 
 
 @pytest.mark.parametrize("kwargs,bridge_there,asked_before", [
-    ({"background_mode": True}, True, False),
     ({"engine": engines.NEONIZE}, True, False),
     ({"engine": engines.CUSTOM}, True, False),
     ({}, False, False),
@@ -203,3 +200,20 @@ def test_the_notice_already_explained_it():
     mw._reconcile_session_engine()
     assert mw.shown == []
     assert "WA_token_protected" not in mw.settings["privateinfo"]    # still set aside
+
+
+def test_a_start_in_the_background_gets_the_notice_too_and_stays_in_the_background_if_kept(
+        monkeypatch, with_bridge):
+    mw = _Stub(background_mode=True)
+    asked = _answer(monkeypatch, False)
+    mw._offer_neonize_engine()
+    assert len(asked) == 1
+    assert mw.background_mode is True and mw.wpp_engine == engines.WPPCONNECT
+
+
+def test_switching_in_a_background_start_brings_the_window_for_the_pairing(monkeypatch, with_bridge):
+    mw = _Stub(background_mode=True)
+    _answer(monkeypatch, True)
+    mw._offer_neonize_engine()
+    assert mw.wpp_engine == engines.NEONIZE
+    assert mw.background_mode is False

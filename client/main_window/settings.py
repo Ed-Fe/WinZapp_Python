@@ -143,8 +143,8 @@ class SettingsMixin:
 
     def _offer_neonize_engine(self):
         """Once per install, tell an install still on WPPConnect that Neonize is
-        available. Runs before anything connects, so choosing Neonize simply
-        starts this launch on it (its pairing comes next); the WPPConnect session
+        available, also in a start in the background. Runs before anything connects,
+        so choosing Neonize simply starts this launch on it (its pairing comes next); the WPPConnect session
         is kept aside by _reconcile_session_engine() and comes back when the user
         returns to WPPConnect in Settings > Connection."""
         from core import connection_engine as engines
@@ -157,7 +157,7 @@ class SettingsMixin:
         if not engines.should_offer_neonize(
                 getattr(self, "wpp_engine", engines.WPPCONNECT),
                 bridge.command(bridge.bridge_dir()) is not None,
-                general.get("neonize_offer_asked", False), self.background_mode):
+                general.get("neonize_offer_asked", False)):
             return
         # Marked before the answer is acted on: the notice is shown once, whatever
         # the user picks (or if the program ends while it is open).
@@ -168,6 +168,11 @@ class SettingsMixin:
             self._apply_engine_choice(engines.NEONIZE)
             # the notice already said pairing is needed: no second dialog about it
             self._engine_switch_announced = True
+            if self.background_mode:
+                # The pairing on the new engine needs the window, which a start in
+                # the background (autostart) would keep hidden.
+                logging.info("MainWindow: leaving the background start to pair on Neonize")
+                self.background_mode = False
 
     def _other_account_is_running(self) -> bool:
         """True when another WinZapp process (another account) is alive. A failed
