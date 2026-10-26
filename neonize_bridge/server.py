@@ -48,6 +48,7 @@ import pairing
 import business
 import profile_privacy
 import presence
+import pairing_repair
 import group_receipts
 import message_rules
 import responses
@@ -60,9 +61,17 @@ from store import Store
 log = logging.getLogger("bridge")
 
 
+QR_BORDER = 6       # white margin in modules (the standard's minimum is 4)
+QR_SCALE = 8        # whole pixels per module: no smoothing, which ruins the reading
+
+
 def qr_data_url(text: str) -> str:
+    """Pure black on pure white, error level L (the fewest modules, so the
+    largest ones for a phone camera) and a wide margin: what TeleZapp scans
+    reliably. The pairing text is long, a higher level only makes it denser."""
     buf = io.BytesIO()
-    segno.make(text, error="m").save(buf, kind="png", scale=6, border=2)
+    segno.make_qr(text, error="l").save(
+        buf, kind="png", scale=QR_SCALE, border=QR_BORDER, dark="#000000", light="#ffffff")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -142,6 +151,8 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         self.lifecycle = session_lifecycle.Lifecycle()   # state + generation (session_lifecycle.py)
         self._lifecycle_lock = threading.RLock()    # begin/stop one at a time
         self.on_unlink = None       # called when the phone removes the device
+        self.pairing_repairs = pairing_repair.Budget()
+        self._pairing_handler = None
         self.urlcode = None
         self.me = ""                # own JID (user@s.whatsapp.net)
         self.lid = ""
@@ -571,6 +582,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         if self._apply(generation, session_lifecycle.CONNECTED_EVENT) is None:
             return
         self.urlcode = None
+        self.pairing_repairs.reset()
         log.info("connected")
         if not (phone_number and self.simulate_code):   # the simulation notifies after the code
             self.emit("session-logged", {"session": self.name, "status": True})
@@ -651,6 +663,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         presence.register_events(cli, self)
         group_events.register_events(cli, self)
         contact_events.register_events(cli, self)
+        self._watch_pairing_failures(generation, phone_number)
 
         # Each lifecycle event is registered ONCE (neonize keeps one handler per
         # type; test_one_handler_per_event.py).
@@ -991,7 +1004,54 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         except Exception:
             log.exception("connect")
         finally:
+            self._unwatch_pairing_failures()
             self._apply(generation, session_lifecycle.THREAD_ENDED)
+
+    def _watch_pairing_failures(self, generation, phone_number):
+        """whatsmeow only logs that WhatsApp refused the pairing; see pairing_repair.py."""
+        self._unwatch_pairing_failures()
+        self._pairing_handler = pairing_repair.FailureHandler(
+            lambda kind: self._on_pairing_failure(generation, kind, phone_number))
+        logging.getLogger("whatsmeow.Client").addHandler(self._pairing_handler)
+
+    def _unwatch_pairing_failures(self):
+        handler, self._pairing_handler = self._pairing_handler, None
+        if handler is not None:
+            logging.getLogger("whatsmeow.Client").removeHandler(handler)
+
+    def _on_pairing_failure(self, generation, kind, phone_number):
+        """Runs on Go's log thread: only decides, the work goes to its own thread."""
+        if not self.lifecycle.current(generation) or self.status != "QRCODE":
+            return                      # paired already, or an old session's line
+        log.warning("WhatsApp refused the pairing (%s)", kind)
+        threading.Thread(target=self._repair_pairing, args=(generation, kind),
+                         daemon=True, name="pairing-repair").start()
+
+    def _repair_pairing(self, generation, kind):
+        with self._lifecycle_lock:
+            if not self.lifecycle.current(generation):
+                return
+            if not self.pairing_repairs.take():
+                log.warning("pairing refused again; not restarting it more times")
+                self.stop(session_lifecycle.CLOSED)
+                self.emit("phoneCodeError", {
+                    "session": self.name, "name": "LinkCodeError", "rateLimited": False,
+                    "message": "LinkCodeError: WhatsApp refused the pairing again"})
+                return
+            self.stop(session_lifecycle.CLOSED)
+            thread = self.thread
+            if thread is not None and thread is not threading.current_thread():
+                thread.join(session_lifecycle.OLD_THREAD_DEADLINE)
+            if self._thread_alive() or not pairing_repair.wipe_session_keys(self.folder):
+                log.warning("could not clear the old pairing; leaving the session closed")
+                return
+            if kind == pairing_repair.CODE:
+                # a new code would be minted for a number nobody asked about (quota)
+                self.emit("phoneCodeError", {
+                    "session": self.name, "name": "LinkCodeError", "rateLimited": False,
+                    "message": "LinkCodeError: WhatsApp refused the pairing code"})
+                return
+            self.begin()
 
     def _watch_code(self, generation, lifetime=session_lifecycle.CODE_LIFETIME, step=1.0):
         """After the phoneCode: if the code expires without pairing, tells the client
