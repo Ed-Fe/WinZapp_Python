@@ -56,6 +56,7 @@ _DEFAULTS: dict[str, Any] = {
     "first_run": True,
     "hotkey_first_run_asked": False,
     "api_type_first_run_asked": False,
+    "neonize_offer_asked": False,   # the one-time "Neonize is available" notice
     "switch_behavior": "single",  # "single" (ocultar para a bandeja) ou "keep_open" (manter ambas abertas)
     # Shared WPPConnect host configuration. The port remains per-account.
     "wpp_server": "http://127.0.0.1",
@@ -103,6 +104,7 @@ _GENERAL_GLOBAL = ("language", "updates_enabled", "alpha_updates_enabled",
                    "background_update_downloads", "wpp_all_updates",
                    "show_tray_icon", "autostart",
                    "first_run", "hotkey_first_run_asked", "api_type_first_run_asked",
+                   "neonize_offer_asked",
                    "switch_behavior")
 _CONNECTION_GLOBAL = ("wpp_server", "wpp_ws_server", "wpp_api_key", "wpp_custom_api",
                       "wpp_engine")

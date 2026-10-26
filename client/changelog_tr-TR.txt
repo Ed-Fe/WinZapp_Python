@@ -4,7 +4,7 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
-- Yeni bağlantı motoru, deneysel: Neonize, WhatsApp'a tarayıcı olmadan, yerel bir köprü üzerinden bağlanır. Ayarlar, Bağlantı bölümünden (veya ilk açılıştaki soruda) seçin ve WinZapp'ı yeniden başlatın; WPPConnect varsayılan olarak kalır. Köprüyü hazırlamak için neonize_bridge/prepare.py dosyasını çalıştırın (o klasördeki README'ye bakın).
+- Yeni bağlantı motoru, deneysel: Neonize, WhatsApp'a tarayıcı olmadan, yerel bir köprü üzerinden bağlanır. Ayarlar, Bağlantı bölümünden (veya ilk açılıştaki soruda) seçin ve WinZapp'ı yeniden başlatın; WPPConnect varsayılan olarak kalır. Köprüyü hazırlamak için neonize_bridge/prepare.py dosyasını çalıştırın (o klasördeki README'ye bakın). Güncellemeden sonraki ilk açılışta WPPConnect kullanan kişiye geçişi öneren tek seferlik bir bildirim gösterilir; her motor kendi bağlantısını korur, bu yüzden geçip geri dönmek hiçbirini kaybettirmez.
 
 - Sohbet listeleri (sohbetler, arşivlenenler ve kilitli sohbetler) artık listenin tüm genişliğini kullanıyor; böylece pencere genişken sohbet adları ve mesaj önizlemeleri çok daha az kesiliyor.
 

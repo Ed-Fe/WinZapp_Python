@@ -20,6 +20,7 @@ from ui.dialogs import engine_picker
 
 class _Stub:
     _check_api_type_first_run = MainWindow._check_api_type_first_run
+    _apply_engine_choice = MainWindow._apply_engine_choice
 
     def __init__(self, settings=None, background_mode=False):
         self.settings = settings if settings is not None else {}
@@ -91,6 +92,8 @@ def test_the_bundled_server_is_saved_and_marked_as_asked(monkeypatch):
     assert mw.settings["general"]["api_type_first_run_asked"] is True
     assert mw.wpp_custom_api is False and mw.wpp_port == 1234
     assert mw.wpp_engine == engines.WPPCONNECT
+    # whoever just saw the engine list is not told about Neonize again
+    assert mw.settings["general"]["neonize_offer_asked"] is True
 
 
 def test_neonize_saves_its_fixed_address_without_the_settings_dialog(monkeypatch):

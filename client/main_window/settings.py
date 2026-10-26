@@ -102,14 +102,7 @@ class SettingsMixin:
             sys.exit(0)
 
         connection = self.settings.setdefault("connection", {})
-        connection["wpp_custom_api"] = engines.uses_custom_api(engine)
-        self.wpp_custom_api = connection["wpp_custom_api"]
-        connection["wpp_engine"] = self.wpp_engine = engine
-        fixed = engines.fixed_address(engine)
-        if fixed is not None:
-            connection["wpp_server"], connection["wpp_ws_server"], connection["wpp_port"] = fixed
-            self.wpp_server, self.wpp_ws_server, self.wpp_port = fixed
-        self.save_settings()
+        self._apply_engine_choice(engine)
 
         if engine == engines.CUSTOM:
             # Open settings dialog on the Connection tab to type the server
@@ -127,8 +120,66 @@ class SettingsMixin:
                 self.save_settings()
                 sys.exit(0)
 
-        self.settings.setdefault("general", {})["api_type_first_run_asked"] = True
+        general = self.settings.setdefault("general", {})
+        general["api_type_first_run_asked"] = True
+        # Whoever just saw the engine list needs no "Neonize is available" notice.
+        general["neonize_offer_asked"] = True
         self.save_settings()
+
+    def _apply_engine_choice(self, engine):
+        """Makes ``engine`` the one this process connects with, without a
+        restart: the connection settings and the address this process uses."""
+        from core import connection_engine as engines
+
+        connection = self.settings.setdefault("connection", {})
+        connection["wpp_custom_api"] = engines.uses_custom_api(engine)
+        self.wpp_custom_api = connection["wpp_custom_api"]
+        connection["wpp_engine"] = self.wpp_engine = engine
+        fixed = engines.fixed_address(engine)
+        if fixed is not None:
+            connection["wpp_server"], connection["wpp_ws_server"], connection["wpp_port"] = fixed
+            self.wpp_server, self.wpp_ws_server, self.wpp_port = fixed
+        self.save_settings()
+
+    def _offer_neonize_engine(self):
+        """Once per install, tell an install still on WPPConnect that Neonize is
+        available. Runs before anything connects, so choosing Neonize simply
+        starts this launch on it (its pairing comes next); the WPPConnect session
+        is kept aside by _reconcile_session_engine() and comes back when the user
+        returns to WPPConnect in Settings > Connection."""
+        from core import connection_engine as engines
+        from core import neonize_bridge_process as bridge
+        from ui.dialogs import engine_picker
+
+        general = self.settings.setdefault("general", {})
+        if self._other_account_is_running():
+            return      # the engine is install-wide: not while a sibling account runs on this one
+        if not engines.should_offer_neonize(
+                getattr(self, "wpp_engine", engines.WPPCONNECT),
+                bridge.command(bridge.bridge_dir()) is not None,
+                general.get("neonize_offer_asked", False), self.background_mode):
+            return
+        # Marked before the answer is acted on: the notice is shown once, whatever
+        # the user picks (or if the program ends while it is open).
+        general["neonize_offer_asked"] = True
+        self.save_settings()
+        if engine_picker.ask_neonize_offer(self.i18n):
+            logging.info("MainWindow: switching to the Neonize engine from the notice")
+            self._apply_engine_choice(engines.NEONIZE)
+            # the notice already said pairing is needed: no second dialog about it
+            self._engine_switch_announced = True
+
+    def _other_account_is_running(self) -> bool:
+        """True when another WinZapp process (another account) is alive. A failed
+        look counts as running: the notice then waits for a later start."""
+        try:
+            from app_paths import global_dir
+            import update_coord
+
+            return bool(update_coord.other_live_leases(global_dir()))
+        except Exception:
+            logging.exception("MainWindow: could not look for other running accounts")
+            return True
 
     def _check_first_run(self):
         """

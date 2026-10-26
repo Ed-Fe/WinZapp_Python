@@ -31,6 +31,19 @@ def relabel(label, choice, hint, i18n):
     hint.SetLabel(i18n.t("connection_engine_hint"))
 
 
+def ask_neonize_offer(i18n) -> bool:
+    """The one-time notice for installs on WPPConnect. True when the user chose to
+    switch to Neonize; closing the dialog keeps WPPConnect."""
+    dialog = wx.MessageDialog(
+        None, i18n.t("neonize_offer_message"), i18n.t("neonize_offer_title"),
+        wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION)
+    dialog.SetYesNoLabels(i18n.t("neonize_offer_switch"), i18n.t("neonize_offer_keep"))
+    try:
+        return dialog.ShowModal() == wx.ID_YES
+    finally:
+        dialog.Destroy()
+
+
 def ask_first_run(i18n):
     """The first-run question. Returns the chosen engine, or None if the user
     closed it without choosing."""
