@@ -1,34 +1,39 @@
-"""Prepares the Neonize bridge to run: a virtualenv, its requirements and the
-test build of neonize that the bridge needs.
+"""Prepares the Neonize bridge to run: a virtualenv, its requirements and
+WinZapp's build of neonize.
 
-    python neonize_bridge/prepare.py
+    python neonize_bridge/prepare.py                # the published build, or source
+    python neonize_bridge/prepare.py --from-source  # always compile it here
 
-The bridge uses events and functions that exist only in the test build of
-neonize 0.5.2 published at
-https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2
-(they are open pull requests to neonize). This script installs neonize 0.5.2
-and extracts that build over it, after checking its SHA-256.
+The bridge uses events and functions that official neonize does not have
+yet: WinZapp builds neonize from the approved upstream release plus
+`neonize_patches/` (build_neonize.py, docs/reference/neonize-build.md). When
+`neonize_upstream.json` names a `release` (published by the "Neonize DLL" CI
+workflow), this script downloads that package, checks its SHA-256 and what is
+inside it, and puts it in place of the PyPI neonize; without one, or with
+--from-source, it runs build_neonize.py (Go and a 64-bit MinGW gcc needed).
 
 Windows x64 only. Standard library only, so it runs before anything is
-installed. Run it again to repair the install.
+installed. Run it again to repair the install; close WinZapp first (the
+bridge keeps the DLL open).
 """
 
 import hashlib
 import io
+import json
 import os
 import posixpath
+import shutil
 import subprocess
 import sys
 import urllib.parse
 import urllib.request
 import zipfile
 
-BUILD_URL = ("https://github.com/reffehcsoibaf/neonize/releases/download/"
-             "0.5.2-winzapp-teste.2/neonize-0.5.2-winzapp-teste.zip")
-BUILD_SHA256 = "06f6cba995d9ea021f85bc3179c004a8e39f3c4707f117cb0372a5efef8d117a"
+#: Where the "Neonize DLL" workflow publishes the built package.
+RELEASE_REPOSITORY = "gabrielhhaber/WinZapp_Python"
 
-# The build replaces files of the neonize package and nothing else. The
-# hash above proves the archive is the one that was reviewed; these limits
+# The build replaces the neonize package and nothing else. The
+# release's hash proves the archive is the one CI built; these limits
 # make sure that even a wrong archive cannot drop a `.pth` file or a
 # `sitecustomize.py` (both run on every start of the bridge's Python) or
 # anything outside `neonize/` into site-packages.
@@ -118,16 +123,24 @@ def host_allowed(url: str) -> bool:
         host == suffix or host.endswith("." + suffix) for suffix in ALLOWED_HOST_SUFFIXES)
 
 
-def download_build() -> bytes:
-    print("Downloading the neonize test build...")
-    with urllib.request.urlopen(BUILD_URL, timeout=120) as response:
+def published_release():
+    """The `release` of neonize_upstream.json (tag, asset, sha256), or None."""
+    with open(os.path.join(HERE, "neonize_upstream.json"), encoding="utf-8") as f:
+        return json.load(f).get("release")
+
+
+def download_build(release) -> bytes:
+    url = (f"https://github.com/{RELEASE_REPOSITORY}/releases/download/"
+           f"{release['tag']}/{release['asset']}")
+    print(f"Downloading {url}...")
+    with urllib.request.urlopen(url, timeout=120) as response:
         if not host_allowed(response.geturl()):
             sys.exit(f"The download was redirected to an unexpected address ({response.geturl()}).")
         data = response.read(MAX_DOWNLOAD_BYTES + 1)
     if len(data) > MAX_DOWNLOAD_BYTES:
         sys.exit("The download is larger than expected.")
     digest = hashlib.sha256(data).hexdigest()
-    if digest != BUILD_SHA256:
+    if digest != release["sha256"]:
         sys.exit(f"The downloaded build does not match the expected SHA-256 ({digest}).")
     return data
 
@@ -140,11 +153,25 @@ def main():
         run(sys.executable, "-m", "venv", VENV)
     print("Installing requirements...")
     run(PYTHON, "-m", "pip", "install", "-r", os.path.join(HERE, "requirements.txt"))
-    data = download_build()
-    target = site_packages()
-    with zipfile.ZipFile(io.BytesIO(data)) as archive:
-        extract_checked(archive, target)
-    print(f"Test build of neonize installed in {target}.")
+    release = None if "--from-source" in sys.argv[1:] else published_release()
+    if release is None:
+        print("Building neonize from source (build_neonize.py)...")
+        run(PYTHON, os.path.join(HERE, "build_neonize.py"), "all", "--install", "--venv", VENV)
+    else:
+        data = download_build(release)
+        target = site_packages()
+        package = os.path.join(target, PACKAGE)
+        dll = os.path.join(package, "neonize-windows-amd64.dll")
+        if os.path.isfile(dll):
+            try:                    # a running bridge keeps the DLL open
+                with open(dll, "r+b"):
+                    pass
+            except OSError:
+                sys.exit("The neonize DLL is in use: close WinZapp and run this again.")
+        shutil.rmtree(package, ignore_errors=True)   # the whole package, not a mix of two
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            extract_checked(archive, target)
+        print(f"WinZapp's neonize build ({release['tag']}) installed in {target}.")
     print("Done. WinZapp starts the bridge by itself when the Neonize engine is chosen "
           "(Settings, Connection).")
     print("Video thumbnails and stickers use the ffmpeg in client/lib; other folders "

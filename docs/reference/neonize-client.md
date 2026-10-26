@@ -4,6 +4,8 @@ What the client assumes when `wpp_engine` is `neonize` (a "custom API" client
 pointed at the local bridge in `neonize_bridge/`: no Node, no Chrome). The
 bridge's own routes are in `neonize_bridge/COVERAGE.md`. With no Chrome there
 is no CDP: inspecting a running bridge is in `docs/reference/live-inspection.md`.
+The neonize the bridge runs is built from source with WinZapp's patches:
+`docs/reference/neonize-build.md`.
 
 ## The engine is a setting
 

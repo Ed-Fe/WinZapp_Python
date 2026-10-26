@@ -32,7 +32,10 @@ you open a matching file; the reasoning is in `docs/traps/` and
    extracted, or the unbound method called on a plain stub. Skill:
    `write-test`.
 4. **Edit `client/api_patches/`, never `client/api/`** (vendored, overwritten
-   by `setup_api.py`/`build.py`). Skill: `wppconnect-patch`.
+   by `setup_api.py`/`build.py`). Skill: `wppconnect-patch`. The same for
+   neonize: change `neonize_bridge/neonize_patches/` through the workspace
+   `build_neonize.py` prepares, never site-packages
+   (`docs/reference/neonize-build.md`).
 5. **All speech goes through `MainWindow.speak_output`**; plain wx controls
    only; list mutations inside `Freeze()`/`Thaw()`; titles and rows show
    names, never raw JIDs. Skill: `accessible-ui`.
@@ -97,6 +100,10 @@ uv run translations-check               # release-ready catalog validation
 - `client/api/` and `client/node/` are git-ignored and must exist before
   building. The Node version lives in `client/node_download_config.py`.
   Details: `docs/reference/build-and-setup.md`.
+- The Neonize bridge's neonize (DLL included) is built from source:
+  `neonize_bridge\.venv\Scripts\python.exe neonize_bridge\build_neonize.py all --install`
+  (Go + 64-bit MinGW gcc; close WinZapp first). Approved upstream release in
+  `neonize_bridge/neonize_upstream.json`; CI: `.github/workflows/neonize-dll.yml`.
 - `macos/` is a Mac-only layer the Windows build never runs; what it asks of
   a Windows change: `docs/reference/macos.md`.
 
@@ -113,6 +120,10 @@ uv run translations-check               # release-ready catalog validation
   `client/core/wppconnect_browser_layer_patch.py`. A sixth,
   `client/core/wppconnect_wa_js_patch.py`, patches `@wppconnect/wa-js`'s
   bundle, the script injected into the WhatsApp Web page.
+- **`neonize_bridge/neonize_patches/`** — WinZapp's patches on official
+  neonize, whatsmeow and meowcaller (the Neonize engine's DLL);
+  `build_neonize.py` applies them and builds into the git-ignored
+  `neonize_bridge/neonize_build/`.
 - **The big classes are split into mixins.**
   `client/main.py` (~1,900 lines) keeps `MainWindow.__init__`, `init_UI` and
   startup; its methods live under `client/main_window/`.

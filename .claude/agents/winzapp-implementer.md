@@ -79,6 +79,18 @@ Read-only unless the user asked for the action.
 - Match the TypeScript style in `api_patches/` and do not modernize upstream
   code: every changed line must be re-merged on the next upstream bump.
 
+## The neonize DLL (Neonize engine)
+
+- The bridge's neonize is official neonize at the release approved in
+  `neonize_bridge/neonize_upstream.json`, plus `neonize_bridge/neonize_patches/`
+  (neonize, whatsmeow, meowcaller). Change it in the checkouts under
+  `neonize_bridge/neonize_build/` (`build_neonize.py prepare`), commit there,
+  `build_neonize.py export`; never edit a patch file or site-packages by hand.
+- `build_neonize.py all --install` rebuilds after a change; it refuses while
+  WinZapp runs (the bridge holds the DLL), so ask the user to close it.
+- A bridge handler for an event only WinZapp's build has registers behind
+  `if hasattr(nev, "...")`. The whole flow: `docs/reference/neonize-build.md`.
+
 ## Comments
 
 Match the existing density and kind: comments explain **why**. Write one for

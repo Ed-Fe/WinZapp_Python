@@ -100,6 +100,7 @@ skimmed because the PR is large:
 | `setup_api.py`, `build.py`, `installer/**` | Build-time code whose output is shipped. |
 | `requirements*.txt`, `client/api_patches/package.json` | New or renamed packages (typosquats), loosened pins, `--index-url`/`--extra-index-url`, git/tarball/URL dependencies, npm `scripts`. |
 | `client/core/wppconnect_*_patch.py` | Carries JavaScript injected into the WhatsApp Web page, which can read every message and the login. |
+| `neonize_bridge/neonize_patches/**`, `neonize_bridge/neonize_upstream.json`, `neonize_bridge/build_neonize.py`, `neonize_bridge/prepare.py` | Go compiled into the Neonize engine's DLL, which holds the WhatsApp login (`session.db`) and every message; the manifest pins which upstream commits, checksums and published build get installed. A changed commit, checksum, repository URL or `release` is as sensitive as code. |
 | `client/api_patches/**` (especially `src/middleware/auth.ts`, `config.json`, `start.js`) | Token checks, listen address (`127.0.0.1` must never become `0.0.0.0`), CORS, webhooks. |
 | `client/updater.py`, `client/update_coord.py`, `client/config.py`, `client/version.py` | Where updates come from and whether they are verified (`_verify_sha256sums`, `_safe_extract_zip`, `GITHUB_REPO`). |
 | `client/core/token_vault.py`, anything touching `secret.key`, `WA_token`, `settings.json`, `messages.db`, `userDataDir` | The user's secrets and message history. |

@@ -98,8 +98,9 @@ Each session folder `neonize_bridge/data/<account id>/` holds two SQLite files:
   connection; a second neonize process on the same `session.db` fights the
   user's live one. Never start another bridge on `neonize_bridge/data/`.
 - **Evaluate code inside the bridge.** To learn what neonize does, read its
-  Python wrapper in `neonize_bridge/.venv/Lib/site-packages/neonize/`
-  (`client.py`, `utils/`); the Go side ships compiled. To try a behaviour,
+  source, Go side included, in the workspace `build_neonize.py prepare`
+  makes (`neonize_bridge/neonize_build/neonize/`, `whatsmeow/`, `meowcaller/`;
+  `docs/reference/neonize-build.md`). To try a behaviour,
   reproduce it against a fake client (`test_*_server.py` drive `create_app`
   that way).
 

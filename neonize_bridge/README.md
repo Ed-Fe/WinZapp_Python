@@ -15,8 +15,8 @@ Settings, Connection (or in the question asked on the first launch).
 python neonize_bridge/prepare.py
 ```
 
-This creates `neonize_bridge/.venv`, installs `requirements.txt` and the test
-build of neonize 0.5.2 that the bridge needs (see below). Then open WinZapp,
+This creates `neonize_bridge/.venv`, installs `requirements.txt` and WinZapp's
+build of neonize that the bridge needs (see below). Then open WinZapp,
 go to Settings, Connection, choose **Neonize (direct connection,
 experimental)**, press OK and restart WinZapp. WinZapp starts the bridge by
 itself; the last WinZapp window to close stops it. Sessions and messages live
@@ -43,21 +43,24 @@ client cannot find the secret. Deleting the `secret` file
 makes the bridge create a new one at the next start; WinZapp then renews its
 session token on its own.
 
-## Why a test build of neonize
+## WinZapp's build of neonize
 
 The bridge listens to what the phone does (archive, pin, mute, star, lock,
-read, delete) instead of polling for it. Those events, and a few functions to
-repair the app state, are open pull requests to neonize (#227 to #232). Until
-they are merged, `prepare.py` installs a build that has them from
-https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2.
-`prepare.py` checks the SHA-256 of the download and also what is inside it: it
-only extracts files under `neonize/` with the types the package has (`.py`,
-`.pyi`, `.pyc`, `.dll`, `.typed`), refuses links, paths that leave the folder,
-a `.pth` or `sitecustomize.py`, and archives larger than expected. The hash and
-these limits do not tell you what the DLL does: someone has to compare it with
-the source linked below before you trust it with a WhatsApp session.
-The Go sources of the changes are in the pull requests and in
-https://github.com/reffehcsoibaf/TeleZapp/tree/main/docs/neonize.
+read, delete, contacts saved) instead of polling for it. Official neonize
+does not forward those events yet (pull requests #227 to #232 are open), so
+WinZapp builds neonize itself: the official release approved in
+`neonize_upstream.json` plus the patches in `neonize_patches/` (neonize,
+whatsmeow and meowcaller), compiled by `build_neonize.py`. Everything that
+goes into the DLL is in this repository or pinned by commit and checksum.
+How to build, change it, move to a new upstream release and publish a
+build: [docs/reference/neonize-build.md](../docs/reference/neonize-build.md).
+
+`prepare.py` downloads the build the "Neonize DLL" workflow published when
+`neonize_upstream.json` names one, and builds from source otherwise (or with
+`--from-source`). A download is checked against its SHA-256 and what is
+inside it: only files under `neonize/` with the types the package has
+(`.py`, `.pyi`, `.pyc`, `.dll`, `.typed`), no links, no paths that leave the
+folder, no `.pth` or `sitecustomize.py`, nothing larger than expected.
 
 ## What works
 
@@ -74,7 +77,8 @@ your own status, and every route added in the second round (chats and messages,
 profile and privacy, contacts, labels, communities, group settings, channels,
 call rejection, server management): they pass their tests against stubs but
 have not run against a real account. Missing: placing, answering or carrying
-calls (whatsmeow cannot), business and catalog features (neonize has no
+calls (the DLL carries meowcaller's call layer, but the bridge does not use it
+yet), business and catalog features (neonize has no
 catalog messages), QR pairing, and some WPPConnect-only routes: the bridge
 implements 158 of the 220 that WPPConnect Server defines for WinZapp.
 [COVERAGE.md](COVERAGE.md) lists every route, grouped by area. Muting and
@@ -90,7 +94,8 @@ neonize_bridge/.venv/Scripts/python neonize_bridge/server.py --port 6300 --folde
 
 `--log-state` turns on a technical log of app-state events. The bridge's
 `requirements.txt` does not bring pytest: install `requirements-dev.txt` too,
-as CI does.
+as CI does. `build_neonize.py all --install` rebuilds and installs neonize
+after a change to its patches (close WinZapp first).
 
 To look inside the bridge WinZapp is running (there is no Chrome, so no CDP):
 its HTTP API with the session's token, `run/bridge.log` and a read-only
