@@ -198,3 +198,12 @@ def test_contacts_in_batch_writes_only_what_changed_and_counts_saved_names(tmp_p
     assert a.contacts_in_batch([("p1", "Ana", "Nick"), ("p3", "Caio", "C")]) == 0
     assert a.contacts_in_batch([("p3", "Caio Lima", "")]) == 1
     assert a.contact_of("p3")["name"] == "Caio Lima"
+
+
+def test_set_contact_name_clears_a_name_the_phone_no_longer_has(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.contact("p1", name="Ana", pushname="ana")
+    a.set_contact_name("p1", "")
+    assert a.contact_of("p1") == {"pushname": "ana"}
+    a.set_contact_name("p2", "Bia")
+    assert a.contact_of("p2") == {"name": "Bia"}

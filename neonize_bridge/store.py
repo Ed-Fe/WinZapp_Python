@@ -157,6 +157,14 @@ class Store:
                                    (pushname, jid))
             self._conn.commit()
 
+    def set_contact_name(self, jid, name):
+        """The address-book name as the phone has it now: unlike `contact`, an
+        empty name clears it (the contact was removed from the address book)."""
+        with self._lock:
+            self._conn.execute("INSERT OR IGNORE INTO contacts(jid) VALUES (?)", (jid,))
+            self._conn.execute("UPDATE contacts SET name=? WHERE jid=?", (name or "", jid))
+            self._conn.commit()
+
     def contacts_in_batch(self, rows):
         """Rows (jid, name, pushname), in one transaction. Like `contact`, an empty
         field keeps what is stored; only what differs is written. Returns how many

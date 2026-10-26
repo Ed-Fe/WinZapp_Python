@@ -165,3 +165,94 @@ def test_lid_nickname_only_goes_with_the_number(monkeypatch):
     # LID without a known number: the client would create a contact with a LID key
     assert ce.announce_name(cli, s, jid("77", "lid"), "Bob") is False
     assert len(s.sent) == 1
+
+
+# ------------------------------------------- address book (WinZapp's build)
+def test_saved_name_prefers_the_full_name_and_empty_means_removed():
+    assert ce.saved_name(N(fullName=" Ana Souza ", firstName="Ana")) == "Ana Souza"
+    assert ce.saved_name(N(fullName="", firstName="Ana")) == "Ana"
+    assert ce.saved_name(N(fullName="", firstName="")) == ""
+    assert ce.saved_name(None) == ""
+
+
+def test_only_the_address_book_collection_reloads_the_names():
+    assert ce.address_book_synced("critical_unblock_low")
+    assert not ce.address_book_synced("regular_low")
+
+
+def test_an_older_neonize_build_registers_only_the_photo(monkeypatch):
+    cli, _s, ev = _bind(monkeypatch)
+    assert list(cli.handlers) == [ev.PictureEv]
+
+
+class _AddressBookSession(_Session):
+    def __init__(self, db):
+        super().__init__()
+        self.db, self.reloads = db, 0
+
+    def reload_names(self):
+        self.reloads += 1
+
+
+def _bind_winzapp_build(monkeypatch, tmp_path):
+    from store import Store
+    events = types.ModuleType("neonize.events")
+    for name in ("PictureEv", "ContactUpdateEv", "PushNameUpdateEv", "AppStateSyncCompleteEv"):
+        setattr(events, name, type(name, (), {}))
+    package = types.ModuleType("neonize")
+    package.events = events
+    monkeypatch.setitem(sys.modules, "neonize", package)
+    monkeypatch.setitem(sys.modules, "neonize.events", events)
+    monkeypatch.setattr(ce, "_in_background", lambda f, *a: f(*a))
+    cli, s = _Cli(), _AddressBookSession(Store(str(tmp_path / "bridge.db")))
+    ce.register_events(cli, s)
+    return cli, s, events
+
+
+def test_a_contact_saved_renamed_and_removed_on_the_phone(monkeypatch, tmp_path):
+    cli, s, ev = _bind_winzapp_build(monkeypatch, tmp_path)
+    handle = cli.handlers[ev.ContactUpdateEv]
+    s.db.contact("5511@s.whatsapp.net", pushname="ana")
+    handle(cli, N(JID=jid("5511"), Action=N(fullName="Ana Souza", firstName="Ana"), FromFullSync=False))
+    assert s.db.contact_of("5511@s.whatsapp.net") == {"name": "Ana Souza", "pushname": "ana"}
+    handle(cli, N(JID=jid("5511"), Action=N(fullName="Ana S.", firstName=""), FromFullSync=False))
+    assert s.db.contact_of("5511@s.whatsapp.net")["name"] == "Ana S."
+    handle(cli, N(JID=jid("5511"), Action=N(fullName="", firstName=""), FromFullSync=False))
+    assert s.db.contact_of("5511@s.whatsapp.net") == {"pushname": "ana"}    # removed
+    handle(cli, N(JID=jid("120", "g.us"), Action=N(fullName="Group", firstName=""), FromFullSync=False))
+    assert s.db.contact_of("120@g.us") == {}
+
+
+def test_the_address_book_full_sync_reloads_the_names(monkeypatch, tmp_path):
+    cli, s, ev = _bind_winzapp_build(monkeypatch, tmp_path)
+    handle = cli.handlers[ev.AppStateSyncCompleteEv]
+    handle(cli, N(Name="regular_low", Version=3, Recovery=False))
+    assert s.reloads == 0
+    handle(cli, N(Name="critical_unblock_low", Version=7, Recovery=False))
+    assert s.reloads == 1
+
+
+def test_a_new_nickname_is_kept_under_the_other_form_of_the_jid(monkeypatch, tmp_path):
+    cli, s, ev = _bind_winzapp_build(monkeypatch, tmp_path)
+    handle = cli.handlers[ev.PushNameUpdateEv]
+    handle(cli, N(JID=jid("99", "lid"), JIDAlt=jid("5511"), OldPushName="", NewPushName=" Ana ",
+                  HasField=lambda field: field == "JIDAlt"))
+    assert s.db.contact_of("5511@s.whatsapp.net") == {"pushname": "Ana"}
+    handle(cli, N(JID=jid("77", "lid"), OldPushName="", NewPushName="Bob",
+                  HasField=lambda field: False))
+    assert s.db.contacts() == [{"jid": "5511@s.whatsapp.net", "name": "", "pushname": "Ana"}]
+
+
+def test_winzapp_build_events_carry_the_fields_the_handlers_read():
+    import pytest
+    events = pytest.importorskip("neonize.events")
+    if not hasattr(events, "ContactUpdateEv"):
+        pytest.skip("neonize without WinZapp's events (build_neonize.py builds them)")
+    fields = lambda ev: set(ev.DESCRIPTOR.fields_by_name)
+    assert {"JID", "Action", "FromFullSync"} <= fields(events.ContactUpdateEv)
+    assert {"fullName", "firstName"} <= set(events.ContactUpdateEv.DESCRIPTOR
+                                            .fields_by_name["Action"].message_type.fields_by_name)
+    assert {"JID", "JIDAlt", "NewPushName"} <= fields(events.PushNameUpdateEv)
+    assert {"Name", "Version", "Recovery"} <= fields(events.AppStateSyncCompleteEv)
+    assert {events.EVENT_TO_INT[e] for e in (events.ContactUpdateEv, events.PushNameUpdateEv,
+                                             events.AppStateSyncCompleteEv)} == {54, 55, 56}

@@ -19,8 +19,13 @@ Sources in neonize 0.5.2 (what the proto descriptor confirms):
 - The name comes from the `Info.Pushname` of each received message
   (`announce_name`, which server.py's `MessageEv` handler calls: neonize keeps a
   single handler per event, so another cannot be registered here) and from the
-  history package. neonize's test build may have contact events (PushName,
-  Contact); none of their fields was confirmed, so nothing uses them.
+  history package.
+- The address book's names (stored, not emitted: the client reads them from
+  `all-contacts` on its next sync) come from WinZapp's neonize build:
+  `ContactUpdateEv` for a contact saved, renamed or removed on the phone, and
+  `AppStateSyncCompleteEv` for the bulk of them right after pairing, which
+  reloads neonize's contact store. `PushNameUpdateEv` keeps a nickname under
+  both forms of the JID.
 
 Each fact is only emitted when it changes from the last one emitted
 (`Announced`, in RAM): the bridge's store already keeps the names and is not
@@ -166,13 +171,78 @@ def _announce_photo_safely(c, s, jid):
         log.exception("contact photo")
 
 
+#: The app state collection that carries the address book's names.
+ADDRESS_BOOK_COLLECTION = "critical_unblock_low"
+
+
+def saved_name(action) -> str:
+    """The address-book name of a ContactAction: full name, else first name.
+    '' means the phone no longer has a name for the contact."""
+    if action is None:
+        return ""
+    return clean_name(getattr(action, "fullName", "")) or clean_name(getattr(action, "firstName", ""))
+
+
+def address_book_synced(collection) -> bool:
+    """Did this full app state sync bring the address book?"""
+    return str(collection) == ADDRESS_BOOK_COLLECTION
+
+
+def _reload_names_safely(s):
+    try:
+        s.reload_names()
+    except Exception:
+        log.exception("contact names")
+
+
 def register_events(cli, s):
-    """Wires the neonize client's `cli` PictureEv to the session `s` (needs `s.name`
-    and `s.emit`) and creates `s.announced_contacts`, which `announce_name` uses.
-    Called on neonize's thread."""
+    """Wires the neonize client's `cli` contact events to the session `s` (needs
+    `s.name`, `s.emit`, `s.db` and `s.reload_names`) and creates
+    `s.announced_contacts`, which `announce_name` uses. Called on neonize's thread.
+
+    ContactUpdateEv, PushNameUpdateEv and AppStateSyncCompleteEv come from
+    WinZapp's neonize build (neonize_patches/): an older build lacks them, and
+    the bridge then relies on Session.reload_names() alone."""
     import neonize.events as nev
 
     s.announced_contacts = Announced()
+
+    if hasattr(nev, "ContactUpdateEv"):
+        @cli.event(nev.ContactUpdateEv)
+        def _address_book(c, e):
+            # saved, renamed or removed on the phone; a full sync's contacts do not
+            # come this way (AppStateSyncCompleteEv below)
+            try:
+                if not is_person(e.JID):
+                    return
+                name = saved_name(e.Action)
+                s.db.set_contact_name(_text(e.JID), name)
+                log.info("contact: address book entry %s", "saved" if name else "removed")
+            except Exception:
+                log.exception("address book changed")
+
+    if hasattr(nev, "AppStateSyncCompleteEv"):
+        @cli.event(nev.AppStateSyncCompleteEv)
+        def _state_synced(c, e):
+            # right after pairing the names land in neonize's store in bulk, with
+            # no ContactUpdateEv: this is when they are there to read
+            try:
+                if address_book_synced(e.Name):
+                    _in_background(_reload_names_safely, s)
+            except Exception:
+                log.exception("app state synced")
+
+    if hasattr(nev, "PushNameUpdateEv"):
+        @cli.event(nev.PushNameUpdateEv)
+        def _nickname(c, e):
+            # MessageEv already stores and announces the nickname under the sender;
+            # this keeps it under the other form of the JID too (number <-> LID)
+            try:
+                name = clean_name(e.NewPushName)
+                if name and e.HasField("JIDAlt") and is_person(e.JIDAlt):
+                    s.db.contact(_text(e.JIDAlt), pushname=name)
+            except Exception:
+                log.exception("nickname changed")
 
     @cli.event(nev.PictureEv)
     def _photo(c, e):
