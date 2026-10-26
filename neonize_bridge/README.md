@@ -88,11 +88,12 @@ Untested: video, sticker and GIF sending and receiving, posting or deleting
 your own status, and every route added in the second round (chats and messages,
 profile and privacy, contacts, labels, communities, group settings, channels,
 call rejection, server management): they pass their tests against stubs but
-have not run against a real account. Missing: placing, answering or carrying
-calls (the DLL carries meowcaller's call layer, but the bridge does not use it
-yet), business and catalog features (neonize has no
+have not run against a real account. One-to-one voice calls (placing,
+answering, the audio both ways) go through meowcaller's call layer
+(`call_media.py`) and have not been tried on a real account yet. Missing:
+group and video calls, business and catalog features (neonize has no
 catalog messages), QR pairing, and some WPPConnect-only routes: the bridge
-implements 158 of the 220 that WPPConnect Server defines for WinZapp.
+implements 164 of the 220 that WPPConnect Server defines for WinZapp.
 [COVERAGE.md](COVERAGE.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.

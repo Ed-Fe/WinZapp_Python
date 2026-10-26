@@ -23,6 +23,7 @@ import audio_message
 import channels
 import administration
 import authentication
+import call_media
 import calls
 import session_lifecycle
 import video_message
@@ -104,6 +105,19 @@ def fix_poll_vote_decryption(client):
     return True
 
 
+def call_layer_on() -> bool:
+    """Turns on the voice call layer of WinZapp's neonize build for the clients
+    created from now on (call_media.py); False when this build has none."""
+    try:
+        import neonize.calls as layer
+    except ImportError:
+        return False
+    if not layer.available():
+        return False
+    layer.configure(True)
+    return True
+
+
 def jid_text(jid) -> str:
     """neonize JID -> 'user@server' (empty if there is none)."""
     if jid is None or not getattr(jid, "User", ""):
@@ -131,6 +145,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         self.urlcode = None
         self.me = ""                # own JID (user@s.whatsapp.net)
         self.lid = ""
+        self.call_media = None      # call_media.CallMedia when this build carries calls
         os.makedirs(folder, exist_ok=True)
         self.db = Store(os.path.join(folder, "bridge.db"))
         done = self.db.apply_revocations()
@@ -561,6 +576,10 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             self.emit("session-logged", {"session": self.name, "status": True})
         threading.Thread(target=self._load_names, daemon=True).start()
         threading.Thread(target=self._check_state, daemon=True).start()
+        media = getattr(self, "call_media", None)
+        if media is not None:
+            client = c
+            media.start_pump(lambda: self.client is client and self.lifecycle.current(generation))
         threading.Thread(target=self._check_always, daemon=True).start()
         threading.Thread(target=self._copy_always, daemon=True).start()
 
@@ -621,8 +640,13 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         # Replacing `self.client` releases the old one, and neonize calls Stop(uuid)
         # when a NewClient is collected (weakref.finalize); that is why the swap
         # happens here, before the new connect(), and never with the old thread still up.
+        calls_on = call_layer_on()          # before the client: the layer installs on connect
         cli = self.client = NewClient(os.path.join(self.folder, "session.db"),
                                       props=device_props(HISTORY_DAYS))
+        if calls_on and getattr(cli, "uuid", None):
+            from neonize.calls import Calls
+            self.call_media = call_media.CallMedia(self.name, Calls(cli.uuid), self.emit,
+                                                   self._phone_of_lid)
         calls.register_events(cli, self)
         presence.register_events(cli, self)
         group_events.register_events(cli, self)
@@ -1242,6 +1266,14 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             log.info("contacts: %d saved name(s) learned", learned)
         return learned
 
+    def _phone_of_lid(self, lid):
+        """'123@lid' -> the number's JID text, or '' when whatsmeow does not know it."""
+        from neonize.utils import build_jid
+        try:
+            return jid_text(self.client.get_pn_from_lid(build_jid(lid.split("@")[0], "lid")))
+        except Exception:
+            return ""
+
     def _load_names(self):
         self.reload_names()
         try:
@@ -1593,6 +1625,7 @@ def create_app(folder, fixed=""):
             # which the client writes by itself; Session.name is the same name (also in --single-session)
             name = authentication.credential_name(cred)
             await sio.enter_room(sid, name)
+            await sio.save_session(sid, {"name": name})     # whose microphone a frame is
         except socketio.exceptions.ConnectionRefusedError:
             raise
         except Exception:
@@ -2509,7 +2542,31 @@ def create_app(folder, fixed=""):
         return ok(status="success", response=s.reactions_wpp(req.match_info["id"]))
 
     async def send_capabilities(req):
-        return ok(status="success", response={"compatible": True})
+        # `calls`: this session places, answers and carries voice calls (the
+        # client only offers them then)
+        media = getattr(session(req), "call_media", None)
+        calls_ready = media is not None and media.calls.enabled()
+        return ok(status="success", response={"compatible": True, "calls": calls_ready})
+
+    async def media_of_socket(sid):
+        try:
+            name = (await sio.get_session(sid)).get("name")
+        except KeyError:
+            return None
+        s = state["sessions"].get(name) if name else None
+        return getattr(s, "call_media", None) if s is not None else None
+
+    @sio.on("call:audio:mic")
+    async def call_audio_mic(sid, data):
+        media = await media_of_socket(sid)
+        if media is not None:
+            media.microphone(data)
+
+    @sio.on("call:audio:stop")
+    async def call_audio_stop(sid, data=None):
+        media = await media_of_socket(sid)
+        if media is not None:
+            media.stop_microphone()
 
     async def pinned_messages(req):
         """Messages pinned in the requested chats (the bridge keeps the pin and

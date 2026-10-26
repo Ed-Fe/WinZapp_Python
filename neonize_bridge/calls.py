@@ -1,9 +1,12 @@
 """Calls in the bridge: what whatsmeow can do with a call.
 
 It receives the offer and the end of a call (CallOffer, CallTerminate) and knows
-how to reject a call that is ringing (RejectCall). It does NOT answer, does not
-place calls and does not carry audio or video (there is no WebRTC/VoIP media in
-it), so the other `call/*` routes answer 501 instead of pretending to have worked.
+how to reject a call that is ringing (RejectCall). With WinZapp's neonize build a
+session also has `call_media` (call_media.py, meowcaller): then `call/offer`,
+`call/accept`, `call/end`, `call/ensure-ended`, `call/status` and
+`call/audio/enable` place, answer and carry one-to-one voice calls. Without it
+(an older build) they answer 501, as do group calls, video and diagnostics
+always, instead of pretending to have worked.
 
 The formats of the events are the ones the client reads in core/websocket_client.py
 (`incomingcall` and `callstate`); those of the refusal, the ones in
@@ -29,15 +32,15 @@ log = logging.getLogger("bridge")
 # ringing and would only take memory.
 RING_TTL = 600
 
-# Routes that whatsmeow has no way to fulfil (there is no way to answer, dial,
-# hold or inspect a call). `call/group/offer` is not in COVERAGE.md but the
-# WPPConnect server defines it, and the reason is the same.
-IMPOSSIBLE_ROUTES = (
-    "call/accept", "call/audio/enable", "call/diagnostics", "call/end",
-    "call/ensure-ended", "call/offer", "call/group/offer", "call/status",
-    "call/upgrade-video",
-)
-IMPOSSIBLE_REASON = "calls cannot be placed, answered or carried through neonize (whatsmeow)"
+# Routes the call layer does not fulfil: it has no group calls, no video and
+# no diagnostics. `call/group/offer` is not in COVERAGE.md but the WPPConnect
+# server defines it, and the reason is the same.
+IMPOSSIBLE_ROUTES = ("call/diagnostics", "call/group/offer", "call/upgrade-video")
+IMPOSSIBLE_REASON = "group and video calls are not available through neonize"
+# What needs the call layer (call_media.py); without it, also 501.
+MEDIA_ROUTES = ("call/offer", "call/accept", "call/end", "call/ensure-ended",
+                "call/status", "call/audio/enable")
+NO_MEDIA_REASON = "this neonize build cannot place, answer or carry calls"
 
 
 def attribute(node, name) -> str:
@@ -245,6 +248,9 @@ def register_events(cli, s):
             if not data["id"]:
                 return
             s.ringing_calls.remember(data["id"], e.basicCallMeta.callCreator, time.time())
+            media = getattr(s, "call_media", None)
+            if media is not None:
+                media.remember_offer(data)
             log.info("call received (video=%s group=%s)", data["isVideo"], data["isGroup"])
             notify(data)
         except Exception:
@@ -296,10 +302,15 @@ def register_routes(r, *, session, ok):
         if not ids:
             return error("call not found", 404)
         loop = asyncio.get_running_loop()
+        media = getattr(s, "call_media", None)
         try:
             for call_id in ids:
-                await loop.run_in_executor(
-                    None, s.client.reject_call, ringing.creator_of(call_id), call_id)
+                # the call layer holds the call too: its Reject also ends its own record
+                if media is not None and media.knows(call_id):
+                    await loop.run_in_executor(None, media.hangup, call_id)
+                else:
+                    await loop.run_in_executor(
+                        None, s.client.reject_call, ringing.creator_of(call_id), call_id)
                 ringing.forget(call_id)
         except Exception as e:
             log.exception("reject call")
@@ -309,8 +320,65 @@ def register_routes(r, *, session, ok):
     async def impossible(req):
         return error(IMPOSSIBLE_REASON, 501)
 
+    async def body_of(req):
+        try:
+            body = await req.json()
+        except Exception:
+            body = {}
+        return body if isinstance(body, dict) else {}
+
+    def media_route(action):
+        """A call/* route that needs the session's call layer."""
+        async def route(req):
+            s = session(req)
+            body = await body_of(req)
+            media = getattr(s, "call_media", None)
+            if media is None:
+                return error(NO_MEDIA_REASON, 501)
+            if s.client is None or s.status != "CONNECTED":
+                return error("Disconnected", 400)
+            return await action(media, body)
+        return route
+
+    async def in_thread(func, *args):
+        return await asyncio.get_running_loop().run_in_executor(None, func, *args)
+
+    async def offer(media, body):
+        if body.get("isVideo"):
+            return error(IMPOSSIBLE_REASON, 501)
+        try:
+            call_id = await in_thread(media.dial, str(body.get("to") or ""))
+        except ValueError as e:
+            return error(e, 400)
+        except Exception as e:
+            # the text can carry the number: only its kind goes to the log and back
+            log.warning("call not placed: %s", type(e).__name__)
+            return error("the call could not be placed")
+        return ok(status="success", response={"id": call_id, "via": "neonize",
+                                              "call": {"state": "CALLING"}})
+
+    async def accept(media, body):
+        if not await in_thread(media.answer, str(body.get("callId") or "")):
+            return error("call not found", 404)
+        return ok(status="success", response={"via": "neonize", "call": {"state": "ACTIVE"}})
+
+    async def end(media, body):
+        ended = await in_thread(media.hangup, str(body.get("callId") or ""))
+        return ok(status="success", response={"via": "neonize", "ended": bool(ended),
+                                              "call": {"state": "ENDED"}})
+
+    async def status(media, body):
+        return ok(status="success", response=media.status(str(body.get("callId") or "")))
+
+    async def audio_enable(media, body):
+        return ok(status="success", response={"enabled": True})
+
     r.add_post("/api/{tok}/call/reject", reject)
     r.add_post("/api/{tok}/reject-call", reject)
+    for route, action in (("call/offer", offer), ("call/accept", accept), ("call/end", end),
+                          ("call/ensure-ended", end), ("call/status", status),
+                          ("call/audio/enable", audio_enable)):
+        r.add_post("/api/{tok}/" + route, media_route(action))
     for route in IMPOSSIBLE_ROUTES:
         r.add_post("/api/{tok}/" + route, impossible)
         r.add_get("/api/{tok}/" + route, impossible)

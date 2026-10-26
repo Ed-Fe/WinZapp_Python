@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Gustavo Almeida Barrios <gabarrios2006@gmail.com>
 Date: Mon, 26 Oct 2026 01:23:01 -0300
-Subject: [PATCH 4/4] Forward contact, push name and app state sync complete
+Subject: [PATCH 4/5] Forward contact, push name and app state sync complete
  events
 
 whatsmeow already dispatches them; neonize did not pass them to Python:
