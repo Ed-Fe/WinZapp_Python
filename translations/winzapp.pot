@@ -7190,7 +7190,7 @@ msgctxt "neonize_offer_keep"
 msgid "Continue using WPPConnect"
 msgstr ""
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/engine_picker.py
 msgctxt "neonize_offer_message"
 msgid ""
@@ -7206,7 +7206,7 @@ msgctxt "neonize_offer_switch"
 msgid "Switch to Neonize (pairing required)"
 msgstr ""
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #: client/ui/dialogs/engine_picker.py
 msgctxt "neonize_offer_title"
 msgid "New Neonize engine available"
