@@ -27,13 +27,19 @@ def native_flow(button_name) -> str:
 
 
 def order_fields(order) -> dict:
-    """Fields of an `OrderMessage`."""
+    """Fields of an `OrderMessage`. `orderId`, `token` and `sellerJid` are what
+    reading the order back needs (commerce_orders.py); WhatsApp Web's order
+    message model keeps the same three."""
     return {"type": "order",
             "itemCount": int(order.itemCount or 0),
             "status": int(order.status or 0),
             "totalAmount1000": int(order.totalAmount1000 or 0),
             "totalCurrencyCode": order.totalCurrencyCode,
             "message": order.message,
+            "orderId": order.orderID,
+            "token": order.token,
+            "sellerJid": order.sellerJID,
+            "orderTitle": order.orderTitle,
             "body": order.orderTitle or order.message}
 
 

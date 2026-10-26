@@ -2254,7 +2254,8 @@ def create_app(folder, fixed=""):
     r.add_post("/api/{tok}/group-subject", group_subject)
     groups.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                            jid_text=jid_text, qr_data_url=qr_data_url)
-    business.register_routes(r, session=session, ok=ok)
+    business.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
+                             jid_text=jid_text)
     channels.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                              jid_text=jid_text)
     administration.register_routes(r, session=session, ok=ok, state=state, folder=folder,

@@ -56,6 +56,26 @@ def child(parent, tag):
     return found[0] if found else None
 
 
+def text(node) -> str:
+    """The text a node carries ('' when none): the answer's bytes, decoded."""
+    import base64
+    content = (node or {}).get("content")
+    if isinstance(content, dict) and isinstance(content.get("bytes"), str):
+        try:
+            return base64.b64decode(content["bytes"]).decode("utf-8", "replace")
+        except ValueError:
+            return ""
+    return content if isinstance(content, str) else ""
+
+
+def child_text(parent, tag) -> str:
+    return text(child(parent, tag))
+
+
+def attr(node, name, default="") -> str:
+    return str(((node or {}).get("attrs") or {}).get(name, default))
+
+
 def answer_node(answer) -> dict:
     """The response node of a send_iq answer, or QueryError."""
     if not isinstance(answer, dict):
