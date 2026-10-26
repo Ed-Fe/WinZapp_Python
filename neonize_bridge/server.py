@@ -356,8 +356,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
     def message_to_forward(self, serial, keep_voice=False):
         """The stored message, ready to be sent as forwarded, or None if the
         type is not supported yet."""
-        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
-            ContextInfo, ExtendedTextMessage, Message)
+        from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import Message
         _, _, mid, _ = self.id_parts(serial)
         original = self.db.wpp_message(mid)
         if original is None:
@@ -376,11 +375,8 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             sub.contextInfo.isForwarded = True
             sub.contextInfo.forwardingScore = 1
             return msg
-        if original.get("type") == "chat" and original.get("body"):
-            return Message(extendedTextMessage=ExtendedTextMessage(
-                text=original["body"],
-                contextInfo=ContextInfo(isForwarded=True, forwardingScore=1)))
-        return None
+        import forwarding
+        return forwarding.plain_forward(original)
 
     # ------------------------------------------------------------ polls
     def _vote_received(self, o, e):
