@@ -33,7 +33,10 @@ go to Settings, Connection, choose **Neonize (direct connection,
 experimental)**, press OK and restart WinZapp. WinZapp starts the bridge by
 itself; the last WinZapp window to close stops it. Sessions and messages live
 in `neonize_bridge/data/`, the bridge output in `neonize_bridge/run/bridge.log`.
-Pairing works by phone code; the QR code is not reliable yet.
+Pairing works by phone code or by QR code. The QR is drawn the way TeleZapp's is
+(black on white, error level L, a 6-module margin), and when WhatsApp refuses a
+scan (`invalid device identity HMAC`) the bridge wipes the session keys and shows
+a new QR, at most 3 times (`pairing_repair.py`). Not tried on a real account yet.
 
 Nothing the bridge sends needs `ffprobe`: `media_probe.py` reads the duration
 of voice notes, audio and video from the file itself (Ogg, MP4/M4A/MOV) or from
