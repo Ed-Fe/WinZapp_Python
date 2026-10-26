@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS comments(
 CREATE INDEX IF NOT EXISTS comments_by_parent ON comments(chat, parent_id, ts);
 """
 
-# added-begin
 # Databases written before the bridge's names were in English use these table and
 # column names; they are renamed in place, so no stored message is lost.
 LEGACY_TABLES = {"fixadas": "pinned", "votos": "votes", "reacoes": "reactions",
@@ -65,7 +64,6 @@ def migrate_legacy_schema(conn):
     for index in LEGACY_INDEXES:
         conn.execute(f"DROP INDEX IF EXISTS {index}")
     conn.commit()
-# added-end
 
 # Messages the bridge makes up from events (system_messages.py):
 # nobody's to read nor to mark as read.
@@ -90,9 +88,7 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         with self._lock:
-            # added-begin
             migrate_legacy_schema(self._conn)
-            # added-end
             self._conn.executescript(SCHEMA)
             try:    # databases created before the locked column
                 self._conn.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")

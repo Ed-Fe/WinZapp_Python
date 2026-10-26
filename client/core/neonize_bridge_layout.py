@@ -31,10 +31,24 @@ def legacy_pid_file(bridge: str) -> str:
     return os.path.join(bridge, "execucao", "ponte.pid")
 
 
+def legacy_clients_dir(bridge: str) -> str:
+    """Where an older WinZapp registered the clients using the bridge."""
+    return os.path.join(bridge, "execucao", "clientes")
+
+
+def stranded(bridge: str) -> bool:
+    """True when the legacy data folder is still there and the current one is not:
+    starting a bridge now would open an empty folder and ask the user to pair again."""
+    return (os.path.isdir(os.path.join(bridge, "dados-real"))
+            and not os.path.isdir(os.path.join(bridge, "data")))
+
+
 def _rename(parent, old, new, rename):
     source, target = os.path.join(parent, old), os.path.join(parent, new)
     if not os.path.exists(source):
         return False
+    if os.path.isdir(target) and not os.listdir(target):
+        os.rmdir(target)        # an empty folder created meanwhile never holds data
     if os.path.exists(target):
         log.warning("both %s and %s exist in %s; the old one was left in place",
                     old, new, os.path.basename(parent) or parent)

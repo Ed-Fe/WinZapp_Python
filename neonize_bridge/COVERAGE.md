@@ -52,7 +52,7 @@ These answer, but not everything the WPPConnect route does. None of the routes a
 - `get-all-labels`, `delete-all-labels`: only labels created through the bridge (neonize cannot read labels).
 - `message-ack`: answers from the receipts the bridge stored (they survive a restart); 404 when none. In groups, `deliveryRemaining` counts the members who sent no receipt yet.
 - Group message ticks (`onack`, `get-messages`): delivered/read/played only when every recipient has delivered/read/played; a member who delivered but never read stops blocking the read tick after a 10-minute grace (a guess, not confirmed on a real group).
-- `message-comments/:messageId`: reads and sends community announcement comments with the message secret that whatsmeow keeps in `sessao.db`. Receiving, decrypting and the send format are written from the whatsmeow source, not confirmed against real traffic; the server may not accept the sent stanza.
+- `message-comments/:messageId`: reads and sends community announcement comments with the message secret that whatsmeow keeps in `session.db`. Receiving, decrypting and the send format are written from the whatsmeow source, not confirmed against real traffic; the server may not accept the sent stanza.
 - `media-upload-progress`, `media-download-progress`: real progress only with the fork DLL that exports `UploadFile`/`TransferProgress`/`DownloadAnyToFile` (and only for `send-file` with an `uploadId`, and `get-media-by-message` with a `progressId`); stock neonize sends no progress events.
 - `status` of a session after a ban, outdated client or replaced stream is `terminalFailure`, which the client's health loop does not restart.
 - `all-new-messages`: cursor kept in memory per session; the first call returns `[]` and a restart resets it.

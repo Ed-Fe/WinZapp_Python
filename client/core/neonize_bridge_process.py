@@ -334,14 +334,37 @@ class NeonizeBridge:
                   "(answer type: %s); refusing to use it", self.port, type(answer).__name__)
         return False
 
+    def _migrate_legacy_layout(self):
+        """Renames folders written under the old names. A bridge of an older
+        WinZapp that is still running (verified like bridge.pid is) is stopped first
+        when no old client uses it; otherwise nothing is renamed."""
+        pid, stamp = _read_pid_file(neonize_bridge_layout.legacy_pid_file(self.bridge))
+        running = False
+        if pid and self._alive(pid):
+            now = self._created(pid)
+            running = not (stamp and now and now != stamp)    # else the pid was reused
+        if running:
+            clients = neonize_bridge_layout.legacy_clients_dir(self.bridge)
+            try:
+                names = os.listdir(clients)
+            except OSError:
+                names = []
+            if not any(n.isdigit() and int(n) != self.pid and self._alive(int(n)) for n in names):
+                self._kill(pid)
+                running = False
+        neonize_bridge_layout.migrate(self.bridge, running)
+
     # -- life cycle
     def start(self) -> bool:
         """Make sure the bridge answers on its port. False if it could not be
         started (no bridge in this install, or it never came up)."""
         cmd = command(self.bridge, self.port)
         # Folders written under the old names are renamed first (only while no bridge runs).
-        legacy_pid, _ = _read_pid_file(neonize_bridge_layout.legacy_pid_file(self.bridge))
-        neonize_bridge_layout.migrate(self.bridge, bool(legacy_pid) and self._alive(legacy_pid))
+        self._migrate_legacy_layout()
+        if neonize_bridge_layout.stranded(self.bridge):
+            log.error("neonize bridge not started: its data folder could not be renamed; "
+                      "starting now would ask for pairing again")
+            return False
         # Before anything is written: an install with no bridge (a packaged
         # build without one) must not leave client files behind.
         if cmd is None and not self._is_open(self.port):
