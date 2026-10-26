@@ -677,7 +677,7 @@ httpcore==1.0.9 \
 httpx==0.28.1 \
     --hash=sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
-    # via neonize
+    # via -r requirements.txt
 idna==3.20 \
     --hash=sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44 \
     --hash=sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c
@@ -689,7 +689,7 @@ idna==3.20 \
 linkpreview==0.13.2 \
     --hash=sha256:4a8ecce7142de2753a31a96b84048dcf4f5ea1f787ec2984101994ce3d916b0a \
     --hash=sha256:aa30254ba30621f878fdb49f7151fc57ace125a1877b49f4317db1d4672ae011
-    # via neonize
+    # via -r requirements.txt
 multidict==7.2.1 \
     --hash=sha256:02009b402129a73e1f3da68f48eb999afbacd29f25aef0d5052b84ff5c2786a2 \
     --hash=sha256:02d9c04d395a36eeebe89e45f2269614a4675b8e83fddcba15bba2be903971e5 \
@@ -845,21 +845,10 @@ multidict==7.2.1 \
     # via
     #   aiohttp
     #   yarl
-neonize==0.5.2 \
-    --hash=sha256:08fa22aac7b8b6b66f2f53195cb12fa990685c89bd99a0ff17f346a0b4f4710a \
-    --hash=sha256:258fc41a72b60854255815c697ea24db14d96d6205d10e9524db3318615e3ca3 \
-    --hash=sha256:670376f5479c56da35fce80ba3c0f98540a46d77364b04f4a6405f6dda783617 \
-    --hash=sha256:7065552a7d4acfb7327f845ba176f887125a20578d5bfafb683ecb870d12c41b \
-    --hash=sha256:96ea2eb144064a5ae7667709021f4b9515e1206f163c267349ecbc531369ecdc \
-    --hash=sha256:9baeac04b085aa8e47a2c866fad9908a185097246a49ddac288d2825b2d08d2e \
-    --hash=sha256:a4630048fe0e13a8d460bf128e46ae10845a4ae8ce4fafa2a0bf5669db696a87 \
-    --hash=sha256:bc0874e3abaab520433b9456b020c973885353af1caa2a73c0c71e866973e3ce \
-    --hash=sha256:d737efc03d3a4db0a89d1efac3b55199472eb57acda041927ca8efc797872b69
-    # via -r requirements.txt
 phonenumbers==9.0.41 \
     --hash=sha256:ccf2ea44f8aa35c487f26146a31520ecedf8e1af1f57c803678ecb5ef5c01668 \
     --hash=sha256:dfa6f74eeac67c044b75313fe0af10774d7d1e1242241437279d4c2fb8027c01
-    # via neonize
+    # via -r requirements.txt
 pillow==13.0.0 \
     --hash=sha256:02464da86f561f410e13b061ec37c3068a9cb557a095494157742d07b3c24a27 \
     --hash=sha256:04a63720f79e22fd54d897c233a68314c50ca0603360f54ce2bd5db8f0f43782 \
@@ -944,7 +933,7 @@ pillow==13.0.0 \
     --hash=sha256:fc481f742ccda20e9ed760b8f978dff50f2a4e9bc253ac167fb0a05b0783ef52 \
     --hash=sha256:ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b \
     --hash=sha256:ffea6b2986a797c84b6d1d27d4f43e0b83c73fc16281a930891cd237cf0d08fe
-    # via neonize
+    # via -r requirements.txt
 propcache==0.5.4 \
     --hash=sha256:004e685b315646c410771836e72a44f143bbe624f29653a42687815069a303d5 \
     --hash=sha256:02c0a34f16889cf800f10f0247a564d8ce6eeab6ffcd7c87198f769067eb8432 \
@@ -1096,7 +1085,7 @@ protobuf==7.36.2 \
     --hash=sha256:cbc70b17ee27e28894c7fee8bb04be1abead49e936bc70eb60052531eee2079e \
     --hash=sha256:e11e1f0180583a2af89db6a2ecd9e8dc40aa6d2988ca175bfd0e6d12ea72d74e \
     --hash=sha256:f4fee11ec330d238b34a05c9b675f693c20415d1c5bd7d5320cc2f8a798eb9cf
-    # via neonize
+    # via -r requirements.txt
 pycparser==3.12 \
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e \
     --hash=sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6
@@ -1109,7 +1098,7 @@ python-magic-bin==0.4.14 \
     --hash=sha256:34a788c03adde7608028203e2dbb208f1f62225ad91518787ae26d603ae68892 \
     --hash=sha256:7b1743b3dbf16601d6eedf4e7c2c9a637901b0faaf24ad4df4d4527e7d8f66a4 \
     --hash=sha256:90be6206ad31071a36065a2fc169c5afb5e0355cbe6030e87641c6c62edc2b69
-    # via neonize
+    # via -r requirements.txt
 python-socketio==5.17.0 \
     --hash=sha256:b5826fd2f8aa02e11347816349b74ac6b53e8a4f4e4b1cf1388e1aff19b7f3f4 \
     --hash=sha256:c3bbfc4937dcfea7c4d1b182afa94d4a30335d153987e8f2078b344beacf95a0
@@ -1120,13 +1109,10 @@ requests==2.34.2 \
     # via
     #   -r requirements.txt
     #   linkpreview
-    #   neonize
 segno==1.6.6 \
     --hash=sha256:28c7d081ed0cf935e0411293a465efd4d500704072cdb039778a2ab8736190c7 \
     --hash=sha256:e60933afc4b52137d323a4434c8340e0ce1e58cec71439e46680d4db188f11b3
-    # via
-    #   -r requirements.txt
-    #   neonize
+    # via -r requirements.txt
 simple-websocket==1.1.0 \
     --hash=sha256:4af6069630a38ed6c561010f0e11a5bc0d4ca569b36306eb257cd9a192497c8c \
     --hash=sha256:7939234e7aa067c534abdab3a9ed933ec9ce4691b0713c78acb195560aa52ae4
@@ -1138,7 +1124,7 @@ soupsieve==3.0.4 \
 tqdm==4.70.1 \
     --hash=sha256:c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73 \
     --hash=sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4
-    # via neonize
+    # via -r requirements.txt
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5

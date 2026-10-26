@@ -145,6 +145,14 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def stale_metadata(site_entries) -> list:
+    """The `neonize-*.dist-info` folders among a site-packages listing: what a
+    PyPI neonize left behind. WinZapp's build is copied in without one, so they
+    would make pip report a neonize that is no longer what runs."""
+    return sorted(name for name in site_entries
+                  if name.lower().startswith("neonize-") and name.lower().endswith(".dist-info"))
+
+
 # ------------------------------------------------------------ build identity
 #: In the bridge's virtualenv: the identity of the neonize installed there,
 #: written by build_neonize.py install and prepare.py.

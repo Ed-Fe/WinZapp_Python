@@ -13,6 +13,12 @@ COMMIT = "ce082701aeb94d3fa2ede0e61f397b755051f556"
 OTHER = "0" * 40
 
 
+def test_only_neonize_metadata_is_stale():
+    listing = ["neonize", "neonize-0.5.2.dist-info", "Neonize-0.4.0.dist-info",
+               "neonize_extra-1.0.dist-info", "segno-1.6.6.dist-info", "neonize-0.5.2.data"]
+    assert nu.stale_metadata(listing) == ["Neonize-0.4.0.dist-info", "neonize-0.5.2.dist-info"]
+
+
 def manifest():
     return nu.load(os.path.join(HERE, nu.MANIFEST))
 

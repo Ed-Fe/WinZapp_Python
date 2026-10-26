@@ -76,7 +76,12 @@ neonize_bridge\.venv\Scripts\python.exe neonize_bridge\build_neonize.py all --in
 
 `all` prepares the workspace if it is missing, regenerates the protobuf
 code, compiles the DLL and, with `--install`, puts the package in
-`neonize_bridge/.venv` in place of PyPI's neonize. **Close WinZapp first**:
+`neonize_bridge/.venv` (removing the metadata a PyPI neonize left there).
+`requirements.txt` and its lock carry neonize's own dependencies, never
+neonize: every place the bridge runs or is tested (`prepare.py`, the release
+build, `ci.yml`'s bridge job, `neonize-dll.yml`) uses this build. A throwaway
+test virtualenv takes the lock and then
+`build_neonize.py install --venv <that venv>`. **Close WinZapp first**:
 the running bridge keeps the DLL open, and `install` refuses rather than
 leave half a package. `prepare.py` does the same for a fresh checkout
 (downloading the published build instead when `release` is set).

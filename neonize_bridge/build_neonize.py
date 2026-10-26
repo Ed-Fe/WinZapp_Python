@@ -373,6 +373,8 @@ def install(venv):
             sys.exit("The neonize DLL is in use: close WinZapp (it stops the bridge) and try again.")
     shutil.rmtree(target, ignore_errors=True)
     shutil.copytree(source, target)
+    for stale in upstream.stale_metadata(os.listdir(site)):
+        shutil.rmtree(os.path.join(site, stale), ignore_errors=True)
     with open(os.path.join(DIST, "BUILD_INFO.json"), encoding="utf-8") as f:
         identity = json.load(f).get("identity", "")
     marker = os.path.join(venv, upstream.MARKER)

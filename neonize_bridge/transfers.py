@@ -2,7 +2,7 @@
 (`0.5.2-winzapp-teste.2`, see prepare.py): `upload_file`,
 `transfer_progress`, `transfer_cancel` and `download_any_to_file`.
 
-The real neonize 0.5.2 (what CI installs) does not have them. Everything here
+PyPI's neonize (0.5.2, an older install) does not have them. Everything here
 checks `has_transfers` and, without them, falls back to the previous path
 (`download_any`, the ordinary send) without emitting any event.
 

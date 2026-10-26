@@ -1,8 +1,9 @@
 # Builds WinZapp's neonize: official neonize at the release approved in
 # neonize_bridge/neonize_upstream.json, plus neonize_bridge/neonize_patches/,
 # compiled into the Windows DLL by neonize_bridge/build_neonize.py. The bridge's
-# tests then run against that package (ci.yml runs them against PyPI's neonize,
-# where the fork-only events are absent and their tests skip).
+# tests then run against that package (ci.yml's bridge job builds and tests it
+# too, on every pull request; this workflow adds the export round-trip, the
+# artifact and the release).
 #
 # - pull_request / push to main that touch the patches, the manifest or the
 #   build: build, test, and keep dist/ as an artifact.

@@ -1,6 +1,6 @@
 """Sending and downloading with progress against fake clients: one that exposes the
-calls of the DLL fork and one that does not (the real neonize 0.5.2, which CI
-installs). Nothing here loads the fork's DLL."""
+calls of the DLL fork and one that does not (PyPI's neonize 0.5.2, an older
+install). Nothing here loads the fork's DLL."""
 import asyncio
 import os
 import threading

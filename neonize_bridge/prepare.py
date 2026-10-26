@@ -183,6 +183,8 @@ def main():
         shutil.rmtree(package, ignore_errors=True)   # the whole package, not a mix of two
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             extract_checked(archive, target)
+        for stale in neonize_upstream.stale_metadata(os.listdir(target)):
+            shutil.rmtree(os.path.join(target, stale), ignore_errors=True)
         with open(MARKER, "w", encoding="utf-8") as stream:
             stream.write(release["identity"])
         print(f"WinZapp's neonize build ({release['tag']}) installed in {target}.")
