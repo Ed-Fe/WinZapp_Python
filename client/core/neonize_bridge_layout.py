@@ -48,7 +48,11 @@ def _rename(parent, old, new, rename):
     if not os.path.exists(source):
         return False
     if os.path.isdir(target) and not os.listdir(target):
-        os.rmdir(target)        # an empty folder created meanwhile never holds data
+        try:
+            os.rmdir(target)    # an empty folder created meanwhile never holds data
+        except OSError as error:
+            log.warning("could not replace the empty %s: %s", new, type(error).__name__)
+            return False
     if os.path.exists(target):
         log.warning("both %s and %s exist in %s; the old one was left in place",
                     old, new, os.path.basename(parent) or parent)

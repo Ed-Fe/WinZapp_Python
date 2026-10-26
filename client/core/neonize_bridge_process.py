@@ -343,7 +343,9 @@ class NeonizeBridge:
         if pid and self._alive(pid):
             now = self._created(pid)
             running = not (stamp and now and now != stamp)    # else the pid was reused
-        if running:
+        # only a pid whose creation time is proven ours is ever killed
+        verified = running and bool(stamp) and bool(now)
+        if running and verified:
             clients = neonize_bridge_layout.legacy_clients_dir(self.bridge)
             try:
                 names = os.listdir(clients)
