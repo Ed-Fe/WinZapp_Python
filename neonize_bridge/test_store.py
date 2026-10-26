@@ -1,188 +1,188 @@
-from store import Armazem
+from store import Store
 
 
 def _msg(i, ts):
     return {"id": {"id": i}, "t": ts, "body": i}
 
 
-def test_ultimas_e_anteriores(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagens_em_lote([("c", _msg(f"m{n}", 100 + n)) for n in range(10)])
-    assert [m["body"] for m in a.mensagens("c", 3)] == ["m7", "m8", "m9"]
-    assert [m["body"] for m in a.mensagens("c", 3, "m7")] == ["m4", "m5", "m6"]
-    assert a.ultima("c")["body"] == "m9"
-    assert a.mensagens("outra", 5) == []
+def test_latest_and_previous(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.messages_in_batch([("c", _msg(f"m{n}", 100 + n)) for n in range(10)])
+    assert [m["body"] for m in a.messages("c", 3)] == ["m7", "m8", "m9"]
+    assert [m["body"] for m in a.messages("c", 3, "m7")] == ["m4", "m5", "m6"]
+    assert a.last("c")["body"] == "m9"
+    assert a.messages("other", 5) == []
 
 
-def test_conversa_conta_nao_lidas_e_ordena(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.conversa("a", name="A", ts=5)
-    a.ao_chegar("a", 9, False)
-    a.ao_chegar("a", 7, True)
-    a.ao_chegar("b", 20, False)
-    lista = a.conversas()
-    assert [c["jid"] for c in lista] == ["b", "a"]
-    assert lista[1]["unread"] == 1 and lista[1]["ts"] == 9 and lista[1]["name"] == "A"
+def test_chat_counts_unread_and_sorts(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.chat("a", name="A", ts=5)
+    a.on_arrival("a", 9, False)
+    a.on_arrival("a", 7, True)
+    a.on_arrival("b", 20, False)
+    listing = a.chats()
+    assert [c["jid"] for c in listing] == ["b", "a"]
+    assert listing[1]["unread"] == 1 and listing[1]["ts"] == 9 and listing[1]["name"] == "A"
 
 
-def test_ficha_da_midia_por_id(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagem("c", _msg("m1", 1), b"ficha")
-    a.mensagem("c", _msg("m2", 2))
-    assert a.ficha("m1") == b"ficha"
-    assert a.ficha("m2") is None and a.ficha("nao-existe") is None
+def test_media_record_by_id(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.message("c", _msg("m1", 1), b"record")
+    a.message("c", _msg("m2", 2))
+    assert a.media_record("m1") == b"record"
+    assert a.media_record("m2") is None and a.media_record("does-not-exist") is None
 
 
-def test_contato_de_mescla_formas_do_jid(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.contato("1@lid", pushname="Ana")
-    a.contato("5551@s.whatsapp.net", name="Ana Silva")
-    assert a.contato_de("1@lid", "5551@s.whatsapp.net") == {"pushname": "Ana", "name": "Ana Silva"}
-    assert a.contato_de("x@lid", "") == {}
+def test_contact_of_merges_the_forms_of_the_jid(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.contact("1@lid", pushname="Ana")
+    a.contact("5551@s.whatsapp.net", name="Ana Silva")
+    assert a.contact_of("1@lid", "5551@s.whatsapp.net") == {"pushname": "Ana", "name": "Ana Silva"}
+    assert a.contact_of("x@lid", "") == {}
 
 
-def test_recebidas_a_ler_so_as_ultimas_nao_lidas(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
+def test_received_to_read_only_the_last_unread(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
     for n in range(10):
         w = _msg(f"m{n}", 100 + n)
         w.update(fromMe=(n == 9), **{"from": "x@s.whatsapp.net"})
-        a.mensagem("c", w)
-    a.conversa("c", unread=3)
-    achadas = a.recebidas_a_ler("c")
-    assert [i for i, _, _ in achadas] == ["m6", "m7", "m8"]     # m9 e minha
-    assert a.conversas()[0]["unread"] == 0
-    assert a.recebidas_a_ler("c") == []                          # ja lidas
+        a.message("c", w)
+    a.chat("c", unread=3)
+    found = a.received_to_read("c")
+    assert [i for i, _, _ in found] == ["m6", "m7", "m8"]     # m9 is mine
+    assert a.chats()[0]["unread"] == 0
+    assert a.received_to_read("c") == []                          # already read
 
 
-def test_ultima_recebida_ignora_as_minhas(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    for n, minha in ((1, False), (2, False), (3, True)):
+def test_last_received_ignores_mine(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    for n, mine in ((1, False), (2, False), (3, True)):
         w = _msg(f"m{n}", 100 + n)
-        w["fromMe"] = minha
-        a.mensagem("c", w)
-    assert a.ultima_recebida("c") == "m2"
-    assert a.ultima_recebida("vazia") == ""
+        w["fromMe"] = mine
+        a.message("c", w)
+    assert a.last_received("c") == "m2"
+    assert a.last_received("empty") == ""
 
 
-def test_aplicar_revogacoes_poe_a_original_como_apagada(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagem("c", {"id": {"id": "ORIG"}, "t": 1, "type": "chat", "body": "oi"})
-    a.mensagem("c", {"id": {"id": "AVISO"}, "t": 2, "type": "revoked", "body": "",
-                     "protocolMessageKey": {"id": "ORIG"}})
-    assert a.aplicar_revogacoes() == 1
-    original = a.mensagem_wpp("ORIG")
+def test_apply_revocations_marks_the_original_as_deleted(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.message("c", {"id": {"id": "ORIG"}, "t": 1, "type": "chat", "body": "oi"})
+    a.message("c", {"id": {"id": "NOTICE"}, "t": 2, "type": "revoked", "body": "",
+                    "protocolMessageKey": {"id": "ORIG"}})
+    assert a.apply_revocations() == 1
+    original = a.wpp_message("ORIG")
     assert original["type"] == "revoked" and original["body"] == ""
 
 
-def test_reacoes_trocam_e_somem(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.reagir("m1", "eu", "A", 1)
-    a.reagir("m1", "5551@c.us", "B", 2)
-    a.reagir("m1", "eu", "C", 3)                 # trocou a propria reacao
-    assert dict(a.reacoes_de("m1")) == {"eu": "C", "5551@c.us": "B"}
-    a.reagir("m1", "eu", "", 4)                  # tirou
-    assert a.reacoes_de("m1") == [("5551@c.us", "B")]
-    assert a.reacoes_de("outra") == []
+def test_reactions_change_and_disappear(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.react("m1", "me", "A", 1)
+    a.react("m1", "5551@c.us", "B", 2)
+    a.react("m1", "me", "C", 3)                 # changed the own reaction
+    assert dict(a.reactions_of("m1")) == {"me": "C", "5551@c.us": "B"}
+    a.react("m1", "me", "", 4)                  # removed
+    assert a.reactions_of("m1") == [("5551@c.us", "B")]
+    assert a.reactions_of("other") == []
 
 
-def test_votos_trocam_e_somem(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.votar("p1", "eu", [0], 1)
-    a.votar("p1", "5551@c.us", [1, 2], 2)
-    a.votar("p1", "eu", [2], 3)                  # mudou o voto
-    assert dict(a.votos_de("p1")) == {"eu": [2], "5551@c.us": [1, 2]}
-    a.votar("p1", "eu", [], 4)                   # tirou o voto
-    assert a.votos_de("p1") == [("5551@c.us", [1, 2])]
+def test_votes_change_and_disappear(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.vote("p1", "me", [0], 1)
+    a.vote("p1", "5551@c.us", [1, 2], 2)
+    a.vote("p1", "me", [2], 3)                  # changed the vote
+    assert dict(a.votes_of("p1")) == {"me": [2], "5551@c.us": [1, 2]}
+    a.vote("p1", "me", [], 4)                   # removed the vote
+    assert a.votes_of("p1") == [("5551@c.us", [1, 2])]
 
 
-def test_mensagens_fixadas_respeitam_o_prazo(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagens_em_lote([("c", _msg("m1", 10)), ("c", _msg("m2", 20)), ("d", _msg("m3", 30))])
-    a.fixar_mensagem("m1", "c", True, ts=100, duracao=50)     # vence em 150
-    a.fixar_mensagem("m2", "c", True, ts=100, duracao=0)      # sem prazo conhecido
-    a.fixar_mensagem("m3", "d", True, ts=100, duracao=500)
-    assert [m["body"] for m in a.fixadas_de(["c"], 120)] == ["m1", "m2"]
-    assert [m["body"] for m in a.fixadas_de(["c"], 200)] == ["m2"]
-    assert [m["body"] for m in a.fixadas_de(["c", "d"], 200)] == ["m2", "m3"]
-    a.fixar_mensagem("m2", "c", False)
-    assert a.fixadas_de(["c"], 200) == []
+def test_pinned_messages_respect_the_deadline(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.messages_in_batch([("c", _msg("m1", 10)), ("c", _msg("m2", 20)), ("d", _msg("m3", 30))])
+    a.pin_message("m1", "c", True, ts=100, duration=50)     # expires at 150
+    a.pin_message("m2", "c", True, ts=100, duration=0)      # no known deadline
+    a.pin_message("m3", "d", True, ts=100, duration=500)
+    assert [m["body"] for m in a.pinned_of(["c"], 120)] == ["m1", "m2"]
+    assert [m["body"] for m in a.pinned_of(["c"], 200)] == ["m2"]
+    assert [m["body"] for m in a.pinned_of(["c", "d"], 200)] == ["m2", "m3"]
+    a.pin_message("m2", "c", False)
+    assert a.pinned_of(["c"], 200) == []
 
 
-def test_ancora_desconhecida_nao_devolve_as_mais_novas(tmp_path):
-    """direction=before com um id que a ponte nao tem lia, no cliente, como
-    'pagina anterior' as mensagens mais novas, repetidas."""
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagens_em_lote([("111@lid", _msg(f"M{n}", 100 + n)) for n in range(1, 5)])
-    assert [m["body"] for m in a.mensagens("111@lid", 3, "M3")] == ["M1", "M2"]
-    assert a.mensagens("111@lid", 3, "ZZZ") == []
+def test_unknown_anchor_does_not_return_the_newest(tmp_path):
+    """direction=before with an id the bridge does not have was read, in the client, as
+    'previous page' the newest messages, repeated."""
+    a = Store(str(tmp_path / "x.db"))
+    a.messages_in_batch([("111@lid", _msg(f"M{n}", 100 + n)) for n in range(1, 5)])
+    assert [m["body"] for m in a.messages("111@lid", 3, "M3")] == ["M1", "M2"]
+    assert a.messages("111@lid", 3, "ZZZ") == []
 
 
-def test_ancora_achada_sob_outro_endereco_da_conversa(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagens_em_lote([("111@lid", _msg("M1", 101)), ("111@lid", _msg("M2", 102))])
-    a.mensagens_em_lote([("55@s.whatsapp.net", _msg("M3", 103))])
-    # pedida so por um endereco, a ancora esta no outro: ainda acha o instante dela
-    assert [m["body"] for m in a.mensagens("55@s.whatsapp.net", 5, "M2")] == []
-    assert [m["body"] for m in a.mensagens(("55@s.whatsapp.net", "111@lid"), 5, "M3")] == ["M1", "M2"]
+def test_anchor_found_under_the_other_address_of_the_chat(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.messages_in_batch([("111@lid", _msg("M1", 101)), ("111@lid", _msg("M2", 102))])
+    a.messages_in_batch([("55@s.whatsapp.net", _msg("M3", 103))])
+    # asked for by only one address, the anchor is in the other: it still finds its instant
+    assert [m["body"] for m in a.messages("55@s.whatsapp.net", 5, "M2")] == []
+    assert [m["body"] for m in a.messages(("55@s.whatsapp.net", "111@lid"), 5, "M3")] == ["M1", "M2"]
 
 
-def test_mensagens_junta_os_dois_enderecos_em_ordem(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.mensagens_em_lote([("111@lid", _msg("M1", 101)), ("55@s.whatsapp.net", _msg("M2", 102)),
-                         ("111@lid", _msg("M3", 103)), ("outra@lid", _msg("X", 104))])
-    assert [m["body"] for m in a.mensagens(["55@s.whatsapp.net", "111@lid"], 10)] == [
+def test_messages_joins_the_two_addresses_in_order(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.messages_in_batch([("111@lid", _msg("M1", 101)), ("55@s.whatsapp.net", _msg("M2", 102)),
+                         ("111@lid", _msg("M3", 103)), ("other@lid", _msg("X", 104))])
+    assert [m["body"] for m in a.messages(["55@s.whatsapp.net", "111@lid"], 10)] == [
         "M1", "M2", "M3"]
-    assert [m["body"] for m in a.mensagens("111@lid", 10)] == ["M1", "M3"]
+    assert [m["body"] for m in a.messages("111@lid", 10)] == ["M1", "M3"]
 
 
-def test_para_resposta_poe_star_booleano_sempre(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    sem = _msg("M1", 1)
-    com = {**_msg("M2", 2), "star": True}
-    saida = a.para_resposta([sem, com])
-    assert [w["star"] for w in saida] == [False, True]
-    assert "star" not in sem                    # nao mexe nas guardadas
+def test_for_response_always_sets_a_boolean_star(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    without = _msg("M1", 1)
+    with_star = {**_msg("M2", 2), "star": True}
+    output = a.for_response([without, with_star])
+    assert [w["star"] for w in output] == [False, True]
+    assert "star" not in without                    # does not touch the stored ones
 
 
-def test_para_resposta_poe_ack_nas_minhas_a_partir_dos_recibos(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
+def test_for_response_sets_ack_on_mine_from_the_receipts(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
 
-    def minha(i):
+    def mine(i):
         return {**_msg(i, 1), "fromMe": True}
-    a.recibo("A", "5@c.us", "delivered", 5)
-    a.recibo("B", "5@c.us", "delivered", 5)
-    a.recibo("B", "5@c.us", "read", 6)
-    a.recibo("C", "5@c.us", "played", 7)
-    saida = {w["id"]["id"]: w for w in a.para_resposta(
-        [minha("A"), minha("B"), minha("C"), minha("D"), _msg("E", 1)])}
-    assert [saida[i]["ack"] for i in "ABCD"] == [2, 3, 4, 1]     # sem recibo: enviada
-    assert "ack" not in saida["E"]                               # recebida nao tem
+    a.receipt("A", "5@c.us", "delivered", 5)
+    a.receipt("B", "5@c.us", "delivered", 5)
+    a.receipt("B", "5@c.us", "read", 6)
+    a.receipt("C", "5@c.us", "played", 7)
+    output = {w["id"]["id"]: w for w in a.for_response(
+        [mine("A"), mine("B"), mine("C"), mine("D"), _msg("E", 1)])}
+    assert [output[i]["ack"] for i in "ABCD"] == [2, 3, 4, 1]     # without a receipt: sent
+    assert "ack" not in output["E"]                               # received has none
 
 
-def test_ack_dos_recibos_ignora_etapa_desconhecida():
-    from store import ack_dos_recibos
-    assert ack_dos_recibos([]) == 1
-    assert ack_dos_recibos([("a", "sent", 1)]) == 1
+def test_ack_from_receipts_ignores_an_unknown_stage():
+    from store import receipts_ack
+    assert receipts_ack([]) == 1
+    assert receipts_ack([("a", "sent", 1)]) == 1
 
 
-def test_copiar_estado_acompanha_a_conversa_sob_dois_enderecos(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.conversa("111@lid", archived=1, pinned=77, muted=9)
-    a.conversa("55@s.whatsapp.net", name="Ana")
-    a.copiar_estado("111@lid", "55@s.whatsapp.net")
-    par = {c["jid"]: c for c in a.conversas()}["55@s.whatsapp.net"]
-    assert (par["archived"], par["pinned"], par["muted"], par["name"]) == (1, 77, 9, "Ana")
-    a.copiar_estado("nao-existe", "55@s.whatsapp.net")          # origem ausente: nada muda
-    assert {c["jid"]: c for c in a.conversas()}["55@s.whatsapp.net"]["archived"] == 1
+def test_copy_state_follows_the_chat_under_two_addresses(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.chat("111@lid", archived=1, pinned=77, muted=9)
+    a.chat("55@s.whatsapp.net", name="Ana")
+    a.copy_state("111@lid", "55@s.whatsapp.net")
+    pair = {c["jid"]: c for c in a.chats()}["55@s.whatsapp.net"]
+    assert (pair["archived"], pair["pinned"], pair["muted"], pair["name"]) == (1, 77, 9, "Ana")
+    a.copy_state("does-not-exist", "55@s.whatsapp.net")          # missing source: nothing changes
+    assert {c["jid"]: c for c in a.chats()}["55@s.whatsapp.net"]["archived"] == 1
 
 
-def test_para_resposta_deixa_o_ack_de_grupo_para_ack_de(tmp_path):
-    a = Armazem(str(tmp_path / "x.db"))
-    a.recibo("A", "5@c.us", "read", 6)
+def test_for_response_leaves_the_group_ack_to_ack_of(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.receipt("A", "5@c.us", "read", 6)
 
-    def minha(i):
+    def mine(i):
         return {**_msg(i, 1), "fromMe": True}
-    saida = a.para_resposta([minha("A"), minha("B")],
-                            ack_de=lambda w: 2 if w["id"]["id"] == "A" else None)
-    # "A" tem recibo de leitura, mas ack_de decidiu 2; "B" (None) usa os recibos
-    assert [w["ack"] for w in saida] == [2, 1]
+    output = a.for_response([mine("A"), mine("B")],
+                            ack_of=lambda w: 2 if w["id"]["id"] == "A" else None)
+    # "A" has a read receipt, but ack_of decided 2; "B" (None) uses the receipts
+    assert [w["ack"] for w in output] == [2, 1]

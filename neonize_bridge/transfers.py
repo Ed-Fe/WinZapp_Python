@@ -35,8 +35,8 @@ MEDIA_FIELDS = ("imageMessage", "videoMessage", "audioMessage", "documentMessage
 
 def has_transfers(client):
     """True when the client is the fork's AND the loaded DLL exports the transfer
-    calls (the fork's `has_transfers()` looks at the DLL)."""
-    detect = getattr(client, "has_transfers", None)
+    calls (the fork's `tem_transferencias()` looks at the DLL)."""
+    detect = getattr(client, "tem_transferencias", None)     # the name the fork exports
     if not callable(detect):
         return False
     for name in ("upload_file", "transfer_progress", "transfer_cancel",
