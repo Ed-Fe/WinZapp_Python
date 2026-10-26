@@ -41,6 +41,30 @@ def test_handler_reports_only_error_lines():
     assert seen == [pairing_repair.QR]
 
 
+def test_wipe_deletes_the_database_last(tmp_path, monkeypatch):
+    for name in ("session.db", "session.db-wal", "session.db-shm", "session.db-journal"):
+        (tmp_path / name).write_bytes(b"x")
+    order = []
+    real = os.remove
+    monkeypatch.setattr(pairing_repair.os, "remove", lambda path: (order.append(os.path.basename(path)), real(path)))
+    assert pairing_repair.wipe_session_keys(str(tmp_path))
+    assert order[-1] == "session.db" and order.index("session.db-wal") < order.index("session.db")
+
+
+def test_a_failed_wipe_never_leaves_a_wal_without_its_database(tmp_path, monkeypatch):
+    for name in ("session.db", "session.db-wal"):
+        (tmp_path / name).write_bytes(b"x")
+    real = os.remove
+
+    def locked(path):
+        if os.path.basename(path) == "session.db":
+            raise PermissionError(path)
+        real(path)
+    monkeypatch.setattr(pairing_repair.os, "remove", locked)
+    assert not pairing_repair.wipe_session_keys(str(tmp_path))
+    assert sorted(os.listdir(tmp_path)) == ["session.db"]
+
+
 def test_wipe_removes_the_keys_and_keeps_the_messages(tmp_path):
     for name in ("session.db", "session.db-wal", "bridge.db"):
         (tmp_path / name).write_bytes(b"x")
@@ -67,7 +91,8 @@ def stub(tmp_path, *, status="QRCODE", used=0, alive=False, thread=None):
           lifecycle=session_lifecycle.Lifecycle(), pairing_repairs=pairing_repair.Budget(),
           _lifecycle_lock=threading.RLock(), _thread_alive=lambda: alive,
           emit=lambda event, data: calls.append(("emit", event, data["name"])),
-          begin=lambda *a, **k: calls.append(("begin", k)), _repair_pairing=lambda *a: None)
+          begin=lambda *a, **k: calls.append(("begin", k)), _repair_pairing=lambda *a: None,
+          _has_identity=lambda: False)
     s.lifecycle.status = s.status = status
     s.pairing_repairs.used = used
     s.stop = lambda status=None: server.Session.stop(s, status)
@@ -115,6 +140,37 @@ def test_a_thread_that_will_not_finish_is_announced_too(tmp_path):
     repair(s, pairing_repair.QR)
     assert calls == [("emit", "phoneCodeError", "LinkCodeRefreshFailed")]
     assert s.lifecycle.status == session_lifecycle.TERMINAL
+
+
+def test_a_session_that_got_paired_while_the_repair_waited_keeps_its_keys(tmp_path):
+    (tmp_path / "session.db").write_bytes(b"new keys")
+    s, calls = stub(tmp_path)
+    s.lifecycle.status = s.status = "CONNECTED"        # the scan went through meanwhile
+    repair(s, pairing_repair.QR)
+    repair(s, pairing_repair.CODE)
+    assert calls == [] and (tmp_path / "session.db").read_bytes() == b"new keys"
+    assert s.lifecycle.status == "CONNECTED"
+
+
+def test_a_session_that_already_holds_an_identity_keeps_its_keys(tmp_path):
+    """Between whatsmeow saving the paired device and the connected event the status
+    is still QRCODE; a late refusal line must not wipe what was just saved."""
+    (tmp_path / "session.db").write_bytes(b"new keys")
+    s, calls = stub(tmp_path)
+    s._has_identity = lambda: True
+    repair(s, pairing_repair.CODE)
+    repair(s, pairing_repair.QR)
+    assert calls == [] and (tmp_path / "session.db").read_bytes() == b"new keys"
+    assert s.lifecycle.status == session_lifecycle.QRCODE
+
+
+def test_the_identity_check_reads_the_clients_own_id():
+    ready = N(client=N(get_me=lambda: N(JID=N(User="5511")))) 
+    empty = N(client=N(get_me=lambda: N(JID=N(User=""))))
+    broken = N(client=None)
+    assert server.Session._has_identity(ready) is True
+    assert server.Session._has_identity(empty) is False
+    assert server.Session._has_identity(broken) is False
 
 
 def test_an_old_generation_is_not_repaired(tmp_path):

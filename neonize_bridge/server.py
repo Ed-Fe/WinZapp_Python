@@ -1013,7 +1013,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
     def _on_pairing_failure(self, generation, kind, phone_number):
         """Called by pairing_repair.WATCH on the log's worker thread: it only
         decides, the work goes to its own thread."""
-        if not self.lifecycle.current(generation) or self.status != "QRCODE":
+        if not self.lifecycle.current(generation) or self.status != session_lifecycle.QRCODE:
             return                      # paired already, or an old session's line
         log.warning("WhatsApp refused the pairing (%s)", kind)
         threading.Thread(target=self._repair_pairing, args=(generation, kind, phone_number),
@@ -1022,6 +1022,11 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
     def _repair_pairing(self, generation, kind, phone_number):
         with self._lifecycle_lock:
             if not self.lifecycle.current(generation):
+                return
+            # The thread started a moment ago and may have waited for this lock while
+            # the pairing went through: a session that is no longer waiting for a scan,
+            # or that already holds an identity, is paired and its keys are not ours to wipe.
+            if self.status != session_lifecycle.QRCODE or self._has_identity():
                 return
             if phone_number:
                 kind = pairing_repair.CODE      # the client is waiting for a code, not a QR
@@ -1044,6 +1049,13 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
                     self.name, "WhatsApp refused the pairing code"))
                 return
             self.begin(repairing=True)
+
+    def _has_identity(self) -> bool:
+        """True when the client already knows its own WhatsApp id (a pairing went through)."""
+        try:
+            return bool(self.client.get_me().JID.User)
+        except Exception:
+            return False
 
     def _give_up(self, message):
         """The repair ends: offline for good (TERMINAL does not restart by itself)

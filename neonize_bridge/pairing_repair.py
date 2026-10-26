@@ -19,10 +19,14 @@ import logging
 import os
 import threading
 
+import session_lifecycle
+
 MAX_REPAIRS = 3
 QR, CODE = "qr", "code"
 
-_FILES = ("session.db", "session.db-wal", "session.db-shm", "session.db-journal")
+# The database goes last: a failure half way must never leave a -wal that SQLite would
+# replay into the next fresh session.db.
+_FILES = ("session.db-wal", "session.db-shm", "session.db-journal", "session.db")
 
 
 def failure_kind(text):
@@ -110,7 +114,8 @@ class Watch:
     def _dispatch(self, kind):
         with self._lock:
             waiting = [e for e in self._entries.values()
-                       if e[0].status == "QRCODE" and e[0].lifecycle.current(e[1])]
+                       if e[0].status == session_lifecycle.QRCODE
+                       and e[0].lifecycle.current(e[1])]
         if len(waiting) == 1:
             session, generation, phone_number = waiting[0]
             session._on_pairing_failure(generation, kind, phone_number)
