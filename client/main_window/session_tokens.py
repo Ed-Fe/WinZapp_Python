@@ -72,7 +72,8 @@ class SessionTokensMixin:
         if outcome != session_engine.UNCHANGED:
             self.token = ""
             self._shutdown_audit("engine switch %s -> %s: %s" % (before, engine, outcome))
-        if outcome == session_engine.PARKED and not getattr(self, "background_mode", False):
+        if (outcome == session_engine.PARKED and not getattr(self, "background_mode", False)
+                and not getattr(self, "_engine_switch_announced", False)):
             self._announce_engine_switch()
 
     def _announce_engine_switch(self) -> None:

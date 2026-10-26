@@ -61,6 +61,7 @@ EXCLUDED_KEYS = frozenset({
     ("advanced", "local_api_port"),    # a port free on that machine, not this one
     ("general", "first_run"),          # the one-shot questions this install
     ("general", "api_type_first_run_asked"),   # has already answered
+    ("general", "neonize_offer_asked"),
     ("general", "hotkey_first_run_asked"),
     ("general", "terms_alert_displayed"),
     ("general", "quick_tip_shown"),

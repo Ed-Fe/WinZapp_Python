@@ -31,6 +31,19 @@ def relabel(label, choice, hint, i18n):
     hint.SetLabel(i18n.t("connection_engine_hint"))
 
 
+def ask_neonize_offer(i18n, main_window=None, announce=None, **dialogs) -> bool:
+    """The one-time notice for installs on WPPConnect. True when the user chose to
+    switch to Neonize; closing the dialog keeps WPPConnect. In a start in the
+    background the window is hidden, so the dialog is announced and brought to the
+    front (core/dialog_foreground.py): a blind user must never be left with a
+    modal nobody spoke."""
+    from core.dialog_foreground import choice_box
+
+    return choice_box(main_window, i18n.t("neonize_offer_message"), i18n.t("neonize_offer_title"),
+                      i18n.t("neonize_offer_switch"), i18n.t("neonize_offer_keep"),
+                      announce=announce, **dialogs)
+
+
 def ask_first_run(i18n):
     """The first-run question. Returns the chosen engine, or None if the user
     closed it without choosing."""

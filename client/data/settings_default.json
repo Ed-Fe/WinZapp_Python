@@ -26,6 +26,7 @@
         "convert_emoticons": true,
         "first_run": true,
         "api_type_first_run_asked": false,
+        "neonize_offer_asked": false,
         "hotkey_first_run_asked": false,
         "autostart": false,
         "show_tray_icon": true,
