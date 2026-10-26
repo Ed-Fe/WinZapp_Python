@@ -2731,7 +2731,16 @@ def create_app(folder, fixed=""):
     return app
 
 
+def turn_off_bot_tag():
+    """neonize adds `<bot biz_bot="1"/>` to every private message, and the
+    recipient then sees the AI badge with rating buttons, even from an account
+    that is not Business. The DLL reads this variable at each send, so it must
+    be set in the bridge's own process, whoever launched it."""
+    os.environ["NEONIZE_BOT_TAG"] = "off"
+
+
 def main():
+    turn_off_bot_tag()
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=6300)
     ap.add_argument("--single-session", default="",
