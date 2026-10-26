@@ -19,6 +19,7 @@ import segno
 import socketio
 from aiohttp import web
 
+import audio_message
 import channels
 import administration
 import authentication
@@ -1929,11 +1930,8 @@ def create_app(folder, fixed=""):
                    client=None):
         c = s.client if client is None else client
         if kind == "audio":
-            # neonize only detects "audio/ogg"; WhatsApp wants "audio/ogg; codecs=opus"
-            # (without it the voice note may not even show up on some devices)
-            m = c.build_audio_message(file, ptt=ptt)
-            if (m.audioMessage.mimetype or "").startswith("audio/ogg"):
-                m.audioMessage.mimetype = "audio/ogg; codecs=opus"
+            # not neonize's build_audio_message: it needs ffprobe, which WinZapp does not ship
+            m = audio_message.build(c, file, ptt)
             if ctx is not None:
                 m.audioMessage.contextInfo.CopyFrom(ctx)
             return c.send_message(destination, m)
@@ -1942,8 +1940,6 @@ def create_app(folder, fixed=""):
                 m, field = c.build_image_message(file, caption=caption or None), "imageMessage"
             elif kind == "video":
                 m, field = c.build_video_message(file, caption=caption or None), "videoMessage"
-            elif kind == "audio":
-                m, field = c.build_audio_message(file, ptt=ptt), "audioMessage"
             else:
                 m, field = c.build_document_message(
                     file, caption=caption or None, filename=name or None,
@@ -1954,8 +1950,6 @@ def create_app(folder, fixed=""):
             return c.send_image(destination, file, caption=caption or None)
         if kind == "video":
             return c.send_video(destination, file, caption=caption or None)
-        if kind == "audio":
-            return c.send_audio(destination, file, ptt=ptt)
         return c.send_document(destination, file, caption=caption or None,
                                filename=name or None, mimetype=mime or None)
 

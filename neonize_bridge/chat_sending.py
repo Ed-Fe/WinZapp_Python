@@ -5,7 +5,7 @@ and file in base64 and voice note in base64. All of them answer like
 
 Nothing here was tested against a real account: neonize does not install
 outside Windows. The signatures match the neonize 0.5.2 source code
-(send_message, build_sticker_message, build_audio_message).
+(send_message, build_sticker_message); audio is built by audio_message.py.
 
 The pure functions are at the top (tested in test_chat_sending.py);
 `register_routes` wires the routes to the server.
