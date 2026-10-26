@@ -4,10 +4,10 @@ WinZapp client reads (core/communities.py).
 
 A community, in neonize/whatsmeow, is a "parent" group (`GroupParent.IsParent`);
 its groups point to it through `GroupLinkedParent`, and `link_group` /
-`unlink_group` link and unlink a group. neonize 0.5.2 has NO way to deactivate
-a community, nor to join (or cancel the join request for) a group of a
-community: those three routes (`deactivate-community` and
-`community-subgroups/:c/:g/join` and `.../cancel-request`) are left out.
+`unlink_group` link and unlink a group. Deactivating a community and joining (or withdrawing the
+request for) one of its groups are raw queries, in community_membership.py.
+The groups the account is not in come from WhatsApp Web's own MEX query
+(SUBGROUPS_QUERY), with neonize's `get_sub_groups` as the fallback.
 
 The pure functions are at the top (tested in test_communities.py);
 `register_routes` wires the routes to the server. Nothing here was tested
@@ -20,9 +20,17 @@ import uuid
 
 from aiohttp import web
 
+import raw_queries as rq
 from groups import participants_result, user_of
 
 log = logging.getLogger("bridge")
+
+# WhatsApp Web's own query for a community's groups, joined or not
+# (WAWebMexFetchAllSubgroupsJobQuery, run by WAWebQuerySubGroupAction when the
+# community is opened): the announcement group in `default_sub_group`, every
+# other group the account may see in `sub_groups`.
+SUBGROUPS_QUERY = "9935467776504344"
+SUBGROUPS_FIELD = "xwa2_group_query_by_id"
 
 # The same formats that WinZapp's own routes accept
 # (communityAdminController.ts).
@@ -80,19 +88,72 @@ def subgroup_from_target(target) -> dict:
             "general": False, "joined": False, "approval": False, "requested": False}
 
 
-def community_subgroups_of(community, groups, targets=()) -> list:
+def subgroups_query_variables(parent_id, joined_ids) -> dict:
+    """The variables of SUBGROUPS_QUERY, as WhatsApp Web sends them: the
+    community and, as a hint, one of its groups the account is in."""
+    variables = {"group_id": parent_id, "query_context": "INTERACTIVE"}
+    if joined_ids:
+        variables["sub_group_hint_id"] = joined_ids[0]
+    return variables
+
+
+def _group_id(value) -> str:
+    text = str(value or "")
+    return text if not text or "@" in text else text + "@g.us"
+
+
+def subgroups_from_mex(answer) -> list:
+    """`xwa2_group_query_by_id` of SUBGROUPS_QUERY -> subgroup rows with
+    `joined` false (the route marks the ones the account is in). Like
+    WAWebMexFetchAllSubgroupsJob: the announcement group first, then each
+    edge; a node without an id is skipped instead of failing the list."""
+    if not isinstance(answer, dict):
+        return []
+    rows = []
+
+    def add(node, announcement):
+        if not isinstance(node, dict) or not _group_id(node.get("id")):
+            return
+        subject = node.get("subject") if isinstance(node.get("subject"), dict) else {}
+        properties = node.get("properties") if isinstance(node.get("properties"), dict) else {}
+        requests = node.get("membership_approval_requests")
+        requests = requests if isinstance(requests, dict) else {}
+        rows.append({"id": _group_id(node["id"]), "subject": subject.get("value") or "",
+                     "announcement": announcement,
+                     "general": bool(properties.get("general_chat")),
+                     "joined": False,
+                     "approval": bool(properties.get("membership_approval_mode_enabled")),
+                     "requested": (requests.get("total_count") or 0) > 0})
+
+    add(answer.get("default_sub_group"), True)
+    connection = answer.get("sub_groups") if isinstance(answer.get("sub_groups"), dict) else {}
+    for edge in connection.get("edges") or []:
+        add(edge.get("node") if isinstance(edge, dict) else None, False)
+    return rows
+
+
+def community_subgroups_of(community, groups, targets=(), listed=()) -> list:
     """The community's groups: first the ones the account joined (`groups`:
     everything the account takes part in, linked to the parent by
-    GroupLinkedParent) and then, from `targets` (get_sub_groups), the ones it
-    did not join."""
+    GroupLinkedParent) and then the ones it did not join, from `listed`
+    (subgroups_from_mex) or, without it, from `targets` (get_sub_groups).
+    What `listed` says of a joined group (general, approval) is kept."""
     user = community.JID.User
-    rows = [joined_subgroup(g) for g in groups
-            if g.GroupLinkedParent.LinkedParentJID.User == user
-            and g.JID.User != user]
+    parent_id = jid_text(community.JID)
+    by_id = {row["id"]: row for row in listed}
+    rows = []
+    for g in groups:
+        if g.GroupLinkedParent.LinkedParentJID.User != user or g.JID.User == user:
+            continue
+        row = joined_subgroup(g)
+        seen = by_id.get(row["id"])
+        if seen:
+            row["general"], row["approval"] = seen["general"], seen["approval"]
+        rows.append(row)
     known = {row["id"] for row in rows}
-    for target in targets:
-        row = subgroup_from_target(target)
-        if row["id"] and row["id"] not in known and target.JID.User != user:
+    others = list(listed) or [subgroup_from_target(t) for t in targets]
+    for row in others:
+        if row["id"] and row["id"] not in known and row["id"] != parent_id:
             known.add(row["id"])
             rows.append(row)
     return rows
@@ -276,15 +337,33 @@ def register_routes(r, *, session, ok, jid_from_text):
         parent = next((g for g in groups if is_community(g) and jid_text(g.JID) == parent_id), None)
         if parent is None:
             return error("community not found", 404, "community_not_found")
-        try:
-            targets = await execute(s.client.get_sub_groups, parent.JID)
-        except Exception as e:
-            # Without the server's list, there are still the groups the account joined.
-            log.warning("community-subgroups: get_sub_groups failed (%s)", type(e).__name__)
-            targets = []
-        subgroups = community_subgroups_of(parent, groups, targets)
+        listed, targets = await all_subgroups(s, parent, groups)
+        subgroups = community_subgroups_of(parent, groups, targets, listed)
         return ok(status="success", response=[
             community_to_wpp(parent, subgroups, my_users(s))])
+
+    async def all_subgroups(s, parent, groups):
+        """(listed, targets): the community's groups from WhatsApp Web's query
+        when this build sends it, from get_sub_groups otherwise. Without
+        either, there are still the groups the account joined."""
+        parent_id = jid_text(parent.JID)
+        if rq.available(s.client):
+            joined = [jid_text(g.JID) for g in groups
+                      if g.GroupLinkedParent.LinkedParentJID.User == parent.JID.User]
+            try:
+                answer = await execute(rq.send_mex, s.client, SUBGROUPS_QUERY,
+                                       subgroups_query_variables(parent_id, joined),
+                                       SUBGROUPS_FIELD)
+                listed = subgroups_from_mex(answer)
+                if listed:
+                    return listed, []
+            except rq.QueryError as e:
+                log.warning("community-subgroups: query refused (%s)", e)
+        try:
+            return [], await execute(s.client.get_sub_groups, parent.JID)
+        except Exception as e:
+            log.warning("community-subgroups: get_sub_groups failed (%s)", type(e).__name__)
+            return [], []
 
     async def community_participants(req):
         s = session(req)

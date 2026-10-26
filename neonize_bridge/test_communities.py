@@ -62,6 +62,54 @@ def test_joined_and_not_joined_subgroups():
     assert rows[2]["approval"] is False and rows[2]["requested"] is False
 
 
+def test_subgroups_query_variables_carry_a_joined_group_as_hint():
+    assert communities.subgroups_query_variables("1@g.us", ["2@g.us", "3@g.us"]) == {
+        "group_id": "1@g.us", "query_context": "INTERACTIVE", "sub_group_hint_id": "2@g.us"}
+    assert communities.subgroups_query_variables("1@g.us", []) == {
+        "group_id": "1@g.us", "query_context": "INTERACTIVE"}
+
+
+def mex_node(user, name, general=False, approval=False, requests=0):
+    return {"id": user + "@g.us", "subject": {"value": name, "creation_time": "1700000000"},
+            "properties": {"general_chat": general, "hidden_group": False,
+                           "membership_approval_mode_enabled": approval},
+            "membership_approval_requests": {"total_count": requests}}
+
+
+MEX_ANSWER = {
+    "__typename": "XWA2CommunityGroup", "id": "1@g.us",
+    "default_sub_group": {"id": "2@g.us", "subject": {"value": "Announcements",
+                                                      "creation_time": "1"}},
+    "sub_groups": {"edges": [{"node": mex_node("3", "General", general=True)},
+                             {"node": mex_node("5", "Needs approval", approval=True, requests=1)},
+                             {"node": None}, {"node": {"subject": {"value": "no id"}}}]}}
+
+
+def test_subgroups_from_the_query_whatsapp_web_runs():
+    rows = communities.subgroups_from_mex(MEX_ANSWER)
+    assert [(r["id"], r["subject"], r["announcement"], r["general"], r["approval"],
+             r["requested"], r["joined"]) for r in rows] == [
+        ("2@g.us", "Announcements", True, False, False, False, False),
+        ("3@g.us", "General", False, True, False, False, False),
+        ("5@g.us", "Needs approval", False, False, True, True, False)]
+    assert communities.subgroups_from_mex(None) == []
+    assert communities.subgroups_from_mex({"sub_groups": None}) == []
+    # a bare number gets the group server
+    assert communities.subgroups_from_mex({"default_sub_group": {"id": "9"}})[0]["id"] == "9@g.us"
+
+
+def test_the_query_s_list_wins_over_get_sub_groups_and_marks_the_joined():
+    parent = group("1", "Community", parents=True)
+    announcements = group("2", "Announcements", parent="1", default=True)
+    general = group("3", "General", parent="1")
+    rows = communities.community_subgroups_of(
+        parent, [parent, announcements, general], [target("8", "from get_sub_groups")],
+        communities.subgroups_from_mex(MEX_ANSWER))
+    assert [(r["id"], r["joined"], r["general"]) for r in rows] == [
+        ("2@g.us", True, False), ("3@g.us", True, True), ("5@g.us", False, False)]
+    assert rows[2]["approval"] is True and rows[2]["requested"] is True
+
+
 def test_community_in_the_format_the_client_reads():
     parent = group("1", "Community", parents=True, topic="About",
                    people=[person("lid1", admin=True, lid="lid1")])
@@ -111,3 +159,66 @@ def test_community_people_mark_who_is_admin():
         {"id": "5511@s.whatsapp.net", "isAdmin": True, "isSuperAdmin": False},
         {"id": "9@s.whatsapp.net", "isAdmin": True, "isSuperAdmin": True},
         {"id": "333@s.whatsapp.net", "isAdmin": False, "isSuperAdmin": False}]
+
+
+class Client:
+    """Answers get_joined_groups, send_mex and get_sub_groups like neonize."""
+
+    def __init__(self, groups, mex=None, targets=()):
+        self.groups, self.mex, self.targets = groups, mex, list(targets)
+        self.queries = []
+
+    def get_joined_groups(self):
+        return self.groups
+
+    def send_iq(self, query):
+        raise AssertionError("no IQ expected")
+
+    def send_mex(self, query_id, variables):
+        self.queries.append((query_id, variables))
+        return self.mex
+
+    def get_sub_groups(self, parent):
+        return self.targets
+
+
+def subgroups_route(client, monkeypatch):
+    import asyncio
+
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+
+    import raw_queries
+    monkeypatch.setattr(raw_queries, "available", lambda c: hasattr(c, "send_mex"))
+    s = N(client=client, status="CONNECTED", me="5511@s.whatsapp.net", lid="")
+
+    async def main():
+        app = web.Application()
+        communities.register_routes(
+            app.router, session=lambda req: s, ok=lambda **kw: web.json_response(kw),
+            jid_from_text=lambda t: jid(*t.split("@")))
+        async with TestClient(TestServer(app)) as http:
+            resp = await http.get("/api/tok/community-subgroups/1@g.us")
+            return await resp.json()
+    return asyncio.run(main())["response"][0]["subgroups"]
+
+
+def test_the_route_lists_the_groups_not_joined_from_the_query(monkeypatch):
+    parent = group("1", "Community", parents=True)
+    joined = [parent, group("2", "Announcements", parent="1", default=True),
+              group("3", "General", parent="1")]
+    client = Client(joined, {"data": {"xwa2_group_query_by_id": MEX_ANSWER}},
+                    [target("8", "from get_sub_groups")])
+    rows = subgroups_route(client, monkeypatch)
+    assert [(r["id"], r["joined"]) for r in rows] == [
+        ("2@g.us", True), ("3@g.us", True), ("5@g.us", False)]
+    assert client.queries == [(communities.SUBGROUPS_QUERY, {
+        "group_id": "1@g.us", "query_context": "INTERACTIVE", "sub_group_hint_id": "2@g.us"})]
+
+
+def test_a_refused_query_falls_back_to_get_sub_groups(monkeypatch):
+    parent = group("1", "Community", parents=True)
+    client = Client([parent, group("2", "Announcements", parent="1", default=True)],
+                    {"error": "bad request"}, [target("8", "Not joined")])
+    rows = subgroups_route(client, monkeypatch)
+    assert [(r["id"], r["joined"]) for r in rows] == [("2@g.us", True), ("8@g.us", False)]
