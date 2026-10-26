@@ -246,3 +246,26 @@ def test_subscription_target_accepts_a_person_and_a_group_and_nothing_else():
     assert contacts.subscription_target("1203-44@g.us") == "1203-44@g.us"
     for bad in ("", None, "status@broadcast", "abc", "5511999990000@newsletter"):
         assert contacts.subscription_target(bad) == ""
+
+
+def _entry(user, full="", first="", push="", server="s.whatsapp.net"):
+    return N(JID=N(User=user, Server=server),
+             Info=N(FullName=full, FirstName=first, PushName=push))
+
+
+def _jid_text(jid):
+    return f"{jid.User}@{jid.Server}" if jid.User else ""
+
+
+def test_address_book_rows_prefer_the_full_name_and_skip_empty_entries():
+    rows = contacts.address_book_rows([
+        _entry("5511911110001", full="Ana Souza", first="Ana", push="Aninha"),
+        _entry("5511911110002", first=" Beto ", push=""),
+        _entry("5511911110003", push="Caio"),
+        _entry("5511911110004"),                      # nothing to say
+        _entry("", full="Sem JID"),
+    ], _jid_text)
+    assert rows == [("5511911110001@s.whatsapp.net", "Ana Souza", "Aninha"),
+                    ("5511911110002@s.whatsapp.net", "Beto", ""),
+                    ("5511911110003@s.whatsapp.net", "", "Caio")]
+    assert contacts.address_book_rows(None, _jid_text) == []

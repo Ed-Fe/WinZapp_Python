@@ -157,6 +157,30 @@ class Store:
                                    (pushname, jid))
             self._conn.commit()
 
+    def contacts_in_batch(self, rows):
+        """Rows (jid, name, pushname), in one transaction. Like `contact`, an empty
+        field keeps what is stored; only what differs is written. Returns how many
+        saved names (`name`) are new or changed."""
+        changed = 0
+        with self._lock:
+            for jid, name, pushname in rows:
+                r = self._conn.execute(
+                    "SELECT name, pushname FROM contacts WHERE jid=?", (jid,)).fetchone()
+                if r is None:
+                    self._conn.execute(
+                        "INSERT INTO contacts(jid, name, pushname) VALUES (?,?,?)",
+                        (jid, name or "", pushname or ""))
+                    changed += bool(name)
+                    continue
+                if name and name != r["name"]:
+                    self._conn.execute("UPDATE contacts SET name=? WHERE jid=?", (name, jid))
+                    changed += 1
+                if pushname and pushname != r["pushname"]:
+                    self._conn.execute("UPDATE contacts SET pushname=? WHERE jid=?",
+                                       (pushname, jid))
+            self._conn.commit()
+        return changed
+
     def contact_of(self, *jids):
         """Name and nickname of a contact (merges the given forms of the JID)."""
         found = {}

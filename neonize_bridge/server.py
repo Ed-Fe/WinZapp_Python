@@ -1047,6 +1047,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         time.sleep(5)       # lets the initial sync finish
         for name in self.COLLECTIONS:
             self.repair_collection(name, force=False)
+        self.reload_names()     # critical_unblock_low carries the saved names
 
     def _check_always(self):
         """Every minute fetches the app state changes that the phone made and the
@@ -1058,6 +1059,9 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             while self.status == "CONNECTED":
                 time.sleep(60)
                 self.fetch_changes()
+                # names saved on the phone (or synced late after pairing) land in
+                # neonize's store on their own; this brings them to all-contacts
+                self.reload_names()
         finally:
             self._fetch_active = False
 
@@ -1218,14 +1222,28 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         log.warning("the phone did not answer the request for state %s: open WhatsApp on the phone", name)
         return False
 
-    def _load_names(self):
+    def reload_names(self):
+        """Copies neonize's contact store (saved names and nicknames) into the
+        bridge's. The saved names come with the app state (critical_unblock_low),
+        which right after pairing lands well after the connection: read only at
+        connect, a newly paired account had no saved name at all, and every
+        group sender showed as an unsaved contact. Returns how many saved names
+        were learned."""
+        c = self.client
+        if c is None:
+            return 0
         try:
-            for c in self.client.contact.get_all_contacts():
-                name = c.Info.FullName or c.Info.FirstName
-                self.db.contact(jid_text(c.JID), name=name or None,
-                                pushname=c.Info.PushName or None)
+            rows = contacts.address_book_rows(c.contact.get_all_contacts(), jid_text)
         except Exception:
             log.exception("contacts")
+            return 0
+        learned = self.db.contacts_in_batch(rows)
+        if learned:
+            log.info("contacts: %d saved name(s) learned", learned)
+        return learned
+
+    def _load_names(self):
+        self.reload_names()
         try:
             for g in self.client.get_joined_groups():
                 self.db.chat(jid_text(g.JID), name=g.GroupName.Name)

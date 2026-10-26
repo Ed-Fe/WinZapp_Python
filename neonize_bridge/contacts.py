@@ -131,6 +131,21 @@ def contact_body(jid: str, phone: str, found: dict, verified_name: str = "") -> 
     return body
 
 
+def address_book_rows(entries, jid_text):
+    """neonize's `contact.get_all_contacts()` -> (jid, saved name, nickname) rows
+    for `Store.contacts_in_batch`. The saved name is FullName, else FirstName;
+    an entry with neither name nor nickname says nothing and is left out."""
+    rows = []
+    for entry in entries or ():
+        info = entry.Info
+        name = (info.FullName or info.FirstName or "").strip()
+        nickname = (info.PushName or "").strip()
+        jid = jid_text(entry.JID)
+        if jid and (name or nickname):
+            rows.append((jid, name, nickname))
+    return rows
+
+
 def address_book_record(contact: dict, wpp_id: dict, my_jids) -> dict:
     """A row of `all-contacts`. The client ignores rows without `isMyContact` and
     `syncToAddressbook` (core/phone_contacts.py): a name in the address book is

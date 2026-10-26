@@ -186,3 +186,15 @@ def test_for_response_leaves_the_group_ack_to_ack_of(tmp_path):
                             ack_of=lambda w: 2 if w["id"]["id"] == "A" else None)
     # "A" has a read receipt, but ack_of decided 2; "B" (None) uses the receipts
     assert [w["ack"] for w in output] == [2, 1]
+
+
+def test_contacts_in_batch_writes_only_what_changed_and_counts_saved_names(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.contact("p1", pushname="Nick")                   # known only by the nickname
+    learned = a.contacts_in_batch([("p1", "Ana", ""), ("p2", "", "Beto"), ("p3", "Caio", "C")])
+    assert learned == 2
+    assert a.contact_of("p1") == {"name": "Ana", "pushname": "Nick"}   # empty keeps
+    assert a.contact_of("p2") == {"pushname": "Beto"}
+    assert a.contacts_in_batch([("p1", "Ana", "Nick"), ("p3", "Caio", "C")]) == 0
+    assert a.contacts_in_batch([("p3", "Caio Lima", "")]) == 1
+    assert a.contact_of("p3")["name"] == "Caio Lima"

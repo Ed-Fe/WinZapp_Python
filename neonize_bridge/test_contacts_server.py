@@ -301,3 +301,31 @@ async def test_join_code_only_says_pending_request_when_the_error_says_so(tmp_pa
         assert (await http.post(f"{api}/join-code", json=body)).status == 409
     finally:
         await http.close()
+
+
+@pytest.mark.asyncio
+async def test_saved_names_synced_after_the_connection_reach_all_contacts(tmp_path, sessions):
+    """Right after pairing, neonize's store has no saved names yet: they come
+    with the app state later. Read once at connect, every contact stayed
+    unsaved for good; a later reload brings them."""
+    http, api, s, fake = await _bridge(tmp_path, sessions)
+    try:
+        store = []
+        fake.contact = N(get_all_contacts=lambda: list(store))
+        phone = jid("5511777770000")
+        store.append(N(JID=phone, Info=N(FullName="", FirstName="", PushName="bia")))
+        assert s.reload_names() == 0                       # at connect: nickname only
+
+        async def bia():
+            rows = (await (await http.get(f"{api}/all-contacts")).json())["response"]
+            return {c["id"]["_serialized"]: c for c in rows}["5511777770000@c.us"]
+        assert (await bia())["isMyContact"] is False
+
+        store[0] = N(JID=phone, Info=N(FullName="Bia Lima", FirstName="Bia", PushName="bia"))
+        assert s.reload_names() == 1                       # the app state arrived
+        assert s.reload_names() == 0                       # nothing new: nothing written
+        bia = await bia()
+        assert bia["isMyContact"] is True and bia["name"] == "Bia Lima"
+        assert bia["pushname"] == "bia"
+    finally:
+        await http.close()
