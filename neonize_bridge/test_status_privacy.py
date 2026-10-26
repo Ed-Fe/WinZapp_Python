@@ -85,3 +85,33 @@ def test_disconnected_and_refused(tmp_path, monkeypatch):
     s = N(client=Refusing(), status="CONNECTED", folder=str(tmp_path))
     assert run(s, {"setting": "contact"}) == (
         502, {"status": "error", "code": "status_privacy_failed"})
+
+
+def test_the_status_field_the_client_reads():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "client"))
+    try:
+        from core import whatsapp_privacy
+    finally:
+        sys.path.pop(0)
+    field = sp.status_field(1, ["5511999998888@s.whatsapp.net", "123@lid", "1203@g.us",
+                                "5511999998888:2@s.whatsapp.net"])
+    assert field == {"setting": "deny-list", "list": ["5511999998888@c.us", "123@lid"]}
+    read = whatsapp_privacy.parse_status_privacy(field)
+    assert (read.setting, read.people) == ("deny-list", ("5511999998888@c.us", "123@lid"))
+    assert whatsapp_privacy.parse_status_privacy(sp.status_field(None, ())).setting == "contact"
+    assert sp.status_field(9, []) is None
+
+
+def test_read_status_from_a_complete_copy_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_state_mirror, "supported", lambda: True)
+    s = N(client=Client(), status="CONNECTED", folder=str(tmp_path))
+    monkeypatch.setattr(app_state_mirror, "ensure_seeded", lambda s, c, t: False)
+    assert sp.read_status(s) is None
+    monkeypatch.setattr(app_state_mirror, "ensure_seeded", lambda s, c, t: c == "regular_high")
+    assert sp.read_status(s) == {"setting": "contact", "list": []}
+    run(s, {"setting": "allow-list", "list": ["5511999998888@c.us"]})
+    assert sp.read_status(s) == {"setting": "allow-list", "list": ["5511999998888@c.us"]}
+    monkeypatch.setattr(app_state_mirror, "supported", lambda: False)
+    assert sp.read_status(s) is None

@@ -15,6 +15,7 @@ import re
 from aiohttp import web
 
 import msgmap
+import status_privacy
 
 log = logging.getLogger("bridge")
 
@@ -279,10 +280,15 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text):
         except Exception as e:
             log.info("privacy: %s", type(e).__name__)
             return error_code("privacy_unavailable", 503)
-        # `status` (who sees my Status) is left out: neonize reads the list but
-        # has no way to write it, and the client hides the choice when it is null.
+        # `status` (who sees my Status) comes from the app state copy
+        # (status_privacy.py); None hides the choice in the client.
+        try:
+            status = await execute(status_privacy.read_status, s)
+        except Exception as e:
+            log.info("privacy: status not read (%s)", type(e).__name__)
+            status = None
         return ok(status="success", response={
-            "settings": settings_to_wpp(privacy_settings), "status": None})
+            "settings": settings_to_wpp(privacy_settings), "status": status})
 
     async def privacy_set(req):
         s = session(req)

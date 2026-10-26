@@ -14,6 +14,12 @@ The body and the answers follow WinZapp's WPPConnect route
 "invalid_status_privacy", 502 "status_privacy_failed", 503
 "privacy_unavailable". A neonize build without app state mutations answers 501
 "status_privacy_unsupported", as before. Not run against a real account.
+
+`read_status` gives `POST privacy` its `status` field from the same mirror:
+`{"setting", "list"}` with the people as the client writes them ('@c.us',
+'@lid'). With no entry in a complete copy WhatsApp never stored one, which is
+its default, contacts. Without a complete copy it is None and the client
+leaves the Status choice out, as before.
 """
 import asyncio
 import logging
@@ -66,6 +72,43 @@ def setting_of(mirror) -> str:
         if value.HasField("statusPrivacy"):
             return SETTINGS.get(value.statusPrivacy.mode, "")
     return ""
+
+
+def client_jid(wire) -> str:
+    """'<digits>@s.whatsapp.net' -> '<digits>@c.us'; a LID stays; anything else ''."""
+    user, _, server = str(wire or "").partition("@")
+    user = user.split(":")[0]
+    if not user.isdigit():
+        return ""
+    return {"s.whatsapp.net": f"{user}@c.us", "c.us": f"{user}@c.us",
+            "lid": f"{user}@lid"}.get(server, "")
+
+
+def status_field(mode, people) -> "dict | None":
+    """The `status` of `POST privacy` for a stored (mode, userJID); mode None
+    when nothing is stored (contacts). None for a mode this bridge does not know."""
+    setting = "contact" if mode is None else SETTINGS.get(mode)
+    if setting is None:
+        return None
+    if setting == "contact":
+        return {"setting": setting, "list": []}
+    listed = (client_jid(p) for p in people)
+    return {"setting": setting, "list": list(dict.fromkeys(p for p in listed if p))}
+
+
+def read_status(s, timeout=8.0) -> "dict | None":
+    """`status` for `POST privacy`, or None when the copy is not complete. Runs
+    on a thread; the first read downloads `regular_high` once."""
+    if not app_state_mirror.supported():
+        return None
+    if not app_state_mirror.ensure_seeded(s, COLLECTION, timeout):
+        return None
+    from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import SyncActionValue
+    for _index, _version, raw in app_state_mirror.mirror_of(s).entries(INDEX):
+        value = SyncActionValue.FromString(raw)
+        if value.HasField("statusPrivacy"):
+            return status_field(value.statusPrivacy.mode, value.statusPrivacy.userJID)
+    return status_field(None, ())
 
 
 def register_routes(r, *, session):
