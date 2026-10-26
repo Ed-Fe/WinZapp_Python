@@ -144,7 +144,7 @@ def purge_account(registry, global_dir: str, account_id: str, bridge_delete=None
     its registry entry. True when everything was removed.
 
     `bridge_delete(name) -> bool` is given with the Neonize engine, whose
-    sessions live in the bridge's own folder (neonize_bridge/limpeza.py). A
+    sessions live in the bridge's own folder (neonize_bridge/cleanup.py). A
     bridge that does not answer leaves the account ``deleting``, like any
     other leftover.
 

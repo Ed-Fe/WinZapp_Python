@@ -25,4 +25,4 @@ def test_without_a_secret_file_the_api_key_stays_and_the_reason_is_logged(monkey
     with caplog.at_level(logging.ERROR):
         NeonizeBridgeMixin._use_neonize_bridge_secret(stub)
     assert stub.wpp_api_key == "wz-local-api-key"
-    assert "--pasta" in caplog.text
+    assert "--folder" in caplog.text

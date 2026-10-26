@@ -3,7 +3,7 @@ the recipients have got it. Pure functions, the real Session (ReceiptEv handler,
 message-ack and get-messages) against a fake neonize client.
 
 Nothing here talks to a real account; the blue-tick rule in a real group
-was not verified (COBERTURA.md)."""
+was not verified (COVERAGE.md)."""
 import sys
 import time
 import types

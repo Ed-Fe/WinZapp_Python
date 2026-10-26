@@ -4,12 +4,12 @@ The bridge (``neonize_bridge/server.py``) is one process for the whole install,
 shared by every account on this machine, like the WPPConnect port is. So:
 
 * the first client to need it starts it (hidden, detached) and writes
-  ``ponte.pid``; later clients find the port open and just use it;
-* every client registers itself in ``clientes/<pid>``; when one leaves it
+  ``bridge.pid``; later clients find the port open and just use it;
+* every client registers itself in ``clients/<pid>``; when one leaves it
   prunes the dead ones, and the last one out stops the bridge;
-* a bridge the user started by hand has no ``ponte.pid`` and is never stopped.
+* a bridge the user started by hand has no ``bridge.pid`` and is never stopped.
 
-``ponte.pid`` holds the bridge's pid and, on the next line, when that process
+``bridge.pid`` holds the bridge's pid and, on the next line, when that process
 was created: a pid alone could name some other program after a reboot or a
 crash, and the last client out would kill it. Without a matching creation time
 nothing is killed.
@@ -17,7 +17,7 @@ nothing is killed.
 A listener on the port is not trusted just for being there: the client is about
 to hand it the bridge's secret. Before using an already-open port the client asks
 the bridge's open route ``/winzapp/identity`` who it is and compares the answer
-with ``ponte.pid`` (``identity_matches``); a program that merely took port 6300
+with ``bridge.pid`` (``identity_matches``); a program that merely took port 6300
 is refused.
 
 Everything that touches the system (is the port open, is the pid alive, when
@@ -34,18 +34,19 @@ import time
 
 from app_paths import resource_path
 from coord_locks import LockTimeout, neonize_bridge_lock
+from core import neonize_bridge_layout
 
 log = logging.getLogger("neonize_bridge")
 
 PORT = 6300
 START_TIMEOUT = 60.0          # seconds to wait for the port after spawning
-BRIDGE_PID_FILE = "ponte.pid"
-CLIENTS_DIR = "clientes"
+BRIDGE_PID_FILE = "bridge.pid"
+CLIENTS_DIR = "clients"
 EXTRA_PATH_FILE = "path_extra.txt"    # one folder per line, e.g. where ffprobe lives
-OUTPUT_FILE = "ponte.log"
+OUTPUT_FILE = "bridge.log"
 OUTPUT_LIMIT = 5 * 1024 * 1024   # bytes; past this the next start keeps one older copy
 HISTORY_DAYS = "180"
-SECRET_FILE = "segredo"         # written by the bridge in its data folder
+SECRET_FILE = "secret"         # written by the bridge in its data folder
 
 
 def bridge_dir() -> str:
@@ -55,12 +56,12 @@ def bridge_dir() -> str:
 def data_dir(bridge: str) -> str:
     """Where the bridge keeps its sessions and messages (every sub-folder in
     here is a session, so nothing else may live in it)."""
-    return os.path.join(bridge, "dados-real")
+    return os.path.join(bridge, "data")
 
 
 def read_secret(bridge: str) -> str:
     """The bridge's secret (the key the client presents to it), or "" when the
-    bridge has not written one: a bridge started by hand with another --pasta."""
+    bridge has not written one: a bridge started by hand with another --folder."""
     try:
         with open(os.path.join(data_dir(bridge), SECRET_FILE), encoding="utf-8") as stream:
             return stream.read().strip()
@@ -71,7 +72,7 @@ def read_secret(bridge: str) -> str:
 def run_dir(bridge: str) -> str:
     """Where this feature keeps its own files: the bridge pid, the clients
     using it and the bridge's output."""
-    return os.path.join(bridge, "execucao")
+    return os.path.join(bridge, "run")
 
 
 def command(bridge: str, port: int = PORT):
@@ -80,13 +81,13 @@ def command(bridge: str, port: int = PORT):
     ship a ``bridge/neonize_bridge.exe`` instead."""
     packaged = os.path.join(bridge, "neonize_bridge.exe")
     if os.path.isfile(packaged):
-        return [packaged, "--porta", str(port), "--pasta", data_dir(bridge),
-                "--historico-dias", HISTORY_DAYS]
+        return [packaged, "--port", str(port), "--folder", data_dir(bridge),
+                "--history-days", HISTORY_DAYS]
     python = os.path.join(bridge, ".venv", "Scripts", "python.exe")
     script = os.path.join(bridge, "server.py")
     if os.path.isfile(python) and os.path.isfile(script):
-        return [python, script, "--porta", str(port), "--pasta",
-                data_dir(bridge), "--historico-dias", HISTORY_DAYS]
+        return [python, script, "--port", str(port), "--folder",
+                data_dir(bridge), "--history-days", HISTORY_DAYS]
     return None
 
 
@@ -186,7 +187,7 @@ def identity_matches(identity, expected_pid: int) -> bool:
     """Whether the listener's ``/winzapp/identity`` answer is the bridge this
     client expects.
 
-    ``expected_pid`` is the pid ``ponte.pid`` names (0 when there is none to
+    ``expected_pid`` is the pid ``bridge.pid`` names (0 when there is none to
     trust: a bridge started by hand, or a stale file). With a pid, the listener
     must be that process or its child: on Windows what the client launches (the
     virtualenv's python.exe, the packaged exe) can be a launcher that runs the
@@ -241,7 +242,7 @@ def kill_tree(pid: int):
 
 
 def _read_pid_file(path: str):
-    """(pid, creation stamp) from ponte.pid; (0, "") if unreadable, and an
+    """(pid, creation stamp) from bridge.pid; (0, "") if unreadable, and an
     empty stamp for a file written without one."""
     try:
         with open(path, encoding="utf-8") as stream:
@@ -305,7 +306,7 @@ class NeonizeBridge:
         return live
 
     def _expected_bridge_pid(self) -> int:
-        """The pid ``ponte.pid`` names, if it can still be believed: the process
+        """The pid ``bridge.pid`` names, if it can still be believed: the process
         is alive and (where the creation time can be read) it is the one that was
         recorded. 0 means there is no bridge of ours to compare with."""
         pid, stamp = _read_pid_file(self._pid_file)
@@ -319,7 +320,7 @@ class NeonizeBridge:
     def _listener_is_the_bridge(self, expected_pid=None) -> bool:
         """The port is open: is what listens on it the bridge, before the
         client sends it the secret? ``expected_pid`` is the process this client
-        just spawned; otherwise the one ``ponte.pid`` names. Logs only the
+        just spawned; otherwise the one ``bridge.pid`` names. Logs only the
         verdict, never what the listener said."""
         if expected_pid is None:
             expected_pid = self._expected_bridge_pid()
@@ -338,6 +339,9 @@ class NeonizeBridge:
         """Make sure the bridge answers on its port. False if it could not be
         started (no bridge in this install, or it never came up)."""
         cmd = command(self.bridge, self.port)
+        # Folders written under the old names are renamed first (only while no bridge runs).
+        legacy_pid, _ = _read_pid_file(neonize_bridge_layout.legacy_pid_file(self.bridge))
+        neonize_bridge_layout.migrate(self.bridge, bool(legacy_pid) and self._alive(legacy_pid))
         # Before anything is written: an install with no bridge (a packaged
         # build without one) must not leave client files behind.
         if cmd is None and not self._is_open(self.port):
@@ -349,7 +353,7 @@ class NeonizeBridge:
         os.makedirs(data_dir(self.bridge), exist_ok=True)
         os.makedirs(run_dir(self.bridge), exist_ok=True)
         # Two accounts starting together (at login) must not both find the port
-        # closed and spawn: the loser fails to bind, ponte.pid may name the dead
+        # closed and spawn: the loser fails to bind, bridge.pid may name the dead
         # one, and the last client out then never stops the real bridge.
         try:
             with self._lock(run_dir(self.bridge)):

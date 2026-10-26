@@ -50,8 +50,8 @@ def test_the_command_uses_the_bridge_virtualenv_and_the_fixed_port(tmp_path):
     bridge = _bridge(tmp_path)
     cmd = nb.command(bridge)
     assert cmd[0].endswith("python.exe") and cmd[1].endswith("server.py")
-    assert cmd[cmd.index("--porta") + 1] == "6300"
-    assert cmd[cmd.index("--pasta") + 1] == nb.data_dir(bridge)
+    assert cmd[cmd.index("--port") + 1] == "6300"
+    assert cmd[cmd.index("--folder") + 1] == nb.data_dir(bridge)
 
 
 def test_no_command_when_the_install_has_no_bridge(tmp_path):
@@ -140,9 +140,9 @@ def test_the_environment_puts_ffmpeg_folders_first(tmp_path):
 
 
 def test_the_secret_is_read_from_the_bridge_data_folder(tmp_path):
-    folder = tmp_path / "dados-real"
+    folder = tmp_path / "data"
     folder.mkdir()
-    (folder / "segredo").write_text("abc123\n", encoding="utf-8")
+    (folder / "secret").write_text("abc123\n", encoding="utf-8")
     assert nb.read_secret(str(tmp_path)) == "abc123"
 
 
@@ -222,7 +222,7 @@ def test_starting_the_bridge_rotates_its_output_first(tmp_path):
 
 def test_an_install_with_no_bridge_leaves_no_client_file_behind(tmp_path):
     """A packaged build without a bridge: start() used to register the client
-    (and create execucao/clientes) before finding out there was nothing to start."""
+    (and create run/clients) before finding out there was nothing to start."""
     bridge = _bridge(tmp_path, with_python=False)
     handle = _handle(bridge)
     assert handle.start() is False
@@ -238,7 +238,7 @@ def test_a_bridge_started_by_hand_is_still_joined_when_the_install_has_no_comman
 
 def test_two_clients_starting_together_spawn_one_bridge(tmp_path):
     """Two accounts launched at login: both found the port closed and both
-    spawned; the loser failed to bind and ponte.pid could name the dead one."""
+    spawned; the loser failed to bind and bridge.pid could name the dead one."""
     import threading
     import time
 
@@ -300,7 +300,7 @@ def _write_pid_file(handle, pid, stamp):
         stream.write(f"{pid}\n{stamp}")
 
 
-def test_identity_matches_the_pid_ponte_pid_names_or_its_child():
+def test_identity_matches_the_pid_bridge_pid_names_or_its_child():
     good = {"protocol_version": 1, "pid": 900, "ppid": 5}
     assert nb.identity_matches(good, 900)
     assert nb.identity_matches({"protocol_version": 1, "pid": 901, "ppid": 900}, 900)  # launcher
@@ -335,14 +335,14 @@ def test_a_listener_whose_identity_check_raises_is_refused(tmp_path):
     assert _handle(_bridge(tmp_path), port_open=True, identity=boom).start() is False
 
 
-def test_the_bridge_ponte_pid_names_is_trusted_even_behind_a_launcher(tmp_path):
+def test_the_bridge_named_in_bridge_pid_is_trusted_even_behind_a_launcher(tmp_path):
     handle = _handle(_bridge(tmp_path), port_open=True, alive=lambda pid: pid == 900,
                      identity=_bridge_says(pid=901, ppid=900))
     _write_pid_file(handle, 900, "t900")
     assert handle.start() is True
 
 
-def test_a_stale_ponte_pid_does_not_block_a_bridge_started_by_hand(tmp_path):
+def test_a_stale_bridge_pid_does_not_block_a_bridge_started_by_hand(tmp_path):
     # the recorded process is gone, or its pid now belongs to another program
     bridge = _bridge(tmp_path)
     for alive, created in ((lambda pid: False, lambda pid: "t900"),

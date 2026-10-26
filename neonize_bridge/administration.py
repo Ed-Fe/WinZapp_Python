@@ -10,7 +10,7 @@ or, where the client does not use the route, those of WPPConnect Server
 The pure functions are at the top (tested in test_administration.py);
 `register_routes` wires the routes to the server. Nothing here imports neonize.
 
-Left out, on purpose (COBERTURA.md explains): `collect-page-garbage` (the client
+Left out, on purpose (COVERAGE.md explains): `collect-page-garbage` (the client
 treats 404 as "this server does not have it" and stops asking; there is no
 browser page to collect), `unhealthy`, `backup-sessions`, `restore-sessions`,
 `chatwoot` and `clear-session-data`.

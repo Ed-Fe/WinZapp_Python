@@ -226,7 +226,7 @@ def test_unchanged_closed_poll_lifts_deferral_and_starts_once(poll_api):
 
 
 def test_a_terminal_bridge_failure_is_never_auto_started_again(poll_api):
-    """The neonize bridge reports "terminalFailure" (neonize_bridge/ciclo_sessao.py
+    """The neonize bridge reports "terminalFailure" (neonize_bridge/session_lifecycle.py
     TERMINAL) after a ban, an outdated client or a replaced stream. Reporting
     CLOSED there made this 30 s poll call start-session for ever; any status
     outside CLOSED/DESTROYED/"" takes the "active state" branch instead: offline,

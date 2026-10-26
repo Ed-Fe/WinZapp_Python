@@ -74,7 +74,7 @@ class NeonizeBridgeMixin:
             self.wpp_api_key = secret
         else:
             logging.error("MainWindow: the neonize bridge has no secret file; a bridge "
-                          "started by hand must use the same --pasta as WinZapp")
+                          "started by hand must use the same --folder as WinZapp")
 
     def _neonize_session_deleter(self):
         """``name -> bool`` that deletes a session's data on the bridge

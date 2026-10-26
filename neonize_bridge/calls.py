@@ -30,7 +30,7 @@ log = logging.getLogger("bridge")
 RING_TTL = 600
 
 # Routes that whatsmeow has no way to fulfil (there is no way to answer, dial,
-# hold or inspect a call). `call/group/offer` is not in COBERTURA.md but the
+# hold or inspect a call). `call/group/offer` is not in COVERAGE.md but the
 # WPPConnect server defines it, and the reason is the same.
 IMPOSSIBLE_ROUTES = (
     "call/accept", "call/audio/enable", "call/diagnostics", "call/end",

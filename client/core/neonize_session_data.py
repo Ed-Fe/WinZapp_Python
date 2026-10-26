@@ -1,10 +1,10 @@
 """Deleting an account's data from the neonize bridge.
 
 With the Neonize engine the WhatsApp keys and every message of an account live
-in ``neonize_bridge/dados-real/<session>/`` (``sessao.db``, ``ponte.db``),
+in ``neonize_bridge/data/<session>/`` (``session.db``, ``bridge.db``),
 which only the bridge can remove: it keeps both files open. Removing an account
 (account_removal.py) and cleaning up abandoned pairing attempts therefore ask
-the bridge, through its ``delete-session`` route (neonize_bridge/limpeza.py),
+the bridge, through its ``delete-session`` route (neonize_bridge/cleanup.py),
 which logs the device out, stops the session and removes the folder.
 
 The HTTP call is a parameter, so the rules are tested without a bridge.

@@ -2,9 +2,9 @@
 removes its data from the bridge.
 
 Audit F4, H2: the WhatsApp keys and every message of an account live in
-neonize_bridge/dados-real/<session>/, which account_removal.py (browser profile
+neonize_bridge/data/<session>/, which account_removal.py (browser profile
 and restore points) never touched, and the device stayed linked on the phone.
-The bridge deletes it (neonize_bridge/limpeza.py); the client asks for each
+The bridge deletes it (neonize_bridge/cleanup.py); the client asks for each
 session name and keeps the account 'deleting' while the bridge has not
 confirmed.
 """
