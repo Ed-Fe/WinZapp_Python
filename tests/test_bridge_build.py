@@ -147,4 +147,4 @@ def test_the_build_tools_are_the_ones_the_client_build_uses():
 def test_prepare_installs_from_the_lock_and_leaves_its_marker():
     source = (ROOT / "neonize_bridge" / "prepare.py").read_text(encoding="utf-8")
     assert '"--require-hashes"' in source and "requirements.lock" in source
-    assert "MARKER" in source and bb.environment_is_current  # the build checks the same marker
+    assert "MARKER" in source

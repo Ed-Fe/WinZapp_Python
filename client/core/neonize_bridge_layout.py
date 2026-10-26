@@ -14,8 +14,13 @@ files open (and Windows refuses to rename them).
 
 import logging
 import os
+import time
 
 log = logging.getLogger("neonize_bridge")
+
+#: the data folder rename is tried a few times: a bridge just stopped lets go of its files late
+RENAME_ATTEMPTS = 6
+RENAME_PAUSE = 0.5
 
 #: folder of the bridge -> current name
 LEGACY_FOLDERS = {"dados-real": "data", "execucao": "run"}
@@ -93,7 +98,7 @@ def sibling_has_data(bridge: str) -> bool:
 
 
 def adopt_sibling_data(bridge: str, target: str, sibling_running: bool = False,
-                       move=os.rename) -> str:
+                       move=os.rename, sleep=time.sleep) -> str:
     """Brings the sessions of such an install into ``target``, the data folder of
     the bridge that now ships inside WinZapp, so the paired accounts stay paired.
     Returns "moved", "failed" (the data is still where it was: do not start a
@@ -118,7 +123,15 @@ def adopt_sibling_data(bridge: str, target: str, sibling_running: bool = False,
         if os.path.isdir(target):
             os.rmdir(target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        move(source, target)
+        for attempt in range(RENAME_ATTEMPTS):
+            try:
+                move(source, target)
+                break
+            except PermissionError:
+                # a bridge just stopped may not have released its files yet
+                if attempt == RENAME_ATTEMPTS - 1:
+                    raise
+                sleep(RENAME_PAUSE)
     except OSError as error:
         log.warning("could not move the bridge data into %s: %s",
                     os.path.basename(os.path.dirname(target)), type(error).__name__)

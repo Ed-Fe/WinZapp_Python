@@ -337,6 +337,8 @@ FFMPEG_EXE = _prepare_ffmpeg()
 FFPROBE_URL = ("https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/"
                "v4.4.1/ffprobe-4.4.1-win-64.zip")
 FFPROBE_SHA256 = "c715d3c4435726e1cb8844fe88d65ec920761ef7e890c44bb03be2897d0408ab"
+# the ffprobe.exe inside that zip, checked again whenever one is already in client/lib/
+FFPROBE_EXE_SHA256 = "9d1050c254d514283536279fe5cd77a1c26691a1c4610944542e0c3b5581debb"
 
 
 def _prepare_ffprobe():
@@ -344,10 +346,15 @@ def _prepare_ffprobe():
     lib_dir = os.path.join(CLIENT_DIR, "lib")
     os.makedirs(lib_dir, exist_ok=True)
     dst = os.path.join(lib_dir, "ffprobe.exe")
+    import hashlib
     if os.path.isfile(dst):
-        return dst
+        with open(dst, "rb") as stream:
+            if hashlib.sha256(stream.read()).hexdigest() == FFPROBE_EXE_SHA256:
+                return dst
+        print("  [WARN] client/lib/ffprobe.exe is not the pinned build; downloading it again.")
+        os.remove(dst)
     try:
-        import hashlib, io, urllib.request, zipfile
+        import io, urllib.request, zipfile
         print("  [INFO] Downloading portable ffprobe.exe for the Neonize bridge...")
         with urllib.request.urlopen(FFPROBE_URL, timeout=120) as response:
             data = response.read(200 * 1024 * 1024)
@@ -360,7 +367,7 @@ def _prepare_ffprobe():
         return dst
     except Exception as error:
         print(f"  [WARN] Failed to download ffprobe: {error}")
-    return shutil.which("ffprobe")
+    return None      # never an unpinned ffprobe from the build machine's PATH
 
 FFPROBE_EXE = _prepare_ffprobe()
 

@@ -353,3 +353,28 @@ def test_a_compiled_install_finds_its_bridge_inside_itself(tmp_path, monkeypatch
     assert nb.bridge_dir() == os.path.join(str(tmp_path), "neonize_bridge")
     monkeypatch.setattr(nb.sys, "frozen", False)
     assert nb.bridge_dir().endswith("neonize_bridge")
+
+
+def test_a_rename_refused_for_a_moment_is_tried_again(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    attempts, pauses = [], []
+
+    def late(source, destination):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise PermissionError(destination)         # the stopped bridge still holds its files
+        os.rename(source, destination)
+
+    assert layout.adopt_sibling_data(bridge, target, move=late, sleep=pauses.append) == "moved"
+    assert len(attempts) == 3 and len(pauses) == 2
+    assert os.path.isfile(os.path.join(target, "account1", "session.db"))
+
+
+def test_a_rename_that_keeps_being_refused_gives_up_and_leaves_the_data(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+
+    def locked(source, destination):
+        raise PermissionError(destination)
+
+    assert layout.adopt_sibling_data(bridge, target, move=locked, sleep=lambda s: None) == "failed"
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
