@@ -51,13 +51,13 @@ WPPConnect typed in at `127.0.0.1:6300` read as Neonize.
 | Abandoned-session cleanup | asks the bridge to `delete-session` each stale name |
 | Removing an account | asks the bridge to `delete-session` each session name; the account stays `deleting` until it confirms (`account_removal.purge_account(bridge_delete=...)`) |
 | Node lease | registered when the bridge is started or joined (`_register_node_lease`), so "Quit all accounts" and the updater see the account |
-| Outgoing/incoming calls | refused up front (the bridge answers 501); rejecting still works |
+| Calls | one-to-one voice calls placed and answered when `send-capabilities` says `calls: true` (WinZapp's neonize build with the call layer, `neonize_bridge/call_media.py`); group and video calls refused up front (`core/call_logic.engine_refuses_call`); an incoming video or group call is answered with voice only; rejecting always works |
 
 ## Known leftovers (not fixed)
 
-- Voice and video call buttons and menu items are still shown; they answer with
-  "This action is not available for calls." A capability flag from
-  `send-capabilities` (`calls: false`) would let the client hide them.
+- Video and group call buttons are still shown with Neonize; they answer with
+  "This action is not available for calls." `send-capabilities` could carry
+  which kinds of call the bridge takes, so the client hides the others.
 - `delete-session` logs the device out only if the session is connected on the
   bridge at that moment. The account removed while in use is closed first, so
   its device can stay linked on the phone (remove it there).

@@ -26,6 +26,24 @@ def incoming_call_can_answer(details: dict | None) -> bool:
     return True
 
 
+def engine_refuses_call(uses_neonize: bool, bridge_has_calls: bool, *,
+                        placing: bool, is_video: bool = False,
+                        is_group: bool = False) -> bool:
+    """Whether the connection engine cannot take this call, so WinZapp says so
+    before opening the microphone and the speakers.
+
+    WPPConnect takes every call. The Neonize bridge takes one-to-one voice
+    calls only when its /send-capabilities says ``calls: true`` (WinZapp's
+    neonize build with the call layer); it places no group or video call. An
+    incoming video or group call it does answer, with voice only.
+    """
+    if not uses_neonize:
+        return False
+    if not bridge_has_calls:
+        return True
+    return placing and (is_video or is_group)
+
+
 def active_call_label_key(active: dict | None) -> str:
     """Return the label for an active call, group calls included."""
     return "video_call_active_label" if (active or {}).get("is_video") else "voice_call_active_label"

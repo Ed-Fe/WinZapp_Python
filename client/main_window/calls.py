@@ -13,6 +13,7 @@ import wx
 from urllib.parse import quote as _url_quote
 from core.call_logic import (
     active_call_label_key,
+    engine_refuses_call,
     incoming_call_can_answer,
 )
 from core.api_client import (
@@ -847,10 +848,11 @@ class CallsMixin:
         if getattr(self, "_active_voice_call", None) is not None:
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
-        if self._uses_neonize():
-            # The bridge reports incoming calls and can reject them, but cannot
-            # answer (501 on call/accept): do not open the microphone and the
-            # speakers first. The ring and Reject keep working.
+        if engine_refuses_call(self._uses_neonize(), getattr(self, "_neonize_calls", False),
+                               placing=False):
+            # A bridge without the call layer reports incoming calls and can
+            # reject them, but cannot answer (501 on call/accept): do not open
+            # the microphone and the speakers first. The ring and Reject keep working.
             t = self.i18n.t
             self.output(t("incoming_call_answer_failed").format(
                 error=t("call_log_action_unavailable")), interrupt=True)
@@ -1374,10 +1376,12 @@ class CallsMixin:
         ):
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
-        if self._uses_neonize():
-            # The bridge cannot place calls (501 on call/offer): say so now,
-            # before the microphone and the speakers are opened for a call that
-            # cannot exist -- the attempt used to end in a spoken "HTTP 501".
+        if engine_refuses_call(self._uses_neonize(), getattr(self, "_neonize_calls", False),
+                               placing=True, is_video=is_video, is_group=is_group):
+            # The bridge places one-to-one voice calls only, and only with the
+            # call layer (501 on call/offer otherwise): say so now, before the
+            # microphone and the speakers are opened for a call that cannot
+            # exist -- the attempt used to end in a spoken "HTTP 501".
             t = self.i18n.t
             self.output(t("voice_call_start_failed").format(
                 error=t("call_log_action_unavailable")), interrupt=True)

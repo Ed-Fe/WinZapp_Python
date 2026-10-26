@@ -530,3 +530,18 @@ class TestASlowReactionModuleIsNotCalledIncompatible:
 
         assert stub.spoken == []
         assert stub._send_capabilities_checked is False
+
+
+class TestTheNeonizeBridgeSaysWhetherItCarriesCalls:
+    """The bridge answers `calls: true` when its neonize build has the call
+    layer (neonize_bridge/call_media.py); the call buttons follow it."""
+
+    def test_a_bridge_with_calls(self, stub, monkeypatch):
+        _answer(monkeypatch, 200, {"response": {"compatible": True, "calls": True}})
+        stub._check_send_capabilities()
+        assert stub._neonize_calls is True
+
+    def test_wppconnect_never_sends_the_key(self, stub, monkeypatch):
+        _answer(monkeypatch, 200, {"response": {"compatible": True, "missing": []}})
+        stub._check_send_capabilities()
+        assert stub._neonize_calls is False
