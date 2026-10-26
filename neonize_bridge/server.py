@@ -27,6 +27,7 @@ import session_lifecycle
 import comments
 import comment_routes
 import inputs
+import legacy_layout
 import group_events
 import contact_events
 import labels
@@ -1494,6 +1495,7 @@ SERVER_OPTIONS = {"host": "127.0.0.1", "print": None, "access_log": None}
 def create_app(folder, fixed=""):
     # Without cors_allowed_origins="*": same origin only (the WinZapp client sends no Origin).
     sio = socketio.AsyncServer(async_mode="aiohttp", logger=False, engineio_logger=False)
+    legacy_layout.migrate(folder)           # files of a folder written under the old names
     secret = authentication.load_secret(folder)
     app = web.Application(client_max_size=authentication.MAX_BODY_SIZE,
                           middlewares=[authentication.create_middleware(secret)])

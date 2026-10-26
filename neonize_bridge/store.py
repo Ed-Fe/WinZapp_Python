@@ -58,6 +58,10 @@ def migrate_legacy_schema(conn):
         for old, new in columns.items():
             if old in present and new not in present:
                 conn.execute(f"ALTER TABLE {table} RENAME COLUMN {old} TO {new}")
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    for table in ("votes", "reactions"):    # the own account used to be stored as "eu"
+        if table in tables:
+            conn.execute(f"UPDATE OR IGNORE {table} SET who='me' WHERE who='eu'")
     for index in LEGACY_INDEXES:
         conn.execute(f"DROP INDEX IF EXISTS {index}")
     conn.commit()
