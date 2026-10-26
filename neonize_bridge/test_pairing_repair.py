@@ -57,50 +57,151 @@ def test_qr_image_has_the_wide_margin_and_whole_pixel_modules():
     width, height = struct.unpack(">II", png[16:24])
     modules = segno.make_qr(text, error="l").symbol_size(border=server.QR_BORDER, scale=1)[0]
     assert width == height == modules * server.QR_SCALE
+    assert png[25] == 0 and png[24] == 1        # 1 bit per pixel, greyscale: pure black and white
 
 
-def stub(tmp_path, *, current=True, status="QRCODE", used=0, alive=False):
+def stub(tmp_path, *, status="QRCODE", used=0, alive=False, thread=None):
+    """A Session with a real lifecycle and the real stop(); begin() and emit() only record."""
     calls = []
-    s = N(
-        folder=str(tmp_path), name="s", status=status, thread=None,
-        lifecycle=N(current=lambda generation: current),
-        pairing_repairs=pairing_repair.Budget(), _lifecycle_lock=threading.RLock(),
-        stop=lambda status=None: calls.append(("stop", status)),
-        emit=lambda event, data: calls.append(("emit", event)),
-        begin=lambda *a: calls.append(("begin",)),
-        _thread_alive=lambda: alive, _repair_pairing=lambda *a: None)
+    s = N(folder=str(tmp_path), name="s", client=None, thread=thread,
+          lifecycle=session_lifecycle.Lifecycle(), pairing_repairs=pairing_repair.Budget(),
+          _lifecycle_lock=threading.RLock(), _thread_alive=lambda: alive,
+          emit=lambda event, data: calls.append(("emit", event, data["name"])),
+          begin=lambda *a, **k: calls.append(("begin", k)), _repair_pairing=lambda *a: None)
+    s.lifecycle.status = s.status = status
     s.pairing_repairs.used = used
+    s.stop = lambda status=None: server.Session.stop(s, status)
+    s._give_up = lambda message: server.Session._give_up(s, message)
     return s, calls
+
+
+def repair(s, kind, phone=None):
+    server.Session._repair_pairing(s, s.lifecycle.generation, kind, phone)
 
 
 def test_qr_refusal_wipes_the_keys_and_starts_again(tmp_path):
     (tmp_path / "session.db").write_bytes(b"keys")
+    (tmp_path / "bridge.db").write_bytes(b"messages")
     s, calls = stub(tmp_path)
-    server.Session._repair_pairing(s, 1, pairing_repair.QR)
-    assert calls == [("stop", session_lifecycle.CLOSED), ("begin",)]
-    assert not (tmp_path / "session.db").exists()
+    repair(s, pairing_repair.QR)
+    assert calls == [("begin", {"repairing": True})]
+    assert sorted(os.listdir(tmp_path)) == ["bridge.db"]
+    assert s.lifecycle.status == session_lifecycle.CLOSED
 
 
 def test_code_refusal_wipes_but_does_not_mint_another_code(tmp_path):
     (tmp_path / "session.db").write_bytes(b"keys")
     s, calls = stub(tmp_path)
-    server.Session._repair_pairing(s, 1, pairing_repair.CODE)
-    assert ("begin",) not in calls and ("emit", "phoneCodeError") in calls
+    repair(s, pairing_repair.CODE)
+    assert calls == [("emit", "phoneCodeError", "LinkCodeRefreshFailed")]
     assert not (tmp_path / "session.db").exists()
 
 
-def test_after_three_repairs_it_stops_and_tells_the_client(tmp_path):
+def test_a_qr_refusal_of_a_session_started_with_a_phone_never_becomes_a_qr(tmp_path):
+    s, calls = stub(tmp_path)
+    repair(s, pairing_repair.QR, phone="5511999990000")
+    assert [c[0] for c in calls] == ["emit"]
+
+
+def test_after_three_repairs_it_gives_up_aloud_and_stays_offline(tmp_path):
     s, calls = stub(tmp_path, used=3)
-    server.Session._repair_pairing(s, 1, pairing_repair.QR)
-    assert ("begin",) not in calls and ("emit", "phoneCodeError") in calls
+    repair(s, pairing_repair.QR)
+    assert calls == [("emit", "phoneCodeError", "LinkCodeRefreshFailed")]
+    assert s.lifecycle.status == session_lifecycle.TERMINAL
 
 
-def test_an_old_session_or_a_paired_one_is_not_repaired(tmp_path, monkeypatch):
+def test_a_thread_that_will_not_finish_is_announced_too(tmp_path):
+    s, calls = stub(tmp_path, alive=True)
+    repair(s, pairing_repair.QR)
+    assert calls == [("emit", "phoneCodeError", "LinkCodeRefreshFailed")]
+    assert s.lifecycle.status == session_lifecycle.TERMINAL
+
+
+def test_an_old_generation_is_not_repaired(tmp_path):
+    s, calls = stub(tmp_path)
+    server.Session._repair_pairing(s, s.lifecycle.generation - 1, pairing_repair.QR, None)
+    assert calls == []
+
+
+def test_a_user_start_gives_the_repairs_back_but_a_repair_start_does_not(tmp_path, monkeypatch):
+    monkeypatch.setattr(server.threading, "Thread", lambda **kw: N(start=lambda: None))
+    s = N(name="s", status="CLOSED", thread=None, pairing_repairs=pairing_repair.Budget(),
+          lifecycle=session_lifecycle.Lifecycle(), _lifecycle_lock=threading.RLock(),
+          _thread_alive=lambda: False, _run=None)
+    s.pairing_repairs.used = 3
+    assert server.Session.begin(s, repairing=True)
+    assert s.pairing_repairs.used == 3
+    assert server.Session.begin(s)
+    assert s.pairing_repairs.used == 0
+
+
+def test_a_refusal_starts_the_repair_thread_only_for_a_waiting_current_session(tmp_path, monkeypatch):
     started = []
-    monkeypatch.setattr(server.threading, "Thread",
-                        lambda **kw: N(start=lambda: started.append(1)))
-    for session in (stub(tmp_path, current=False)[0], stub(tmp_path, status="CONNECTED")[0]):
-        server.Session._on_pairing_failure(session, 1, pairing_repair.QR, None)
+    monkeypatch.setattr(server.threading, "Thread", lambda **kw: N(start=lambda: started.append(1)))
+    old, _ = stub(tmp_path)
+    paired, _ = stub(tmp_path, status="CONNECTED")
+    server.Session._on_pairing_failure(old, old.lifecycle.generation - 1, pairing_repair.QR, None)
+    server.Session._on_pairing_failure(paired, paired.lifecycle.generation, pairing_repair.QR, None)
     assert started == []
-    server.Session._on_pairing_failure(stub(tmp_path)[0], 1, pairing_repair.QR, None)
+    waiting, _ = stub(tmp_path)
+    server.Session._on_pairing_failure(waiting, waiting.lifecycle.generation, pairing_repair.QR, None)
     assert started == [1]
+
+
+def watch_stub(status="QRCODE"):
+    seen = []
+    s = N(status=status, lifecycle=session_lifecycle.Lifecycle(),
+          _on_pairing_failure=lambda g, kind, phone: seen.append((g, kind, phone)))
+    return s, seen
+
+
+def test_watch_attaches_one_handler_and_leaves_no_trace():
+    watch = pairing_repair.Watch()
+    logger = logging.getLogger(watch.LOGGER)
+    before = list(logger.handlers)
+    a, _ = watch_stub()
+    b, _ = watch_stub()
+    watch.add(a, 0, None)
+    watch.add(b, 0, None)
+    assert len(logger.handlers) == len(before) + 1
+    watch.remove(a, 0)
+    watch.remove(b, 0)
+    assert logger.handlers == before
+
+
+def test_watch_removal_belongs_to_the_generation_that_added(tmp_path):
+    watch = pairing_repair.Watch()
+    a, _ = watch_stub()
+    watch.add(a, 2, None)
+    watch.remove(a, 1)              # an old thread finishing late
+    assert id(a) in watch._entries
+    watch.remove(a, 2)
+    assert not watch._entries
+
+
+def test_watch_sends_a_refusal_to_the_only_session_waiting_for_a_scan():
+    watch = pairing_repair.Watch()
+    waiting, seen = watch_stub()
+    paired, other = watch_stub(status="CONNECTED")
+    watch.add(waiting, 0, "5511")
+    watch.add(paired, 0, None)
+    try:
+        watch._dispatch(pairing_repair.QR)
+    finally:
+        watch.remove(waiting, 0)
+        watch.remove(paired, 0)
+    assert seen == [(0, pairing_repair.QR, "5511")] and other == []
+
+
+def test_watch_repairs_nobody_when_two_sessions_wait_for_a_scan():
+    watch = pairing_repair.Watch()
+    a, seen_a = watch_stub()
+    b, seen_b = watch_stub()
+    watch.add(a, 0, None)
+    watch.add(b, 0, None)
+    try:
+        watch._dispatch(pairing_repair.QR)
+    finally:
+        watch.remove(a, 0)
+        watch.remove(b, 0)
+    assert seen_a == seen_b == []
