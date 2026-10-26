@@ -13,6 +13,7 @@ without running PyInstaller.
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -64,24 +65,43 @@ def freeze_command(python: Path, root: Path, out_root: Path) -> list:
     return command
 
 
-def pyinstaller_requirements(pyinstaller_version: str, hooks_version: str) -> list:
-    """The same PyInstaller as the client build, so one version is homologated."""
-    return [f"pyinstaller=={pyinstaller_version}", f"pyinstaller-hooks-contrib=={hooks_version}"]
+def build_lock(root: Path) -> Path:
+    """The hashed lock of the build tools (PyInstaller and its hooks), the same
+    versions as the client build."""
+    return bridge_dir(root) / "requirements-build.lock"
 
 
-def build(root: Path, out_root: Path, pyinstaller_version: str, hooks_version: str,
-          *, run=subprocess.run, base_python: str = sys.executable, log=print) -> Path:
+def expected_build_hash(root: Path) -> str:
+    """SHA-256 of the neonize test build that prepare.py installs."""
+    spec = importlib.util.spec_from_file_location("bridge_prepare", bridge_dir(root) / "prepare.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.BUILD_SHA256
+
+
+def environment_is_current(root: Path) -> bool:
+    """True when the bridge virtualenv holds the neonize build prepare.py names now."""
+    marker = bridge_dir(root) / ".venv" / ".neonize-build-sha256"
+    try:
+        return marker.read_text(encoding="utf-8").strip() == expected_build_hash(root)
+    except OSError:
+        return False
+
+
+def build(root: Path, out_root: Path, *, run=subprocess.run, base_python: str = sys.executable,
+          log=print) -> Path:
     """Freezes the bridge under ``out_root`` and returns the folder that holds
     ``neonize_bridge.exe``. Creates the bridge virtualenv first when missing."""
     root, out_root = Path(root), Path(out_root)
     python = venv_python(root)
-    if not python.is_file():
-        log("  [bridge] no bridge virtualenv; running neonize_bridge/prepare.py")
+    if not python.is_file() or not environment_is_current(root):
+        log("  [bridge] the bridge virtualenv is missing or out of date; running "
+            "neonize_bridge/prepare.py")
         run([base_python, str(bridge_dir(root) / "prepare.py")], check=True)
-    if not python.is_file():
-        raise BridgeBuildError(f"{python} is missing after prepare.py")
-    run([str(python), "-m", "pip", "install", "--quiet",
-         *pyinstaller_requirements(pyinstaller_version, hooks_version)], check=True)
+    if not python.is_file() or not environment_is_current(root):
+        raise BridgeBuildError("the bridge virtualenv is not ready after prepare.py")
+    run([str(python), "-m", "pip", "install", "--quiet", "--require-hashes", "-r",
+         str(build_lock(root))], check=True)
     if out_root.exists():
         shutil.rmtree(out_root)
     run(freeze_command(python, root, out_root), check=True, cwd=str(bridge_dir(root)))

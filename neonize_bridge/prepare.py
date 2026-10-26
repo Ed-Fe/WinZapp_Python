@@ -41,6 +41,9 @@ ALLOWED_HOST_SUFFIXES = ("github.com", "githubusercontent.com")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VENV = os.path.join(HERE, ".venv")
+#: written into the virtualenv once the test build is installed, so a build can tell
+#: that the environment holds the build named above and not an older or edited one
+MARKER = os.path.join(VENV, ".neonize-build-sha256")
 PYTHON = os.path.join(VENV, "Scripts", "python.exe")
 
 
@@ -139,11 +142,15 @@ def main():
         print("Creating the virtualenv...")
         run(sys.executable, "-m", "venv", VENV)
     print("Installing requirements...")
-    run(PYTHON, "-m", "pip", "install", "-r", os.path.join(HERE, "requirements.txt"))
+    # The lock pins every package, direct or not, to the hashes that were reviewed.
+    run(PYTHON, "-m", "pip", "install", "--require-hashes", "-r",
+        os.path.join(HERE, "requirements.lock"))
     data = download_build()
     target = site_packages()
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         extract_checked(archive, target)
+    with open(MARKER, "w", encoding="utf-8") as stream:
+        stream.write(BUILD_SHA256)
     print(f"Test build of neonize installed in {target}.")
     print("Done. WinZapp starts the bridge by itself when the Neonize engine is chosen "
           "(Settings, Connection).")

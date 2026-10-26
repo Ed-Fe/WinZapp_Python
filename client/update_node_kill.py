@@ -128,7 +128,7 @@ def own_node_pids(port: int, node_paths, netstat_output: "str | None" = None,
             ours.append(pid)
         else:
             logging.info("Auto-updater: pid %s listens on port %s but is not "
-                         "WinZapp's node.exe (%s) — the installer leaves it alone",
+                         "one of WinZapp's own programs (%s) — the installer leaves it alone",
                          pid, port, os.path.basename(path) or "unknown")
     return ours
 

@@ -93,8 +93,8 @@ def run_dir(bridge: str) -> str:
 
 def command(bridge: str, port: int = PORT):
     """The command that starts the bridge, or None if this install has none.
-    From the repository: the bridge's own virtualenv. Packaged builds will
-    ship a ``bridge/neonize_bridge.exe`` instead."""
+    A compiled build ships ``neonize_bridge/neonize_bridge.exe``; from the
+    repository it is the bridge's own virtualenv."""
     packaged = os.path.join(bridge, PACKAGED_EXE)
     if os.path.isfile(packaged):
         return [packaged, "--port", str(port), "--folder", data_dir(bridge),
@@ -372,6 +372,36 @@ class NeonizeBridge:
                 running = False
         neonize_bridge_layout.migrate(self.bridge, running)
 
+    def _stop_sibling_bridge(self) -> bool:
+        """Before an older install's sessions are moved: True when no bridge of it
+        is left running. One whose creation time is proven ours and that no old
+        client uses is stopped; one that cannot be verified, or that a client
+        still uses, is left alone (and the move is not attempted)."""
+        sibling = neonize_bridge_layout.sibling_bridge(self.bridge)
+        for pid_file, clients in neonize_bridge_layout.sibling_runtime(sibling):
+            pid, stamp = _read_pid_file(pid_file)
+            if not pid or not self._alive(pid):
+                continue
+            now = self._created(pid)
+            if stamp and now and now != stamp:
+                continue                       # the pid was reused by another program
+            if not (stamp and now):
+                return False                   # alive, but not provably ours
+            try:
+                names = os.listdir(clients)
+            except OSError:
+                names = []
+            if any(n.isdigit() and int(n) != self.pid and self._alive(int(n)) for n in names):
+                return False
+            self._kill(pid)
+        return True
+
+    def _adopt_sibling_data(self) -> str:
+        if not neonize_bridge_layout.sibling_has_data(self.bridge):
+            return ""
+        return neonize_bridge_layout.adopt_sibling_data(
+            self.bridge, data_dir(self.bridge), sibling_running=not self._stop_sibling_bridge())
+
     # -- life cycle
     def start(self) -> bool:
         """Make sure the bridge answers on its port. False if it could not be
@@ -379,11 +409,19 @@ class NeonizeBridge:
         cmd = command(self.bridge, self.port)
         # Folders written under the old names are renamed first (only while no bridge runs).
         self._migrate_legacy_layout()
-        if is_packaged(self.bridge) and neonize_bridge_layout.adopt_sibling_data(
-                self.bridge, data_dir(self.bridge)) == "failed":
-            log.error("neonize bridge not started: its data could not be moved into this install; "
-                      "starting now would ask for pairing again")
-            return False
+        if is_packaged(self.bridge):
+            # Under the start lock: two accounts starting at login must not both try.
+            try:
+                os.makedirs(run_dir(self.bridge), exist_ok=True)
+                with self._lock(run_dir(self.bridge)):
+                    adopted = self._adopt_sibling_data()
+            except LockTimeout:
+                log.error("neonize bridge start: another client held the start lock too long")
+                return False
+            if adopted == "failed":
+                log.error("neonize bridge not started: its data could not be moved into this "
+                          "install; starting now would ask for pairing again")
+                return False
         if neonize_bridge_layout.stranded(self.bridge):
             log.error("neonize bridge not started: its data folder could not be renamed; "
                       "starting now would ask for pairing again")

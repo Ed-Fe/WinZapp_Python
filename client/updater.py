@@ -40,14 +40,12 @@ from core.update_handoff import InstallHandoff
 from update_progress import UpdateProgressLifecycle, update_control_if_alive
 from ui.modal_utils import end_modal_if_running
 from update_node_kill import node_kill_lines, own_node_pids
-
-#: the Neonize bridge shipped inside the install (core/neonize_bridge_process.py)
-BRIDGE_EXE = "neonize_bridge.exe"
-BRIDGE_PORT = 6300
 from update_relaunch import (relaunch_environment, relaunch_lines, run_elevated,
                              start_relaunch_waiter)
 from version import __version__
 from core.update_install_guard import batch_gate, batch_done
+from core.connection_engine import NEONIZE_PORT as BRIDGE_PORT   # the bridge's one fixed port
+from core.neonize_bridge_process import PACKAGED_EXE as BRIDGE_EXE   # shipped inside the install
 from core.update_outcome import batch_receipt, batch_success, RESULT_NAME
 
 

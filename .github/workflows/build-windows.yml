@@ -264,6 +264,10 @@ jobs:
             $hasNodeExe  = ($entries | Where-Object { $_ -eq   "WinZapp/node/node.exe" }).Count -gt 0
             $hasServerJs = ($entries | Where-Object { $_ -eq   "WinZapp/api/dist/server.js" }).Count -gt 0
             $hasFfmpeg   = ($entries | Where-Object { $_ -eq   "WinZapp/lib/ffmpeg.exe" }).Count -gt 0
+            # The frozen Neonize bridge and the ffprobe it needs for voice notes and video:
+            # a build that lost them would ship with the Neonize engine silently dead.
+            $hasBridge   = ($entries | Where-Object { $_ -eq   "WinZapp/neonize_bridge/neonize_bridge.exe" }).Count -gt 0
+            $hasFfprobe  = ($entries | Where-Object { $_ -eq   "WinZapp/lib/ffprobe.exe" }).Count -gt 0
             # api_patches/ is the pristine reference copy of WinZapp's custom
             # wppconnect-server patches that ApiSetupDialog restores from on
             # every WPPConnect (re)install/update — without it, a reinstall
@@ -279,8 +283,10 @@ jobs:
             Write-Host "node/node.exe      : $hasNodeExe"
             Write-Host "api/dist/server.js : $hasServerJs"
             Write-Host "ffmpeg             : $hasFfmpeg"
+            Write-Host "neonize_bridge.exe : $hasBridge"
+            Write-Host "ffprobe            : $hasFfprobe"
             Write-Host "api_patches/       : $hasApiPatches"
-            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $hasNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasApiPatches)) {
+            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $hasNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasBridge -and $hasFfprobe -and $hasApiPatches)) {
               Write-Error "dist/WinZapp.zip is missing required entries — build failed."
               exit 1
             }

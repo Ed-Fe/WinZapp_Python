@@ -331,6 +331,39 @@ def _prepare_ffmpeg():
 
 FFMPEG_EXE = _prepare_ffmpeg()
 
+# ffprobe.exe: neonize measures every voice note and video with it before
+# sending, and the compiled Neonize bridge has no other source for it. Pinned by
+# SHA-256 (the ffbinaries v4.4.1 release the ffmpeg download above also uses).
+FFPROBE_URL = ("https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/"
+               "v4.4.1/ffprobe-4.4.1-win-64.zip")
+FFPROBE_SHA256 = "c715d3c4435726e1cb8844fe88d65ec920761ef7e890c44bb03be2897d0408ab"
+
+
+def _prepare_ffprobe():
+    """Find or download ffprobe.exe into client/lib/ for bundling."""
+    lib_dir = os.path.join(CLIENT_DIR, "lib")
+    os.makedirs(lib_dir, exist_ok=True)
+    dst = os.path.join(lib_dir, "ffprobe.exe")
+    if os.path.isfile(dst):
+        return dst
+    try:
+        import hashlib, io, urllib.request, zipfile
+        print("  [INFO] Downloading portable ffprobe.exe for the Neonize bridge...")
+        with urllib.request.urlopen(FFPROBE_URL, timeout=120) as response:
+            data = response.read(200 * 1024 * 1024)
+        if hashlib.sha256(data).hexdigest() != FFPROBE_SHA256:
+            print("  [WARN] The downloaded ffprobe does not match the pinned SHA-256; not using it.")
+            return None
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            with archive.open("ffprobe.exe") as source, open(dst, "wb") as target:
+                shutil.copyfileobj(source, target)
+        return dst
+    except Exception as error:
+        print(f"  [WARN] Failed to download ffprobe: {error}")
+    return shutil.which("ffprobe")
+
+FFPROBE_EXE = _prepare_ffprobe()
+
 # Directories inside api/ that must NOT be copied
 API_EXCLUDE_DIRS  = {
     "wppconnect_tokens", "userDataDir", ".git", "__pycache__", "node_modules",
@@ -922,13 +955,10 @@ def freeze_neonize_bridge():
         shutil.rmtree(BRIDGE_OUTDIR, ignore_errors=True)    # no stale bridge from an earlier build
         return
     step("2b/8  Freezing the Neonize bridge")
-    from importlib.metadata import version
     from winzapp_tools import bridge_build
 
     try:
-        frozen = bridge_build.build(
-            ROOT_DIR, BRIDGE_OUTDIR, version("pyinstaller"),
-            version("pyinstaller-hooks-contrib"), base_python=PYTHON_CMD)
+        frozen = bridge_build.build(ROOT_DIR, BRIDGE_OUTDIR, base_python=PYTHON_CMD)
     except (bridge_build.BridgeBuildError, subprocess.CalledProcessError) as error:
         print(f"\n[ERROR] Could not freeze the Neonize bridge: {error}")
         print("        (use --skip-bridge for a build without the Neonize engine)")
@@ -1004,6 +1034,13 @@ def assemble_staging():
     else:
         print("  [WARN] ffmpeg binary not found — remote API setups will not be able to convert audio messages")
 
+    if FFPROBE_EXE:
+        shutil.copy2(FFPROBE_EXE, os.path.join(lib_dir, "ffprobe.exe"))
+        print("  -> lib/ffprobe.exe")
+    elif not args.skip_bridge:
+        print("\n[ERROR] ffprobe.exe is missing: the Neonize bridge cannot send voice notes or video without it.")
+        sys.exit(1)
+
     print(f"  -> lib/  ({dll_count} DLLs total)")
 
     sounds_src = os.path.join(CLIENT_DIR, "sounds")
@@ -1057,6 +1094,9 @@ def assemble_staging():
 
         bridge_count = bridge_build.stage(frozen_bridge, STAGING_DIR)
         print(f"  -> neonize_bridge/  ({bridge_count} files)")
+    elif not args.skip_bridge:
+        print("\n[ERROR] The frozen Neonize bridge is missing from the build output.")
+        sys.exit(1)
 
     api_dst = os.path.join(STAGING_DIR, "api")
     os.makedirs(api_dst)

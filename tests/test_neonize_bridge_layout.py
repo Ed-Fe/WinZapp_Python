@@ -4,8 +4,17 @@ to pair again."""
 
 import os
 
+import pytest
+
 from core import neonize_bridge_layout as layout
 from core import neonize_bridge_process as nb
+
+
+@pytest.fixture(autouse=True)
+def _data_under_tmp(tmp_path, monkeypatch):
+    """A compiled bridge keeps its data under the global data folder of the install:
+    keep it out of the working directory."""
+    monkeypatch.setattr(nb, "global_dir", lambda *parts: os.path.join(str(tmp_path), "gdata", *parts))
 
 
 def _legacy_bridge(tmp_path):
@@ -188,7 +197,7 @@ def _compiled_install(tmp_path):
     older = tmp_path / "dist" / "neonize_bridge" / "data" / "account1"
     older.mkdir(parents=True)
     (older / "session.db").write_bytes(b"keys")
-    return str(bridge), str(install / "data" / "global" / "neonize_bridge" / "data"), tmp_path / "dist"
+    return str(bridge), os.path.join(str(tmp_path), "gdata", "neonize_bridge", "data"), tmp_path / "dist"
 
 
 def test_the_sessions_of_an_older_install_move_into_the_compiled_one(tmp_path):
@@ -238,7 +247,109 @@ def test_a_move_that_fails_is_reported_and_leaves_the_data_where_it_was(tmp_path
 def test_a_compiled_bridge_keeps_its_data_and_run_files_outside_the_install_folder(tmp_path):
     bridge, target, _ = _compiled_install(tmp_path)
     assert nb.is_packaged(bridge)
-    assert nb.data_dir(bridge).endswith(os.path.join("global", "neonize_bridge", "data"))
-    assert nb.run_dir(bridge).endswith(os.path.join("global", "neonize_bridge", "run"))
+    assert nb.data_dir(bridge) == target
+    assert nb.run_dir(bridge).endswith(os.path.join("gdata", "neonize_bridge", "run"))
     assert not nb.is_packaged(str(tmp_path))
     assert nb.data_dir(str(tmp_path)) == str(tmp_path / "data")
+
+
+# -- starting a compiled install next to an older one ------------------------
+
+def _sibling_pid(dist, pid, stamp="t900", clients=()):
+    run = dist / "neonize_bridge" / "run"
+    (run / "clients").mkdir(parents=True, exist_ok=True)
+    (run / "bridge.pid").write_text(f"{pid}\n{stamp}" if stamp else str(pid))
+    for client in clients:
+        (run / "clients" / str(client)).write_text(str(client))
+
+
+def _start(bridge, *, alive, created=lambda pid: "t900", killed=None, spawned=None):
+    class _Proc:
+        pid, returncode = 900, None
+
+        def poll(self):
+            return None
+
+    opened = iter([False, False, True])
+    clock = iter(range(0, 10_000))
+    spawned = [] if spawned is None else spawned
+    handle = nb.NeonizeBridge(
+        bridge, 6300, is_open=lambda port: next(opened, True), alive=alive, created=created,
+        rotate=lambda path: False,
+        start_process=lambda cmd, env, cwd, output=None: spawned.append(cmd) or _Proc(),
+        kill=(killed if killed is not None else []).append, sleep=lambda s: None,
+        clock=lambda: next(clock), my_pid=100,
+        identity=lambda port: {"installation_id": "", "instance_id": "",
+                               "protocol_version": 1, "pid": 900, "ppid": 1})
+    return handle, spawned
+
+
+def test_a_running_older_bridge_nobody_uses_is_stopped_then_its_data_moves(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    _sibling_pid(dist, 5000)
+    killed = []
+    handle, spawned = _start(bridge, alive=lambda pid: pid == 5000, killed=killed)
+
+    assert handle.start() is True
+
+    assert killed == [5000]
+    assert open(os.path.join(target, "account1", "session.db"), "rb").read() == b"keys"
+
+
+def test_an_older_bridge_an_old_client_still_uses_is_left_alone_and_nothing_starts(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    _sibling_pid(dist, 5000, clients=[777])
+    killed = []
+    handle, spawned = _start(bridge, alive=lambda pid: pid in (5000, 777), killed=killed)
+
+    assert handle.start() is False
+
+    assert killed == [] and spawned == []
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
+    assert not os.path.exists(target)
+    assert not os.path.exists(os.path.join(nb.run_dir(bridge), "bridge.pid"))
+
+
+def test_an_older_bridge_that_cannot_be_verified_is_never_killed(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    _sibling_pid(dist, 5000, stamp="")
+    killed = []
+    handle, spawned = _start(bridge, alive=lambda pid: pid == 5000, killed=killed)
+
+    assert handle.start() is False
+    assert killed == [] and spawned == []
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
+
+
+def test_a_reused_pid_of_the_older_bridge_does_not_block_the_move(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    _sibling_pid(dist, 5000, stamp="t900")
+    killed = []
+    handle, _ = _start(bridge, alive=lambda pid: pid == 5000,
+                       created=lambda pid: "someone-else", killed=killed)
+
+    assert handle.start() is True
+    assert killed == []
+    assert os.path.isfile(os.path.join(target, "account1", "session.db"))
+
+
+def test_the_move_never_copies_when_the_rename_cannot_happen(tmp_path):
+    """A copy-and-delete fallback would leave a stale copy for the new bridge."""
+    bridge, target, dist = _compiled_install(tmp_path)
+
+    def locked(source, destination):
+        raise PermissionError(destination)
+
+    assert layout.adopt_sibling_data(bridge, target, move=locked) == "failed"
+    assert not os.path.exists(target)
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
+    import inspect
+    assert inspect.signature(layout.adopt_sibling_data).parameters["move"].default is os.rename
+
+
+def test_a_compiled_install_finds_its_bridge_inside_itself(tmp_path, monkeypatch):
+    monkeypatch.setattr(nb.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(nb, "resource_path", lambda *parts: os.path.join(str(tmp_path), *parts))
+    assert nb.bridge_dir() == os.path.join(str(tmp_path), "neonize_bridge")
+    monkeypatch.setattr(nb.sys, "frozen", False)
+    assert nb.bridge_dir().endswith("neonize_bridge")
