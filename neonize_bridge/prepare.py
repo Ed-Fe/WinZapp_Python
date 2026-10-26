@@ -19,7 +19,6 @@ bridge keeps the DLL open).
 
 import hashlib
 import io
-import json
 import os
 import posixpath
 import shutil
@@ -28,6 +27,8 @@ import sys
 import urllib.parse
 import urllib.request
 import zipfile
+
+import neonize_upstream
 
 #: Where the "Neonize DLL" workflow publishes the built package.
 RELEASE_REPOSITORY = "gabrielhhaber/WinZapp_Python"
@@ -46,6 +47,9 @@ ALLOWED_HOST_SUFFIXES = ("github.com", "githubusercontent.com")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VENV = os.path.join(HERE, ".venv")
+#: the identity of the neonize installed in the virtualenv (neonize_upstream.py),
+#: so build.py can tell it is the build this checkout calls for
+MARKER = os.path.join(VENV, neonize_upstream.MARKER)
 PYTHON = os.path.join(VENV, "Scripts", "python.exe")
 
 
@@ -123,10 +127,16 @@ def host_allowed(url: str) -> bool:
         host == suffix or host.endswith("." + suffix) for suffix in ALLOWED_HOST_SUFFIXES)
 
 
-def published_release():
-    """The `release` of neonize_upstream.json (tag, asset, sha256), or None."""
-    with open(os.path.join(HERE, "neonize_upstream.json"), encoding="utf-8") as f:
-        return json.load(f).get("release")
+def usable_release():
+    """The `release` of neonize_upstream.json when it was built from this
+    checkout's pins and patches (its identity), else None: build from source."""
+    release = neonize_upstream.load(os.path.join(HERE, neonize_upstream.MANIFEST)).get("release")
+    if release is None:
+        return None
+    if release["identity"] != neonize_upstream.checkout_identity(HERE):
+        print("The published neonize build is from older patches; building from source.")
+        return None
+    return release
 
 
 def download_build(release) -> bytes:
@@ -152,8 +162,10 @@ def main():
         print("Creating the virtualenv...")
         run(sys.executable, "-m", "venv", VENV)
     print("Installing requirements...")
-    run(PYTHON, "-m", "pip", "install", "-r", os.path.join(HERE, "requirements.txt"))
-    release = None if "--from-source" in sys.argv[1:] else published_release()
+    # The lock pins every package, direct or not, to the hashes that were reviewed.
+    run(PYTHON, "-m", "pip", "install", "--require-hashes", "-r",
+        os.path.join(HERE, "requirements.lock"))
+    release = None if "--from-source" in sys.argv[1:] else usable_release()
     if release is None:
         print("Building neonize from source (build_neonize.py)...")
         run(PYTHON, os.path.join(HERE, "build_neonize.py"), "all", "--install", "--venv", VENV)
@@ -171,11 +183,13 @@ def main():
         shutil.rmtree(package, ignore_errors=True)   # the whole package, not a mix of two
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             extract_checked(archive, target)
+        with open(MARKER, "w", encoding="utf-8") as stream:
+            stream.write(release["identity"])
         print(f"WinZapp's neonize build ({release['tag']}) installed in {target}.")
     print("Done. WinZapp starts the bridge by itself when the Neonize engine is chosen "
           "(Settings, Connection).")
-    print("Video thumbnails and stickers use the ffmpeg in client/lib; other folders "
-          "go in neonize_bridge/path_extra.txt (one folder per line).")
+    print("Video thumbnails and stickers use the ffmpeg in client/lib (lib/ in a compiled "
+          "build); other folders go in neonize_bridge/path_extra.txt (one folder per line).")
 
 
 if __name__ == "__main__":

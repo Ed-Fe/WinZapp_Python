@@ -89,27 +89,36 @@ def _patch_files(folder):
     return found
 
 
-def ensure_clean(name):
-    """Refuse to throw away work: uncommitted changes outside the generated files,
-    or workspace commits that differ from the exported patches (export is
-    deterministic, so the comparison is byte for byte)."""
-    tree = tree_path(name)
-    if not os.path.isdir(os.path.join(tree, ".git")):
-        return
-    dirty = [line[3:] for line in git(tree, "status", "--porcelain", capture=True).splitlines()
-             if line[3:] not in upstream.GENERATED]
-    if dirty:
-        sys.exit(f"{tree} has uncommitted changes ({', '.join(dirty[:5])}). Commit them and "
-                 "run `export`, or pass --force to discard them.")
+def _uncommitted(tree):
+    return [line[3:] for line in git(tree, "status", "--porcelain", capture=True).splitlines()
+            if line[3:] not in upstream.GENERATED]
+
+
+def matches_patches(name):
+    """Do this tree's commits export to exactly the files in neonize_patches/?
+    (export is deterministic, so the comparison is byte for byte)"""
     probe = os.path.join(WORK, f".probe-{name}")
     shutil.rmtree(probe, ignore_errors=True)
     try:
         format_patches(name, probe)
-        if _patch_files(probe) != _patch_files(os.path.join(PATCHES, name)):
-            sys.exit(f"{tree} has commits that are not in neonize_patches/{name}: run `export` "
-                     "first, or pass --force to discard them.")
+        return _patch_files(probe) == _patch_files(os.path.join(PATCHES, name))
     finally:
         shutil.rmtree(probe, ignore_errors=True)
+
+
+def ensure_clean(name):
+    """Refuse to throw away work: uncommitted changes outside the generated files,
+    or workspace commits that are not exported yet."""
+    tree = tree_path(name)
+    if not os.path.isdir(os.path.join(tree, ".git")):
+        return
+    dirty = _uncommitted(tree)
+    if dirty:
+        sys.exit(f"{tree} has uncommitted changes ({', '.join(dirty[:5])}). Commit them and "
+                 "run `export`, or pass --force to discard them.")
+    if not matches_patches(name):
+        sys.exit(f"{tree} has commits that are not in neonize_patches/{name}: run `export` "
+                 "first, or pass --force to discard them.")
 
 
 def fresh_repo(tree):
@@ -323,7 +332,16 @@ def build(info):
             for name in sorted(files):
                 full = os.path.join(root, name)
                 archive.write(full, os.path.relpath(full, DIST).replace(os.sep, "/"))
-    details = {"neonize": version, "neonize_commit": git(tree, "rev-parse", BASE, capture=True),
+    commit = git(tree, "rev-parse", BASE, capture=True)
+    # the identity names committed patches only: a workspace with work not
+    # exported yet builds fine, but is never taken for the checkout's build
+    exported = all(not _uncommitted(tree_path(name)) and matches_patches(name) for name in TREES)
+    identity = (upstream.build_identity(upstream.pins(info, commit), upstream.read_patches(PATCHES))
+                if exported else "")
+    if not exported:
+        say("the workspace differs from neonize_patches/: this build has no identity "
+            "(run `export` to make it the checkout's)")
+    details = {"identity": identity, "neonize": version, "neonize_commit": commit,
                "whatsmeow": info["whatsmeow"]["version"], "meowcaller": info["meowcaller"]["commit"],
                "patches": {name: patches_sha256(name) for name in TREES},
                "asset": os.path.basename(asset), "sha256": file_sha256(asset)}
@@ -354,6 +372,14 @@ def install(venv):
             sys.exit("The neonize DLL is in use: close WinZapp (it stops the bridge) and try again.")
     shutil.rmtree(target, ignore_errors=True)
     shutil.copytree(source, target)
+    with open(os.path.join(DIST, "BUILD_INFO.json"), encoding="utf-8") as f:
+        identity = json.load(f).get("identity", "")
+    marker = os.path.join(venv, upstream.MARKER)
+    if identity:
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write(identity)
+    elif os.path.exists(marker):
+        os.remove(marker)       # whatever it named is no longer what is installed
     say(f"installed into {target}")
 
 

@@ -7,6 +7,20 @@ is no CDP: inspecting a running bridge is in `docs/reference/live-inspection.md`
 The neonize the bridge runs is built from source with WinZapp's patches:
 `docs/reference/neonize-build.md`.
 
+## Both engines ship in a compiled build
+
+`build.py` freezes `neonize_bridge/` into `neonize_bridge/neonize_bridge.exe`
+(`winzapp_tools/bridge_build.py`) and stages it next to `node/` and `api/`, so a
+compiled install has WPPConnect and Neonize together. `neonize_bridge_process`
+starts the packaged exe, and keeps its data and run files in
+`data/global/neonize_bridge/` (not in the install folder, which an update
+replaces); an older install that kept them in a sibling `neonize_bridge/data`
+has them moved in on the first start (`neonize_bridge_layout.adopt_sibling_data`).
+The updater stops a bridge left running before it copies files
+(`update_node_kill`). The neonize inside it is WinZapp's build from source
+(`docs/reference/neonize-build.md`), so a release build needs Go, a 64-bit gcc
+and network access to GitHub and the Go module proxy.
+
 ## The engine is a setting
 
 `connection.wpp_engine` (`wppconnect`, `neonize` or `custom`) is install-wide

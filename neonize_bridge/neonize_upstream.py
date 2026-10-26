@@ -17,7 +17,9 @@ The manifest, in short:
 - `toolchain`: what regenerates neonize's protobuf code byte for byte as
   upstream does (protoc and its SHA-256, protoc-gen-go, mypy-protobuf).
 - `release`: the WinZapp release with the built package that
-  `prepare.py` downloads, or null until one is published.
+  `prepare.py` downloads, or null until one is published. Its `identity`
+  (BUILD_INFO.json) says which pins and patches it was built from: a release
+  of older patches is not used.
 
 Pure functions, no network and no subprocess: tested in
 test_neonize_upstream.py.
@@ -68,6 +70,8 @@ def validate(manifest) -> dict:
             raise ValueError("release tag/asset are not plain names")
         if not _SHA256.match(str(release.get("sha256", ""))):
             raise ValueError("release.sha256 is not a SHA-256")
+        if not _SHA256.match(str(release.get("identity", ""))):
+            raise ValueError("release.identity is not a build identity (BUILD_INFO.json)")
     return manifest
 
 
@@ -120,3 +124,51 @@ def asset_name(version: str) -> str:
 
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+# ------------------------------------------------------------ build identity
+#: In the bridge's virtualenv: the identity of the neonize installed there,
+#: written by build_neonize.py install and prepare.py.
+MARKER = ".neonize-build-sha256"
+TREES = ("neonize", "whatsmeow", "meowcaller")
+
+
+def pins(manifest, neonize_commit=None) -> dict:
+    """What a build is made of besides the patches (`neonize_commit` for a
+    build of another ref than the approved one)."""
+    return {"neonize": neonize_commit or current(manifest)["commit"],
+            "whatsmeow": manifest["whatsmeow"]["version"],
+            "meowcaller": manifest["meowcaller"]["commit"],
+            "toolchain": manifest["toolchain"]}
+
+
+def build_identity(build_pins, patches) -> str:
+    """One SHA-256 for everything that decides the built package: the pins and
+    every patch (`patches`: {tree: {file name: bytes}}). A virtualenv whose
+    marker holds another identity has an older or different build."""
+    digest = hashlib.sha256(json.dumps(build_pins, sort_keys=True).encode())
+    for tree in sorted(patches):
+        for name in sorted(patches[tree]):
+            digest.update(f"\0{tree}/{name}\0".encode() + patches[tree][name])
+    return digest.hexdigest()
+
+
+def read_patches(patches_dir) -> dict:
+    """{tree: {file name: bytes}} of neonize_patches/."""
+    import os
+    found = {}
+    for tree in TREES:
+        folder = os.path.join(patches_dir, tree)
+        found[tree] = {}
+        for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else ():
+            if name.endswith(".patch"):
+                with open(os.path.join(folder, name), "rb") as f:
+                    found[tree][name] = f.read()
+    return found
+
+
+def checkout_identity(bridge_dir) -> str:
+    """The identity this checkout's manifest and patches call for."""
+    import os
+    manifest = load(os.path.join(bridge_dir, MANIFEST))
+    return build_identity(pins(manifest), read_patches(os.path.join(bridge_dir, "neonize_patches")))

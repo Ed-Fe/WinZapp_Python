@@ -141,7 +141,8 @@ jobs:
         run: |
           python -m venv venv
           venv\Scripts\python.exe -m pip install --upgrade pip --quiet
-          venv\Scripts\python.exe -m pip install -r neonize_bridge/requirements.txt -r requirements-dev.txt --quiet
+          venv\Scripts\python.exe -m pip install --require-hashes -r neonize_bridge/requirements.lock --quiet
+          venv\Scripts\python.exe -m pip install -r requirements-dev.txt --quiet
 
       - name: Run the bridge's tests
         run: venv\Scripts\python.exe -m pytest neonize_bridge -q

@@ -4,7 +4,7 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
-- Nuevo motor de conexión, experimental: Neonize se conecta a WhatsApp sin navegador, mediante un puente local. Elígelo en Configuración, Conexión (o en la pregunta del primer inicio) y reinicia WinZapp; WPPConnect sigue siendo el predeterminado. Para preparar el puente, ejecuta neonize_bridge/prepare.py (consulta el README de esa carpeta). En el primer inicio tras actualizar, quien sigue con WPPConnect ve un aviso único que ofrece el cambio; cada motor conserva su propia conexión, así que cambiar y volver no pierde ninguna.
+- Nuevo motor de conexión, experimental: Neonize se conecta a WhatsApp sin navegador, mediante un puente local. Elígelo en Configuración, Conexión (o en la pregunta del primer inicio) y reinicia WinZapp; WPPConnect sigue siendo el predeterminado. Las compilaciones ya incluyen el puente y mantienen WPPConnect instalado a su lado; desde un clon del repositorio, prepara el puente con neonize_bridge/prepare.py (consulta el README de esa carpeta). En el primer inicio tras actualizar, quien sigue con WPPConnect ve un aviso único que ofrece el cambio; cada motor conserva su propia conexión, así que cambiar y volver no pierde ninguna.
 
 - Las listas de chats (conversaciones, archivados y bloqueados) ahora usan todo el ancho de la lista, por lo que los nombres de los chats y las vistas previas de los mensajes se cortan mucho menos cuando la ventana es ancha.
 

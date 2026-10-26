@@ -44,6 +44,8 @@ from update_relaunch import (relaunch_environment, relaunch_lines, run_elevated,
                              start_relaunch_waiter)
 from version import __version__
 from core.update_install_guard import batch_gate, batch_done
+from core.connection_engine import NEONIZE_PORT as BRIDGE_PORT   # the bridge's one fixed port
+from core.neonize_bridge_process import PACKAGED_EXE as BRIDGE_EXE   # shipped inside the install
 from core.update_outcome import batch_receipt, batch_success, RESULT_NAME
 
 
@@ -582,6 +584,7 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
                             log_path: str, marker_path: str, pid: int,
                             api_port: int, extra_pids: "list[int] | tuple" = (),
                             node_pids: "list[int] | tuple" = (),
+                            bridge_pids: "list[int] | tuple" = (),
                             relaunch_handoff: str = "",
                             cleanup_dir: str = "", install_guard=None,
                             result_path: str = "", run_id: str = "") -> str:
@@ -668,6 +671,8 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
         # Give child processes a moment to exit, then kill stragglers holding file locks.
         "timeout /t 2 /nobreak >NUL\n"
         + node_kill_lines(node_pids, api_port, log_path) +
+        # A bridge still running (its client crashed) holds neonize_bridge.exe open.
+        node_kill_lines(bridge_pids, BRIDGE_PORT, log_path, image=BRIDGE_EXE) +
         "timeout /t 1 /nobreak >NUL\n"
         # xcopy's exit code was previously never checked, so a failed copy
         # (locked file, disk full, permissions) silently relaunched whatever
@@ -883,6 +888,9 @@ def _run_batch_installer(extracted_dir: str, install_dir: str, exe_name: str, pi
     # locations, because onefile runs Node from its extraction directory.
     node_pids = own_node_pids(api_port, (resource_path("node", "node.exe"),
                                          os.path.join(install_dir, "node", "node.exe")))
+    bridge_pids = own_node_pids(BRIDGE_PORT, (
+        resource_path("neonize_bridge", BRIDGE_EXE),
+        os.path.join(install_dir, "neonize_bridge", BRIDGE_EXE)))
     needs_admin = sys.platform == "win32" and _needs_admin()
     if sys.platform == "win32" and not needs_admin and _is_elevated():
         # Not de-elevated on purpose (update_relaunch.py): some people run
@@ -928,6 +936,7 @@ def _run_batch_installer(extracted_dir: str, install_dir: str, exe_name: str, pi
         api_port,
         extra_pids=extra_pids,
         node_pids=node_pids,
+        bridge_pids=bridge_pids,
         relaunch_handoff=relaunch_handoff,
         cleanup_dir=cleanup_dir,
         install_guard=guarded_paths,

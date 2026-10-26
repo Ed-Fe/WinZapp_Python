@@ -108,6 +108,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # build.py compiles the Neonize bridge's neonize DLL from source
+      # (neonize_bridge/build_neonize.py, through prepare.py) with cgo: Go here,
+      # the 64-bit gcc from the MSYS2 step above.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+          cache: false
+
       - name: Set up uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
@@ -264,6 +273,10 @@ jobs:
             $hasNodeExe  = ($entries | Where-Object { $_ -eq   "WinZapp/node/node.exe" }).Count -gt 0
             $hasServerJs = ($entries | Where-Object { $_ -eq   "WinZapp/api/dist/server.js" }).Count -gt 0
             $hasFfmpeg   = ($entries | Where-Object { $_ -eq   "WinZapp/lib/ffmpeg.exe" }).Count -gt 0
+            # The frozen Neonize bridge and the neonize DLL inside it: a build that
+            # lost either would ship with the Neonize engine silently dead.
+            $hasBridge   = ($entries | Where-Object { $_ -eq   "WinZapp/neonize_bridge/neonize_bridge.exe" }).Count -gt 0
+            $hasNeonize  = ($entries | Where-Object { $_ -eq   "WinZapp/neonize_bridge/_internal/neonize/neonize-windows-amd64.dll" }).Count -gt 0
             # api_patches/ is the pristine reference copy of WinZapp's custom
             # wppconnect-server patches that ApiSetupDialog restores from on
             # every WPPConnect (re)install/update — without it, a reinstall
@@ -279,8 +292,10 @@ jobs:
             Write-Host "node/node.exe      : $hasNodeExe"
             Write-Host "api/dist/server.js : $hasServerJs"
             Write-Host "ffmpeg             : $hasFfmpeg"
+            Write-Host "neonize_bridge.exe : $hasBridge"
+            Write-Host "neonize DLL        : $hasNeonize"
             Write-Host "api_patches/       : $hasApiPatches"
-            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $hasNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasApiPatches)) {
+            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $hasNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasBridge -and $hasNeonize -and $hasApiPatches)) {
               Write-Error "dist/WinZapp.zip is missing required entries — build failed."
               exit 1
             }
