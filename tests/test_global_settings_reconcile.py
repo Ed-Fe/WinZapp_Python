@@ -433,6 +433,7 @@ NOT_EDITED_BY_THE_DIALOG = {
     "first_run": "set by the first-run questions",
     "hotkey_first_run_asked": "set by the first-run questions",
     "api_type_first_run_asked": "set by the first-run questions",
+    "neonize_offer_asked": "set when the one-time Neonize notice is shown",
     "autostart": ("the box mirrors the Windows Run entry and is applied through "
                   "MainWindow._apply_autostart() only when it differs from it"),
 }

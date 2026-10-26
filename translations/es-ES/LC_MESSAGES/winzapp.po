@@ -7684,6 +7684,38 @@ msgctxt "neonize_bridge_unavailable_title"
 msgid "Neonize bridge"
 msgstr "Puente de Neonize"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_keep"
+msgid "Continue using WPPConnect"
+msgstr "Seguir usando WPPConnect"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_message"
+msgid ""
+"WinZapp now supports the new Neonize connection engine (optional). It starts faster, runs lighter and uses much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+msgstr ""
+"WinZapp ahora admite el nuevo motor de conexión Neonize (opcional). Disfruta de un inicio más rápido del programa, una ejecución más ligera y un uso mucho menor de CPU y memoria RAM de tu equipo. Si decides cambiar, siempre puedes modificarlo en Configuración > Conexión. Tu conexión de WPPConnect se conserva como copia de seguridad.\n"
+"\n"
+"Ventajas de Neonize: velocidad de conexión elevada, menor consumo de recursos y sin navegador.\n"
+"Ventajas de WPPConnect: basado íntegramente en WhatsApp Web, con soporte más ágil para las funciones más recientes de WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_switch"
+msgid "Switch to Neonize (pairing required)"
+msgstr "Cambiar a Neonize (se requiere nuevo emparejamiento)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_title"
+msgid "New Neonize engine available"
+msgstr "Nuevo motor Neonize disponible"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"

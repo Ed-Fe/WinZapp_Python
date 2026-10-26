@@ -116,6 +116,14 @@ def can_choose(engine: str, bridge_available: bool, current: str) -> bool:
     return engine != NEONIZE or bridge_available or current == NEONIZE
 
 
+def should_offer_neonize(engine: str, bridge_available: bool, already_offered: bool) -> bool:
+    """Whether the one-time "Neonize is available" notice is due: only to an
+    install still on WPPConnect (a custom server is the user's own choice),
+    only when a bridge is installed to switch to, and never twice. A start in the
+    background gets it too: it is an important notice."""
+    return engine == WPPCONNECT and bridge_available and not already_offered
+
+
 def needs_restart(loaded: str, chosen: str) -> bool:
     """Changing the engine only takes effect after a restart."""
     return chosen != loaded
