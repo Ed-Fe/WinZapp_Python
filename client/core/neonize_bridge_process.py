@@ -32,13 +32,14 @@ import subprocess
 import sys
 import time
 
-from app_paths import resource_path
+from app_paths import global_dir, resource_path
 from coord_locks import LockTimeout, neonize_bridge_lock
 from core import neonize_bridge_layout
 
 log = logging.getLogger("neonize_bridge")
 
 PORT = 6300
+PACKAGED_EXE = "neonize_bridge.exe"
 START_TIMEOUT = 60.0          # seconds to wait for the port after spawning
 BRIDGE_PID_FILE = "bridge.pid"
 CLIENTS_DIR = "clients"
@@ -50,12 +51,25 @@ SECRET_FILE = "secret"         # written by the bridge in its data folder
 
 
 def bridge_dir() -> str:
+    """The bridge's folder: inside a compiled install (it ships with WinZapp), or
+    ``neonize_bridge/`` of the repository."""
+    if getattr(sys, "frozen", False):
+        return os.path.abspath(resource_path("neonize_bridge"))
     return os.path.abspath(resource_path("..", "neonize_bridge"))
+
+
+def is_packaged(bridge: str) -> bool:
+    """True for the bridge that ships frozen with a compiled build."""
+    return os.path.isfile(os.path.join(bridge, PACKAGED_EXE))
 
 
 def data_dir(bridge: str) -> str:
     """Where the bridge keeps its sessions and messages (every sub-folder in
-    here is a session, so nothing else may live in it)."""
+    here is a session, so nothing else may live in it). A compiled install keeps
+    them with the rest of its data, which updates never replace; a checkout keeps
+    them in the bridge's own folder."""
+    if is_packaged(bridge):
+        return global_dir("neonize_bridge", "data")
     return os.path.join(bridge, "data")
 
 
@@ -72,6 +86,8 @@ def read_secret(bridge: str) -> str:
 def run_dir(bridge: str) -> str:
     """Where this feature keeps its own files: the bridge pid, the clients
     using it and the bridge's output."""
+    if is_packaged(bridge):
+        return global_dir("neonize_bridge", "run")
     return os.path.join(bridge, "run")
 
 
@@ -79,7 +95,7 @@ def command(bridge: str, port: int = PORT):
     """The command that starts the bridge, or None if this install has none.
     From the repository: the bridge's own virtualenv. Packaged builds will
     ship a ``bridge/neonize_bridge.exe`` instead."""
-    packaged = os.path.join(bridge, "neonize_bridge.exe")
+    packaged = os.path.join(bridge, PACKAGED_EXE)
     if os.path.isfile(packaged):
         return [packaged, "--port", str(port), "--folder", data_dir(bridge),
                 "--history-days", HISTORY_DAYS]
@@ -363,6 +379,11 @@ class NeonizeBridge:
         cmd = command(self.bridge, self.port)
         # Folders written under the old names are renamed first (only while no bridge runs).
         self._migrate_legacy_layout()
+        if is_packaged(self.bridge) and neonize_bridge_layout.adopt_sibling_data(
+                self.bridge, data_dir(self.bridge)) == "failed":
+            log.error("neonize bridge not started: its data could not be moved into this install; "
+                      "starting now would ask for pairing again")
+            return False
         if neonize_bridge_layout.stranded(self.bridge):
             log.error("neonize bridge not started: its data folder could not be renamed; "
                       "starting now would ask for pairing again")

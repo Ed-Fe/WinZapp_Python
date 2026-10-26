@@ -136,8 +136,8 @@ class TestTheInstallerScript:
         asked = {}
 
         def _own(port, node_paths):
-            asked.update(port=port, paths=list(node_paths))
-            return [555]
+            asked[port] = list(node_paths)
+            return [555] if port == 6311 else []
 
         monkeypatch.setattr(updater, "own_node_pids", _own)
         seen = {}
@@ -146,8 +146,9 @@ class TestTheInstallerScript:
 
         assert updater._run_batch_installer(str(extracted), str(install_dir), "WinZapp.exe",
                                             pid=1234, api_port=6311) is True
-        assert asked["port"] == 6311
-        assert os.path.join(str(install_dir), "node", "node.exe") in asked["paths"]
+        assert os.path.join(str(install_dir), "node", "node.exe") in asked[6311]
+        # the bridge is looked up on its own port, by its own exe
+        assert os.path.join(str(install_dir), "neonize_bridge", "neonize_bridge.exe") in asked[6300]
         assert "taskkill /F /PID 555" in seen["script"]
         assert '":6311"' in seen["script"]
 
@@ -199,3 +200,30 @@ class TestTheScriptReadsThePidRegardlessOfTheStateColumn:
 
     def test_python_agrees_on_every_sample(self):
         assert listening_pids("\n".join(self.LINES), 6300) == [777, 778, 779, 780]
+
+
+class TestTheBridgeInTheInstaller:
+    """A compiled install ships neonize_bridge.exe; one still running (its client
+    crashed) would hold the file open and fail the copy."""
+
+    def test_a_bridge_is_stopped_only_if_it_is_still_the_bridge_on_its_port(self):
+        s = _script(bridge_pids=[888])
+        assert '"!WZ_PID!"=="888"' in s and '"!WZ_LOCAL:~-5!"==":6300"' in s
+        assert 'tasklist /FI "PID eq 888" /FI "IMAGENAME eq neonize_bridge.exe"' in s
+        assert s.index('IMAGENAME eq neonize_bridge.exe') < s.index("taskkill /F /PID 888")
+        assert s.index('"PID eq 4242"') < s.index("taskkill /F /PID 888") < s.index("xcopy")
+
+    def test_the_node_lines_still_look_for_node_exe(self):
+        s = _script(node_pids=[777], bridge_pids=[888])
+        assert 'IMAGENAME eq node.exe' in s and 'IMAGENAME eq neonize_bridge.exe' in s
+
+    def test_no_bridge_running_means_no_extra_kill(self):
+        assert "neonize_bridge.exe" not in _script(node_pids=[])
+
+    def test_only_the_installs_own_bridge_is_found(self):
+        out = ("  TCP    127.0.0.1:6300    0.0.0.0:0    LISTENING    501\n"
+               "  TCP    127.0.0.1:6301    0.0.0.0:0    LISTENING    502\n")
+        paths = {501: r"C:\WinZapp\neonize_bridge\neonize_bridge.exe",
+                 502: r"C:\Other\neonize_bridge.exe"}
+        assert own_node_pids(6300, [r"C:\WinZapp\neonize_bridge\neonize_bridge.exe"],
+                             netstat_output=out, image_path=paths.get) == [501]

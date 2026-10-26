@@ -175,3 +175,70 @@ def test_an_empty_current_folder_does_not_strand_the_legacy_data(tmp_path):
     layout.migrate(bridge, running=False)
 
     assert os.path.isfile(os.path.join(bridge, "data", "account1", "sessao.db"))
+
+
+# -- the bridge that ships inside a compiled install -----------------------
+
+def _compiled_install(tmp_path):
+    """dist/WinZapp/neonize_bridge (frozen) next to an older dist/neonize_bridge."""
+    install = tmp_path / "dist" / "WinZapp"
+    bridge = install / "neonize_bridge"
+    bridge.mkdir(parents=True)
+    (bridge / nb.PACKAGED_EXE).write_text("exe")
+    older = tmp_path / "dist" / "neonize_bridge" / "data" / "account1"
+    older.mkdir(parents=True)
+    (older / "session.db").write_bytes(b"keys")
+    return str(bridge), str(install / "data" / "global" / "neonize_bridge" / "data"), tmp_path / "dist"
+
+
+def test_the_sessions_of_an_older_install_move_into_the_compiled_one(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+
+    assert layout.adopt_sibling_data(bridge, target) == "moved"
+
+    assert open(os.path.join(target, "account1", "session.db"), "rb").read() == b"keys"
+    assert not (dist / "neonize_bridge" / "data").exists()
+
+
+def test_a_sibling_with_the_portuguese_names_is_brought_along(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    (dist / "neonize_bridge" / "data").rename(dist / "neonize_bridge" / "dados-real")
+
+    assert layout.adopt_sibling_data(bridge, target) == "moved"
+
+    assert os.path.isfile(os.path.join(target, "account1", "session.db"))
+
+
+def test_an_install_that_has_its_own_data_keeps_it(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    os.makedirs(os.path.join(target, "mine"))
+
+    assert layout.adopt_sibling_data(bridge, target) == ""
+
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
+
+
+def test_an_empty_target_is_replaced_and_nothing_to_adopt_is_not_an_error(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+    os.makedirs(target)
+    assert layout.adopt_sibling_data(bridge, target) == "moved"
+    assert layout.adopt_sibling_data(bridge, target) == ""        # nothing left to adopt
+
+
+def test_a_move_that_fails_is_reported_and_leaves_the_data_where_it_was(tmp_path):
+    bridge, target, dist = _compiled_install(tmp_path)
+
+    def refuse(source, destination):
+        raise PermissionError(destination)
+
+    assert layout.adopt_sibling_data(bridge, target, move=refuse) == "failed"
+    assert (dist / "neonize_bridge" / "data" / "account1" / "session.db").exists()
+
+
+def test_a_compiled_bridge_keeps_its_data_and_run_files_outside_the_install_folder(tmp_path):
+    bridge, target, _ = _compiled_install(tmp_path)
+    assert nb.is_packaged(bridge)
+    assert nb.data_dir(bridge).endswith(os.path.join("global", "neonize_bridge", "data"))
+    assert nb.run_dir(bridge).endswith(os.path.join("global", "neonize_bridge", "run"))
+    assert not nb.is_packaged(str(tmp_path))
+    assert nb.data_dir(str(tmp_path)) == str(tmp_path / "data")

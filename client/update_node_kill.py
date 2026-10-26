@@ -133,9 +133,10 @@ def own_node_pids(port: int, node_paths, netstat_output: "str | None" = None,
     return ours
 
 
-def node_kill_lines(pids, port: int, log_path: str) -> str:
-    """Batch text that stops each of *pids* if it is still a node.exe
-    listening on exactly *port*. Empty for no pids."""
+def node_kill_lines(pids, port: int, log_path: str, image: str = "node.exe") -> str:
+    """Batch text that stops each of *pids* if it is still an *image* (WinZapp's
+    node.exe, or the Neonize bridge's neonize_bridge.exe) listening on exactly
+    *port*. Empty for no pids."""
     suffix = f":{port}"
     blocks = []
     for pid in pids:
@@ -155,9 +156,9 @@ def node_kill_lines(pids, port: int, log_path: str) -> str:
             "    )\n"
             ")\n"
             'if "!WZ_LISTENS!"=="1" (\n'
-            f'    tasklist /FI "PID eq {pid}" /FI "IMAGENAME eq node.exe" 2>NUL | find "{pid}" >NUL\n'
+            f'    tasklist /FI "PID eq {pid}" /FI "IMAGENAME eq {image}" 2>NUL | find "{pid}" >NUL\n'
             "    if not errorlevel 1 (\n"
-            f'        >> "{log_path}" echo stopping WinZapp node.exe {pid} still listening on port {port}\n'
+            f'        >> "{log_path}" echo stopping WinZapp {image} {pid} still listening on port {port}\n'
             f"        taskkill /F /PID {pid} >NUL 2>&1\n"
             "    )\n"
             ")\n"

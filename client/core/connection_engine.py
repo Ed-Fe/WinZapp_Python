@@ -102,10 +102,9 @@ def engine_at(index: int) -> str:
 
 def first_run_engines(bridge_available: bool) -> tuple:
     """The engines the first-run question offers. Neonize needs a bridge
-    installed next to WinZapp (a packaged build has none yet, a repository
-    checkout needs ``neonize_bridge/prepare.py``), so it is not offered to
-    someone who could only end up with an error; Settings > Connection still
-    lists it."""
+    installed (a compiled build ships one; a repository checkout needs
+    ``neonize_bridge/prepare.py``), so it is not offered to someone who could
+    only end up with an error; Settings > Connection still lists it."""
     return tuple(e for e in ENGINES if e != NEONIZE or bridge_available)
 
 

@@ -14,6 +14,7 @@ files open (and Windows refuses to rename them).
 
 import logging
 import os
+import shutil
 
 log = logging.getLogger("neonize_bridge")
 
@@ -63,6 +64,38 @@ def _rename(parent, old, new, rename):
         log.warning("could not rename %s to %s: %s", old, new, type(error).__name__)
         return False
     return True
+
+
+def sibling_bridge(bridge: str) -> str:
+    """Where a checkout-style install kept the bridge: ``neonize_bridge/`` next to
+    the WinZapp folder, before the bridge shipped inside it."""
+    return os.path.join(os.path.dirname(os.path.dirname(bridge)), "neonize_bridge")
+
+
+def adopt_sibling_data(bridge: str, target: str, move=shutil.move) -> str:
+    """Brings the sessions of such an install into ``target``, the data folder of
+    the bridge that now ships inside WinZapp, so the paired accounts stay paired.
+    Returns "moved", "failed" (the data is still where it was: do not start a
+    bridge on an empty folder) or "" when there is nothing to adopt."""
+    sibling = sibling_bridge(bridge)
+    if os.path.normcase(os.path.abspath(sibling)) == os.path.normcase(os.path.abspath(bridge)):
+        return ""
+    migrate(sibling, running=False)         # an older name is brought to the current one first
+    source = os.path.join(sibling, "data")
+    if not os.path.isdir(source) or not os.listdir(source):
+        return ""
+    if os.path.isdir(target) and os.listdir(target):
+        return ""                           # this install already has its own data
+    try:
+        if os.path.isdir(target):
+            os.rmdir(target)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        move(source, target)
+    except OSError as error:
+        log.warning("could not move the bridge data into %s: %s", target, type(error).__name__)
+        return "failed"
+    log.info("neonize bridge data adopted from %s", sibling)
+    return "moved"
 
 
 def migrate(bridge: str, running: bool, rename=os.rename) -> int:
