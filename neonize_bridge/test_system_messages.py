@@ -129,7 +129,8 @@ def test_store_and_emit_stores_emits_and_adds_no_unread():
     assert sm.store_and_emit(s, "120@g.us", w, NOW)
     assert s.db.messages("120@g.us") == [w]
     assert s.db.unread("120@g.us") == 0
-    assert s.db.chats()[0]["ts"] == w["t"]
+    # a group notice does not lift the chat (the client never lets one move it)
+    assert s.db.chats()[0]["ts"] == 0
     event, data = s.sent[0]
     assert event == "received-message" and data["session"] == "s1"
     assert data["response"] == w            # recent: without the history mark
@@ -198,6 +199,8 @@ def test_missed_call_becomes_call_log_with_the_call_id():
     assert s.db.unread("5511@s.whatsapp.net") == 0
     assert s.sent[0][0] == "received-message"
     assert s.db.wpp_message("C1") == w          # the client rereads it through message-by-id
+    # a call is activity: it lifts the chat, as a call does in WhatsApp
+    assert s.db.chats()[0]["ts"] == NOW - 3
 
 
 def test_refused_video_call_and_the_same_call_is_only_recorded_once():

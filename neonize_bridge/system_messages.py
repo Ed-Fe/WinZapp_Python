@@ -17,10 +17,13 @@ WPPConnect's format, which the client reads in core/websocket_client.py
   (core/call_log.py `call_log_candidate_ids`).
 
 The id is deterministic (hash of the event) so the same event delivered twice
-does not become two messages. Neither counts as unread: the client treats them
-as a system event (`is_countable_message`) and here `on_arrival` counts them as
-if they were mine, which is the way to raise the chat's date without adding
-an unread.
+does not become two messages. Neither counts as unread. A call record raises
+the chat's date (`on_arrival` as if it were mine: no unread), as a call does
+in WhatsApp; a group notice does not, since the client never lets one move a
+chat (`_counts_as_last_message`): someone leaving a community used to lift
+every one of its groups to the top of the list, notices that arrived late
+included. `store.lower_dates_raised_by_notices` puts back the chats a notice
+already lifted.
 
 The pure functions are at the top (test_system_messages.py) and do not import
 neonize. Not proven against a real account.
@@ -169,7 +172,10 @@ def store_and_emit(s, chat, w, now) -> bool:
     if not msg_id or s.db.wpp_message(msg_id) is not None:
         return False
     s.db.message(chat, w)
-    s.db.on_arrival(chat, w["t"], True)      # raises the date, adds no unread
+    if w.get("type") == "call_log":
+        s.db.on_arrival(chat, w["t"], True)  # raises the date, adds no unread
+    else:
+        s.db.chat(chat)                      # the chat exists; its date stays
     out = dict(w)
     if now - w["t"] > LIVE_WINDOW:
         out["isMdHistoryMsg"] = True

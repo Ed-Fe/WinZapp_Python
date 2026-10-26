@@ -82,6 +82,26 @@ def receipts_ack(receipts):
     return max([1] + [STAGE_ACK.get(stage, 1) for _, stage, _ in receipts])
 
 
+def lower_dates_raised_by_notices(conn):
+    """A chat whose date came from a group notice (`gp2`: someone joined, left,
+    was promoted...) goes back to the date of its newest real message, which
+    is where the client sorts it; with no real message stored, to 0, and the
+    client sorts it by the messages it holds itself (it never lowers a chat
+    below those, chats_store). Only when the notice is the newest thing
+    stored: a date from elsewhere (a history sync) is left alone. Returns how
+    many chats moved."""
+    cursor = conn.execute("""
+        UPDATE chats SET ts = IFNULL((
+            SELECT MAX(m.ts) FROM msgs m
+            WHERE m.chat = chats.jid AND IFNULL(json_extract(m.data, '$.type'), '') <> 'gp2'), 0)
+        WHERE EXISTS (SELECT 1 FROM msgs g WHERE g.chat = chats.jid AND g.ts = chats.ts
+                      AND json_extract(g.data, '$.type') = 'gp2')
+          AND NOT EXISTS (SELECT 1 FROM msgs r WHERE r.chat = chats.jid AND r.ts >= chats.ts
+                          AND IFNULL(json_extract(r.data, '$.type'), '') <> 'gp2')""")
+    conn.commit()
+    return cursor.rowcount
+
+
 class Store:
     def __init__(self, path):
         self._conn = sqlite3.connect(path, check_same_thread=False)
@@ -102,6 +122,7 @@ class Store:
                 self._conn.execute("ALTER TABLE chats ADD COLUMN read_ts INTEGER DEFAULT 0")
             except sqlite3.OperationalError:
                 pass
+            lower_dates_raised_by_notices(self._conn)
 
     def close(self):
         """Releases the file (on Windows a folder with an open database cannot be deleted)."""

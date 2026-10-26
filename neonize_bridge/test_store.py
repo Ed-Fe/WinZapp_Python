@@ -207,3 +207,26 @@ def test_set_contact_name_clears_a_name_the_phone_no_longer_has(tmp_path):
     assert a.contact_of("p1") == {"pushname": "ana"}
     a.set_contact_name("p2", "Bia")
     assert a.contact_of("p2") == {"name": "Bia"}
+
+
+def test_a_date_lifted_by_a_group_notice_goes_back_to_the_real_message(tmp_path):
+    import sqlite3
+
+    import store
+    path = str(tmp_path / "b.db")
+    db = Store(path)
+    real = {"id": {"id": "R"}, "t": 100, "type": "chat", "body": "oi"}
+    notice = {"id": {"id": "N"}, "t": 500, "type": "gp2", "subtype": "leave"}
+    for chat in ("lifted@g.us", "notice-only@g.us", "newer@g.us"):
+        if chat != "notice-only@g.us":
+            db.message(chat, dict(real))
+        db.message(chat, dict(notice))
+        db.chat(chat, ts=500)                     # what the old bridge wrote
+    db.message("newer@g.us", {"id": {"id": "R2"}, "t": 500, "body": "no type"})
+    db.chat("history@g.us", ts=900)               # a date from a history sync
+    db.close()
+    assert store.lower_dates_raised_by_notices(sqlite3.connect(path)) == 2
+    dates = {c["jid"]: c["ts"] for c in Store(path).chats()}
+    # with only the notice, 0: the client sorts it by the messages it holds
+    assert dates == {"lifted@g.us": 100, "notice-only@g.us": 0, "newer@g.us": 500,
+                     "history@g.us": 900}
