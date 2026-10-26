@@ -158,7 +158,7 @@ class _HiddenParentMessage(wx.Dialog):
     """Plain message with stock buttons: the same labels, default and Escape
     behaviour as the message box it stands in for."""
 
-    def __init__(self, parent, message, title, style):
+    def __init__(self, parent, message, title, style, labels=None):
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE)
         ids, default, escape = message_box_buttons(style)
         shown, cut = cap_message(message)
@@ -173,7 +173,8 @@ class _HiddenParentMessage(wx.Dialog):
         buttons = {}
         i18n = getattr(parent, "i18n", None)
         for ident in ids:
-            btn = wx.Button(self, ident, label=i18n.t(_LABEL_KEY[ident]) if i18n else "")
+            text = (labels or {}).get(ident) or (i18n.t(_LABEL_KEY[ident]) if i18n else "")
+            btn = wx.Button(self, ident, label=text)
             btn.Bind(wx.EVT_BUTTON, lambda event, i=ident: self.EndModal(i))
             row.Add(btn, 0, wx.RIGHT, self.FromDIP(4))
             buttons[ident] = btn
@@ -183,6 +184,32 @@ class _HiddenParentMessage(wx.Dialog):
         buttons[default].SetDefault()
         buttons[default].SetFocus()
         self.CentreOnScreen()
+
+
+def choice_box(main_window, message, title, yes_label, no_label, announce=None,
+               hidden_dialog=None, visible_dialog=None) -> bool:
+    """A question with two custom-labelled buttons; True for the first. "No" is
+    the default and what Escape or closing answers. With the main window hidden
+    (autostart, tray) it is a real dialog that is announced and brought to the
+    front, like message_box(); visible, the native box.
+
+    ``hidden_dialog`` / ``visible_dialog`` are the dialog classes, a parameter
+    so the rules are tested without opening a window."""
+    style = wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION
+    if parent_is_hidden(main_window):
+        dialog = (hidden_dialog or _HiddenParentMessage)(
+            main_window, message, title, style, {wx.ID_YES: yes_label, wx.ID_NO: no_label})
+        try:
+            bring_to_front_if_hidden(main_window, dialog, announce)
+            return dialog.ShowModal() == wx.ID_YES
+        finally:
+            dialog.Destroy()
+    dialog = (visible_dialog or wx.MessageDialog)(main_window, message, title, style)
+    dialog.SetYesNoLabels(yes_label, no_label)
+    try:
+        return dialog.ShowModal() == wx.ID_YES
+    finally:
+        dialog.Destroy()
 
 
 def message_box(main_window, message, title, style, announce=None):

@@ -8,9 +8,13 @@ MainWindow is a wx.Frame, so the unbound method runs against a plain stub; the
 dialog is replaced, nothing opens a window.
 """
 
+import types
+
 import pytest
+import wx
 
 from core import connection_engine as engines
+from core import dialog_foreground
 from core import neonize_bridge_process as bridge
 from core import session_engine
 from main import MainWindow
@@ -27,8 +31,6 @@ class TestWhenItIsDue:
         assert not engines.should_offer_neonize(engines.NEONIZE, True, False)
         assert not engines.should_offer_neonize(engines.CUSTOM, True, False)
 
-    def test_not_in_a_background_start(self):
-        assert not engines.should_offer_neonize(engines.WPPCONNECT, True, False, background=True)
 
 
 class _Stub:
@@ -41,13 +43,17 @@ class _Stub:
         self.settings = settings if settings is not None else {}
         self.background_mode = background_mode
         self.wpp_engine = engine
-        self.i18n = object()
+        self.i18n = types.SimpleNamespace(t=lambda key: key)
+        self.spoken = []
         self.saved = []
         self.wpp_custom_api, self.wpp_server = False, "http://original"
         self.wpp_ws_server, self.wpp_port = "ws://original", 1234
 
     def _other_account_is_running(self):
         return self.sibling
+
+    def output(self, text, interrupt=False):
+        self.spoken.append(text)
 
     def save_settings(self):
         self.saved.append({k: dict(v) for k, v in self.settings.items() if isinstance(v, dict)})
@@ -61,7 +67,7 @@ def with_bridge(monkeypatch):
 def _answer(monkeypatch, switch):
     asked = []
     monkeypatch.setattr(engine_picker, "ask_neonize_offer",
-                        lambda i18n: asked.append(i18n) or switch)
+                        lambda i18n, window=None, announce=None: asked.append(i18n) or switch)
     return asked
 
 
@@ -97,7 +103,7 @@ def test_switching_applies_neonize_in_this_process_without_a_restart(monkeypatch
 def test_the_notice_is_marked_before_the_answer(monkeypatch, with_bridge):
     mw = _Stub()
 
-    def explode(i18n):
+    def explode(i18n, window=None, announce=None):
         raise RuntimeError("closed while open")
     monkeypatch.setattr(engine_picker, "ask_neonize_offer", explode)
     with pytest.raises(RuntimeError):
@@ -106,7 +112,6 @@ def test_the_notice_is_marked_before_the_answer(monkeypatch, with_bridge):
 
 
 @pytest.mark.parametrize("kwargs,bridge_there,asked_before", [
-    ({"background_mode": True}, True, False),
     ({"engine": engines.NEONIZE}, True, False),
     ({"engine": engines.CUSTOM}, True, False),
     ({}, False, False),
@@ -203,3 +208,91 @@ def test_the_notice_already_explained_it():
     mw._reconcile_session_engine()
     assert mw.shown == []
     assert "WA_token_protected" not in mw.settings["privateinfo"]    # still set aside
+
+
+def test_a_start_in_the_background_gets_the_notice_too_and_stays_in_the_background_if_kept(
+        monkeypatch, with_bridge):
+    mw = _Stub(background_mode=True)
+    asked = _answer(monkeypatch, False)
+    mw._offer_neonize_engine()
+    assert len(asked) == 1
+    assert mw.background_mode is True and mw.wpp_engine == engines.WPPCONNECT
+
+
+def test_switching_in_a_background_start_brings_the_window_for_the_pairing(monkeypatch, with_bridge):
+    mw = _Stub(background_mode=True)
+    _answer(monkeypatch, True)
+    mw._offer_neonize_engine()
+    assert mw.wpp_engine == engines.NEONIZE
+    assert mw.background_mode is False
+
+
+def test_the_announcement_is_the_title_and_the_message(monkeypatch, with_bridge):
+    mw = _Stub()
+    spoken = {}
+
+    def ask(i18n, window=None, announce=None):
+        announce()
+        spoken["window"] = window
+        return False
+    monkeypatch.setattr(engine_picker, "ask_neonize_offer", ask)
+    mw._offer_neonize_engine()
+    assert mw.spoken == ["neonize_offer_title. neonize_offer_message"]
+    assert spoken["window"] is mw
+
+
+class _FakeDialog:
+    """Stands in for both the hidden-parent dialog and wx.MessageDialog."""
+    answer = wx.ID_NO
+    made = []
+
+    def __init__(self, parent, message, title, style, labels=None):
+        self.args = (parent, message, title, style, labels)
+        self.yes_no = None
+        self.destroyed = False
+        _FakeDialog.made.append(self)
+
+    def SetYesNoLabels(self, yes, no):
+        self.yes_no = (yes, no)
+
+    def ShowModal(self):
+        return _FakeDialog.answer
+
+    def Destroy(self):
+        self.destroyed = True
+
+
+def _choice(monkeypatch, window, answer):
+    _FakeDialog.made, _FakeDialog.answer = [], answer
+    fronted = []
+    monkeypatch.setattr(dialog_foreground, "bring_to_front_if_hidden",
+                        lambda w, d, announce=None: fronted.append((d, announce)))
+    announce = lambda: None
+    result = dialog_foreground.choice_box(
+        window, "message", "title", "Switch", "Keep", announce=announce,
+        hidden_dialog=_FakeDialog, visible_dialog=_FakeDialog)
+    return result, fronted, announce
+
+
+def test_with_the_window_hidden_the_notice_is_announced_and_brought_to_the_front(monkeypatch):
+    window = types.SimpleNamespace(background_mode=True, _window_hidden=True)
+    result, fronted, announce = _choice(monkeypatch, window, wx.ID_YES)
+    assert result is True
+    dialog = _FakeDialog.made[0]
+    assert fronted == [(dialog, announce)]
+    assert dialog.args[4] == {wx.ID_YES: "Switch", wx.ID_NO: "Keep"}
+    assert dialog.args[3] & wx.NO_DEFAULT and dialog.destroyed
+
+
+def test_with_the_window_visible_it_is_the_native_box_with_the_two_labels(monkeypatch):
+    window = types.SimpleNamespace(background_mode=False, _window_hidden=False)
+    result, fronted, _ = _choice(monkeypatch, window, wx.ID_NO)
+    assert result is False and fronted == []
+    dialog = _FakeDialog.made[0]
+    assert dialog.yes_no == ("Switch", "Keep") and dialog.destroyed
+
+
+def test_closing_the_hidden_dialog_keeps_wppconnect(monkeypatch):
+    window = types.SimpleNamespace(background_mode=True)
+    result, _, _ = _choice(monkeypatch, window, wx.ID_CANCEL)
+    assert result is False
