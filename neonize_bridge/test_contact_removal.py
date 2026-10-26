@@ -28,8 +28,9 @@ def test_the_contact_id(phone, wid):
     assert cr.contact_wid(phone) == wid
 
 
-def test_the_index_is_the_legacy_form_whatsapp_web_writes():
-    assert cr.removal_index("5511999998888") == ["contact", "5511999998888@c.us"]
+def test_the_index_is_the_form_whatsapp_web_writes():
+    # toString({legacy: true}) of a number is '<digits>@s.whatsapp.net' (checked in the page)
+    assert cr.removal_index("5511999998888") == ["contact", "5511999998888@s.whatsapp.net"]
 
 
 def test_only_a_saved_contact_is_an_address_book_entry():
@@ -53,16 +54,34 @@ class Contacts:
 
 
 class Client:
-    def __init__(self, saved=(), lid_phone=""):
+    def __init__(self, saved=(), lid_phone="", lid=""):
         self.contact = Contacts(set(saved))
         self.patches = []
         self.lid_phone = lid_phone
+        self.lid = lid
+        self.sent = []          # what reached WhatsApp, in order
 
     def send_app_state(self, patch):
         self.patches.append(patch)
+        self.sent.append("app state")
 
     def get_pn_from_lid(self, jid):
         return N(User=self.lid_phone)
+
+    def get_lid_from_pn(self, jid):
+        return N(User=self.lid)
+
+
+class RawClient(Client):
+    def __init__(self, *args, answer=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.queries = []
+        self.answer = answer or {"node": {"tag": "iq"}}
+
+    def send_iq(self, query):
+        self.queries.append(query)
+        self.sent.append("usync")
+        return self.answer
 
 
 class Db:
@@ -108,16 +127,44 @@ def test_a_saved_contact_is_removed_with_a_remove_mutation(tmp_path, supported):
     (patch,) = s.client.patches
     (mutation,) = patch.Mutations
     assert patch.Type == PatchInfo.CRITICAL_UNBLOCK_LOW
-    assert list(mutation.Index) == ["contact", "5511999998888@c.us"]
+    assert list(mutation.Index) == ["contact", "5511999998888@s.whatsapp.net"]
     assert (mutation.Version, mutation.Remove) == (2, True)
     assert s.db.names == [("5511999998888@s.whatsapp.net", "")]
 
 
 @needs_remove
 def test_a_lid_is_removed_through_its_number(tmp_path, supported):
-    s = session(tmp_path, Client(saved={"5511999998888@c.us"}, lid_phone="5511999998888"))
+    s = session(tmp_path, Client(saved={"5511999998888@s.whatsapp.net"},
+                                 lid_phone="5511999998888"))
     assert run(s, {"phone": "123456789012345@lid"})[0] == 200
-    assert list(s.client.patches[0].Mutations[0].Index) == ["contact", "5511999998888@c.us"]
+    assert list(s.client.patches[0].Mutations[0].Index) == [
+        "contact", "5511999998888@s.whatsapp.net"]
+
+
+@pytest.fixture
+def raw(monkeypatch):
+    import raw_queries
+    monkeypatch.setattr(raw_queries, "available", lambda c: hasattr(c, "send_iq"))
+
+
+@needs_remove
+def test_the_server_is_told_before_the_address_book_changes(tmp_path, supported, raw):
+    s = session(tmp_path, RawClient(saved={"5511999998888@s.whatsapp.net"},
+                                    lid="123456789012345"))
+    assert run(s, {"phone": "5511999998888"})[0] == 200
+    assert s.client.sent == ["usync", "app state"]
+    user = s.client.queries[0]["content"][0]["content"][1]["content"][0]
+    assert user["attrs"] == {"jid": {"jid": "123456789012345@lid"},
+                             "pn_jid": {"jid": "5511999998888@s.whatsapp.net"}}
+    assert user["content"] == [{"tag": "contact", "attrs": {"type": "delete"}}]
+
+
+@needs_remove
+def test_a_refused_notice_does_not_stop_the_removal(tmp_path, supported, raw):
+    s = session(tmp_path, RawClient(saved={"5511999998888@s.whatsapp.net"},
+                                    answer={"error": "boom", "code": 500}))
+    assert run(s, {"phone": "5511999998888"})[0] == 200
+    assert s.client.sent == ["usync", "app state"]
 
 
 def test_a_lid_without_a_number_is_refused(tmp_path, supported):

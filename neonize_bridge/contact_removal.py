@@ -1,11 +1,12 @@
 """Removing a contact from the address book (`POST remove-contact {phone}`).
 
 What WhatsApp Web does (read over CDP on 2026-10-26: WAWebDeleteContactAction
--> WAWebContactEditSync.sendContactDelete -> WAWebContactSync): a REMOVE
-mutation in `critical_unblock_low`, index ["contact", "<digits>@c.us"] (the
-legacy form, `toString({legacy: true})`), version 2, an empty ContactAction.
-Before it, a usync "delta" query tells the server the contact is gone; the
-bridge does not send it, as save-contact does not send the "add" one.
+-> WAWebContactEditSync.sendContactDelete -> WAWebContactSync): first a usync
+"delta" query telling the server the contact is gone (contact_sync.py), then
+a REMOVE mutation in `critical_unblock_low`, index
+["contact", "<digits>@s.whatsapp.net"] (`toString({legacy: true})`, which
+WhatsApp Web turns into @s.whatsapp.net: checked in the page), version 2, an
+empty ContactAction. save-contact writes the same index.
 
 A REMOVE needs the entry to exist (whatsmeow hashes it against the previous
 SET), so a number that is not a saved contact is refused before anything is
@@ -13,8 +14,7 @@ sent. The body and the answers follow WinZapp's WPPConnect route
 (contactSaveController.ts): `phone` is digits or '<digits>@lid';
 `{"response": {"message": "Contact removed"}}`, or a fixed `code`. A neonize
 build without REMOVE mutations answers 501 "contact_operation_unsupported", as
-before. Not run against a real account: the phone's index form is not
-confirmed (the bridge logs it, see app_state_mirror.describe).
+before. Not run against a real account.
 """
 import asyncio
 import logging
@@ -23,6 +23,7 @@ import re
 from aiohttp import web
 
 import app_state_mirror
+import contact_sync
 
 log = logging.getLogger("bridge")
 
@@ -44,7 +45,7 @@ def contact_wid(phone) -> str:
 
 
 def removal_index(digits) -> list:
-    return [INDEX, f"{digits}@c.us"]
+    return [INDEX, f"{digits}@s.whatsapp.net"]
 
 
 def is_saved(contact) -> bool:
@@ -59,23 +60,30 @@ def register_routes(r, *, session, jid_from_text):
     def failure(code):
         return web.json_response({"status": "error", "code": code}, status=STATUS[code])
 
-    def saved(s, digits):
-        for server in ("s.whatsapp.net", "c.us"):
-            try:
-                if is_saved(s.client.contact.get_contact(jid_from_text(f"{digits}@{server}"))):
-                    return True
-            except Exception:
-                continue
-        return False
+    def saved(s, phone):
+        try:
+            return is_saved(s.client.contact.get_contact(jid_from_text(phone)))
+        except Exception:
+            return False
+
+    def lid_of(s, phone):
+        try:
+            lid = s.client.get_lid_from_pn(jid_from_text(phone))
+        except Exception:
+            return ""
+        user = getattr(lid, "User", "")
+        return f"{user}@lid" if user else ""
 
     def remove(s, digits):
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             ContactAction, SyncActionValue)
-        if not saved(s, digits):
+        phone = f"{digits}@s.whatsapp.net"
+        if not saved(s, phone):
             return "number_is_not_your_contact"
+        contact_sync.notify(s.client, contact_sync.delete_query(phone, lid_of(s, phone)),
+                            "removal")
         value = SyncActionValue(contactAction=ContactAction())
         app_state_mirror.send(s, COLLECTION, [(removal_index(digits), VERSION, value, True)])
-        phone = f"{digits}@s.whatsapp.net"
         s.db.set_contact_name(phone, "")
         try:
             s.client.contact.put_contact_name(jid_from_text(phone), "", "")

@@ -329,3 +329,44 @@ async def test_saved_names_synced_after_the_connection_reach_all_contacts(tmp_pa
         assert bia["pushname"] == "bia"
     finally:
         await http.close()
+
+
+class SavingClient(FakeClient):
+    """save-contact's calls, in the order they reach WhatsApp."""
+
+    def __init__(self):
+        super().__init__()
+        self.contact = N(get_contact=self._get_contact, put_contact_name=lambda *a: None)
+
+    def is_on_whatsapp(self, *numbers):
+        return [N(IsIn=True, JID=jid(PHONE), HasField=lambda field: False)]
+
+    def send_iq(self, query):
+        self.calls.append(("usync", query))
+        return {"node": {"tag": "iq"}}
+
+    def send_app_state(self, patch):
+        self.calls.append(("app state", patch))
+
+
+@pytest.mark.asyncio
+async def test_save_contact_tells_the_server_before_writing_the_address_book(
+        tmp_path, sessions, monkeypatch):
+    import raw_queries
+    monkeypatch.setattr(raw_queries, "available", lambda c: hasattr(c, "send_iq"))
+    http, api, s, _fake = await _bridge(tmp_path, sessions)
+    fake = s.client = SavingClient()
+    try:
+        response = await http.post(f"{api}/save-contact",
+                                   json={"phone": PHONE, "name": "Ana", "lastName": "Silva"})
+        assert response.status == 200, await response.text()
+        assert [kind for kind, _ in fake.calls] == ["usync", "app state"]
+        usync = fake.calls[0][1]["content"][0]
+        assert usync["attrs"]["mode"] == "delta"
+        assert usync["content"][1]["content"] == [
+            {"tag": "user", "content": [{"tag": "contact", "content": PHONE}]}]
+        (mutation,) = fake.calls[1][1].Mutations
+        # the index WhatsApp Web writes (toString({legacy: true}) of a number)
+        assert list(mutation.Index) == ["contact", f"{PHONE}@s.whatsapp.net"]
+    finally:
+        await http.close()

@@ -5,8 +5,9 @@ through the app state; it sends no query to the server (read over CDP on
 2026-10-26: WAWebStatusSetAndSyncPrivacy -> WAWebStatusPrivacySettingSync).
 The mutation: collection `regular_high`, index ["status_privacy"], version 7,
 value `statusPrivacy {mode, userJID}`, where mode is CONTACTS, DENY_LIST or
-ALLOW_LIST and userJID the people of the list in their legacy form
-('<digits>@c.us', '<digits>@lid'); with CONTACTS the list is empty.
+ALLOW_LIST and userJID the people of the list as `toString({legacy: true})`
+writes them: '<digits>@s.whatsapp.net' (the client sends '@c.us'),
+'<digits>@lid'; with CONTACTS the list is empty.
 
 The body and the answers follow WinZapp's WPPConnect route
 (privacyController.ts): `{"response": {"setting"}}`, 400
@@ -46,9 +47,15 @@ def parse_request(body):
     return setting, ([] if setting == "contact" else list(dict.fromkeys(people)))
 
 
+def wire_jid(person) -> str:
+    """'<digits>@c.us' -> '<digits>@s.whatsapp.net'; a LID stays."""
+    user, _, server = person.partition("@")
+    return f"{user}@s.whatsapp.net" if server == "c.us" else person
+
+
 def privacy_fields(setting, people) -> dict:
     """The fields of the StatusPrivacyAction."""
-    return {"mode": MODES[setting], "userJID": list(people)}
+    return {"mode": MODES[setting], "userJID": [wire_jid(p) for p in people]}
 
 
 def setting_of(mirror) -> str:

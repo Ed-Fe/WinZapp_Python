@@ -36,7 +36,9 @@ def test_the_modes_are_whatsapps():
     mode = StatusPrivacyAction.StatusDistributionMode
     assert sp.MODES == {"allow-list": mode.Value("ALLOW_LIST"),
                         "deny-list": mode.Value("DENY_LIST"), "contact": mode.Value("CONTACTS")}
-    assert sp.privacy_fields("deny-list", ["1@c.us"]) == {"mode": 1, "userJID": ["1@c.us"]}
+    # WhatsApp Web writes a number as toString({legacy: true}): '@s.whatsapp.net'
+    assert sp.privacy_fields("deny-list", ["1@c.us", "2@lid"]) == {
+        "mode": 1, "userJID": ["1@s.whatsapp.net", "2@lid"]}
 
 
 class Client:
@@ -68,7 +70,7 @@ def test_the_mutation_is_sent_to_regular_high_and_answered(tmp_path, monkeypatch
     assert patch.Type == PatchInfo.REGULAR_HIGH
     assert (list(mutation.Index), mutation.Version) == (["status_privacy"], 7)
     action = mutation.Value.statusPrivacy
-    assert (action.mode, list(action.userJID)) == (0, ["5511999998888@c.us"])
+    assert (action.mode, list(action.userJID)) == (0, ["5511999998888@s.whatsapp.net"])
     assert sp.setting_of(app_state_mirror.mirror_of(s)) == "allow-list"
 
 

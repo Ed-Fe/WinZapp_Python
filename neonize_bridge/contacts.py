@@ -6,9 +6,10 @@ server builds (api_patches/src/controller/contactSaveController.ts,
 deviceController.ts, middleware/statusConnection.ts).
 
 The pure functions are at the top (tested in test_contacts.py);
-`register_routes` wires the routes to the server. `remove-contact` is not here:
-neonize's app state notice (MutationInfo) only knows how to write, not delete
-an address book entry.
+`register_routes` wires the routes to the server. save-contact tells the
+server first with a usync "delta" query (contact_sync.py), then writes the
+app state entry ["contact", "<digits>@s.whatsapp.net"], as WhatsApp Web does.
+`remove-contact` is in contact_removal.py (it needs WinZapp's neonize build).
 """
 import asyncio
 import logging
@@ -17,6 +18,7 @@ import time
 
 from aiohttp import web
 
+import contact_sync
 import msgmap
 from groups import number_forms, user_of
 
@@ -406,6 +408,9 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text, destination_of, 
             except Exception:
                 lid = ""        # the LID is only a complement; the notice works without it
         action = address_book_fields(fields, phone_jid, lid)
+        # the server learns of the new contact first, as WhatsApp Web does
+        await execute(contact_sync.notify, s.client,
+                      contact_sync.add_query(user_of(phone_jid)), "save")
         try:
             await execute(send_to_address_book, s, phone_jid, action)
         except Exception:
