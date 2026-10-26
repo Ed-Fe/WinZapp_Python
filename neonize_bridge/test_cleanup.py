@@ -178,3 +178,45 @@ async def test_a_name_that_escapes_the_folder_is_refused_even_with_a_valid_crede
         assert data.exists()
     finally:
         await client.close()
+
+
+def test_shut_down_also_releases_the_app_state_copy():
+    calls = []
+    account = N(client=None, status="CLOSED", thread=None, leave=lambda: None,
+                db=N(close=lambda: calls.append("db")),
+                app_state=N(close=lambda: calls.append("app_state")))
+    cleanup.shut_down(account)
+    assert calls == ["db", "app_state"]
+
+
+@pytest.mark.asyncio
+async def test_clear_session_data_needs_the_secret_and_takes_the_account(tmp_path):
+    client, secret = await _server(tmp_path)
+    try:
+        credential = _credential(secret, "account1")
+        assert (await client.get(f"/api/{credential}/status-session")).status == 200
+        (tmp_path / "account1" / "session.db").write_bytes(b"keys")
+        assert (await client.post(f"/api/account1/{credential}/clear-session-data")).status == 401
+        assert (tmp_path / "account1").exists()
+        response = await client.post(f"/api/account1/{secret}/clear-session-data")
+        assert response.status == 200 and await response.json() == {"success": True}
+        assert not (tmp_path / "account1").exists()
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_backup_and_restore_need_the_secret(tmp_path):
+    import io
+    import zipfile
+    client, secret = await _server(tmp_path)
+    try:
+        (tmp_path / "account2").mkdir()
+        sqlite3.connect(tmp_path / "account2" / "session.db").execute("CREATE TABLE k(v)").close()
+        assert (await client.get("/api/wrong/backup-sessions")).status == 401
+        response = await client.get(f"/api/{secret}/backup-sessions")
+        assert response.status == 200 and response.content_type == "application/zip"
+        names = zipfile.ZipFile(io.BytesIO(await response.read())).namelist()
+        assert "account2/session.db" in names
+    finally:
+        await client.close()
