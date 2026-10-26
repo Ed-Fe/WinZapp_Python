@@ -241,3 +241,17 @@ async def test_get_media_with_a_download_error_still_answers_410(tmp_path, sessi
         assert response.status == 410
     finally:
         await bridge.http.close()
+
+
+@pytest.mark.asyncio
+async def test_get_media_also_answers_a_get_as_upstream_does(tmp_path, sessions):
+    client = ClientWithoutFork()
+    bridge = await _open(tmp_path, sessions, client)
+    try:
+        serial = _store_image(bridge.s)
+        response = await bridge.http.get(
+            bridge.url(f"get-media-by-message/{serial}"),
+            headers={"Accept": "application/octet-stream"})
+        assert response.status == 200 and await response.read() == CONTENT
+    finally:
+        await bridge.http.close()

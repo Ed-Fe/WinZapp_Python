@@ -2397,6 +2397,7 @@ def create_app(folder, fixed=""):
     r.add_post("/api/{tok}/send-mentioned", send_mentioned)
     r.add_post("/api/{tok}/send-file", send_file)
     r.add_post("/api/{tok}/send-voice-base64", send_voice_base64)
+    r.add_get("/api/{tok}/get-media-by-message/{msgid}", get_media)
     r.add_post("/api/{tok}/get-media-by-message/{msgid}", get_media)
     async def archive_chat(req):
         s = session(req)
