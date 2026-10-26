@@ -1,6 +1,7 @@
 """Business message buttons: from the proto to the fields WinZapp reads, the
 reply plan, the reply proto and the reply-button route."""
 import asyncio
+import json
 from types import SimpleNamespace as N
 
 import pytest
@@ -125,11 +126,23 @@ def test_plan_refuses_a_button_that_does_not_exist_or_is_not_a_reply():
     assert refuse({}, "other", 0) == ("invalid_request", 400)
 
 
-def test_native_flow_quick_reply_has_no_confirmed_format():
+def test_native_flow_quick_reply_plan():
     wpp = stored(with_native_flow())
-    with pytest.raises(buttons.ButtonRefused) as e:
-        buttons.reply_plan(wpp, "native", 0)
-    assert (e.value.code, e.value.status) == ("reply_button_unavailable", 501)
+    assert buttons.reply_plan(wpp, "native", 0) == {"kind": "flow", "id": "x", "text": "Hi"}
+
+
+def test_native_flow_refuses_other_buttons_and_broken_params():
+    def refuse(wpp, source, index):
+        with pytest.raises(buttons.ButtonRefused) as e:
+            buttons.reply_plan(wpp, source, index)
+        return e.value.code, e.value.status
+    other = with_native_flow()
+    other.interactiveMessage.nativeFlowMessage.buttons[0].name = "cta_url"
+    assert refuse(stored(other), "native", 0) == ("button_not_found", 404)
+    for bad in ("", "not json", "[]", '{"id":"x"}'):
+        broken = with_native_flow()
+        broken.interactiveMessage.nativeFlowMessage.buttons[0].buttonParamsJSON = bad
+        assert refuse(stored(broken), "native", 0) == ("button_not_found", 404)
 
 
 def test_reply_protos():
@@ -145,6 +158,12 @@ def test_reply_protos():
         {"kind": "list", "id": "r1", "title": "One", "description": "d"}, ctx)
     assert r.listResponseMessage.singleSelectReply.selectedRowID == "r1"
     assert r.listResponseMessage.title == "One" and r.listResponseMessage.description == "d"
+    r = buttons.build_reply({"kind": "flow", "id": "x", "text": "Olá"}, ctx)
+    flow = r.interactiveResponseMessage.nativeFlowResponseMessage
+    assert r.interactiveResponseMessage.body.text == "Olá"
+    assert (flow.name, flow.version) == ("quick_reply", 3)
+    assert json.loads(flow.paramsJSON) == {"display_text": "Olá", "id": "x"}
+    assert r.interactiveResponseMessage.contextInfo.stanzaID == "ID1"
 
 
 def test_valid_request():
