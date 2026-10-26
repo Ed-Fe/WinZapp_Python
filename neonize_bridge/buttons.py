@@ -13,14 +13,16 @@ Two halves:
   what to send, as a plain dictionary; `build_reply` turns it into the proto.
 
 Replies that exist: reply button ("dynamic", ButtonsResponseMessage), list row
-("list", ListResponseMessage) and template button ("template",
-TemplateButtonReplyMessage). The "native" one (quick reply of an interactive
-message) is sent by the WhatsApp Web client as text with `selectedIndex` and
-`selectedId`, and neither field exists in ExtendedTextMessage: with no
-confirmed format, the bridge refuses it instead of guessing.
+("list", ListResponseMessage), template button ("template",
+TemplateButtonReplyMessage) and the quick reply of an interactive message
+("native", InteractiveResponseMessage with a `quick_reply`
+nativeFlowResponseMessage, the format TeleZapp sends). The other native buttons
+(link, copy, call) are opened by the client itself and never come here.
 
 Nothing here was tested against a real account.
 """
+import json
+
 import commerce_messages
 
 SOURCES = ("dynamic", "native", "template", "list")
@@ -138,14 +140,22 @@ def reply_plan(wpp, source, index):
         button = _item((wpp.get("interactivePayload") or {}).get("buttons"), index)
         if button.get("name") != "quick_reply":
             raise ButtonRefused("button_not_found", 404)
-        raise ButtonRefused("reply_button_unavailable", 501)
+        try:
+            params = json.loads(button.get("buttonParamsJson") or "")
+        except ValueError:
+            params = None
+        if not isinstance(params, dict) or not params.get("display_text"):
+            raise ButtonRefused("button_not_found", 404)
+        return {"kind": "flow", "id": str(params.get("id") or ""),
+                "text": str(params["display_text"])}
     raise ButtonRefused("invalid_request", 400)
 
 
 def build_reply(plan, ctx):
     """The plan -> whatsmeow `Message`, quoting the message through `ctx`."""
     from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import (
-        ButtonsResponseMessage, ListResponseMessage, Message, TemplateButtonReplyMessage)
+        ButtonsResponseMessage, InteractiveResponseMessage, ListResponseMessage, Message,
+        TemplateButtonReplyMessage)
     if plan["kind"] == "button":
         return Message(buttonsResponseMessage=ButtonsResponseMessage(
             selectedButtonID=plan["id"], selectedDisplayText=plan["text"],
@@ -154,6 +164,14 @@ def build_reply(plan, ctx):
         return Message(templateButtonReplyMessage=TemplateButtonReplyMessage(
             selectedID=plan["id"], selectedDisplayText=plan["text"],
             selectedIndex=plan["index"], contextInfo=ctx))
+    if plan["kind"] == "flow":
+        reply = InteractiveResponseMessage(contextInfo=ctx)
+        reply.body.text = plan["text"]
+        reply.nativeFlowResponseMessage.name = "quick_reply"
+        reply.nativeFlowResponseMessage.paramsJSON = json.dumps(
+            {"display_text": plan["text"], "id": plan["id"]}, ensure_ascii=False)
+        reply.nativeFlowResponseMessage.version = 3
+        return Message(interactiveResponseMessage=reply)
     return Message(listResponseMessage=ListResponseMessage(
         title=plan["title"], description=plan["description"],
         listType=ListResponseMessage.SINGLE_SELECT, contextInfo=ctx,
