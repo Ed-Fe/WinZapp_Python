@@ -7614,9 +7614,15 @@ msgstr "WPPConnect kullanmaya devam et"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/engine_picker.py
+#, fuzzy
+#| msgid ""
+#| "WinZapp now supports the new Neonize connection engine (optional). Start the program faster, run lighter and use much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+#| "\n"
+#| "Neonize advantages: fast connection, lower resource use and no browser.\n"
+#| "WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
 msgctxt "neonize_offer_message"
 msgid ""
-"WinZapp now supports the new Neonize connection engine (optional). Start the program faster, run lighter and use much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"WinZapp now supports the new Neonize connection engine (optional). It starts faster, runs lighter and uses much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
 "\n"
 "Neonize advantages: fast connection, lower resource use and no browser.\n"
 "WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
