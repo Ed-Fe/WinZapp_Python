@@ -47,11 +47,14 @@ What the patches carry today:
   state mutation, and `MutationInfo.Remove` so `send_app_state` can send a
   REMOVE. The bridge's custom lists, community joins, channel edits, status
   privacy and contact removal use them (`neonize_bridge/COVERAGE.md`).
+- **neonize 0007**: `MediaConn`, the media upload hosts and token, for the
+  unencrypted upload of a catalog product's picture (`media_upload.py`).
 - **whatsmeow**: `events.Lock` for lock-chat mutations; button, list and flow
   replies without the `<biz>` node (the server refuses them with 479);
   `MutationInfo.Operation` (REMOVE) and `events.AppStateMutation`, emitted for
   every mutation with its collection and version, also during a full sync
-  (except the contacts a full sync stores in bulk).
+  (except the contacts a full sync stores in bulk); the `<biz>` node of a
+  native flow message (buttons, Pix, orders), as WhatsApp Web sends it.
 - **meowcaller**: go.mod/go.sum on neonize's whatsmeow pin; accept 2 s after
   Answer when no `mute_v2` arrives; resynchronize the SRTP receive ROC.
   meowcaller is pinned at 27a3c6b1, its last commit on `go.mau.fi/whatsmeow`:

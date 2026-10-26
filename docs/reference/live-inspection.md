@@ -89,6 +89,8 @@ Each session folder `neonize_bridge/data/<account id>/` holds these SQLite files
 - `bridge.db` is the bridge's own store (`chats`, `contacts`, `msgs`,
   `pinned`, `votes`, `reactions`, `receipts`, `comments`). Open it read-only
   while the bridge runs: `sqlite3.connect("file:<path>?mode=ro", uri=True)`.
+- `carts.json` holds the account's carts, one per seller (`commerce_cart.py`);
+  `labels.json` the labels the bridge created.
 - `app_state.db` (`app_state_mirror.py`) is the bridge's copy of the app state
   entries whatsmeow has no event for: labels and custom lists, status privacy.
   `bridge.log` names each kind of mutation once
