@@ -2,7 +2,7 @@
 
 What the client assumes when `wpp_engine` is `neonize` (a "custom API" client
 pointed at the local bridge in `neonize_bridge/`: no Node, no Chrome). The
-bridge's own routes are in `neonize_bridge/COBERTURA.md`.
+bridge's own routes are in `neonize_bridge/COVERAGE.md`.
 
 ## The engine is a setting
 

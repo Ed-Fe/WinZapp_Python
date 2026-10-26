@@ -116,15 +116,15 @@ jobs:
       - name: Run the dependency and build-environment checks under the venv
         run: venv\Scripts\python.exe -m pytest tests/test_requirements_in_sync.py tests/test_uv_build_architecture.py --run-wx-gui -q
 
-  # A ponte do Neonize (neonize_bridge/) tem a própria suíte, o próprio
-  # pytest.ini e as próprias dependências; o `pytest` da raiz só coleta
-  # `tests/`, então nenhum dos outros jobs a executa. Ali ficam os testes da
-  # autenticação da porta local (neonize_bridge/test_autenticacao*.py), da
-  # extração do zip do preparar.py e da regra de um manipulador por evento do
-  # neonize: sem este job, uma regressão neles passaria verde.
-  # Só no CI de PR, como o pip-compat. Para bloquear o merge, um admin precisa
-  # marcar "Neonize bridge tests" no ruleset (o agregado `Run test suite` não
-  # inclui este job de propósito: quem não usa a ponte não deve depender dele).
+  # The Neonize bridge (neonize_bridge/) has its own suite, its own
+  # pytest.ini and its own dependencies; the root `pytest` only collects
+  # `tests/`, so none of the other jobs runs it. That suite holds the tests of
+  # the local port's authentication (neonize_bridge/test_authentication*.py),
+  # of the extraction of the prepare.py zip and of the one-handler-per-event rule
+  # of neonize: without this job, a regression in them would go green.
+  # Only on PR CI, like pip-compat. To block the merge, an admin has to mark
+  # "Neonize bridge tests" in the ruleset (the `Run test suite` aggregate does not
+  # include this job on purpose: whoever does not use the bridge should not depend on it).
   neonize-bridge:
     name: Neonize bridge tests
     runs-on: windows-latest

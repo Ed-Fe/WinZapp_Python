@@ -4,7 +4,7 @@ W tej wersji pojawiają się społeczności i zreorganizowane okno ustawień, op
 
 NOWOŚCI
 
-- Nowy silnik połączenia, eksperymentalny: Neonize łączy się z WhatsApp bez przeglądarki, przez lokalny most. Wybierz go w Ustawieniach, Połączenie (lub w pytaniu przy pierwszym uruchomieniu) i uruchom WinZapp ponownie; WPPConnect nadal jest domyślny. Aby przygotować most, uruchom neonize_bridge/preparar.py (zobacz README w tym folderze).
+- Nowy silnik połączenia, eksperymentalny: Neonize łączy się z WhatsApp bez przeglądarki, przez lokalny most. Wybierz go w Ustawieniach, Połączenie (lub w pytaniu przy pierwszym uruchomieniu) i uruchom WinZapp ponownie; WPPConnect nadal jest domyślny. Aby przygotować most, uruchom neonize_bridge/prepare.py (zobacz README w tym folderze).
 
 - Listy czatów (rozmowy, zarchiwizowane i zablokowane) wykorzystują teraz całą szerokość listy, dzięki czemu nazwy czatów i podglądy wiadomości są znacznie rzadziej ucinane w szerokim oknie.
 

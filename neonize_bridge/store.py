@@ -1,11 +1,11 @@
-"""Armazenamento da ponte (SQLite): o neonize nao tem lista de conversas nem
-leitura de historico sob demanda, entao a ponte guarda o que chega (pacotes de
-historico e mensagens ao vivo) e responde list-chats / get-messages daqui."""
+"""The bridge's storage (SQLite): neonize has no chat list nor on-demand history
+reading, so the bridge stores what arrives (history packages and live messages)
+and answers list-chats / get-messages from here."""
 import json
 import sqlite3
 import threading
 
-ESQUEMA = """
+SCHEMA = """
 CREATE TABLE IF NOT EXISTS chats(
     jid TEXT PRIMARY KEY, name TEXT DEFAULT '', ts INTEGER DEFAULT 0,
     unread INTEGER DEFAULT 0, archived INTEGER DEFAULT 0,
@@ -15,467 +15,498 @@ CREATE TABLE IF NOT EXISTS contacts(
 CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
     raw BLOB, PRIMARY KEY(chat, id));
-CREATE INDEX IF NOT EXISTS msgs_por_data ON msgs(chat, ts);
-CREATE TABLE IF NOT EXISTS fixadas(
-    msg TEXT PRIMARY KEY, chat TEXT NOT NULL, ts INTEGER DEFAULT 0, duracao INTEGER DEFAULT 0);
-CREATE TABLE IF NOT EXISTS votos(
-    msg TEXT NOT NULL, quem TEXT NOT NULL, ids TEXT NOT NULL, ts INTEGER DEFAULT 0,
-    PRIMARY KEY(msg, quem));
-CREATE TABLE IF NOT EXISTS reacoes(
-    msg TEXT NOT NULL, quem TEXT NOT NULL, emoji TEXT NOT NULL, ts INTEGER DEFAULT 0,
-    PRIMARY KEY(msg, quem));
-CREATE TABLE IF NOT EXISTS recibos(
-    msg TEXT NOT NULL, quem TEXT NOT NULL, etapa TEXT NOT NULL, ts INTEGER DEFAULT 0,
-    PRIMARY KEY(msg, quem, etapa));
-CREATE TABLE IF NOT EXISTS comentarios(
+CREATE INDEX IF NOT EXISTS msgs_by_date ON msgs(chat, ts);
+CREATE TABLE IF NOT EXISTS pinned(
+    msg TEXT PRIMARY KEY, chat TEXT NOT NULL, ts INTEGER DEFAULT 0, duration INTEGER DEFAULT 0);
+CREATE TABLE IF NOT EXISTS votes(
+    msg TEXT NOT NULL, who TEXT NOT NULL, ids TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, who));
+CREATE TABLE IF NOT EXISTS reactions(
+    msg TEXT NOT NULL, who TEXT NOT NULL, emoji TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, who));
+CREATE TABLE IF NOT EXISTS receipts(
+    msg TEXT NOT NULL, who TEXT NOT NULL, stage TEXT NOT NULL, ts INTEGER DEFAULT 0,
+    PRIMARY KEY(msg, who, stage));
+CREATE TABLE IF NOT EXISTS comments(
     chat TEXT NOT NULL, id TEXT NOT NULL, parent_id TEXT NOT NULL,
     author TEXT DEFAULT '', ts INTEGER DEFAULT 0, type TEXT NOT NULL,
-    body TEXT DEFAULT '', from_me INTEGER DEFAULT 0, serial_pai TEXT DEFAULT '',
+    body TEXT DEFAULT '', from_me INTEGER DEFAULT 0, parent_serial TEXT DEFAULT '',
     PRIMARY KEY(chat, id));
-CREATE INDEX IF NOT EXISTS comentarios_por_pai ON comentarios(chat, parent_id, ts);
+CREATE INDEX IF NOT EXISTS comments_by_parent ON comments(chat, parent_id, ts);
 """
 
-# Mensagens que a ponte fabrica a partir de eventos (mensagens_de_sistema.py):
-# nao sao de ninguem a ler nem a marcar como lidas.
-TIPOS_DE_SISTEMA = ("gp2", "call_log")
-
-CAMPOS_CONVERSA = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
-
-
-#: etapa de recibo -> ack do WhatsApp Web
-ACK_DA_ETAPA = {"delivered": 2, "read": 3, "played": 4}
-
-
-def ack_dos_recibos(recibos):
-    """O ack mais alto entre os recibos [(quem, etapa, ts)]; 1 (enviada) se
-    nenhum chegou."""
-    return max([1] + [ACK_DA_ETAPA.get(etapa, 1) for _, etapa, _ in recibos])
+# Databases written before the bridge's names were in English use these table and
+# column names; they are renamed in place, so no stored message is lost.
+LEGACY_TABLES = {"fixadas": "pinned", "votos": "votes", "reacoes": "reactions",
+                 "recibos": "receipts", "comentarios": "comments"}
+LEGACY_COLUMNS = {"pinned": {"duracao": "duration"}, "votes": {"quem": "who"},
+                  "reactions": {"quem": "who"}, "receipts": {"quem": "who", "etapa": "stage"},
+                  "comments": {"serial_pai": "parent_serial"}}
+LEGACY_INDEXES = ("msgs_por_data", "comentarios_por_pai")
 
 
-class Armazem:
-    def __init__(self, caminho):
-        self._bd = sqlite3.connect(caminho, check_same_thread=False)
-        self._bd.row_factory = sqlite3.Row
-        self._trava = threading.RLock()
-        with self._trava:
-            self._bd.executescript(ESQUEMA)
-            try:    # bancos criados antes da coluna locked
-                self._bd.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")
+def migrate_legacy_schema(conn):
+    """Renames the tables, columns and indexes of a database created with the
+    old names. Safe to run on a database that has the new names already."""
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    for old, new in LEGACY_TABLES.items():
+        if old in tables and new not in tables:
+            conn.execute(f"ALTER TABLE {old} RENAME TO {new}")
+    for table, columns in LEGACY_COLUMNS.items():
+        present = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for old, new in columns.items():
+            if old in present and new not in present:
+                conn.execute(f"ALTER TABLE {table} RENAME COLUMN {old} TO {new}")
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    for table in ("votes", "reactions"):    # the own account used to be stored as "eu"
+        if table in tables:
+            conn.execute(f"UPDATE OR IGNORE {table} SET who='me' WHERE who='eu'")
+    for index in LEGACY_INDEXES:
+        conn.execute(f"DROP INDEX IF EXISTS {index}")
+    conn.commit()
+
+# Messages the bridge makes up from events (system_messages.py):
+# nobody's to read nor to mark as read.
+SYSTEM_TYPES = ("gp2", "call_log")
+
+CHAT_FIELDS = {"name", "ts", "unread", "archived", "pinned", "muted", "locked"}
+
+
+#: receipt stage -> WhatsApp Web ack
+STAGE_ACK = {"delivered": 2, "read": 3, "played": 4}
+
+
+def receipts_ack(receipts):
+    """The highest ack among the receipts [(who, stage, ts)]; 1 (sent) if none
+    arrived."""
+    return max([1] + [STAGE_ACK.get(stage, 1) for _, stage, _ in receipts])
+
+
+class Store:
+    def __init__(self, path):
+        self._conn = sqlite3.connect(path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._lock = threading.RLock()
+        with self._lock:
+            migrate_legacy_schema(self._conn)
+            self._conn.executescript(SCHEMA)
+            try:    # databases created before the locked column
+                self._conn.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")
             except sqlite3.OperationalError:
                 pass
-            try:    # bancos criados antes da coluna raw
-                self._bd.execute("ALTER TABLE msgs ADD COLUMN raw BLOB")
+            try:    # databases created before the raw column
+                self._conn.execute("ALTER TABLE msgs ADD COLUMN raw BLOB")
             except sqlite3.OperationalError:
                 pass
-            try:    # bancos criados antes desta coluna
-                self._bd.execute("ALTER TABLE chats ADD COLUMN read_ts INTEGER DEFAULT 0")
+            try:    # databases created before this column
+                self._conn.execute("ALTER TABLE chats ADD COLUMN read_ts INTEGER DEFAULT 0")
             except sqlite3.OperationalError:
                 pass
 
-    def fechar(self):
-        """Solta o arquivo (no Windows uma pasta com banco aberto nao se apaga)."""
-        with self._trava:
-            self._bd.close()
+    def close(self):
+        """Releases the file (on Windows a folder with an open database cannot be deleted)."""
+        with self._lock:
+            self._conn.close()
 
-    # ---------------------------------------------------------- conversas
-    def conversa(self, jid, **campos):
-        """Cria a conversa se nao existir e grava so os campos dados."""
-        campos = {k: v for k, v in campos.items() if k in CAMPOS_CONVERSA}
-        with self._trava:
-            self._bd.execute("INSERT OR IGNORE INTO chats(jid) VALUES (?)", (jid,))
-            if campos:
-                sets = ", ".join(f"{k}=?" for k in campos)
-                self._bd.execute(f"UPDATE chats SET {sets} WHERE jid=?",
-                                 (*campos.values(), jid))
-            self._bd.commit()
+    # ---------------------------------------------------------- chats
+    def chat(self, jid, **fields):
+        """Creates the chat if it does not exist and writes only the given fields."""
+        fields = {k: v for k, v in fields.items() if k in CHAT_FIELDS}
+        with self._lock:
+            self._conn.execute("INSERT OR IGNORE INTO chats(jid) VALUES (?)", (jid,))
+            if fields:
+                sets = ", ".join(f"{k}=?" for k in fields)
+                self._conn.execute(f"UPDATE chats SET {sets} WHERE jid=?",
+                                   (*fields.values(), jid))
+            self._conn.commit()
 
-    def copiar_estado(self, origem, destino):
-        """Poe em `destino` o arquivada/fixada/silenciada de `origem`: a mesma
-        conversa guardada sob dois enderecos (numero e LID) muda junta."""
-        with self._trava:
-            r = self._bd.execute(
-                "SELECT archived, pinned, muted FROM chats WHERE jid=?", (origem,)).fetchone()
+    def copy_state(self, source, destination):
+        """Puts in `destination` the archived/pinned/muted of `source`: the same
+        chat stored under two addresses (number and LID) changes together."""
+        with self._lock:
+            r = self._conn.execute(
+                "SELECT archived, pinned, muted FROM chats WHERE jid=?", (source,)).fetchone()
             if r is not None:
-                self._bd.execute(
+                self._conn.execute(
                     "UPDATE chats SET archived=?, pinned=?, muted=? WHERE jid=?",
-                    (r["archived"], r["pinned"], r["muted"], destino))
-                self._bd.commit()
+                    (r["archived"], r["pinned"], r["muted"], destination))
+                self._conn.commit()
 
-    def ao_chegar(self, jid, ts, de_mim):
-        """Mensagem nova: sobe a data da conversa e conta nao lida."""
-        with self._trava:
-            self._bd.execute("INSERT OR IGNORE INTO chats(jid) VALUES (?)", (jid,))
-            self._bd.execute(
+    def on_arrival(self, jid, ts, from_me):
+        """New message: raises the chat's date and counts an unread."""
+        with self._lock:
+            self._conn.execute("INSERT OR IGNORE INTO chats(jid) VALUES (?)", (jid,))
+            self._conn.execute(
                 "UPDATE chats SET ts=MAX(ts, ?), unread=unread+? WHERE jid=?",
-                (ts, 0 if de_mim else 1, jid))
-            self._bd.commit()
+                (ts, 0 if from_me else 1, jid))
+            self._conn.commit()
 
-    def conversas(self):
-        with self._trava:
-            return [dict(r) for r in self._bd.execute(
+    def chats(self):
+        with self._lock:
+            return [dict(r) for r in self._conn.execute(
                 "SELECT * FROM chats ORDER BY ts DESC")]
 
-    # ----------------------------------------------------------- contatos
-    def contato(self, jid, name=None, pushname=None):
-        with self._trava:
-            self._bd.execute("INSERT OR IGNORE INTO contacts(jid) VALUES (?)", (jid,))
+    # ----------------------------------------------------------- contacts
+    def contact(self, jid, name=None, pushname=None):
+        with self._lock:
+            self._conn.execute("INSERT OR IGNORE INTO contacts(jid) VALUES (?)", (jid,))
             if name:
-                self._bd.execute("UPDATE contacts SET name=? WHERE jid=?", (name, jid))
+                self._conn.execute("UPDATE contacts SET name=? WHERE jid=?", (name, jid))
             if pushname:
-                self._bd.execute("UPDATE contacts SET pushname=? WHERE jid=?",
-                                 (pushname, jid))
-            self._bd.commit()
+                self._conn.execute("UPDATE contacts SET pushname=? WHERE jid=?",
+                                   (pushname, jid))
+            self._conn.commit()
 
-    def contato_de(self, *jids):
-        """Nome e apelido de um contato (mescla as formas do JID dadas)."""
-        achado = {}
-        with self._trava:
+    def contact_of(self, *jids):
+        """Name and nickname of a contact (merges the given forms of the JID)."""
+        found = {}
+        with self._lock:
             for jid in [j for j in jids if j]:
-                r = self._bd.execute("SELECT name, pushname FROM contacts WHERE jid=?", (jid,)).fetchone()
+                r = self._conn.execute("SELECT name, pushname FROM contacts WHERE jid=?", (jid,)).fetchone()
                 if r:
-                    achado.update({k: r[k] for k in ("name", "pushname") if r[k]})
-        return achado
+                    found.update({k: r[k] for k in ("name", "pushname") if r[k]})
+        return found
 
-    def contatos(self):
-        with self._trava:
-            return [dict(r) for r in self._bd.execute("SELECT * FROM contacts")]
+    def contacts(self):
+        with self._lock:
+            return [dict(r) for r in self._conn.execute("SELECT * FROM contacts")]
 
-    # ---------------------------------------------------------- mensagens
-    def mensagem(self, conversa, wpp, raw=None):
-        """Guarda (ou troca) uma mensagem no formato do WhatsApp Web; `raw` e a
-        ficha da midia (proto serializado) para baixa-la depois."""
-        self.mensagens_em_lote([(conversa, wpp, raw)])
+    # ---------------------------------------------------------- messages
+    def message(self, chat, wpp, raw=None):
+        """Stores (or replaces) a message in the WhatsApp Web format; `raw` is the
+        media record (serialized proto) to download it later."""
+        self.messages_in_batch([(chat, wpp, raw)])
 
-    def mensagens_em_lote(self, linhas):
-        """Linhas (conversa, wpp) ou (conversa, wpp, raw)."""
-        with self._trava:
-            self._bd.executemany(
+    def messages_in_batch(self, rows):
+        """Rows (chat, wpp) or (chat, wpp, raw)."""
+        with self._lock:
+            self._conn.executemany(
                 "INSERT OR REPLACE INTO msgs(chat, id, ts, data, raw) VALUES (?,?,?,?,?)",
                 [(l[0], l[1]["id"]["id"], l[1]["t"], json.dumps(l[1]),
-                  l[2] if len(l) > 2 else None) for l in linhas])
-            self._bd.commit()
+                  l[2] if len(l) > 2 else None) for l in rows])
+            self._conn.commit()
 
-    def mudar_mensagem(self, id_msg, **campos):
-        """Muda campos do JSON de uma mensagem guardada (estrela, tipo...)."""
-        with self._trava:
-            r = self._bd.execute("SELECT chat, data FROM msgs WHERE id=?", (id_msg,)).fetchone()
+    def change_message(self, msg_id, **fields):
+        """Changes fields of a stored message's JSON (star, type...)."""
+        with self._lock:
+            r = self._conn.execute("SELECT chat, data FROM msgs WHERE id=?", (msg_id,)).fetchone()
             if r is None:
                 return False
-            dados = json.loads(r["data"])
-            dados.update(campos)
-            self._bd.execute("UPDATE msgs SET data=? WHERE id=?", (json.dumps(dados), id_msg))
-            self._bd.commit()
+            data = json.loads(r["data"])
+            data.update(fields)
+            self._conn.execute("UPDATE msgs SET data=? WHERE id=?", (json.dumps(data), msg_id))
+            self._conn.commit()
         return True
 
-    def aplicar_revogacoes(self):
-        """Poe como apagada, no lugar, a mensagem original de cada aviso de
-        'apagar para todos' guardado (ate agora so o aviso era guardado, e a
-        mensagem voltava a aparecer quando o app recarregava a conversa)."""
-        with self._trava:
-            alvos = [json.loads(r["data"]).get("protocolMessageKey", {}).get("id")
-                     for r in self._bd.execute(
-                         "SELECT data FROM msgs WHERE json_extract(data,'$.type')='revoked'")]
-        feitas = 0
-        for alvo in [a for a in alvos if a]:
-            if self.mudar_mensagem(alvo, type="revoked", body=""):
-                feitas += 1
-        return feitas
+    def apply_revocations(self):
+        """Marks as deleted, in place, the original message of each stored 'delete
+        for everyone' notice (until now only the notice was stored, and the
+        message came back when the app reloaded the chat)."""
+        with self._lock:
+            targets = [json.loads(r["data"]).get("protocolMessageKey", {}).get("id")
+                       for r in self._conn.execute(
+                           "SELECT data FROM msgs WHERE json_extract(data,'$.type')='revoked'")]
+        done = 0
+        for target in [a for a in targets if a]:
+            if self.change_message(target, type="revoked", body=""):
+                done += 1
+        return done
 
-    def reagir(self, id_msg, quem, emoji, ts=0):
-        """Guarda a reacao de `quem` a uma mensagem; emoji vazio tira a reacao."""
-        with self._trava:
+    def react(self, msg_id, who, emoji, ts=0):
+        """Stores `who`'s reaction to a message; an empty emoji removes the reaction."""
+        with self._lock:
             if emoji:
-                self._bd.execute(
-                    "INSERT OR REPLACE INTO reacoes(msg, quem, emoji, ts) VALUES (?,?,?,?)",
-                    (id_msg, quem, emoji, ts))
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO reactions(msg, who, emoji, ts) VALUES (?,?,?,?)",
+                    (msg_id, who, emoji, ts))
             else:
-                self._bd.execute("DELETE FROM reacoes WHERE msg=? AND quem=?", (id_msg, quem))
-            self._bd.commit()
+                self._conn.execute("DELETE FROM reactions WHERE msg=? AND who=?", (msg_id, who))
+            self._conn.commit()
 
-    def fixar_mensagem(self, id_msg, chat, fixar, ts=0, duracao=0):
-        """Fixa (ou solta) uma mensagem na conversa. `duracao` em segundos; 0 =
-        sem fim conhecido."""
-        with self._trava:
-            if fixar:
-                self._bd.execute(
-                    "INSERT OR REPLACE INTO fixadas(msg, chat, ts, duracao) VALUES (?,?,?,?)",
-                    (id_msg, chat, ts, duracao))
+    def pin_message(self, msg_id, chat, pin, ts=0, duration=0):
+        """Pins (or unpins) a message in the chat. `duration` in seconds; 0 =
+        no known end."""
+        with self._lock:
+            if pin:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO pinned(msg, chat, ts, duration) VALUES (?,?,?,?)",
+                    (msg_id, chat, ts, duration))
             else:
-                self._bd.execute("DELETE FROM fixadas WHERE msg=?", (id_msg,))
-            self._bd.commit()
+                self._conn.execute("DELETE FROM pinned WHERE msg=?", (msg_id,))
+            self._conn.commit()
 
-    def fixadas_de(self, chats, agora):
-        """Mensagens (formato WhatsApp Web) fixadas nas conversas dadas, sem as
-        que ja passaram do prazo."""
-        achadas = []
-        with self._trava:
-            linhas = [r for chat in chats for r in self._bd.execute(
-                "SELECT msg, ts, duracao FROM fixadas WHERE chat=? ORDER BY ts", (chat,))]
-        for r in linhas:
-            if r["duracao"] and r["ts"] and r["ts"] + r["duracao"] <= agora:
+    def pinned_of(self, chats, now):
+        """Messages (WhatsApp Web format) pinned in the given chats, without the
+        ones past their deadline."""
+        found = []
+        with self._lock:
+            rows = [r for chat in chats for r in self._conn.execute(
+                "SELECT msg, ts, duration FROM pinned WHERE chat=? ORDER BY ts", (chat,))]
+        for r in rows:
+            if r["duration"] and r["ts"] and r["ts"] + r["duration"] <= now:
                 continue
-            w = self.mensagem_wpp(r["msg"])
+            w = self.wpp_message(r["msg"])
             if w is not None:
-                achadas.append(w)
-        return achadas
+                found.append(w)
+        return found
 
-    def votar(self, id_msg, quem, indices, ts=0):
-        """Guarda o voto de `quem` numa enquete (posicoes das opcoes); lista vazia
-        tira o voto."""
-        with self._trava:
-            if indices:
-                self._bd.execute(
-                    "INSERT OR REPLACE INTO votos(msg, quem, ids, ts) VALUES (?,?,?,?)",
-                    (id_msg, quem, json.dumps(list(indices)), ts))
+    def vote(self, msg_id, who, indexes, ts=0):
+        """Stores `who`'s vote in a poll (positions of the options); an empty list
+        removes the vote."""
+        with self._lock:
+            if indexes:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO votes(msg, who, ids, ts) VALUES (?,?,?,?)",
+                    (msg_id, who, json.dumps(list(indexes)), ts))
             else:
-                self._bd.execute("DELETE FROM votos WHERE msg=? AND quem=?", (id_msg, quem))
-            self._bd.commit()
+                self._conn.execute("DELETE FROM votes WHERE msg=? AND who=?", (msg_id, who))
+            self._conn.commit()
 
-    def votos_de(self, id_msg):
-        """[(quem, [posicoes])] dos votos de uma enquete."""
-        with self._trava:
-            return [(r["quem"], json.loads(r["ids"])) for r in self._bd.execute(
-                "SELECT quem, ids FROM votos WHERE msg=? ORDER BY ts, rowid", (id_msg,))]
+    def votes_of(self, msg_id):
+        """[(who, [positions])] of a poll's votes."""
+        with self._lock:
+            return [(r["who"], json.loads(r["ids"])) for r in self._conn.execute(
+                "SELECT who, ids FROM votes WHERE msg=? ORDER BY ts, rowid", (msg_id,))]
 
-    def reacoes_de(self, id_msg):
-        """[(quem, emoji)] das reacoes a uma mensagem, da mais antiga a mais nova."""
-        with self._trava:
-            return [(r["quem"], r["emoji"]) for r in self._bd.execute(
-                "SELECT quem, emoji FROM reacoes WHERE msg=? ORDER BY ts, rowid", (id_msg,))]
+    def reactions_of(self, msg_id):
+        """[(who, emoji)] of the reactions to a message, from the oldest to the newest."""
+        with self._lock:
+            return [(r["who"], r["emoji"]) for r in self._conn.execute(
+                "SELECT who, emoji FROM reactions WHERE msg=? ORDER BY ts, rowid", (msg_id,))]
 
-    def apagar_mensagem(self, id_msg):
-        with self._trava:
-            self._bd.execute("DELETE FROM msgs WHERE id=?", (id_msg,))
-            self._bd.commit()
+    def delete_message(self, msg_id):
+        with self._lock:
+            self._conn.execute("DELETE FROM msgs WHERE id=?", (msg_id,))
+            self._conn.commit()
 
-    def mensagem_wpp(self, id_msg):
-        """A mensagem (formato WhatsApp Web) de um id, em qualquer conversa, ou None."""
-        with self._trava:
-            r = self._bd.execute("SELECT data FROM msgs WHERE id=?", (id_msg,)).fetchone()
+    def wpp_message(self, msg_id):
+        """The message (WhatsApp Web format) of an id, in any chat, or None."""
+        with self._lock:
+            r = self._conn.execute("SELECT data FROM msgs WHERE id=?", (msg_id,)).fetchone()
         return json.loads(r["data"]) if r else None
 
-    def ficha(self, id_msg):
-        """A ficha da midia de uma mensagem (qualquer conversa) ou None."""
-        with self._trava:
-            r = self._bd.execute("SELECT raw FROM msgs WHERE id=? AND raw IS NOT NULL",
-                                 (id_msg,)).fetchone()
+    def media_record(self, msg_id):
+        """The media record of a message (any chat) or None."""
+        with self._lock:
+            r = self._conn.execute("SELECT raw FROM msgs WHERE id=? AND raw IS NOT NULL",
+                                   (msg_id,)).fetchone()
         return bytes(r["raw"]) if r else None
 
-    def mensagens(self, conversa, quantidade=20, antes_de=None):
-        """As `quantidade` mais recentes (ou as anteriores a `antes_de`, um id
-        de mensagem), em ordem cronologica. `conversa` e uma chave ou varias
-        (os dois enderecos, numero e LID, da mesma conversa). Uma ancora
-        desconhecida devolve [] e nunca as mais novas: o cliente leria como
-        pagina anterior o que na verdade e o fim da conversa."""
-        chats = (conversa,) if isinstance(conversa, str) else tuple(conversa)
-        marcas = ",".join("?" * len(chats))
-        with self._trava:
-            limite = None
-            if antes_de:
-                r = self._bd.execute(
-                    f"SELECT ts FROM msgs WHERE chat IN ({marcas}) AND id=?",
-                    (*chats, antes_de)).fetchone()
-                if r is None:       # a ancora pode estar sob outro endereco da conversa
-                    r = self._bd.execute("SELECT ts FROM msgs WHERE id=? LIMIT 1",
-                                         (antes_de,)).fetchone()
+    def messages(self, chat, quantity=20, before=None):
+        """The `quantity` most recent (or the ones before `before`, a message
+        id), in chronological order. `chat` is one key or several (the two
+        addresses, number and LID, of the same chat). An unknown anchor returns
+        [] and never the newest: the client would read as a previous page what
+        is actually the end of the chat."""
+        chats = (chat,) if isinstance(chat, str) else tuple(chat)
+        marks = ",".join("?" * len(chats))
+        with self._lock:
+            limit = None
+            if before:
+                r = self._conn.execute(
+                    f"SELECT ts FROM msgs WHERE chat IN ({marks}) AND id=?",
+                    (*chats, before)).fetchone()
+                if r is None:       # the anchor may be under another address of the chat
+                    r = self._conn.execute("SELECT ts FROM msgs WHERE id=? LIMIT 1",
+                                           (before,)).fetchone()
                 if r is None:
                     return []
-                limite = r["ts"]
-            if limite is None:
-                linhas = self._bd.execute(
-                    f"SELECT data FROM msgs WHERE chat IN ({marcas}) "
-                    "ORDER BY ts DESC, rowid DESC LIMIT ?", (*chats, quantidade)).fetchall()
+                limit = r["ts"]
+            if limit is None:
+                rows = self._conn.execute(
+                    f"SELECT data FROM msgs WHERE chat IN ({marks}) "
+                    "ORDER BY ts DESC, rowid DESC LIMIT ?", (*chats, quantity)).fetchall()
             else:
-                linhas = self._bd.execute(
-                    f"SELECT data FROM msgs WHERE chat IN ({marcas}) "
+                rows = self._conn.execute(
+                    f"SELECT data FROM msgs WHERE chat IN ({marks}) "
                     "AND (ts<? OR (ts=? AND id<?)) ORDER BY ts DESC, rowid DESC LIMIT ?",
-                    (*chats, limite, limite, antes_de, quantidade)).fetchall()
-        return [json.loads(r["data"]) for r in reversed(linhas)]
+                    (*chats, limit, limit, before, quantity)).fetchall()
+        return [json.loads(r["data"]) for r in reversed(rows)]
 
-    def para_resposta(self, mensagens, ack_de=None):
-        """Copias das mensagens no formato que get-messages e message-by-id
-        devolvem: `star` sempre booleano (sem ele o cliente nunca reconcilia as
-        estrelas locais) e, nas minhas, `ack` (1 enviada, 2 entregue, 3 lida,
-        4 ouvida) vindo dos recibos guardados, no minimo 1: o cliente monta os
-        tiques so do `ack` e a sincronizacao troca o registro local pelo lido.
-        `ack_de(mensagem)` (opcional) decide o ack das mensagens de grupo (todos
-        os membros, recibos_de_grupo.py); None = vale o dos recibos."""
-        saida = []
-        respostas = self.contagens_de_comentarios()
-        for w in mensagens:
+    def for_response(self, messages, ack_of=None):
+        """Copies of the messages in the format that get-messages and message-by-id
+        return: `star` always boolean (without it the client never reconciles
+        the local stars) and, on mine, `ack` (1 sent, 2 delivered, 3 read,
+        4 played) coming from the stored receipts, at least 1: the client builds
+        the ticks only from `ack` and the sync replaces the local record with the
+        one read. `ack_of(message)` (optional) decides the ack of group messages
+        (all members, group_receipts.py); None = the receipts' one stands."""
+        out = []
+        replies = self.comment_counts()
+        for w in messages:
             w = {**w, "star": bool(w.get("star"))}
-            if w["id"]["id"] in respostas:
-                w["replyCount"] = respostas[w["id"]["id"]]
+            if w["id"]["id"] in replies:
+                w["replyCount"] = replies[w["id"]["id"]]
             if w.get("fromMe"):
-                ack = ack_de(w) if ack_de else None
-                w["ack"] = ack if ack is not None else ack_dos_recibos(
-                    self.recibos_de(w["id"]["id"]))
-            saida.append(w)
-        return saida
+                ack = ack_of(w) if ack_of else None
+                w["ack"] = ack if ack is not None else receipts_ack(
+                    self.receipts_of(w["id"]["id"]))
+            out.append(w)
+        return out
 
-    # -------------------------------------------- comentarios dos avisos
-    _CONTA = "type IN ('comment','ciphertext')"     # o apagado nao conta
+    # -------------------------------------------- announcement comments
+    _COUNTED = "type IN ('comment','ciphertext')"     # the deleted one does not count
 
-    def guardar_comentario(self, id_msg, id_pai, chat, autor, ts, tipo, corpo, de_mim,
-                           serial_pai=""):
-        """Guarda um comentario de aviso. Repetido (o servidor reentrega) nao
-        muda nada, a nao ser que o guardado fosse ilegivel e este abra."""
-        with self._trava:
-            self._bd.execute(
-                "INSERT INTO comentarios(chat, id, parent_id, author, ts, type, body, from_me,"
-                " serial_pai) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(chat, id) DO UPDATE SET"
+    def store_comment(self, msg_id, parent_id, chat, author, ts, kind, body, from_me,
+                      parent_serial=""):
+        """Stores an announcement comment. A repeated one (the server redelivers)
+        changes nothing, unless the stored one was unreadable and this one opens."""
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO comments(chat, id, parent_id, author, ts, type, body, from_me,"
+                " parent_serial) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(chat, id) DO UPDATE SET"
                 " type=excluded.type, body=excluded.body, author=excluded.author"
-                " WHERE comentarios.type='ciphertext' AND excluded.type='comment'",
-                (chat, id_msg, id_pai, autor, int(ts), tipo, corpo, int(bool(de_mim)),
-                 serial_pai))
-            self._bd.commit()
+                " WHERE comments.type='ciphertext' AND excluded.type='comment'",
+                (chat, msg_id, parent_id, author, int(ts), kind, body, int(bool(from_me)),
+                 parent_serial))
+            self._conn.commit()
 
-    def autor_do_comentario(self, chat, id_msg):
-        """(autor, from_me) de um comentario ainda nao apagado, ou None."""
-        with self._trava:
-            r = self._bd.execute(
-                "SELECT author, from_me FROM comentarios WHERE chat=? AND id=?"
-                " AND type!='revoked'", (chat, id_msg)).fetchone()
+    def comment_author(self, chat, msg_id):
+        """(author, from_me) of a comment not yet deleted, or None."""
+        with self._lock:
+            r = self._conn.execute(
+                "SELECT author, from_me FROM comments WHERE chat=? AND id=?"
+                " AND type!='revoked'", (chat, msg_id)).fetchone()
         return None if r is None else (r["author"], bool(r["from_me"]))
 
-    def revogar_comentario(self, chat, id_msg):
-        """Marca o comentario como apagado. (id da mensagem comentada, serial
-        dela) se havia um comentario ainda nao apagado com esse id; senao None."""
-        with self._trava:
-            r = self._bd.execute(
-                "SELECT parent_id, serial_pai FROM comentarios WHERE chat=? AND id=?"
-                " AND type!='revoked'", (chat, id_msg)).fetchone()
+    def revoke_comment(self, chat, msg_id):
+        """Marks the comment as deleted. (id of the commented message, its serial)
+        if there was a not yet deleted comment with that id; otherwise None."""
+        with self._lock:
+            r = self._conn.execute(
+                "SELECT parent_id, parent_serial FROM comments WHERE chat=? AND id=?"
+                " AND type!='revoked'", (chat, msg_id)).fetchone()
             if r is None:
                 return None
-            self._bd.execute("UPDATE comentarios SET type='revoked', body='' WHERE chat=? AND id=?",
-                             (chat, id_msg))
-            self._bd.commit()
-        return r["parent_id"], r["serial_pai"]
+            self._conn.execute("UPDATE comments SET type='revoked', body='' WHERE chat=? AND id=?",
+                               (chat, msg_id))
+            self._conn.commit()
+        return r["parent_id"], r["parent_serial"]
 
-    def comentarios_de(self, chat, id_pai):
-        """Os comentarios de uma mensagem, do mais antigo ao mais novo."""
-        with self._trava:
-            return [dict(r) for r in self._bd.execute(
-                "SELECT * FROM comentarios WHERE chat=? AND parent_id=? ORDER BY ts, rowid",
-                (chat, id_pai))]
+    def comments_of(self, chat, parent_id):
+        """A message's comments, from the oldest to the newest."""
+        with self._lock:
+            return [dict(r) for r in self._conn.execute(
+                "SELECT * FROM comments WHERE chat=? AND parent_id=? ORDER BY ts, rowid",
+                (chat, parent_id))]
 
-    def contar_comentarios(self, chat, id_pai):
-        with self._trava:
-            return self._bd.execute(
-                f"SELECT COUNT(*) FROM comentarios WHERE chat=? AND parent_id=? AND {self._CONTA}",
-                (chat, id_pai)).fetchone()[0]
+    def count_comments(self, chat, parent_id):
+        with self._lock:
+            return self._conn.execute(
+                f"SELECT COUNT(*) FROM comments WHERE chat=? AND parent_id=? AND {self._COUNTED}",
+                (chat, parent_id)).fetchone()[0]
 
-    def contagens_de_comentarios(self):
-        """{id da mensagem comentada: quantos comentarios} de tudo que ha."""
-        with self._trava:
-            return {r[0]: r[1] for r in self._bd.execute(
-                f"SELECT parent_id, COUNT(*) FROM comentarios WHERE {self._CONTA}"
+    def comment_counts(self):
+        """{id of the commented message: how many comments} of everything there is."""
+        with self._lock:
+            return {r[0]: r[1] for r in self._conn.execute(
+                f"SELECT parent_id, COUNT(*) FROM comments WHERE {self._COUNTED}"
                 " GROUP BY parent_id")}
 
-    def ultimo_comentario(self, chat):
-        """O comentario mais novo da conversa que nao foi apagado, ou None."""
-        with self._trava:
-            r = self._bd.execute(
-                f"SELECT * FROM comentarios WHERE chat=? AND {self._CONTA}"
+    def last_comment(self, chat):
+        """The newest comment of the chat that was not deleted, or None."""
+        with self._lock:
+            r = self._conn.execute(
+                f"SELECT * FROM comments WHERE chat=? AND {self._COUNTED}"
                 " ORDER BY ts DESC, rowid DESC LIMIT 1", (chat,)).fetchone()
         return dict(r) if r else None
 
-    def recebidas_a_ler(self, conversa, limite=3000):
-        """As ultimas mensagens recebidas que contam como nao lidas: tantas
-        quantas o contador da conversa diz (as do historico e as ao vivo).
-        Devolve [(id, remetente_wpp, ts)] e zera a conversa."""
-        with self._trava:
-            r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()
-            n = min(int(r["unread"] or 0), limite) if r else 0
-            achadas = []
+    def received_to_read(self, chat, limit=3000):
+        """The last received messages that count as unread: as many as the chat's
+        counter says (the history ones and the live ones).
+        Returns [(id, sender_wpp, ts)] and zeroes the chat."""
+        with self._lock:
+            r = self._conn.execute("SELECT unread FROM chats WHERE jid=?", (chat,)).fetchone()
+            n = min(int(r["unread"] or 0), limit) if r else 0
+            found = []
             if n > 0:
-                linhas = self._bd.execute(
+                rows = self._conn.execute(
                     "SELECT data FROM msgs WHERE chat=? ORDER BY ts DESC, rowid DESC LIMIT ?",
-                    (conversa, n * 3 + 50)).fetchall()
-                for linha in linhas:
-                    w = json.loads(linha["data"])
-                    if not w.get("fromMe") and w.get("type") not in TIPOS_DE_SISTEMA:
-                        achadas.append((w["id"]["id"], w.get("author") or w.get("from") or conversa, w["t"]))
-                        if len(achadas) == n:
+                    (chat, n * 3 + 50)).fetchall()
+                for row in rows:
+                    w = json.loads(row["data"])
+                    if not w.get("fromMe") and w.get("type") not in SYSTEM_TYPES:
+                        found.append((w["id"]["id"], w.get("author") or w.get("from") or chat, w["t"]))
+                        if len(found) == n:
                             break
-                achadas.reverse()
-            self._bd.execute("UPDATE chats SET unread=0 WHERE jid=?", (conversa,))
-            self._bd.commit()
-        return achadas
+                found.reverse()
+            self._conn.execute("UPDATE chats SET unread=0 WHERE jid=?", (chat,))
+            self._conn.commit()
+        return found
 
-    def contagens(self):
-        with self._trava:
-            c = self._bd.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
-            m = self._bd.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
+    def counts(self):
+        with self._lock:
+            c = self._conn.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+            m = self._conn.execute("SELECT COUNT(*) FROM msgs").fetchone()[0]
         return {"chat": c, "message": m}
 
-    def contagem_de_estados(self):
-        """(arquivadas, fixadas): so para ver se uma copia do estado mudou algo."""
-        with self._trava:
-            a = self._bd.execute("SELECT COUNT(*) FROM chats WHERE archived=1").fetchone()[0]
-            f = self._bd.execute("SELECT COUNT(*) FROM chats WHERE pinned>0").fetchone()[0]
+    def state_counts(self):
+        """(archived, pinned): only to see whether a copy of the state changed anything."""
+        with self._lock:
+            a = self._conn.execute("SELECT COUNT(*) FROM chats WHERE archived=1").fetchone()[0]
+            f = self._conn.execute("SELECT COUNT(*) FROM chats WHERE pinned>0").fetchone()[0]
         return a, f
 
-    def existe_conversa(self, jid):
-        with self._trava:
-            return self._bd.execute("SELECT 1 FROM chats WHERE jid=?", (jid,)).fetchone() is not None
+    def chat_exists(self, jid):
+        with self._lock:
+            return self._conn.execute("SELECT 1 FROM chats WHERE jid=?", (jid,)).fetchone() is not None
 
-    def ultima_recebida(self, conversa):
-        """O id da mensagem recebida mais recente da conversa, ou ''."""
-        for w in reversed(self.mensagens(conversa, 60)):
-            if not w.get("fromMe") and w.get("type") not in TIPOS_DE_SISTEMA:
+    def last_received(self, chat):
+        """The id of the chat's most recent received message, or ''."""
+        for w in reversed(self.messages(chat, 60)):
+            if not w.get("fromMe") and w.get("type") not in SYSTEM_TYPES:
                 return w["id"]["id"]
         return ""
 
-    def nao_lidas(self, conversa):
-        with self._trava:
-            r = self._bd.execute("SELECT unread FROM chats WHERE jid=?", (conversa,)).fetchone()
+    def unread(self, chat):
+        with self._lock:
+            r = self._conn.execute("SELECT unread FROM chats WHERE jid=?", (chat,)).fetchone()
         return int(r["unread"] or 0) if r else 0
 
-    def ultima_bruta(self, conversa):
-        """A mensagem mais recente guardada (qualquer autor), ou None."""
-        itens = self.mensagens(conversa, 1)
-        return itens[0] if itens else None
+    def raw_last(self, chat):
+        """The most recent stored message (any author), or None."""
+        items = self.messages(chat, 1)
+        return items[0] if items else None
 
-    def ultima(self, conversa):
-        itens = self.mensagens(conversa, 1)
-        return itens[0] if itens else None
+    def last(self, chat):
+        items = self.messages(chat, 1)
+        return items[0] if items else None
 
-    # ------------------------------------------- limpar / apagar conversa
-    def limpar_conversa(self, jid, manter_estrelas=True):
-        """Apaga as mensagens guardadas da conversa (so as sem estrela, se
-        `manter_estrelas`) e zera o contador de nao lidas. Devolve quantas
-        mensagens sairam."""
-        with self._trava:
-            filtro = " AND COALESCE(json_extract(data,'$.star'),0)=0" if manter_estrelas else ""
-            apagadas = self._bd.execute(
-                "DELETE FROM msgs WHERE chat=?" + filtro, (jid,)).rowcount
-            self._bd.execute(
-                "DELETE FROM fixadas WHERE chat=? AND msg NOT IN (SELECT id FROM msgs WHERE chat=?)",
+    # ------------------------------------------- clear / delete chat
+    def clear_chat(self, jid, keep_starred=True):
+        """Deletes the chat's stored messages (only the unstarred ones, if
+        `keep_starred`) and zeroes the unread counter. Returns how many messages
+        went away."""
+        with self._lock:
+            filter_ = " AND COALESCE(json_extract(data,'$.star'),0)=0" if keep_starred else ""
+            deleted = self._conn.execute(
+                "DELETE FROM msgs WHERE chat=?" + filter_, (jid,)).rowcount
+            self._conn.execute(
+                "DELETE FROM pinned WHERE chat=? AND msg NOT IN (SELECT id FROM msgs WHERE chat=?)",
                 (jid, jid))
-            self._bd.execute("UPDATE chats SET unread=0 WHERE jid=?", (jid,))
-            self._bd.commit()
-        return apagadas
+            self._conn.execute("UPDATE chats SET unread=0 WHERE jid=?", (jid,))
+            self._conn.commit()
+        return deleted
 
-    def apagar_conversa(self, jid):
-        """Tira a conversa da lista, com todas as mensagens (estreladas tambem)."""
-        with self._trava:
-            self.limpar_conversa(jid, manter_estrelas=False)
-            self._bd.execute("DELETE FROM chats WHERE jid=?", (jid,))
-            self._bd.commit()
+    def delete_chat(self, jid):
+        """Removes the chat from the list, with all its messages (starred too)."""
+        with self._lock:
+            self.clear_chat(jid, keep_starred=False)
+            self._conn.execute("DELETE FROM chats WHERE jid=?", (jid,))
+            self._conn.commit()
 
-    # ----------------------------------------------------------- recibos
-    def recibo(self, id_msg, quem, etapa, ts=0):
-        """Guarda que `quem` chegou a `etapa` ("delivered", "read", "played")
-        de uma mensagem nossa. Fica a primeira hora em que a etapa foi vista."""
-        with self._trava:
-            self._bd.execute(
-                "INSERT OR IGNORE INTO recibos(msg, quem, etapa, ts) VALUES (?,?,?,?)",
-                (id_msg, quem, etapa, ts))
-            self._bd.commit()
+    # ----------------------------------------------------------- receipts
+    def receipt(self, msg_id, who, stage, ts=0):
+        """Stores that `who` reached `stage` ("delivered", "read", "played") of a
+        message of ours. The first time the stage was seen is kept."""
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO receipts(msg, who, stage, ts) VALUES (?,?,?,?)",
+                (msg_id, who, stage, ts))
+            self._conn.commit()
 
-    def recibos_de(self, id_msg):
-        """[(quem, etapa, ts)] dos recibos guardados de uma mensagem."""
-        with self._trava:
-            return [(r["quem"], r["etapa"], r["ts"]) for r in self._bd.execute(
-                "SELECT quem, etapa, ts FROM recibos WHERE msg=? ORDER BY rowid", (id_msg,))]
+    def receipts_of(self, msg_id):
+        """[(who, stage, ts)] of a message's stored receipts."""
+        with self._lock:
+            return [(r["who"], r["stage"], r["ts"]) for r in self._conn.execute(
+                "SELECT who, stage, ts FROM receipts WHERE msg=? ORDER BY rowid", (msg_id,))]

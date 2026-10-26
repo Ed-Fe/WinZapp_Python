@@ -4,7 +4,7 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
-- Motor de conectare nou, experimental: Neonize se conectează la WhatsApp fără browser, printr-o punte locală. Alege-l în Setări, Conexiune (sau la întrebarea de la prima pornire) și repornește WinZapp; WPPConnect rămâne cel implicit. Pentru a pregăti puntea, rulează neonize_bridge/preparar.py (vezi README-ul din acel folder).
+- Motor de conectare nou, experimental: Neonize se conectează la WhatsApp fără browser, printr-o punte locală. Alege-l în Setări, Conexiune (sau la întrebarea de la prima pornire) și repornește WinZapp; WPPConnect rămâne cel implicit. Pentru a pregăti puntea, rulează neonize_bridge/prepare.py (vezi README-ul din acel folder).
 
 - Listele de conversații (conversații, arhivate și blocate) folosesc acum toată lățimea listei, așa că numele conversațiilor și previzualizările mesajelor sunt tăiate mult mai puțin când fereastra este lată.
 

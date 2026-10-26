@@ -346,27 +346,27 @@ def sessions_lock(global_dir: str, timeout: float = 20.0) -> NamedLock:
 
 
 def neonize_bridge_lock(run_dir: str, timeout: float = 90.0) -> NamedLock:
-    """Serializes "is the bridge's port open? no -> spawn it, write ponte.pid"
+    """Serializes "is the bridge's port open? no -> spawn it, write bridge.pid"
     between the clients of one install. The default wait is above the time a
     client gives a fresh bridge to open its port, since whoever holds the lock
     is waiting for exactly that."""
     h = _hash_dir(run_dir)
     return NamedLock(
         f"WinZappNeonizeBridge_{h}",
-        os.path.join(run_dir, "ponte.lock"),
+        os.path.join(run_dir, "bridge.lock"),
         timeout=timeout,
     )
 
 
 def neonize_bridge_lock(run_dir: str, timeout: float = 90.0) -> NamedLock:
-    """Serializes "is the bridge's port open? no -> spawn it, write ponte.pid"
+    """Serializes "is the bridge's port open? no -> spawn it, write bridge.pid"
     between the clients of one install. The default wait is above the time a
     client gives a fresh bridge to open its port, since whoever holds the lock
     is waiting for exactly that."""
     h = _hash_dir(run_dir)
     return NamedLock(
         f"WinZappNeonizeBridge_{h}",
-        os.path.join(run_dir, "ponte.lock"),
+        os.path.join(run_dir, "bridge.lock"),
         timeout=timeout,
     )
 

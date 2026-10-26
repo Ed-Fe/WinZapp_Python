@@ -12,7 +12,7 @@ Settings, Connection (or in the question asked on the first launch).
 ## Try it
 
 ```
-python neonize_bridge/preparar.py
+python neonize_bridge/prepare.py
 ```
 
 This creates `neonize_bridge/.venv`, installs `requirements.txt` and the test
@@ -20,7 +20,7 @@ build of neonize 0.5.2 that the bridge needs (see below). Then open WinZapp,
 go to Settings, Connection, choose **Neonize (direct connection,
 experimental)**, press OK and restart WinZapp. WinZapp starts the bridge by
 itself; the last WinZapp window to close stops it. Sessions and messages live
-in `neonize_bridge/dados-real/`, the bridge output in `neonize_bridge/execucao/ponte.log`.
+in `neonize_bridge/data/`, the bridge output in `neonize_bridge/run/bridge.log`.
 Pairing works by phone code; the QR code is not reliable yet.
 
 Voice notes, video and stickers need `ffmpeg` and `ffprobe` on the bridge's
@@ -31,13 +31,13 @@ in `neonize_bridge/path_extra.txt` (one per line, ignored by git).
 
 The bridge listens on 127.0.0.1 only, but a web page open in your browser can
 also reach 127.0.0.1, so it does not trust the network. It creates a secret the
-first time it runs, in `neonize_bridge/dados-real/segredo` (readable by your
+first time it runs, in `neonize_bridge/data/secret` (readable by your
 user only on systems that support it). WinZapp reads that file and uses the
 secret instead of the API key: `generate-token` answers only to it, every
 session token is a keyed hash of the session name, the Socket.IO connection
 needs a valid token, and requests whose `Host` is not this machine are refused.
-A bridge you start by hand must use the same `--pasta` as WinZapp, or the
-client cannot find the secret. Deleting the `segredo` file
+A bridge you start by hand must use the same `--folder` as WinZapp, or the
+client cannot find the secret. Deleting the `secret` file
 makes the bridge create a new one at the next start; WinZapp then renews its
 session token on its own.
 
@@ -46,9 +46,9 @@ session token on its own.
 The bridge listens to what the phone does (archive, pin, mute, star, lock,
 read, delete) instead of polling for it. Those events, and a few functions to
 repair the app state, are open pull requests to neonize (#227 to #232). Until
-they are merged, `preparar.py` installs a build that has them from
+they are merged, `prepare.py` installs a build that has them from
 https://github.com/reffehcsoibaf/neonize/releases/tag/0.5.2-winzapp-teste.2.
-`preparar.py` checks the SHA-256 of the download and also what is inside it: it
+`prepare.py` checks the SHA-256 of the download and also what is inside it: it
 only extracts files under `neonize/` with the types the package has (`.py`,
 `.pyi`, `.pyc`, `.dll`, `.typed`), refuses links, paths that leave the folder,
 a `.pth` or `sitecustomize.py`, and archives larger than expected. The hash and
@@ -75,7 +75,7 @@ have not run against a real account. Missing: placing, answering or carrying
 calls (whatsmeow cannot), business and catalog features (neonize has no
 catalog messages), QR pairing, and some WPPConnect-only routes: the bridge
 implements 158 of the 220 that WPPConnect Server defines for WinZapp.
-[COBERTURA.md](COBERTURA.md) lists every route, grouped by area. Muting and
+[COVERAGE.md](COVERAGE.md) lists every route, grouped by area. Muting and
 deleting for everyone done by someone else can take up to a minute to show.
 Data is not encrypted at rest. Treat it as a preview.
 
@@ -83,7 +83,7 @@ Data is not encrypted at rest. Treat it as a preview.
 
 ```
 neonize_bridge/.venv/Scripts/python -m pytest neonize_bridge
-neonize_bridge/.venv/Scripts/python neonize_bridge/server.py --porta 6300 --pasta neonize_bridge/dados-real
+neonize_bridge/.venv/Scripts/python neonize_bridge/server.py --port 6300 --folder neonize_bridge/data
 ```
 
-`--log-estado` turns on a technical log of app-state events.
+`--log-state` turns on a technical log of app-state events.

@@ -4,7 +4,7 @@ Esta versão traz as comunidades e uma janela de definições reorganizada, alé
 
 NOVIDADES
 
-- Novo motor de ligação, experimental: o Neonize liga ao WhatsApp sem navegador, através de uma ponte local. Escolha em Definições, Ligação (ou na pergunta da primeira abertura) e reinicie o WinZapp; o WPPConnect continua a ser o predefinido. Para preparar a ponte, execute neonize_bridge/preparar.py (consulte o README da pasta).
+- Novo motor de ligação, experimental: o Neonize liga ao WhatsApp sem navegador, através de uma ponte local. Escolha em Definições, Ligação (ou na pergunta da primeira abertura) e reinicie o WinZapp; o WPPConnect continua a ser o predefinido. Para preparar a ponte, execute neonize_bridge/prepare.py (consulte o README da pasta).
 
 - As listas de conversas (conversas, arquivadas e bloqueadas) passam a usar toda a largura da lista, pelo que os nomes das conversas e as pré-visualizações das mensagens são cortados muito menos quando a janela é larga.
 

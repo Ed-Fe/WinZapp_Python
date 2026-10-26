@@ -124,7 +124,7 @@ class TestTheDefaultRunIsSafe:
     @pytest.mark.parametrize("command,exempt", [
         (r"venv\Scripts\python.exe -m pytest neonize_bridge -q", True),
         ("uv run pytest neonize_bridge", True),
-        ("pytest neonize_bridge/test_preparar.py -q", True),
+        ("pytest neonize_bridge/test_prepare.py -q", True),
         ("pytest -q", False),
         ("uv run pytest --run-wx-gui -n auto --shard 1/4", False),
         ("pytest tests neonize_bridge", False),

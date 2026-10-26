@@ -243,3 +243,4 @@ shutdown_audit.log
 
 # Scratch copies of tracked modules pulled out of git for one-off comparisons.
 .hl_*.py
+*.catalogue.lock
