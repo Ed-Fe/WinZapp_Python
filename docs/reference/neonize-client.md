@@ -4,6 +4,19 @@ What the client assumes when `wpp_engine` is `neonize` (a "custom API" client
 pointed at the local bridge in `neonize_bridge/`: no Node, no Chrome). The
 bridge's own routes are in `neonize_bridge/COVERAGE.md`.
 
+## Both engines ship in a compiled build
+
+`build.py` freezes `neonize_bridge/` into `neonize_bridge/neonize_bridge.exe`
+(`winzapp_tools/bridge_build.py`) and stages it next to `node/` and `api/`, so a
+compiled install has WPPConnect and Neonize together. `neonize_bridge_process`
+starts the packaged exe, and keeps its data and run files in
+`data/global/neonize_bridge/` (not in the install folder, which an update
+replaces); an older install that kept them in a sibling `neonize_bridge/data`
+has them moved in on the first start (`neonize_bridge_layout.adopt_sibling_data`).
+The updater stops a bridge left running before it copies files
+(`update_node_kill`). The unreviewed neonize test build is installed by
+`prepare.py` after a SHA-256 check, so the build needs network access to GitHub.
+
 ## The engine is a setting
 
 `connection.wpp_engine` (`wppconnect`, `neonize` or `custom`) is install-wide

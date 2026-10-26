@@ -9,7 +9,19 @@ custom API pointing at `http://127.0.0.1:6300`.
 WPPConnect stays the default. Nothing changes unless you pick **Neonize** in
 Settings, Connection (or in the question asked on the first launch).
 
-## Try it
+## Compiled builds
+
+A compiled WinZapp (the installer and the portable zip) already carries the
+bridge, frozen as `neonize_bridge/neonize_bridge.exe` inside the install, next
+to WPPConnect (`node/` and `api/`): both engines are installed together and the
+user picks one in Settings, Connection. The bridge keeps its sessions and
+messages in `data/global/neonize_bridge/data/` of the install, which updates do
+not replace, so each engine keeps its own connection when you switch back and
+forth. `build.py` freezes the bridge with the PyInstaller it uses itself (it runs
+`prepare.py` first when `neonize_bridge/.venv` is missing); `--skip-bridge` leaves
+it out of a quick local build.
+
+## Try it from a repository checkout
 
 ```
 python neonize_bridge/prepare.py
