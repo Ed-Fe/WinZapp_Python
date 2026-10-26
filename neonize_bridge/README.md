@@ -23,12 +23,11 @@ itself; the last WinZapp window to close stops it. Sessions and messages live
 in `neonize_bridge/data/`, the bridge output in `neonize_bridge/run/bridge.log`.
 Pairing works by phone code; the QR code is not reliable yet.
 
-Voice notes and audio need nothing extra: `audio_message.py` reads the
-duration from the file itself (Ogg, MP4/M4A) or from `ffmpeg`. Video and
-stickers need `ffmpeg`, and video also `ffprobe`, on the bridge's `PATH`.
-`client/lib` (which has `ffmpeg` but not `ffprobe`) is added automatically; to
-add other folders, list them in `neonize_bridge/path_extra.txt` (one per line,
-ignored by git).
+Nothing the bridge sends needs `ffprobe`: `media_probe.py` reads the duration
+of voice notes, audio and video from the file itself (Ogg, MP4/M4A/MOV) or from
+`ffmpeg`. Video thumbnails and stickers need `ffmpeg` on the bridge's `PATH`;
+`client/lib` is added automatically, and to add other folders list them in
+`neonize_bridge/path_extra.txt` (one per line, ignored by git).
 
 ## Who can talk to the bridge
 

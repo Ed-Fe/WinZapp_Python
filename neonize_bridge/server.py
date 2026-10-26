@@ -25,6 +25,7 @@ import administration
 import authentication
 import calls
 import session_lifecycle
+import video_message
 import comments
 import comment_routes
 import inputs
@@ -1929,17 +1930,19 @@ def create_app(folder, fixed=""):
     def send_media(s, destination, kind, file, caption, name, mime, ptt, ctx=None,
                    client=None):
         c = s.client if client is None else client
-        if kind == "audio":
-            # not neonize's build_audio_message: it needs ffprobe, which WinZapp does not ship
-            m = audio_message.build(c, file, ptt)
+        # audio and video: not neonize's build_*_message, which need ffprobe
+        # (WinZapp does not ship it)
+        if kind in ("audio", "video"):
+            if kind == "audio":
+                m, field = audio_message.build(c, file, ptt), "audioMessage"
+            else:
+                m, field = video_message.build(c, file, caption or None), "videoMessage"
             if ctx is not None:
-                m.audioMessage.contextInfo.CopyFrom(ctx)
+                getattr(m, field).contextInfo.CopyFrom(ctx)
             return c.send_message(destination, m)
         if ctx is not None:     # with a quote: builds the message, puts the context and sends
             if kind == "image":
                 m, field = c.build_image_message(file, caption=caption or None), "imageMessage"
-            elif kind == "video":
-                m, field = c.build_video_message(file, caption=caption or None), "videoMessage"
             else:
                 m, field = c.build_document_message(
                     file, caption=caption or None, filename=name or None,
@@ -1948,8 +1951,6 @@ def create_app(folder, fixed=""):
             return c.send_message(destination, m)
         if kind == "image":
             return c.send_image(destination, file, caption=caption or None)
-        if kind == "video":
-            return c.send_video(destination, file, caption=caption or None)
         return c.send_document(destination, file, caption=caption or None,
                                filename=name or None, mimetype=mime or None)
 

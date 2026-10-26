@@ -42,7 +42,7 @@ PORT = 6300
 START_TIMEOUT = 60.0          # seconds to wait for the port after spawning
 BRIDGE_PID_FILE = "bridge.pid"
 CLIENTS_DIR = "clients"
-EXTRA_PATH_FILE = "path_extra.txt"    # one folder per line, e.g. where ffprobe lives
+EXTRA_PATH_FILE = "path_extra.txt"    # one folder per line, e.g. another ffmpeg
 OUTPUT_FILE = "bridge.log"
 OUTPUT_LIMIT = 5 * 1024 * 1024   # bytes; past this the next start keeps one older copy
 HISTORY_DAYS = "180"
@@ -92,7 +92,7 @@ def command(bridge: str, port: int = PORT):
 
 
 def environment(bridge: str, base_env=None) -> dict:
-    """The bridge's environment: ffmpeg/ffprobe on PATH (client/lib, plus the
+    """The bridge's environment: ffmpeg on PATH (client/lib, plus the
     folders listed in neonize_bridge/path_extra.txt)."""
     env = dict(os.environ if base_env is None else base_env)
     folders = [resource_path("lib")]

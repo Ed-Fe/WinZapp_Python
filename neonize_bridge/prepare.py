@@ -147,8 +147,8 @@ def main():
     print(f"Test build of neonize installed in {target}.")
     print("Done. WinZapp starts the bridge by itself when the Neonize engine is chosen "
           "(Settings, Connection).")
-    print("Video also needs ffprobe: ffmpeg is in client/lib; "
-          "for ffprobe list its folder in neonize_bridge/path_extra.txt (one folder per line).")
+    print("Video thumbnails and stickers use the ffmpeg in client/lib; other folders "
+          "go in neonize_bridge/path_extra.txt (one folder per line).")
 
 
 if __name__ == "__main__":
