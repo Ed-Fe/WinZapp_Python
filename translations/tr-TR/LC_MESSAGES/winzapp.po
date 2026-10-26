@@ -7606,6 +7606,38 @@ msgctxt "neonize_bridge_unavailable_title"
 msgid "Neonize bridge"
 msgstr "Neonize köprüsü"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_keep"
+msgid "Continue using WPPConnect"
+msgstr "WPPConnect kullanmaya devam et"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_message"
+msgid ""
+"WinZapp now supports the new Neonize connection engine (optional). Start the program faster, run lighter and use much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+msgstr ""
+"WinZapp artık yeni Neonize bağlantı motorunu (isteğe bağlı) destekliyor. Program daha hızlı açılır, daha hafif çalışır ve bilgisayarınızın işlemcisini ve RAM'ini çok daha az kullanır. Geçmeye karar verirseniz bunu her zaman Ayarlar > Bağlantı bölümünden değiştirebilirsiniz. WPPConnect bağlantınız yedek olarak korunur.\n"
+"\n"
+"Neonize'ın avantajları: yüksek bağlantı hızı, daha düşük kaynak kullanımı ve tarayıcı gerektirmemesi.\n"
+"WPPConnect'in avantajları: tamamen WhatsApp Web'e dayanır, WhatsApp'ın en yeni özelliklerini daha hızlı destekler."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_switch"
+msgid "Switch to Neonize (pairing required)"
+msgstr "Neonize'a geç (yeniden eşleştirme gerekir)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_title"
+msgid "New Neonize engine available"
+msgstr "Yeni Neonize motoru kullanılabilir"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"

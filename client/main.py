@@ -782,6 +782,9 @@ class MainWindow(
         # Check if we should ask the user to choose between local and custom/remote API (first run)
         self._check_api_type_first_run()
 
+        # Once per install, before anything connects: tell WPPConnect users about Neonize.
+        self._offer_neonize_engine()
+
         # First-run dialogs: autostart and global hotkey (normal mode only, once ever).
         # These must run BEFORE the WPPConnect API is started so the user never
         # sees a "starting WPPConnect" dialog stacked on top of setup prompts —

@@ -1101,6 +1101,7 @@ DEFAULT_SETTINGS = {
         "convert_emoticons": True,
         "first_run": True,
         "api_type_first_run_asked": False,
+        "neonize_offer_asked": False,
         "hotkey_first_run_asked": False,
         "autostart": False,
         "show_tray_icon": True,

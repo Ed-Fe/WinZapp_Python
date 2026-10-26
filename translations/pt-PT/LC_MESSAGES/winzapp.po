@@ -7699,6 +7699,38 @@ msgctxt "neonize_bridge_unavailable_title"
 msgid "Neonize bridge"
 msgstr "Ponte do Neonize"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_keep"
+msgid "Continue using WPPConnect"
+msgstr "Continuar a utilizar o WPPConnect"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_message"
+msgid ""
+"WinZapp now supports the new Neonize connection engine (optional). Start the program faster, run lighter and use much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+msgstr ""
+"O WinZapp passa a oferecer suporte ao novo motor de ligação Neonize (opcional). Tenha um arranque mais rápido do programa, uma execução mais leve e uma utilização muito menor de CPU e de memória RAM do seu computador. Se decidir mudar, pode sempre alterar isto em Definições > Ligação. A sua ligação no WPPConnect fica preservada como cópia de segurança.\n"
+"\n"
+"Vantagens do Neonize: velocidade de ligação elevada, menor consumo de recursos e sem utilização de navegador.\n"
+"Vantagens do WPPConnect: baseado inteiramente no WhatsApp Web, com suporte mais ágil aos recursos mais recentes do WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_switch"
+msgid "Switch to Neonize (pairing required)"
+msgstr "Mudar para Neonize (emparelhamento necessário)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_title"
+msgid "New Neonize engine available"
+msgstr "Novo motor Neonize disponível"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"

@@ -20,6 +20,7 @@ from ui.dialogs import engine_picker
 
 class _Stub:
     _check_api_type_first_run = MainWindow._check_api_type_first_run
+    _apply_engine_choice = MainWindow._apply_engine_choice
 
     def __init__(self, settings=None, background_mode=False):
         self.settings = settings if settings is not None else {}

@@ -7683,6 +7683,38 @@ msgctxt "neonize_bridge_unavailable_title"
 msgid "Neonize bridge"
 msgstr "Most Neonize"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_keep"
+msgid "Continue using WPPConnect"
+msgstr "Nadal używaj WPPConnect"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_message"
+msgid ""
+"WinZapp now supports the new Neonize connection engine (optional). Start the program faster, run lighter and use much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+msgstr ""
+"WinZapp obsługuje teraz nowy silnik połączenia Neonize (opcjonalny). Program uruchamia się szybciej, działa lżej i zużywa znacznie mniej procesora oraz pamięci RAM komputera. Jeśli zdecydujesz się przełączyć, zawsze możesz to zmienić w Ustawieniach > Połączenie. Twoje połączenie WPPConnect zostaje zachowane jako kopia zapasowa.\n"
+"\n"
+"Zalety Neonize: duża szybkość połączenia, mniejsze zużycie zasobów i brak przeglądarki.\n"
+"Zalety WPPConnect: oparty w całości na WhatsApp Web, szybsza obsługa najnowszych funkcji WhatsApp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_switch"
+msgid "Switch to Neonize (pairing required)"
+msgstr "Przełącz na Neonize (wymagane ponowne sparowanie)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_title"
+msgid "New Neonize engine available"
+msgstr "Dostępny nowy silnik Neonize"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"
