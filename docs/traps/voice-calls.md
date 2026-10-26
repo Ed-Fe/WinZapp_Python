@@ -672,7 +672,9 @@ least one real call to learn, so read before touching the video path.
   `/json/version` before listing targets so a personal Chrome's tabs are
   never read). `getShortStatisticString()` and `getCallInfo()` on the VoIP
   interface answer "is media arriving at all" in one call; `getCallInfo()`
-  carries account identifiers, so filter it before printing.
+  carries account identifiers, so filter it before printing. The general
+  how-to, and what replaces CDP on the Neonize engine:
+  `docs/reference/live-inspection.md`.
 
 ## Voice → video upgrade, and "ended" must mean ended (2026-09-26)
 

@@ -8,6 +8,13 @@
 
   **Ask for `shutdown_audit.log` as well, and always for anything that looks like a lost session.** It sits beside `log.log` and is opened in append mode, so unlike `log.log` it survives every launch: it is the only place a *previous* run's ending is recorded (`STARTUP` with the active session and store contents, `_stop_wpp_server START`, the `flush poll` sequence, `FLUSH OK`, the final `taskkill`). That distinction decides the diagnosis. A user reporting "it asks me to pair again" hands over a `log.log` that begins with the session *already* dead — the cause is in the run before, whose log was overwritten the moment they reopened the app to check. Read against `shutdown_audit.log`, the answer is usually immediate: a run that ends with `FLUSH OK — session reached CLOSED` shut down cleanly and its session should have survived, while a `STARTUP` line with no `_stop_wpp_server` before it means the previous process was killed rather than closed, so WhatsApp's auth state never flushed to `userDataDir` and the profile comes back unusable. Note that killing the process (Task Manager, a harness stopping it, a crash) is enough to cause that — it is not a bug on its own, and mistaking it for one costs a lot of time.
 
+## On the Neonize engine: `bridge.log`
+
+There is no `wppconnect.log` and no Chrome: the bridge writes
+`neonize_bridge/run/bridge.log` (redacted; a failed route logs its traceback
+under `ERROR <route>`). Ask for it with `log.log`. Looking at a running bridge
+instead of its log: `docs/reference/live-inspection.md`.
+
 ## `[listChats] diag` in `wppconnect.log`: why a sync lists no chats
 
 `POST /list-chats` answering 200 with `[]` says nothing about WHY. For every call that ends with no visible chat, and for the first call of a session that returns any (at most one line per 30 s per session, plus one whenever the numbers change), `deviceController.listChats` logs one line after the response, with counts, booleans and short ASCII codes only (never a JID, number, name or text):

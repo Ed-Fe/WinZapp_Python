@@ -2,7 +2,8 @@
 
 What the client assumes when `wpp_engine` is `neonize` (a "custom API" client
 pointed at the local bridge in `neonize_bridge/`: no Node, no Chrome). The
-bridge's own routes are in `neonize_bridge/COVERAGE.md`.
+bridge's own routes are in `neonize_bridge/COVERAGE.md`. With no Chrome there
+is no CDP: inspecting a running bridge is in `docs/reference/live-inspection.md`.
 
 ## The engine is a setting
 
@@ -65,5 +66,3 @@ WPPConnect typed in at `127.0.0.1:6300` read as Neonize.
   key (the secret under Neonize).
 - The packaged build does not know the bridge yet (`build.py`, the updater's
   `xcopy`, `own_node_pids` only handles `node.exe`).
-- `CLAUDE.md` says "one Node per account": with Neonize there is one bridge for
-  the install.

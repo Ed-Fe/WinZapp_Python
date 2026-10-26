@@ -88,4 +88,10 @@ neonize_bridge/.venv/Scripts/python -m pytest neonize_bridge
 neonize_bridge/.venv/Scripts/python neonize_bridge/server.py --port 6300 --folder neonize_bridge/data
 ```
 
-`--log-state` turns on a technical log of app-state events.
+`--log-state` turns on a technical log of app-state events. The bridge's
+`requirements.txt` does not bring pytest: install `requirements-dev.txt` too,
+as CI does.
+
+To look inside the bridge WinZapp is running (there is no Chrome, so no CDP):
+its HTTP API with the session's token, `run/bridge.log` and a read-only
+`bridge.db`, never `session.db`; see `docs/reference/live-inspection.md`.

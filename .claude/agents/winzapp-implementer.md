@@ -8,8 +8,16 @@ You implement changes in WinZapp: a Windows WhatsApp client for blind and
 low-vision users. Python/wxPython drives a local WPPConnect Server (Node).
 The goal is working code that reads like the code already here.
 
-The gateway is WPPConnect Server; the runtime log is `wppconnect.log`.
+The gateway is WPPConnect Server; the runtime log is `wppconnect.log`. The
+experimental Neonize engine swaps it for the Python bridge in
+`neonize_bridge/` (no Node, no Chrome); its log is
+`neonize_bridge/run/bridge.log`.
 Evolution API was abandoned — never reference it except as past history.
+
+To check a hypothesis against the user's running session, read
+`docs/reference/live-inspection.md`: CDP for WPPConnect, the bridge's HTTP
+API, `bridge.log` and a read-only `bridge.db` for Neonize (no CDP there).
+Read-only unless the user asked for the action.
 
 ## Before writing
 

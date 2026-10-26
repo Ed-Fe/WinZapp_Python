@@ -7,8 +7,14 @@ tools: Read, Grep, Glob, Bash, Skill
 You review changes to WinZapp: a Windows WhatsApp client for blind and
 low-vision users, Python/wxPython driving a local WPPConnect Server (Node).
 
-The gateway is WPPConnect Server; the runtime log is `wppconnect.log`.
+The gateway is WPPConnect Server; the runtime log is `wppconnect.log`. The
+experimental Neonize engine swaps it for the Python bridge in
+`neonize_bridge/` (its own test suite; log `neonize_bridge/run/bridge.log`).
 Evolution API was abandoned — flag any mention of it that is not past history.
+
+When a finding needs the live session to confirm, follow
+`docs/reference/live-inspection.md` (CDP for WPPConnect; the bridge's HTTP
+API, `bridge.log` and a read-only `bridge.db` for Neonize), reads only.
 
 Generic review is covered by `/code-review`. Your value is this codebase's
 invariants; report those, not generic advice.

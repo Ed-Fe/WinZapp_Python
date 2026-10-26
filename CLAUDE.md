@@ -67,6 +67,9 @@ A free Windows desktop WhatsApp client built for accessibility
 (NVDA/JAWS/Narrator). A Python 3.13 + wxPython process drives a local
 WPPConnect Server (Node.js) over HTTP (`http://127.0.0.1:6300/api/...`) and
 Socket.IO. One account per process, each with its own Node, port and window.
+The experimental Neonize engine replaces Node and Chrome with a Python bridge
+(`neonize_bridge/`, whatsmeow underneath) answering the same routes on port
+6300 for every account (`docs/reference/neonize-client.md`).
 
 ## Commands
 
@@ -153,6 +156,12 @@ stays "not synced" forever. Follow the two existing exceptions
 - For a user report ask for both `log.log` (truncated every launch) and
   `shutdown_audit.log` (the previous run's ending) —
   `docs/reference/diagnosing-from-logs.md`.
+- **Inspecting a live session**: WPPConnect over CDP (WinZapp's
+  `HeadlessChrome`); Neonize has no browser, so no CDP — use the bridge's own
+  HTTP API on port 6300, `neonize_bridge/run/bridge.log` and a read-only
+  `bridge.db`, never `session.db`. A bridge started before your commit runs
+  the old code. Read freely, act only when the user asked:
+  `docs/reference/live-inspection.md`.
 
 ## Agent skills
 
