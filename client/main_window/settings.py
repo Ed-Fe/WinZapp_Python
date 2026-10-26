@@ -143,8 +143,9 @@ class SettingsMixin:
 
     def _offer_neonize_engine(self):
         """Once per install, tell an install still on WPPConnect that Neonize is
-        available, also in a start in the background. Runs before anything connects,
-        so choosing Neonize simply starts this launch on it (its pairing comes next); the WPPConnect session
+        available, also in a start in the background (announced and brought to the
+        front there). Runs before anything connects, so choosing Neonize simply
+        starts this launch on it (its pairing comes next); the WPPConnect session
         is kept aside by _reconcile_session_engine() and comes back when the user
         returns to WPPConnect in Settings > Connection."""
         from core import connection_engine as engines
@@ -163,7 +164,9 @@ class SettingsMixin:
         # the user picks (or if the program ends while it is open).
         general["neonize_offer_asked"] = True
         self.save_settings()
-        if engine_picker.ask_neonize_offer(self.i18n):
+        title, message = self.i18n.t("neonize_offer_title"), self.i18n.t("neonize_offer_message")
+        if engine_picker.ask_neonize_offer(
+                self.i18n, self, announce=lambda: self.output(f"{title}. {message}", interrupt=True)):
             logging.info("MainWindow: switching to the Neonize engine from the notice")
             self._apply_engine_choice(engines.NEONIZE)
             # the notice already said pairing is needed: no second dialog about it
