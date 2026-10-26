@@ -918,8 +918,7 @@ def freeze_neonize_bridge():
     """Both engines ship in a compiled build: WPPConnect (node/ + api/) and the
     Neonize bridge, frozen with the PyInstaller this build uses."""
     if args.skip_bridge:
-        print("
-  [WARN] --skip-bridge: this build has no Neonize engine.")
+        print("\n  [WARN] --skip-bridge: this build has no Neonize engine.")
         shutil.rmtree(BRIDGE_OUTDIR, ignore_errors=True)    # no stale bridge from an earlier build
         return
     step("2b/8  Freezing the Neonize bridge")
@@ -931,8 +930,7 @@ def freeze_neonize_bridge():
             ROOT_DIR, BRIDGE_OUTDIR, version("pyinstaller"),
             version("pyinstaller-hooks-contrib"), base_python=PYTHON_CMD)
     except (bridge_build.BridgeBuildError, subprocess.CalledProcessError) as error:
-        print(f"
-[ERROR] Could not freeze the Neonize bridge: {error}")
+        print(f"\n[ERROR] Could not freeze the Neonize bridge: {error}")
         print("        (use --skip-bridge for a build without the Neonize engine)")
         sys.exit(1)
     print(f"  -> {frozen}")
