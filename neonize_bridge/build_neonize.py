@@ -77,7 +77,7 @@ def manifest():
 def format_patches(name, target):
     tree = tree_path(name)
     excludes = [f":(exclude){path}" for path in upstream.GENERATED] if name == "neonize" else []
-    git(tree, "format-patch", "-q", "--zero-commit", "--no-signature", "-o", target,
+    git(tree, "format-patch", "-q", "--zero-commit", "--no-signature", "--no-numbered", "-o", target,
         f"{BASE}..{BRANCH}", "--", ".", *excludes)
 
 

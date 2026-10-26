@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: reffehcsoibaf <290818442+reffehcsoibaf@users.noreply.github.com>
 Date: Wed, 21 Oct 2026 21:31:20 -0300
-Subject: [PATCH 2/2] send: send button, list and flow replies without the
- <biz> node
+Subject: [PATCH] send: send button, list and flow replies without the <biz>
+ node
 
 WhatsApp Web sends buttons_response, list_response and
 interactive_response messages without the <biz> node

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: reffehcsoibaf <290818442+reffehcsoibaf@users.noreply.github.com>
 Date: Fri, 16 Oct 2026 16:06:48 -0300
-Subject: [PATCH 1/2] appstate: emit events.Lock for lock chat mutations
+Subject: [PATCH] appstate: emit events.Lock for lock chat mutations
 
 The lock mutation (index "lock", LockChatAction) was received but
 ignored, so linked-device clients could not learn that a chat was locked

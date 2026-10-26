@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Gustavo Almeida Barrios <gabarrios2006@gmail.com>
 Date: Mon, 26 Oct 2026 01:21:12 -0300
-Subject: [PATCH 1/5] build: refuse SPR group send, which the pinned whatsmeow
+Subject: [PATCH] build: refuse SPR group send, which the pinned whatsmeow
  cannot do
 
 neonize 0.6.0's SendSPRMessage sets SendRequestExtra.GroupParticipants
