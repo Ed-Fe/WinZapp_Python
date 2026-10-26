@@ -7630,7 +7630,7 @@ msgstr ""
 #: client/ui/dialogs/engine_picker.py
 msgctxt "neonize_offer_switch"
 msgid "Switch to Neonize (pairing required)"
-msgstr "Neonize'a geç (yeniden eşleştirme gerekir)"
+msgstr "Neonize'a geç (yeniden eşleme gerekir)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/engine_picker.py

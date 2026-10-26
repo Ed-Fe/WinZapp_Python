@@ -7679,7 +7679,7 @@ msgstr "Puntea Neonize"
 #: client/ui/dialogs/engine_picker.py
 msgctxt "neonize_offer_keep"
 msgid "Continue using WPPConnect"
-msgstr "Continuă să folosești WPPConnect"
+msgstr "Continuați să folosiți WPPConnect"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/engine_picker.py
@@ -7690,7 +7690,7 @@ msgid ""
 "Neonize advantages: fast connection, lower resource use and no browser.\n"
 "WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
 msgstr ""
-"WinZapp acceptă acum noul motor de conectare Neonize (opțional). Programul pornește mai repede, rulează mai ușor și folosește mult mai puțin procesor și memorie RAM de pe computerul tău. Dacă te hotărăști să treci, poți oricând să schimbi asta în Setări > Conexiune. Conexiunea ta WPPConnect rămâne păstrată ca rezervă.\n"
+"WinZapp acceptă acum noul motor de conectare Neonize (opțional). Programul pornește mai repede, rulează mai ușor și folosește mult mai puțin procesor și memorie RAM de pe computerul dumneavoastră. Dacă vă hotărâți să treceți, puteți oricând să schimbați asta în Setări > Conexiune. Conexiunea dumneavoastră WPPConnect rămâne păstrată ca rezervă.\n"
 "\n"
 "Avantajele Neonize: viteză mare de conectare, consum redus de resurse și fără browser.\n"
 "Avantajele WPPConnect: bazat în întregime pe WhatsApp Web, cu suport mai rapid pentru cele mai noi funcții WhatsApp."
@@ -7699,7 +7699,7 @@ msgstr ""
 #: client/ui/dialogs/engine_picker.py
 msgctxt "neonize_offer_switch"
 msgid "Switch to Neonize (pairing required)"
-msgstr "Treci la Neonize (este necesară reîmperecherea)"
+msgstr "Treceți la Neonize (este necesară o nouă asociere)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/engine_picker.py

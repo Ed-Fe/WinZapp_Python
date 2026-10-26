@@ -152,6 +152,8 @@ class SettingsMixin:
         from ui.dialogs import engine_picker
 
         general = self.settings.setdefault("general", {})
+        if self._other_account_is_running():
+            return      # the engine is install-wide: not while a sibling account runs on this one
         if not engines.should_offer_neonize(
                 getattr(self, "wpp_engine", engines.WPPCONNECT),
                 bridge.command(bridge.bridge_dir()) is not None,
@@ -164,6 +166,20 @@ class SettingsMixin:
         if engine_picker.ask_neonize_offer(self.i18n):
             logging.info("MainWindow: switching to the Neonize engine from the notice")
             self._apply_engine_choice(engines.NEONIZE)
+            # the notice already said pairing is needed: no second dialog about it
+            self._engine_switch_announced = True
+
+    def _other_account_is_running(self) -> bool:
+        """True when another WinZapp process (another account) is alive. A failed
+        look counts as running: the notice then waits for a later start."""
+        try:
+            from app_paths import global_dir
+            import update_coord
+
+            return bool(update_coord.other_live_leases(global_dir()))
+        except Exception:
+            logging.exception("MainWindow: could not look for other running accounts")
+            return True
 
     def _check_first_run(self):
         """

@@ -35,7 +35,9 @@ class _Stub:
     _offer_neonize_engine = MainWindow._offer_neonize_engine
     _apply_engine_choice = MainWindow._apply_engine_choice
 
-    def __init__(self, settings=None, background_mode=False, engine=engines.WPPCONNECT):
+    def __init__(self, settings=None, background_mode=False, engine=engines.WPPCONNECT,
+                 sibling=False):
+        self.sibling = sibling
         self.settings = settings if settings is not None else {}
         self.background_mode = background_mode
         self.wpp_engine = engine
@@ -43,6 +45,9 @@ class _Stub:
         self.saved = []
         self.wpp_custom_api, self.wpp_server = False, "http://original"
         self.wpp_ws_server, self.wpp_port = "ws://original", 1234
+
+    def _other_account_is_running(self):
+        return self.sibling
 
     def save_settings(self):
         self.saved.append({k: dict(v) for k, v in self.settings.items() if isinstance(v, dict)})
@@ -128,3 +133,73 @@ def test_both_connections_survive_the_round_trip():
     assert info["WA_token_protected"] == token and info["paired"] is True
     assert session_engine.reconcile(info, engines.NEONIZE, token) == session_engine.RESTORED
     assert info["WA_token_protected"] == neonize_token      # and Neonize's is intact
+
+
+def test_nothing_is_shown_while_another_account_runs_and_it_waits_for_a_later_start(
+        monkeypatch, with_bridge):
+    mw = _Stub(sibling=True)
+    asked = _answer(monkeypatch, True)
+    mw._offer_neonize_engine()
+    assert asked == [] and mw.settings.get("general", {}).get("neonize_offer_asked") is None
+    assert mw.wpp_engine == engines.WPPCONNECT
+    mw.sibling = False
+    mw._offer_neonize_engine()
+    assert len(asked) == 1
+
+
+def test_a_failed_look_for_other_accounts_counts_as_one_running(monkeypatch):
+    import update_coord
+    monkeypatch.setattr(update_coord, "other_live_leases",
+                        lambda global_dir: (_ for _ in ()).throw(OSError("lock")))
+    assert MainWindow._other_account_is_running(object()) is True
+    monkeypatch.setattr(update_coord, "other_live_leases", lambda global_dir: [])
+    assert MainWindow._other_account_is_running(object()) is False
+    monkeypatch.setattr(update_coord, "other_live_leases", lambda global_dir: [{"pid": 1}])
+    assert MainWindow._other_account_is_running(object()) is True
+
+
+def test_switching_from_the_notice_skips_the_second_pairing_dialog(monkeypatch, with_bridge):
+    mw = _Stub()
+    _answer(monkeypatch, True)
+    mw._offer_neonize_engine()
+    assert mw._engine_switch_announced is True
+
+
+class _Reconciler:
+    _reconcile_session_engine = MainWindow._reconcile_session_engine
+
+    def __init__(self, announced):
+        self.settings = {"privateinfo": {
+            "WA_token_protected": "x", "paired": True, "session_engine": engines.WPPCONNECT}}
+        self.background_mode = False
+        self.shown = []
+        if announced:
+            self._engine_switch_announced = True
+
+    def _session_engine_name(self):
+        return engines.NEONIZE
+
+    def _get_wa_token(self):
+        return "wpp-session:$2b$10$abcdef"
+
+    def save_settings(self):
+        pass
+
+    def _shutdown_audit(self, text):
+        pass
+
+    def _announce_engine_switch(self):
+        self.shown.append("dialog")
+
+
+def test_a_plain_engine_change_still_explains_why_pairing_is_asked():
+    mw = _Reconciler(announced=False)
+    mw._reconcile_session_engine()
+    assert mw.shown == ["dialog"]
+
+
+def test_the_notice_already_explained_it():
+    mw = _Reconciler(announced=True)
+    mw._reconcile_session_engine()
+    assert mw.shown == []
+    assert "WA_token_protected" not in mw.settings["privateinfo"]    # still set aside
