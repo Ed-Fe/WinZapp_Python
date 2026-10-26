@@ -100,6 +100,25 @@ def with_approval(manifest, version, commit, today) -> dict:
     return validate(updated)
 
 
+def uncommitted(porcelain_z: str) -> list:
+    """Paths `git status --porcelain -z` lists, minus the generated files (which
+    every build rewrites). -z keeps each entry's leading status columns intact,
+    which a stripped plain listing does not."""
+    paths, entries = [], porcelain_z.split("\0")
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        if entry[0] in "RC":        # a rename or copy: the source path follows
+            index += 1
+        path = entry[3:]
+        if path not in GENERATED:
+            paths.append(path)
+    return paths
+
+
 def required_version(go_mod: str, module: str) -> str:
     """The version `go.mod` requires of `module` ('' when it does not)."""
     found = re.search(rf"^\s*(?:require\s+)?{re.escape(module)}\s+(v\S+)", go_mod, re.MULTILINE)

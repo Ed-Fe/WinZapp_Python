@@ -121,3 +121,25 @@ def test_the_patches_name_winzapp_not_another_program():
         for file_name in files:
             with open(os.path.join(root, file_name), encoding="utf-8") as f:
                 assert "telezapp" not in f.read().lower(), file_name
+
+
+def test_uncommitted_reads_porcelain_z_and_ignores_generated_code():
+    listing = (" M goneonize/defproto/Neonize.pb.go\0"
+               " M goneonize/main.go\0"
+               "?? notes.txt\0"
+               "R  new/name.go\0old/name.go\0"
+               " M neonize/proto/Neonize_pb2.py\0")
+    assert nu.uncommitted(listing) == ["goneonize/main.go", "notes.txt", "new/name.go"]
+    assert nu.uncommitted("") == []
+
+
+def test_the_identity_changes_with_any_patch_byte_or_pin():
+    info = manifest()
+    patches = nu.read_patches(os.path.join(HERE, "neonize_patches"))
+    base = nu.build_identity(nu.pins(info), patches)
+    assert base == nu.checkout_identity(HERE)
+    tree, name = "neonize", sorted(patches["neonize"])[0]
+    edited = {t: dict(files) for t, files in patches.items()}
+    edited[tree][name] = patches[tree][name] + b" "
+    assert nu.build_identity(nu.pins(info), edited) != base
+    assert nu.build_identity(nu.pins(info, OTHER), patches) != base

@@ -90,8 +90,9 @@ def _patch_files(folder):
 
 
 def _uncommitted(tree):
-    return [line[3:] for line in git(tree, "status", "--porcelain", capture=True).splitlines()
-            if line[3:] not in upstream.GENERATED]
+    listing = subprocess.run(["git", "status", "--porcelain", "-z"], cwd=tree, check=True,
+                             capture_output=True, text=True).stdout
+    return upstream.uncommitted(listing)
 
 
 def matches_patches(name):
