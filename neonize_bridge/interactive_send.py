@@ -21,8 +21,15 @@ over CDP on 2026-10-26):
   button "Abrir catálogo" (WPPConnect's sendLinkCatalog).
 
 The <biz> node these need is added by whatsmeow (neonize_patches/whatsmeow
-0004). The pure functions are at the top (tested in test_interactive_send.py).
-Not run against a real account.
+0004-0006) as WPPConnect sends it, so a phone shows the same message:
+reply and action buttons as <native_flow v="9" name="mixed"/>, a Pix key as
+<native_flow name="payment_info"/>, a list as <list v="2"
+type="product_list"/> (wa-js applyNativeFlowBiz and createFanoutMsgStanza,
+read 2026-10-26). WPPConnect's own send-buttons sends the InteractiveMessage
+unwrapped, the proto built here (checked over CDP without sending), so
+wa-js's legacy copy for linked devices (encryptAndParserMsgButtons, only for
+a viewOnce message) does not apply to it either. The pure functions are at
+the top (tested in test_interactive_send.py). Not run against a real account.
 """
 import asyncio
 import base64

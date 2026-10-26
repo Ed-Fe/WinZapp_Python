@@ -11,10 +11,8 @@ received messages: without those fields the stored message has no button.
 The reply sent is not stored in the store (the client only wants to know whether
 it went out). Sent once, never repeated: an error may have reached the business.
 
-`send-buttons` and `send-list-message` do not exist here on purpose: WhatsApp
-does not show buttons or lists from personal accounts (only business, with a
-`biz` node that whatsmeow does not build). Nothing here was tested against a
-real account.
+Sending buttons and lists is interactive_send.py. Nothing here was tested
+against a real account.
 
 The pure functions are at the top (tested in test_chat_interactive.py);
 `register_routes` wires the route to the server.
