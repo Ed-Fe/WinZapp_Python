@@ -3,6 +3,7 @@ import json
 import pytest
 from core.ai_media import config, model_catalog, providers, service
 from core.ai_media.errors import DescriptionError
+from core.ai_media.mistral_ocr import readable_text
 from core.ai_media.payload import Media
 from tests.test_ai_media_core import FakeHTTP, FakeResponse
 
@@ -42,27 +43,33 @@ def test_images_and_stickers_use_selected_vision_model_and_history():
 def test_pdf_always_uses_ocr_in_a_single_inline_request():
     result = request(PDF, "ministral-3b-latest")
     assert result.url == "https://api.mistral.ai/v1/ocr"
-    assert result.json["model"] == "mistral-ocr-latest"
+    assert result.json["model"] == "mistral-ocr-4"
     assert result.json["document"]["document_url"].startswith("data:application/pdf;base64,")
     assert result.json["include_image_base64"] is False
     assert "pages" not in result.json
     assert result.files is None
 
 
-def test_saved_audio_only_preview_model_becomes_the_vision_default():
-    prefs = config.preferences({"ai_media": {"order": ["groq", "openai"],
-        "models": {"mistral": "voxtral-mini-transcribe-3"}}})
-    assert prefs["order"][:2] == ["groq", "openai"]
-    assert prefs["models"]["mistral"] == "ministral-3b-latest"
-    assert "mistral" in prefs["auto_models"]
+def test_every_kind_can_go_to_mistral():
+    prefs = config.preferences({"ai_media": {}})
     for kind in config.KINDS:
         assert config.supports("mistral", kind)
         assert config.chain(prefs, kind, lambda p: p == "mistral") == ["mistral"]
 
 
+def test_the_provider_window_note_comes_from_the_table_and_only_mistral_has_one():
+    # The window shows Provider.model_note before the model field; Mistral's
+    # explains that both audio and PDFs bypass the model chosen there.
+    noted = {name for name, spec in config.PROVIDERS.items() if spec.model_note}
+    assert noted == {"mistral"}
+    spec = config.PROVIDERS["mistral"]
+    assert spec.model_note == "ai_mistral_model_note"
+    assert spec.ocr_model and spec.transcribe_model
+
+
 def test_get_models_lists_only_vision_and_uses_mistral():
     body = {"data": [{"id": name} for name in (
-        "mistral-small-latest", "ministral-3b-latest", "mistral-ocr-latest",
+        "mistral-small-latest", "ministral-3b-latest", "mistral-ocr-latest", "mistral-ocr-4",
         "voxtral-mini-transcribe-3", "voxtral-mini-latest", "../unsafe")]}
     http = FakeHTTP(FakeResponse(data=json.dumps(body).encode()))
     options = model_catalog.fetch_models("mistral", "key", service.RequestToken(),
@@ -81,7 +88,8 @@ def test_malformed_or_partial_transcripts_are_not_success(body):
 
 def test_complete_ocr_pages_are_returned_in_reading_order():
     body = {"pages": [{"index": 1, "markdown": "Page two"},
-                       {"index": 0, "markdown": "Page one"}], "usage_info": {"doc_pages": 2}}
+                       {"index": 0, "markdown": "Page one"}],
+            "usage_info": {"pages_processed": 2, "doc_size_bytes": 3002783}}
     assert providers.parse_answer("mistral", body, "pdf") == "Page one\n\nPage two"
 
 
@@ -89,7 +97,11 @@ def test_complete_ocr_pages_are_returned_in_reading_order():
     {}, {"pages": []}, {"pages": [{"index": 0, "markdown": None}]},
     {"pages": [{"index": 1, "markdown": "missing page zero"}]},
     {"pages": [{"index": 0, "markdown": "a"}, {"index": 0, "markdown": "duplicate"}]},
-    {"pages": [{"index": 0, "markdown": "a"}], "usage_info": {"doc_pages": 2}},
+    {"pages": [{"index": 0, "markdown": "a"}], "usage_info": {"pages_processed": 2}},
+    {"pages": [{"index": 0, "markdown": "a"}], "usage_info": {"pages_processed": "1"}},
+    # Only an image on every page: nothing is left to read.
+    {"pages": [{"index": 0, "markdown": "![img-0.jpeg](img-0.jpeg)"}],
+     "usage_info": {"pages_processed": 1}},
 ])
 def test_incomplete_ocr_is_not_announced_as_complete(body):
     with pytest.raises(DescriptionError, match="ai_error_response"):
@@ -110,3 +122,37 @@ def test_mistral_service_reads_the_response_and_probe_is_metadata_only():
     assert http.calls[0][1]["data"] == {"model": "voxtral-mini-transcribe-3"}
     assert service.probe_request("mistral", "mistral-small-latest", "key")[0] == (
         "https://api.mistral.ai/v1/models/mistral-small-latest")
+
+
+class TestOcrMarkdownIsReadAsText:
+    """The OCR answer is renderer Markdown (shapes from Mistral's OCR guide);
+    a screen reader would read its image links, entities and tags aloud."""
+
+    def test_image_links_entities_and_breaks_become_plain_text(self):
+        markdown = (
+            "# Leveraging Unlabeled Data\n\nSee Sec. 5 for details on our testbed.\n\n"
+            "![img-1.jpeg](img-1.jpeg)\n\n"
+            "Recently, methods were proposed (Deng &amp; Zheng, 2021) as in ![img-2.jpeg](img-2.jpeg) here."
+            "\n\nFirst line<br>Second line<BR/>Third line")
+        assert readable_text(markdown) == (
+            "# Leveraging Unlabeled Data\n\nSee Sec. 5 for details on our testbed.\n\n"
+            "Recently, methods were proposed (Deng & Zheng, 2021) as in here.\n\n"
+            "First line\nSecond line\nThird line")
+
+    def test_a_table_row_keeps_its_cells_on_one_line(self):
+        markdown = "| Model | Titles |\n| --- | --- |\n| A | 1. Crown <br></br> 2. Magic |"
+        assert readable_text(markdown) == "| Model | Titles |\n| --- | --- |\n| A | 1. Crown 2. Magic |"
+
+    def test_the_text_itself_is_kept(self):
+        # An entity is decoded once, and a bare "&" (an author list in the
+        # guide's sample, "&Sivaraman") or a legacy name without ";" stays.
+        markdown = "&Sivaraman Balakrishnan\nR&D &notice\nWrite &lt;br&gt; literally, caf&#233;"
+        assert readable_text(markdown) == (
+            "&Sivaraman Balakrishnan\nR&D &notice\nWrite <br> literally, café")
+
+    def test_blank_lines_left_by_removed_images_collapse(self):
+        body = {"pages": [{"index": 0, "markdown": "Page one\n\n  ![img-0.jpeg](img-0.jpeg)  \n\n"},
+                          {"index": 1, "markdown": "![img-1.jpeg](img-1.jpeg)"},
+                          {"index": 2, "markdown": "\n\n\n\nPage three"}],
+                "usage_info": {"pages_processed": 3}}
+        assert providers.parse_answer("mistral", body, "pdf") == "Page one\n\nPage three"

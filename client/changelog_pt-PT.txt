@@ -8,7 +8,7 @@ NOVIDADES
 
 - Mistral está disponível para transcrição online, descrição de imagens e extração de texto de PDFs. O áudio utiliza Voxtral Mini Transcribe 3; fotografias, autocolantes e fotogramas de vídeo utilizam o modelo de visão escolhido (Ministral 3 3B por predefinição); PDFs utilizam Mistral OCR. A lista de modelos mostra modelos de visão compatíveis.
 
-- Nas conversas de grupo, Aderir substitui os botões de iniciar chamada enquanto existe uma chamada disponível. Chamadas mostra as chamadas em curso em Todas e Em curso, incluindo chamadas entre várias pessoas fora dos grupos. Ao aderir a uma videochamada, a câmara começa desligada.
+- Nas conversas de grupo, enquanto existe uma chamada disponível, os botões de iniciar chamada dão lugar a "Entrar na chamada de voz em curso" ou "Entrar na chamada de vídeo em curso (câmara desligada)". Chamadas mostra as chamadas em curso em Todas e Em curso, incluindo chamadas entre várias pessoas fora dos grupos. Ao entrar numa chamada de vídeo, a câmara começa desligada.
 
 - Muitas atualizações de presença de contactos seguidas (a escrever, online) já não congelam o WinZapp durante segundos nem deixam o computador lento em contas com muitas conversas.
 - Presença dos contactos: ao aprender novos nomes, a interface deixa de esperar pela gravação na base de dados. As atualizações pendentes mantêm a cópia completa mais recente, respeitando a ordem ao fechar ou limpar os dados locais.

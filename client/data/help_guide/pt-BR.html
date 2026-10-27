@@ -641,7 +641,7 @@
 </ul>
 
 <h3>IA online</h3>
-<p>Na aba <strong>IA online: Transcrições e Descrições</strong> das Configurações, você liga os recursos (começam desligados) e informa a chave de API de um ou mais provedores: Gemini, OpenAI, Claude, Groq e OpenRouter. Eles são tentados na ordem que você definir: se um falha ou fica sem cota, o próximo responde. Cada provedor tem uma janela própria, com a caixa "Usar o modelo recomendado pelo WinZapp" (o WinZapp usa sempre o modelo que ele recomenda) ou a escolha de um modelo fixo.</p>
+<p>Na aba <strong>IA online: Transcrições e Descrições</strong> das Configurações, você liga os recursos (começam desligados) e informa a chave de API de um ou mais provedores: Gemini, OpenAI, Claude, Groq, OpenRouter e Mistral. Eles são tentados na ordem que você definir: se um falha ou fica sem cota, o próximo responde. Cada provedor tem uma janela própria, com a caixa "Usar o modelo recomendado pelo WinZapp" (o WinZapp usa sempre o modelo que ele recomenda) ou a escolha de um modelo fixo.</p>
 <table class="field-table">
   <tr><th>Onde</th><th>O que faz</th></tr>
   <tr><td>Mensagem de voz ou áudio: "Transcrever com IA online"</td><td>Transforma em texto.</td></tr>
@@ -662,9 +662,7 @@
 <p>As opções da aba Transcrição local ficam em janelas abertas por botões nela: "Opções avançadas...", "Transcrições salvas...", "Transcrição de status...", "Pasta dos modelos e modelos em outras pastas...", e as janelas das bibliotecas CUDA e do whisper.cpp. As opções automáticas da IA online ficam em "Transcrição e descrição automáticas...", na página dela.</p>
 <p>Os dados da conversa têm duas caixas: "Transcrever automaticamente, localmente com o Whisper, as mensagens de voz, áudios e vídeos recebidos nesta conversa" e "Transcrever automaticamente, com os provedores online, as mensagens de voz e áudios recebidos nesta conversa". Cada uma mostra o que a conversa faz agora, seguindo a opção geral até você marcar ou desmarcar a caixa ali.</p>
 <p>Enter e Espaço, quando transcrevem, também transcrevem áudio e vídeo enviados como arquivo.</p>
-
-<!-- MISTRAL-MODEL-ROUTING -->
-<p>Mistral usa três modelos diferentes: Voxtral Mini Transcribe 3 para áudio, Ministral 3 3B por padrão para fotos, figurinhas e quadros de vídeo, e mistral-ocr-latest para extrair texto de PDFs. O campo Modelo e a obtenção de modelos selecionam apenas um modelo de visão; alterá-lo não muda a transcrição nem o OCR. OpenAI e Groq também usam modelos de áudio fixos, separados do modelo de visão escolhido; Groq não processa PDFs aqui. Gemini usa o modelo escolhido para todas as mídias compatíveis. A disponibilidade não garante uso gratuito: confira a cota incluída e os limites do provedor. O OCR da Mistral extrai texto, sem descrever as imagens dentro do PDF.</p>
+<p>Mistral usa três modelos diferentes: Voxtral Mini Transcribe 3 para áudio, Ministral 3 3B por padrão para fotos, figurinhas e quadros de vídeo, e mistral-ocr-4 para extrair texto de PDFs. O campo Modelo e a obtenção de modelos selecionam apenas um modelo de visão; alterá-lo não muda a transcrição nem o OCR. OpenAI e Groq também usam modelos de áudio fixos, separados do modelo de visão escolhido; Groq não processa PDFs aqui. Gemini usa o modelo escolhido para todas as mídias compatíveis. A disponibilidade não garante uso gratuito: confira a cota incluída e os limites do provedor. O OCR da Mistral extrai texto, sem descrever as imagens dentro do PDF.</p>
 
   </section>
 
@@ -714,7 +712,7 @@
 <p>Enquanto uma ligação toca, Ctrl+Alt+Shift+Enter atende de qualquer programa: a janela da ligação vem para a frente e recebe o foco. Uma ligação de vídeo é atendida com a câmera ligada, como pelo botão "Atender". Ctrl+Alt+Shift+Backspace recusa a ligação que está tocando, inclusive uma ligação em grupo, e o leitor de tela diz "Ligação recusada."; sem nenhuma ligação tocando, desliga a ligação em andamento. Com várias contas abertas, uma ligação tocando em qualquer uma delas é recusada primeiro. As duas teclas podem ser trocadas ou removidas em Configurações &gt; Atalhos de teclado e só ficam com o WinZapp enquanto podem agir; no resto do tempo, os outros programas continuam com elas.</p>
 
 <h3>Aba Ligações (Alt+6)</h3>
-<p>Histórico de ligações de todas as conversas, separado em Todas, Perdidas, Recusadas e Atendidas (Ctrl+Tab e Ctrl+Shift+Tab alternam; Alt+L vai à lista). Na lista, Enter abre a conversa da ligação, Ctrl+Shift+R retorna uma ligação perdida e F5 atualiza. Numa ligação perdida, na conversa, o botão "Retornar ligação" faz o mesmo.</p>
+<p>Histórico de ligações de todas as conversas, separado em Todas, Perdidas, Recusadas, Atendidas e Em andamento (Ctrl+Tab e Ctrl+Shift+Tab alternam; Alt+L vai à lista). Na lista, Enter abre a conversa da ligação, Ctrl+Shift+R retorna uma ligação perdida e F5 atualiza. Numa ligação perdida, na conversa, o botão "Retornar ligação" faz o mesmo.</p>
 
 <h3>Configurações das ligações</h3>
 <p>Em Configurações &gt; Chamadas, "Configurações de áudio da chamada" escolhe microfone e alto-falante, e "Configurações de vídeo da chamada" escolhe a câmera. Ali ficam o cancelamento de eco (reduz o retorno do seu som quando usa alto-falante), a redução de ruído do microfone e o modo exclusivo para microfone e alto-falante.</p>
@@ -725,12 +723,8 @@
   Quando a versão do WhatsApp Web em uso não oferece suporte a ligações, o WinZapp diz isso e o que tentar: reiniciar o WinZapp ou escolher Ajuda &gt; Forçar reinstalação da WPPConnect.
 </div>
 <p>Ao reinstalar a WPPConnect, o WinZapp preserva um catálogo mais recente e compatível do WhatsApp Web e procura um catálogo atualizado. Sem internet, um catálogo utilizável é mantido, mas não é possível confirmar se está atualizado. Se a ligação ainda não iniciar, restabeleça a internet e reinicie o WinZapp. Uma incompatibilidade confirmada do VoIP que não permite nova tentativa é informada sem repetir a inicialização.</p>
-
-<!-- ONGOING-GROUP-CALL -->
-<p>Enquanto a conversa de um grupo está aberta, o WinZapp verifica se há uma chamada em andamento a cada dez segundos, aproximadamente. O botão para entrar aparece somente quando há uma chamada disponível e desaparece quando ela termina. Ao entrar em uma chamada de vídeo, a câmera começa desligada. Entrar em uma chamada existente não usa o limite de 32 membros para iniciar uma nova chamada de grupo. Quando há uma ligação disponível, o botão de entrar substitui os botões de iniciar ligação de voz e vídeo. Em Ligações (Alt+6), o filtro Em andamento lista as ligações disponíveis para entrar, inclusive entre várias pessoas fora de conversas de grupo; elas também aparecem primeiro em Todas. Selecione uma ligação e pressione Enter ou use o botão de entrar. Voltar à ligação traz a janela da ligação atual para frente. A lista é atualizada aproximadamente a cada dez segundos enquanto Ligações está aberta e inclui apenas ligações que o WhatsApp disponibiliza para sua conta.</p>
-
-<!-- CALL-PARTICIPANTS -->
-<p>Use o botão Participantes da ligação na janela da ligação ou em uma ligação em andamento selecionada em Ligações para ver os nomes das pessoas conectadas. A lista é atualizada a cada dez segundos; Atualizar solicita os dados atuais e Fechar ou Escape fecha a janela. Pessoas convidadas ou desconectadas não aparecem. Consultar a lista não entra nem encerra uma ligação.</p>
+<p>Enquanto a conversa de um grupo está aberta, o WinZapp verifica se há uma ligação em andamento a cada dez segundos, aproximadamente. O botão para entrar aparece somente quando há uma ligação disponível e desaparece quando ela termina. Ao entrar em uma ligação de vídeo, a câmera começa desligada. Entrar em uma ligação existente não usa o limite de 32 membros para iniciar uma nova ligação de grupo. Quando há uma ligação disponível, o botão "Entrar na ligação de voz em andamento" ou, numa ligação de vídeo, "Entrar na ligação de vídeo em andamento (câmera desligada)" substitui os botões de iniciar ligação de voz e vídeo. Em Ligações (Alt+6), o filtro Em andamento lista as ligações disponíveis para entrar, inclusive entre várias pessoas fora de conversas de grupo; elas também aparecem primeiro em Todas. Selecione uma ligação e pressione Enter ou use o mesmo botão de entrar. Se você já está nessa ligação, o botão se chama "Voltar à ligação" e traz a janela da ligação atual para frente. A lista é atualizada aproximadamente a cada dez segundos enquanto Ligações está aberta e inclui apenas ligações que o WhatsApp disponibiliza para sua conta.</p>
+<p>Use o botão "Participantes da ligação" na janela da ligação ou em uma ligação em andamento selecionada em Ligações para ver os nomes das pessoas conectadas. A lista é atualizada a cada dez segundos; "Atualizar" solicita os dados atuais e "Fechar" ou Esc fecha a janela. Pessoas convidadas ou desconectadas não aparecem. Consultar a lista não faz você entrar na ligação nem a encerra.</p>
 
   </section>
 
@@ -1283,6 +1277,7 @@
 <p class="lead">Cada alpha nova que traz funcionalidades é acrescentada ao guia. Esta lista mostra até que alpha o guia está completo e o que foi acrescentado em cada rodada.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>O que entrou no guia</th></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Ligações em andamento: entrar numa ligação disponível pela conversa do grupo ou pelo filtro Em andamento de Ligações, e a lista de participantes conectados. Mistral para transcrição online, descrição de imagens e extração de texto de PDFs.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Presença de contatos (digitando, online): muitas atualizações seguidas não congelam mais o programa por segundos nem deixam o computador lento.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizações de presença com menos alterações repetidas na interface e salvamento em segundo plano de novos nomes de contatos.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizar o WinZapp ou a WPPConnect: a instalação e a compilação rodam com prioridade menor, para o computador e o leitor de tela não travarem no meio da atualização.</td></tr>

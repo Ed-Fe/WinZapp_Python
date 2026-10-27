@@ -8,7 +8,7 @@ NOWOŚCI
 
 - Mistral obsługuje transkrypcję online, opisywanie obrazów i odczytywanie tekstu z PDF. Dźwięk używa Voxtral Mini Transcribe 3, zdjęcia, naklejki i klatki wideo wybranego modelu wizyjnego (domyślnie Ministral 3 3B), a PDF modelu Mistral OCR. Lista modeli zawiera zgodne modele wizyjne.
 
-- W czatach grupowych przycisk dołączania zastępuje przyciski rozpoczynania połączeń, gdy połączenie jest dostępne. Sekcja Połączenia pokazuje trwające połączenia w filtrach Wszystkie i Trwające, także między wieloma osobami poza grupami. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą.
+- W czatach grupowych, gdy połączenie jest dostępne, przyciski rozpoczynania połączeń zastępuje przycisk "Dołącz do trwającego połączenia głosowego" lub "Dołącz do trwającego połączenia wideo (kamera wyłączona)". Sekcja Połączenia pokazuje trwające połączenia w filtrach Wszystkie i Trwające, także między wieloma osobami poza grupami. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą.
 
 - Wiele kolejnych aktualizacji obecności kontaktów (pisanie, online) nie zawiesza już WinZapp na kilka sekund ani nie spowalnia całego komputera na kontach z wieloma czatami.
 - Obecność kontaktów: przy zapamiętywaniu nowych nazw kontaktów interfejs nie czeka już na zapis do bazy danych. Oczekujące aktualizacje zachowują najnowszy pełny zestaw nazw, z zachowaniem kolejności przy zamykaniu i czyszczeniu danych lokalnych.

@@ -1007,7 +1007,8 @@ class CallsMixin:
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _ensure_page_call_ended(self, call_id: str, *, delay: float = 1.5):
+    def _ensure_page_call_ended(self, call_id: str, *, delay: float = 1.5,
+                                unless_active: bool = False):
         """End *call_id* on the page if WinZapp declared it over and it is not.
 
         WinZapp announcing "call ended" while WhatsApp Web still holds the call
@@ -1016,6 +1017,9 @@ class CallsMixin:
         up -- is gone. Scoped on the Node side to this exact call id and to a
         call that is still connected or dialling, so it can never end a newer
         call. The delay lets an ordinary hang-up finish on its own first.
+        *unless_active* skips it when WinZapp holds that call again by then
+        (a late join adopted, or the user joined again): a join reuses the
+        call's own id, so the Node scope alone cannot tell them apart.
         """
         call_id = str(call_id or "")
         if not call_id or call_id.startswith("outgoing:"):
@@ -1025,6 +1029,9 @@ class CallsMixin:
             time.sleep(delay)
             if getattr(self, "_shutting_down", False):
                 return
+            if unless_active and (getattr(self, "_active_voice_call", None) or {}).get(
+                    "call_id") == call_id:
+                return  # adopted or joined again since: it has a window
             with self._call_action_lock:
                 try:
                     response = self._raise_for_call_response(
@@ -1439,7 +1446,7 @@ class CallsMixin:
                         endpoint, call_payload,
                         timeout=75,
                     ),
-                    "offer",
+                    "join" if join_call_id else "offer",
                 )
                 try:
                     body = response.json().get("response") or {}
@@ -1502,6 +1509,13 @@ class CallsMixin:
                     ),
                     True,
                 )
+                if join_call_id:
+                    # The page's join can outlive the Node side's wait for it
+                    # (groupCallRuntime.ts) and connect after "join failed"
+                    # was spoken, leaving the user in a call with no window to
+                    # hang up from. Scoped to this exact call id, so it can
+                    # never end a call that replaced this attempt.
+                    self._ensure_page_call_ended(join_call_id, unless_active=True)
             finally:
                 # In a finally, not in the except: a refused offer, a hang-up
                 # that beat it and a record replaced underneath us all leave
@@ -1525,6 +1539,9 @@ class CallsMixin:
             if offered and is_video:
                 try:
                     if join_call_id:
+                        # Joining someone else's video call must not put the
+                        # user on camera unasked (as Answer without video):
+                        # the probe only lets them turn the camera on.
                         self._probe_call_camera()
                     else:
                         self._start_call_camera()
@@ -1574,8 +1591,12 @@ class CallsMixin:
         active = getattr(self, "_active_voice_call", None)
         participants_button = getattr(self, "voice_call_window_participants_button", None)
         if participants_button is not None:
+            # show_call_participants() refuses a locked chat, so the button
+            # is not offered for one: pressing it could only be refused.
+            locked = getattr(self, "is_chat_locked", lambda _jid: False)
             participants_button.Enable(active_participants_available(
-                active, getattr(self, "_voice_call_last_announced_state", "")))
+                active, getattr(self, "_voice_call_last_announced_state", ""))
+                and not locked(active.get("peer_jid")))
         if not active:
             window.Hide()
             self.call_video_image.Hide()
@@ -1841,10 +1862,19 @@ class CallsMixin:
                     self._post_call_control("audio/enable", {}, timeout=20),
                     "audio/enable",
                 )
+                # This call is already connected, and the fresh record
+                # installed below resets the announced state: losing ACTIVE
+                # would keep Participants and the promote-to-video button
+                # unavailable until the next callstate, which would also
+                # speak "connected" again.
+                state = getattr(self, "_voice_call_last_announced_state", "")
                 self._start_voice_call_audio(
                     str(details.get("identity") or details.get("call_id") or "call"),
                     details,
                 )
+                if state and not getattr(self, "_voice_call_last_announced_state", ""):
+                    self._voice_call_last_announced_state = state
+                    wx.CallAfter(self._sync_voice_call_bar)
             except Exception:
                 logging.exception("[call_audio] failed to attach to browser call")
 

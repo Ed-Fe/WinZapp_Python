@@ -764,9 +764,14 @@ export async function callParticipants(req: Request, res: Response) {
 
 export async function joinGroupCall(req: Request, res: Response) {
   try {
-    await evaluateWppCall(req, 'group-join-check', req.body || {});
+    const body = req.body || {};
+    if (!body.callId || !(body.chatJid || body.groupJid)) {
+      res.status(400).json({ status: 'error', message: 'Parameters callId and chatJid are required!' });
+      return;
+    }
+    await evaluateWppCall(req, 'group-join-check', body);
     await prepareAudioBridge(req);
-    ok(res, await evaluateWppCall(req, 'group-join', req.body || {}));
+    ok(res, await evaluateWppCall(req, 'group-join', body));
   } catch (error) {
     // An incoming/new call can replace this attempt while its POST is pending.
     // Its media bridge belongs to that call, even when our join failed.

@@ -9,6 +9,7 @@ from typing import NamedTuple, Optional
 
 from .config import MAX_OUTPUT_CHARS, MAX_OUTPUT_TOKENS, PROVIDERS, supports, valid_model
 from .errors import DescriptionError
+from .mistral_ocr import parse_document
 
 
 class Request(NamedTuple):
@@ -126,7 +127,6 @@ def parse_answer(provider, body, kind):
                 raise DescriptionError("response")
             text = body["text"]
         elif provider == "mistral" and kind == "pdf":
-            from .mistral_ocr import parse_document
             text = parse_document(body)
         elif provider == "openai" and "text" in body and "output" not in body:
             text = body["text"]  # audio transcription
@@ -164,7 +164,9 @@ def parse_answer(provider, body, kind):
                 message = choice["message"]
                 if message.get("refusal") or choice.get("finish_reason") == "content_filter":
                     raise DescriptionError("refusal")
-                if choice.get("finish_reason") == "length":
+                # Mistral's enum adds "model_length" and "error": the answer
+                # was cut off too, and must not be shown as complete.
+                if choice.get("finish_reason") in ("length", "model_length", "error"):
                     raise DescriptionError("response")
                 text = message.get("content")
         else:

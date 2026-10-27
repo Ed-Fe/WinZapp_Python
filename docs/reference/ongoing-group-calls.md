@@ -10,30 +10,34 @@ Failed checks hide the button without speaking. Repeated results do not
 rewrite an unchanged label, and hiding a focused button moves focus to the
 message field, never away from another control.
 
-The authenticated `call/group/ongoing`, `call/ongoing` and `call/group/join` endpoints live in
-`callController.ts`; the serialized native adapter is `groupCallRuntime.ts`.
-The latter calls `joinOngoingWAWebVoipGroupCallPN` with the same options as
+The authenticated `call/group/ongoing`, `call/ongoing`, `call/participants`
+and `call/group/join` endpoints live in `callController.ts`; the serialized
+native adapter is `groupCallRuntime.ts`. A join without `callId` or a chat
+(`chatJid`/`groupJid`) is refused with 400 before anything touches the page.
+The adapter calls `joinOngoingWAWebVoipGroupCallPN` with the same options as
 WhatsApp's Calls-tab Join button (`joinAndAccept: true`, `CALL_LOG`), after
 checking the call id, chat, media type and absence of another active/pending
-call. It requires the selected call to reach the live call store and never
-falls back to an offer or retries the join. Failed cleanup cannot disable
-the bridge of a different call. Python reuses the existing cancellable
-call worker and audio lifecycle. Video is joined with the camera off, using
-the same camera probe as Answer without video.
+call; that check runs before the media bridge is enabled. It requires the
+selected call to reach the live call store and never falls back to an offer
+or retries the join. It waits 5 s for the call to connect, extended to 15 s
+while that call is still dialling (`CALLING`, `LINK`, `PRE_CALLING`, `CALL_B_STARTING`); an
+ended or failed call stops the wait at once. Failed cleanup cannot disable
+the bridge of a different call: it stops the bridge only when the page holds
+no call or this call, and no outgoing call is pending. Python reuses the
+existing cancellable call worker and audio lifecycle. When a join fails,
+Python also asks the page to end that exact call id (`call/ensure-ended`), so
+a join that connects after "join failed" was spoken never leaves the user in
+a call with no window; that request is skipped when WinZapp holds that call
+id again by then (the late join was adopted, or the user joined again). Video is joined with the camera off, using the same
+camera probe as Answer without video.
 
-The native function signatures and collection fields were read from the
-installed WhatsApp Web runtime on 2026-10-25. On 2026-10-27 the user reported
-a successful real group-call join. On the same day the user completed the
-preview acceptance pass and confirmed that the requested calling features
-worked, including the connected-participant list. Synthetic tests exercise
-the native shapes and lifecycle edge cases independently.
 This does not add a participant picker to start
 calls in groups exceeding the existing 32-member starting-call limit.
 The visibility checks use the existing free function
 `core.conversation_view.conversation_in_view(panel)`, not a method on
 ConversationsPanel. Tests expose wx's actual `IsShown()` interface on both the
-panel and its detail pane; inventing a `conversation_in_view` stub method hid
-the first preview's opening-group crash. Poll, completion and click all use
+panel and its detail pane; a stub `conversation_in_view` method would hide a
+crash in the real opening path. Poll, completion and click all use
 the shared helper, including when only the detail pane is hidden.
 
 ## Ongoing filter in Calls
@@ -53,8 +57,10 @@ chat. Listing uses `getModelsArray()` after `checkOngoingCalls()`, and verifies
 `WAWebMsgGetters.getIsGroupCall()` for a non-group chat. The same native
 `joinOngoingWAWebVoipGroupCallPN` accepts that chat: its native implementation
 explicitly branches on `chat.id.isGroup()`. Phone `@c.us`/`@s.whatsapp.net`
-forms address the same native chat; LIDs remain distinct. Python preserves
-the chat peer even when the multiparty call has no group JID.
+forms address the same native chat; LIDs remain distinct. Python stores a
+listed `@c.us` chat as `@s.whatsapp.net` (`core/ongoing_calls.py`), so lock
+checks and names match the stored chat, and preserves the chat peer even
+when the multiparty call has no group JID.
 
 Enter, the Join button and the context menu join the selected live call by
 id. A call already active on this PC instead offers Return to call, which
@@ -63,12 +69,6 @@ retain the existing busy protection. Video joins still start with the camera off
 An established local one-to-one call is included from the active call record,
 even though WhatsApp's joinable collection contains multiparty calls. It offers
 Return to call only; a pending outgoing attempt is never presented as connected.
-
-On 2026-10-27 a read-only invocation of the new native list adapter returned
-the user's current group call and matched its id to the active call store.
-No join, hang-up or audio-device operation was invoked by that check. A
-live multiparty call outside a WhatsApp group was not separately captured by
-the development smoke test; that path is covered by native-shaped tests.
 
 ## Connected participants
 
@@ -81,6 +81,10 @@ in `WAWebCallLogJoinOngoingCell.react`. Invited, ringing and departed people
 are excluded; group membership is never used as a fallback. An established
 local one-to-one call can name its peer and the local user from the active
 call model. Unknown group roster shapes fail instead of claiming completeness.
+The call window's button is enabled only for a connected call (`ACTIVE` or
+`REJOINING`) with WhatsApp's own call id whose chat is not locked. Attaching
+Python's audio to a call answered or adopted on the page keeps that
+connected state.
 
 The native LID-to-phone bridge deduplicates addresses when available. Saved
 contact names take precedence over native profile names; raw JIDs never reach
@@ -90,8 +94,3 @@ rewrite unchanged rows or announce periodic updates. Closing invalidates
 pending results. Failure clears stale names; an ended call clears the list
 and stops polling. Locked-call permission is checked before opening and again
 before presenting an asynchronous response. No audio device or join is invoked.
-On 2026-10-27 the named native Connected enum was verified in the running
-session. There was no current call at that development check. The user later
-confirmed that the button remained disabled until the call was answered and
-then opened the participant list successfully. This is user-reported manual
-acceptance; native-shaped synthetic tests cover membership filtering.

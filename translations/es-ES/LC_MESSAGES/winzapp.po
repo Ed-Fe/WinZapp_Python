@@ -2507,16 +2507,19 @@ msgid "No participants are currently connected."
 msgstr "No hay participantes conectados actualmente."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/call_participants.py
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
 msgctxt "call_participants_ended"
 msgid "This call has ended or is no longer available."
-msgstr "Esta llamada terminó o ya no está disponible."
+msgstr "Esta llamada ha terminado o ya no está disponible."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
 msgctxt "call_participants_failed"
 msgid "Could not load the current participants. Use Refresh to try again."
-msgstr "No se pudieron cargar los participantes actuales. Usa Actualizar para volver a intentarlo."
+msgstr ""
+"No se pudieron cargar los participantes actuales. Usa Actualizar para volver"
+" a intentarlo."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
@@ -2610,7 +2613,7 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "calls_ongoing_empty"
 msgid "No ongoing calls."
-msgstr "Ninguna llamada en curso."
+msgstr "No hay llamadas en curso."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "calls_ongoing_unavailable"
@@ -5768,8 +5771,8 @@ msgstr "Unirse a la videollamada en curso (cámara apagada)"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_joining"
-msgid "Joining the ongoing call in {name}..."
-msgstr "Uniéndose a la llamada en curso en {name}..."
+msgid "Joining the ongoing call: {name}..."
+msgstr "Uniéndose a la llamada en curso: {name}..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
@@ -6897,7 +6900,7 @@ msgstr "selección de lista"
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Cargando..."

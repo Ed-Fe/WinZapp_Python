@@ -10,14 +10,22 @@ from core.call_participants import parse_participants, participant_rows
 
 class ParticipantListMixin:
     def _refresh_participants(self, _event=None, *, announce=False):
-        if not self._alive or self._inflight is not None:
+        if not self._alive:
+            return
+        if self._inflight is not None:
+            # A press during the timed refresh rides on it: its result is
+            # spoken, or the press would be answered by silence.
+            if announce or _event is not None:
+                self._announce_pending = True
             return
         if self._timer is not None:
             self._timer.Stop()
             self._timer = None
         token = object()
+        # The in-flight guard above is what refuses a second request. Never
+        # disable the Refresh button: the timed refresh would take focus off
+        # it, and Windows hands focus to Close, so the next Space closes.
         self._inflight = token
-        self._refresh_btn.Enable(False)
         announce = announce or _event is not None
         if not self._allowed():
             self._finish_participants(token, None, True, announce)
@@ -40,7 +48,8 @@ class ParticipantListMixin:
         if not self._alive or self._inflight is not token or getattr(self._mw, "_shutting_down", False):
             return
         self._inflight = None
-        self._refresh_btn.Enable(True)
+        announce = announce or getattr(self, "_announce_pending", False)
+        self._announce_pending = False
         if not self._allowed():
             data, failed = None, True
         rows = [] if data is None or failed else participant_rows(data, self._mw.i18n,
@@ -103,8 +112,7 @@ class CallParticipantsDialog(ParticipantListMixin, wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         label = i18n.t("call_participants_list")
         sizer.Add(wx.StaticText(panel, label=label), 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        self._list = wx.ListCtrl(panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER,
-                                 name=label)
+        self._list = wx.ListCtrl(panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
         self._list.InsertColumn(0, label, width=400)
         sizer.Add(self._list, 1, wx.EXPAND | wx.ALL, 8)
         self._status = wx.StaticText(panel, label=i18n.t("loading"))

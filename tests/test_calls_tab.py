@@ -501,11 +501,36 @@ class TestListUpdatePlan:
 
 
 class _CountingList(_List):
+    """Records every write. Like a native ListView, a row inserted or
+    deleted above the focused one moves the focus index with it, and deleting
+    the focused row leaves no row focused."""
+
     def __init__(self):
         super().__init__(focused=-1)
         self.deletes = 0
         self.appends = []
         self.set_texts = []
+        self.inserted = []
+        self.deleted = []
+        self.focus_calls = 0
+
+    def Focus(self, i):
+        self.focus_calls += 1
+        super().Focus(i)
+
+    def InsertItem(self, index, text):
+        self.inserted.append((index, text))
+        self.items.insert(index, text)
+        if self.focused >= index:
+            self.focused += 1
+
+    def DeleteItem(self, index):
+        self.deleted.append(index)
+        del self.items[index]
+        if self.focused == index:
+            self.focused = -1
+        elif self.focused > index:
+            self.focused -= 1
 
     def Freeze(self):
         pass
@@ -540,11 +565,12 @@ class TestApplyRows:
         rows = [("A", "Maria: perdida"), ("B", "João: atendida")]
         panel._apply_rows(TAB_ALL, rows)
         lst = panel._lists[TAB_ALL]
-        assert lst.deletes == 1 and lst.appends == ["Maria: perdida", "João: atendida"]
+        assert lst.inserted == [(0, "Maria: perdida"), (1, "João: atendida")]
 
         panel._apply_rows(TAB_ALL, list(rows))
 
-        assert lst.deletes == 1 and len(lst.appends) == 2 and lst.set_texts == []
+        assert len(lst.inserted) == 2 and lst.set_texts == [] and lst.deleted == []
+        assert lst.deletes == 0
 
     def test_one_settled_call_rewrites_only_its_row(self):
         panel = _ApplyPanel()
@@ -553,11 +579,50 @@ class TestApplyRows:
 
         panel._apply_rows(TAB_ALL, [("A", "Maria: efetuada"), ("B", "João: atendida")])
 
-        assert lst.deletes == 1
+        assert len(lst.inserted) == 2
         assert lst.set_texts == [(0, "Maria: efetuada")]
 
-    def test_a_rebuild_keeps_focus_on_the_same_call(self):
+    def test_a_new_call_inserts_its_row_and_leaves_the_focused_one_alone(self):
+        """Clearing the list on every live-call change re-announced the
+        focused row (docs/traps/screen-reader-speech.md)."""
         panel = _ApplyPanel()
         panel._apply_rows(TAB_ALL, [("A", "a"), ("B", "b")])
+        lst = panel._lists[TAB_ALL]
+        lst.focused = 1
+        focus_calls = lst.focus_calls
         panel._apply_rows(TAB_ALL, [("N", "n"), ("A", "a"), ("B", "b")], keep_id="B")
-        assert panel._lists[TAB_ALL].focused == 2
+        assert lst.items == ["n", "a", "b"] and lst.inserted[-1] == (0, "n")
+        assert lst.focused == 2 and lst.focus_calls == focus_calls
+        assert lst.deletes == 0 and lst.deleted == []
+
+    def test_an_ended_live_call_deletes_only_its_row(self):
+        panel = _ApplyPanel()
+        panel._apply_rows(TAB_ALL, [("L", "live"), ("A", "a"), ("B", "b")])
+        lst = panel._lists[TAB_ALL]
+        lst.focused = 2
+        focus_calls = lst.focus_calls
+        panel._apply_rows(TAB_ALL, [("A", "a"), ("B", "b")], keep_id="B")
+        assert lst.items == ["a", "b"] and lst.deleted == [0]
+        assert lst.focused == 1 and lst.focus_calls == focus_calls
+
+    def test_removing_the_focused_row_focuses_the_first(self):
+        panel = _ApplyPanel()
+        panel._apply_rows(TAB_ALL, [("L", "live"), ("A", "a")])
+        lst = panel._lists[TAB_ALL]
+        lst.focused = 0
+        panel._apply_rows(TAB_ALL, [("A", "a")], keep_id="L")
+        assert lst.items == ["a"] and lst.focused == 0
+
+    def test_an_inserted_row_and_a_settled_one_in_the_same_reload(self):
+        panel = _ApplyPanel()
+        panel._apply_rows(TAB_ALL, [("A", "em andamento")])
+        lst = panel._lists[TAB_ALL]
+        panel._apply_rows(TAB_ALL, [("N", "n"), ("A", "efetuada")])
+        assert lst.items == ["n", "efetuada"] and lst.set_texts == [(1, "efetuada")]
+
+    def test_the_placeholder_gives_way_to_the_calls(self):
+        panel = _ApplyPanel()
+        panel._apply_rows(TAB_ALL, [("", "Carregando...")])
+        lst = panel._lists[TAB_ALL]
+        panel._apply_rows(TAB_ALL, [("A", "a"), ("B", "b")])
+        assert lst.items == ["a", "b"] and lst.focused == 0

@@ -4,6 +4,7 @@ import threading
 
 import wx
 
+from core.call_log import TAB_ALL, TAB_ONGOING
 from core.ongoing_calls import ongoing_entries, include_current_call
 
 
@@ -14,6 +15,8 @@ class OngoingCallsMixin:
         self._ongoing_entries = []
         self._ongoing_unavailable = False
         self._ongoing_watch = None
+        # The watch whose reply produced _ongoing_entries.
+        self._ongoing_confirmed = None
         self._ongoing_timer = None
         self._ongoing_inflight = None
         self._ongoing_join_btn = wx.Button(self, label=self.main_window.i18n.t("group_call_join_button"))
@@ -28,8 +31,9 @@ class OngoingCallsMixin:
 
     def _on_ongoing_visibility(self, event):
         if event.GetEventObject() is self and not event.IsShown():
+            # The rows stay cached, so reopening the tab rewrites nothing;
+            # ending the watch is enough to make them unjoinable.
             self._ongoing_watch = None
-            self._ongoing_entries = []
             if self._ongoing_timer is not None:
                 self._ongoing_timer.Stop()
                 self._ongoing_timer = None
@@ -38,10 +42,10 @@ class OngoingCallsMixin:
     def _watch_ongoing_calls(self):
         if self._ongoing_watch is None:
             self._ongoing_watch = object()
-            # A cached row from a previous visit must not remain joinable
-            # while the fresh native request is pending.
-            self._ongoing_entries = []
-            self._populate_all()
+            # A cached row from a previous visit stays listed but is not
+            # joinable until this watch's reply confirms it; only Ongoing's
+            # placeholder and the buttons change meanwhile.
+            self._populate_all(tabs=(TAB_ONGOING,))
         self._poll_ongoing_calls(self._ongoing_watch)
 
     def _poll_ongoing_calls(self, watch):
@@ -83,15 +87,32 @@ class OngoingCallsMixin:
             return
         self._ongoing_entries = entries
         self._ongoing_unavailable = unavailable
-        self._populate_all()
+        self._ongoing_confirmed = watch
+        self._repopulate_ongoing()
         self._schedule_ongoing_poll(watch)
 
-    def _ongoing_rows_for_tab(self, tab):
-        from core.call_log import TAB_ALL, TAB_ONGOING
+    def _repopulate_ongoing(self):
+        # Until history has loaded, All keeps saying "loading"; writing its
+        # empty placeholder there would read "No calls" on the focused row.
+        self._populate_all(tabs=None if getattr(self, "_loaded", False) else (TAB_ONGOING,))
+
+    def _ongoing_confirmed_now(self):
+        return getattr(self, "_ongoing_confirmed", None) is self._ongoing_watch
+
+    def _ongoing_placeholder_key(self):
+        if not self._ongoing_confirmed_now():
+            return "loading"
+        return ("calls_ongoing_unavailable" if getattr(self, "_ongoing_unavailable", False)
+                else "calls_ongoing_empty")
+
+    def _ongoing_rows_for_tab(self, tab, *, joinable=False):
         if tab not in (TAB_ALL, TAB_ONGOING):
             return []
         locked = getattr(self.main_window, "is_chat_locked", lambda _jid: False)
-        rows = include_current_call(getattr(self, "_ongoing_entries", []),
+        cached = getattr(self, "_ongoing_entries", [])
+        if joinable and not self._ongoing_confirmed_now():
+            cached = []
+        rows = include_current_call(cached,
             getattr(self.main_window, "_active_voice_call", None),
             getattr(self.main_window, "_voice_call_last_announced_state", ""))
         return [entry for entry in rows if not locked(entry["jid"])]
@@ -103,8 +124,21 @@ class OngoingCallsMixin:
         if getattr(self.main_window, "is_chat_locked", lambda _jid: False)(entry["jid"]):
             return None
         # Refuse a selected stale row even if a delayed history refresh kept it.
-        return next((row for row in self._ongoing_rows_for_tab(self.current_tab())
+        return next((row for row in self._ongoing_rows_for_tab(self.current_tab(), joinable=True)
                      if row["ongoing"]["id"] == entry["ongoing"]["id"]), None)
+
+    def _refuse_stale_ongoing(self):
+        """The focused live row cannot be used: say why rather than do nothing."""
+        entry = self.focused_entry()
+        if entry is None or not entry.get("ongoing"):
+            return
+        mw = self.main_window
+        if not self._ongoing_confirmed_now():
+            mw.output(mw.i18n.t("loading"), interrupt=True)
+            return
+        # Ended (or locked) since the list was drawn: drop the row now.
+        self._repopulate_ongoing()
+        mw.output(mw.i18n.t("call_participants_ended"), interrupt=True)
 
     def _update_ongoing_join_button(self):
         entry = self._selected_ongoing()
@@ -132,12 +166,15 @@ class OngoingCallsMixin:
 
     def _show_ongoing_participants(self, _event=None):
         entry = self._selected_ongoing()
-        if entry is not None:
-            self.main_window.show_call_participants(entry["ongoing"]["id"], entry["jid"], parent=self)
+        if entry is None:
+            self._refuse_stale_ongoing()
+            return
+        self.main_window.show_call_participants(entry["ongoing"]["id"], entry["jid"], parent=self)
 
     def _join_ongoing_call(self, _event=None):
         entry = self._selected_ongoing()
         if entry is None:
+            self._refuse_stale_ongoing()
             return
         call, mw = entry["ongoing"], self.main_window
         active = getattr(mw, "_active_voice_call", None) or {}
@@ -151,6 +188,7 @@ class OngoingCallsMixin:
     def _ongoing_context_menu(self):
         entry = self._selected_ongoing()
         if entry is None:
+            self._refuse_stale_ongoing()
             return
         self._update_ongoing_join_button()
         menu = wx.Menu()

@@ -13,7 +13,7 @@ const assert = require('node:assert/strict');
 const group = '120363000001@g.us';
 const wid = { _serialized: group };
 const chat = { id: wid, groupMetadata: {} };
-let record, joined, active, pending, supported, autoConnect, checks, extra;
+let record, joined, active, pending, supported, autoConnect, checks, extra, polls;
 const person = '555000001@lid';
 const personChat = { id: { _serialized: person } };
 const pnChat = { id: { _serialized: '555000002@c.us' } };
@@ -40,7 +40,7 @@ const modules = {
   WAWebCallCollection: { get activeCall() { return active; }, get pendingOutgoingCall() { return pending; } },
   WAWebVoipStartCall: { joinOngoingWAWebVoipGroupCallPN: async p => {
     joined.push(p);
-    if (autoConnect) active = { id: p.callId, getState: () => 6 };
+    if (autoConnect) active = typeof autoConnect === 'function' ? autoConnect(p) : { id: p.callId, getState: () => 6 };
   } },
   WAWebWamEnumLobbyEntryPointType: { LOBBY_ENTRY_POINT_TYPE: { CALL_LOG: 7 } },
 };
@@ -96,6 +96,18 @@ function fresh() {
   api = fresh(); autoConnect = false;
   await assert.rejects(api.join({ groupJid: group, callId: 'call-1', isVideo: false }), /did not join/);
   assert.equal(joined.length, 1, 'never retry or fall back to a new call');
+  polls = 0; api = fresh(); autoConnect = p => ({ id: p.callId, getState: () => (++polls < 120 ? 12 : 6) });
+  assert.equal((await api.join({ groupJid: group, callId: 'call-1', isVideo: false })).state, 6,
+    'a join still dialling is waited for past the 5 s bound');
+  polls = 0; api = fresh(); autoConnect = p => ({ id: p.callId, getState: () => (++polls < 120 ? 14 : 6) });
+  assert.equal((await api.join({ groupJid: group, callId: 'call-1', isVideo: false })).state, 6,
+    'CALL_B_STARTING counts as dialling, as ensure-ended does');
+  polls = 0; api = fresh(); autoConnect = p => ({ id: p.callId, getState: () => { polls += 1; return 1; } });
+  await assert.rejects(api.join({ groupJid: group, callId: 'call-1', isVideo: false }), /did not join/);
+  assert.equal(polls, 150, 'a join that keeps dialling is still bounded');
+  polls = 0; api = fresh(); autoConnect = p => ({ id: 'other-call', getState: () => { polls += 1; return 1; } });
+  await assert.rejects(api.join({ groupJid: group, callId: 'call-1', isVideo: false }), /did not join/);
+  assert.equal(polls, 50, 'another call dialling never extends the wait');
 
   api = fresh();
   extra = [

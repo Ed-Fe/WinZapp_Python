@@ -2523,7 +2523,8 @@ msgid "No participants are currently connected."
 msgstr "Obecnie nie ma połączonych uczestników."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/call_participants.py
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
 msgctxt "call_participants_ended"
 msgid "This call has ended or is no longer available."
 msgstr "To połączenie zakończyło się lub nie jest już dostępne."
@@ -2532,7 +2533,9 @@ msgstr "To połączenie zakończyło się lub nie jest już dostępne."
 #: client/ui/dialogs/call_participants.py
 msgctxt "call_participants_failed"
 msgid "Could not load the current participants. Use Refresh to try again."
-msgstr "Nie udało się wczytać bieżących uczestników. Użyj Odśwież, aby spróbować ponownie."
+msgstr ""
+"Nie udało się wczytać bieżących uczestników. Użyj Odśwież, aby spróbować "
+"ponownie."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
@@ -5763,25 +5766,25 @@ msgstr "Tylko a&dministratorzy mogą wysyłać wiadomości w tej grupie"
 #: client/ui/conversation_panel/group_calls.py client/ui/ongoing_calls.py
 msgctxt "group_call_join_button"
 msgid "Join ongoing voice call"
-msgstr "Dołącz do trwającej rozmowy głosowej"
+msgstr "Dołącz do trwającego połączenia głosowego"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_join_failed"
 msgid "Could not join the ongoing call: {error}"
-msgstr "Nie udało się dołączyć do trwającej rozmowy: {error}"
+msgstr "Nie udało się dołączyć do trwającego połączenia: {error}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/group_calls.py
 msgctxt "group_call_join_video_button"
 msgid "Join ongoing video call (camera off)"
-msgstr "Dołącz do trwającej rozmowy wideo (kamera wyłączona)"
+msgstr "Dołącz do trwającego połączenia wideo (kamera wyłączona)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_joining"
-msgid "Joining the ongoing call in {name}..."
-msgstr "Dołączanie do trwającej rozmowy w grupie {name}..."
+msgid "Joining the ongoing call: {name}..."
+msgstr "Dołączanie do trwającego połączenia: {name}..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
@@ -6899,7 +6902,7 @@ msgstr "wybór z listy"
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Wczytywanie..."

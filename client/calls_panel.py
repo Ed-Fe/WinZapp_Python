@@ -42,6 +42,7 @@ from core.call_log import (
     is_returnable_missed_call,
     list_update_plan,
 )
+from core.list_row_diff import plan_row_diff
 from ui.accessible import AccessibleReturnCallButton
 from ui.ongoing_calls import OngoingCallsMixin
 
@@ -234,9 +235,11 @@ class CallsPanel(OngoingCallsMixin, wx.Panel):
             self._apply_rows(tab, [("", text)])
         self._update_return_call_button()
 
-    def _populate_all(self):
+    def _populate_all(self, tabs=None):
+        """Bring *tabs* (every tab by default) up to date with the history
+        and the live calls."""
         empty = self.main_window.i18n.t("calls_empty")
-        for tab in CALL_TABS:
+        for tab in tabs or CALL_TABS:
             rows = [e for e in self._entries if call_log_in_tab(e["msg"], tab)]
             live = self._ongoing_rows_for_tab(tab)
             ids = {self._entry_id(entry) for entry in live}
@@ -245,9 +248,7 @@ class CallsPanel(OngoingCallsMixin, wx.Panel):
             self._rows[tab] = rows
             placeholder = empty
             if tab == TAB_ONGOING:
-                placeholder = self.main_window.i18n.t(
-                    "calls_ongoing_unavailable" if getattr(self, "_ongoing_unavailable", False)
-                    else "calls_ongoing_empty")
+                placeholder = self.main_window.i18n.t(self._ongoing_placeholder_key())
             shown = ([(self._entry_id(e), self._row_text(e)) for e in rows]
                      or [("", placeholder)])
             self._apply_rows(tab, shown, keep)
@@ -261,7 +262,8 @@ class CallsPanel(OngoingCallsMixin, wx.Panel):
         written at all, and a call whose outcome settled rewrites its row only.
         """
         lst = self._lists[tab]
-        action, changes = list_update_plan(self._shown[tab], shown)
+        old = self._shown[tab]
+        action, changes = list_update_plan(old, shown)
         self._shown[tab] = list(shown)
         if action == "none":
             return
@@ -271,12 +273,24 @@ class CallsPanel(OngoingCallsMixin, wx.Panel):
                 for index, text in changes:
                     lst.SetItemText(index, text)
                 return
-            lst.DeleteAllItems()
-            for _id, text in shown:
-                lst.Append((text,))
+            # A live call starting or ending inserts or deletes its row only;
+            # clearing the list would re-announce the row the user is on.
+            deletes, inserts = plan_row_diff([row_id for row_id, _t in old],
+                                             [row_id for row_id, _t in shown])
+            for index in deletes:
+                lst.DeleteItem(index)
+            for index in inserts:
+                lst.InsertItem(index, shown[index][1])
+            gone, added = set(deletes), set(inserts)
+            kept = iter([text for i, (_id, text) in enumerate(old) if i not in gone])
+            for index, (_id, text) in enumerate(shown):
+                if index not in added and next(kept) != text:
+                    lst.SetItemText(index, text)
             target = next((i for i, (row_id, _t) in enumerate(shown)
                            if keep_id and row_id == keep_id), 0)
-            if lst.GetItemCount():
+            # A surviving focused row has moved with its index; refocus only
+            # when it is gone or the list had no focus.
+            if lst.GetItemCount() and lst.GetFocusedItem() != target:
                 lst.Focus(target)
                 lst.Select(target)
         finally:

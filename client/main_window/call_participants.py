@@ -16,6 +16,9 @@ class CallParticipantsMixin:
             return
         allowed = lambda: not getattr(self, "is_chat_locked", lambda _jid: False)(chat_jid)
         if not allowed():
+            # The words the dialog itself uses for a call it may not show;
+            # they do not reveal that the chat is locked.
+            self.output(self.i18n.t("call_participants_ended"), interrupt=True)
             return
         from ui.dialogs.call_participants import CallParticipantsDialog
         dialog = CallParticipantsDialog(parent or self, self, call_id,

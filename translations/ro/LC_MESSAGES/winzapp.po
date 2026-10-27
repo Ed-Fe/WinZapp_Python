@@ -1073,8 +1073,8 @@ msgid ""
 "The model below is used for photos, stickers and video frames. Audio uses "
 "Voxtral Mini Transcribe 3. PDF documents use Mistral OCR."
 msgstr ""
-"Modelul de mai jos este folosit pentru fotografii, stickere și cadre video. "
-"Pentru audio se folosește Voxtral Mini Transcribe 3. Documentele PDF "
+"Modelul de mai jos este folosit pentru fotografii, autocolante și cadre "
+"video. Pentru audio se folosește Voxtral Mini Transcribe 3. Documentele PDF "
 "folosesc Mistral OCR."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
@@ -2498,7 +2498,8 @@ msgid "No participants are currently connected."
 msgstr "Niciun participant nu este conectat în prezent."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/call_participants.py
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
 msgctxt "call_participants_ended"
 msgid "This call has ended or is no longer available."
 msgstr "Acest apel s-a încheiat sau nu mai este disponibil."
@@ -2507,7 +2508,9 @@ msgstr "Acest apel s-a încheiat sau nu mai este disponibil."
 #: client/ui/dialogs/call_participants.py
 msgctxt "call_participants_failed"
 msgid "Could not load the current participants. Use Refresh to try again."
-msgstr "Nu s-au putut încărca participanții actuali. Folosiți Reîmprospătați pentru a reîncerca."
+msgstr ""
+"Nu s-au putut încărca participanții actuali. Folosiți Reîmprospătează pentru"
+" a reîncerca."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
@@ -2519,7 +2522,7 @@ msgstr "Participanți conectați"
 #: client/ui/dialogs/call_participants.py
 msgctxt "call_participants_refresh"
 msgid "&Refresh"
-msgstr "&Reîmprospătați"
+msgstr "&Reîmprospătează"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
@@ -5745,25 +5748,25 @@ msgstr "Numai adm&inistratorii pot trimite mesaje în acest grup"
 #: client/ui/conversation_panel/group_calls.py client/ui/ongoing_calls.py
 msgctxt "group_call_join_button"
 msgid "Join ongoing voice call"
-msgstr "Alătură-te apelului vocal în desfășurare"
+msgstr "Alăturați-vă apelului vocal în desfășurare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_join_failed"
 msgid "Could not join the ongoing call: {error}"
-msgstr "Nu s-a putut alătura apelului în desfășurare: {error}"
+msgstr "Nu v-ați putut alătura apelului în desfășurare: {error}"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/group_calls.py
 msgctxt "group_call_join_video_button"
 msgid "Join ongoing video call (camera off)"
-msgstr "Alătură-te apelului video în desfășurare (camera oprită)"
+msgstr "Alăturați-vă apelului video în desfășurare (camera oprită)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_joining"
-msgid "Joining the ongoing call in {name}..."
-msgstr "Se alătură apelului în desfășurare din {name}..."
+msgid "Joining the ongoing call: {name}..."
+msgstr "Alăturare la apelul în desfășurare: {name}..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
@@ -6892,7 +6895,7 @@ msgstr "selectare din listă"
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Se încarcă..."

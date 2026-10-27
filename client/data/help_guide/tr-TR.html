@@ -641,7 +641,7 @@
 </ul>
 
 <h3>Çevrimiçi yapay zekâ</h3>
-<p>Ayarlar'ın <strong>Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme</strong> sekmesinde özellikleri açar (kapalı başlar) ve bir ya da daha fazla sağlayıcının API anahtarını girersiniz: Gemini, OpenAI, Claude, Groq ve OpenRouter. Belirlediğiniz sırayla denenirler: biri başarısız olursa ya da kotası biterse sonraki yanıtlar. Her sağlayıcının kendi penceresi vardır; "WinZapp'in önerdiği modeli kullan" kutusu (WinZapp her zaman önerdiği modeli kullanır) ya da sabit bir model seçimi ile.</p>
+<p>Ayarlar'ın <strong>Çevrimiçi Yapay Zekâ: Yazıya Dökme ve Betimleme</strong> sekmesinde özellikleri açar (kapalı başlar) ve bir ya da daha fazla sağlayıcının API anahtarını girersiniz: Gemini, OpenAI, Claude, Groq, OpenRouter ve Mistral. Belirlediğiniz sırayla denenirler: biri başarısız olursa ya da kotası biterse sonraki yanıtlar. Her sağlayıcının kendi penceresi vardır; "WinZapp'in önerdiği modeli kullan" kutusu (WinZapp her zaman önerdiği modeli kullanır) ya da sabit bir model seçimi ile.</p>
 <table class="field-table">
   <tr><th>Nerede</th><th>Ne yapar</th></tr>
   <tr><td>Sesli mesaj veya ses: "Çevrimiçi yapay zekâ ile yazıya dök"</td><td>Metne dönüştürür.</td></tr>
@@ -662,9 +662,7 @@
 <p>Yerel yazıya döküm sekmesinin seçenekleri, üzerindeki düğmelerle açılan pencerelerdedir: "Gelişmiş seçenekler...", "Kaydedilen yazıya dökümler...", "Durumların yazıya dökümü...", "Modeller klasörü ve diğer klasörlerdeki modeller..." ile CUDA kitaplıklarının ve whisper.cpp'nin pencereleri. Çevrim içi yapay zekânın otomatik seçenekleri kendi sayfasındaki "Otomatik döküm ve betimleme..." içindedir.</p>
 <p>Sohbet bilgilerinde iki kutu vardır: "Bu sohbette alınan sesli mesajları, ses dosyalarını ve videoları Whisper ile yerel olarak otomatik yazıya dök" ve "Bu sohbette alınan sesli mesajları ve ses dosyalarını çevrimiçi sağlayıcılarla otomatik olarak yazıya dök". Her biri sohbetin şu anda ne yaptığını gösterir; siz oradaki kutuyu işaretleyene veya işaretini kaldırana kadar genel seçeneği izler.</p>
 <p>Döküm yapacak şekilde ayarlanan Enter ve Boşluk, dosya olarak gönderilen ses ve videoları da döker.</p>
-
-<!-- MISTRAL-MODEL-ROUTING -->
-<p>Mistral üç ayrı model kullanır: ses için Voxtral Mini Transcribe 3, fotoğraflar, çıkartmalar ve video kareleri için varsayılan olarak Ministral 3 3B, PDF metni çıkarma için mistral-ocr-latest. Model alanı ve model listesini getirme yalnızca görüntü modelini seçer; değişiklik ses dökümünü veya OCR modelini değiştirmez. OpenAI ve Groq da seçilen görüntü modelinden bağımsız sabit ses modelleri kullanır; Groq burada PDF işlemez. Gemini desteklenen tüm ortamlar için seçilen modeli kullanır. Bir modelin kullanılabilir olması ücretsiz olduğu anlamına gelmez; sağlayıcının dahil edilen kotasını ve hız sınırlarını kontrol edin. Mistral OCR metni çıkarır, PDF içindeki görüntüleri açıklamaz.</p>
+<p>Mistral üç ayrı model kullanır: ses için Voxtral Mini Transcribe 3, fotoğraflar, çıkartmalar ve video kareleri için varsayılan olarak Ministral 3 3B, PDF metni çıkarma için mistral-ocr-4. Model alanı ve model listesini getirme yalnızca görüntü modelini seçer; değişiklik ses dökümünü veya OCR modelini değiştirmez. OpenAI ve Groq da seçilen görüntü modelinden bağımsız sabit ses modelleri kullanır; Groq burada PDF işlemez. Gemini desteklenen tüm medya türleri için seçilen modeli kullanır. Bir modelin kullanılabilir olması ücretsiz olduğu anlamına gelmez; sağlayıcının dahil edilen kotasını ve hız sınırlarını kontrol edin. Mistral OCR metni çıkarır, PDF içindeki görüntüleri açıklamaz.</p>
 
   </section>
 
@@ -714,7 +712,7 @@
 <p>Bir arama çalarken Ctrl+Alt+Shift+Enter onu herhangi bir programdan yanıtlar: arama penceresi öne gelir ve odağı alır. Görüntülü arama, "Cevapla" düğmesinde olduğu gibi kamera açık yanıtlanır. Ctrl+Alt+Shift+Geri sil çalan aramayı, grup araması da olsa reddeder ve ekran okuyucu "Arama reddedildi." der; hiçbir arama çalmıyorsa sürmekte olan aramayı kapatır. Birden fazla hesap açıksa önce herhangi birinde çalan arama reddedilir. İki tuş Ayarlar &gt; Kısayollar bölümünden değiştirilebilir veya kaldırılabilir ve yalnızca işe yarayabildikleri sürece WinZapp'a aittir; geri kalan zamanda diğer programlarda kalır.</p>
 
 <h3>Aramalar sekmesi (Alt+6)</h3>
-<p>Tüm sohbetlerin arama geçmişi; Tümü, Cevapsız, Reddedilen ve Yanıtlanan olarak bölünmüştür (Ctrl+Tab ve Ctrl+Shift+Tab değiştirir; Alt+L listeye gider). Listede Enter aramanın sohbetini açar, Ctrl+Shift+R cevapsız bir aramayı geri arar, F5 yeniler. Cevapsız bir aramada, sohbette, "Geri ara" düğmesi aynı işi yapar.</p>
+<p>Tüm sohbetlerin arama geçmişi; Tümü, Cevapsız, Reddedilen, Yanıtlanan ve Devam eden olarak bölünmüştür (Ctrl+Tab ve Ctrl+Shift+Tab değiştirir; Alt+L listeye gider). Listede Enter aramanın sohbetini açar, Ctrl+Shift+R cevapsız bir aramayı geri arar, F5 yeniler. Cevapsız bir aramada, sohbette, "Geri ara" düğmesi aynı işi yapar.</p>
 
 <h3>Arama ayarları</h3>
 <p>Ayarlar &gt; Aramalar içinde "Arama ses ayarları" mikrofonu ve hoparlörü, "Görüntülü arama ayarları" kamerayı seçer. Orada ayrıca yankı önleme (hoparlör kullandığınızda kendi sesinizin geri dönmesini azaltır), mikrofon gürültü azaltma ve mikrofon ile hoparlör için özel mod bulunur.</p>
@@ -725,12 +723,8 @@
   Kullanılan WhatsApp Web sürümü aramaları desteklemiyorsa, WinZapp bunu ve ne denemeniz gerektiğini söyler: WinZapp'ı yeniden başlatın ya da Yardım &gt; WPPConnect'i yeniden yüklemeye zorla seçin.
 </div>
 <p>WPPConnect yeniden kurulurken WinZapp daha yeni ve uyumlu WhatsApp Web kataloğunu korur ve güncel kataloğu kontrol eder. İnternet yoksa kullanılabilir katalog korunur, ancak güncelliği doğrulanamaz. Arama hâlâ başlamıyorsa internet bağlantısını sağlayıp WinZapp’i yeniden başlatın. Yeniden denenemeyen doğrulanmış VoIP uyumsuzluğu, başlatma tekrarlanmadan bildirilir.</p>
-
-<!-- ONGOING-GROUP-CALL -->
-<p>Bir grup sohbeti açıkken WinZapp yaklaşık on saniyede bir devam eden arama olup olmadığını denetler. Katılma düğmesi yalnızca kullanılabilir bir arama varsa görünür ve arama bitince kaybolur. Görüntülü aramaya katılırken kamera kapalı başlar. Mevcut bir aramaya katılmak, yeni grup araması başlatmak için uygulanan 32 üye sınırına tabi değildir. Kullanılabilir bir arama varken katılma düğmesi, sesli ve görüntülü arama başlatma düğmelerinin yerini alır. Aramalar (Alt+6) bölümündeki Devam eden filtresi, grup sohbetleri dışındaki çok kişili aramalar dahil katılabileceğiniz aramaları gösterir; bunlar Tümü listesinin başında da görünür. Bir arama seçip Enter tuşuna basın veya katılma düğmesini kullanın. Aramaya dön, mevcut aramanızın penceresini öne getirir. Aramalar açıkken liste yaklaşık on saniyede bir yenilenir ve yalnızca WhatsApp tarafından hesabınıza sunulan aramaları içerir.</p>
-
-<!-- CALL-PARTICIPANTS -->
-<p>Bağlı kişileri adlarıyla görmek için arama penceresindeki veya Aramalar bölümünde seçili devam eden aramadaki Arama katılımcıları düğmesini kullanın. Liste her on saniyede bir yenilenir; Yenile güncel verileri ister, Kapat veya Escape pencereyi kapatır. Davet edilen veya bağlantısı kesilen kişiler gösterilmez. Listeyi görüntülemek aramaya katılmaz veya aramayı sonlandırmaz.</p>
+<p>Bir grup sohbeti açıkken WinZapp yaklaşık on saniyede bir devam eden arama olup olmadığını denetler. Katılma düğmesi yalnızca kullanılabilir bir arama varsa görünür ve arama bitince kaybolur. Görüntülü aramaya katılırken kamera kapalı başlar. Mevcut bir aramaya katılmak, yeni grup araması başlatmak için uygulanan 32 üye sınırına tabi değildir. Kullanılabilir bir arama varken "Devam eden sesli aramaya katıl" düğmesi veya görüntülü aramalarda "Devam eden görüntülü aramaya katıl (kamera kapalı)" düğmesi, sesli ve görüntülü arama başlatma düğmelerinin yerini alır. Aramalar (Alt+6) bölümündeki Devam eden filtresi, grup sohbetleri dışındaki çok kişili aramalar dahil katılabileceğiniz aramaları gösterir; bunlar Tümü listesinin başında da görünür. Bir arama seçip Enter tuşuna basın veya aynı katılma düğmesini kullanın. Zaten o aramadaysanız düğmenin adı "Aramaya dön" olur ve mevcut aramanızın penceresini öne getirir. Aramalar açıkken liste yaklaşık on saniyede bir yenilenir ve yalnızca WhatsApp tarafından hesabınıza sunulan aramaları içerir.</p>
+<p>Bağlı kişileri adlarıyla görmek için arama penceresindeki veya Aramalar bölümünde seçili devam eden aramadaki "Arama katılımcıları" düğmesini kullanın. Liste her on saniyede bir yenilenir; "Yenile" güncel verileri ister, "Kapat" veya Esc pencereyi kapatır. Davet edilen veya bağlantısı kesilen kişiler gösterilmez. Listeyi görüntülemek aramaya katılmaz veya aramayı sonlandırmaz.</p>
 
   </section>
 
@@ -1283,6 +1277,7 @@
 <p class="lead">Özellik getiren her yeni alpha kılavuza eklenir. Bu liste kılavuzun hangi alpha'ya kadar tam olduğunu ve her turda neyin eklendiğini gösterir.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Kılavuza girenler</th></tr>
+  <tr><td class="field-name">Henüz yayımlanmadı</td><td>Devam eden aramalar: kullanılabilir bir aramaya grup sohbetinden veya Aramalar bölümündeki Devam eden filtresinden katılma ve bağlı katılımcıların listesi. Çevrimiçi ses dökümü, görüntü açıklamaları ve PDF metni çıkarma için Mistral.</td></tr>
   <tr><td class="field-name">Henüz yayımlanmadı</td><td>Kişi durumu (yazıyor, çevrimiçi): art arda gelen çok sayıda güncelleme artık programı saniyelerce dondurmuyor ve bilgisayarı yavaşlatmıyor.</td></tr>
   <tr><td class="field-name">Henüz yayımlanmadı</td><td>Kişi durumu güncellemelerinde yinelenen arayüz değişikliklerinin azaltılması ve yeni öğrenilen kişi adlarının arka planda kaydedilmesi.</td></tr>
   <tr><td class="field-name">Henüz yayımlanmadı</td><td>WinZapp veya WPPConnect güncelleme: kurulum ve derleme daha düşük öncelikle çalışır, böylece bilgisayar ve ekran okuyucu güncellemenin ortasında donmaz.</td></tr>

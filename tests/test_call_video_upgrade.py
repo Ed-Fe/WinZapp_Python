@@ -22,6 +22,7 @@ import threading
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 import wx
 
 from main import MainWindow
@@ -271,6 +272,39 @@ def test_ensure_ended_posts_the_call_id_under_the_call_lock(monkeypatch):
     stub._ensure_page_call_ended("WA-CALL")
 
     assert posts == [("ensure-ended", {"callId": "WA-CALL"})]
+
+
+@pytest.mark.parametrize("held, expected", [("WA-CALL", []), ("OTHER", ["WA-CALL"])])
+def test_ensure_ended_after_a_failed_join_spares_the_call_winzapp_holds_again(
+        monkeypatch, held, expected):
+    """A join reuses the call's own id: a late join adopted, or a second
+    join, is that same id, and the stale safety net must not hang it up."""
+    stub = _Stub({"call_id": held})
+    stub._call_action_lock = threading.Lock()
+    posts = []
+
+    class _Response:
+        status_code = 200
+
+        def json(self):
+            return {"status": "success", "response": {"handled": True}}
+
+    stub._post_call_control = lambda _endpoint, payload, **_kw: (
+        posts.append(payload["callId"]) or _Response())
+    stub._raise_for_call_response = MainWindow._raise_for_call_response.__get__(stub)
+    monkeypatch.setattr("time.sleep", lambda _s: None)
+
+    class _Inline:
+        def __init__(self, target=None, **_kw):
+            self._target = target
+
+        def start(self):
+            self._target()
+
+    monkeypatch.setattr(threading, "Thread", _Inline)
+    stub._ensure_page_call_ended("WA-CALL", unless_active=True)
+
+    assert posts == expected
 
 
 def test_promote_does_nothing_without_a_voice_call(monkeypatch):

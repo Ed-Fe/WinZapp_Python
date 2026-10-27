@@ -104,10 +104,13 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
         self._button(body, "ai_delete_key", self._delete_key)
         self._button(body, "ai_get_key", lambda e: wx.LaunchDefaultBrowser(spec.key_url))
         self.get_models = self._button(body, "ai_get_models", self._fetch_models)
-        if provider == "mistral":
-            note = wx.StaticText(body, label=self._t("ai_mistral_model_note"))
-            note.Wrap(450)
-            self.sizer.Add(note, 0, wx.EXPAND | wx.ALL, 8)
+        self.model_note = None
+        if spec.model_note:
+            # Read-only field, not a StaticText: Tab skips a StaticText, so a
+            # screen reader user moving to the model field would never hear it.
+            self.model_note = wx.TextCtrl(body, value=self._t(spec.model_note),
+                                          style=wx.TE_MULTILINE | wx.TE_READONLY, size=(-1, 50))
+            self.sizer.Add(self.model_note, 0, wx.EXPAND | wx.ALL, 8)
         self.automatic = wx.CheckBox(body, label=self._t("ai_model_automatic"))
         self.automatic.SetValue(not state["model"])
         self.sizer.Add(self.automatic, 0, wx.ALL, 8)

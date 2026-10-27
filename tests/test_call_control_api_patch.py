@@ -491,6 +491,36 @@ def test_group_offer_uses_whatsapps_own_group_start_entry_points():
     assert "Parameter groupJid is required!" in controller
 
 
+def test_call_discovery_never_initialises_voip_and_a_join_is_checked_first():
+    """The Calls tab and an open group poll every ten seconds: discovery must
+    return before the VoIP warm-up and the init policy, or each tick would
+    initialise calling and touch audio devices. A join is validated before the
+    media bridge is enabled, and its failure stands the bridge down only when
+    the page proves no other call owns it."""
+    controller = _source("client/api_patches/src/controller/callController.ts")
+
+    evaluate = controller[controller.index("async function evaluateWppCall("):]
+    discovery = evaluate[evaluate.index("if (action === 'group-ongoing'"):]
+    discovery = discovery[: discovery.index("\n  }\n")]
+    for action in ("'group-ongoing'", "'ongoing-list'", "'participants'", "'group-join-check'"):
+        assert action in discovery
+    assert "return page.evaluate(" in discovery
+    discovery_end = evaluate.index(discovery) + len(discovery)
+    assert discovery_end < evaluate.index("await warmCallVoipRuntime(")
+    assert discovery_end < evaluate.index("installVoipInitPolicyInPage")
+
+    join = controller[controller.index("export async function joinGroupCall("):]
+    join = join[: join.index("\n}\n")]
+    assert "Parameters callId and chatJid are required!" in join
+    assert (join.index("res.status(400)")
+            < join.index("'group-join-check'")
+            < join.index("prepareAudioBridge(req)")
+            < join.index("'group-join',"))
+    catch = join[join.index("} catch (error) {"):]
+    assert "mayStopAudio(callId) === true" in catch
+    assert catch.count("stopAudioBridge(req)") == 1
+    assert "if (mayStop) await stopAudioBridge(req);" in catch
+    assert catch.index("let mayStop = false;") < catch.index("if (mayStop)")
 
 
 def test_active_call_poll_tolerates_transient_active_call_gaps():

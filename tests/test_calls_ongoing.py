@@ -127,9 +127,11 @@ def test_return_to_current_call_focuses_it_without_joining_again():
 def test_unchanged_live_results_do_not_rewrite_or_refocus_rows():
     panel = Panel()
     panel._populate_all()
-    old = panel._lists[TAB_ALL].deletes
+    lst = panel._lists[TAB_ALL]
+    before = (len(lst.inserted), len(lst.deleted), len(lst.set_texts), lst.deletes, lst.focus_calls)
     panel._populate_all()
-    assert panel._lists[TAB_ALL].deletes == old
+    assert (len(lst.inserted), len(lst.deleted), len(lst.set_texts), lst.deletes,
+            lst.focus_calls) == before
 
 
 def test_polling_refreshes_only_while_visible_and_one_request_at_a_time(polling):
@@ -218,3 +220,16 @@ def test_participants_button_opens_only_the_selected_live_unlocked_call():
     panel.main_window._locked_jids.add(GROUP)
     panel._show_ongoing_participants()
     assert len(opened) == 1
+
+
+def test_a_legacy_phone_chat_id_is_canonical_so_a_locked_chat_stays_hidden():
+    """The page can report a person's chat as ``@c.us``; locks and names are
+    keyed on ``@s.whatsapp.net``, so the legacy form would leak a locked chat."""
+    phone = "555000002@s.whatsapp.net"
+    rows = ongoing_entries({"response": [{**CALL, "chatJid": "555000002@c.us"}]})
+    assert rows[0]["jid"] == rows[0]["ongoing"]["chatJid"] == phone
+    panel = Panel()
+    panel._ongoing_entries = rows
+    panel.main_window._locked_jids.add(phone)
+    panel._populate_all()
+    assert not panel._rows[TAB_ONGOING]

@@ -423,18 +423,26 @@ class ComposerMixin:
         callable_chat = bool(jid) and not unavailable
         ongoing = getattr(self, "_ongoing_group_call", None) or {}
         active = getattr(self.main_window, "_active_voice_call", None) or {}
-        existing = bool(jid) and (ongoing.get("groupJid") == jid or active.get("peer_jid") == jid)
-        hidden_focus = False
+        # Only a group's buttons give way to an existing call: the group watch
+        # brings them back when it ends. Nothing re-syncs a one-to-one chat
+        # after hang-up, so hiding its buttons there would lose them for good.
+        existing = jid.endswith("@g.us") and (
+            ongoing.get("groupJid") == jid or active.get("peer_jid") == jid)
+        hidden_focus = changed = False
         for button, shown in (
             (self._voice_call_btn, callable_chat and not too_large and not existing),
             (self._video_call_btn, callable_chat and not too_large and not existing),
             (self._group_call_unavailable_btn, callable_chat and too_large and not existing),
         ):
+            if button.IsShown() == shown:
+                continue
             hidden_focus |= not shown and button.HasFocus()
             button.Show(shown)
+            changed = True
         if hidden_focus:
             target = self._group_call_join_btn if self._group_call_join_btn.IsShown() else self.message_field
             target.SetFocus()
+        return changed
 
     def _set_group_call_limit(self, jid: str, participant_count: int):
         """Main-thread callback: swap the call buttons for the "cannot call"

@@ -2487,7 +2487,8 @@ msgid "No participants are currently connected."
 msgstr "Şu anda bağlı katılımcı yok."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/call_participants.py
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
 msgctxt "call_participants_ended"
 msgid "This call has ended or is no longer available."
 msgstr "Bu arama sona erdi veya artık kullanılamıyor."
@@ -2496,7 +2497,9 @@ msgstr "Bu arama sona erdi veya artık kullanılamıyor."
 #: client/ui/dialogs/call_participants.py
 msgctxt "call_participants_failed"
 msgid "Could not load the current participants. Use Refresh to try again."
-msgstr "Mevcut katılımcılar yüklenemedi. Yeniden denemek için Yenile düğmesini kullanın."
+msgstr ""
+"Mevcut katılımcılar yüklenemedi. Yeniden denemek için Yenile düğmesini "
+"kullanın."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/call_participants.py
@@ -5728,8 +5731,8 @@ msgstr "Devam eden görüntülü aramaya katıl (kamera kapalı)"
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 #, python-brace-format
 msgctxt "group_call_joining"
-msgid "Joining the ongoing call in {name}..."
-msgstr "{name} grubundaki devam eden aramaya katılınıyor..."
+msgid "Joining the ongoing call: {name}..."
+msgstr "Devam eden aramaya katılınıyor: {name}..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
@@ -6833,7 +6836,7 @@ msgstr "liste seçimi"
 #: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Yükleniyor..."

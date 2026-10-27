@@ -20,6 +20,7 @@ class Control:
     def __init__(self):
         self.label = ""
         self.enabled = True
+        self.enable_calls = []
 
     def GetLabel(self):
         return self.label
@@ -29,6 +30,7 @@ class Control:
 
     def Enable(self, value):
         self.enabled = value
+        self.enable_calls.append(value)
 
 
 class View(ParticipantListMixin):
@@ -119,16 +121,45 @@ def test_explicit_roster_read_does_not_start_a_call_or_open_devices(polling):
     view = View()
     view._refresh_participants()
     view._refresh_participants()
-    assert len(queued) == 1 and not view._refresh_btn.enabled
+    assert len(queued) == 1
     queued.pop()()
     assert view.requests == [("participants", {"callId": "C1"}, {"timeout": 20})]
     assert view._list.items == ["Synthetic Alice"]
     assert view._status.label == "Connected: 1"
-    assert view._refresh_btn.enabled and not view.spoken
+    assert not view.spoken
     old = view._list.deletes
     timers[-1].fn()
     queued.pop()()
     assert view._list.deletes == old
+
+
+def test_refresh_button_stays_enabled_so_focus_never_jumps_to_close(polling):
+    """Disabling the focused Refresh button on the timed refresh moved focus
+    to Close on Windows, so the user's next Space closed the dialog. The
+    in-flight guard alone refuses the second request."""
+    queued, timers = polling
+    view = View()
+    view._refresh_participants()
+    timers_before = len(timers)
+    view._refresh_participants(SimpleNamespace())  # Refresh pressed while in flight
+    assert len(queued) == 1 and len(timers) == timers_before
+    queued.pop()()
+    timers[-1].fn()  # the automatic 10-second refresh
+    assert len(queued) == 1
+    queued.pop()()
+    assert len(view.requests) == 2
+    assert view._refresh_btn.enable_calls == [] and view._refresh_btn.enabled
+
+
+def test_refresh_pressed_during_the_timed_refresh_still_speaks_its_result(polling):
+    queued, _timers = polling
+    view = View()
+    view.reply = body([])
+    view._refresh_participants()  # the automatic refresh, silent by itself
+    view._refresh_participants(SimpleNamespace())  # Refresh pressed meanwhile
+    queued.pop()()
+    assert view.spoken == ["call_participants_empty"]
+    assert len(view.requests) == 1
 
 
 def test_membership_change_keeps_focus_on_the_same_person(polling):
@@ -202,3 +233,17 @@ def test_participants_control_waits_for_a_connected_real_call():
     assert not active_participants_available({"call_id": "C1"}, "")
     assert not active_participants_available(None, "ACTIVE")
     assert active_participants_available({"call_id": "C1"}, "REJOINING")
+
+
+def test_a_locked_chats_participants_are_refused_out_loud_without_a_dialog(monkeypatch):
+    """Refusing silently left the user pressing a button that did nothing."""
+    spoken = []
+
+    def no_dialog(*_a, **_kw):
+        raise AssertionError("a locked chat's roster must not open")
+    monkeypatch.setattr("ui.dialogs.call_participants.CallParticipantsDialog", no_dialog)
+    stub = SimpleNamespace(is_chat_locked=lambda jid: jid == PERSON["jid"],
+        i18n=SimpleNamespace(t=lambda key: key),
+        output=lambda text, interrupt=False: spoken.append((text, interrupt)))
+    CallParticipantsMixin.show_call_participants(stub, "C1", PERSON["jid"])
+    assert spoken == [("call_participants_ended", True)]

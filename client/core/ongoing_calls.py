@@ -17,8 +17,11 @@ def ongoing_entries(body):
                 or type(row.get("isVideo")) is not bool or row["id"] in seen):
             continue
         seen.add(row["id"])
-        result.append({"jid": row["chatJid"], "ongoing": {
-            "id": row["id"], "chatJid": row["chatJid"], "isVideo": row["isVideo"]}})
+        # Canonical form, so lock checks and name lookups match the stored
+        # chat; the runtime treats both phone forms as the same chat.
+        chat = re.sub(r"@c\.us$", "@s.whatsapp.net", row["chatJid"])
+        result.append({"jid": chat, "ongoing": {
+            "id": row["id"], "chatJid": chat, "isVideo": row["isVideo"]}})
     return result
 
 

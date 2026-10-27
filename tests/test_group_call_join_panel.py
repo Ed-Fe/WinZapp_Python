@@ -8,6 +8,7 @@ from ui.conversation_panel.composer import ComposerMixin
 
 GROUP = "120363000001@g.us"
 CALL = {"id": "call-1", "groupJid": GROUP, "isVideo": False}
+PERSON = "5511999999999@s.whatsapp.net"
 
 
 class Widget:
@@ -17,6 +18,7 @@ class Widget:
         self.focus_count = 0
         self.label = ""
         self.label_changes = 0
+        self.layouts = 0
 
     def HasFocus(self):
         return self.focused
@@ -38,7 +40,7 @@ class Widget:
         return self.label
 
     def Layout(self):
-        pass
+        self.layouts += 1
 
 
 class Panel(GroupCallJoinPanelMixin):
@@ -177,15 +179,23 @@ def test_click_joins_the_cached_call_instead_of_dialling(runtime):
     assert len(panel.started) == 1
 
 
-def test_only_one_probe_can_be_in_flight(runtime):
+def test_reopened_chat_probes_at_once_and_the_old_reply_is_discarded(runtime):
+    """Closing the watch frees the probe slot; the old watch's late reply
+    neither shows a button nor frees the new watch's slot."""
     queued, timers = runtime
     panel = Panel()
     panel._watch_group_calls(GROUP)
+    old_reply = queued.pop(0)
     panel.conversation = dict(panel.conversation)
     panel._watch_group_calls(GROUP)
     assert len(queued) == 1
-    timers[-1].fn()
-    assert len(queued) == 1
+    new_watch = panel._group_call_watch
+    old_reply()
+    assert not panel._group_call_join_btn.shown
+    assert panel._group_call_probe_inflight is new_watch and not timers
+    queued.pop(0)()
+    assert panel._group_call_join_btn.shown and len(timers) == 1
+    assert panel._group_call_probe_inflight is None
 
 
 def test_hidden_detail_pane_does_not_poll_even_when_panel_is_shown(runtime):
@@ -241,7 +251,7 @@ def test_join_replaces_large_group_note_until_the_call_ends(runtime):
 
 def test_discovery_moves_only_a_hidden_start_buttons_focus_to_join(runtime):
     panel = Panel()
-    panel._voice_call_btn.focused = True
+    panel._voice_call_btn.shown = panel._voice_call_btn.focused = True
     panel._show_ongoing_group_call(CALL)
     assert panel._group_call_join_btn.focus_count == 1
 
@@ -251,6 +261,28 @@ def test_start_buttons_stay_hidden_while_already_connected(runtime):
     panel.main_window._active_voice_call = {"peer_jid": GROUP}
     panel._show_ongoing_group_call(None)
     assert not panel._voice_call_btn.shown and not panel._video_call_btn.shown
+
+
+def test_an_unchanged_poll_answer_does_not_relayout(runtime):
+    panel = Panel()
+    panel._show_ongoing_group_call(CALL)
+    before = panel.conversation_panel.layouts
+    panel._show_ongoing_group_call(dict(CALL))
+    assert panel.conversation_panel.layouts == before
+    panel._show_ongoing_group_call(None)
+    assert panel.conversation_panel.layouts == before + 1
+
+
+def test_one_to_one_start_buttons_stay_while_a_call_with_that_contact_is_active(runtime):
+    """Only the group watch re-syncs the start buttons after a call ends, so a
+    one-to-one chat reopened during a call must never lose them."""
+    panel = Panel()
+    panel.conversation = {"remoteJid": PERSON}
+    panel.main_window._active_voice_call = {"call_id": "C1", "peer_jid": PERSON}
+    panel._sync_voice_call_button(PERSON)
+    assert panel._voice_call_btn.shown and panel._video_call_btn.shown
+    panel.main_window._active_voice_call = None  # hang-up: nothing re-syncs
+    assert panel._voice_call_btn.shown and panel._video_call_btn.shown
 
 
 @pytest.mark.parametrize("handler", [ComposerMixin._on_voice_call, ComposerMixin._on_video_call])

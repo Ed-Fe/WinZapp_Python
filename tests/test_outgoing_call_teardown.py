@@ -111,6 +111,7 @@ class _MainStub:
             "identity": identity,
             "call_id": (details or {}).get("call_id") or identity,
             "peer_jid": (details or {}).get("peer_jid") or "",
+            "group_jid": (details or {}).get("group_jid") or "",
             "name": (details or {}).get("name") or "",
             "outgoing": True,
             "is_video": bool((details or {}).get("is_video")),
@@ -228,6 +229,54 @@ def test_join_failure_releases_audio_and_never_sends_an_offer():
     assert stub.posted == ["group/join"]
     assert stub._active_voice_call is None
     assert stub._voice_call_in_progress() is False
+
+
+def test_a_failed_join_ends_that_call_on_the_page_if_it_connected_late():
+    """The page's join can outlive the Node side's wait and connect after
+    "join failed" was spoken: the user would be in a call with no window to
+    hang up from. Only THAT call id is named, so no other call can be ended."""
+    stub = _MainStub()
+    ensured, actions = [], []
+    stub._ensure_page_call_ended = lambda call_id, **kw: ensured.append((call_id, kw))
+
+    def refuse(response, action):
+        actions.append(action)
+        raise RuntimeError("HTTP 500")
+
+    stub._raise_for_call_response = refuse
+    stub._start_call("120363000001@g.us", "Group", is_group=True,
+                     is_video=False, join_call_id="call-existing")
+
+    assert actions == ["join"]
+    # unless_active: a late join adopted, or a second join, is that same id.
+    assert ensured == [("call-existing", {"unless_active": True})]
+    assert "group_call_join_failed" in stub.announcements
+    assert stub._active_voice_call is None
+
+
+def test_a_failed_offer_never_asks_the_page_to_end_a_call():
+    stub = _MainStub(offer=lambda s: (_ for _ in ()).throw(RuntimeError("HTTP 500")))
+    ensured = []
+    stub._ensure_page_call_ended = lambda call_id, **kw: ensured.append(call_id)
+
+    stub._start_individual_call(PEER, "Fulano", is_video=False)
+
+    assert ensured == []
+
+
+def test_starting_a_group_call_offers_to_the_group_and_follows_it():
+    """Starting, not joining: the group offer names the group, and the call
+    record follows the group rather than any one participant."""
+    stub = _MainStub()
+    requests = []
+    stub._post_call_control = lambda endpoint, payload, **kw: (
+        requests.append((endpoint, payload)) or _Response("group-call"))
+
+    stub._start_call("120363000001@g.us", "Group", is_group=True, is_video=False)
+
+    assert requests[0] == ("group/offer", {"groupJid": "120363000001@g.us", "isVideo": False})
+    assert stub._active_voice_call["group_jid"] == "120363000001@g.us"
+    assert stub._active_voice_call["call_id"] == "group-call"
 
 
 def test_join_multiparty_call_from_person_chat_uses_native_join_not_offer():

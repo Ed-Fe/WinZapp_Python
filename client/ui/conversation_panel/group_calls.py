@@ -21,6 +21,7 @@ class GroupCallJoinPanelMixin:
     def _show_ongoing_group_call(self, call):
         self._ongoing_group_call = call
         button = self._group_call_join_btn
+        changed = False
         if call is None and button.HasFocus():
             self.message_field.SetFocus()
         if call is not None:
@@ -29,16 +30,23 @@ class GroupCallJoinPanelMixin:
                      else i18n.t("group_call_join_button"))
             if button.GetLabel() != label:
                 button.SetLabel(label)
+                changed = True
         shown = call is not None
         if button.IsShown() != shown:
             button.Show(shown)
+            changed = True
         jid = str((self.conversation or {}).get("remoteJid") or "")
-        self._update_call_start_buttons(jid)
-        self.conversation_panel.Layout()
-        self.Layout()
+        changed = self._update_call_start_buttons(jid) or changed
+        # Every poll lands here; an unchanged answer must not relayout.
+        if changed:
+            self.conversation_panel.Layout()
+            self.Layout()
 
     def _stop_group_call_watch(self):
         self._group_call_watch = None
+        # A reply still out for the old watch is dropped by its watch check,
+        # so the next chat need not wait for it before probing.
+        self._group_call_probe_inflight = None
         timer = getattr(self, "_group_call_timer", None)
         if timer is not None:
             timer.Stop()
@@ -114,7 +122,7 @@ class GroupCallJoinPanelMixin:
                     logging.warning("[call] ongoing group call check unavailable")
                 wx.CallAfter(finish, call)
 
-            threading.Thread(target=worker, daemon=True).start()
+            threading.Thread(target=worker, daemon=True, name="group-ongoing-call").start()
 
         wx.CallAfter(tick)
 

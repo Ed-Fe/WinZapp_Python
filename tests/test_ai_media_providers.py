@@ -32,7 +32,7 @@ def serialized(request):
     return json.dumps(request.json)
 
 
-@pytest.mark.parametrize("provider", ["openai", "gemini", "claude", "groq", "openrouter"])
+@pytest.mark.parametrize("provider", ["openai", "gemini", "claude", "groq", "openrouter", "mistral"])
 def test_every_provider_resends_the_picture_inline_each_turn_and_keeps_the_key_in_headers(provider):
     request = build(provider, IMAGE, (("user", "describe"), ("assistant", "red car")))
     assert "private-key" not in request.url and "private-key" not in serialized(request)
@@ -147,6 +147,9 @@ def test_response_parsing_filters_thoughts_and_refusals():
         ("claude", {"stop_reason": "refusal", "content": []}),
         ("groq", {"choices": [{"finish_reason": "content_filter", "message": {"content": "x"}}]}),
         ("openrouter", {"choices": [{"message": {"refusal": "no", "content": None}}]}),
+        # Mistral documents no refusal signal; its chat answers go through the
+        # same branch, so one that ever arrives is still not read as an answer.
+        ("mistral", {"choices": [{"finish_reason": "content_filter", "message": {"content": "x"}}]}),
     ]:
         with pytest.raises(DescriptionError, match="ai_error_refusal"):
             parse_answer(provider, body, "image")
@@ -158,6 +161,9 @@ def test_response_parsing_filters_thoughts_and_refusals():
     ("claude", {"stop_reason": "max_tokens", "content": [{"type": "text", "text": "partial"}]}),
     ("groq", {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}]}),
     ("openrouter", {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}]}),
+    ("mistral", {"choices": [{"finish_reason": "length", "message": {"content": "partial"}}]}),
+    ("mistral", {"choices": [{"finish_reason": "model_length", "message": {"content": "partial"}}]}),
+    ("mistral", {"choices": [{"finish_reason": "error", "message": {"content": "partial"}}]}),
 ])
 def test_incomplete_answer_is_not_announced_as_ready(provider, body):
     with pytest.raises(DescriptionError, match="ai_error_response"):
@@ -165,11 +171,12 @@ def test_incomplete_answer_is_not_announced_as_ready(provider, body):
 
 
 @pytest.mark.parametrize("provider", list(config.PROVIDERS))
+@pytest.mark.parametrize("kind", config.KINDS)
 @pytest.mark.parametrize("body", [None, {}, {"output": None}, {"output": [3]}, {"choices": []},
                                   {"content": None}, {"candidates": [3]}])
-def test_malformed_response_is_a_safe_error(provider, body):
+def test_malformed_response_is_a_safe_error(provider, kind, body):
     with pytest.raises(DescriptionError, match="ai_error_response"):
-        parse_answer(provider, body, "audio" if provider == "mistral" else "image")
+        parse_answer(provider, body, kind)
 
 
 def test_long_documents_are_not_cut_like_descriptions():
@@ -181,8 +188,10 @@ def test_long_documents_are_not_cut_like_descriptions():
 
 
 def _text_response(provider, kind, text):
-    if kind == "audio" and provider in ("openai", "groq"):
+    if kind == "audio" and provider in ("openai", "groq", "mistral"):
         return {"text": text}
+    if kind == "pdf" and provider == "mistral":
+        return {"pages": [{"index": 0, "markdown": text}], "usage_info": {"pages_processed": 1}}
     if provider == "openai":
         return {"status": "completed", "output": [{"type": "message", "content": [
             {"type": "output_text", "text": text}]}]}
@@ -194,8 +203,8 @@ def _text_response(provider, kind, text):
 
 
 @pytest.mark.parametrize("provider,kind", [
-    ("openai", "audio"), ("groq", "audio"), ("gemini", "audio"),
-    ("openai", "pdf"), ("gemini", "pdf"), ("claude", "pdf"), ("openrouter", "pdf")])
+    ("openai", "audio"), ("groq", "audio"), ("gemini", "audio"), ("mistral", "audio"),
+    ("openai", "pdf"), ("gemini", "pdf"), ("claude", "pdf"), ("openrouter", "pdf"), ("mistral", "pdf")])
 @pytest.mark.parametrize("offset", [-1, 0, 1])
 def test_transcript_and_pdf_text_limits_never_return_silent_partial_success(provider, kind, offset):
     text = "x" * (config.MAX_OUTPUT_CHARS[kind] + offset)

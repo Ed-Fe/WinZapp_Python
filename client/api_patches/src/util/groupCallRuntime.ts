@@ -152,7 +152,9 @@ export function installGroupCallRuntimeInPage(): void {
         joinAndAccept: true, lobbyEntryPoint: entryPoint });
       // A native join can resolve without joining (ended call, blocked device).
       // Require THIS call to reach the live store and never retry with an offer.
-      for (let attempt = 0; attempt < 50; attempt += 1) {
+      // THIS call still dialling gets 15 s instead of 5: a join reported failed
+      // that connects afterwards leaves the user in a call with no window.
+      for (let attempt = 0; attempt < 150; attempt += 1) {
         const call = collection?.activeCall;
         const id = typeof call?.id === 'string' ? call.id : call?.id?._serialized;
         const state = call?.getState?.() ?? call?.state;
@@ -161,6 +163,8 @@ export function installGroupCallRuntimeInPage(): void {
           return { ...current, peerJid: current.chatJid, state, outgoing: false };
         }
         if (id === callId && [0, 7, 13, 'ENDED', 'FAILED', 'REJECTED'].includes(state)) break;
+        const dialling = id === callId && [1, 10, 12, 14, 'CALLING', 'LINK', 'PRE_CALLING', 'CALL_B_STARTING'].includes(state);
+        if (attempt >= 49 && !dialling) break;
         await new Promise((resolve) => win.setTimeout(resolve, 100));
       }
       throw new Error('WhatsApp did not join the selected group call');

@@ -35,6 +35,9 @@ class Provider:
     # Audio goes to a dedicated transcription model, not the chat model.
     transcribe_model: str = ""
     ocr_model: str = ""
+    # i18n key of a note shown in the provider window before the model field,
+    # when the model chosen there is not the one every kind goes to.
+    model_note: str = ""
 
 
 PROVIDERS = {
@@ -64,7 +67,9 @@ PROVIDERS = {
         "Mistral", "ministral-3b-latest", "https://console.mistral.ai/api-keys",
         "https://mistral.ai/pricing/api/", "https://legal.mistral.ai/terms/privacy-policy/",
         frozenset({"image", "audio", "pdf"}), transcribe_model="voxtral-mini-transcribe-3",
-        ocr_model="mistral-ocr-latest"),
+        # The major alias, not "-latest": a new OCR generation may change the
+        # answer's shape, and a minor id is retired within months (OCR 4.0).
+        ocr_model="mistral-ocr-4", model_note="ai_mistral_model_note"),
 }
 PROFILES = ("fast", "balanced", "detailed")
 
@@ -142,10 +147,6 @@ def preferences(app_settings):
     off = {p for p in off if p in PROVIDERS} if isinstance(off, list) else set()
     models = raw.get("models")
     models = models if isinstance(models, dict) else {}
-    # The first local preview used this field for Mistral audio. It now
-    # selects vision only; never send a saved Voxtral/OCR id to vision chat.
-    if isinstance(models.get("mistral"), str) and models["mistral"].startswith(("voxtral-", "mistral-ocr-")):
-        models = {**models, "mistral": ""}
     chosen = {}
     for provider, spec in PROVIDERS.items():
         model = models.get(provider)
