@@ -537,6 +537,8 @@ class TestMixedComposer(unittest.TestCase):
         p._focused_msg_id = lambda: None
         p._stop_audio = Mock()
         p._open_audio_stream_from_temp_file = Mock(return_value=(stream, None))
+        # _play_audio opens its stream through the device-recovering wrapper now
+        p._open_stream_recovering_device = Mock(return_value=(stream, None))
         bind(p, ['_play_audio'], dict(os=os, tempfile=tempfile, logging=logging,
              decrypt_bytes=lambda data, key: self.decrypt(data), transcode_audio_to_wav=decode))
         p._play_audio(pm.local_id, 1, str(cache))
