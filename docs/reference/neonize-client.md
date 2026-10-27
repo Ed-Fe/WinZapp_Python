@@ -53,6 +53,33 @@ WPPConnect typed in at `127.0.0.1:6300` read as Neonize.
 | Node lease | registered when the bridge is started or joined (`_register_node_lease`), so "Quit all accounts" and the updater see the account |
 | Calls | placed and answered when `send-capabilities` says `calls: true` (WinZapp's neonize build with the call layer, `neonize_bridge/call_media.py`); video calls, upgrading to video and the camera when it also says `videoCalls: true` (neonize 0008 and an ffmpeg on the bridge's PATH, `neonize_bridge/call_video.py`), group calls with `groupCalls: true`; the others are refused up front (`core/call_logic.engine_refuses_call`); rejecting always works |
 
+## Call tones
+
+With WPPConnect the WhatsApp Web page plays the sounds of a call; Neonize has no
+page, so `core/call_tones.py` makes them and `core/call_tone_player.py` plays
+them (looped, through `sound_system.load_sound`, from WAVs cached under
+`data/cache/call_tones`). The hooks are in `main_window/calls.py`
+(`on_voice_call_state_event` and `_stop_voice_call_audio`), and only run when
+`_uses_neonize()`.
+
+- Wired today: the ringback while OUR call is `RINGING`, by the country of the
+  number dialed (`call_tone_data.RINGBACK_ROWS`: the first row whose calling
+  code is a prefix of the number wins, the first row is the default, as in the
+  original); the 480 Hz beeps while `CONNECTING` and `REJOINING`.
+- In the catalogue but not wired, because the bridge sends no event for them
+  yet: busy, interruption, the group-call short tone, the incoming call waiting
+  while another is in progress, the video upgrade request.
+- The "offer sent" tone is not made: the original takes it from a server
+  property (`connecting_tone_desc`) and has no default.
+- The numbers were read from the tone table of the Microsoft Store build
+  2.2641.101.0 (`WhatsAppNative.Voip.dll`, built on pjmedia's `tonegen`). A row
+  whose second frequency is 16-50 Hz and carries the flag byte is treated as
+  amplitude modulation at that rate; that reading of the flag was not checked
+  against the original's synthesis loop. Check by ear against a real call.
+- The ringtone of an incoming call, the hang-up sound and the notification
+  alerts are recorded files in that app (`Sounds/`), not synthesized tones, and
+  are not part of WinZapp.
+
 ## Known leftovers (not fixed)
 
 - Video and group call buttons are still shown when the bridge cannot take

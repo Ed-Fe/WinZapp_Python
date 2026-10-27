@@ -114,6 +114,8 @@ NOWOŚCI
 
 - Neonize: nazwa zapisanego kontaktu nie jest już co minutę zastępowana nazwą profilu, którą ta osoba ustawiła w swoim WhatsAppie (ani nazwą, jaką telefon nadał czatowi). Nazwa nadana kontaktowi zostaje; nazwa profilu pojawia się tylko przy osobach, które nie są zapisane w kontaktach.
 
+- Połączenia w Neonize: WinZapp odtwarza teraz dźwięki, które wcześniej odtwarzał za Ciebie WhatsApp Web. Gdy drugi telefon dzwoni, słychać sygnał połączenia o wysokości i rytmie kraju, do którego dzwonisz, a podczas łączenia i ponownego łączenia rozbrzmiewają krótkie sygnały. Dźwięki tworzy sam WinZapp; z silnikiem WPPConnect nic się nie zmienia.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
