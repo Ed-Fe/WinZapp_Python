@@ -114,6 +114,8 @@ NOUTĂȚI
 
 - Neonize: numele unui contact salvat nu mai este înlocuit, în fiecare minut, cu numele de profil ales de persoană în propriul WhatsApp (sau cu numele pe care telefonul l-a dat conversației). Numele pe care l-ai dat contactului rămâne; numele de profil apare doar pentru persoanele pe care nu le-ai salvat.
 
+- Apeluri în Neonize: WinZapp redă acum sunetele pe care le reda WhatsApp Web în locul tău. Cât timp sună celălalt telefon auzi tonul de apel cu înălțimea și ritmul țării pe care ai sunat-o, iar bipuri scurte se aud cât timp apelul se conectează sau se reconectează. Sunetele sunt create chiar de WinZapp; cu motorul WPPConnect nu se schimbă nimic.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

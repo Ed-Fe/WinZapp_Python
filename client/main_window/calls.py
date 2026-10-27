@@ -21,6 +21,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
+from core.call_tone_player import stop_call_tone, update_call_tone
 from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
     call_log_candidate_ids,
@@ -476,6 +477,8 @@ class CallsMixin:
         in a device switch enables it again, so the other person stopped
         hearing the user (see CallAudioSession.stop).
         """
+        if not keep_call:
+            stop_call_tone(self)
         session = getattr(self, "_call_audio_session", None)
         if session is None:
             self._stop_incoming_call_audio_monitor()
@@ -1729,12 +1732,19 @@ class CallsMixin:
                 else self._preview_sender_from_jid(call_peer_jid) or call_peer_jid
             )
         self._sync_voice_call_bar()
-
+        # The Neonize engine has no WhatsApp Web page to play the ringback and the
+        # connecting beeps; a call that is over silences them.
         terminal_states = {
             "ENDED", "REJECTED", "FAILED", "NOT_ANSWERED",
             "HANDLED_REMOTELY", "REMOTE_CALL_IN_PROGRESS",
         }
-        if state in terminal_states or event.get("event") in {"ended", "timeout"}:
+        call_is_over = state in terminal_states or event.get("event") in {"ended", "timeout"}
+        if call_is_over:
+            stop_call_tone(self)
+        else:
+            update_call_tone(self, active, state)
+
+        if call_is_over:
             self._confirm_call_ended(
                 active, call_id, call_peer_jid, upgraded_to_video=upgraded_to_video)
             return

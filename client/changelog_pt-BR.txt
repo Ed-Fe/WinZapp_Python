@@ -114,6 +114,8 @@ NOVIDADES
 
 - Neonize: o nome de um contato salvo não é mais trocado, a cada minuto, pelo nome de perfil que a pessoa escolheu no próprio WhatsApp (nem pelo nome que o telefone deu à conversa). O nome que você deu ao contato permanece; o nome de perfil só aparece para quem você não salvou.
 
+- Chamadas na Neonize: o WinZapp agora toca os sons que o WhatsApp Web tocava por você. Enquanto o outro telefone chama, você ouve o toque de chamada com o tom e o ritmo do país para onde ligou, e bipes curtos tocam enquanto a chamada conecta ou reconecta. Quem gera os sons é o próprio WinZapp; com o motor WPPConnect nada muda.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada a lugar nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, figurinhas e PDFs.
