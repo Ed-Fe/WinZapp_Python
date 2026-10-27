@@ -21,6 +21,22 @@ from core.audio_transcode import transcode_audio_to_wav
 from core import playback_controls
 
 
+
+#: BASS error codes that mean "there is no output device to play on": 3 no
+#: driver, 8 BASS_Init was not (successfully) called, 23 the device is not
+#: available.
+_OUTPUT_DEVICE_ERRORS = (3, 8, 23)
+
+
+def _is_output_device_error(error) -> bool:
+    """Whether a sound_lib BassError ("8, BASS_Init has not been successfully
+    called") is about the output device rather than about the file."""
+    text = str(error).strip()
+    head = text.split(",", 1)[0].strip()
+    if head.isdigit():
+        return int(head) in _OUTPUT_DEVICE_ERRORS
+    return "BASS_Init" in text
+
 class AudioPlaybackMixin:
     """Playing voice/audio messages: play/pause, chaining, speed, seek and the
     audio controls.
@@ -235,6 +251,7 @@ class AudioPlaybackMixin:
         pointed at a permanently dead stream.
         """
         if not self._audio_temp_file or not os.path.isfile(self._audio_temp_file):
+            self._announce_audio_failure()
             return False
         old_ctrl = self._audio_tempo_ctrl if self._audio_tempo_ctrl is not None else self._audio_stream
         pos = None
@@ -254,11 +271,43 @@ class AudioPlaybackMixin:
             playback_ctrl.play()
         except Exception as e:
             logging.exception(f"[UI Audio Playback] Recovery after device switch failed: {e}")
+            # every caller drops the audio when this says False: say so
+            self._announce_audio_failure()
             return False
         return True
 
+    def _announce_audio_failure(self):
+        """Tell the screen reader that a voice message or audio would not play: a
+        failure that only reached the log left the user pressing Enter on a message
+        that did nothing, with no word about why."""
+        mw = self.main_window
+        try:
+            mw.output(mw.i18n.t("audio_playback_failed"), interrupt=True)
+        except Exception:
+            logging.exception("[UI Audio Playback] could not announce a playback failure")
+
+    def _open_stream_recovering_device(self):
+        """_open_audio_stream_from_temp_file(), and when it fails, one more try
+        after re-initialising BASS on the current default device. A BASS_Init that
+        failed once (the output device was missing while the PC woke up, a headset
+        unplugged) used to leave every later stream failing with error 8 until the
+        app was restarted, because nothing but a failed *play* asked for a retry."""
+        try:
+            return self._open_audio_stream_from_temp_file()
+        except Exception as first:
+            # Only a failure that is about the output device is worth re-initialising
+            # BASS for: a file BASS cannot decode (41) fails again, and the reinit
+            # would reload every sound and may warn about a device that is fine.
+            if not _is_output_device_error(first):
+                raise
+            if not self.main_window.sound_system.handle_playback_failure():
+                raise
+            logging.info("[UI Audio Playback] stream failed (%s); BASS was re-initialised, retrying", first)
+            return self._open_audio_stream_from_temp_file()
+
     def _play_audio(self, msg_id, duration_seconds, file_path, audio_ext=".ogg"):
         if not os.path.isfile(file_path):
+            self._announce_audio_failure()
             return
 
         # This can be reached two ways: synchronously from _toggle_playback
@@ -318,10 +367,11 @@ class AudioPlaybackMixin:
         except Exception as e:
             logging.exception(f"[UI Audio Playback] Error decrypting or creating temp audio file: {e}")
             self._stop_audio()
+            self._announce_audio_failure()
             return
 
         try:
-            self._audio_stream, self._audio_tempo_ctrl = self._open_audio_stream_from_temp_file()
+            self._audio_stream, self._audio_tempo_ctrl = self._open_stream_recovering_device()
         except Exception as e:
             # Both the decode+Tempo stream and the plain direct stream failed
             # (_open_audio_stream_from_temp_file()'s own fallback) — e.g. an
@@ -341,6 +391,7 @@ class AudioPlaybackMixin:
             if wav_path is None:
                 logging.exception(f"[UI Audio Playback] Error creating stream: {e}")
                 self._stop_audio()
+                self._announce_audio_failure()
                 return
             os.unlink(self._audio_temp_file)
             self._audio_temp_file = wav_path
@@ -351,6 +402,7 @@ class AudioPlaybackMixin:
                     f"[UI Audio Playback] Error creating stream from converted WAV: {e2}"
                 )
                 self._stop_audio()
+                self._announce_audio_failure()
                 return
 
         # ── Start playback ───────────────────────────────────────────────────
@@ -396,9 +448,11 @@ class AudioPlaybackMixin:
                 except Exception as e2:
                     logging.exception(f"[UI Audio Playback] Retry after device fallback also failed: {e2}")
                     self._stop_audio()
+                    self._announce_audio_failure()
                     return
             else:
                 self._stop_audio()
+                self._announce_audio_failure()
                 return
 
         self._is_audio_playing = True

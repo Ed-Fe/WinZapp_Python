@@ -118,6 +118,8 @@ WHAT'S NEW
 
 - Neonize calls: when a call that was answered ends, WinZapp plays the call-ended sound of WhatsApp. It is a new Sound Event, "Call ended", so it follows the sound pack and can be turned off or replaced in the sound events. With the WPPConnect engine WhatsApp Web keeps playing its own.
 
+- Voice messages and audios that did not play: when the sound card was not available at the moment WinZapp opened the audio output (for example when the PC woke up), no voice message played until WinZapp was restarted, and nothing said why. WinZapp now tries to restore the audio output when a playback fails, and if it still cannot play, it says so through the screen reader.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

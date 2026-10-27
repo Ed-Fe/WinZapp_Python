@@ -118,6 +118,8 @@ NOVEDADES
 
 - Llamadas en Neonize: cuando termina una llamada contestada, WinZapp reproduce el sonido de llamada finalizada de WhatsApp. Es un nuevo evento de sonido, "Llamada finalizada", que sigue al paquete de sonidos y se puede desactivar o sustituir en los eventos de sonido. Con el motor WPPConnect, WhatsApp Web sigue reproduciendo el suyo.
 
+- Mensajes de voz y audios que no se reproducían: cuando la tarjeta de sonido no estaba disponible en el momento en que WinZapp abrió la salida de audio (por ejemplo al despertar el equipo), ningún mensaje de voz se reproducía hasta reiniciar WinZapp, y nada explicaba el motivo. Ahora WinZapp intenta restaurar la salida de audio cuando falla una reproducción y, si aun así no puede reproducir, lo anuncia con el lector de pantalla.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
