@@ -116,6 +116,8 @@ NOVEDADES
 
 - Llamadas en Neonize: WinZapp ahora reproduce los sonidos que WhatsApp Web reproducía por ti. Mientras suena el otro teléfono oyes el tono de llamada con el tono y el ritmo del país al que llamaste, y suenan pitidos cortos mientras la llamada se conecta o se reconecta. Los genera el propio WinZapp; con el motor WPPConnect no cambia nada.
 
+- Llamadas en Neonize: cuando termina una llamada contestada, WinZapp reproduce el sonido de llamada finalizada de WhatsApp. Es un nuevo evento de sonido, "Llamada finalizada", que sigue al paquete de sonidos y se puede desactivar o sustituir en los eventos de sonido. Con el motor WPPConnect, WhatsApp Web sigue reproduciendo el suyo.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.

@@ -11331,6 +11331,11 @@ msgid "Transition to next voice message"
 msgstr "Przejście do następnej wiadomości głosowej"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "sound_event_call_ended"
+msgid "Call ended"
+msgstr "Połączenie zakończone"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_call_incoming"
 msgid "Incoming call"
 msgstr "Połączenie przychodzące"

@@ -120,3 +120,20 @@ def _player_of(mw) -> CallTonePlayer:
         player = mw._call_tone_player = CallTonePlayer(
             mw.sound_system, data_path("cache", "call_tones"), load_sound)
     return player
+
+
+def play_call_ended_sound(mw, active: dict) -> None:
+    """The sound a call that was connected makes when it ends, once, on the Neonize
+    engine only (with WPPConnect the WhatsApp Web page plays its own). It is the
+    ``call_ended`` Sound Event, so it follows the pack and the user's settings."""
+    if not getattr(mw, "_uses_neonize", lambda: False)():
+        return
+    if getattr(mw, "_voice_call_last_announced_state", "") != "ACTIVE":
+        return          # a call nobody answered ends without it
+    if active.get("end_sound_played"):
+        return
+    active["end_sound_played"] = True
+    try:
+        mw.call_ended_sound.play()
+    except Exception:
+        logging.exception("[call_tone] could not play the call-ended sound")

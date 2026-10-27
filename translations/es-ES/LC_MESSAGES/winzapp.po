@@ -11333,6 +11333,11 @@ msgid "Transition to next voice message"
 msgstr "Transición al siguiente mensaje de voz"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "sound_event_call_ended"
+msgid "Call ended"
+msgstr "Llamada finalizada"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_call_incoming"
 msgid "Incoming call"
 msgstr "Llamada entrante"

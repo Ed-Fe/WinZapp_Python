@@ -249,3 +249,62 @@ def test_the_cache_file_is_replaced_whole(tmp_path):
     player.play(ct.BUSY)
 
     assert not [name for name in (tmp_path / "tones").iterdir() if name.suffix == ".tmp"]
+
+
+# -- the sound of a call that ends -------------------------------------------------
+
+class _EndSound:
+    def __init__(self):
+        self.played = 0
+
+    def play(self):
+        self.played += 1
+
+
+def ended_window(neonize, last_state="ACTIVE"):
+    return SimpleNamespace(_uses_neonize=lambda: neonize, call_ended_sound=_EndSound(),
+                           _voice_call_last_announced_state=last_state)
+
+
+def test_a_connected_call_that_ends_plays_the_ended_sound_once_on_neonize():
+    mw, active = ended_window(True), {}
+
+    ctp.play_call_ended_sound(mw, active)
+    ctp.play_call_ended_sound(mw, active)           # a repeated end event
+
+    assert mw.call_ended_sound.played == 1
+
+
+def test_wppconnect_keeps_its_own_ended_sound():
+    mw = ended_window(False)
+
+    ctp.play_call_ended_sound(mw, {})
+
+    assert mw.call_ended_sound.played == 0
+
+
+def test_a_call_nobody_answered_ends_without_the_sound():
+    for last in ("", "CONNECTING", "REJOINING"):
+        mw = ended_window(True, last)
+
+        ctp.play_call_ended_sound(mw, {})
+
+        assert mw.call_ended_sound.played == 0
+
+
+def test_a_sound_that_cannot_play_does_not_break_the_end_of_the_call():
+    mw = SimpleNamespace(_uses_neonize=lambda: True, _voice_call_last_announced_state="ACTIVE")
+
+    ctp.play_call_ended_sound(mw, {})        # no call_ended_sound attribute at all
+
+
+def test_the_default_pack_carries_the_call_ended_event():
+    import json
+    import os
+    from core.sound_system import SOUND_EVENTS
+    root = os.path.join(os.path.dirname(__file__), "..", "client", "sounds", "default")
+    manifest = json.load(open(os.path.join(root, "default.pack.json"), encoding="utf-8"))
+
+    assert ("call_ended", "call_ended.ogg") in SOUND_EVENTS
+    assert manifest["events"]["call_ended"] == "call_ended.ogg"
+    assert os.path.getsize(os.path.join(root, "call_ended.ogg")) > 1000

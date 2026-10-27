@@ -21,7 +21,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
-from core.call_tone_player import stop_call_tone, update_call_tone
+from core.call_tone_player import play_call_ended_sound, stop_call_tone, update_call_tone
 from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
     call_log_candidate_ids,
@@ -1741,6 +1741,7 @@ class CallsMixin:
         call_is_over = state in terminal_states or event.get("event") in {"ended", "timeout"}
         if call_is_over:
             stop_call_tone(self)
+            play_call_ended_sound(self, active)
         else:
             update_call_tone(self, active, state)
 

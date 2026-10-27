@@ -11325,6 +11325,11 @@ msgid "Transition to next voice message"
 msgstr "Tranziție la următorul mesaj vocal"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "sound_event_call_ended"
+msgid "Call ended"
+msgstr "Apel încheiat"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_call_incoming"
 msgid "Incoming call"
 msgstr "Apel primit"

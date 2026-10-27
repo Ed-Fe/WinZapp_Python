@@ -545,6 +545,7 @@ SOUND_EVENTS: list[tuple[str, str]] = [
     ("message_background", "message_background.ogg"),
     ("reaction_received", "reaction_received.ogg"),
     ("call_incoming", "call_incoming.ogg"),
+    ("call_ended", "call_ended.ogg"),
     ("message_sent", "message_sent.ogg"),
     ("audio_transition_next", "audio_transition_next.ogg"),
     ("audio_transition_end", "audio_transition_end.ogg"),
