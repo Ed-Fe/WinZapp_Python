@@ -93,6 +93,15 @@ def test_listing_identities_follow_an_lid_to_its_number():
     assert asked == ["99@lid", "77@lid"]          # only an LID needs the number looked up
 
 
+def test_a_chat_under_a_number_finds_the_name_saved_under_its_twin_form():
+    contact_rows = [{"jid": "5511999990000@s.whatsapp.net", "name": "Bia Lima", "pushname": ""}]
+    chat_rows = [row("551199990000@s.whatsapp.net")]
+
+    names, _ = cl.listing_identities(chat_rows, contact_rows, lambda lid: "")
+
+    assert names == {"551199990000@c.us": "Bia Lima"}
+
+
 def test_select_archived_broadcast_and_muted():
     everything = [row("a@s.whatsapp.net", archived=1), row("b@s.whatsapp.net", muted=500),
                   row("c@s.whatsapp.net", muted=5), row("list@broadcast"),

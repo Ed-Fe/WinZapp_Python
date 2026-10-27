@@ -52,7 +52,8 @@ def listing_identities(chat_rows, contact_rows, phone_of):
         jid = c["jid"]
         if not jid.endswith(("@lid", "@s.whatsapp.net")):
             continue
-        phone = phone_of(jid) if jid.endswith("@lid") else ""
+        # a chat under a number looks for its address-book name under both forms of it
+        phone = phone_of(jid) if jid.endswith("@lid") else jid
         name, nickname = contacts.book_identity(rows, jid, phone)
         wpp = msgmap.jid_wpp(jid)
         if name:
