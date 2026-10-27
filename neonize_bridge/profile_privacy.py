@@ -16,6 +16,7 @@ from aiohttp import web
 
 import msgmap
 import status_privacy
+from about_cache import AboutCache, failure_code
 
 log = logging.getLogger("bridge")
 
@@ -198,13 +199,26 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text):
         if not connected(s):
             return error("Disconnected", 400)
         jid = jid_from_text(profile_jid(req.match_info["phone"]))
-        try:
-            infos = await execute(s.client.get_user_info, jid)
-        except Exception as e:
-            log.info("profile-status: %s", type(e).__name__)
-            return error(e)
-        return ok(status="success", response={
-            "id": msgmap.jid_wpp(jid_text(jid)), "status": about_of(infos)})
+        key = jid_text(jid)
+        cache = getattr(s, "about_cache", None)
+        if cache is None:
+            cache = s.about_cache = AboutCache()
+        known = cache.lookup(key)
+        if known is None and cache.paused():
+            return error_code("rate_limited", 503)
+        if known is None:
+            try:
+                about = about_of(await execute(s.client.get_user_info, jid))
+            except Exception as e:
+                log.info("profile-status: %s %s", type(e).__name__, failure_code(e))
+                cache.failed(key, e)
+                return error(e)
+            cache.remember(key, about)
+        else:
+            about, failure = known
+            if about is None:
+                return error(failure)
+        return ok(status="success", response={"id": msgmap.jid_wpp(key), "status": about})
 
     async def profile_pic(req):
         s = session(req)
