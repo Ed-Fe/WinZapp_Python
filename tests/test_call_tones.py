@@ -249,3 +249,86 @@ def test_the_cache_file_is_replaced_whole(tmp_path):
     player.play(ct.BUSY)
 
     assert not [name for name in (tmp_path / "tones").iterdir() if name.suffix == ".tmp"]
+
+
+# -- the sound of a call that ends -------------------------------------------------
+
+class _EndSound:
+    def __init__(self):
+        self.played = 0
+
+    def play(self):
+        self.played += 1
+
+
+def ended_window(neonize, last_state="ACTIVE"):
+    return SimpleNamespace(_uses_neonize=lambda: neonize, call_ended_sound=_EndSound(),
+                           _voice_call_last_announced_state=last_state)
+
+
+def test_a_connected_call_that_ends_plays_the_ended_sound_once_on_neonize():
+    mw, active = ended_window(True), {}
+
+    ctp.play_call_ended_sound(mw, active)
+    ctp.play_call_ended_sound(mw, active)           # a repeated end event
+
+    assert mw.call_ended_sound.played == 1
+
+
+def test_wppconnect_keeps_its_own_ended_sound():
+    mw = ended_window(False)
+
+    ctp.play_call_ended_sound(mw, {})
+
+    assert mw.call_ended_sound.played == 0
+
+
+def test_a_call_nobody_answered_ends_without_the_sound():
+    for last in ("", "CONNECTING", "REJOINING"):
+        mw = ended_window(True, last)
+
+        ctp.play_call_ended_sound(mw, {})
+
+        assert mw.call_ended_sound.played == 0
+
+
+def test_a_sound_that_cannot_play_does_not_break_the_end_of_the_call():
+    mw = SimpleNamespace(_uses_neonize=lambda: True, _voice_call_last_announced_state="ACTIVE")
+
+    ctp.play_call_ended_sound(mw, {})        # no call_ended_sound attribute at all
+
+
+def test_the_default_pack_carries_the_call_ended_event():
+    import json
+    import os
+    from core.sound_system import SOUND_EVENTS
+    root = os.path.join(os.path.dirname(__file__), "..", "client", "sounds", "default")
+    manifest = json.load(open(os.path.join(root, "default.pack.json"), encoding="utf-8"))
+
+    assert ("call_ended", "call_ended.ogg") in SOUND_EVENTS
+    assert manifest["events"]["call_ended"] == "call_ended.ogg"
+    with open(os.path.join(root, "call_ended.ogg"), "rb") as stream:
+        assert stream.read(4) == b"OggS"
+
+
+def test_the_sound_plays_when_the_end_is_confirmed_not_on_a_terminal_event_that_the_call_survives():
+    """A voice call upgraded to video sends a terminal event and goes on: the
+    sound belongs to _end_active_call_locally, which only a confirmed end reaches."""
+    from main import MainWindow
+    calls = []
+    mw = SimpleNamespace(
+        _uses_neonize=lambda: True, call_ended_sound=_EndSound(),
+        _voice_call_last_announced_state="ACTIVE",
+        _stop_voice_call_audio=lambda **k: calls.append("stop"),
+        output=lambda *a, **k: calls.append("speak"),
+        i18n=SimpleNamespace(t=lambda key: key),
+        _watch_ended_call_log=lambda *a: None,
+        _ensure_page_call_ended=lambda *a: None)
+
+    MainWindow._end_active_call_locally(mw, {"peer_jid": "55@c.us"}, "ID", "55@c.us")
+
+    assert mw.call_ended_sound.played == 1 and calls == ["stop", "speak"]
+    import inspect
+    from main_window import calls as calls_module
+    terminal = inspect.getsource(calls_module.CallsMixin.on_voice_call_state_event)
+    assert "play_call_ended_sound" not in terminal

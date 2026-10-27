@@ -21,7 +21,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
-from core.call_tone_player import stop_call_tone, update_call_tone
+from core.call_tone_player import play_call_ended_sound, stop_call_tone, update_call_tone
 from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
     call_log_candidate_ids,
@@ -1835,6 +1835,9 @@ class CallsMixin:
         self._end_active_call_locally(active, call_id, peer_jid)
 
     def _end_active_call_locally(self, active: dict, call_id: str, peer_jid: str):
+        # Here and not on the raw terminal event: this is reached only once the end is
+        # confirmed (a call upgraded to video sends a terminal event and goes on).
+        play_call_ended_sound(self, active)
         self._stop_voice_call_audio(grace_seconds=1.25)
         self.output(self.i18n.t("voice_call_ended"), interrupt=True)
         self._watch_ended_call_log(

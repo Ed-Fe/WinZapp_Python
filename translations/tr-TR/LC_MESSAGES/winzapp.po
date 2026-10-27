@@ -11205,6 +11205,11 @@ msgid "Transition to next voice message"
 msgstr "Sonraki sesli mesaja geçiş"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "sound_event_call_ended"
+msgid "Call ended"
+msgstr "Arama sona erdi"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_call_incoming"
 msgid "Incoming call"
 msgstr "Gelen arama"

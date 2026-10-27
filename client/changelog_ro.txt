@@ -116,6 +116,8 @@ NOUTĂȚI
 
 - Apeluri în Neonize: WinZapp redă acum sunetele pe care le reda WhatsApp Web în locul tău. Cât timp sună celălalt telefon auzi tonul de apel cu înălțimea și ritmul țării pe care ai sunat-o, iar bipuri scurte se aud cât timp apelul se conectează sau se reconectează. Sunetele sunt create chiar de WinZapp; cu motorul WPPConnect nu se schimbă nimic.
 
+- Apeluri în Neonize: când se termină un apel la care s-a răspuns, WinZapp redă sunetul de apel încheiat al WhatsApp. Este un nou eveniment sonor, "Apel încheiat", care urmează pachetul de sunete și poate fi dezactivat sau înlocuit în evenimentele sonore. Cu motorul WPPConnect, WhatsApp Web continuă să îl redea pe al lui.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

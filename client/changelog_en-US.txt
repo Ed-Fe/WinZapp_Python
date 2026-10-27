@@ -116,6 +116,8 @@ WHAT'S NEW
 
 - Neonize calls: WinZapp now plays the tones that WhatsApp Web used to play for you. While the other phone rings you hear the ringback with the pitch and rhythm of the country you called, and short beeps play while the call connects or reconnects. WinZapp makes them itself; with the WPPConnect engine nothing changes.
 
+- Neonize calls: when a call that was answered ends, WinZapp plays the call-ended sound of WhatsApp. It is a new Sound Event, "Call ended", so it follows the sound pack and can be turned off or replaced in the sound events. With the WPPConnect engine WhatsApp Web keeps playing its own.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

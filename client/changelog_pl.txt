@@ -116,6 +116,8 @@ NOWOŚCI
 
 - Połączenia w Neonize: WinZapp odtwarza teraz dźwięki, które wcześniej odtwarzał za Ciebie WhatsApp Web. Gdy drugi telefon dzwoni, słychać sygnał połączenia o wysokości i rytmie kraju, do którego dzwonisz, a podczas łączenia i ponownego łączenia rozbrzmiewają krótkie sygnały. Dźwięki tworzy sam WinZapp; z silnikiem WPPConnect nic się nie zmienia.
 
+- Połączenia w Neonize: gdy odebrane połączenie się kończy, WinZapp odtwarza dźwięk zakończenia połączenia z WhatsAppa. To nowe zdarzenie dźwiękowe, "Połączenie zakończone", które podąża za pakietem dźwięków i można je wyłączyć lub zastąpić w zdarzeniach dźwiękowych. Z silnikiem WPPConnect WhatsApp Web nadal odtwarza własny dźwięk.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
