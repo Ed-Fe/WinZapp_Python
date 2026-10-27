@@ -118,8 +118,15 @@ def test_the_ringback_plays_only_while_our_call_rings_and_by_the_country():
     assert ctp.tone_for_state("RINGING", False, "5511999990000") is None    # an incoming ring is not ours
 
 
+def test_our_call_rings_back_while_the_bridge_says_connecting():
+    """Measured on a real call: offer 0.0 s, CONNECTING 0.7 s, answered 9.1 s. The
+    other phone rang during all of CONNECTING, and the beeps were heard instead of
+    the Brazilian ringback."""
+    assert ctp.tone_for_state("CONNECTING", True, "5511999990000") == ct.Tone(425, 0, ((1000, 4000),))
+    assert ctp.tone_for_state("CONNECTING", True, "") == ct.ringback_for("1")
+
+
 def test_connecting_and_rejoining_beep_and_the_rest_is_silent():
-    assert ctp.tone_for_state("CONNECTING", True, "") == ct.CONNECTING
     assert ctp.tone_for_state("CONNECTING", False, "") == ct.CONNECTING
     assert ctp.tone_for_state("REJOINING", True, "") == ct.RECONNECTING
     for state in ("CALLING", "ACTIVE", "ENDED", "REJECTED", "INCOMING_RING", "", None):
