@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS msgs(
     chat TEXT NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, data TEXT NOT NULL,
     raw BLOB, PRIMARY KEY(chat, id));
 CREATE INDEX IF NOT EXISTS msgs_by_date ON msgs(chat, ts);
+-- receipts, reactions, edits and message-ack look a message up by id alone;
+-- without this each lookup scanned every message (300 ms on 228k), under the
+-- store's lock, and the routes waiting on it stalled the bridge's loop
+CREATE INDEX IF NOT EXISTS msgs_by_id ON msgs(id);
 CREATE TABLE IF NOT EXISTS pinned(
     msg TEXT PRIMARY KEY, chat TEXT NOT NULL, ts INTEGER DEFAULT 0, duration INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS votes(

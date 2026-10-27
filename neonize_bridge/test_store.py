@@ -241,3 +241,11 @@ def test_chats_in_batch_writes_like_chat(tmp_path):
     assert chats["1@s.whatsapp.net"]["ts"] == 50 and chats["1@s.whatsapp.net"]["unread"] == 5
     assert chats["1@s.whatsapp.net"]["archived"] == 1
     assert chats["2@g.us"]["name"] == "G" and "3@s.whatsapp.net" in chats
+
+
+def test_a_message_is_looked_up_by_its_id_through_an_index(tmp_path):
+    db = Store(str(tmp_path / "b.db"))
+    db.messages_in_batch([("1@s.whatsapp.net", _msg("A", 10))])
+    plan = db._conn.execute("EXPLAIN QUERY PLAN SELECT data FROM msgs WHERE id=?", ("A",)).fetchall()
+    assert any("msgs_by_id" in str(row[-1]) for row in plan), plan
+    assert db.wpp_message("A")["id"]["id"] == "A"
