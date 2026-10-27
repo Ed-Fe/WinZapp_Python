@@ -185,3 +185,21 @@ async def test_raw_connect_with_a_malformed_credential_leaves_no_registered_sock
         assert list(sio_server.manager.get_participants("/", None)) == []
     finally:
         await client.close()
+
+
+@pytest.mark.asyncio
+async def test_a_socket_that_leaves_is_logged_with_the_reason(tmp_path, sessions, caplog):
+    """A client that keeps resynchronizing is diagnosed from why its socket dropped."""
+    import logging
+    client, secret = await _bridge(tmp_path)
+    try:
+        with caplog.at_level(logging.INFO, logger="bridge"):
+            sio, _received = await _socket(client, _token(secret, "account1"))
+            await sio.disconnect()
+            await _wait(lambda: any("socket disconnected" in r.getMessage()
+                                    for r in caplog.records))
+        line = next(r.getMessage() for r in caplog.records
+                    if "socket disconnected" in r.getMessage())
+        assert line != "socket disconnected (no reason given)"
+    finally:
+        await client.close()

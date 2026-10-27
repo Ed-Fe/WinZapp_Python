@@ -491,11 +491,14 @@ class WebSocketClient:
         except Exception:
             logging.exception("[WebSocketClient] _recheck_connection_after_connect error")
 
-    def on_disconnect(self):
+    def on_disconnect(self, reason=None):
+        # python-socketio (5.12+) says why: the server timed out our pings,
+        # the transport closed or errored, or we left. Every drop resyncs all
+        # chats (_recheck_connection_after_connect), so it is logged.
         self._presence_delivery_generation = getattr(self, "_presence_delivery_generation", 0) + 1
         if hasattr(self.main_window, "_invalidate_contact_presence"):
             wx.CallAfter(self.main_window._invalidate_contact_presence)
-        logging.info("[WebSocketClient] WebSocket disconnected.")
+        logging.info("[WebSocketClient] WebSocket disconnected (%s).", reason or "no reason given")
         # Debounced: python-socketio auto-reconnects on its own within a few
         # seconds for an ordinary transient blip (Wi-Fi/NAT power-save churn,
         # a brief hiccup against the local WPPConnect server) — declaring the

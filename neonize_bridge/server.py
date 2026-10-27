@@ -31,6 +31,7 @@ import comments
 import comment_routes
 import inputs
 import legacy_layout
+import loop_watch
 import group_events
 import contact_events
 import app_state_mirror
@@ -76,6 +77,8 @@ def qr_data_url(text: str) -> str:
         buf, kind="png", scale=QR_SCALE, border=QR_BORDER, dark="#000000", light="#ffffff")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
+
+LOOP_WATCH = web.AppKey("loop_watch", asyncio.Task)
 
 HISTORY_DAYS = 180     # how much history to ask the phone for on pairing (0 = default)
 
@@ -1684,6 +1687,16 @@ def create_app(folder, fixed=""):
                 log.info("session resumed on start: %s", redact(name))
     app.on_startup.append(resume)
 
+    async def start_loop_watch(_app):
+        _app[LOOP_WATCH] = asyncio.get_running_loop().create_task(loop_watch.watch())
+
+    async def stop_loop_watch(_app):
+        task = _app.get(LOOP_WATCH)
+        if task is not None:
+            task.cancel()
+    app.on_startup.append(start_loop_watch)
+    app.on_cleanup.append(stop_loop_watch)
+
     def key_of(req):
         return state["fixed"] or req.match_info["tok"].split(":", 1)[0]
 
@@ -1723,6 +1736,12 @@ def create_app(folder, fixed=""):
         except Exception:
             raise socketio.exceptions.ConnectionRefusedError("no credential")
         log.info("socket connected (%s)", redact(name))
+
+    @sio.event
+    async def disconnect(sid, reason=None):
+        # python-socketio says why (ping timeout, transport closed, the client
+        # leaving): a client that keeps resynchronizing is diagnosed from this.
+        log.info("socket disconnected (%s)", reason or "no reason given")
 
     async def generate_token(req):
         name = req.match_info["session"]
