@@ -574,6 +574,24 @@ async def test_revoking_my_own_message_is_still_signed_by_me(tmp_path, sessions)
         await bridge.http.close()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body,delete_media", [
+    ({}, True), ({"deleteMediaInDevice": True}, True), ({"deleteMediaInDevice": False}, False)])
+async def test_delete_for_me_carries_the_keep_on_phone_choice(tmp_path, sessions, body, delete_media):
+    bridge = await _open(tmp_path, sessions)
+    try:
+        bridge.s.db.message(PN, _msg("PHOTO", 100, PN))
+        sent = []
+        bridge.s.send_state = lambda name, version, patch, value, *a, **k: sent.append(value) or True
+        status, _ = await bridge.post("delete-message", dict(
+            body, messageId=f"false_{PN}_PHOTO", onlyLocal=True))
+        assert status == 200
+        assert sent[0].deleteMessageForMeAction.deleteMedia is delete_media
+        assert sent[0].deleteMessageForMeAction.messageTimestamp == 100
+    finally:
+        await bridge.http.close()
+
+
 # -------------------------------------------------------------- forward
 @pytest.mark.asyncio
 async def test_forward_messages_returns_the_new_ids_and_stores_the_copy_in_the_destination(

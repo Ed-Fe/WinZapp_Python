@@ -1494,7 +1494,10 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             self.db.chat(conversation, muted=end)
         return ok_
 
-    def delete_for_me(self, serial):
+    def delete_for_me(self, serial, delete_media=True):
+        """delete_media is WhatsApp's "Delete file from your phone" box: the
+        phone removes the photo, video, audio or document from its storage
+        only when the synced action says so."""
         from neonize.proto.Neonize_pb2 import PatchInfo
         from neonize.proto.waSyncAction.WAWebProtobufSyncAction_pb2 import (
             DeleteMessageForMeAction, SyncActionValue)
@@ -1503,7 +1506,8 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         ok_ = self.send_state(
             "deleteMessageForMe", 3, PatchInfo.REGULAR_HIGH,
             SyncActionValue(deleteMessageForMeAction=DeleteMessageForMeAction(
-                deleteMedia=True, messageTimestamp=int(original.get("t", time.time())))),
+                deleteMedia=bool(delete_media),
+                messageTimestamp=int(original.get("t", time.time())))),
             conversation, extra=(mid, own, participant))
         if ok_:
             self.db.delete_message(mid)
@@ -2721,8 +2725,14 @@ def create_app(folder, fixed=""):
             return error
         ids = body["messageId"]
         ids = ids if isinstance(ids, list) else [ids]
-        func = s.delete_for_me if body.get("onlyLocal") else s.delete_for_everyone
-        dones = [await in_thread(func, i) for i in ids]
+        if body.get("onlyLocal"):
+            # WPPConnect's deleteMediaInDevice, true when left out as there
+            keep = body.get("deleteMediaInDevice", True) is False
+            dones = [await in_thread(s.delete_for_me, i, not keep) for i in ids]
+        else:
+            # A revoke carries no such choice to the other devices: WhatsApp
+            # Web's clearMedia stays on its own copy of the protocol message.
+            dones = [await in_thread(s.delete_for_everyone, i) for i in ids]
         if not all(dones):
             return web.json_response({"status": "error", "message": "not accepted"}, status=500)
         return ok(status="success", response={"deleted": len(dones)})
