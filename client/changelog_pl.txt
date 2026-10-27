@@ -108,6 +108,8 @@ NOWOŚCI
 
 - Eliminacja echa działa teraz także wtedy, gdy echo wraca z dużym opóźnieniem, jak w odsłuchu (loopback) niektórych mikserów, który potrafił trwać ponad pół sekundy i w całości docierał do drugiej osoby. WinZapp mierzy, ile czasu głos drugiej osoby potrzebuje, by wrócić przez twój mikrofon, i dostosowuje eliminator do tego opóźnienia, do 1,5 sekundy.
 
+- Neonize: nazwa zapisanego kontaktu nie jest już co minutę zastępowana nazwą profilu, którą ta osoba ustawiła w swoim WhatsAppie (ani nazwą, jaką telefon nadał czatowi). Nazwa nadana kontaktowi zostaje; nazwa profilu pojawia się tylko przy osobach, które nie są zapisane w kontaktach.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.

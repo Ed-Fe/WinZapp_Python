@@ -15,6 +15,7 @@ from core.contact_presence_query import query_targets
 from main_window.presence_work import presence_work, wake_waiting_presence
 from main_window.profile_presence import profile_last_seen
 from core import phone_contacts
+from core.chat_contact_names import has_address_book_name
 from core.api_client import (
     api_get,
     api_post,
@@ -1371,6 +1372,8 @@ class IdentityMixin:
         """File the name the @lid resolution learned for *jid* — except over a
         record the user saved: the name they gave is theirs, and a pushname
         ("aninha") must not replace it ("Ana Silva")."""
+        if has_address_book_name(self.contacts, jid):
+            return      # an address book already names this person (either form of the number)
         record = self.contacts.setdefault(jid, {})
         if phone_contacts.user_saved(record):
             return

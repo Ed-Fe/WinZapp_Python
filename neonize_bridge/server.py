@@ -37,6 +37,7 @@ import app_state_mirror
 import labels
 import communities
 import contacts
+import chat_listing
 import chats
 import chat_aliases
 import chat_remaining
@@ -1784,20 +1785,12 @@ def create_app(folder, fixed=""):
     async def list_chats(req):
         s = session(req)
         threading.Thread(target=s.fetch_changes, daemon=True).start()
-        names = {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"]
-                 for c in s.db.contacts()}
-        out = []
-        for c in s.db.chats():
-            jid = msgmap.jid_wpp(c["jid"])
-            out.append({
-                "id": wpp_id(c["jid"]),
-                "name": c["name"] or names.get(jid) or None,
-                "isGroup": jid.endswith("@g.us"),
-                "unreadCount": c["unread"], "t": c["ts"],
-                "archive": bool(c["archived"]), "pin": c["pinned"] or False,
-                "muteExpiration": c["muted"], "isLocked": bool(c.get("locked")), "msgs": None,
-            })
-        return web.json_response(out)
+        chat_rows = s.db.chats()
+        # the number behind an LID comes from neonize's store: off the event loop
+        names, nicknames = await in_thread(
+            chat_listing.listing_identities, chat_rows, s.db.contacts(), s._phone_of_lid)
+        return web.json_response([
+            chat_listing.chat_to_wpp(c, names, wpp_id, nicknames=nicknames) for c in chat_rows])
 
     async def all_contacts(req):
         s = session(req)
