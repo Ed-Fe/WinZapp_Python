@@ -238,3 +238,32 @@ def test_diagnostics_with_a_live_call():
     media = N(live_call=lambda: "CALL1")
     assert calls.diagnostics(media, True, 0)["liveCall"] is True
     assert calls.diagnostics(media, True, 0)["voice"] is True
+
+
+def test_ring_left_counts_from_the_offer_s_own_time():
+    assert calls.ring_left(1000, 1000) == calls.RING_LIMIT
+    assert calls.ring_left(1000, 1100) == calls.RING_LIMIT - 100
+    assert calls.ring_left(1000, 1000 + 9 * 60) == 0.0       # the 9-minute ghost
+    assert calls.ring_left(0, 500) == calls.RING_LIMIT          # no offer time
+    assert calls.ring_left(2000, 1000) == calls.RING_LIMIT      # a clock ahead of ours
+
+
+class Media:
+    def __init__(self, state):
+        self.state, self.hung = state, []
+
+    def status(self, call_id):
+        return {"id": call_id, "state": self.state}
+
+    def hangup(self, call_id):
+        self.hung.append(call_id)
+        return True
+
+
+def test_only_a_call_still_ringing_unanswered_is_ended():
+    ringing = Media("INCOMING_RING")
+    assert calls.drop_if_unanswered(ringing, "C1") and ringing.hung == ["C1"]
+    for state in ("ACTIVE", "CONNECTING", "ENDED"):
+        media = Media(state)
+        assert not calls.drop_if_unanswered(media, "C1") and media.hung == []
+    assert not calls.drop_if_unanswered(None, "C1")

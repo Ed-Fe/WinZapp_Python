@@ -22,6 +22,7 @@ wires the routes and `register_events` wires neonize's events to a session.
 """
 import asyncio
 import logging
+import threading
 import time
 
 from aiohttp import web
@@ -35,6 +36,12 @@ log = logging.getLogger("bridge")
 # A ring lasts about 2 minutes at most; what is far past that is no longer
 # ringing and would only take memory.
 RING_TTL = 600
+# Past this many seconds from the offer's own time, an incoming call nobody
+# answered is surely over on the caller's side. The call layer keeps such a
+# call open forever when its end never reaches us (an offer delivered from
+# the offline queue whose caller gave up meanwhile: one stayed "awaiting
+# Answer/Reject" for 9 minutes), so the bridge ends it then.
+RING_LIMIT = 150
 
 NO_VIDEO_REASON = "video calls are not available through this bridge"
 NO_GROUP_REASON = "group calls are not available through this bridge"
@@ -93,6 +100,21 @@ def offer_event(e, now) -> dict:
         # an offer that stayed queued while the app was away: the client ignores it
         "offerReceivedWhileOffline": bool(attribute(e.data, "offline")),
     }
+
+
+def ring_left(offer_ts, now, limit=RING_LIMIT) -> float:
+    """Seconds until an unanswered incoming call is surely over (0 when it
+    already is). A missing offer time counts from now."""
+    started = offer_ts if offer_ts and offer_ts <= now else now
+    return max(0.0, started + limit - now)
+
+
+def drop_if_unanswered(media, call_id) -> bool:
+    """Ends `call_id` when it still rings unanswered; True when it did."""
+    if media is None or media.status(call_id)["state"] != "INCOMING_RING":
+        return False
+    log.info("call not answered and over: ended")
+    return bool(media.hangup(call_id))
 
 
 def end_state(reason) -> tuple:
@@ -254,6 +276,11 @@ def register_events(cli, s):
                 media.remember_offer(data)
             log.info("call received (video=%s group=%s)", data["isVideo"], data["isGroup"])
             notify(data)
+            if media is not None:
+                timer = threading.Timer(ring_left(data["timestamp"], time.time()),
+                                        drop_if_unanswered, (media, data["id"]))
+                timer.daemon = True
+                timer.start()
         except Exception:
             log.exception("call offer")
 
