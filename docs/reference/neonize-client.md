@@ -78,7 +78,7 @@ them (looped, through `sound_system.load_sound`, from WAVs cached under
   against the original's synthesis loop. Check by ear against a real call.
 - The ringtone of an incoming call and the notification alerts are recorded files in
   that app (`Sounds/`), not synthesized tones, and are not part of WinZapp. The
-  hang-up sound (`whatsapp_windows_hangup_01_705kbps.wav`) is shipped in the default
+  hang-up sound (`whatsapp_windows_hangup_01_705kbps.wav`, WhatsApp's own recording, so third-party audio) is shipped in the default
   pack as the `call_ended` Sound Event (`call_ended.ogg`); `play_call_ended_sound`
   plays it once when a call that was ACTIVE ends, on Neonize only.
 

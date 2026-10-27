@@ -307,4 +307,28 @@ def test_the_default_pack_carries_the_call_ended_event():
 
     assert ("call_ended", "call_ended.ogg") in SOUND_EVENTS
     assert manifest["events"]["call_ended"] == "call_ended.ogg"
-    assert os.path.getsize(os.path.join(root, "call_ended.ogg")) > 1000
+    with open(os.path.join(root, "call_ended.ogg"), "rb") as stream:
+        assert stream.read(4) == b"OggS"
+
+
+def test_the_sound_plays_when_the_end_is_confirmed_not_on_a_terminal_event_that_the_call_survives():
+    """A voice call upgraded to video sends a terminal event and goes on: the
+    sound belongs to _end_active_call_locally, which only a confirmed end reaches."""
+    from main import MainWindow
+    calls = []
+    mw = SimpleNamespace(
+        _uses_neonize=lambda: True, call_ended_sound=_EndSound(),
+        _voice_call_last_announced_state="ACTIVE",
+        _stop_voice_call_audio=lambda **k: calls.append("stop"),
+        output=lambda *a, **k: calls.append("speak"),
+        i18n=SimpleNamespace(t=lambda key: key),
+        _watch_ended_call_log=lambda *a: None,
+        _ensure_page_call_ended=lambda *a: None)
+
+    MainWindow._end_active_call_locally(mw, {"peer_jid": "55@c.us"}, "ID", "55@c.us")
+
+    assert mw.call_ended_sound.played == 1 and calls == ["stop", "speak"]
+    import inspect
+    from main_window import calls as calls_module
+    terminal = inspect.getsource(calls_module.CallsMixin.on_voice_call_state_event)
+    assert "play_call_ended_sound" not in terminal
