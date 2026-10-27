@@ -1933,6 +1933,12 @@ msgctxt "audio_output_device_label"
 msgid "P&layback device (speaker)"
 msgstr "&Dispositivo de reproducción (altavoz)"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/audio_playback.py
+msgctxt "audio_playback_failed"
+msgid "Could not play this audio."
+msgstr "No se pudo reproducir este audio."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "audio_progress_label"
 msgid "Audio progress"
