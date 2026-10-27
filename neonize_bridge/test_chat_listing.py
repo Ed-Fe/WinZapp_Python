@@ -52,6 +52,56 @@ def test_chat_to_wpp_follows_the_list_chats_format():
     assert cl.chat_to_wpp(row("1@g.us", name="Group"), {}, wpp_id)["isGroup"] is True
 
 
+def test_the_address_book_name_beats_the_phones_conversation_name_and_the_nickname():
+    chat = row("99@lid", name="old name on the phone")
+    shown = cl.chat_to_wpp(chat, {"99@lid": "Ana Silva"}, wpp_id, nicknames={"99@lid": "aninha"})
+    assert shown["name"] == "Ana Silva"
+    assert shown["contact"] == {"pushname": "aninha"}
+
+
+def test_without_an_address_book_name_the_conversation_name_stays_and_the_nickname_is_no_name():
+    chat = row("99@lid", name="")
+    shown = cl.chat_to_wpp(chat, {}, wpp_id, nicknames={"99@lid": "aninha"})
+    assert shown["name"] is None                  # a nickname is not filed as the saved name
+    assert shown["contact"] == {"pushname": "aninha"}
+    assert cl.chat_to_wpp(row("99@lid", name="Ana (phone)"), {}, wpp_id)["name"] == "Ana (phone)"
+    assert "contact" not in cl.chat_to_wpp(chat, {}, wpp_id)
+
+
+def test_contact_names_hold_only_the_address_book():
+    stored = [{"jid": "5511@s.whatsapp.net", "name": "Ana", "pushname": "a"},
+              {"jid": "99@lid", "name": "", "pushname": "nick"}]
+    assert cl.contact_names(stored) == {"5511@c.us": "Ana"}
+
+
+def test_listing_identities_follow_an_lid_to_its_number():
+    contact_rows = [{"jid": "99@lid", "name": "", "pushname": "aninha"},
+                    {"jid": "5511999990000@s.whatsapp.net", "name": "Ana Silva", "pushname": ""},
+                    {"jid": "77@lid", "name": "", "pushname": "so apelido"}]
+    chat_rows = [row("99@lid"), row("77@lid"), row("5511999990000@s.whatsapp.net"),
+                 row("1203@g.us"), row("status@broadcast")]
+    asked = []
+
+    def phone_of(lid):
+        asked.append(lid)
+        return "5511999990000@s.whatsapp.net" if lid == "99@lid" else ""
+
+    names, nicknames = cl.listing_identities(chat_rows, contact_rows, phone_of)
+
+    assert names == {"99@lid": "Ana Silva", "5511999990000@c.us": "Ana Silva"}
+    assert nicknames == {"99@lid": "aninha", "77@lid": "so apelido"}
+    assert asked == ["99@lid", "77@lid"]          # only an LID needs the number looked up
+
+
+def test_a_chat_under_a_number_finds_the_name_saved_under_its_twin_form():
+    contact_rows = [{"jid": "5511999990000@s.whatsapp.net", "name": "Bia Lima", "pushname": ""}]
+    chat_rows = [row("551199990000@s.whatsapp.net")]
+
+    names, _ = cl.listing_identities(chat_rows, contact_rows, lambda lid: "")
+
+    assert names == {"551199990000@c.us": "Bia Lima"}
+
+
 def test_select_archived_broadcast_and_muted():
     everything = [row("a@s.whatsapp.net", archived=1), row("b@s.whatsapp.net", muted=500),
                   row("c@s.whatsapp.net", muted=5), row("list@broadcast"),

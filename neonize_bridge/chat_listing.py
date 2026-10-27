@@ -11,6 +11,7 @@ checked against a real account.
 The pure functions are at the top (tested in test_chat_listing.py);
 `register_routes` wires the routes to the server.
 """
+import contacts
 import msgmap
 
 EVERYTHING = 1_000_000  # "all" the messages: more than any chat keeps
@@ -34,22 +35,52 @@ def chat_jid(text, group=False):
 
 
 def contact_names(contacts):
-    """{jid in WPPConnect format: name or nickname} of the stored contacts."""
-    return {msgmap.jid_wpp(c["jid"]): c["name"] or c["pushname"] for c in contacts}
+    """{jid in WPPConnect format: name saved in the address book} of the stored
+    contacts. A nickname is not in it: the client files `name` as the address
+    book's, and a nickname there replaced the name the user gave."""
+    return {msgmap.jid_wpp(c["jid"]): c["name"] for c in contacts if c["name"]}
 
 
-def chat_to_wpp(c, names, wpp_id, messages=None):
-    """A store row -> the chat as `list-chats` returns it."""
+def listing_identities(chat_rows, contact_rows, phone_of):
+    """({chat id in WPPConnect format: address-book name}, {...: nickname}) of
+    the person behind each private chat. Most chats are kept under an LID, whose
+    own row has no address-book name: `phone_of(lid)` gives the number's JID
+    ('' when unknown), where the name is."""
+    rows = {c["jid"]: c for c in contact_rows}
+    names, nicknames = {}, {}
+    for c in chat_rows:
+        jid = c["jid"]
+        if not jid.endswith(("@lid", "@s.whatsapp.net")):
+            continue
+        # a chat under a number looks for its address-book name under both forms of it
+        phone = phone_of(jid) if jid.endswith("@lid") else jid
+        name, nickname = contacts.book_identity(rows, jid, phone)
+        wpp = msgmap.jid_wpp(jid)
+        if name:
+            names[wpp] = name
+        if nickname:
+            nicknames[wpp] = nickname
+    return names, nicknames
+
+
+def chat_to_wpp(c, names, wpp_id, messages=None, nicknames=None):
+    """A store row -> the chat as `list-chats` returns it. The name is the one in
+    the address book, else the one the phone gave the conversation; the person's
+    own nickname goes in `contact.pushname`, where the client reads it."""
     jid = msgmap.jid_wpp(c["jid"])
-    return {
+    chat = {
         "id": wpp_id(c["jid"]),
-        "name": c["name"] or names.get(jid) or None,
+        "name": names.get(jid) or c["name"] or None,
         "isGroup": jid.endswith("@g.us"),
         "unreadCount": c["unread"], "t": c["ts"],
         "archive": bool(c["archived"]), "pin": c["pinned"] or False,
         "muteExpiration": c["muted"], "isLocked": bool(c.get("locked")),
         "msgs": messages,
     }
+    nickname = (nicknames or {}).get(jid)
+    if nickname:
+        chat["contact"] = {"pushname": nickname}
+    return chat
 
 
 def is_broadcast(jid):

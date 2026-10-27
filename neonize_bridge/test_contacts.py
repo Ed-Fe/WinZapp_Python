@@ -200,6 +200,28 @@ def test_equivalent_jids_leaves_lid_and_other_countries_as_they_are():
     assert contacts.equivalent_jids("1203-44@g.us") == ["1203-44@g.us"]
 
 
+def test_book_identity_reads_the_number_behind_an_lid():
+    rows = {"99@lid": {"name": "", "pushname": "aninha"},
+            "5511999990000@s.whatsapp.net": {"name": "Ana Silva", "pushname": ""}}
+    assert contacts.book_identity(rows, "99@lid", "5511999990000@s.whatsapp.net") == (
+        "Ana Silva", "aninha")
+
+
+def test_book_identity_finds_the_name_under_the_other_form_of_a_brazilian_number():
+    rows = {"99@lid": {"name": "", "pushname": "bia"},
+            "551199990000@s.whatsapp.net": {"name": "Bia Lima", "pushname": ""}}
+    assert contacts.book_identity(rows, "99@lid", "5511999990000@s.whatsapp.net")[0] == "Bia Lima"
+    # the exact number wins over its twin
+    both = {**rows, "5511999990000@s.whatsapp.net": {"name": "Bia Exata", "pushname": ""}}
+    assert contacts.book_identity(both, "99@lid", "5511999990000@s.whatsapp.net")[0] == "Bia Exata"
+
+
+def test_book_identity_never_turns_a_nickname_into_a_name():
+    rows = {"99@lid": {"name": "", "pushname": "apelido"}}
+    assert contacts.book_identity(rows, "99@lid", "") == ("", "apelido")
+    assert contacts.book_identity({}, "99@lid", "5511999990000@s.whatsapp.net") == ("", "")
+
+
 def test_blocklist_entry_uses_the_number_when_the_block_is_on_the_lid():
     assert contacts.blocklist_entry("123456789012345@lid", "5511999990000@s.whatsapp.net") == {
         "phone": "5511999990000", "id": {"_serialized": "123456789012345@lid"}}

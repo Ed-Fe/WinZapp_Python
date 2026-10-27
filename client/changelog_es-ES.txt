@@ -112,6 +112,8 @@ NOVEDADES
 
 - La cancelación de eco ahora también funciona cuando el eco vuelve con mucho retraso, como en el retorno (loopback) de algunas mesas de mezclas, que podía tardar más de medio segundo y llegaba entero a la otra persona. WinZapp mide cuánto tarda la voz de la otra persona en volver por tu micrófono y ajusta el cancelador a ese retraso, hasta 1,5 segundos.
 
+- Neonize: el nombre de un contacto guardado ya no se sustituye, cada minuto, por el nombre de perfil que la persona eligió en su propio WhatsApp (ni por el nombre que el teléfono dio al chat). El nombre que diste al contacto se mantiene; el nombre de perfil solo aparece para quien no has guardado.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
