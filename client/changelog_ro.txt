@@ -4,6 +4,12 @@ Această versiune aduce comunitățile și o fereastră de setări reorganizată
 
 NOUTĂȚI
 
+- Folosiți butonul Participanții la apel din fereastra apelului sau pentru un apel în desfășurare selectat în Apeluri pentru a vedea numele persoanelor conectate.
+
+- Mistral este disponibil pentru transcriere online, descrierea imaginilor și extragerea textului din PDF. Audio folosește Voxtral Mini Transcribe 3; fotografiile, stickerele și cadrele video folosesc modelul vizual ales (implicit Ministral 3 3B); PDF folosește Mistral OCR. Lista afișează modele vizuale compatibile.
+
+- În chaturile de grup, butonul de alăturare înlocuiește butoanele de inițiere când există un apel disponibil. Apeluri afișează apelurile în desfășurare în Toate și În desfășurare, inclusiv între mai multe persoane în afara grupurilor. La alăturarea la un apel video, camera pornește oprită.
+
 - Multe actualizări de prezență ale contactelor la rând (scrie, online) nu mai blochează WinZapp câteva secunde și nu mai încetinesc întregul calculator pe conturile cu multe conversații.
 - Prezența contactelor: la memorarea unor nume noi, interfața nu mai așteaptă scrierea în baza de date. Actualizările în așteptare păstrează cea mai recentă copie completă și respectă ordinea la închidere și la ștergerea datelor locale.
 

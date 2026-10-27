@@ -169,7 +169,7 @@ def test_incomplete_answer_is_not_announced_as_ready(provider, body):
                                   {"content": None}, {"candidates": [3]}])
 def test_malformed_response_is_a_safe_error(provider, body):
     with pytest.raises(DescriptionError, match="ai_error_response"):
-        parse_answer(provider, body, "image")
+        parse_answer(provider, body, "audio" if provider == "mistral" else "image")
 
 
 def test_long_documents_are_not_cut_like_descriptions():

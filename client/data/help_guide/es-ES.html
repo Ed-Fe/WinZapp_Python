@@ -663,6 +663,9 @@
 <p>Los datos de la conversación tienen dos casillas: "Transcribir automáticamente, de forma local con Whisper, los mensajes de voz, audios y vídeos recibidos en esta conversación" y "Transcribir automáticamente, con los proveedores en línea, los mensajes de voz y audios recibidos en esta conversación". Cada una muestra lo que hace ahora la conversación, siguiendo la opción general hasta que marques o desmarques la casilla allí.</p>
 <p>Intro y Espacio, cuando transcriben, también transcriben audio y vídeo enviados como archivo.</p>
 
+<!-- MISTRAL-MODEL-ROUTING -->
+<p>Mistral usa tres modelos distintos: Voxtral Mini Transcribe 3 para audio, Ministral 3 3B de forma predeterminada para fotos, stickers y fotogramas de vídeo, y mistral-ocr-latest para extraer texto de PDF. El campo Modelo y la obtención de modelos seleccionan solo un modelo de visión; cambiarlo no afecta a la transcripción ni al OCR. OpenAI y Groq también usan modelos de audio fijos, separados del modelo de visión elegido; Groq no procesa PDF aquí. Gemini usa el modelo elegido para todos los medios compatibles. La disponibilidad no garantiza el uso gratuito: consulta la cuota incluida y los límites del proveedor. El OCR de Mistral extrae texto sin describir las imágenes del PDF.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -722,6 +725,12 @@
   Cuando la versión de WhatsApp Web en uso no admite llamadas, WinZapp lo dice y qué probar: reiniciar WinZapp o elegir Ayuda &gt; Forzar reinstalación de WPPConnect.
 </div>
 <p>Al reinstalar WPPConnect, WinZapp conserva un catálogo de WhatsApp Web más reciente y compatible y busca uno actualizado. Sin internet se conserva un catálogo utilizable, pero no se puede confirmar su vigencia. Si la llamada sigue sin iniciarse, restablezca internet y reinicie WinZapp. Una incompatibilidad confirmada de VoIP que no permite reintentos se comunica sin repetir la inicialización.</p>
+
+<!-- ONGOING-GROUP-CALL -->
+<p>Mientras el chat de un grupo está abierto, WinZapp comprueba si hay una llamada en curso aproximadamente cada diez segundos. El botón para unirse aparece solo cuando hay una llamada disponible y desaparece al terminar. Al unirse a una videollamada, la cámara comienza apagada. Unirse a una llamada existente no aplica el límite de 32 miembros para iniciar una nueva llamada de grupo. Cuando hay una llamada disponible, el botón para unirse sustituye a los botones para iniciar llamadas de voz y vídeo. En Llamadas (Alt+6), el filtro En curso muestra llamadas a las que puedes unirte, incluidas las de varias personas fuera de chats de grupo; también aparecen primero en Todas. Selecciona una llamada y pulsa Enter o usa el botón para unirte. Volver a la llamada trae al frente la ventana de tu llamada actual. La lista se actualiza aproximadamente cada diez segundos mientras Llamadas está abierto e incluye solo llamadas que WhatsApp ofrece a tu cuenta.</p>
+
+<!-- CALL-PARTICIPANTS -->
+<p>Usa el botón Participantes de la llamada en la ventana de llamada o en una llamada en curso seleccionada en Llamadas para ver los nombres de las personas conectadas. La lista se actualiza cada diez segundos; Actualizar solicita los datos actuales y Cerrar o Escape cierra la ventana. Se excluyen las personas invitadas o desconectadas. Consultar la lista no se une a una llamada ni la finaliza.</p>
 
   </section>
 

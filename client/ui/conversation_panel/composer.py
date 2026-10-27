@@ -404,6 +404,13 @@ class ComposerMixin:
         return True
 
     def _sync_voice_call_button(self, jid: str):
+        self._update_call_start_buttons(jid)
+        # Discovery is independent of the size limit for starting a call.
+        self._watch_group_calls(str(jid or ""))
+        self.conversation_panel.Layout()
+        self.Layout()
+
+    def _update_call_start_buttons(self, jid: str):
         jid = str(jid or "")
         is_self_chat = bool(jid) and self.main_window._is_self_jid(jid)
         # Groups are callable too: WhatsApp Web's group-info buttons start the
@@ -414,11 +421,20 @@ class ComposerMixin:
             jid.endswith("@g.us") and getattr(self, "_group_call_blocked_jid", "") == jid
         )
         callable_chat = bool(jid) and not unavailable
-        self._voice_call_btn.Show(callable_chat and not too_large)
-        self._video_call_btn.Show(callable_chat and not too_large)
-        self._group_call_unavailable_btn.Show(callable_chat and too_large)
-        self.conversation_panel.Layout()
-        self.Layout()
+        ongoing = getattr(self, "_ongoing_group_call", None) or {}
+        active = getattr(self.main_window, "_active_voice_call", None) or {}
+        existing = bool(jid) and (ongoing.get("groupJid") == jid or active.get("peer_jid") == jid)
+        hidden_focus = False
+        for button, shown in (
+            (self._voice_call_btn, callable_chat and not too_large and not existing),
+            (self._video_call_btn, callable_chat and not too_large and not existing),
+            (self._group_call_unavailable_btn, callable_chat and too_large and not existing),
+        ):
+            hidden_focus |= not shown and button.HasFocus()
+            button.Show(shown)
+        if hidden_focus:
+            target = self._group_call_join_btn if self._group_call_join_btn.IsShown() else self.message_field
+            target.SetFocus()
 
     def _set_group_call_limit(self, jid: str, participant_count: int):
         """Main-thread callback: swap the call buttons for the "cannot call"
@@ -446,6 +462,9 @@ class ComposerMixin:
         if not self.conversation:
             return
         jid = str(self.conversation.get("remoteJid") or "")
+        if (getattr(self, "_ongoing_group_call", None) or {}).get("groupJid") == jid:
+            self._on_join_ongoing_group_call()
+            return
         if self._group_call_refused(jid):
             return
         name = self.conversation_name or self.conversation.get("name") or ""
@@ -455,6 +474,9 @@ class ComposerMixin:
         if not self.conversation:
             return
         jid = str(self.conversation.get("remoteJid") or "")
+        if (getattr(self, "_ongoing_group_call", None) or {}).get("groupJid") == jid:
+            self._on_join_ongoing_group_call()
+            return
         if self._group_call_refused(jid):
             return
         name = self.conversation_name or self.conversation.get("name") or ""

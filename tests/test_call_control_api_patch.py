@@ -383,7 +383,6 @@ def test_outgoing_call_allows_native_voip_more_than_generic_http_timeout():
 
     offer = main_py[main_py.index("def _start_call(self"):]
     offer = offer[: offer.index("threading.Thread(target=_worker")]
-    assert '"group/offer" if is_group else "offer",' in offer
     assert "timeout=75," in offer
     assert "self._resolve_jid_for_send(peer_jid) or peer_jid" in offer
     assert '{"to": dial_jid, "isVideo": is_video}' in offer
@@ -433,7 +432,6 @@ def test_group_calls_are_dispatched_and_started_without_a_peer_dial():
     group = group[: group.index("threading.Thread(target=_worker")]
     # A group has no contact JID to resolve, and its record follows the group.
     assert "peer_jid if is_group" in group
-    assert '"group_jid": peer_jid if is_group else "",' in group
 
 def test_outgoing_call_prefers_new_active_call_over_stale_collection_model():
     controller = _source("client/api_patches/src/controller/callController.ts")

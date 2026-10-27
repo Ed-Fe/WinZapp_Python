@@ -34,6 +34,7 @@ class Provider:
     capabilities: frozenset
     # Audio goes to a dedicated transcription model, not the chat model.
     transcribe_model: str = ""
+    ocr_model: str = ""
 
 
 PROVIDERS = {
@@ -59,6 +60,11 @@ PROVIDERS = {
         "OpenRouter", "google/gemini-3.5-flash-lite", "https://openrouter.ai/settings/keys",
         "https://openrouter.ai/settings/credits", "https://openrouter.ai/privacy",
         frozenset({"image", "pdf"})),
+    "mistral": Provider(
+        "Mistral", "ministral-3b-latest", "https://console.mistral.ai/api-keys",
+        "https://mistral.ai/pricing/api/", "https://legal.mistral.ai/terms/privacy-policy/",
+        frozenset({"image", "audio", "pdf"}), transcribe_model="voxtral-mini-transcribe-3",
+        ocr_model="mistral-ocr-latest"),
 }
 PROFILES = ("fast", "balanced", "detailed")
 
@@ -136,6 +142,10 @@ def preferences(app_settings):
     off = {p for p in off if p in PROVIDERS} if isinstance(off, list) else set()
     models = raw.get("models")
     models = models if isinstance(models, dict) else {}
+    # The first local preview used this field for Mistral audio. It now
+    # selects vision only; never send a saved Voxtral/OCR id to vision chat.
+    if isinstance(models.get("mistral"), str) and models["mistral"].startswith(("voxtral-", "mistral-ocr-")):
+        models = {**models, "mistral": ""}
     chosen = {}
     for provider, spec in PROVIDERS.items():
         model = models.get(provider)

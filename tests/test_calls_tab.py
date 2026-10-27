@@ -12,12 +12,14 @@ from core.call_log import (
     TAB_ANSWERED,
     TAB_DECLINED,
     TAB_MISSED,
+    TAB_ONGOING,
     call_log_in_tab,
     call_row_text,
     collect_call_logs,
     exclude_locked_calls,
 )
 from calls_panel import CallsPanel
+from ui.ongoing_calls import OngoingCallsMixin
 from main import MainWindow
 
 PHONE = "5511999999999@s.whatsapp.net"
@@ -45,7 +47,7 @@ def _chat(jid, *records):
 
 class TestTabs:
     def test_the_order_the_user_asked_for(self):
-        assert CALL_TABS == (TAB_ALL, TAB_MISSED, TAB_DECLINED, TAB_ANSWERED)
+        assert CALL_TABS == (TAB_ALL, TAB_MISSED, TAB_DECLINED, TAB_ANSWERED, TAB_ONGOING)
 
     def test_missed_is_what_the_user_missed(self):
         assert call_log_in_tab(_call("Missed"), TAB_MISSED)
@@ -169,9 +171,22 @@ class _Notebook:
 
 class _Button:
     shown = False
+    label = ""
 
     def Show(self, show=True):
         self.shown = bool(show)
+
+    def IsShown(self):
+        return self.shown
+
+    def HasFocus(self):
+        return False
+
+    def GetLabel(self):
+        return self.label
+
+    def SetLabel(self, value):
+        self.label = value
 
 
 class _MW:
@@ -201,7 +216,7 @@ class _MW:
         self.spoken.append(text)
 
 
-class _Panel:
+class _Panel(OngoingCallsMixin):
     current_tab = CallsPanel.current_tab
     current_list = CallsPanel.current_list
     focused_entry = CallsPanel.focused_entry
@@ -215,6 +230,9 @@ class _Panel:
         self._lists = {tab: _List(count=len(entries)) for tab in CALL_TABS}
         self._rows = {tab: list(entries) for tab in CALL_TABS}
         self._return_call_btn = _Button()
+        self._ongoing_join_btn = _Button()
+        self._ongoing_participants_btn = _Button()
+        self._ongoing_entries = []
 
     def Layout(self):
         pass

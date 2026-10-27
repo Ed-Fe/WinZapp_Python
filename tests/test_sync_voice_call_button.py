@@ -27,6 +27,9 @@ class _FakeWidget:
     def Layout(self):
         pass
 
+    def HasFocus(self):
+        return False
+
 
 class _FakeMainWindow:
     def _is_self_jid(self, jid):
@@ -35,12 +38,17 @@ class _FakeMainWindow:
 
 class _Stub:
     _sync_voice_call_button = ConversationsPanel._sync_voice_call_button
+    _update_call_start_buttons = ConversationsPanel._update_call_start_buttons
+
+    def _watch_group_calls(self, jid):
+        self.watched_group_jid = jid
 
     def __init__(self):
         self.main_window = _FakeMainWindow()
         self._voice_call_btn = _FakeWidget()
         self._video_call_btn = _FakeWidget()
         self._group_call_unavailable_btn = _FakeWidget()
+        self._group_call_join_btn = _FakeWidget()
         self.conversation_panel = _FakeWidget()
 
     def Layout(self):

@@ -67,6 +67,10 @@ class _Stub:
     close_conversation_for_panel_switch = ConversationsPanel.close_conversation_for_panel_switch
     _stop_typing_for_current_conversation = ConversationsPanel._stop_typing_for_current_conversation
     _stop_contact_presence = ConversationsPanel._stop_contact_presence
+    _stop_group_call_watch = ConversationsPanel._stop_group_call_watch
+
+    def _show_ongoing_group_call(self, call):
+        self._ongoing_group_call = call
     # Closing the conversation also drops the expanded history window, so the
     # next chat opens at the configured page size instead of inheriting this
     # one's thousands of rows.

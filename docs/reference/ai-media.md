@@ -48,6 +48,7 @@ accepts today:
 | Claude | yes | no | yes |
 | Groq | yes | yes (Whisper) | no |
 | OpenRouter | yes | no | yes |
+| Mistral | yes (selected vision model) | yes (fixed Voxtral) | yes (fixed Mistral OCR) |
 
 A video is never sent as a video: `payload.prepare_media` decodes one frame
 locally (about one second in, or the middle of a shorter clip; only the video
@@ -180,6 +181,54 @@ and time. Unknown ids stay usable through the advanced field but are not offered
 as reviewed choices. **Adding a model needs the provider's page saying it takes
 the input kinds and returns text, and a test** — not a guess from its name.
 
+## Model routing by provider
+
+| Provider | Selected model field | Audio | PDF |
+| --- | --- | --- | --- |
+| OpenAI | Images/stickers/video frames/PDF | Fixed `gpt-4o-mini-transcribe` | Selected model |
+| Groq | Images/stickers/video frames | Fixed `whisper-large-v3-turbo` | Unsupported |
+| Gemini | Every supported media kind | Selected model | Selected model |
+| Claude / OpenRouter | Every supported media kind | Unsupported | Selected model |
+| Mistral | Images/stickers/video frames (`ministral-3b-latest` by default) | Fixed `voxtral-mini-transcribe-3` | Fixed `mistral-ocr-latest` |
+
+Mistral's vision request uses `/v1/chat/completions`, with a base64 data URL,
+the system instruction, question and earlier text turns. Audio is an inline
+multipart `/v1/audio/transcriptions` request with the original file; no forced
+language, translation prompt or unsupported `response_format` field. PDFs use
+one `/v1/ocr` request with a base64 PDF document and `include_image_base64=false`.
+No remote file store or page subset is used. OCR pages are validated, ordered
+and joined; gaps, duplicates, reported missing pages and oversized output fail
+instead of appearing complete. OCR extracts text, not descriptions of PDF images.
+
+Get models lists reviewed vision models available to the key, excluding
+Voxtral, OCR, TTS and realtime models. A Voxtral/OCR id saved in the first local
+preview's model field is treated as automatic vision selection. The UI explains
+the fixed audio/OCR choices. Other providers' routing is unchanged.
+
+Live acceptance on 2026-10-25 used generated media only: Voxtral Mini Transcribe 3
+transcribed a locally generated spoken sentence and Ministral 3 3B described a
+generated picture with the expected number. Mistral Small returned 429; Mistral
+OCR returned 429 (code 1300). OCR payload/parser tests pass against synthetic
+responses; successful live OCR is not claimed. No real messages or documents
+were sent. Model-list HTTP 200 proves availability, not free billing: Free mode
+has included usage and per-model/audio/OCR limits, visible in the Admin Limits
+page. No billing settings were changed.
+
+On 2026-10-27 the preview user reported completion of the acceptance tests
+and confirmed the requested additions were working. This general acceptance
+does not turn the earlier OCR 429 into a successful recorded API smoke test;
+OCR request and parser validation remains documented separately above.
+
+Contract sources (checked 2026-10-25):
+[audio models](https://docs.mistral.ai/studio/audio/overview),
+[transcription endpoint](https://docs.mistral.ai/api/endpoint/audio/transcriptions),
+[model discovery and retrieval](https://docs.mistral.ai/api/endpoint/models).
+
+[Vision](https://docs.mistral.ai/studio/conversations/vision),
+[OCR](https://docs.mistral.ai/studio/document-processing/basic_ocr),
+[included usage and limits](https://docs.mistral.ai/admin/billing-usage/usage-limits),
+[API pricing](https://docs.mistral.ai/inference/pricing).
+
 ## Adding a provider
 
 1. `config.PROVIDERS`: name, default model, key/billing/privacy links,
@@ -194,10 +243,9 @@ the input kinds and returns text, and a test** — not a guess from its name.
 
 Automated tests use synthetic data and fake transports: every payload shape,
 the parsers, the chain, the deadlines and cancellation, consent, the settings
-logic and the localized strings. **Calls to the live providers were not made
-for this merged feature**: the request shapes were written from each provider's
-documentation. Only the Gemini photo path descends from code its author
-exercised live; the OpenAI, Claude, Groq and OpenRouter requests and every
-audio, PDF and video path were not. Real NVDA/JAWS behaviour of the merged windows, the
-packaged executable, and the Turkish and Romanian wording (translated from
-English) still need a native, manual pass.
+logic and the localized strings. The Mistral audio and image paths additionally
+have the recorded live synthetic-media checks described above; live OCR was
+rate-limited in that run. Other providers' routing is unchanged, and this
+contribution does not claim new live validation of their APIs. The preview
+user completed a manual acceptance pass on Windows. Locale wording remains
+subject to native-speaker review.

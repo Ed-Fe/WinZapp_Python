@@ -663,6 +663,9 @@
 <p>The conversation details have two boxes: "Transcribe the voice messages, audio and videos received in this conversation automatically, locally with Whisper" and "Transcribe the voice messages and audio received in this conversation automatically, with the online providers". Each shows what the conversation does now, following the general option until you tick or untick the box there.</p>
 <p>Enter and Space, when set to transcribe, also transcribe audio and video sent as a file.</p>
 
+<!-- MISTRAL-MODEL-ROUTING -->
+<p>Mistral uses three different models: Voxtral Mini Transcribe 3 for audio, Ministral 3 3B by default for photos, stickers and video frames, and mistral-ocr-latest for PDF text extraction. The Model field and Get models select a vision model only; changing it does not change transcription or OCR. OpenAI and Groq also use fixed audio models, independently of their selected vision model; Groq does not process PDFs here. Gemini uses its selected model for all supported media. Provider availability does not guarantee free usage: review the provider’s included quota and rate limits. Mistral OCR extracts document text; it does not add descriptions of the pictures inside a PDF.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -722,6 +725,12 @@
   When the WhatsApp Web version in use does not support calls, WinZapp says so and what to try: restart WinZapp or choose Help &gt; Force reinstall WPPConnect.
 </div>
 <p>When WPPConnect is reinstalled, WinZapp preserves a newer compatible WhatsApp Web catalogue and checks for a fresh one. Without internet, a usable catalogue is retained, but its freshness cannot be confirmed. If a call still cannot start, restore internet access and restart WinZapp. A confirmed VoIP mismatch that cannot be retried is reported without repeating initialization.</p>
+
+<!-- ONGOING-GROUP-CALL -->
+<p>While a group chat is open, WinZapp checks for an ongoing call about every ten seconds. A join button appears only when a call is available and disappears when it ends. Joining a video call starts with the camera off. Joining an existing call does not use the 32-member limit for starting a new group call. While a call is available, the Join button replaces the voice and video start buttons. In Calls (Alt+6), the Ongoing filter lists joinable calls, including multiparty calls outside group chats; they also appear first in All. Select a call and press Enter or use Join. Return to call brings your current call window forward. The list refreshes about every ten seconds while Calls is open and includes only calls WhatsApp makes available to your account.</p>
+
+<!-- CALL-PARTICIPANTS -->
+<p>Use the Call participants button in the call window, or on a selected ongoing call in Calls, to see the connected people by name. The list updates every ten seconds; Refresh updates it on demand and Close or Escape closes it. Invited and disconnected people are excluded. Reading the list does not join or end a call.</p>
 
   </section>
 

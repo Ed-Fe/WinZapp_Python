@@ -20,6 +20,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
+from core.call_participants import active_participants_available
 from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
     call_log_candidate_ids,
@@ -450,7 +451,7 @@ class CallsMixin:
             # A group call's event names a participant in peerJid and the group
             # in groupJid. The active record -- and every later state event --
             # is keyed on the group, never on whichever participant spoke.
-            "peer_jid": group_jid if is_group else (details.get("peer_jid") or ""),
+            "peer_jid": group_jid or details.get("peer_jid") or "",
             "group_jid": group_jid,
             "is_group": is_group,
             "name": details.get("name") or "",
@@ -870,7 +871,7 @@ class CallsMixin:
         self._active_voice_call = {
             "identity": identity,
             "call_id": details.get("call_id") or identity,
-            "peer_jid": group_jid if is_group else (details.get("peer_jid") or ""),
+            "peer_jid": group_jid or details.get("peer_jid") or "",
             "group_jid": group_jid,
             "is_group": is_group,
             "name": details.get("name") or "",
@@ -1338,8 +1339,8 @@ class CallsMixin:
         self._start_call(peer_jid, name, is_video=is_video, is_group=True)
 
     def _start_call(self, peer_jid: str, name: str, *, is_video: bool,
-                    is_group: bool):
-        """Place an outgoing call and keep Python's audio attached to it."""
+                    is_group: bool, join_call_id: str = ""):
+        """Start or join a call and keep Python's audio attached to it."""
         peer_jid = self._normalize_jid(str(peer_jid or ""))
         # The self-chat belongs on this list with the other unreachable kinds.
         # Hiding the call buttons for it (#268) covers the mouse and the Tab
@@ -1353,10 +1354,12 @@ class CallsMixin:
             or peer_jid.endswith(("@newsletter", "@broadcast"))
             or self._is_self_jid(peer_jid)
         )
-        if is_group:
+        if is_group and not join_call_id:
             unreachable = unreachable or not peer_jid.endswith("@g.us")
-        else:
+        elif not is_group:
             unreachable = unreachable or peer_jid.endswith("@g.us")
+        if join_call_id and not is_group:
+            unreachable = True
         if unreachable:
             self.output(self.i18n.t("voice_call_individual_only"), interrupt=True)
             return
@@ -1366,22 +1369,23 @@ class CallsMixin:
         ):
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
-        identity = f"outgoing:{peer_jid}"
+        identity = join_call_id or f"outgoing:{peer_jid}"
         details = {
             "call_id": identity,
             "peer_jid": peer_jid,
-            "group_jid": peer_jid if is_group else "",
+            "group_jid": peer_jid if peer_jid.endswith("@g.us") else "",
             "is_group": is_group,
             "name": name or (
                 self._group_display_name(peer_jid)
-                if is_group
+                if peer_jid.endswith("@g.us")
                 else self._preview_sender_from_jid(peer_jid) or peer_jid
             ),
-            "outgoing": True,
+            "outgoing": not bool(join_call_id),
             "is_video": is_video,
         }
         self.output(
-            self.i18n.t("voice_call_starting").format(name=details["name"]),
+            (self.i18n.t("group_call_joining") if join_call_id
+             else self.i18n.t("voice_call_starting")).format(name=details["name"]),
             interrupt=True,
         )
         self._active_voice_call = dict(details)
@@ -1420,14 +1424,19 @@ class CallsMixin:
                 # left "end call" dead for the whole timeout (#275). The price
                 # is that a hang-up can now reach WhatsApp while the offer is
                 # still in flight -- that is what ``cancelled`` settles.
+                call_payload = (
+                    {"groupJid": dial_jid, "isVideo": is_video}
+                    if is_group else {"to": dial_jid, "isVideo": is_video}
+                )
+                endpoint = "group/offer" if is_group else "offer"
+                if join_call_id:
+                    endpoint = "group/join"
+                    if not peer_jid.endswith("@g.us"):
+                        call_payload = {"chatJid": peer_jid, "isVideo": is_video}
+                    call_payload["callId"] = join_call_id
                 response = self._raise_for_call_response(
                     self._post_call_control(
-                        "group/offer" if is_group else "offer",
-                        (
-                            {"groupJid": dial_jid, "isVideo": is_video}
-                            if is_group
-                            else {"to": dial_jid, "isVideo": is_video}
-                        ),
+                        endpoint, call_payload,
                         timeout=75,
                     ),
                     "offer",
@@ -1487,7 +1496,8 @@ class CallsMixin:
                 logging.exception("[call] outgoing call failed")
                 wx.CallAfter(
                     self.output,
-                    self.i18n.t("voice_call_start_failed").format(
+                    (self.i18n.t("group_call_join_failed") if join_call_id
+                     else self.i18n.t("voice_call_start_failed")).format(
                         error=self._call_error_text(exc)
                     ),
                     True,
@@ -1514,7 +1524,10 @@ class CallsMixin:
             # transmit.
             if offered and is_video:
                 try:
-                    self._start_call_camera()
+                    if join_call_id:
+                        self._probe_call_camera()
+                    else:
+                        self._start_call_camera()
                 except Exception:
                     logging.exception("[call_video] camera setup failed after offer")
 
@@ -1559,6 +1572,10 @@ class CallsMixin:
         if window is None:
             return
         active = getattr(self, "_active_voice_call", None)
+        participants_button = getattr(self, "voice_call_window_participants_button", None)
+        if participants_button is not None:
+            participants_button.Enable(active_participants_available(
+                active, getattr(self, "_voice_call_last_announced_state", "")))
         if not active:
             window.Hide()
             self.call_video_image.Hide()

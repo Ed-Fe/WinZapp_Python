@@ -195,6 +195,54 @@ def test_a_successful_offer_keeps_the_call_and_starts_the_camera():
     assert stub._outgoing_call_attempt is None
 
 
+def test_join_uses_the_existing_group_call_and_keeps_video_off():
+    stub = _MainStub()
+    requests = []
+    stub._post_call_control = lambda endpoint, payload, **kw: (
+        requests.append((endpoint, payload, kw)) or _Response("call-existing"))
+    probes = []
+    stub._probe_call_camera = lambda: probes.append(True)
+
+    stub._start_call("120363000001@g.us", "Group", is_group=True,
+                     is_video=True, join_call_id="call-existing")
+
+    assert requests == [("group/join", {
+        "groupJid": "120363000001@g.us", "isVideo": True, "callId": "call-existing",
+    }, {"timeout": 75})]
+    assert stub._active_voice_call["call_id"] == "call-existing"
+    assert stub.camera_starts == 0
+    assert probes == [True]
+
+
+def test_join_failure_releases_audio_and_never_sends_an_offer():
+    stub = _MainStub()
+
+    def refuse(endpoint, payload, **kwargs):
+        stub.posted.append(endpoint)
+        raise RuntimeError("ended")
+
+    stub._post_call_control = refuse
+    stub._start_call("120363000001@g.us", "Group", is_group=True,
+                     is_video=False, join_call_id="call-existing")
+
+    assert stub.posted == ["group/join"]
+    assert stub._active_voice_call is None
+    assert stub._voice_call_in_progress() is False
+
+
+def test_join_multiparty_call_from_person_chat_uses_native_join_not_offer():
+    stub = _MainStub()
+    requests = []
+    stub._post_call_control = lambda endpoint, payload, **kw: (
+        requests.append((endpoint, payload)) or _Response("multi-existing"))
+    stub._start_call(PEER, "Contact", is_group=True, is_video=False,
+                     join_call_id="multi-existing")
+    assert requests == [("group/join", {
+        "chatJid": PEER, "isVideo": False, "callId": "multi-existing",
+    })]
+    assert stub._active_voice_call["peer_jid"] == PEER
+
+
 def test_a_failed_offer_clears_the_active_call_and_resyncs_the_bar():
     def _fail(stub):
         raise RuntimeError("HTTP 500")

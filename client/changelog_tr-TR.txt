@@ -4,6 +4,12 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- Bağlı kişileri adlarıyla görmek için arama penceresindeki veya Aramalar bölümünde seçili devam eden aramadaki Arama katılımcıları düğmesini kullanın.
+
+- Mistral çevrimiçi ses dökümü, görüntü açıklamaları ve PDF metni çıkarma için kullanılabilir. Ses için Voxtral Mini Transcribe 3, fotoğraflar, çıkartmalar ve video kareleri için seçilen görüntü modeli (varsayılan Ministral 3 3B), PDF için Mistral OCR kullanılır. Listede uyumlu görüntü modelleri gösterilir.
+
+- Grup sohbetlerinde kullanılabilir bir arama varken Katıl düğmesi arama başlatma düğmelerinin yerini alır. Aramalar, grup dışındaki çok kişili aramalar dahil devam eden aramaları Tümü ve Devam eden filtrelerinde gösterir. Görüntülü aramaya katılırken kamera kapalı başlar.
+
 - Art arda gelen çok sayıda kişi durumu güncellemesi (yazıyor, çevrimiçi) artık WinZapp'i saniyelerce dondurmuyor ve çok sohbetli hesaplarda bilgisayarın tamamını yavaşlatmıyor.
 - Kişi durumu: yeni kişi adları öğrenilirken arayüz artık veritabanı kaydını beklemiyor. Bekleyen ad güncellemeleri son tam kopyada birleştiriliyor; kapanış ve yerel veri temizleme sırasında kayıt sırası korunuyor.
 

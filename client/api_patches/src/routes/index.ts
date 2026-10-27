@@ -880,6 +880,14 @@ routes.get(
   statusConnection,
   CallController.callDiagnostics
 );
+routes.post('/api/:session/call/group/ongoing', verifyToken, statusConnection,
+  CallController.ongoingGroupCall);
+routes.post('/api/:session/call/ongoing', verifyToken, statusConnection,
+  CallController.ongoingCalls);
+routes.post('/api/:session/call/participants', verifyToken, statusConnection,
+  CallController.callParticipants);
+routes.post('/api/:session/call/group/join', verifyToken, statusConnection,
+  CallController.joinGroupCall);
 
 // Catalog
 routes.get(

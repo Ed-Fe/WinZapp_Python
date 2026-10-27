@@ -663,6 +663,9 @@
 <p>Dane czatu mają dwa pola: "Automatycznie transkrybuj lokalnie za pomocą Whisper odebrane w tym czacie wiadomości głosowe, nagrania audio i filmy" i "Automatycznie transkrybuj u dostawców online odebrane w tym czacie wiadomości głosowe i nagrania audio". Każde pokazuje, co czat robi teraz, zgodnie z opcją ogólną, dopóki nie zaznaczysz lub nie odznaczysz pola tutaj.</p>
 <p>Enter i spacja, gdy transkrybują, transkrybują też audio i wideo wysłane jako plik.</p>
 
+<!-- MISTRAL-MODEL-ROUTING -->
+<p>Mistral używa trzech różnych modeli: Voxtral Mini Transcribe 3 do dźwięku, domyślnie Ministral 3 3B do zdjęć, naklejek i klatek wideo oraz mistral-ocr-latest do odczytywania tekstu z PDF. Pole Model i pobieranie listy modeli dotyczą wyłącznie modelu wizyjnego; jego zmiana nie zmienia transkrypcji ani OCR. OpenAI i Groq również używają stałych modeli audio, niezależnych od wybranego modelu wizyjnego; Groq nie przetwarza tu PDF. Gemini używa wybranego modelu do wszystkich obsługiwanych multimediów. Dostępność nie gwarantuje bezpłatnego użycia: sprawdź limity i przyznany limit u dostawcy. OCR Mistrala odczytuje tekst, ale nie opisuje obrazów w PDF.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -722,6 +725,12 @@
   Gdy używana wersja WhatsApp Web nie obsługuje połączeń, WinZapp mówi o tym i co spróbować: uruchomić WinZapp ponownie albo wybrać Pomoc &gt; Wymuś ponowną instalację WPPConnect.
 </div>
 <p>Podczas ponownej instalacji WPPConnect WinZapp zachowuje nowszy, zgodny katalog WhatsApp Web i sprawdza dostępność aktualnego katalogu. Bez internetu zachowuje działający katalog, ale nie może potwierdzić jego aktualności. Jeśli połączenie nadal się nie rozpoczyna, przywróć dostęp do internetu i uruchom WinZapp ponownie. Potwierdzona niezgodność VoIP, która nie pozwala na ponowną próbę, jest zgłaszana bez powtarzania inicjalizacji.</p>
+
+<!-- ONGOING-GROUP-CALL -->
+<p>Gdy czat grupowy jest otwarty, WinZapp sprawdza trwające połączenie mniej więcej co dziesięć sekund. Przycisk dołączenia pojawia się tylko wtedy, gdy połączenie jest dostępne, i znika po jego zakończeniu. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą. Dołączenie do istniejącego połączenia nie podlega limitowi 32 członków dotyczącemu rozpoczynania nowego połączenia grupowego. Gdy połączenie jest dostępne, przycisk dołączania zastępuje przyciski rozpoczynania połączeń głosowych i wideo. W sekcji Połączenia (Alt+6) filtr Trwające pokazuje połączenia, do których można dołączyć, w tym połączenia wielu osób poza czatami grupowymi; pojawiają się one również na początku listy Wszystkie. Wybierz połączenie i naciśnij Enter lub użyj przycisku dołączania. Powrót do połączenia przywołuje okno bieżącego połączenia. Lista odświeża się mniej więcej co dziesięć sekund, gdy sekcja Połączenia jest otwarta, i zawiera tylko połączenia udostępnione przez WhatsApp Twojemu kontu.</p>
+
+<!-- CALL-PARTICIPANTS -->
+<p>Użyj przycisku Uczestnicy połączenia w oknie połączenia lub przy zaznaczonym trwającym połączeniu w sekcji Połączenia, aby zobaczyć nazwy połączonych osób. Lista odświeża się co dziesięć sekund; Odśwież pobiera bieżące dane, a Zamknij lub Escape zamyka okno. Osoby zaproszone lub rozłączone nie są wyświetlane. Przeglądanie listy nie dołącza do połączenia ani go nie kończy.</p>
 
   </section>
 

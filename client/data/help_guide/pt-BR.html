@@ -663,6 +663,9 @@
 <p>Os dados da conversa têm duas caixas: "Transcrever automaticamente, localmente com o Whisper, as mensagens de voz, áudios e vídeos recebidos nesta conversa" e "Transcrever automaticamente, com os provedores online, as mensagens de voz e áudios recebidos nesta conversa". Cada uma mostra o que a conversa faz agora, seguindo a opção geral até você marcar ou desmarcar a caixa ali.</p>
 <p>Enter e Espaço, quando transcrevem, também transcrevem áudio e vídeo enviados como arquivo.</p>
 
+<!-- MISTRAL-MODEL-ROUTING -->
+<p>Mistral usa três modelos diferentes: Voxtral Mini Transcribe 3 para áudio, Ministral 3 3B por padrão para fotos, figurinhas e quadros de vídeo, e mistral-ocr-latest para extrair texto de PDFs. O campo Modelo e a obtenção de modelos selecionam apenas um modelo de visão; alterá-lo não muda a transcrição nem o OCR. OpenAI e Groq também usam modelos de áudio fixos, separados do modelo de visão escolhido; Groq não processa PDFs aqui. Gemini usa o modelo escolhido para todas as mídias compatíveis. A disponibilidade não garante uso gratuito: confira a cota incluída e os limites do provedor. O OCR da Mistral extrai texto, sem descrever as imagens dentro do PDF.</p>
+
   </section>
 
   <section id="status" class="wiki-section" aria-labelledby="h-status">
@@ -722,6 +725,12 @@
   Quando a versão do WhatsApp Web em uso não oferece suporte a ligações, o WinZapp diz isso e o que tentar: reiniciar o WinZapp ou escolher Ajuda &gt; Forçar reinstalação da WPPConnect.
 </div>
 <p>Ao reinstalar a WPPConnect, o WinZapp preserva um catálogo mais recente e compatível do WhatsApp Web e procura um catálogo atualizado. Sem internet, um catálogo utilizável é mantido, mas não é possível confirmar se está atualizado. Se a ligação ainda não iniciar, restabeleça a internet e reinicie o WinZapp. Uma incompatibilidade confirmada do VoIP que não permite nova tentativa é informada sem repetir a inicialização.</p>
+
+<!-- ONGOING-GROUP-CALL -->
+<p>Enquanto a conversa de um grupo está aberta, o WinZapp verifica se há uma chamada em andamento a cada dez segundos, aproximadamente. O botão para entrar aparece somente quando há uma chamada disponível e desaparece quando ela termina. Ao entrar em uma chamada de vídeo, a câmera começa desligada. Entrar em uma chamada existente não usa o limite de 32 membros para iniciar uma nova chamada de grupo. Quando há uma ligação disponível, o botão de entrar substitui os botões de iniciar ligação de voz e vídeo. Em Ligações (Alt+6), o filtro Em andamento lista as ligações disponíveis para entrar, inclusive entre várias pessoas fora de conversas de grupo; elas também aparecem primeiro em Todas. Selecione uma ligação e pressione Enter ou use o botão de entrar. Voltar à ligação traz a janela da ligação atual para frente. A lista é atualizada aproximadamente a cada dez segundos enquanto Ligações está aberta e inclui apenas ligações que o WhatsApp disponibiliza para sua conta.</p>
+
+<!-- CALL-PARTICIPANTS -->
+<p>Use o botão Participantes da ligação na janela da ligação ou em uma ligação em andamento selecionada em Ligações para ver os nomes das pessoas conectadas. A lista é atualizada a cada dez segundos; Atualizar solicita os dados atuais e Fechar ou Escape fecha a janela. Pessoas convidadas ou desconectadas não aparecem. Consultar a lista não entra nem encerra uma ligação.</p>
 
   </section>
 
