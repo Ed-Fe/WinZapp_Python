@@ -221,3 +221,30 @@ def test_a_failed_play_after_a_fallback_is_announced(tmp_path, monkeypatch):
         _cleanup(stub)
 
     assert stub.main_window.spoken == ["audio_playback_failed"]
+
+
+def test_only_errors_about_the_output_device_ask_for_a_reinit():
+    from ui.conversation_panel.audio_playback import _is_output_device_error as is_device
+    assert is_device(RuntimeError("8, BASS_Init has not been successfully called"))
+    assert is_device(RuntimeError("3, can't find a free/valid driver"))
+    assert is_device(RuntimeError("23, the device is not available"))
+    assert is_device(RuntimeError("BASS_Init has not been successfully called"))
+    assert not is_device(RuntimeError("41, unsupported file format"))
+    assert not is_device(RuntimeError("something else"))
+
+
+def test_a_file_bass_cannot_decode_does_not_reinitialise_the_output(tmp_path, monkeypatch):
+    class _Undecodable(_Stub):
+        def _open_audio_stream_from_temp_file(self):
+            raise RuntimeError("41, unsupported file format")
+
+    stub = _Undecodable([], fell_back=True)
+    monkeypatch.setattr("ui.conversation_panel.audio_playback.transcode_audio_to_wav",
+                        lambda *a, **k: None, raising=False)
+    try:
+        stub._play_audio("m1", 12, _voice_file(tmp_path, monkeypatch))
+    finally:
+        _cleanup(stub)
+
+    assert stub.main_window.sound_system.calls == 0
+    assert stub.main_window.spoken == ["audio_playback_failed"]

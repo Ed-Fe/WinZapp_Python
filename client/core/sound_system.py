@@ -459,7 +459,8 @@ class SoundSystem:
         return (now - last) >= self._RECOVERY_COOLDOWN_SECONDS
 
     def handle_playback_failure(self) -> bool:
-        """Called when playing a BASS stream raises, on some already-active
+        """Called when playing a BASS stream raises (or a stream cannot be opened for
+        want of an output device), on some already-active
         output device configured earlier (not the default). Falls back to
         the system default device and warns once per session — further
         failures on the same device this session stay silent so a broken

@@ -21,6 +21,22 @@ from core.audio_transcode import transcode_audio_to_wav
 from core import playback_controls
 
 
+
+#: BASS error codes that mean "there is no output device to play on": 3 no
+#: driver, 8 BASS_Init was not (successfully) called, 23 the device is not
+#: available.
+_OUTPUT_DEVICE_ERRORS = (3, 8, 23)
+
+
+def _is_output_device_error(error) -> bool:
+    """Whether a sound_lib BassError ("8, BASS_Init has not been successfully
+    called") is about the output device rather than about the file."""
+    text = str(error).strip()
+    head = text.split(",", 1)[0].strip()
+    if head.isdigit():
+        return int(head) in _OUTPUT_DEVICE_ERRORS
+    return "BASS_Init" in text
+
 class AudioPlaybackMixin:
     """Playing voice/audio messages: play/pause, chaining, speed, seek and the
     audio controls.
@@ -279,6 +295,11 @@ class AudioPlaybackMixin:
         try:
             return self._open_audio_stream_from_temp_file()
         except Exception as first:
+            # Only a failure that is about the output device is worth re-initialising
+            # BASS for: a file BASS cannot decode (41) fails again, and the reinit
+            # would reload every sound and may warn about a device that is fine.
+            if not _is_output_device_error(first):
+                raise
             if not self.main_window.sound_system.handle_playback_failure():
                 raise
             logging.info("[UI Audio Playback] stream failed (%s); BASS was re-initialised, retrying", first)
