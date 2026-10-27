@@ -230,3 +230,14 @@ def test_a_date_lifted_by_a_group_notice_goes_back_to_the_real_message(tmp_path)
     # with only the notice, 0: the client sorts it by the messages it holds
     assert dates == {"lifted@g.us": 100, "notice-only@g.us": 0, "newer@g.us": 500,
                      "history@g.us": 900}
+
+
+def test_chats_in_batch_writes_like_chat(tmp_path):
+    db = Store(str(tmp_path / "b.db"))
+    db.chat("1@s.whatsapp.net", unread=5, archived=1)
+    db.chats_in_batch([("1@s.whatsapp.net", {"ts": 50, "nope": 1}), ("2@g.us", {"name": "G"}),
+                       ("3@s.whatsapp.net", {})])
+    chats = {c["jid"]: c for c in db.chats()}
+    assert chats["1@s.whatsapp.net"]["ts"] == 50 and chats["1@s.whatsapp.net"]["unread"] == 5
+    assert chats["1@s.whatsapp.net"]["archived"] == 1
+    assert chats["2@g.us"]["name"] == "G" and "3@s.whatsapp.net" in chats

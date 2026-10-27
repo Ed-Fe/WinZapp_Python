@@ -1098,11 +1098,15 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             progress.finished(time.monotonic(), percent)
 
     def _store_history_block(self, data):
-        """Stores a block of the history; returns the progress (0-100) it brings."""
-        for x in data.pushnames:
-            if x.ID and x.pushname:
-                self.db.contact(x.ID, pushname=x.pushname)
+        """Stores a block of the history; returns the progress (0-100) it brings.
+        Everything goes in three transactions (contacts, chats, messages): a
+        commit per chat and per name kept the store's lock for tens of seconds,
+        the routes waited on it, the client's socket missed its pings and the
+        client took the bridge for disconnected."""
+        self.db.contacts_in_batch([(x.ID, None, x.pushname) for x in data.pushnames
+                                   if x.ID and x.pushname])
         total = 0
+        chats, rows = [], []
         for c in data.conversations:
             jid = c.ID
             if not jid or jid.endswith("@broadcast") or jid.endswith("@newsletter"):
@@ -1122,8 +1126,8 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
                 fields["muted"] = int(c.muteEndTime)
             if c.HasField("locked"):
                 fields["locked"] = int(bool(c.locked))
-            self.db.chat(jid, **{k: v for k, v in fields.items() if v is not None})
-            rows = []
+            chats.append((jid, {k: v for k, v in fields.items() if v is not None}))
+            count = len(rows)
             for h in c.messages:
                 m = h.message
                 key = m.key
@@ -1137,8 +1141,9 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
                     if m.starred:
                         w["star"] = True
                     rows.append((jid, w, msgmap.media_record_of(m.message)))
-            self.db.messages_in_batch(rows)
-            total += len(rows)
+            total += len(rows) - count
+        self.db.chats_in_batch(chats)
+        self.db.messages_in_batch(rows)
         log.info("history: %d chats, %d messages (%s%%)",
                  len(data.conversations), total, data.progress)
         return data.progress

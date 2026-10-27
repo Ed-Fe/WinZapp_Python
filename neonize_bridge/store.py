@@ -141,6 +141,20 @@ class Store:
                                    (*fields.values(), jid))
             self._conn.commit()
 
+    def chats_in_batch(self, rows):
+        """Rows (jid, fields) as `chat` writes them, in one transaction: a
+        history block brings up to two thousand chats, and a commit for each
+        held the lock long enough to stall every route behind it."""
+        with self._lock:
+            for jid, fields in rows:
+                fields = {k: v for k, v in fields.items() if k in CHAT_FIELDS}
+                self._conn.execute("INSERT OR IGNORE INTO chats(jid) VALUES (?)", (jid,))
+                if fields:
+                    sets = ", ".join(f"{k}=?" for k in fields)
+                    self._conn.execute(f"UPDATE chats SET {sets} WHERE jid=?",
+                                       (*fields.values(), jid))
+            self._conn.commit()
+
     def copy_state(self, source, destination):
         """Puts in `destination` the archived/pinned/muted of `source`: the same
         chat stored under two addresses (number and LID) changes together."""
