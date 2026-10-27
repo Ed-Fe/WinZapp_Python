@@ -611,3 +611,22 @@ async def test_forward_messages_returns_the_new_ids_and_stores_the_copy_in_the_d
         assert bridge.s.db.wpp_message("NEW1") is not None
     finally:
         await bridge.http.close()
+
+
+@pytest.mark.asyncio
+async def test_get_messages_reads_the_store_off_the_event_loop(tmp_path, sessions):
+    """A page of messages, each with its group ack, once held the loop for a
+    minute on a large store and dropped the client's socket."""
+    import threading
+    bridge = await _open(tmp_path, sessions)
+    try:
+        bridge.s.db.message(PN, _msg("M1", 100, PN, from_me=True))
+        loop_thread = threading.get_ident()
+        seen = []
+        real = bridge.s.db.for_response
+        bridge.s.db.for_response = lambda *a, **k: seen.append(threading.get_ident()) or real(*a, **k)
+        status, body = await bridge.get(f"get-messages/{PN}?count=20")
+        assert status == 200 and [m["id"]["id"] for m in body["response"]] == ["M1"]
+        assert seen and seen[0] != loop_thread
+    finally:
+        await bridge.http.close()

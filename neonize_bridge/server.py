@@ -1838,8 +1838,14 @@ def create_app(folder, fixed=""):
             jid += "@c.us"
         # the chat may be stored by the number or by the LID (or both)
         keys = await in_thread(s.chat_keys, jid) or [msgmap.jid_whatsmeow(jid)]
-        items = s.db.messages(keys, int(q.get("count", 20)), before)
-        return ok(status="success", response=s.db.for_response(items, s.message_ack))
+        count = int(q.get("count", 20))
+
+        def read():
+            # off the loop: up to hundreds of messages, each with its group ack
+            # read from the store, used to hold the loop (and the client's
+            # socket) for as long as the store took
+            return s.db.for_response(s.db.messages(keys, count, before), s.message_ack)
+        return ok(status="success", response=await in_thread(read))
 
     async def send_message(req):
         s = session(req)
