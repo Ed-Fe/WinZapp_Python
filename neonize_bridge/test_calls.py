@@ -267,3 +267,34 @@ def test_only_a_call_still_ringing_unanswered_is_ended():
         media = Media(state)
         assert not calls.drop_if_unanswered(media, "C1") and media.hung == []
     assert not calls.drop_if_unanswered(None, "C1")
+
+
+def ended(state="ENDED", video=False, observed=1000):
+    return {"state": state, "isVideo": video, "observedAt": observed, "id": "C1",
+            "peerJid": "5511@c.us", "groupJid": "", "timestamp": observed}
+
+
+def test_a_call_answered_here_is_completed_not_canceled():
+    answered = {"at": 640.0, "video": True}
+    assert calls.answered_outcome(ended(), answered) == ("Completed", 360, True)
+    assert calls.answered_outcome(ended(video=True), {"at": 990.0, "video": False}) == (
+        "Completed", 10, True)
+    assert calls.answered_outcome(ended(), None) is None
+    # a call rejected or missed was not answered here, whatever is remembered
+    assert calls.answered_outcome(ended("REJECTED"), answered) is None
+    assert calls.answered_outcome(ended("NOT_ANSWERED"), answered) is None
+
+
+def test_record_end_writes_the_answered_call_as_completed(monkeypatch):
+    stored = []
+    monkeypatch.setattr(calls, "call_chat", lambda db, meta, group: "5511@s.whatsapp.net")
+    monkeypatch.setattr(calls.system_messages, "store_and_emit",
+                        lambda s, chat, w, now: stored.append(w) or True)
+    s = N(me="5599@s.whatsapp.net", lid="", db=None)
+    e = N(basicCallMeta=None)
+    assert calls.record_end(s, e, ended(), True, 1000, {"at": 640.0, "video": True})
+    w = stored[0]
+    assert (w["callOutcome"], w["callDuration"], w["isVideoCall"]) == ("Completed", 360, True)
+    # without the answer it stays what it was: the caller gave up
+    assert calls.record_end(s, e, ended(), True, 1000)
+    assert stored[1]["callOutcome"] == "Canceled"

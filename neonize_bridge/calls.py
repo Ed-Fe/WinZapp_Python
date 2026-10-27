@@ -184,13 +184,31 @@ def call_chat(db, meta, group) -> str:
     return forms[0] if forms else ""
 
 
-def record_end(s, e, data, was_ringing, now):
+def answered_outcome(data, answered):
+    """(outcome, duration, video) of a received call this client answered
+    (`answered`: CallMedia.answered_here), or None. The server sends us no
+    CallAccept for our own answer, so without this the end of an answered call
+    looked like the caller giving up ("Canceled", shown as missed). A call
+    that turned into a video call is recorded as one."""
+    if not answered or data["state"] not in ("ENDED", "HANDLED_REMOTELY"):
+        return None
+    duration = max(0, int(round(data["observedAt"] - answered["at"])))
+    return "Completed", duration, bool(data["isVideo"] or answered.get("video"))
+
+
+def record_end(s, e, data, was_ringing, now, answered=None):
     """The end of a received call becomes the `call_log` record in the chat (what
     WhatsApp Web shows as "Missed voice call"). `data` is the `end_event`;
-    `was_ringing` says whether the offer was still ringing here. Does not
-    record the call I made myself (from another device): it cannot be known
-    who it was with just from the event. False if nothing was recorded."""
-    outcome = system_messages.call_outcome(data["state"], was_ringing)
+    `was_ringing` says whether the offer was still ringing here; `answered` is
+    CallMedia.answered_here for the call. Does not record the call I made
+    myself (from another device): it cannot be known who it was with just
+    from the event. False if nothing was recorded."""
+    here = answered_outcome(data, answered)
+    if here is not None:
+        outcome, duration, video = here
+        data = {**data, "callDuration": duration, "isVideo": video}
+    else:
+        outcome = system_messages.call_outcome(data["state"], was_ringing)
     creator = data["peerJid"]
     mine = {msgmap.jid_wpp(getattr(s, "me", "")), msgmap.jid_wpp(getattr(s, "lid", ""))} - {""}
     if outcome is None or not data["id"] or not creator or creator in mine:
@@ -214,7 +232,8 @@ class Pending:
         self._accepted = {}
 
     def accept(self, call_id, server_ts, now):
-        """The CallAccept: someone (not this client, which does not answer) answered."""
+        """The CallAccept: someone answered on another device. Our own answer
+        brings none (CallMedia.answered_here says that one)."""
         self._accepted = {i: t for i, t in self._accepted.items()
                           if now - t[1] < RING_TTL}
         self._accepted[call_id] = (server_ts, now)
@@ -300,13 +319,15 @@ def register_events(cli, s):
             data = refine_end(data, s.ringing_calls.accepted(data["id"]))
             was_ringing = s.ringing_calls.creator_of(data["id"]) is not None
             s.ringing_calls.forget(data["id"])
-            log.info("call ended (%s)", data["state"])
+            media = getattr(s, "call_media", None)
+            answered = media.answered_here(data["id"]) if media is not None else None
+            log.info("call ended (%s%s)", data["state"], ", answered here" if answered else "")
             notify(data)
         except Exception:
             log.exception("call end")
             return
         try:
-            record_end(s, e, data, was_ringing, time.time())
+            record_end(s, e, data, was_ringing, time.time(), answered)
         except Exception:
             log.exception("call record %s", redact(data["id"]))
 

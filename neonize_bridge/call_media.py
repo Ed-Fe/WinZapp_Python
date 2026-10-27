@@ -46,6 +46,8 @@ _RATIO = CLIENT_RATE // CALL_RATE
 
 STATE_OF_PHASE = {1: "CALLING", 2: "RINGING", 3: "CONNECTING", 4: "ACTIVE"}
 LIVE_STATES = ("CALLING", "RINGING", "CONNECTING", "ACTIVE")
+# how many answered calls answered_here remembers
+ANSWERED_KEPT = 50
 
 
 def downsample(pcm48: bytes, carry: bytes = b"") -> tuple:
@@ -152,6 +154,10 @@ class CallMedia:
         self.group_calls = group_calls
         self._lock = threading.Lock()
         self._calls = {}              # id -> {"id", "peer", "outgoing", "state"}
+        # id -> {"at": when this client answered, "video": whether it had
+        # video}: outlives the call, so its call_log says it was answered
+        # (calls.record_end) whatever order the end reaches the two layers
+        self._answered = {}
         self._mic = FrameAssembler()
         self._running = False
 
@@ -304,6 +310,8 @@ class CallMedia:
             if call is None or call.get("video"):
                 return False
             call["video"] = True
+            if call_id in self._answered:
+                self._answered[call_id]["video"] = True
             data = state_event(call, state=call["state"] or "CALLING")
         self.emit("callstate", {"session": self.name, "data": data})
         return True
@@ -375,9 +383,23 @@ class CallMedia:
         call_id = call_id or self._ringing()
         if not call_id or not self.calls.answer(call_id):
             return False
+        self._note_answered(call_id)
         if self._set_state(call_id, "ACTIVE"):
             self._start_audio(call_id)
         return True
+
+    def answered_here(self, call_id):
+        """{"at", "video"} of a call this client answered, or None."""
+        with self._lock:
+            found = self._answered.get(call_id)
+            return dict(found) if found else None
+
+    def _note_answered(self, call_id):
+        with self._lock:
+            call = self._calls.get(call_id) or {}
+            self._answered[call_id] = {"at": time.time(), "video": bool(call.get("video"))}
+            while len(self._answered) > ANSWERED_KEPT:
+                self._answered.pop(next(iter(self._answered)))
 
     def _ringing(self):
         with self._lock:

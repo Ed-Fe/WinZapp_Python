@@ -249,3 +249,24 @@ def test_the_real_bindings_answer_without_a_connected_client():
     assert calls_of_nobody.write_audio("x", b"\0" * layer.FRAME_BYTES) is False
     with pytest.raises(ValueError):
         calls_of_nobody.write_audio("x", b"\0")
+
+
+def test_a_call_answered_here_is_remembered_past_its_end_with_its_video():
+    m, _sent = media()
+    m.remember_offer({"id": "IN1", "peerJid": "5511999990000@c.us"})
+    assert m.answered_here("IN1") is None
+    assert m.answer("IN1")
+    answered = m.answered_here("IN1")
+    assert answered["video"] is False and answered["at"] > 0
+    m._mark_video("IN1")                                    # upgraded to video mid-call
+    m.handle({"ev": "end", "call": "IN1", "reason": ""})
+    assert m.knows("IN1") is False
+    assert m.answered_here("IN1")["video"] is True
+
+
+def test_only_the_latest_answered_calls_are_kept():
+    m, _sent = media()
+    for n in range(cm.ANSWERED_KEPT + 5):
+        m.remember_offer({"id": f"C{n}", "peerJid": "1@c.us"})
+        m.answer(f"C{n}")
+    assert m.answered_here("C0") is None and m.answered_here(f"C{cm.ANSWERED_KEPT + 4}")
