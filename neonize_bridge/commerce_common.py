@@ -9,6 +9,7 @@ the catalog and the profile are asked for under the number
 import re
 
 import biz_iq
+import catalog_graphql
 import msgmap
 import raw_queries as rq
 
@@ -87,8 +88,13 @@ def products_by_id(client, jid, ids) -> dict:
     """{id: product} of the products the catalog still has. Runs on a thread."""
     if not ids:
         return {}
-    products = biz_iq.parse_product_list(
-        rq.send_iq(client, biz_iq.product_list_query(jid, list(ids))))
+    try:
+        products = catalog_graphql.get_products(jid, list(ids))
+    except catalog_graphql.GraphQLError:
+        # WhatsApp Web's GraphQL query first; the old IQ, which WhatsApp no
+        # longer answers, only when it fails (business.read_catalog).
+        products = biz_iq.parse_product_list(
+            rq.send_iq(client, biz_iq.product_list_query(jid, list(ids))))
     return {p["id"]: p for p in products}
 
 

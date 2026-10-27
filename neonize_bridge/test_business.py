@@ -10,6 +10,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 import business
+import catalog_graphql
 import raw_queries
 from test_biz_iq import product, t
 
@@ -104,6 +105,19 @@ def raw(monkeypatch):
     monkeypatch.setattr(raw_queries, "available", lambda c: hasattr(c, "send_iq"))
 
 
+@pytest.fixture(autouse=True)
+def graphql(monkeypatch):
+    """No network: the catalog GraphQL refuses unless a test answers it, so
+    these tests read the catalog by the IQ the bridge falls back to."""
+    asked = []
+
+    def refuse(jid, limit, after=""):
+        asked.append((jid, limit))
+        raise catalog_graphql.GraphQLError("offline", 500)
+    monkeypatch.setattr(catalog_graphql, "get_catalog", refuse)
+    return asked
+
+
 def session(tmp_path, client):
     db = N(chats=lambda: [{"jid": "5511@s.whatsapp.net"}, {"jid": "77@s.whatsapp.net"},
                           {"jid": "1203@g.us"}])
@@ -145,6 +159,19 @@ def test_commerce_catalog_reads_profile_products_and_cart(tmp_path):
     assert [p.id for p in catalog.products] == ["1"] and catalog.cart.items == ()
     assert s.client.queries[0]["content"][0]["content"][0]["attrs"] == {
         "jid": {"jid": "5511@s.whatsapp.net"}}
+
+
+def test_the_catalog_comes_from_whatsapp_web_s_graphql_query(tmp_path, monkeypatch):
+    def answer(jid, limit, after=""):
+        assert jid == "5511@s.whatsapp.net"
+        return [catalog_graphql.product_from_graphql(
+            {"id": "9", "name": "Bolo", "price": "12000", "currency": "BRL"})], ""
+    monkeypatch.setattr(catalog_graphql, "get_catalog", answer)
+    s = session(tmp_path, Client(profile_children=CATALOG_PROFILE, products=[product("1")]))
+    status, body = run(s, "GET", "commerce/catalog/5511@c.us")
+    assert status == 200
+    assert [p.id for p in client_commerce().parse_catalog(body["response"]).products] == ["9"]
+    assert [q["content"][0]["tag"] for q in s.client.queries] == ["business_profile"]
 
 
 def test_a_seller_without_catalog_shows_none(tmp_path):

@@ -23,6 +23,7 @@ import time
 from aiohttp import web
 
 import biz_iq
+import catalog_graphql
 import commerce_cart
 import commerce_common as cc
 import raw_queries as rq
@@ -59,6 +60,17 @@ def upstream_body(contact, session_name, data) -> dict:
     return {"status": "Success", "response": {"message": "Information retrieved successfully.",
                                               "contact": contact, "session": session_name,
                                               "data": data}}
+
+
+def read_catalog(client, jid, limit) -> tuple:
+    """([products], next cursor) of a seller's catalog, by WhatsApp Web's
+    GraphQL query; the old <product_catalog> IQ only when that fails (WhatsApp
+    no longer answers the IQ). Runs on a thread."""
+    try:
+        return catalog_graphql.get_catalog(jid, limit)
+    except catalog_graphql.GraphQLError as error:
+        log.warning("catalog: GraphQL refused (%s), trying the IQ", error.code or "no code")
+    return biz_iq.parse_catalog(rq.send_iq(client, biz_iq.catalog_query(jid, limit)))
 
 
 def phone_of(text) -> str:
@@ -131,8 +143,7 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text):
         profile = cc.seller_profile(s.client, jid)
         products = []
         if biz_iq.has_catalog(profile):
-            products, _after = biz_iq.parse_catalog(
-                rq.send_iq(s.client, biz_iq.catalog_query(jid, biz_iq.MAX_PRODUCTS)))
+            products, _after = read_catalog(s.client, jid, biz_iq.MAX_PRODUCTS)
         cart = commerce_cart.view(commerce_cart.load(s.folder).get(cc.whatsmeow_chat(chat)))
         return catalog_body(profile, products, cart)
 
@@ -177,8 +188,8 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text):
 
     async def get_products(req):
         limit = _int(req.query.get("qnt"), 10)
-        return await upstream(req, "get products", lambda s, jid: biz_iq.parse_catalog(
-            rq.send_iq(s.client, biz_iq.catalog_query(jid, limit)))[0])
+        return await upstream(req, "get products",
+                              lambda s, jid: read_catalog(s.client, jid, limit)[0])
 
     async def get_product_by_id(req):
         product_id = str(req.query.get("id") or "")
@@ -201,8 +212,7 @@ def register_routes(r, *, session, ok, jid_from_text, jid_text):
             return web.json_response({"status": "error", "message": "Error on get products"},
                                      status=400 if not phone else 500)
         try:
-            products, _after = await execute(lambda: biz_iq.parse_catalog(
-                rq.send_iq(s.client, biz_iq.catalog_query(phone, biz_iq.MAX_PRODUCTS))))
+            products, _after = await execute(read_catalog, s.client, phone, biz_iq.MAX_PRODUCTS)
         except Exception as error:
             log.warning("get-business-profiles-products: %s", type(error).__name__)
             return web.json_response({"status": "error", "message": "Error on get products"},
