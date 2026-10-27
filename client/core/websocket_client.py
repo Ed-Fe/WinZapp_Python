@@ -10,6 +10,7 @@ from core.api_client import api_get, api_post
 from core.connection_lifecycle import socket_client_is_current
 from core.call_log import CALL_LOG_MESSAGE_TYPE, call_log_creator, call_log_payload
 from core.business_buttons import business_buttons
+from core.chat_contact_names import find_contact_key
 from core.commerce import (
     ORDER_MESSAGE_TYPE, ORDER_UPDATE_MESSAGE_TYPE, PRODUCT_MESSAGE_TYPE, order_payload,
     order_update_payload, product_payload,
@@ -1930,14 +1931,21 @@ class WebSocketClient:
                 jid = self.main_window._normalize_jid(contact.get("remoteJid", ""))
                 if not jid:
                     continue
-                existing = self.main_window.contacts.get(jid)
+                # The record may sit under the other form of a Brazilian number
+                # (with or without the 9th digit): a second one created beside it
+                # would shadow the saved name.
+                contacts_by_jid = self.main_window.contacts
+                key = find_contact_key(contacts_by_jid, jid)
+                existing = contacts_by_jid.get(key) if key else None
+                if existing is not None:
+                    jid = key
                 # Bridge @lid JIDs to their canonical phone JID before giving up.
                 if existing is None and jid.endswith("@lid"):
                     phone_jid = getattr(self.main_window, "_lid_to_phone", {}).get(jid, "")
-                    if phone_jid:
-                        existing = self.main_window.contacts.get(phone_jid)
-                        if existing is not None:
-                            jid = phone_jid
+                    key = find_contact_key(contacts_by_jid, phone_jid) if phone_jid else ""
+                    if key:
+                        existing = contacts_by_jid[key]
+                        jid = key
                 if existing is None:
                     # Contact was absent from self.contacts (filtered out by
                     # get_remote_contacts because it had no pushName in the DB

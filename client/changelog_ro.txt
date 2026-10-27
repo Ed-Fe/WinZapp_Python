@@ -112,6 +112,8 @@ NOUTĂȚI
 
 - Anularea ecoului funcționează acum și când ecoul revine cu mare întârziere, ca la reluarea (loopback) unor mixere, care putea dura peste o jumătate de secundă și ajungea întreg la cealaltă persoană. WinZapp măsoară cât îi ia vocii celeilalte persoane să revină prin microfonul tău și ajustează anulatorul la această întârziere, până la 1,5 secunde.
 
+- Neonize: numele unui contact salvat nu mai este înlocuit, în fiecare minut, cu numele de profil ales de persoană în propriul WhatsApp (sau cu numele pe care telefonul l-a dat conversației). Numele pe care l-ai dat contactului rămâne; numele de profil apare doar pentru persoanele pe care nu le-ai salvat.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

@@ -91,6 +91,25 @@ def equivalent_jids(jid: str) -> list:
     return [f"{u}@s.whatsapp.net" for u in reversed(forms)]
 
 
+def book_identity(rows: dict, jid: str, phone: str = "") -> tuple:
+    """(address-book name, public nickname) of the person behind a chat.
+
+    `rows` maps whatsmeow's 'user@server' to the stored contact. A chat kept
+    under an LID reads the LID's row (where the nickname usually is) and the
+    number's rows (where the address book's name is, in either form of a
+    Brazilian number); the exact number comes first. The name is empty when the
+    person is not in the address book: a nickname is not a name the user gave."""
+    candidates = [jid]
+    if phone:
+        candidates += [phone] + [form for form in equivalent_jids(phone) if form != phone]
+    name = nickname = ""
+    for candidate in candidates:
+        found = rows.get(candidate) or {}
+        name = name or str(found.get("name") or "").strip()
+        nickname = nickname or str(found.get("pushname") or "").strip()
+    return name, nickname
+
+
 def blocklist_entry(jid: str, phone_jid: str = "") -> dict:
     """A row of `blocklist`. The client treats `phone` as PHONE digits
     (main_window/chat_actions.py::is_contact_blocked), so a block stored by LID
