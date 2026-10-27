@@ -78,7 +78,7 @@ def test_wrong_sender_or_tampered_payload_does_not_open():
     with pytest.raises(com.UnreadableComment):
         com.decrypt_comment(SECRET, "ID1", ["1@lid"], [MY_LID], iv, payload)
     with pytest.raises(com.UnreadableComment):
-        com.decrypt_comment(SECRET, "ID1", [AUTHOR], [MY_LID], iv, payload[:-1] + b"\x00")
+        com.decrypt_comment(SECRET, "ID1", [AUTHOR], [MY_LID], iv, payload[:-1] + bytes([payload[-1] ^ 0xFF]))
     with pytest.raises(com.UnreadableComment):
         com.decrypt_comment(SECRET, "OTHER", [AUTHOR], [MY_LID], iv, payload)
     with pytest.raises(com.UnreadableComment):
@@ -312,7 +312,10 @@ def test_without_a_secret_or_with_a_wrong_one_becomes_ciphertext(session, tmp_pa
     assert session.db.comments_of(GROUP, "NO_SECRET")[0]["type"] == "ciphertext"
     # the secret exists, but the comment was encrypted with another (tampered)
     msg = encrypted_comment("x")
-    msg.encCommentMessage.encPayload = msg.encCommentMessage.encPayload[:-1] + b"\x00"
+    payload = msg.encCommentMessage.encPayload
+    # flip the last byte (XOR always changes it; setting it to a fixed value would
+    # leave the payload intact one time in 256)
+    msg.encCommentMessage.encPayload = payload[:-1] + bytes([payload[-1] ^ 0xFF])
     o, e = event_of(msg, msg_id="C10")
     com.receive(session, GROUP, o, e)
     row = session.db.comments_of(GROUP, "P")[0]
