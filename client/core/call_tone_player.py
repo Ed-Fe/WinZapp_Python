@@ -60,8 +60,10 @@ class CallTonePlayer:
         os.makedirs(self._cache_dir, exist_ok=True)
         path = os.path.join(self._cache_dir, tone.key() + ".wav")
         if not os.path.isfile(path):
-            with open(path, "wb") as stream:
+            partial = path + ".tmp"      # a process that dies mid-write leaves no short WAV
+            with open(partial, "wb") as stream:
                 stream.write(synthesize_wav(tone))
+            os.replace(partial, path)
         return path
 
     def play(self, tone: Tone) -> None:
@@ -90,14 +92,18 @@ def update_call_tone(mw, active: dict, state: str) -> None:
     """Applies the tone of *state* for the active call of main window *mw*."""
     if not getattr(mw, "_uses_neonize", lambda: False)():
         return
-    player = _player_of(mw)
-    tone = tone_for_state(
-        state, bool(active.get("outgoing")),
-        peer_number(getattr(mw, "_lid_to_phone", {}), active.get("peer_jid", "")))
-    if tone is None:
-        player.stop()
-    else:
-        player.play(tone)
+    try:
+        player = _player_of(mw)
+        tone = tone_for_state(
+            state, bool(active.get("outgoing")),
+            peer_number(getattr(mw, "_lid_to_phone", {}), active.get("peer_jid", "")))
+        if tone is None:
+            player.stop()
+        else:
+            player.play(tone)
+    except Exception:
+        # a missing sound must never keep the call-state handling from running
+        logging.exception("[call_tone] could not apply the tone of state %s", state)
 
 
 def stop_call_tone(mw) -> None:

@@ -235,3 +235,17 @@ def test_wppconnect_keeps_the_tones_to_the_whatsapp_web_page(tmp_path):
 
 def test_stopping_with_no_player_yet_is_harmless():
     ctp.stop_call_tone(SimpleNamespace())
+
+
+def test_a_player_that_cannot_be_built_does_not_break_the_call_state_handling():
+    mw = SimpleNamespace(_uses_neonize=lambda: True, _lid_to_phone={})     # no sound_system, no player
+
+    ctp.update_call_tone(mw, {"outgoing": True, "peer_jid": "55@c.us"}, "RINGING")
+
+
+def test_the_cache_file_is_replaced_whole(tmp_path):
+    player, made = make_player(tmp_path)
+
+    player.play(ct.BUSY)
+
+    assert not [name for name in (tmp_path / "tones").iterdir() if name.suffix == ".tmp"]

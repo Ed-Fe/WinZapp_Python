@@ -1734,17 +1734,17 @@ class CallsMixin:
         self._sync_voice_call_bar()
         # The Neonize engine has no WhatsApp Web page to play the ringback and the
         # connecting beeps; a call that is over silences them.
-        if state in {"ENDED", "REJECTED", "FAILED", "NOT_ANSWERED",
-                     "HANDLED_REMOTELY", "REMOTE_CALL_IN_PROGRESS"}:
-            stop_call_tone(self)
-        else:
-            update_call_tone(self, active, state)
-
         terminal_states = {
             "ENDED", "REJECTED", "FAILED", "NOT_ANSWERED",
             "HANDLED_REMOTELY", "REMOTE_CALL_IN_PROGRESS",
         }
-        if state in terminal_states or event.get("event") in {"ended", "timeout"}:
+        call_is_over = state in terminal_states or event.get("event") in {"ended", "timeout"}
+        if call_is_over:
+            stop_call_tone(self)
+        else:
+            update_call_tone(self, active, state)
+
+        if call_is_over:
             self._confirm_call_ended(
                 active, call_id, call_peer_jid, upgraded_to_video=upgraded_to_video)
             return

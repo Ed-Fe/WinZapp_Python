@@ -29,7 +29,9 @@ FADE_MS = 5
 class Tone:
     """freq1/freq2 in Hz (freq2 0 = a single tone), cadence ((on_ms, off_ms), ...)
     repeated for as long as the tone plays. With ``modulated`` freq2 is the rate
-    at which freq1 is switched up and down, not a second tone."""
+    at which freq1 is switched up and down, not a second tone. (Unverified reading:
+    the original marks those rows with a flag whose use was not checked in its
+    synthesis loop; compare by ear with a real call.)"""
     freq1: int
     freq2: int
     cadence: tuple
