@@ -10,6 +10,10 @@ def test_the_dialog_offers_neonize_only_with_a_bridge():
     assert connect_engine.offered_engines(False, engines.NEONIZE) == [engines.WPPCONNECT, engines.NEONIZE]
 
 
+def test_no_engine_list_while_another_account_runs():
+    assert connect_engine.offered_engines(True, engines.WPPCONNECT, True) == []
+
+
 def test_a_custom_server_has_no_engine_list():
     assert connect_engine.offered_engines(True, engines.CUSTOM) == []
 

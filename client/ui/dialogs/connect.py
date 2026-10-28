@@ -640,7 +640,8 @@ class Connect:
         # cannot reach Settings to change the engine.
         self._offered_engines = connect_engine.offered_engines(
             neonize_bridge_process.command(neonize_bridge_process.bridge_dir()) is not None,
-            getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT))
+            getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT),
+            getattr(self.main_window, "_other_account_is_running", lambda: False)())
         self.engine_choice = connect_engine.build_row(
             self.connection_dial, main_sizer, self.i18n, self._offered_engines,
             getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT))

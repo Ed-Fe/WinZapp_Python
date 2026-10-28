@@ -11,12 +11,13 @@ from app_paths import data_path, log_path
 from core import connection_engine as engines
 
 
-def offered_engines(bridge_available: bool, current: str) -> list:
+def offered_engines(bridge_available: bool, current: str, other_account_running: bool = False) -> list:
     """The engines the pairing dialog lists: WPPConnect, and Neonize when a
     bridge is installed (or it is the running one). A custom server is the
     user's own setup, edited in Settings: not listed, and no list at all when
-    it is the engine in use."""
-    if current == engines.CUSTOM:
+    it is the engine in use, or while another account runs (the engine is
+    install-wide)."""
+    if current == engines.CUSTOM or other_account_running:
         return []
     return [e for e in (engines.WPPCONNECT, engines.NEONIZE)
             if engines.can_choose(e, bridge_available, current)]
