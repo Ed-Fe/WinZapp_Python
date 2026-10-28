@@ -4,6 +4,12 @@ This release brings communities and a reorganized settings window, on top of eve
 
 WHAT'S NEW
 
+- Use the Call participants button in the call window, or on a selected ongoing call in Calls, to see the connected people by name.
+
+- Mistral is available for online transcription, image descriptions and PDF text extraction. Audio uses the voice message model chosen in the provider window (Voxtral Mini Transcribe 3 by default, or Voxtral Small Transcribe 3; both in preview); photos, stickers and video frames use the selected vision model (Ministral 3 3B by default); PDFs use Mistral OCR. Get models lists only compatible vision models. Before media is sent to Mistral, WinZapp warns that its free plan may use requests for training.
+
+- While a call is available, group chats show "Join ongoing voice call" or "Join ongoing video call (camera off)" instead of the start-call buttons. Calls lists ongoing calls in All and Ongoing, including multiparty calls outside group chats. Video joins start with the camera off.
+
 - Many contact presence updates in a row (typing, online) no longer freeze WinZapp for seconds or slow the whole computer down on accounts with many chats.
 - Contact presence: learning new contact names no longer waits for a database write in the interface. Pending name updates keep the latest full snapshot, with ordered handling during shutdown and local data clearing.
 

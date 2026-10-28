@@ -156,6 +156,8 @@ def probe_request(provider, model, key):
         raise DescriptionError("credentials")
     if provider == "openai":
         return f"https://api.openai.com/v1/models/{model}", {"Authorization": f"Bearer {key}"}
+    if provider == "mistral":
+        return f"https://api.mistral.ai/v1/models/{model}", {"Authorization": f"Bearer {key}"}
     if provider == "gemini":
         return (f"https://generativelanguage.googleapis.com/v1beta/models/{model}",
                 {"x-goog-api-key": key})

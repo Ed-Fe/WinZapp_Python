@@ -137,6 +137,7 @@ from ui.conversation_panel.accelerators import AcceleratorsMixin
 from ui.conversation_panel.conversation_navigation import ConversationNavigationMixin
 from ui.conversation_panel.chat_lists import WhatsAppListFilterMixin
 from ui.conversation_panel.composer import ComposerMixin
+from ui.conversation_panel.group_calls import GroupCallJoinPanelMixin
 from ui.conversation_panel.message_drafts import MessageDraftsMixin
 from ui.conversation_panel.emoticon_conversion import EmoticonConversionMixin
 from ui.conversation_panel.voice_recording import VoiceRecordingMixin
@@ -188,6 +189,7 @@ class ConversationsPanel(
     WhatsAppListFilterMixin,
     ConversationPanelVisibilityMixin,
     ComposerMixin,
+    GroupCallJoinPanelMixin,
     MessageDraftsMixin,
     EmoticonConversionMixin,
     VoiceRecordingMixin,
@@ -655,6 +657,8 @@ class ConversationsPanel(
         self._voice_call_btn.Bind(wx.EVT_BUTTON, self._on_voice_call)
         conv_sizer.Add(self._voice_call_btn, 0, wx.LEFT | wx.TOP, 5)
         self._voice_call_btn.Hide()
+
+        self._init_group_call_join_button(conv_sizer)
 
         self._init_pinned_messages_button(conv_sizer)
 
@@ -1263,6 +1267,10 @@ class ConversationsPanel(
         self._search_open_btn.SetLabel(i18n.t("search_in_conv"))
         self._update_pinned_messages_button()
         self._voice_call_btn.SetLabel(i18n.t("voice_call_button"))
+        call = getattr(self, "_ongoing_group_call", None)
+        self._group_call_join_btn.SetLabel(i18n.t(
+            "group_call_join_video_button" if call and call["isVideo"]
+            else "group_call_join_button"))
         self._group_call_unavailable_btn.SetMainLabel(i18n.t("group_call_unavailable_label"))
         self._group_call_unavailable_btn.SetNote(
             i18n.t("group_call_unavailable_note").format(limit=MAX_GROUP_CALL_PARTICIPANTS)

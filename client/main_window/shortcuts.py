@@ -226,6 +226,7 @@ class ShortcutsMixin:
                 self.i18n.t("voice_call_settings_button")
             )
             self.voice_call_window.SetTitle(self.i18n.t("voice_call_window_title"))
+            self.voice_call_window_participants_button.SetLabel(self.i18n.t("call_participants_button"))
             self._sync_voice_call_bar()
 
     def apply_language_changes(self):

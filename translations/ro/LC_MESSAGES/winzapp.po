@@ -945,7 +945,6 @@ msgid "Quick"
 msgstr "Rapid"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_gemini_notice"
 msgid ""
 "Gemini: unpaid services may use inputs for product improvement and human "
@@ -1068,6 +1067,30 @@ msgstr ""
 "informație păstrată în fișier, precum autorul sau locația."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_mistral_model_note"
+msgid ""
+"Photos, stickers and video frames use the vision model set below. Voice "
+"messages use the voice message model, and PDF documents use Mistral OCR."
+msgstr ""
+"Pentru fotografii, autocolante și cadre video se folosește modelul vizual "
+"setat mai jos. Pentru mesajele vocale se folosește modelul pentru mesaje "
+"vocale, iar documentele PDF folosesc Mistral OCR."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_mistral_notice"
+msgid ""
+"Mistral: on the free Experiment plan, API requests may be used to train "
+"Mistral's models unless you opt out in your Mistral account. Do not send "
+"sensitive or personal information under those terms. The paid Scale plan is "
+"opted out by default. WinZapp cannot infer your plan from an API key."
+msgstr ""
+"Mistral: în planul gratuit Experiment, cererile către API pot fi folosite "
+"pentru antrenarea modelelor Mistral, cu excepția cazului în care dezactivezi"
+" acest lucru din contul Mistral. Nu trimite informații personale sau "
+"sensibile în aceste condiții. În planul plătit Scale, antrenarea este "
+"dezactivată implicit. WinZapp nu poate deduce planul tău din cheia API."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
 msgid "Model &identifier (advanced)"
 msgstr "&Identificatorul modelului (avansat)"
@@ -1081,6 +1104,12 @@ msgstr "Folosește modelul &recomandat de WinZapp"
 msgctxt "ai_model_choice"
 msgid "&Model"
 msgstr "&Model"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_model_preview"
+msgid "{name} (preview)"
+msgstr "{name} (previzualizare)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_models_empty"
@@ -1337,6 +1366,11 @@ msgid ""
 msgstr ""
 "Se trimite doar o imagine statică extrasă din videoclip, fără sunet și fără "
 "informațiile păstrate în fișier."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_voice_model"
+msgid "&Voice message model"
+msgstr "Model pentru mesaje &vocale"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -2468,6 +2502,64 @@ msgctxt "call_log_unknown_voice"
 msgid "Voice call"
 msgstr "Apel vocal"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
+#: client/main_window/shortcuts.py client/ui/ongoing_calls.py
+msgctxt "call_participants_button"
+msgid "Call participants"
+msgstr "Participanții la apel"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+#, python-brace-format
+msgctxt "call_participants_count"
+msgid "Connected participants: {count}"
+msgstr "Participanți conectați: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_empty"
+msgid "No participants are currently connected."
+msgstr "Niciun participant nu este conectat în prezent."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
+msgctxt "call_participants_ended"
+msgid "This call has ended or is no longer available."
+msgstr "Acest apel s-a încheiat sau nu mai este disponibil."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_failed"
+msgid "Could not load the current participants. Use Refresh to try again."
+msgstr ""
+"Nu s-au putut încărca participanții actuali. Folosiți Reîmprospătează pentru"
+" a reîncerca."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_list"
+msgid "Connected participants"
+msgstr "Participanți conectați"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_refresh"
+msgid "&Refresh"
+msgstr "&Reîmprospătează"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+#, python-brace-format
+msgctxt "call_participants_title"
+msgid "Call participants: {name}"
+msgstr "Participanții la apel: {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_participants.py
+msgctxt "call_participants_you"
+msgid "You"
+msgstr "Dvs."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 msgctxt "call_video_no_camera_error"
 msgid "No camera available."
@@ -2532,7 +2624,19 @@ msgid "Enable microphone noise reduction during the call (fans, hiss)"
 msgstr ""
 "Activează reducerea zgomotului microfonului în apel (ventilator, șuierat)"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_ongoing_empty"
+msgid "No ongoing calls."
+msgstr "Niciun apel în desfășurare."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_ongoing_unavailable"
+msgid "Ongoing calls are unavailable. Press F5 to retry."
+msgstr ""
+"Apelurile în desfășurare nu sunt disponibile. Apăsați F5 pentru a reîncerca."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
+#: client/ui/ongoing_calls.py
 msgctxt "calls_open_conversation"
 msgid "Open chat"
 msgstr "Deschide conversația"
@@ -2542,6 +2646,11 @@ msgstr "Deschide conversația"
 msgctxt "calls_popup_enabled_label"
 msgid "Open a &window when a call comes in"
 msgstr "Deschideți o &fereastră când sosește un apel"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_return_to_current"
+msgid "Return to call"
+msgstr "Reveniți la apel"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "calls_tab_all"
@@ -2562,6 +2671,11 @@ msgstr "Respinse"
 msgctxt "calls_tab_missed"
 msgid "Missed"
 msgstr "Pierdute"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_tab_ongoing"
+msgid "Ongoing"
+msgstr "În desfășurare"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -3330,6 +3444,7 @@ msgstr "Goliți conversațiile selectate"
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
+#: client/ui/dialogs/call_participants.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/media_cleanup_dialog.py
 #: client/ui/dialogs/new_conversation.py
@@ -5653,6 +5768,30 @@ msgctxt "group_admins_only"
 msgid "Only admins can send messages in this grou&p"
 msgstr "Numai adm&inistratorii pot trimite mesaje în acest grup"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/group_calls.py client/ui/ongoing_calls.py
+msgctxt "group_call_join_button"
+msgid "Join ongoing voice call"
+msgstr "Alăturați-vă apelului vocal în desfășurare"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
+#, python-brace-format
+msgctxt "group_call_join_failed"
+msgid "Could not join the ongoing call: {error}"
+msgstr "Nu v-ați putut alătura apelului în desfășurare: {error}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/group_calls.py
+msgctxt "group_call_join_video_button"
+msgid "Join ongoing video call (camera off)"
+msgstr "Alăturați-vă apelului video în desfășurare (camera oprită)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
+#, python-brace-format
+msgctxt "group_call_joining"
+msgid "Joining the ongoing call: {name}..."
+msgstr "Alăturare la apelul în desfășurare: {name}..."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
 msgid "Calling is not possible"
@@ -6776,10 +6915,11 @@ msgid "list selection"
 msgstr "selectare din listă"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
-#: client/ui/dialogs/cart_dialog.py client/ui/dialogs/community_comments.py
+#: client/ui/dialogs/call_participants.py client/ui/dialogs/cart_dialog.py
+#: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Se încarcă..."
@@ -15762,7 +15902,7 @@ msgstr ""
 "{app_name} a întâmpinat o eroare neașteptată și nu a putut finaliza "
 "operațiunea."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_participants.py
 #: client/core/notification_manager.py client/core/polls.py
 #: client/main_window/calls.py client/main_window/chat_list.py
 #: client/main_window/chats_store.py client/main_window/groups.py

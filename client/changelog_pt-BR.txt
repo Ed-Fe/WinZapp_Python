@@ -4,6 +4,12 @@ Esta versão traz as comunidades e uma janela de configurações reorganizada, a
 
 NOVIDADES
 
+- Use o botão Participantes da ligação na janela da ligação ou em uma ligação em andamento selecionada em Ligações para ver os nomes das pessoas conectadas.
+
+- Mistral está disponível para transcrição online, descrição de imagens e extração de texto de PDFs. O áudio usa o modelo para mensagens de voz escolhido na janela do provedor (Voxtral Mini Transcribe 3 por padrão, ou Voxtral Small Transcribe 3; os dois em prévia); fotos, figurinhas e quadros de vídeo usam o modelo de visão escolhido (Ministral 3 3B por padrão); PDFs usam Mistral OCR. A lista de modelos mostra modelos de visão compatíveis. Antes de enviar mídia para a Mistral, o WinZapp avisa que o plano gratuito pode usar as solicitações para treinamento.
+
+- Nas conversas de grupo, enquanto há uma ligação disponível, os botões de iniciar ligação dão lugar a "Entrar na ligação de voz em andamento" ou "Entrar na ligação de vídeo em andamento (câmera desligada)". Ligações mostra as ligações em andamento em Todas e Em andamento, inclusive entre várias pessoas fora de grupos. Ao entrar em uma ligação de vídeo, a câmera começa desligada.
+
 - Muitas atualizações de presença de contatos seguidas (digitando, online) não congelam mais o WinZapp por segundos nem deixam o computador lento em contas com muitos chats.
 - Presença dos contatos: ao aprender novos nomes, a interface não espera mais pela gravação no banco de dados. As atualizações pendentes mantêm a cópia completa mais recente, respeitando a ordem ao fechar ou limpar os dados locais.
 

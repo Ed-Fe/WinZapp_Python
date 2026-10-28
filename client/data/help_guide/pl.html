@@ -641,7 +641,7 @@
 </ul>
 
 <h3>AI online</h3>
-<p>Na karcie <strong>AI online: transkrypcje i opisy</strong> w ustawieniach włączasz funkcje (domyślnie są wyłączone) i wpisujesz klucz API jednego lub kilku dostawców: Gemini, OpenAI, Claude, Groq i OpenRouter. WinZapp korzysta z dostawców w ustalonej przez ciebie kolejności. Jeśli jeden zgłosi błąd lub wyczerpie limit, program próbuje skorzystać z następnego. Każdy dostawca ma własne okno, z polem "Używaj modelu zalecanego przez WinZapp" (WinZapp zawsze używa polecanego modelu) albo wyborem stałego modelu.</p>
+<p>Na karcie <strong>AI online: transkrypcje i opisy</strong> w ustawieniach włączasz funkcje (domyślnie są wyłączone) i wpisujesz klucz API jednego lub kilku dostawców: Gemini, OpenAI, Claude, Groq, OpenRouter i Mistral. WinZapp korzysta z dostawców w ustalonej przez ciebie kolejności. Jeśli jeden zgłosi błąd lub wyczerpie limit, program próbuje skorzystać z następnego. Każdy dostawca ma własne okno, z polem "Używaj modelu zalecanego przez WinZapp" (WinZapp zawsze używa polecanego modelu) albo wyborem stałego modelu.</p>
 <table class="field-table">
   <tr><th>Gdzie</th><th>Co robi</th></tr>
   <tr><td>Wiadomość głosowa lub audio: "Transkrybuj za pomocą AI online"</td><td>Zamienia na tekst.</td></tr>
@@ -662,6 +662,7 @@
 <p>Opcje karty Transkrypcja lokalna są w oknach otwieranych przyciskami na niej: "Opcje zaawansowane...", "Zapisane transkrypcje...", "Transkrypcja statusów...", "Folder modeli i modele w innych folderach..." oraz okna bibliotek CUDA i whisper.cpp. Opcje automatyczne AI online są w "Automatyczna transkrypcja i opisy...", na jej stronie.</p>
 <p>Dane czatu mają dwa pola: "Automatycznie transkrybuj lokalnie za pomocą Whisper odebrane w tym czacie wiadomości głosowe, nagrania audio i filmy" i "Automatycznie transkrybuj u dostawców online odebrane w tym czacie wiadomości głosowe i nagrania audio". Każde pokazuje, co czat robi teraz, zgodnie z opcją ogólną, dopóki nie zaznaczysz lub nie odznaczysz pola tutaj.</p>
 <p>Enter i spacja, gdy transkrybują, transkrybują też audio i wideo wysłane jako plik.</p>
+<p>Mistral używa trzech różnych modeli: modelu dla wiadomości głosowych do dźwięku, domyślnie Ministral 3 3B do zdjęć, naklejek i klatek wideo oraz mistral-ocr-4 do odczytywania tekstu z PDF. Model dźwięku wybierasz w polu "Model dla wiadomości głosowych": Voxtral Mini Transcribe 3 (domyślny) lub dokładniejszy Voxtral Small Transcribe 3. Oba są w wersji zapoznawczej, więc Mistral może je zmienić lub wycofać. Pole Model i pobieranie listy modeli dotyczą wyłącznie modelu wizyjnego; jego zmiana nie zmienia transkrypcji ani OCR. OpenAI i Groq również używają stałych modeli audio, niezależnych od wybranego modelu wizyjnego; Groq nie przetwarza tu PDF. Gemini używa wybranego modelu do wszystkich obsługiwanych multimediów. Dostępność nie gwarantuje bezpłatnego użycia: sprawdź u dostawcy przyznany limit i limity zapytań. OCR Mistrala odczytuje tekst, ale nie opisuje obrazów w PDF. W bezpłatnym planie Experiment firma Mistral może wykorzystywać żądania do trenowania swoich modeli, chyba że wyłączysz to na swoim koncie Mistral; WinZapp informuje o tym przed wysłaniem multimediów do Mistrala.</p>
 
   </section>
 
@@ -711,7 +712,7 @@
 <p>Gdy dzwoni połączenie, Ctrl+Alt+Shift+Enter odbiera je z dowolnego programu: okno połączenia przechodzi na wierzch i otrzymuje fokus. Połączenie wideo jest odbierane z włączoną kamerą, tak jak przyciskiem "Odbierz". Ctrl+Alt+Shift+Backspace odrzuca dzwoniące połączenie, także grupowe, a czytnik ekranu mówi "Połączenie odrzucone."; gdy nic nie dzwoni, rozłącza trwające połączenie. Przy kilku otwartych kontach najpierw odrzucane jest połączenie dzwoniące na którymkolwiek z nich. Oba skróty możesz zmienić lub wyłączyć w Ustawienia &gt; Interfejs &gt; Skróty klawiszowe. WinZapp przechwytuje je tylko wtedy, gdy może wykonać przypisane im działanie. W pozostałych sytuacjach są dostępne dla innych programów.</p>
 
 <h3>Karta Połączenia (Alt+6)</h3>
-<p>Historia połączeń ze wszystkich czatów, podzielona na Wszystkie, Nieodebrane, Odrzucone i Odebrane (Ctrl+Tab i Ctrl+Shift+Tab przełączają; Alt+L przechodzi do listy). Na liście Enter otwiera czat połączenia, Ctrl+Shift+R oddzwania na nieodebrane, a F5 odświeża. Przy nieodebranym połączeniu, w czacie, przycisk "Oddzwoń" robi to samo.</p>
+<p>Historia połączeń ze wszystkich czatów, podzielona na Wszystkie, Nieodebrane, Odrzucone, Odebrane i Trwające (Ctrl+Tab i Ctrl+Shift+Tab przełączają; Alt+L przechodzi do listy). Na liście Enter otwiera czat połączenia, Ctrl+Shift+R oddzwania na nieodebrane, a F5 odświeża. Przy nieodebranym połączeniu, w czacie, przycisk "Oddzwoń" robi to samo.</p>
 
 <h3>Ustawienia połączeń</h3>
 <p>W Ustawienia &gt; Połączenia "Ustawienia dźwięku połączenia" wybiera mikrofon i głośnik, a "Ustawienia wideo połączenia" wybiera kamerę. Tam znajdziesz też usuwanie echa (zmniejsza powrót własnego dźwięku, gdy używasz głośnika), redukcję szumów mikrofonu i tryb wyłączny dla mikrofonu i głośnika.</p>
@@ -722,6 +723,8 @@
   Gdy używana wersja WhatsApp Web nie obsługuje połączeń, WinZapp mówi o tym i co spróbować: uruchomić WinZapp ponownie albo wybrać Pomoc &gt; Wymuś ponowną instalację WPPConnect.
 </div>
 <p>Podczas ponownej instalacji WPPConnect WinZapp zachowuje nowszą, zgodną listę dostępnych wersji WhatsApp Web i sprawdza dostępność jej aktualizacji. Bez internetu zachowuje dotychczasową listę, ale nie może potwierdzić jej aktualności. Jeśli połączenie nadal się nie rozpoczyna, przywróć dostęp do internetu i uruchom WinZapp ponownie. Jeśli wykryta niezgodność z mechanizmem połączeń WhatsApp Web nie pozwala na skuteczne ponowienie próby, WinZapp zgłasza ją i przestaje ponawiać inicjalizację.</p>
+<p>Gdy czat grupowy jest otwarty, WinZapp sprawdza trwające połączenie mniej więcej co dziesięć sekund. Przycisk dołączenia pojawia się tylko wtedy, gdy połączenie jest dostępne, i znika po jego zakończeniu. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą. Dołączenie do istniejącego połączenia nie podlega limitowi 32 członków dotyczącemu rozpoczynania nowego połączenia grupowego. Gdy połączenie jest dostępne, przyciski rozpoczynania połączeń głosowych i wideo zastępuje przycisk "Dołącz do trwającego połączenia głosowego" lub, w przypadku połączenia wideo, "Dołącz do trwającego połączenia wideo (kamera wyłączona)". W sekcji Połączenia (Alt+6) filtr Trwające pokazuje połączenia, do których można dołączyć, w tym połączenia wielu osób poza czatami grupowymi; pojawiają się one również na początku listy Wszystkie. Wybierz połączenie i naciśnij Enter lub użyj tego samego przycisku dołączenia. Jeśli już uczestniczysz w tym połączeniu, przycisk nazywa się "Powrót do połączenia" i przywołuje okno bieżącego połączenia. Lista odświeża się mniej więcej co dziesięć sekund, gdy sekcja Połączenia jest otwarta, i zawiera tylko połączenia udostępnione przez WhatsApp Twojemu kontu.</p>
+<p>Użyj przycisku "Uczestnicy połączenia" w oknie połączenia lub przy zaznaczonym trwającym połączeniu w sekcji Połączenia, aby zobaczyć nazwy połączonych osób. Lista odświeża się co dziesięć sekund; "Odśwież" pobiera bieżące dane, a "Zamknij" lub Esc zamyka okno. Osoby zaproszone lub rozłączone nie są wyświetlane. Przeglądanie listy nie dołącza do połączenia ani go nie kończy.</p>
 
   </section>
 
@@ -1274,6 +1277,7 @@
 <p class="lead">Każda nowa alpha, która wnosi funkcje, jest dodawana do podręcznika. Ta lista pokazuje, do której alphy podręcznik jest kompletny i co dodano w każdej rundzie.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Co trafiło do podręcznika</th></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Trwające połączenia: dołączanie do dostępnego połączenia z czatu grupowego lub z filtra Trwające w sekcji Połączenia oraz lista połączonych uczestników. Mistral do transkrypcji online, opisywania obrazów i odczytywania tekstu z PDF.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Informacje o stanie kontaktów (pisanie, online): wiele kolejnych aktualizacji nie zawiesza już programu na kilka sekund ani nie spowalnia komputera.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Mniej zbędnych operacji interfejsu przy aktualizowaniu informacji o stanie kontaktów oraz zapisywanie nowych nazw kontaktów w tle.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Aktualizacja WinZapp lub WPPConnect: instalacja i kompilacja działają z niższym priorytetem, co ogranicza zacinanie komputera i czytnika ekranu podczas aktualizacji.</td></tr>

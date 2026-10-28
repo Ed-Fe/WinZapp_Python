@@ -134,7 +134,7 @@ AUTO_WINDOW = (
 )
 PROVIDER_WINDOW = (
     "ai_provider_enabled_checkbox", "ai_api_key", "ai_key_readable", "ai_show_key", "ai_delete_key",
-    "ai_get_key", "ai_get_models", "ai_model_automatic", "ai_model_choice", "ai_model",
+    "ai_get_key", "ai_get_models", "ai_voice_model", "ai_model_automatic", "ai_model_choice", "ai_model",
     "ai_test_connection", "ai_billing", "ai_privacy_link", "ai_status_label",
 )
 MNEMONIC = re.compile(r"&([^&])")

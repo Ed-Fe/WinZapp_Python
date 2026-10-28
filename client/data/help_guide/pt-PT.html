@@ -641,7 +641,7 @@
 </ul>
 
 <h3>IA online</h3>
-<p>No separador <strong>IA online: Transcrições e Descrições</strong> das Definições, o utilizador liga os recursos (começam desligados) e informa a chave de API de um ou mais provedores: Gemini, OpenAI, Claude, Groq e OpenRouter. Eles são tentados na ordem que o utilizador definir: se um falha ou fica sem cota, o próximo responde. Cada provedor tem uma janela própria, com a caixa "Usar o modelo recomendado pelo WinZapp" (o WinZapp usa sempre o modelo que ele recomenda) ou a escolha de um modelo fixo.</p>
+<p>No separador <strong>IA online: Transcrições e Descrições</strong> das Definições, o utilizador liga os recursos (começam desligados) e informa a chave de API de um ou mais provedores: Gemini, OpenAI, Claude, Groq, OpenRouter e Mistral. Eles são tentados na ordem que o utilizador definir: se um falha ou fica sem cota, o próximo responde. Cada provedor tem uma janela própria, com a caixa "Usar o modelo recomendado pelo WinZapp" (o WinZapp usa sempre o modelo que ele recomenda) ou a escolha de um modelo fixo.</p>
 <table class="field-table">
   <tr><th>Onde</th><th>O que faz</th></tr>
   <tr><td>Mensagem de voz ou áudio: "Transcrever com IA online"</td><td>Transforma em texto.</td></tr>
@@ -662,6 +662,7 @@
 <p>As opções do separador Transcrição local ficam em janelas abertas por botões nele: "Opções avançadas...", "Transcrições guardadas...", "Transcrição de estados...", "Pasta dos modelos e modelos já existentes noutras pastas...", e as janelas das bibliotecas CUDA e do whisper.cpp. As opções automáticas da IA online ficam em "Transcrição e descrição automáticas...", na página dela.</p>
 <p>Os dados da conversa têm duas caixas: "Transcrever automaticamente, localmente com o Whisper, as mensagens de voz, áudios e vídeos recebidos nesta conversa" e "Transcrever automaticamente, com os fornecedores online, as mensagens de voz e áudios recebidos nesta conversa". Cada uma mostra o que a conversa faz agora, seguindo a opção geral até marcar ou desmarcar a caixa ali.</p>
 <p>Enter e Espaço, quando transcrevem, também transcrevem áudio e vídeo enviados como ficheiro.</p>
+<p>Mistral utiliza três modelos diferentes: o modelo para mensagens de voz para áudio, Ministral 3 3B por predefinição para fotografias, autocolantes e fotogramas de vídeo, e mistral-ocr-4 para extrair texto de PDFs. Escolha o modelo de áudio em "Modelo para mensagens de voz": Voxtral Mini Transcribe 3 (a predefinição) ou Voxtral Small Transcribe 3, mais preciso. Ambos estão em pré-visualização, pelo que a Mistral os pode alterar ou retirar. O campo Modelo e a obtenção de modelos selecionam apenas um modelo de visão; alterá-lo não muda a transcrição nem o OCR. OpenAI e Groq também utilizam modelos de áudio fixos, separados do modelo de visão escolhido; Groq não processa PDFs aqui. Gemini utiliza o modelo escolhido para todos os conteúdos compatíveis. A disponibilidade não garante utilização gratuita: consulte a quota incluída e os limites do fornecedor. O OCR da Mistral extrai texto, sem descrever as imagens dentro do PDF. No plano gratuito Experiment da Mistral, os pedidos podem ser utilizados para treinar os seus modelos, a menos que desative esta opção na sua conta Mistral; o WinZapp avisa disso antes de enviar conteúdos para a Mistral.</p>
 
   </section>
 
@@ -711,7 +712,7 @@
 <p>Enquanto uma chamada toca, Ctrl+Alt+Shift+Enter atende a partir de qualquer programa: a janela da chamada vem para a frente e recebe o foco. Uma chamada de vídeo é atendida com a câmara ligada, como pelo botão "Atender". Ctrl+Alt+Shift+Backspace recusa a chamada que está a tocar, incluindo uma chamada de grupo, e o leitor de ecrã diz "Chamada recusada."; sem nenhuma chamada a tocar, termina a chamada em curso. Com várias contas abertas, uma chamada a tocar em qualquer uma delas é recusada primeiro. As duas teclas podem ser alteradas ou removidas em Definições &gt; Atalhos de teclado e só pertencem ao WinZapp enquanto podem atuar; no resto do tempo, os outros programas ficam com elas.</p>
 
 <h3>Separador Chamadas (Alt+6)</h3>
-<p>Histórico de chamadas de todas as conversas, separado em Todas, Perdidas, Recusadas e Atendidas (Ctrl+Tab e Ctrl+Shift+Tab alternam; Alt+L vai à lista). Na lista, Enter abre a conversa da chamada, Ctrl+Shift+R retorna uma chamada perdida e F5 atualiza. Numa chamada perdida, na conversa, o botão "Devolver chamada" faz o mesmo.</p>
+<p>Histórico de chamadas de todas as conversas, separado em Todas, Perdidas, Recusadas, Atendidas e Em curso (Ctrl+Tab e Ctrl+Shift+Tab alternam; Alt+L vai à lista). Na lista, Enter abre a conversa da chamada, Ctrl+Shift+R retorna uma chamada perdida e F5 atualiza. Numa chamada perdida, na conversa, o botão "Devolver chamada" faz o mesmo.</p>
 
 <h3>Definições das chamadas</h3>
 <p>Em Definições &gt; Chamadas, "Definições de áudio da chamada" escolhe microfone e alto-falante, e "Definições de vídeo da chamada" escolhe a câmera. Ali ficam o cancelamento de eco (reduz o retorno do seu som quando usa alto-falante), a redução de ruído do microfone e o modo exclusivo para microfone e alto-falante.</p>
@@ -722,6 +723,8 @@
   Quando a versão do WhatsApp Web em uso não oferece suporte a chamadas, o WinZapp diz isso e o que tentar: reiniciar o WinZapp ou escolher Ajuda &gt; Forçar reinstalação da WPPConnect.
 </div>
 <p>Ao reinstalar a WPPConnect, o WinZapp preserva um catálogo mais recente e compatível do WhatsApp Web e procura um catálogo atualizado. Sem internet, um catálogo utilizável é mantido, mas não é possível confirmar se está atualizado. Se a chamada ainda não iniciar, restabeleça a internet e reinicie o WinZapp. Uma incompatibilidade confirmada do VoIP que não permite nova tentativa é comunicada sem repetir a inicialização.</p>
+<p>Enquanto a conversa de um grupo está aberta, o WinZapp verifica se há uma chamada em curso aproximadamente a cada dez segundos. O botão para entrar aparece apenas quando há uma chamada disponível e desaparece quando termina. Ao entrar numa chamada de vídeo, a câmara começa desligada. Entrar numa chamada existente não utiliza o limite de 32 membros para iniciar uma nova chamada de grupo. Quando há uma chamada disponível, o botão "Entrar na chamada de voz em curso" ou, numa chamada de vídeo, "Entrar na chamada de vídeo em curso (câmara desligada)" substitui os botões de iniciar chamadas de voz e vídeo. Em Chamadas (Alt+6), o filtro Em curso lista as chamadas em que pode entrar, incluindo chamadas entre várias pessoas fora dos grupos; também aparecem primeiro em Todas. Selecione uma chamada e prima Enter ou utilize o mesmo botão para entrar. Se já estiver nessa chamada, o botão chama-se "Voltar à chamada" e traz a janela da chamada atual para a frente. A lista é atualizada aproximadamente a cada dez segundos enquanto Chamadas está aberta e inclui apenas chamadas que o WhatsApp disponibiliza para a sua conta.</p>
+<p>Utilize o botão "Participantes da chamada" na janela da chamada ou numa chamada em curso selecionada em Chamadas para ver os nomes das pessoas ligadas. A lista é atualizada a cada dez segundos; "Atualizar" pede os dados atuais e "Fechar" ou Esc fecha a janela. Pessoas convidadas ou desligadas não aparecem. Consultar a lista não o faz entrar na chamada nem a termina.</p>
 
   </section>
 
@@ -1274,6 +1277,7 @@
 <p class="lead">Cada alpha nova que traz funcionalidades é acrescentada ao guia. Esta lista mostra até que alpha o guia está completo e o que foi acrescentado em cada rodada.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>O que entrou no guia</th></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Chamadas em curso: entrar numa chamada disponível a partir da conversa do grupo ou do filtro Em curso de Chamadas, e a lista de participantes ligados. Mistral para transcrição online, descrição de imagens e extração de texto de PDFs.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Presença de contactos (a escrever, online): muitas atualizações seguidas já não congelam o programa durante segundos nem deixam o computador lento.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizações de presença com menos alterações repetidas na interface e gravação em segundo plano de novos nomes de contactos.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizar o WinZapp ou a WPPConnect: a instalação e a compilação correm com prioridade mais baixa, para o computador e o leitor de ecrã não bloquearem a meio da atualização.</td></tr>

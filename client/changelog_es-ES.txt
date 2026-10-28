@@ -4,6 +4,12 @@ Esta versión trae las comunidades y una ventana de configuración reorganizada,
 
 NOVEDADES
 
+- Usa el botón Participantes de la llamada en la ventana de llamada o en una llamada en curso seleccionada en Llamadas para ver los nombres de las personas conectadas.
+
+- Mistral está disponible para transcripción en línea, descripción de imágenes y extracción de texto de PDF. El audio usa el modelo para mensajes de voz elegido en la ventana del proveedor (Voxtral Mini Transcribe 3 de forma predeterminada, o Voxtral Small Transcribe 3; ambos en versión preliminar); las fotos, stickers y fotogramas usan el modelo de visión elegido (Ministral 3 3B de forma predeterminada); los PDF usan Mistral OCR. La lista muestra modelos de visión compatibles. Antes de enviar medios a Mistral, WinZapp avisa de que su plan gratuito puede usar las solicitudes para entrenamiento.
+
+- En los chats de grupo, mientras hay una llamada disponible, "Unirse a la llamada de voz en curso" o "Unirse a la videollamada en curso (cámara apagada)" sustituye a los botones para iniciar llamadas. Llamadas muestra las llamadas en curso en Todas y En curso, incluidas las de varias personas fuera de grupos. Al unirse a una videollamada, la cámara comienza apagada.
+
 - Muchas actualizaciones de presencia de contactos seguidas (escribiendo, en línea) ya no congelan WinZapp durante segundos ni ralentizan todo el ordenador en cuentas con muchos chats.
 - Presencia de contactos: al aprender nuevos nombres, la interfaz ya no espera a que se escriban en la base de datos. Las actualizaciones pendientes conservan la última copia completa y respetan el orden al cerrar o borrar los datos locales.
 

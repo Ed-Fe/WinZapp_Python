@@ -1,0 +1,144 @@
+"""A native, refreshing participant list; late replies never repaint a closed dialog."""
+import logging
+import threading
+
+import wx
+
+from core.call_log import list_update_plan
+from core.call_participants import parse_participants, participant_rows
+
+
+class ParticipantListMixin:
+    def _refresh_participants(self, _event=None, *, announce=False):
+        if not self._alive:
+            return
+        if self._inflight is not None:
+            # A press during the timed refresh rides on it: its result is
+            # spoken, or the press would be answered by silence.
+            if announce or _event is not None:
+                self._announce_pending = True
+            return
+        if self._timer is not None:
+            self._timer.Stop()
+            self._timer = None
+        token = object()
+        # The in-flight guard above is what refuses a second request. Never
+        # disable the Refresh button: the timed refresh would take focus off
+        # it, and Windows hands focus to Close, so the next Space closes.
+        self._inflight = token
+        announce = announce or _event is not None
+        if not self._allowed():
+            self._finish_participants(token, None, True, announce)
+            return
+
+        def worker():
+            data, failed = None, False
+            try:
+                response = self._mw._raise_for_call_response(self._mw._post_call_control(
+                    "participants", {"callId": self._call_id}, timeout=20), "participants")
+                data = parse_participants(response.json(), self._call_id)
+            except Exception:
+                failed = True
+                logging.warning("[call] participant list unavailable")
+            wx.CallAfter(self._finish_participants, token, data, failed, announce)
+
+        threading.Thread(target=worker, daemon=True, name="call-participants").start()
+
+    def _finish_participants(self, token, data, failed, announce=False):
+        if not self._alive or self._inflight is not token or getattr(self._mw, "_shutting_down", False):
+            return
+        self._inflight = None
+        announce = announce or getattr(self, "_announce_pending", False)
+        self._announce_pending = False
+        if not self._allowed():
+            data, failed = None, True
+        rows = [] if data is None or failed else participant_rows(data, self._mw.i18n,
+            lambda jid, hint: self._mw.chat_display_name({"remoteJid": jid, "name": hint}))
+        self._apply_participant_rows(rows)
+        i18n = self._mw.i18n
+        if failed:
+            status = i18n.t("call_participants_failed")
+        elif data is None:
+            status = i18n.t("call_participants_ended")
+        elif not rows:
+            status = i18n.t("call_participants_empty")
+        else:
+            status = i18n.t("call_participants_count").format(count=len(rows))
+        if self._status.GetLabel() != status:
+            self._status.SetLabel(status)
+        if announce and (failed or not rows):
+            self._mw.output(status)
+        if data is not None or failed:
+            self._timer = wx.CallLater(10_000, self._refresh_participants)
+
+    def _apply_participant_rows(self, rows):
+        action, changes = list_update_plan(self._shown, rows)
+        if action == "none":
+            return
+        index = self._list.GetFocusedItem()
+        keep = self._shown[index][0] if 0 <= index < len(self._shown) else ""
+        self._shown = list(rows)
+        self._list.Freeze()
+        try:
+            if action == "set":
+                for index, text in changes:
+                    self._list.SetItemText(index, text)
+            else:
+                self._list.DeleteAllItems()
+                for _key, text in rows:
+                    self._list.Append((text,))
+                if rows:
+                    target = next((i for i, (key, _) in enumerate(rows) if key == keep), 0)
+                    self._list.Focus(target)
+                    self._list.Select(target)
+        finally:
+            self._list.Thaw()
+
+    def _dispose_participants(self):
+        self._alive = False
+        if self._timer is not None:
+            self._timer.Stop()
+            self._timer = None
+
+
+class CallParticipantsDialog(ParticipantListMixin, wx.Dialog):
+    def __init__(self, parent, main_window, call_id, name, allowed):
+        self._mw, self._call_id, self._allowed = main_window, call_id, allowed
+        self._alive, self._inflight, self._timer, self._shown = True, None, None, []
+        i18n = main_window.i18n
+        super().__init__(parent, title=i18n.t("call_participants_title").format(name=name),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(self)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        label = i18n.t("call_participants_list")
+        sizer.Add(wx.StaticText(panel, label=label), 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self._list = wx.ListCtrl(panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
+        self._list.InsertColumn(0, label, width=400)
+        sizer.Add(self._list, 1, wx.EXPAND | wx.ALL, 8)
+        self._status = wx.StaticText(panel, label=i18n.t("loading"))
+        sizer.Add(self._status, 0, wx.LEFT | wx.RIGHT, 8)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self._refresh_btn = wx.Button(panel, label=i18n.t("call_participants_refresh"))
+        self._refresh_btn.Bind(wx.EVT_BUTTON, self._refresh_participants)
+        buttons.Add(self._refresh_btn, 0, wx.ALL, 8)
+        close = wx.Button(panel, wx.ID_CANCEL, label=i18n.t("close"))
+        close.Bind(wx.EVT_BUTTON, self._close_participants)
+        buttons.Add(close, 0, wx.ALL, 8)
+        sizer.Add(buttons, 0, wx.ALIGN_CENTER)
+        panel.SetSizer(sizer)
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(outer)
+        self.SetMinSize((450, 330))
+        self.Fit()
+        self.CentreOnParent()
+        self.Bind(wx.EVT_CLOSE, self._close_participants)
+        self._list.SetFocus()
+        self._refresh_participants(announce=True)
+
+    def _close_participants(self, _event):
+        self._dispose_participants()
+        if self.IsModal():
+            self.EndModal(wx.ID_CANCEL)
+        else:
+            self.Destroy()
