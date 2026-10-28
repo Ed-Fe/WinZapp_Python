@@ -8,6 +8,7 @@ client to leave stops it.
 import atexit
 import logging
 import threading
+import time
 
 import wx
 
@@ -17,42 +18,75 @@ from core import connection_engine as engines
 #: Seconds between two attempts to start a bridge that went away.
 REVIVE_COOLDOWN = 30
 
+#: Attempts per run of the program, so a bridge that cannot start does not
+#: fill the log forever.
+REVIVE_MAX_ATTEMPTS = 5
+
+#: Seconds waited before the first start, so a previous run that is still
+#: leaving (and may still delete bridge.pid) is done first.
+REVIVE_SETTLE = 3
+
+_REVIVE_LOCK = threading.Lock()
+
 
 def should_revive_bridge(uses_neonize: bool, port_is_open: bool, reviving: bool,
-                         last_attempt, now: float, cooldown: float = REVIVE_COOLDOWN) -> bool:
+                         last_attempt, now: float, cooldown: float = REVIVE_COOLDOWN,
+                         leaving: bool = False, attempts: int = 0,
+                         max_attempts: int = REVIVE_MAX_ATTEMPTS) -> bool:
     """Whether the bridge, which the client counts on, is gone and a new one is
     due: only on the Neonize engine, with the port closed, nobody starting one
-    already, and the last attempt not too recent."""
-    if not uses_neonize or port_is_open or reviving:
+    already, this process not leaving, the attempts not used up and the last
+    one not too recent."""
+    if not uses_neonize or port_is_open or reviving or leaving or attempts >= max_attempts:
         return False
     return last_attempt is None or now - last_attempt >= cooldown
 
 
 class NeonizeBridgeMixin:
+    def _leaving(self) -> bool:
+        """This process is shutting down, or about to purge its account (the
+        bridge is deliberately kept up for that): nothing may start a bridge."""
+        return bool(getattr(self, "_shutting_down", False)
+                    or getattr(self, "_purge_account_on_exit", None))
+
     def _revive_neonize_bridge(self):
         """The local API stopped answering on the Neonize engine: if the bridge
         is gone (it can be killed by a previous run that was still leaving when
         this one accepted it, or crash), start it again, off the calling thread."""
-        import time
         from core.neonize_bridge_process import NeonizeBridge, port_open
 
         port = getattr(self, "wpp_port", 0)
         if not should_revive_bridge(self._uses_neonize(), port_open(port),
                                     getattr(self, "_neonize_reviving", False),
-                                    getattr(self, "_neonize_revive_at", None), time.monotonic()):
+                                    getattr(self, "_neonize_revive_at", None), time.monotonic(),
+                                    leaving=self._leaving(),
+                                    attempts=getattr(self, "_neonize_revive_attempts", 0)):
             return
         self._neonize_reviving = True
         self._neonize_revive_at = time.monotonic()
+        self._neonize_revive_attempts = getattr(self, "_neonize_revive_attempts", 0) + 1
+
+        def _still_due():
+            return self._uses_neonize() and not self._leaving() and not port_open(port)
 
         def _run():
             try:
-                bridge = getattr(self, "neonize_bridge", None) or NeonizeBridge(port=port)
-                if bridge.start():
-                    self.neonize_bridge = bridge
-                    self._use_neonize_bridge_secret()
-                    logging.info("MainWindow: the neonize bridge was gone and is running again")
-                else:
-                    logging.error("MainWindow: the neonize bridge is gone and could not be restarted")
+                time.sleep(REVIVE_SETTLE)
+                with _REVIVE_LOCK:
+                    if not _still_due():
+                        return
+                    bridge = getattr(self, "neonize_bridge", None) or NeonizeBridge(port=port)
+                    started = bridge.start()
+                    if started and not (self._uses_neonize() and not self._leaving()):
+                        # the program began leaving, or changed engine, during the start
+                        bridge.stop()
+                        return
+                    if started:
+                        self.neonize_bridge = bridge
+                        self._use_neonize_bridge_secret()
+                        logging.info("MainWindow: the neonize bridge was gone and is running again")
+                    else:
+                        logging.error("MainWindow: the neonize bridge is gone and could not be restarted")
             except Exception:
                 logging.exception("MainWindow: restarting the neonize bridge failed")
             finally:
