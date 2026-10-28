@@ -120,6 +120,8 @@ YENİLİKLER
 
 - Çalınmayan sesli mesajlar ve ses kayıtları: WinZapp ses çıkışını açtığı anda ses kartı kullanılamıyorsa (örneğin bilgisayar uykudan uyandığında), WinZapp yeniden başlatılana kadar hiçbir sesli mesaj çalınmıyor ve nedenini söyleyen bir şey olmuyordu. WinZapp artık bir oynatma başarısız olduğunda ses çıkışını geri yüklemeyi dener ve yine de çalamazsa bunu ekran okuyucuyla bildirir.
 
+- Neonize: kaybolmuş gibi görünen sohbetler. WhatsApp eski sohbetlerin çoğuna etkinlik tarihi vermiyor ve WinZapp bunları boş sohbet sanıp yerel veriler silindiğinde (örneğin yeniden eşitlemek için F5) saklamıyordu: 160'tan fazla sohbeti olan bir hesap 37 sohbetle geri geliyordu. Köprü artık her sohbeti en yeni iletisinin tarihiyle tarihliyor ve hepsi geri geliyor.
+
 - Neonize: bir grupta yazan kayıtlı bir kişi, kayıtsız kişiyi gösteren "~" olmadan rehberdeki adıyla görünür. Kanallar artık sohbet listesinde adsız sohbetler olarak görünmüyor. Numarası gizli bir grup üyesi artık "+55∙∙∙∙∙∙∙∙76" olarak değil, profil adıyla görünür.
 
 V2.1.0.0

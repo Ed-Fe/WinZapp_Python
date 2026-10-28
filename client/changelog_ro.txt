@@ -120,6 +120,8 @@ NOUTĂȚI
 
 - Mesaje vocale și audio care nu se redau: când placa de sunet nu era disponibilă în momentul în care WinZapp a deschis ieșirea audio (de exemplu la trezirea calculatorului), niciun mesaj vocal nu se reda până la repornirea WinZapp, iar nimic nu spunea motivul. Acum WinZapp încearcă să restabilească ieșirea audio când o redare eșuează și, dacă tot nu poate reda, anunță prin cititorul de ecran.
 
+- Neonize: conversații care păreau să dispară. WhatsApp nu dă data de activitate pentru majoritatea conversațiilor vechi, iar WinZapp le lua drept conversații goale și nu le păstra când datele locale erau șterse (F5 pentru resincronizare, de exemplu): un cont cu peste 160 de conversații revenea cu 37. Acum puntea datează fiecare conversație după cel mai recent mesaj și revin toate.
+
 - Neonize: un contact salvat care scrie într-un grup apare cu numele din agendă, fără "~" de contact nesalvat. Canalele nu mai apar în lista de conversații ca conversații fără nume. Un membru de grup cu numărul ascuns apare cu numele de profil, nu mai apare ca "+55∙∙∙∙∙∙∙∙76".
 
 V2.1.0.0

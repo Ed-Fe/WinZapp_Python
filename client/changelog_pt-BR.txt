@@ -120,6 +120,8 @@ NOVIDADES
 
 - Mensagens de voz e áudios que não tocavam: quando a placa de som não estava disponível no momento em que o WinZapp abriu a saída de áudio (por exemplo ao acordar o computador), nenhuma mensagem de voz tocava até reiniciar o WinZapp, e nada avisava o motivo. Agora o WinZapp tenta restaurar a saída de áudio quando uma reprodução falha e, se ainda assim não conseguir tocar, avisa pelo leitor de tela.
 
+- Neonize: conversas que pareciam sumir. O WhatsApp não informa a data de atividade da maioria das conversas antigas, e o WinZapp as tomava por conversas vazias e não as mantinha quando os dados locais eram apagados (o F5 para ressincronizar, por exemplo): uma conta com mais de 160 conversas voltava com 37. Agora a ponte data cada conversa pela mensagem mais recente, e todas voltam.
+
 - Neonize: um contato salvo que escreve num grupo aparece com o nome da agenda, sem o "~" de contato não salvo. Os canais não aparecem mais na lista de conversas como conversas sem nome. Um membro de grupo com o número oculto aparece pelo nome do perfil, e não mais como "+55∙∙∙∙∙∙∙∙76".
 
 V2.1.0.0
