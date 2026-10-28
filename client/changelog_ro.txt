@@ -120,6 +120,8 @@ NOUTĂȚI
 
 - Mesaje vocale și audio care nu se redau: când placa de sunet nu era disponibilă în momentul în care WinZapp a deschis ieșirea audio (de exemplu la trezirea calculatorului), niciun mesaj vocal nu se reda până la repornirea WinZapp, iar nimic nu spunea motivul. Acum WinZapp încearcă să restabilească ieșirea audio când o redare eșuează și, dacă tot nu poate reda, anunță prin cititorul de ecran.
 
+- Neonize: o comunitate și grupul ei de anunțuri arată numărul total de membri ai comunității, ca în WhatsApp, nu doar participanții grupului.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

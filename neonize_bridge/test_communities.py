@@ -151,6 +151,18 @@ def test_promotion_result_has_success_false_if_someone_was_refused():
     assert bad["success"] is False and bad["participants"][1] == {"id": "222@c.us", "code": 403}
 
 
+def test_the_community_and_its_announcement_group_count_the_whole_community():
+    assert communities.community_counted(group("1", parents=True)) == "1@g.us"
+    assert communities.community_counted(group("2", parent="1", default=True)) == "1@g.us"
+    assert communities.community_counted(group("3", parent="1")) == ""
+    assert communities.community_counted(group("4")) == ""
+
+
+def test_member_total_counts_each_person_once():
+    assert communities.member_total([jid("5511"), jid("5511"), jid("77", "lid"), jid("")]) == 2
+    assert communities.member_total([]) == 0
+
+
 def test_community_people_mark_who_is_admin():
     admins = [person("lid1", admin=True, lid="lid1", phone="5511"), person("9", super_admin=True)]
     rows = communities.community_people(

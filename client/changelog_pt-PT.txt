@@ -120,6 +120,8 @@ NOVIDADES
 
 - Mensagens de voz e áudios que não reproduziam: quando a placa de som não estava disponível no momento em que o WinZapp abriu a saída de áudio (por exemplo ao acordar o computador), nenhuma mensagem de voz era reproduzida até reiniciar o WinZapp, e nada avisava o motivo. Agora o WinZapp tenta restaurar a saída de áudio quando uma reprodução falha e, se mesmo assim não conseguir reproduzir, avisa através do leitor de ecrã.
 
+- Neonize: uma comunidade e o grupo de avisos dela mostram o total de membros da comunidade, como no WhatsApp, e não apenas os participantes do próprio grupo.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.

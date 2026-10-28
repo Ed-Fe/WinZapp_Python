@@ -49,6 +49,22 @@ def is_community(group) -> bool:
     return bool(group.GroupParent.IsParent)
 
 
+def community_counted(group) -> str:
+    """The community whose members a group's size counts, or '': the community
+    itself and its announcement group show every member of every group in it,
+    as WhatsApp does; their own participant lists are much shorter."""
+    if is_community(group):
+        return jid_text(group.JID)
+    if group.GroupIsDefaultSub.IsDefaultSubGroup:
+        return jid_text(group.GroupLinkedParent.LinkedParentJID)
+    return ""
+
+
+def member_total(members) -> int:
+    """How many people are among the JIDs of `get_linked_group_participants`."""
+    return len({jid_text(j) for j in members if getattr(j, "User", "")})
+
+
 def person_id(p) -> str:
     """The id with which the community shows a participant: the number, when
     known (like server.py's group-info), otherwise the JID or the LID."""
@@ -382,8 +398,7 @@ def register_routes(r, *, session, ok, jid_from_text):
             administrators = (await execute(s.client.get_group_info, parent)).Participants
         except Exception:
             administrators = []
-        return ok(status="success", response=community_people(
-            [p.Participant for p in requests], administrators))
+        return ok(status="success", response=community_people(list(requests), administrators))
 
     async def change_administrator(s, parent_id, people, action):
         """promote/demote in the parent group; returns neonize's GroupParticipant."""
