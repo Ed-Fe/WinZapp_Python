@@ -264,13 +264,13 @@ jobs:
             $hasLib      = ($entries | Where-Object { $_ -like "WinZapp/lib/bass.dll" }).Count -gt 0
             $hasBassOpus = ($entries | Where-Object { $_ -like "WinZapp/lib/bassopus.dll" }).Count -gt 0
             $hasExe      = ($entries | Where-Object { $_ -eq   "WinZapp/WinZapp.exe" }).Count -gt 0
-            # These three are what actually let WinZapp start the local
-            # WPPConnect Server at runtime — without them the app launches
-            # but every WhatsApp feature is dead. None of the checks above
-            # would have caught a broken/missing node/ or api/dist/server.js,
-            # so a build that silently failed to bundle them would still have
-            # passed this gate and shipped a release that can't connect.
-            $hasNodeExe  = ($entries | Where-Object { $_ -eq   "WinZapp/node/node.exe" }).Count -gt 0
+            # api/dist/server.js is what lets WinZapp start the local WPPConnect
+            # Server at runtime, and the checks above would not have caught it
+            # missing. node/ is deliberately NOT in the build: it carries the
+            # Neonize bridge, and Node.js is downloaded (checksum-verified) the
+            # first time WPPConnect is chosen. A node/ in the zip means the
+            # staging step bundled it again.
+            $noNodeExe   = ($entries | Where-Object { $_ -eq   "WinZapp/node/node.exe" }).Count -eq 0
             $hasServerJs = ($entries | Where-Object { $_ -eq   "WinZapp/api/dist/server.js" }).Count -gt 0
             $hasFfmpeg   = ($entries | Where-Object { $_ -eq   "WinZapp/lib/ffmpeg.exe" }).Count -gt 0
             # The frozen Neonize bridge and the neonize DLL inside it: a build that
@@ -289,13 +289,13 @@ jobs:
             Write-Host "sounds/*           : $hasSounds"
             Write-Host "lib/bass.dll       : $hasLib"
             Write-Host "lib/bassopus       : $hasBassOpus"
-            Write-Host "node/node.exe      : $hasNodeExe"
+            Write-Host "no node/node.exe   : $noNodeExe"
             Write-Host "api/dist/server.js : $hasServerJs"
             Write-Host "ffmpeg             : $hasFfmpeg"
             Write-Host "neonize_bridge.exe : $hasBridge"
             Write-Host "neonize DLL        : $hasNeonize"
             Write-Host "api_patches/       : $hasApiPatches"
-            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $hasNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasBridge -and $hasNeonize -and $hasApiPatches)) {
+            if (-not ($hasSounds -and $hasLib -and $hasBassOpus -and $hasExe -and $noNodeExe -and $hasServerJs -and $hasFfmpeg -and $hasBridge -and $hasNeonize -and $hasApiPatches)) {
               Write-Error "dist/WinZapp.zip is missing required entries — build failed."
               exit 1
             }

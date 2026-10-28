@@ -71,6 +71,7 @@
     "762ab3e93a97": "Neonize: um contato salvo que escreve num grupo aparece com o nome da agenda, se",
     "0f4c4616e877": "Canais na lista de conversas: uma nova opção, \"Mostrar canais na lista de conver",
     "76992ff7ddb2": "Alternância entre WPPConnect e Neonize: os dois motores usam a porta 6300, e o p",
-    "55fbd2486c85": "A janela de pareamento agora tem uma lista \"Motor de conexão\" antes do país, par"
+    "55fbd2486c85": "A janela de pareamento agora tem uma lista \"Motor de conexão\" antes do país, par",
+    "0773bf0602c1": "O programa não vem mais com o Node.js, já que a Neonize não precisa dele. Se voc"
   }
 }

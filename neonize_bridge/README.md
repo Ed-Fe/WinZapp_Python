@@ -13,7 +13,7 @@ Settings, Connection (or in the question asked on the first launch).
 
 A compiled WinZapp (the installer and the portable zip) already carries the
 bridge, frozen as `neonize_bridge/neonize_bridge.exe` inside the install, next
-to WPPConnect (`node/` and `api/`): both engines are installed together and the
+to WPPConnect's code (`api/`; Node.js is downloaded when WPPConnect is chosen) and the
 user picks one in Settings, Connection. The bridge keeps its sessions and
 messages in `data/global/neonize_bridge/data/` of the install, which updates do
 not replace, so each engine keeps its own connection when you switch back and

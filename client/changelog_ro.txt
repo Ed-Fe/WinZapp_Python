@@ -139,6 +139,8 @@ NOUTĂȚI
 
 - Fereastra de asociere are acum o listă „Motor de conectare” înainte de țară, ca cine nu a asociat încă contul să poată alege între WPPConnect și Neonize fără să ajungă în Setări. După alegere, WinZapp cere confirmarea și repornește cu motorul ales.
 
+- Programul nu mai vine cu Node.js, deoarece Neonize nu îl folosește. Dacă alegeți WPPConnect (la prima pornire, în fereastra de asociere sau în Setări), WinZapp descarcă un Node.js cu sumă de control verificată și pregătește WPPConnect înainte de conectare. Descărcarea este mai mică.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

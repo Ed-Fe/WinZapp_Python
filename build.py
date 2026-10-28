@@ -915,9 +915,18 @@ def pyinstaller_compile():
 
 # -- Step 2b: Freeze the Neonize bridge (onedir only) ------------------------
 
+def stages_node(bridge_staged: bool) -> bool:
+    """Whether the onedir build carries the portable Node.js runtime. A build
+    with the Neonize bridge does not: Node is only for WPPConnect, which
+    downloads it (checksum-verified, ui/dialogs/node_download.py) the first time
+    it is chosen. Without a bridge WPPConnect is the only engine, so Node stays
+    in the build."""
+    return not bridge_staged
+
+
 def freeze_neonize_bridge():
-    """Both engines ship in a compiled build: WPPConnect (node/ + api/) and the
-    Neonize bridge, frozen with the PyInstaller this build uses."""
+    """The Neonize bridge, frozen with the PyInstaller this build uses, ships
+    beside the WPPConnect API (api/); Node.js is not bundled (stages_node())."""
     if args.skip_bridge:
         print("\n  [WARN] --skip-bridge: this build has no Neonize engine.")
         shutil.rmtree(BRIDGE_OUTDIR, ignore_errors=True)    # no stale bridge from an earlier build
@@ -1036,11 +1045,15 @@ def assemble_staging():
         shutil.copy2(src, os.path.join(STAGING_DIR, os.path.basename(src)))
     print(f"  -> changelog_*.txt  ({len(changelog_files)} files)")
 
-    node_dst = os.path.join(STAGING_DIR, "node")
-    shutil.copytree(NODE_DIR, node_dst,
-                    ignore=shutil.ignore_patterns("corepack"))
-    node_count = sum(1 for _, _, fs in os.walk(node_dst) for _ in fs)
-    print(f"  -> node/  ({node_count} files)")
+    frozen_bridge = os.path.join(BRIDGE_OUTDIR, "dist", "neonize_bridge")
+    if stages_node(os.path.isdir(frozen_bridge)):
+        node_dst = os.path.join(STAGING_DIR, "node")
+        shutil.copytree(NODE_DIR, node_dst,
+                        ignore=shutil.ignore_patterns("corepack"))
+        node_count = sum(1 for _, _, fs in os.walk(node_dst) for _ in fs)
+        print(f"  -> node/  ({node_count} files)")
+    else:
+        print("  -> node/  (not bundled: downloaded when WPPConnect is chosen)")
 
     git_src = os.path.join(CLIENT_DIR, "git")
     if os.path.isdir(git_src):
@@ -1049,7 +1062,6 @@ def assemble_staging():
         git_count = sum(1 for _, _, fs in os.walk(git_dst) for _ in fs)
         print(f"  -> git/   ({git_count} files)")
 
-    frozen_bridge = os.path.join(BRIDGE_OUTDIR, "dist", "neonize_bridge")
     if os.path.isdir(frozen_bridge):
         from winzapp_tools import bridge_build
 

@@ -139,6 +139,8 @@ NOVIDADES
 
 - A janela de emparelhamento passa a ter uma lista "Motor de ligação" antes do país, para quem ainda não emparelhou poder escolher entre WPPConnect e Neonize sem chegar às Definições. Ao escolher, o WinZapp pede confirmação e reinicia com o motor escolhido.
 
+- O programa já não inclui o Node.js, pois a Neonize não precisa dele. Se escolher a WPPConnect (no primeiro arranque, na janela de emparelhamento ou nas Definições), o WinZapp descarrega um Node.js com checksum verificado e prepara a WPPConnect antes de ligar. A transferência ficou mais pequena.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.

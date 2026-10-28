@@ -10,8 +10,9 @@ The neonize the bridge runs is built from source with WinZapp's patches:
 ## Both engines ship in a compiled build
 
 `build.py` freezes `neonize_bridge/` into `neonize_bridge/neonize_bridge.exe`
-(`winzapp_tools/bridge_build.py`) and stages it next to `node/` and `api/`, so a
-compiled install has WPPConnect and Neonize together. `neonize_bridge_process`
+(`winzapp_tools/bridge_build.py`) and stages it next to `api/`, so a compiled
+install has WPPConnect's code and Neonize together. Node.js is not bundled
+(`stages_node()` in `build.py`): choosing WPPConnect downloads it. `neonize_bridge_process`
 starts the packaged exe, and keeps its data and run files in
 `data/global/neonize_bridge/` (not in the install folder, which an update
 replaces); an older install that kept them in a sibling `neonize_bridge/data`
