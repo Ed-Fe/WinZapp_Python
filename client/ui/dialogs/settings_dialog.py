@@ -4,6 +4,7 @@ import sys
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 from core import connection_engine as engines
+from core.listed_chats import channels_listed
 from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
 from ui.dialogs import engine_picker
 from core.i18n import LANGUAGE_NAMES
@@ -1695,6 +1696,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         chats_sizer.Add(self._keep_pinned_order_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
 
+        self._show_channels_cb = wx.CheckBox(
+            self._chats_page, label=i18n.t("ui_show_channels_in_chat_list")
+        )
+        chats_sizer.Add(self._show_channels_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+
         # What happens to what was typed and not sent when the conversation is
         # left (core/message_drafts.py MODES, in this order).
         self._message_draft_radio = wx.RadioBox(
@@ -2508,6 +2514,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                 "mark_unsaved_contacts", True
             )
         ))
+        self._show_channels_cb.SetValue(
+            self.main_window.settings.get("user_interface", {}).get(
+                "show_channels_in_chat_list", False
+            ) is True
+        )
 
         accessibility = self.main_window.settings.get("accessibility", {})
         self._extended_sr_compat_check.SetValue(accessibility.get("extended_sr_compat_enabled", True))
@@ -3898,6 +3909,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         unsaved_mark_changed = (
             bool(old_ui_settings.get("mark_unsaved_contacts", True))
         ) != self._mark_unsaved_contacts_cb.GetValue()
+        channels_changed = channels_listed(self.main_window.settings) != self._show_channels_cb.GetValue()
         self_reference_changed = (
             old_ui_settings.get("self_reference_mode", "eu") != self_reference_mode
             or old_ui_settings.get("self_reference_custom_word", "") != self_reference_custom_word
@@ -3919,6 +3931,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("user_interface", {})[
             "mark_unsaved_contacts"
         ] = self._mark_unsaved_contacts_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "show_channels_in_chat_list"
+        ] = self._show_channels_cb.GetValue()
 
         # Accessibility
         self.main_window.settings.setdefault("accessibility", {})[
@@ -4185,12 +4200,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # word for chats whose last message is our own), so a self-reference
         # change (e.g. "Eu" -> "Você") takes effect immediately instead of
         # only on the next restart.
-        if unsaved_mark_changed and not (self_reference_changed or vm_mode_changed):
+        if (unsaved_mark_changed or channels_changed) and not (self_reference_changed or vm_mode_changed):
             if cp is not None and getattr(cp, "conversation", None) is not None:
                 cp.populate_messages(preserve_focus=True)
             self.main_window._chats_ui_fp = None
             self.main_window.add_chats_to_ui()
-        if sender_numbers_changed and not (self_reference_changed or vm_mode_changed or unsaved_mark_changed):
+        if sender_numbers_changed and not (self_reference_changed or vm_mode_changed or unsaved_mark_changed or channels_changed):
             if cp is not None and getattr(cp, "conversation", None) is not None:
                 cp.populate_messages(preserve_focus=True)
         if self_reference_changed or vm_mode_changed:
@@ -4442,6 +4457,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._hide_unnamed_sender_numbers_cb.SetHelpText(i18n.t("ui_hide_unnamed_sender_numbers_help"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._keep_pinned_order_cb.SetLabel(i18n.t("ui_keep_pinned_chat_order"))
+        self._show_channels_cb.SetLabel(i18n.t("ui_show_channels_in_chat_list"))
         self._message_draft_radio.SetLabel(i18n.t("ui_message_draft_label"))
         for _i, _key in enumerate(("ui_message_draft_keep_in_field",
                                    "ui_message_draft_per_conversation",

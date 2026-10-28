@@ -70,6 +70,14 @@ def test_participant_with_only_a_lid_uses_the_lid_and_the_owner_counts_as_admin(
     assert "name" not in row
 
 
+def test_a_hidden_number_is_not_the_member_name():
+    row = g.participant_to_wpp(person(phone="5511", lid="333", name="+55∙∙∙∙∙∙∙∙76"))
+    assert "name" not in row
+    assert g.is_masked_number("+1 ∙∙∙ ∙∙∙-∙∙33")
+    for name in ("Ana", "Ana • Silva", "+55 11 99999-0000", "", None):
+        assert not g.is_masked_number(name)
+
+
 def test_members_ids_and_administrators():
     info = group([person(phone="1", admin=True), person(phone="2"), person(phone="3", owner=True)])
     assert [m["id"]["user"] for m in g.members_to_wpp(info)] == ["1", "2", "3"]

@@ -79,6 +79,7 @@
         "mark_unsaved_contacts": true,
         "show_delivery_status_in_chat_list": true,
         "keep_pinned_chat_order": false,
+        "show_channels_in_chat_list": false,
         "message_draft_mode": "per_conversation",
         "preserve_typed_text_as_attachment_caption": true,
         "bulk_action_shortcuts": true,

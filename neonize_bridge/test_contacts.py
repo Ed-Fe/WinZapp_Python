@@ -262,6 +262,43 @@ def test_address_book_record_only_syncs_whoever_has_a_name_and_finds_the_own_acc
     assert without_name["syncToAddressbook"] is False and without_name["isMe"] is True
 
 
+def test_address_book_records_give_an_lid_the_name_saved_under_its_number():
+    rows = [{"jid": "5511999990000@s.whatsapp.net", "name": "Paulo", "pushname": "P"},
+            {"jid": "77@lid", "name": "", "pushname": "P"},
+            {"jid": "88@lid", "name": "", "pushname": "Stranger"}]
+    phones = {"77@lid": "5511999990000@s.whatsapp.net"}
+    wpp_id = lambda jid: {"_serialized": jid}
+    records = contacts.address_book_records(rows, wpp_id, set(), lambda lid: phones.get(lid, ""),
+                                            lambda phone: "77@lid")
+    by_id = {r["id"]["_serialized"]: r for r in records}
+    assert len(records) == 3
+    assert by_id["77@lid"]["name"] == "Paulo" and by_id["77@lid"]["isMyContact"] is True
+    assert by_id["77@lid"]["pushname"] == "P"
+    assert by_id["88@lid"]["isMyContact"] is False and by_id["88@lid"]["name"] is None
+    assert by_id["5511999990000@s.whatsapp.net"]["name"] == "Paulo"
+
+
+def test_address_book_records_ask_the_number_only_for_an_unnamed_lid():
+    asked = []
+    rows = [{"jid": "1@lid", "name": "Ana", "pushname": ""},
+            {"jid": "5511@s.whatsapp.net", "name": "", "pushname": "x"}]
+    contacts.address_book_records(rows, lambda j: {"_serialized": j}, set(),
+                                  lambda lid: asked.append(lid) or "",
+                                  lambda phone: asked.append(phone) or "")
+    assert asked == []
+
+
+def test_address_book_records_add_the_lid_of_a_saved_number_that_has_no_row():
+    rows = [{"jid": "5511999990000@s.whatsapp.net", "name": "Vinicius", "pushname": ""},
+            {"jid": "5522@s.whatsapp.net", "name": "Bia", "pushname": ""}]
+    lids = {"5511999990000@s.whatsapp.net": "94@lid"}
+    records = contacts.address_book_records(rows, lambda j: {"_serialized": j}, set(),
+                                            lambda lid: "", lambda phone: lids.get(phone, ""))
+    added = [r for r in records if r["id"]["_serialized"] == "94@lid"]
+    assert len(records) == 3 and len(added) == 1
+    assert added[0]["name"] == "Vinicius" and added[0]["isMyContact"] is True
+
+
 def test_subscription_target_accepts_a_person_and_a_group_and_nothing_else():
     assert contacts.subscription_target("5511999990000@c.us") == "5511999990000@s.whatsapp.net"
     assert contacts.subscription_target("123456789012@lid") == "123456789012@lid"

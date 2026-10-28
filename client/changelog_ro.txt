@@ -124,6 +124,10 @@ NOUTĂȚI
 
 - Neonize: o comunitate și grupul ei de anunțuri arată numărul total de membri ai comunității, ca în WhatsApp, nu doar participanții grupului.
 
+- Neonize: un contact salvat care scrie într-un grup apare cu numele din agendă, fără "~" de contact nesalvat. Canalele nu mai apar în lista de conversații ca conversații fără nume. Un membru de grup cu numărul ascuns apare cu numele de profil, nu mai apare ca "+55∙∙∙∙∙∙∙∙76".
+
+- Canale în lista de conversații: o opțiune nouă, "Afișează canalele în lista de conversații", în Setări, Interfață, Conversații, dezactivată implicit, ține canalele în afara listei de conversații. Bifeaz-o ca să le vezi din nou acolo.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.

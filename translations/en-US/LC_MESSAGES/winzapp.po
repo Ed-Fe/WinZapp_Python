@@ -15548,6 +15548,12 @@ msgstr "&You"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_show_channels_in_chat_list"
+msgid "Show &channels in the chat list"
+msgstr "Show &channels in the chat list"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_delivery_status_in_chat_list"
 msgid "&Show last message's delivery status in the chat list"
 msgstr "&Show last message's delivery status in the chat list"

@@ -1365,6 +1365,14 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         except Exception:
             return ""
 
+    def _lid_of_phone(self, phone):
+        """'5511@s.whatsapp.net' -> the LID's JID text, or '' when whatsmeow does not know it."""
+        from neonize.utils import build_jid
+        try:
+            return jid_text(self.client.get_lid_from_pn(build_jid(phone.split("@")[0], "s.whatsapp.net")))
+        except Exception:
+            return ""
+
     def _load_names(self):
         self.reload_names()
         try:
@@ -1823,8 +1831,10 @@ def create_app(folder, fixed=""):
     async def all_contacts(req):
         s = session(req)
         mine = {msgmap.jid_wpp(j) for j in (s.me, s.lid) if j}
-        return ok(status="success", response=[
-            contacts.address_book_record(c, wpp_id(c["jid"]), mine) for c in s.db.contacts()])
+        # the number behind an LID comes from neonize's store: off the event loop
+        return ok(status="success", response=await in_thread(
+            contacts.address_book_records, s.db.contacts(), wpp_id, mine,
+            s._phone_of_lid, s._lid_of_phone))
 
     async def get_messages(req):
         s = session(req)

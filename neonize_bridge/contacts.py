@@ -179,6 +179,31 @@ def address_book_record(contact: dict, wpp_id: dict, my_jids) -> dict:
             "isMe": wpp_id["_serialized"] in my_jids}
 
 
+def address_book_records(contact_rows, wpp_id, my_jids, phone_of, lid_of) -> list:
+    """The rows of `all-contacts`. A saved person who writes in a group under
+    their LID read as not saved: the LID's own row has no address-book name, or
+    there is no row at all. The name comes from the number's row (`phone_of(lid)`),
+    and a saved number with no LID row gets one (`lid_of(phone)`); both give ''
+    when whatsmeow does not know the other id."""
+    rows = {c["jid"]: c for c in contact_rows}
+    records = []
+    for c in contact_rows:
+        if c["jid"].endswith("@lid") and not c["name"]:
+            name, _ = book_identity(rows, c["jid"], phone_of(c["jid"]))
+            if name:
+                c = {**c, "name": name}
+        records.append(address_book_record(c, wpp_id(c["jid"]), my_jids))
+    for c in contact_rows:
+        if not (c["jid"].endswith("@s.whatsapp.net") and c["name"]):
+            continue
+        lid = lid_of(c["jid"])
+        if lid.endswith("@lid") and lid not in rows:
+            rows[lid] = c
+            records.append(address_book_record(
+                {"name": c["name"], "pushname": c["pushname"]}, wpp_id(lid), my_jids))
+    return records
+
+
 def found_in_query(responses):
     """neonize IsOnWhatsAppResponse -> {'jid': 'x@s.whatsapp.net', 'business': bool}
     for the first number WhatsApp knows, or None if none."""

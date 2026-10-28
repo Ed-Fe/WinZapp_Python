@@ -79,6 +79,19 @@ def participant_jid(p) -> str:
             or jid_text_of(p.LID))
 
 
+_MASK = "∙•·*"
+
+
+def is_masked_number(text) -> bool:
+    """'+55∙∙∙∙∙∙∙∙76': what WhatsApp gives as the DisplayName of a member whose
+    number is hidden. It is not a name, and the client would file it as one."""
+    text = str(text or "")
+    if not any(m in text for m in _MASK):
+        return False
+    rest = "".join(ch for ch in text if ch not in _MASK + "+-() ")
+    return rest.isdigit()
+
+
 def participant_to_wpp(p) -> dict:
     """GroupParticipant -> a row of group-members."""
     row = {"id": wid_of(participant_jid(p)),
@@ -87,7 +100,7 @@ def participant_to_wpp(p) -> dict:
     lid = jid_text_of(p.LID)
     if lid:
         row["lid"] = wid_of(lid)
-    if p.DisplayName:
+    if p.DisplayName and not is_masked_number(p.DisplayName):
         row["name"] = p.DisplayName
     return row
 
