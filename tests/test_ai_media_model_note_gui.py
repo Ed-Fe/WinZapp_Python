@@ -43,7 +43,24 @@ def test_the_note_is_a_read_only_field_tab_reaches_before_the_model_checkbox(con
         assert note.GetValue() == frame.i18n.t(ai_config.PROVIDERS["mistral"].model_note)
         assert note.GetWindowStyleFlag() & wx.TE_READONLY
         assert note.AcceptsFocusFromKeyboard()
-        assert note.GetNextSibling() is window.automatic
+        # Then the voice-message model (caption, list), then the model checkbox.
+        caption = note.GetNextSibling()
+        assert isinstance(caption, wx.StaticText) and caption.GetNextSibling() is window.voice_model
+        assert window.voice_model.GetNextSibling() is window.automatic
+    finally:
+        window.Destroy()
+
+
+def test_the_voice_model_list_opens_on_the_default_and_returns_the_chosen_id(context):
+    frame, path = context
+    window = provider_window(frame, path, "mistral")
+    try:
+        choices = ai_config.PROVIDERS["mistral"].transcribe_choices
+        assert isinstance(window.voice_model, wx.Choice)
+        assert window.voice_model.GetCount() == len(choices)
+        assert window.values()["transcribe_model"] == ai_config.PROVIDERS["mistral"].transcribe_model
+        window.voice_model.SetSelection(1)
+        assert window.values()["transcribe_model"] == choices[1].id
     finally:
         window.Destroy()
 
@@ -52,6 +69,7 @@ def test_a_provider_without_a_note_gets_no_field(context):
     frame, path = context
     window = provider_window(frame, path, "openai")
     try:
-        assert window.model_note is None
+        assert window.model_note is None and window.voice_model is None
+        assert "transcribe_model" not in window.values()
     finally:
         window.Destroy()

@@ -6,9 +6,9 @@ NOWOŚCI
 
 - Użyj przycisku Uczestnicy połączenia w oknie połączenia lub przy zaznaczonym trwającym połączeniu w sekcji Połączenia, aby zobaczyć nazwy połączonych osób.
 
-- Mistral obsługuje transkrypcję online, opisywanie obrazów i odczytywanie tekstu z PDF. Dźwięk używa Voxtral Mini Transcribe 3, zdjęcia, naklejki i klatki wideo wybranego modelu wizyjnego (domyślnie Ministral 3 3B), a PDF modelu Mistral OCR. Lista modeli zawiera zgodne modele wizyjne.
+- Mistral obsługuje transkrypcję online, opisywanie obrazów i odczytywanie tekstu z PDF. Dźwięk używa modelu dla wiadomości głosowych wybranego w oknie dostawcy (domyślnie Voxtral Mini Transcribe 3, do wyboru także Voxtral Small Transcribe 3; oba w wersji zapoznawczej), zdjęcia, naklejki i klatki wideo wybranego modelu wizyjnego (domyślnie Ministral 3 3B), a PDF modelu Mistral OCR. Lista modeli zawiera zgodne modele wizyjne. Przed wysłaniem multimediów do Mistrala WinZapp ostrzega, że bezpłatny plan może wykorzystywać żądania do trenowania.
 
-- W czatach grupowych, gdy połączenie jest dostępne, przyciski rozpoczynania połączeń zastępuje przycisk "Dołącz do trwającego połączenia głosowego" lub "Dołącz do trwającego połączenia wideo (kamera wyłączona)". Sekcja Połączenia pokazuje trwające połączenia w filtrach Wszystkie i Trwające, także między wieloma osobami poza grupami. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą.
+- W czatach grupowych, gdy połączenie jest dostępne, przyciski rozpoczynania połączeń zastępuje przycisk „Dołącz do trwającego połączenia głosowego” lub „Dołącz do trwającego połączenia wideo (kamera wyłączona)”. Sekcja Połączenia pokazuje trwające połączenia w filtrach Wszystkie i Trwające, także między wieloma osobami poza grupami. Dołączenie do połączenia wideo rozpoczyna się z wyłączoną kamerą.
 
 - Wiele kolejnych aktualizacji obecności kontaktów (pisanie, online) nie zawiesza już WinZapp na kilka sekund ani nie spowalnia całego komputera na kontach z wieloma czatami.
 - Nazwy kontaktów są zapisywane w tle, bez blokowania interfejsu. Oczekujące zapisy uwzględniają najnowszy kompletny zestaw nazw, z zachowaniem właściwej kolejności także podczas zamykania programu i czyszczenia danych lokalnych.

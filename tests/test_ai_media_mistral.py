@@ -17,14 +17,74 @@ def request(media, model="mistral-small-latest", history=()):
                                    history, "Describe this", "Accessible description", "balanced")
 
 
-@pytest.mark.parametrize("model", ["mistral-small-latest", "ministral-3b-latest"])
-def test_audio_always_uses_voxtral_independently_of_the_vision_model(model):
+@pytest.mark.parametrize("model", ["mistral-small-latest", "ministral-3b-latest", "voxtral-mini-2602"])
+def test_audio_never_goes_to_the_vision_model(model):
+    """The provider window's model is for pictures: a vision id reaching the
+    audio path (or a voice id off the reviewed list) falls back to the default
+    voice-message model."""
     result = request(AUDIO, model)
     assert result.url == "https://api.mistral.ai/v1/audio/transcriptions"
     assert result.headers == {"Authorization": "Bearer synthetic-key"}
     assert result.data == {"model": "voxtral-mini-transcribe-3"}
     assert result.files == {"file": ("audio.ogg", AUDIO.data, "audio/ogg")}
     assert result.json is None
+
+
+@pytest.mark.parametrize("model", ["voxtral-mini-transcribe-3", "voxtral-small-transcribe-3"])
+def test_audio_uses_the_chosen_voice_message_model(model):
+    assert request(AUDIO, model).data == {"model": model}
+
+
+def test_an_unsafe_model_id_never_reaches_the_audio_path():
+    with pytest.raises(DescriptionError, match="ai_error_request"):
+        request(AUDIO, "../voxtral")
+
+
+def test_the_voice_models_are_the_file_transcription_ones_with_the_live_tested_default():
+    """Mistral's file-transcription guide accepts exactly these two; both are
+    Public Preview, which the list says. Mini was the one tested live."""
+    spec = config.PROVIDERS["mistral"]
+    assert [c.id for c in spec.transcribe_choices] == ["voxtral-mini-transcribe-3",
+                                                       "voxtral-small-transcribe-3"]
+    assert spec.transcribe_model == "voxtral-mini-transcribe-3"
+    assert all(c.preview for c in spec.transcribe_choices)
+    assert all(config.valid_model(c.id) and c.name for c in spec.transcribe_choices)
+    # Only Mistral offers a choice; the others keep their one fixed model.
+    assert [p for p, s in config.PROVIDERS.items() if s.transcribe_choices] == ["mistral"]
+
+
+@pytest.mark.parametrize("saved, expected", [
+    (None, "voxtral-mini-transcribe-3"),
+    ({"mistral": "voxtral-small-transcribe-3"}, "voxtral-small-transcribe-3"),
+    ({"mistral": "voxtral-mini-transcribe-realtime-3"}, "voxtral-mini-transcribe-3"),  # a stream
+    ({"mistral": "voxtral-mini-2602"}, "voxtral-mini-transcribe-3"),  # "Invalid model" for files
+    ({"mistral": "ministral-3b-latest"}, "voxtral-mini-transcribe-3"),
+    ({"mistral": 3}, "voxtral-mini-transcribe-3"),
+    ("not a dict", "voxtral-mini-transcribe-3"),
+])
+def test_a_saved_voice_model_is_kept_only_when_it_is_on_the_reviewed_list(saved, expected):
+    prefs = config.preferences({"ai_media": {"transcribe_models": saved}})
+    assert prefs["transcribe_models"] == {"mistral": expected}
+
+
+def test_only_audio_is_sent_to_the_voice_model():
+    prefs = config.preferences({"ai_media": {
+        "models": {"mistral": "mistral-small-latest"},
+        "transcribe_models": {"mistral": "voxtral-small-transcribe-3"}}})
+    audio = config.models_for(prefs, "audio")
+    assert audio["mistral"] == "voxtral-small-transcribe-3"
+    assert audio["openai"] == prefs["models"]["openai"]  # resolved to its fixed model later
+    for kind in ("image", "sticker", "video", "pdf"):
+        assert config.models_for(prefs, kind)["mistral"] == "mistral-small-latest"
+    # A configuration without the field (an older caller) still routes audio.
+    assert config.models_for({"models": {"mistral": "x"}}, "audio") == {"mistral": "x"}
+
+
+def test_other_providers_keep_their_fixed_transcription_model():
+    for provider, model in (("openai", "gpt-4o-mini-transcribe"), ("groq", "whisper-large-v3-turbo")):
+        result = providers.build_request(provider, "voxtral-mini-transcribe-3", "k", AUDIO, (),
+                                         "", "", "balanced")
+        assert result.data["model"] == model
 
 
 def test_images_and_stickers_use_selected_vision_model_and_history():

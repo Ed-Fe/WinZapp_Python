@@ -811,6 +811,7 @@ class PageStub:
         self._disabled = set()
         self._models = dict(config["models"])
         self._auto = set(config["auto_models"])
+        self._voice_models = dict(config["transcribe_models"])
         self._drafts = {}
         self._deleted = set()
         self._reset = False
@@ -1111,6 +1112,7 @@ class ProviderWindowStub:
         self.automatic = Control(False)
         self.model_choice = Control(selection=-1)
         self.get_models = Control()
+        self.voice_model = None
         self.enabled = Control(True)
         self.status = Control()
         self._reveal = lambda shown: None
@@ -1417,6 +1419,9 @@ def test_consent_text_names_providers_and_warns_about_metadata_only_where_it_is_
     text = consent_text(i18n, ["gemini", "groq"], "image", True)
     assert "Google Gemini, Groq" in text and "ai_gemini_notice" in text and "ai_locked_consent" in text
     assert "ai_gemini_notice" not in consent_text(i18n, ["groq"], "image", False)
+    # Mistral's free plan may train on what it receives: said whenever it may get the media.
+    assert "ai_mistral_notice" in consent_text(i18n, ["groq", "mistral"], "audio", False)
+    assert "ai_mistral_notice" not in consent_text(i18n, ["gemini", "groq"], "audio", False)
 
 
 def test_the_describe_button_follows_the_menu_rule(ready):
@@ -1588,6 +1593,74 @@ def test_configure_prefills_the_saved_key_and_stages_only_a_changed_one(tmp_path
     assert page._drafts == {provider: "replacement"}
     page._configure(None)
     assert seen[-1] == "replacement"  # a staged key comes back as typed
+
+
+def test_the_voice_model_list_marks_preview_models():
+    from ui.dialogs.ai_settings_page import voice_model_labels
+    labels = voice_model_labels(lambda key: "{name} (preview)" if key == "ai_model_preview" else key,
+                                "mistral")
+    assert labels == ["Voxtral Mini Transcribe 3 (preview)", "Voxtral Small Transcribe 3 (preview)"]
+    assert voice_model_labels(lambda key: key, "openai") == []
+
+
+def test_the_voice_model_chosen_in_the_provider_window_is_saved(tmp_path, monkeypatch):
+    import ui.dialogs.ai_settings_page as module
+    page = PageStub(tmp_path)
+    page._order = ["mistral"] + [p for p in page._order if p != "mistral"]
+    page.providers.selection = 0
+    seen = []
+
+    class WindowStub:
+        def __init__(self, parent, main_window, name, state, store, reset):
+            seen.append(state["transcribe_model"])
+        def ShowModal(self):
+            return wx.ID_OK
+        def values(self):
+            return {"key": "", "deleted": False, "model": "", "enabled": True,
+                    "transcribe_model": "voxtral-small-transcribe-3"}
+        def Destroy(self):
+            pass
+
+    monkeypatch.setattr(module, "AIProviderDialog", WindowStub)
+    page._configure(None)
+    assert seen == ["voxtral-mini-transcribe-3"]  # the window opens on the current choice
+    assert page.apply()
+    assert page.app.get("ai_media")["transcribe_models"] == {"mistral": "voxtral-small-transcribe-3"}
+    prefs = ai_config.preferences(page.app)
+    assert ai_config.models_for(prefs, "audio")["mistral"] == "voxtral-small-transcribe-3"
+
+
+def test_the_default_voice_model_is_not_saved_so_it_can_move_later(tmp_path):
+    """Like an automatic vision model: pressing OK must not pin the default."""
+    page = PageStub(tmp_path)
+    assert page.apply()
+    assert page.app.get("ai_media")["transcribe_models"] == {}
+    page._voice_models["mistral"] = "voxtral-small-transcribe-3"
+    assert page.apply()
+    page._voice_models["mistral"] = ai_config.PROVIDERS["mistral"].transcribe_model
+    assert page.apply()  # chosen back: the default again, not a pin
+    assert page.app.get("ai_media")["transcribe_models"] == {}
+
+
+def test_turning_on_automatic_transcription_says_the_provider_notices(tmp_path, monkeypatch):
+    """Every voice message then goes to the provider: its notice belongs in that consent too."""
+    import ui.dialogs.ai_settings_page as module
+
+    class Page(PageStub):
+        _on_auto_toggle = AISettingsPage._on_auto_toggle
+        _plain = AISettingsPage._plain
+
+    page = Page(tmp_path)
+    page.confirm_replaces_local = None
+    page.auto_dialog = None
+    page._drafts = {"mistral": "k", "groq": "k"}
+    asked = []
+    monkeypatch.setattr(module.wx, "MessageBox", lambda text, *args: asked.append(text) or wx.YES)
+    page.auto_transcribe.value = True
+    page._on_auto_toggle(SimpleNamespace(GetEventObject=lambda: page.auto_transcribe,
+                                         Skip=lambda: None))
+    assert len(asked) == 1 and "ai_mistral_notice" in asked[0]
+    assert "ai_gemini_notice" not in asked[0] and page._auto_consent == {"mistral", "groq"}
 
 
 def test_the_provider_list_lands_on_the_first_provider_when_nothing_is_selected():

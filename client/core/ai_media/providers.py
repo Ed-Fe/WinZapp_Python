@@ -7,7 +7,8 @@ or the filesystem, so each provider's payload shape is tested directly.
 import base64
 from typing import NamedTuple, Optional
 
-from .config import MAX_OUTPUT_CHARS, MAX_OUTPUT_TOKENS, PROVIDERS, supports, valid_model
+from .config import (MAX_OUTPUT_CHARS, MAX_OUTPUT_TOKENS, PROVIDERS, supports, transcribe_model,
+                     valid_model)
 from .errors import DescriptionError
 from .mistral_ocr import parse_document
 
@@ -54,7 +55,7 @@ def build_request(provider, model, key, media, history, question, instructions, 
     if not valid_model(model):
         raise DescriptionError("request")
     if is_transcription(provider, media):
-        return _transcription(provider, key, media)
+        return _transcription(provider, key, media, model)
     if provider == "mistral" and media.kind == "pdf":
         return Request(f"{_MISTRAL}/ocr", {"Authorization": f"Bearer {key}"},
                        {"model": PROVIDERS[provider].ocr_model,
@@ -104,16 +105,18 @@ def build_request(provider, model, key, media, history, question, instructions, 
                    {"model": model, "messages": messages, "max_tokens": tokens})
 
 
-def _transcription(provider, key, media):
+def _transcription(provider, key, media, model):
     """Multipart upload. The language is left to the model's own detection: a
-    forced language would garble a voice message in any other."""
+    forced language would garble a voice message in any other. ``model`` is
+    honoured only when it is one of the provider's voice-message models (the
+    provider window's model is for pictures)."""
+    model = transcribe_model(provider, model)
     if provider == "mistral":
-        # The configurable field selects vision, like OpenAI/Groq. Audio has
-        # its own fixed model. Mistral has no response_format form field.
-        base, fields = _MISTRAL, {"model": PROVIDERS[provider].transcribe_model}
+        # Mistral has no response_format form field.
+        base, fields = _MISTRAL, {"model": model}
     else:
         base = _OPENAI if provider == "openai" else _GROQ
-        fields = {"model": PROVIDERS[provider].transcribe_model, "response_format": "json"}
+        fields = {"model": model, "response_format": "json"}
     return Request(f"{base}/audio/transcriptions", {"Authorization": f"Bearer {key}"},
                    data=fields,
                    files={"file": (media.filename, media.data, media.mime)})

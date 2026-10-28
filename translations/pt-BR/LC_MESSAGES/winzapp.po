@@ -951,7 +951,6 @@ msgid "Quick"
 msgstr "Rápida"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_gemini_notice"
 msgid ""
 "Gemini: unpaid services may use inputs for product improvement and human "
@@ -1076,11 +1075,26 @@ msgstr ""
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_mistral_model_note"
 msgid ""
-"The model below is used for photos, stickers and video frames. Audio uses "
-"Voxtral Mini Transcribe 3. PDF documents use Mistral OCR."
+"Photos, stickers and video frames use the vision model set below. Voice "
+"messages use the voice message model, and PDF documents use Mistral OCR."
 msgstr ""
-"O modelo abaixo é usado para fotos, figurinhas e quadros de vídeo. O áudio "
-"usa Voxtral Mini Transcribe 3. Os documentos PDF usam Mistral OCR."
+"Fotos, figurinhas e quadros de vídeo usam o modelo de visão definido abaixo."
+" As mensagens de voz usam o modelo para mensagens de voz, e os documentos "
+"PDF usam Mistral OCR."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_mistral_notice"
+msgid ""
+"Mistral: on the free Experiment plan, API requests may be used to train "
+"Mistral's models unless you opt out in your Mistral account. Do not send "
+"sensitive or personal information under those terms. The paid Scale plan is "
+"opted out by default. WinZapp cannot infer your plan from an API key."
+msgstr ""
+"Mistral: no plano gratuito Experiment, as solicitações à API podem ser "
+"usadas para treinar os modelos da Mistral, a menos que você desative isso na"
+" sua conta da Mistral. Não envie informações pessoais ou sensíveis sob esses"
+" termos. No plano pago Scale, o treinamento já vem desativado. O WinZapp não"
+" identifica o seu plano pela chave de API."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
@@ -1096,6 +1110,12 @@ msgstr "Usar o modelo recomendado pelo &WinZapp"
 msgctxt "ai_model_choice"
 msgid "&Model"
 msgstr "&Modelo"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_model_preview"
+msgid "{name} (preview)"
+msgstr "{name} (prévia)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_models_empty"
@@ -1352,6 +1372,11 @@ msgid ""
 msgstr ""
 "Só uma imagem parada tirada do vídeo é enviada, sem o som e sem as "
 "informações guardadas no arquivo."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_voice_model"
+msgid "&Voice message model"
+msgstr "Modelo para mensagens de &voz"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py

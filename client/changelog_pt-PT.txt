@@ -6,7 +6,7 @@ NOVIDADES
 
 - Utilize o botão Participantes da chamada na janela da chamada ou numa chamada em curso selecionada em Chamadas para ver os nomes das pessoas ligadas.
 
-- Mistral está disponível para transcrição online, descrição de imagens e extração de texto de PDFs. O áudio utiliza Voxtral Mini Transcribe 3; fotografias, autocolantes e fotogramas de vídeo utilizam o modelo de visão escolhido (Ministral 3 3B por predefinição); PDFs utilizam Mistral OCR. A lista de modelos mostra modelos de visão compatíveis.
+- Mistral está disponível para transcrição online, descrição de imagens e extração de texto de PDFs. O áudio utiliza o modelo para mensagens de voz escolhido na janela do fornecedor (Voxtral Mini Transcribe 3 por predefinição, ou Voxtral Small Transcribe 3; ambos em pré-visualização); fotografias, autocolantes e fotogramas de vídeo utilizam o modelo de visão escolhido (Ministral 3 3B por predefinição); PDFs utilizam Mistral OCR. A lista de modelos mostra modelos de visão compatíveis. Antes de enviar conteúdos para a Mistral, o WinZapp avisa que o plano gratuito pode utilizar os pedidos para treino.
 
 - Nas conversas de grupo, enquanto existe uma chamada disponível, os botões de iniciar chamada dão lugar a "Entrar na chamada de voz em curso" ou "Entrar na chamada de vídeo em curso (câmara desligada)". Chamadas mostra as chamadas em curso em Todas e Em curso, incluindo chamadas entre várias pessoas fora dos grupos. Ao entrar numa chamada de vídeo, a câmara começa desligada.
 

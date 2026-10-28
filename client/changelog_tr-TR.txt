@@ -6,7 +6,7 @@ YENİLİKLER
 
 - Bağlı kişileri adlarıyla görmek için arama penceresindeki veya Aramalar bölümünde seçili devam eden aramadaki Arama katılımcıları düğmesini kullanın.
 
-- Mistral çevrimiçi ses dökümü, görüntü açıklamaları ve PDF metni çıkarma için kullanılabilir. Ses için Voxtral Mini Transcribe 3, fotoğraflar, çıkartmalar ve video kareleri için seçilen görüntü modeli (varsayılan Ministral 3 3B), PDF için Mistral OCR kullanılır. Listede uyumlu görüntü modelleri gösterilir.
+- Mistral çevrimiçi ses dökümü, görüntü açıklamaları ve PDF metni çıkarma için kullanılabilir. Ses için sağlayıcı penceresinde seçilen sesli mesaj modeli (varsayılan olarak Voxtral Mini Transcribe 3, isteğe bağlı olarak Voxtral Small Transcribe 3; ikisi de önizlemede), fotoğraflar, çıkartmalar ve video kareleri için seçilen görüntü modeli (varsayılan Ministral 3 3B), PDF için Mistral OCR kullanılır. Listede uyumlu görüntü modelleri gösterilir. WinZapp, Mistral'e medya göndermeden önce ücretsiz planın istekleri eğitim için kullanabileceği konusunda uyarır.
 
 - Grup sohbetlerinde kullanılabilir bir arama varken "Devam eden sesli aramaya katıl" veya "Devam eden görüntülü aramaya katıl (kamera kapalı)" düğmesi arama başlatma düğmelerinin yerini alır. Aramalar, grup dışındaki çok kişili aramalar dahil devam eden aramaları Tümü ve Devam eden filtrelerinde gösterir. Görüntülü aramaya katılırken kamera kapalı başlar.
 

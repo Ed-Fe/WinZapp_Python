@@ -48,7 +48,7 @@ accepts today:
 | Claude | yes | no | yes |
 | Groq | yes | yes (Whisper) | no |
 | OpenRouter | yes | no | yes |
-| Mistral | yes (selected vision model) | yes (fixed Voxtral) | yes (fixed Mistral OCR) |
+| Mistral | yes (selected vision model) | yes (chosen Voxtral model) | yes (fixed Mistral OCR) |
 
 A video is never sent as a video: `payload.prepare_media` decodes one frame
 locally (about one second in, or the middle of a shorter clip; only the video
@@ -189,7 +189,7 @@ the input kinds and returns text, and a test** — not a guess from its name.
 | Groq | Images/stickers/video frames | Fixed `whisper-large-v3-turbo` | Unsupported |
 | Gemini | Every supported media kind | Selected model | Selected model |
 | Claude / OpenRouter | Every supported media kind | Unsupported | Selected model |
-| Mistral | Images/stickers/video frames (`ministral-3b-latest` by default) | Fixed `voxtral-mini-transcribe-3` | Fixed `mistral-ocr-4` |
+| Mistral | Images/stickers/video frames (`ministral-3b-latest` by default) | Chosen voice-message model (`voxtral-mini-transcribe-3` by default) | Fixed `mistral-ocr-4` |
 
 Mistral's vision request uses `/v1/chat/completions`, with a base64 data URL,
 the system instruction, question and earlier text turns. Audio is an inline
@@ -205,20 +205,51 @@ are dropped, `<br>` becomes a line break (a space inside a table row), HTML
 entities are decoded and runs of blank lines collapse; headings, lists and
 tables are kept.
 
-Both fixed ids are major aliases, not `-latest`, so a new generation cannot
+The OCR id is a major alias, not `-latest`, so a new generation cannot
 change the answer's shape under a released build. `mistral-ocr-4` is OCR 4.1
 (`mistral-ocr-4-1`, GA since 2026-07-16); a minor id is not pinned because
-OCR 4.0 was retired three months after release. `voxtral-mini-transcribe-3`
-(Voxtral Mini Transcribe 3, `voxtral-mini-transcribe-3-0`) is still **Public
-Preview**, released 2026-10-20. The GA alternative is `voxtral-mini-2602`
-(Voxtral Mini Transcribe 2, the model Mistral's Voxtral 3 migration guide
-replaces with it): going back is a change of `transcribe_model` plus a live
-check. Statuses read on Mistral's models pages on 2026-10-27.
+OCR 4.0 was retired three months after release.
+
+Audio goes to the voice-message model chosen in the provider window, from a
+reviewed list (`Provider.transcribe_choices`, `config.TranscribeModel`):
+
+| Id | Model | Status |
+| --- | --- | --- |
+| `voxtral-mini-transcribe-3` (default) | Voxtral Mini Transcribe 3 | Public Preview since 2026-10-20 |
+| `voxtral-small-transcribe-3` | Voxtral Small Transcribe 3 | Public Preview since 2026-10-20 |
+
+These are the two models Mistral's file-transcription guide accepts; its error
+table lists any other `model` under `400 Invalid model`. The GA
+`voxtral-mini-2602` (Voxtral Mini Transcribe 2) is left out for that reason
+(it was not tried live), and the realtime model because it takes a stream, not
+a file. Mini is the default because it is the one tested live. Both are
+previews, which may change or be withdrawn without notice, so the list marks
+them "(preview)"; when one becomes GA, drop its flag (and pick the GA one as
+the default). The choice is saved as `ai_media.transcribe_models`;
+`config.transcribe_model()` keeps a saved id only when it is on the list, and
+`providers._transcription()` resolves the model it is given the same way, so
+neither a hand-edited settings file nor a vision id reaching the audio path
+can send another model. `config.models_for(config, kind)` hands the voice
+model to the chain for audio only. Adding a model needs its page on
+docs.mistral.ai saying it transcribes files, plus a test. Statuses read on
+Mistral's models pages on 2026-10-28. OpenAI and Groq keep their one fixed
+model.
+
+Before media goes to Mistral the consent window adds `ai_mistral_notice`, like
+`ai_gemini_notice` for Gemini: on Mistral's free Experiment plan API requests
+may be used to train its models unless the person opts out in their Mistral
+account, while the paid Scale plan is opted out by default (Mistral help
+center, "Can I opt out of my input or output data being used for training?",
+read 2026-10-28). WinZapp cannot tell the plan from a key, so the notice is
+shown whenever Mistral may receive the media: in the consent before one
+request and in the one that turns automatic transcription or description on
+(`config.notice_keys`, shared with Gemini's notice).
 
 Get models lists reviewed vision models available to the key, excluding
-Voxtral, OCR, TTS and realtime models. The provider window explains the fixed
-audio/OCR choices in a read-only field before the model field
-(`Provider.model_note`). Other providers' routing is unchanged.
+Voxtral, OCR, TTS and realtime models. The provider window explains which
+model each kind goes to in a read-only field before the model fields
+(`Provider.model_note`), followed by the voice-message model list. Other
+providers' routing is unchanged.
 
 Live acceptance on 2026-10-25 used generated media only: Voxtral Mini Transcribe 3
 transcribed a locally generated spoken sentence and Ministral 3 3B described a

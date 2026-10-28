@@ -67,6 +67,13 @@ def key_for_dialog(store, provider, drafts, deleted, reset):
         return ""
 
 
+def voice_model_labels(t, provider):
+    """The items of the voice-message model list, in the catalogue's order. A
+    Public Preview model says so: it may change or be withdrawn unannounced."""
+    return [t("ai_model_preview").format(name=choice.name) if choice.preview else choice.name
+            for choice in PROVIDERS[provider].transcribe_choices]
+
+
 class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
     """Key, model and on/off of one provider. Edits a draft: nothing is saved
     until the Settings dialog is applied."""
@@ -111,6 +118,13 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
             self.model_note = wx.TextCtrl(body, value=self._t(spec.model_note),
                                           style=wx.TE_MULTILINE | wx.TE_READONLY, size=(-1, 50))
             self.sizer.Add(self.model_note, 0, wx.EXPAND | wx.ALL, 8)
+        self.voice_model = None
+        if spec.transcribe_choices:
+            self.voice_model = self._choice(body, "ai_voice_model",
+                                            voice_model_labels(self._t, provider))
+            ids = [choice.id for choice in spec.transcribe_choices]
+            self.voice_model.SetSelection(ids.index(ai_config.transcribe_model(
+                provider, state.get("transcribe_model"))))
         self.automatic = wx.CheckBox(body, label=self._t("ai_model_automatic"))
         self.automatic.SetValue(not state["model"])
         self.sizer.Add(self.automatic, 0, wx.ALL, 8)
@@ -295,10 +309,15 @@ class AIProviderDialog(ModelSelectionMixin, wx.Dialog):
 
     def values(self):
         """The draft as entered: a typed key (blank keeps the saved one), whether
-        the saved one is to be removed, the model and the on/off switch."""
-        return {"key": self.key.GetValue().strip(), "deleted": self._deleted,
-                "model": "" if self.automatic.GetValue() else self.model.GetValue().strip(),
-                "enabled": self.enabled.GetValue()}
+        the saved one is to be removed, the model, the voice-message model (for
+        a provider that offers a choice) and the on/off switch."""
+        values = {"key": self.key.GetValue().strip(), "deleted": self._deleted,
+                  "model": "" if self.automatic.GetValue() else self.model.GetValue().strip(),
+                  "enabled": self.enabled.GetValue()}
+        if self.voice_model is not None:
+            choices = PROVIDERS[self._provider].transcribe_choices
+            values["transcribe_model"] = choices[max(self.voice_model.GetSelection(), 0)].id
+        return values
 
     def _destroyed(self, event):
         if event.GetEventObject() is self:
@@ -322,6 +341,7 @@ class AISettingsPage(ScrolledPanel):
         self._disabled = set(config["disabled"])
         self._models = dict(config["models"])
         self._auto = set(config["auto_models"])
+        self._voice_models = dict(config["transcribe_models"])
         self._drafts = {}      # provider -> key typed in its window, applied with the dialog
         self._deleted = set()  # providers whose saved key is to be removed
         self._reset = False
@@ -502,6 +522,7 @@ class AISettingsPage(ScrolledPanel):
         state = {"key": key_for_dialog(self.store, provider, self._drafts, self._deleted, self._reset),
                  "deleted": provider in self._deleted,
                  "model": "" if provider in self._auto else self._models[provider],
+                 "transcribe_model": self._voice_models.get(provider, ""),
                  "enabled": provider not in self._disabled}
         dialog = AIProviderDialog(self.GetTopLevelParent(), self.main_window, provider, state,
                                   self.store, self._reset)
@@ -525,6 +546,8 @@ class AISettingsPage(ScrolledPanel):
         else:
             self._auto.add(provider)
             self._models[provider] = PROVIDERS[provider].model
+        if draft.get("transcribe_model"):
+            self._voice_models[provider] = draft["transcribe_model"]
         (self._disabled.discard if draft["enabled"] else self._disabled.add)(provider)
         self._refresh_list(index)
         self._on_change()
@@ -573,6 +596,8 @@ class AISettingsPage(ScrolledPanel):
             if needed:
                 text = self._t("ai_auto_consent").format(
                     providers=", ".join(PROVIDERS[p].name for p in needed))
+                # The same provider notices as the consent before one request.
+                text = "\n\n".join([text, *(self._t(key) for key in ai_config.notice_keys(needed))])
                 answer = wx.MessageBox(text, self._plain("ai_auto_consent_title"),
                                        wx.YES_NO | wx.ICON_WARNING, self.auto_dialog)
                 if answer != wx.YES:
@@ -626,6 +651,10 @@ class AISettingsPage(ScrolledPanel):
                     disabled=sorted(self._disabled),
                     models={name: "" if name in self._auto else model
                             for name, model in self._models.items()},
+                    # Only a choice that differs from the default: like an
+                    # automatic vision model, the default may move later.
+                    transcribe_models={name: model for name, model in self._voice_models.items()
+                                       if model != PROVIDERS[name].transcribe_model},
                     kinds={kind: check.GetValue() for kind, check in self.toggles.items()},
                     profile=PROFILES[self.profile.GetSelection()],
                     read_answers=self.read_answers.GetValue(),

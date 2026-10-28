@@ -38,6 +38,18 @@ class Provider:
     # i18n key of a note shown in the provider window before the model field,
     # when the model chosen there is not the one every kind goes to.
     model_note: str = ""
+    # Voice-message models the person may choose instead of transcribe_model
+    # (which must be one of them): see TranscribeModel.
+    transcribe_choices: tuple = ()
+
+
+@dataclass(frozen=True)
+class TranscribeModel:
+    """A reviewed voice-message model. The name is a proper name, shown as is."""
+    id: str
+    name: str
+    # Public Preview at the provider: it may change or be withdrawn unannounced.
+    preview: bool = False
 
 
 PROVIDERS = {
@@ -67,6 +79,16 @@ PROVIDERS = {
         "Mistral", "ministral-3b-latest", "https://console.mistral.ai/api-keys",
         "https://mistral.ai/pricing/api/", "https://legal.mistral.ai/terms/privacy-policy/",
         frozenset({"image", "audio", "pdf"}), transcribe_model="voxtral-mini-transcribe-3",
+        # The two models Mistral's file-transcription guide accepts (checked on
+        # docs.mistral.ai 2026-10-28), both Public Preview since 2026-10-20.
+        # Mini is the default: the one tested live. Transcribe 2 is left out:
+        # the guide lists any other model under "Invalid model" (not tested
+        # live). The realtime model takes a stream, not a file.
+        transcribe_choices=(
+            TranscribeModel("voxtral-mini-transcribe-3", "Voxtral Mini Transcribe 3", preview=True),
+            TranscribeModel("voxtral-small-transcribe-3", "Voxtral Small Transcribe 3",
+                            preview=True),
+        ),
         # The major alias, not "-latest": a new OCR generation may change the
         # answer's shape, and a minor id is retired within months (OCR 4.0).
         ocr_model="mistral-ocr-4", model_note="ai_mistral_model_note"),
@@ -151,6 +173,8 @@ def preferences(app_settings):
     for provider, spec in PROVIDERS.items():
         model = models.get(provider)
         chosen[provider] = model if valid_model(model) else spec.model
+    voice = raw.get("transcribe_models")
+    voice = voice if isinstance(voice, dict) else {}
     kinds = raw.get("kinds")
     kinds = kinds if isinstance(kinds, dict) else {}
     consented = raw.get("consented")
@@ -163,6 +187,9 @@ def preferences(app_settings):
         "models": chosen,
         # Providers following WinZapp's recommended model (nothing valid saved).
         "auto_models": sorted(p for p in PROVIDERS if not valid_model(models.get(p))),
+        # The voice-message model of each provider that offers a choice.
+        "transcribe_models": {p: transcribe_model(p, voice.get(p))
+                              for p, spec in PROVIDERS.items() if spec.transcribe_choices},
         "kinds": {k: _flag(kinds.get(k), True) for k in KINDS},
         "profile": profile if profile in PROFILES else "balanced",
         "read_answers": _flag(raw.get("read_answers"), True),
@@ -187,6 +214,24 @@ def valid_model(model):
     # Slash allowed: OpenRouter and Groq ids are "vendor/model".
     return isinstance(model, str) and bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]{0,99}", model)) \
         and ".." not in model and "//" not in model
+
+
+def transcribe_model(provider, model):
+    """The voice-message model ``provider`` gets: ``model`` when it is on that
+    provider's reviewed list, else its default. Whatever the settings file or
+    a caller says, an id outside the list is never sent for audio."""
+    spec = PROVIDERS[provider]
+    if any(choice.id == model for choice in spec.transcribe_choices):
+        return model
+    return spec.transcribe_model
+
+
+def models_for(config, kind):
+    """The model each provider is asked for ``kind``: audio goes to the chosen
+    voice-message model, everything else to the model of the provider window."""
+    if kind != "audio":
+        return config["models"]
+    return {**config["models"], **(config.get("transcribe_models") or {})}
 
 
 def chain(config, kind, has_key, prefer=None):
@@ -243,6 +288,15 @@ MENU_KEY = {"image": "ai_describe_image_menu", "sticker": "ai_describe_sticker_m
 TITLE_KEY = {"image": "ai_result_description_title", "sticker": "ai_result_description_title",
              "video": "ai_result_description_title", "audio": "ai_result_transcription_title",
              "pdf": "ai_result_pdf_title"}
+
+#: i18n key of what a provider may do with what it receives, said in every
+#: consent before media can reach it (its unpaid terms may train on it).
+NOTICE_KEY = {"gemini": "ai_gemini_notice", "mistral": "ai_mistral_notice"}
+
+
+def notice_keys(providers):
+    """The provider notices for ``providers``, in their order."""
+    return [NOTICE_KEY[p] for p in providers if p in NOTICE_KEY]
 
 
 def offered_kind(message, config, saved):
