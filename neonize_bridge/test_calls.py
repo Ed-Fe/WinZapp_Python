@@ -38,7 +38,7 @@ def test_voice_offer_becomes_the_event_the_client_reads():
     data = calls.offer_event(offer(), 1700000005.7)
     assert data == {
         "event": "offer", "state": "INCOMING_RING", "peerJid": "5511999@c.us",
-        "id": "C1", "isVideo": False, "isGroup": False, "groupJid": "",
+        "id": "C1", "isVideo": False, "isGroup": False, "groupJid": "", "isMultiparty": False,
         "timestamp": 1700000000, "observedAt": 1700000005,
         "offerReceivedWhileOffline": False}
 
@@ -298,3 +298,9 @@ def test_record_end_writes_the_answered_call_as_completed(monkeypatch):
     # without the answer it stays what it was: the caller gave up
     assert calls.record_end(s, e, ended(), True, 1000)
     assert stored[1]["callOutcome"] == "Canceled"
+
+
+def test_a_group_call_without_a_group_is_still_multiparty():
+    offer_node = node("offer", {}, [node("group_info", {}, [node("user")])])
+    data = calls.offer_event(offer(offer_node), 1700000005)
+    assert data["isMultiparty"] and not data["isGroup"]

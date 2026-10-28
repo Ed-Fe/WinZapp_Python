@@ -29,6 +29,7 @@ from aiohttp import web
 
 import system_messages
 import msgmap
+import ongoing_calls
 from redaction import redact
 
 log = logging.getLogger("bridge")
@@ -96,6 +97,9 @@ def offer_event(e, now) -> dict:
         "peerJid": caller(meta), "id": meta.callID,
         "isVideo": has_tag(e.data, "video"),
         "isGroup": bool(group), "groupJid": group,
+        # a group call filed under the caller's chat (no group-jid) is still
+        # one people can join later
+        "isMultiparty": has_tag(e.data, "group_info"),
         "timestamp": msgmap.seconds(meta.timestamp), "observedAt": int(now),
         # an offer that stayed queued while the app was away: the client ignores it
         "offerReceivedWhileOffline": bool(attribute(e.data, "offline")),
@@ -293,6 +297,7 @@ def register_events(cli, s):
             media = getattr(s, "call_media", None)
             if media is not None:
                 media.remember_offer(data)
+                ongoing_calls.remember_offer(media, data["id"], e.basicCallMeta.callCreator, data)
             log.info("call received (video=%s group=%s)", data["isVideo"], data["isGroup"])
             notify(data)
             if media is not None:

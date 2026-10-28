@@ -32,6 +32,7 @@ import comment_routes
 import inputs
 import legacy_layout
 import loop_watch
+import ongoing_calls
 import group_events
 import contact_events
 import app_state_mirror
@@ -176,6 +177,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
         self.urlcode = None
         self.me = ""                # own JID (user@s.whatsapp.net)
         self.lid = ""
+        self.lid_device = ""        # own LID with this device: a group call placed here
         self.call_media = None      # call_media.CallMedia when this build carries calls
         os.makedirs(folder, exist_ok=True)
         self.db = Store(os.path.join(folder, "bridge.db"))
@@ -597,6 +599,7 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
             me = c.get_me()
             self.me = jid_text(me.JID)
             self.lid = jid_text(me.LID)
+            self.lid_device = ongoing_calls.device_jid(me.LID)
         except Exception:
             log.exception("get_me")
         if self._apply(generation, session_lifecycle.CONNECTED_EVENT) is None:
@@ -677,6 +680,8 @@ class Session(chat_aliases.ChatAlias, group_receipts.GroupReceipts):
                                       props=device_props(HISTORY_DAYS))
         if calls_on and getattr(cli, "uuid", None):
             self.call_media = new_call_media(self.name, cli.uuid, self.emit, self._phone_of_lid)
+            # the creator a group call placed here carries, for the lobby query
+            self.call_media.own_creator = lambda: self.lid_device
         calls.register_events(cli, self)
         presence.register_events(cli, self)
         group_events.register_events(cli, self)
@@ -2388,6 +2393,7 @@ def create_app(folder, fixed=""):
                                    mark_active=mark_active, qr_data_url=qr_data_url)
     cleanup.register_routes(r, ok=ok, state=state, folder=folder, mark_active=mark_active)
     calls.register_routes(r, session=session, ok=ok)
+    ongoing_calls.register_routes(r, session=session, ok=ok)
     presence.register_routes(r, session=session, ok=ok)
     labels.register_routes(r, session=session, ok=ok, jid_from_text=jid_from_text,
                            jid_text=jid_text)

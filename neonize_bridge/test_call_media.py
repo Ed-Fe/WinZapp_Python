@@ -270,3 +270,44 @@ def test_only_the_latest_answered_calls_are_kept():
         m.remember_offer({"id": f"C{n}", "peerJid": "1@c.us"})
         m.answer(f"C{n}")
     assert m.answered_here("C0") is None and m.answered_here(f"C{cm.ANSWERED_KEPT + 4}")
+
+
+class OngoingCalls(FakeCalls):
+    """A call layer that also finds and joins group calls going on."""
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.joined = []
+
+    def lobby(self, call_id, creator):
+        return {"call": call_id, "participants": [{"jid": "1@lid", "state": "connected"}]}
+
+    def join_ongoing(self, call_id, creator, video=False):
+        self.joined.append((call_id, creator, video))
+        return {"call": call_id}
+
+    def roster(self, call_id):
+        return {"group": True, "participants": []}
+
+
+def test_joining_an_ongoing_call_makes_it_live_and_answered_here():
+    fake = OngoingCalls(remote=[None])
+    m, sent = media(fake)
+    assert not media(FakeCalls())[0].ongoing_available() and m.ongoing_available()
+    assert m.join_ongoing("G1", "100:27@lid", "1203@g.us") == "G1"
+    assert fake.joined == [("G1", "100:27@lid", False)]
+    assert states(sent)[-1] == "ACTIVE" and m.in_call("G1")
+    assert m.live_call() == "G1" and m.answered_here("G1") is not None
+    assert m.status("G1")["live"] is True
+
+
+def test_a_group_call_placed_here_can_be_found_again():
+    import ongoing_calls
+    fake = OngoingCalls()
+    fake.group_dial = lambda target, video=False: {"call": "GP1"}
+    m, _sent = media(fake)
+    m.group_calls = True
+    m.own_creator = lambda: "100:27@lid"
+    assert m.group_dial("1203@g.us") == "GP1"
+    found = ongoing_calls.known(m).get("GP1")
+    assert (found["creator"], found["chat"]) == ("100:27@lid", "1203@g.us")

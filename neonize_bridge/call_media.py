@@ -31,10 +31,12 @@ holds a session's calls and the threads that pump events and audio.
 import array
 import base64
 import logging
+import sys
 import threading
 import time
 
 import msgmap
+import ongoing_calls
 from call_video import VIDEO_ACCEPT, VIDEO_REQUEST
 
 log = logging.getLogger("bridge")
@@ -370,7 +372,11 @@ class CallMedia:
         target = group_target(group_jid)
         result = self.calls.group_dial(target, video=video)
         group = msgmap.jid_wpp(target)
-        return self._placed(str(result["call"]), group, video, group)
+        call_id = self._placed(str(result["call"]), group, video, group)
+        # left later, the call can still be found and joined again
+        creator = getattr(self, "own_creator", None)
+        ongoing_calls.known(self).remember(call_id, creator() if creator else "", group, video)
+        return call_id
 
     def _placed(self, call_id, peer, video, group):
         with self._lock:
@@ -387,6 +393,38 @@ class CallMedia:
         if self._set_state(call_id, "ACTIVE"):
             self._start_audio(call_id)
         return True
+
+    # ---------------------------------------------------------- ongoing calls
+    def ongoing_available(self):
+        """Whether this build finds and joins group calls already going on."""
+        if not callable(getattr(self.calls, "lobby", None)):
+            return False
+        built = getattr(sys.modules.get(type(self.calls).__module__), "ongoing_available", None)
+        return built() if callable(built) else True
+
+    def lobby(self, call_id, creator):
+        return self.calls.lobby(call_id, creator)
+
+    def roster(self, call_id):
+        return self.calls.roster(call_id)
+
+    def in_call(self, call_id):
+        call = self._known(call_id)
+        return bool(call) and call["state"] in LIVE_STATES
+
+    def join_ongoing(self, call_id, creator, chat, video=False):
+        """Joins a group call already going on (ongoing_calls.py); its id.
+        Like an answer: the call counts as answered here and its audio starts
+        at once, flowing when the relay's media arrives."""
+        joined = str(self.calls.join_ongoing(call_id, creator, video=video)["call"])
+        with self._lock:
+            self._calls[joined] = {"id": joined, "peer": chat, "outgoing": False, "state": "",
+                                   "video": bool(video),
+                                   "group": chat if chat.endswith("@g.us") else ""}
+        self._note_answered(joined)
+        if self._set_state(joined, "ACTIVE"):
+            self._start_audio(joined)
+        return joined
 
     def answered_here(self, call_id):
         """{"at", "video"} of a call this client answered, or None."""
