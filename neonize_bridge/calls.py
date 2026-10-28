@@ -37,6 +37,9 @@ log = logging.getLogger("bridge")
 # A ring lasts about 2 minutes at most; what is far past that is no longer
 # ringing and would only take memory.
 RING_TTL = 600
+# A call's offer is kept for as long as an answered call may still go on: its
+# end (<terminate>) says neither the group nor whether it was a video call.
+OFFER_TTL = 6 * 3600
 # Past this many seconds from the offer's own time, an incoming call nobody
 # answered is surely over on the caller's side. The call layer keeps such a
 # call open forever when its end never reaches us (an offer delivered from
@@ -119,6 +122,18 @@ def drop_if_unanswered(media, call_id) -> bool:
         return False
     log.info("call not answered and over: ended")
     return bool(media.hangup(call_id))
+
+
+def with_offer(data, offer) -> dict:
+    """The end of a call completed with what its offer said: <terminate> has
+    no group-jid nor <video>, so a group call's end used to look like the
+    caller's private call (its call record landed in the caller's chat as a
+    missed private call)."""
+    if not offer:
+        return data
+    group = data["groupJid"] or offer.get("groupJid") or ""
+    return {**data, "groupJid": group, "isGroup": bool(group),
+            "isVideo": bool(data["isVideo"] or offer.get("isVideo"))}
 
 
 def end_state(reason) -> tuple:
@@ -234,6 +249,7 @@ class Pending:
     def __init__(self):
         self._rings = {}
         self._accepted = {}
+        self._offers = {}       # id -> ({"groupJid", "isVideo"}, when)
 
     def accept(self, call_id, server_ts, now):
         """The CallAccept: someone answered on another device. Our own answer
@@ -246,14 +262,24 @@ class Pending:
         """(server instant, local instant) of the CallAccept, or None."""
         return self._accepted.get(call_id)
 
-    def remember(self, call_id, creator, now):
+    def remember(self, call_id, creator, now, offer=None):
         self._rings = {i: t for i, t in self._rings.items()
                        if now - t[1] < RING_TTL}
         self._rings[call_id] = (creator, now)
+        if offer:
+            self._offers = {i: t for i, t in self._offers.items() if now - t[1] < OFFER_TTL}
+            self._offers[call_id] = ({"groupJid": offer.get("groupJid") or "",
+                                      "isVideo": bool(offer.get("isVideo"))}, now)
+
+    def offer_of(self, call_id):
+        """{"groupJid", "isVideo"} of the call's offer, or None."""
+        found = self._offers.get(call_id)
+        return found[0] if found else None
 
     def forget(self, call_id):
         self._rings.pop(call_id, None)
         self._accepted.pop(call_id, None)
+        self._offers.pop(call_id, None)
 
     def creator_of(self, call_id):
         found = self._rings.get(call_id)
@@ -293,7 +319,7 @@ def register_events(cli, s):
             data = offer_event(e, time.time())
             if not data["id"]:
                 return
-            s.ringing_calls.remember(data["id"], e.basicCallMeta.callCreator, time.time())
+            s.ringing_calls.remember(data["id"], e.basicCallMeta.callCreator, time.time(), data)
             media = getattr(s, "call_media", None)
             if media is not None:
                 media.remember_offer(data)
@@ -321,6 +347,7 @@ def register_events(cli, s):
     def _end(c, e):
         try:
             data = end_event(e, time.time())
+            data = with_offer(data, s.ringing_calls.offer_of(data["id"]))
             data = refine_end(data, s.ringing_calls.accepted(data["id"]))
             was_ringing = s.ringing_calls.creator_of(data["id"]) is not None
             s.ringing_calls.forget(data["id"])

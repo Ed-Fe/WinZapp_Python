@@ -304,3 +304,46 @@ def test_a_group_call_without_a_group_is_still_multiparty():
     offer_node = node("offer", {}, [node("group_info", {}, [node("user")])])
     data = calls.offer_event(offer(offer_node), 1700000005)
     assert data["isMultiparty"] and not data["isGroup"]
+
+
+def group_offer_data():
+    offer_node = node("offer", {"group-jid": "1203@g.us"}, [node("video"), node("group_info")])
+    return calls.offer_event(offer(offer_node), 1700000005)
+
+
+def test_the_end_of_a_group_call_keeps_the_group_of_its_offer():
+    ended = calls.end_event(end_of(), 1700000100)
+    assert ended["groupJid"] == "" and not ended["isVideo"]     # what <terminate> says
+    fixed = calls.with_offer(ended, {"groupJid": "1203@g.us", "isVideo": True})
+    assert fixed["groupJid"] == "1203@g.us" and fixed["isGroup"] and fixed["isVideo"]
+    assert calls.with_offer(ended, None) is ended
+    private = calls.with_offer(ended, {"groupJid": "", "isVideo": False})
+    assert private["groupJid"] == "" and not private["isGroup"]
+
+
+def test_the_offer_outlives_the_ring_for_a_long_group_call():
+    p = calls.Pending()
+    p.remember("C1", "creator-1", 1700000000, group_offer_data())
+    p.remember("C2", "creator-2", 1700000000 + calls.RING_TTL + 1)    # sweeps old rings
+    assert p.creator_of("C1") is None
+    assert p.offer_of("C1") == {"groupJid": "1203@g.us", "isVideo": True}
+    p.forget("C1")
+    assert p.offer_of("C1") is None
+    p.remember("C3", "creator-3", 1700000000)
+    assert p.offer_of("C3") is None                                    # no offer given
+
+
+def test_a_missed_group_call_is_recorded_in_the_group_not_with_the_caller(monkeypatch):
+    stored = []
+    monkeypatch.setattr(calls.system_messages, "store_and_emit",
+                        lambda s, chat, w, now: stored.append((chat, w)) or True)
+    db = N(chat_exists=lambda jid: True)
+    s = N(me="5599@s.whatsapp.net", lid="", db=db)
+    p = calls.Pending()
+    p.remember("C1", "creator-1", 1700000000, group_offer_data())
+    e = end_of(reason="timeout")
+    data = calls.with_offer(calls.end_event(e, 1700000060), p.offer_of("C1"))
+    assert calls.record_end(s, e, data, True, 1700000060)
+    chat, w = stored[0]
+    assert chat == "1203@g.us"
+    assert w["callOutcome"] == "Missed" and w["isVideoCall"] is True
