@@ -40,7 +40,8 @@ def _bridge_says(pid=900, ppid=1):
 
 def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
             killed=None, proc=None, my_pid=100, created=lambda pid: f"t{pid}",
-            rotate=lambda path: False, identity=None):
+            rotate=lambda path: False, identity=None,
+            shutdown=lambda port, secret: False):
     spawned = [] if spawned is None else spawned
     killed = [] if killed is None else killed
 
@@ -53,7 +54,7 @@ def _handle(bridge, *, port_open=False, alive=lambda pid: False, spawned=None,
         bridge, 6300, is_open=lambda port: port_open() if callable(port_open) else port_open,
         alive=alive, created=created, rotate=rotate, start_process=start_process, kill=killed.append,
         sleep=lambda s: None, clock=lambda: next(clock), my_pid=my_pid,
-        identity=identity or _bridge_says())
+        identity=identity or _bridge_says(), shutdown=shutdown)
 
 
 def test_the_command_uses_the_bridge_virtualenv_and_the_fixed_port(tmp_path):
@@ -471,3 +472,48 @@ def test_a_foreign_bridge_is_not_waited_for(tmp_path):
 
     assert handle.start() is False
     assert ticks == []                                                  # refused at once
+
+
+def _running_bridge(tmp_path, shutdown, alive, killed, secret=True):
+    bridge = _with_secret(_bridge(tmp_path)) if secret else _bridge(tmp_path)
+    opened = iter([False, False, True])
+    handle = _handle(bridge, port_open=lambda: next(opened, True), alive=alive, killed=killed,
+                     my_pid=100, proc=_Proc(pid=900), shutdown=shutdown)
+    assert handle.start() is True
+    return handle
+
+
+def test_the_last_client_out_asks_the_bridge_to_exit_before_any_kill(tmp_path):
+    killed, asked, gone = [], [], []
+
+    def shutdown(port, secret):
+        asked.append((port, secret))
+        gone.append(True)               # the bridge exits on its own
+        return True
+
+    handle = _running_bridge(tmp_path, shutdown,
+                             lambda pid: pid == 100 or (pid == 900 and not gone), killed)
+    assert handle.stop() is True
+    assert asked == [(6300, "secret")] and killed == []
+    assert not os.path.exists(handle._pid_file)
+
+
+def test_a_bridge_that_does_not_exit_after_the_request_is_killed(tmp_path):
+    killed = []
+    handle = _running_bridge(tmp_path, lambda port, secret: True,
+                             lambda pid: pid in (100, 900), killed)
+    assert handle.stop() is True and killed == [900]
+
+
+def test_a_refused_shutdown_request_falls_back_to_the_kill(tmp_path):
+    killed = []
+    handle = _running_bridge(tmp_path, lambda port, secret: False,
+                             lambda pid: pid in (100, 900), killed)
+    assert handle.stop() is True and killed == [900]
+
+
+def test_without_a_secret_there_is_no_request_and_the_kill_stands(tmp_path):
+    killed, asked = [], []
+    handle = _running_bridge(tmp_path, lambda port, secret: asked.append(1) or True,
+                             lambda pid: pid in (100, 900), killed, secret=False)
+    assert handle.stop() is True and killed == [900] and asked == []

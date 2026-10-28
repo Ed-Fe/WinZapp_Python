@@ -214,3 +214,25 @@ def test_reconnect_socket_stream_looks_at_the_thread_not_the_socket(tmp_path):
         return alive.status, dropped.status, stopped.status
 
     assert with_client(app, script) == (200, 200, 400)
+
+
+def test_shutdown_stops_the_sessions_keeps_them_active_and_asks_the_server_to_exit(tmp_path):
+    app, state, active = assemble(tmp_path)
+    exits = []
+    state["exit"] = lambda: exits.append("exit")
+    stopped = []
+    for name in ("a", "b"):
+        session = FakeSession(name)
+        session.stop = lambda n=name: stopped.append(n)
+        state["sessions"][name] = session
+
+    async def script(c):
+        import asyncio as _asyncio
+        response = await c.post("/api/secret/shutdown")
+        await _asyncio.sleep(0.5)
+        return response.status, await response.json()
+
+    status, body = with_client(app, script)
+    assert status == 200 and body["status"] == "success"
+    assert sorted(stopped) == ["a", "b"] and exits == ["exit"]
+    assert active == {}          # they are not marked inactive: the next start resumes them

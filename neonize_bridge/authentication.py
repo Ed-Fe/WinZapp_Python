@@ -43,6 +43,7 @@ OPEN_ROUTES = ("/healthz", "/health", "/winzapp/identity", "/api-docs", "/metric
 TOKEN_TEMPLATE = "/api/{session}/{key}/generate-token"
 ADMINISTRATION_TEMPLATES = ("/api/{secretkey}/show-all-sessions",
                             "/api/{secretkey}/start-all",
+                            "/api/{secretkey}/shutdown",
                             "/api/{secretkey}/backup-sessions",
                             "/api/{secretkey}/restore-sessions",
                             "/api/{session}/{secretkey}/clear-session-data")

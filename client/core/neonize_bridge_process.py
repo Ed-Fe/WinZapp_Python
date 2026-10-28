@@ -272,6 +272,27 @@ def spawn(cmd, env, cwd, output=None):
             sink.close()
 
 
+#: Seconds the bridge gets to close its sessions and databases after a shutdown
+#: request before the process is killed.
+SHUTDOWN_GRACE = 10.0
+
+
+def request_shutdown(port: int, secret: str, timeout: float = 15.0) -> bool:
+    """Ask the bridge to close its WhatsApp sessions and exit (its authenticated
+    ``shutdown`` route). True when it accepted. Loopback, no proxies; the secret
+    is never logged."""
+    import requests
+    try:
+        with requests.Session() as session:
+            session.trust_env = False
+            response = session.post(f"http://127.0.0.1:{port}/api/{secret}/shutdown",
+                                    timeout=timeout)
+            return response.status_code == 200
+    except Exception as error:
+        log.info("neonize bridge shutdown request failed (%s)", type(error).__name__)
+        return False
+
+
 def kill_tree(pid: int):
     if sys.platform == "win32":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
@@ -297,8 +318,9 @@ class NeonizeBridge:
     def __init__(self, bridge=None, port=PORT, *, is_open=port_open,
                  alive=pid_alive, created=process_created, rotate=rotate_output,
                  start_process=spawn, kill=kill_tree, sleep=time.sleep, clock=time.monotonic, my_pid=None,
-                 lock=neonize_bridge_lock, identity=fetch_identity):
+                 lock=neonize_bridge_lock, identity=fetch_identity, shutdown=request_shutdown):
         self.bridge = bridge or bridge_dir()
+        self._shutdown = shutdown
         self.port = port
         self._is_open, self._alive = is_open, alive
         self._created, self._rotate = created, rotate
@@ -549,10 +571,29 @@ class NeonizeBridge:
             except OSError:
                 pass
             return False
-        self._kill(bridge_pid)
+        graceful = self._ask_to_exit(bridge_pid)
+        if not graceful:
+            self._kill(bridge_pid)
         try:
             os.remove(self._pid_file)
         except OSError:
             pass
-        log.info("neonize bridge stopped (pid %s)", bridge_pid)
+        log.info("neonize bridge stopped (pid %s, %s)", bridge_pid,
+                 "on its own" if graceful else "killed")
         return True
+
+    def _ask_to_exit(self, bridge_pid: int) -> bool:
+        """Let the bridge close its sessions and databases itself: a kill in the
+        middle of a write can leave the encryption state behind what the other
+        side saw. True when the process is gone within SHUTDOWN_GRACE seconds."""
+        secret = read_secret(self.bridge)
+        if not secret or not self._shutdown(self.port, secret):
+            return False
+        deadline = self._clock() + SHUTDOWN_GRACE
+        while self._clock() < deadline:
+            if not self._alive(bridge_pid):
+                return True
+            self._sleep(0.25)
+        log.warning("neonize bridge pid %s did not exit in %s s after the shutdown request",
+                    bridge_pid, SHUTDOWN_GRACE)
+        return not self._alive(bridge_pid)

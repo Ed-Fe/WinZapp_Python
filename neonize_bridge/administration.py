@@ -112,6 +112,11 @@ def qrcode_response(started, status, urlcode, qr_data_url_of):
     return "json", {"status": status, "message": "QRCode is not available..."}
 
 
+def _exit_server():
+    """Ends web.run_app's loop the way Ctrl+C does, so the cleanup hooks run."""
+    raise web.GracefulExit()
+
+
 def reconnect_response(status, thread_alive):
     """POST reconnect-socket-stream: (http, body). The client uses this as a
     nudge: 200 says the session is up; an error, three times in a row, makes it
@@ -163,6 +168,20 @@ def register_routes(r, *, session, ok, state, folder, mark_active, qr_data_url):
         return web.json_response(
             {"status": "success", "message": "Starting all sessions"}, status=201)
 
+    async def shutdown(req):
+        """The client is leaving and no other client uses this bridge: close the
+        WhatsApp sessions (their sockets and databases) and exit, instead of being
+        killed in the middle of a write. The sessions stay in the active list, so
+        the next start resumes them."""
+        loop = asyncio.get_running_loop()
+        for s in list(state["sessions"].values()):
+            try:
+                await loop.run_in_executor(None, s.stop)
+            except Exception:
+                log.exception("shutdown: closing a session failed")
+        loop.call_later(0.3, state.get("exit") or _exit_server)
+        return web.json_response({"status": "success", "message": "Shutting down"})
+
     async def qrcode_session(req):
         s = session(req)
         kind, payload = qrcode_response(s.thread is not None, s.status, s.urlcode, qr_data_url)
@@ -181,5 +200,6 @@ def register_routes(r, *, session, ok, state, folder, mark_active, qr_data_url):
     r.add_get("/metrics", metrics)
     r.add_get("/api/{secretkey}/show-all-sessions", show_all_sessions)
     r.add_post("/api/{secretkey}/start-all", start_all)
+    r.add_post("/api/{secretkey}/shutdown", shutdown)
     r.add_get("/api/{tok}/qrcode-session", qrcode_session)
     r.add_post("/api/{tok}/reconnect-socket-stream", reconnect_socket_stream)
