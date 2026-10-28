@@ -122,6 +122,8 @@ NOVEDADES
 
 - Neonize: chats que parecían desaparecer. WhatsApp no da fecha de actividad a la mayoría de los chats antiguos, y WinZapp los tomaba por chats vacíos y no los conservaba al borrar los datos locales (F5 para resincronizar, por ejemplo): una cuenta con más de 160 chats volvía con 37. Ahora el puente fecha cada chat con su mensaje más reciente y vuelven todos.
 
+- Neonize: una comunidad y su grupo de avisos muestran el total de miembros de la comunidad, como en WhatsApp, y no solo los participantes del propio grupo.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
