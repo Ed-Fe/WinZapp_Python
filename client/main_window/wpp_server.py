@@ -348,9 +348,12 @@ class WppServerMixin:
         """
         Ensure the WPPConnect is cloned, compiled, and has its node_modules.
 
-        node/node.exe is mandatory in all scenarios — it is the portable Node.js
-        runtime bundled with WinZapp that drives both npm and the API itself.
-        Its absence is always a fatal error.
+        node/node.exe is the portable Node.js runtime that drives both npm and
+        the API itself. Builds that carry the Neonize bridge do not bundle it
+        (build.py stages_node()): when it is missing or too old it is
+        downloaded here, checksum-verified (NodeDownloadDialog), before
+        anything else runs. This is also the validation made whenever
+        WPPConnect becomes the engine: the next start comes through here.
 
         Depending on what is present inside api/:
 
