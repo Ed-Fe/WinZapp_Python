@@ -135,6 +135,8 @@ WHAT'S NEW
 
 - Channels in the chat list: a new option, "Show channels in the chat list", in Settings, Interface, Chats, off by default, keeps channels out of the conversation list. Turn it on to see them there again.
 
+- Switching between WPPConnect and Neonize: both engines use port 6300, and the program mistook the engine you had just left, still closing, for the one you chose. Choosing WPPConnect then gave "no pairing code was received", and switching to Neonize showed connecting and then offline until the next restart. WinZapp now makes room first (it stops the Neonize bridge, or waits for the WPPConnect server to close), and a second WinZapp folder no longer joins the first one's bridge.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

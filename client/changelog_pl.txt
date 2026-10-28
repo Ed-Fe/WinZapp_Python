@@ -135,6 +135,8 @@ NOWOŚCI
 
 - Kanały na liście czatów: nowa opcja "Pokaż kanały na liście czatów" w Ustawieniach, Interfejs, Czaty, domyślnie wyłączona, trzyma kanały poza listą czatów. Włącz ją, aby znów je tam widzieć.
 
+- Przełączanie między WPPConnect a Neonize: oba silniki używają portu 6300, a program brał silnik, który właśnie przestał być używany i jeszcze się zamykał, za wybrany. Wybór WPPConnect kończył się komunikatem "nie otrzymano kodu parowania", a przełączenie na Neonize pokazywało łączenie i tryb offline do ponownego uruchomienia. Teraz WinZapp najpierw robi miejsce (zatrzymuje most Neonize albo czeka na zamknięcie serwera WPPConnect), a druga kopia WinZapp w innym folderze nie dołącza już do mostu pierwszej.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.

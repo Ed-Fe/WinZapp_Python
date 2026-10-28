@@ -135,6 +135,8 @@ NOUTĂȚI
 
 - Canale în lista de conversații: o opțiune nouă, "Afișează canalele în lista de conversații", în Setări, Interfață, Conversații, dezactivată implicit, ține canalele în afara listei de conversații. Bifeaz-o ca să le vezi din nou acolo.
 
+- Trecerea între WPPConnect și Neonize: ambele motoare folosesc portul 6300, iar programul confunda motorul pe care tocmai îl părăsiseși, încă în curs de închidere, cu cel ales. Alegerea WPPConnect dădea "nu s-a primit niciun cod de asociere", iar trecerea la Neonize arăta conectare, apoi offline, până la repornire. Acum WinZapp face loc mai întâi (oprește puntea Neonize sau așteaptă închiderea serverului WPPConnect), iar un al doilea dosar WinZapp nu se mai alătură punții primului.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.
