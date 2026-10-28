@@ -204,7 +204,7 @@ def test_background_startup_timeout_does_not_exit_during_an_update(monkeypatch, 
     monkeypatch.setattr("core.wa_version_refresh.wait_for_refresh", lambda: None)
     window = SimpleNamespace(
         _is_wpp_running=lambda: False, background_mode=True, _wpp_updating=updating,
-        _start_wpp_background=lambda: None,
+        _start_wpp_background=lambda: None, _make_room_for_wppconnect=lambda: None,
     )
     if updating:
         assert wpp_server.WppServerMixin.ensure_wpp_running(window) is False
