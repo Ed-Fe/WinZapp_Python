@@ -141,6 +141,8 @@ NOUTĂȚI
 
 - Programul nu mai vine cu Node.js, deoarece Neonize nu îl folosește. Dacă alegeți WPPConnect (la prima pornire, în fereastra de asociere sau în Setări), WinZapp descarcă un Node.js cu sumă de control verificată și pregătește WPPConnect înainte de conectare. Descărcarea este mai mică.
 
+- Neonize: dacă puntea dispare cât timp WinZapp este deschis (de exemplu, o rulare anterioară care încă se închidea o oprește imediat după ce aceasta a acceptat-o, ceea ce se întâmpla la trecerea la Neonize din notificarea de la pornire), WinZapp o pornește din nou singur, în loc să rămână pe „se conectează” și apoi offline până la următoarea repornire.
+
 V2.1.0.0
 
 Această versiune aduce transcrierea mesajelor vocale pe propriul dumneavoastră computer, fără să fie trimis nimic nicăieri, și transcrierea și descrierea cu AI online a mesajelor vocale, imaginilor, videoclipurilor, autocolantelor și PDF-urilor.
