@@ -4631,7 +4631,7 @@ msgstr ""
 "WinZapp yeniden başlatıldıktan sonra etkili olur."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/engine_picker.py
+#: client/ui/dialogs/connect_engine.py client/ui/dialogs/engine_picker.py
 msgctxt "connection_engine_label"
 msgid "Connection &engine:"
 msgstr "Bağlantı &motoru:"
@@ -8457,6 +8457,26 @@ msgstr ""
 msgctxt "pairing_dial_intro"
 msgid "Enter the pairing code"
 msgstr "Eşleme kodunu girin"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/connect_engine.py
+msgctxt "pairing_engine_restart_failed"
+msgid ""
+"WinZapp could not restart by itself, so the connection engine was not "
+"changed."
+msgstr "WinZapp kendi kendine yeniden başlatılamadı, bu yüzden bağlantı motoru değiştirilmedi."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
+#, python-brace-format
+msgctxt "pairing_engine_switch_message"
+msgid "WinZapp will restart to connect with {engine}. Continue?"
+msgstr "WinZapp, {engine} ile bağlanmak için yeniden başlatılacak. Devam edilsin mi?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
+#: client/ui/dialogs/connect_engine.py
+msgctxt "pairing_engine_switch_title"
+msgid "Change connection engine"
+msgstr "Bağlantı motorunu değiştir"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "pairing_failed_msg"
