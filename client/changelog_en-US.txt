@@ -122,6 +122,8 @@ WHAT'S NEW
 
 - Neonize: conversations that seemed to disappear. WhatsApp gives no activity date to most old conversations, and WinZapp took them for empty chats and did not keep them when the local data was cleared (F5 to resync, for example): an account with more than 160 conversations came back with 37. The bridge now dates each conversation by its newest message, so they all return.
 
+- Neonize: a community and its announcement group show the community's total member count, as WhatsApp does, not only the group's own participants.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

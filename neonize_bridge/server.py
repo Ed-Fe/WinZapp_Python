@@ -2297,6 +2297,14 @@ def create_app(folder, fixed=""):
             log.info("group-info failed: %s", type(error).__name__)
             return web.json_response({"status": "error", "message": str(error)}, status=404)
         info = group_to_wpp(g)
+        community = communities.community_counted(g)
+        if community:
+            try:
+                members = await asyncio.get_running_loop().run_in_executor(
+                    None, s.client.get_linked_group_participants, jid_from_text(community))
+                info["size"] = communities.member_total(members) or None
+            except Exception as error:
+                log.info("group-info: community members failed: %s", type(error).__name__)
         if info["name"]:
             s.db.chat(info["id"], name=info["name"])
         return ok(status="success", response=info)

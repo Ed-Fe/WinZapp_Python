@@ -49,6 +49,10 @@ What the patches carry today:
   privacy and contact removal use them (`neonize_bridge/COVERAGE.md`).
 - **neonize 0007**: `MediaConn`, the media upload hosts and token, for the
   unencrypted upload of a catalog product's picture (`media_upload.py`).
+- **neonize 0011**: the sync client's `get_linked_group_participants` reads
+  the `ReturnFunctionWithError` the Go side sends (it parsed another message
+  and failed with "Wire format was corrupt"; the async client was right). It
+  gives `community-participants` and the community total in `group-info`.
 - **whatsmeow**: `events.Lock` for lock-chat mutations; button, list and flow
   replies without the `<biz>` node (the server refuses them with 479);
   `MutationInfo.Operation` (REMOVE) and `events.AppStateMutation`, emitted for

@@ -122,6 +122,8 @@ NOWOŚCI
 
 - Neonize: czaty, które zdawały się znikać. WhatsApp nie podaje daty aktywności większości starych czatów, a WinZapp brał je za puste i nie zachowywał ich po wyczyszczeniu danych lokalnych (na przykład po F5 do ponownej synchronizacji): konto z ponad 160 czatami wracało z 37. Teraz most datuje każdy czat według jego najnowszej wiadomości i wracają wszystkie.
 
+- Neonize: społeczność i jej grupa ogłoszeń pokazują łączną liczbę członków społeczności, tak jak WhatsApp, a nie tylko uczestników samej grupy.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
