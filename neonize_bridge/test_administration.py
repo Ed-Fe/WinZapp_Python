@@ -5,6 +5,7 @@ import base64
 import os
 from types import SimpleNamespace as N
 
+import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
@@ -236,3 +237,8 @@ def test_shutdown_stops_the_sessions_keeps_them_active_and_asks_the_server_to_ex
     assert status == 200 and body["status"] == "success"
     assert sorted(stopped) == ["a", "b"] and exits == ["exit"]
     assert active == {}          # they are not marked inactive: the next start resumes them
+
+
+def test_the_real_exit_ends_the_server_the_way_ctrl_c_does():
+    with pytest.raises(web.GracefulExit):
+        administration._exit_server()

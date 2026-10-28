@@ -517,3 +517,39 @@ def test_without_a_secret_there_is_no_request_and_the_kill_stands(tmp_path):
     handle = _running_bridge(tmp_path, lambda port, secret: asked.append(1) or True,
                              lambda pid: pid in (100, 900), killed, secret=False)
     assert handle.stop() is True and killed == [900] and asked == []
+
+
+def test_request_shutdown_posts_to_the_loopback_route_without_proxies(monkeypatch):
+    import requests
+    seen = {}
+
+    class _Session:
+        trust_env = True
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def post(self, url, timeout):
+            seen["url"], seen["timeout"], seen["trust_env"] = url, timeout, self.trust_env
+            return type("R", (), {"status_code": 200})()
+
+    monkeypatch.setattr(requests, "Session", _Session)
+    assert nb.request_shutdown(6300, "s3cret") is True
+    assert seen["url"] == "http://127.0.0.1:6300/api/s3cret/shutdown" and seen["trust_env"] is False
+
+
+def test_request_shutdown_reports_false_on_an_error(monkeypatch):
+    import requests
+
+    class _Broken:
+        def __enter__(self):
+            raise requests.ConnectionError("down")
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(requests, "Session", _Broken)
+    assert nb.request_shutdown(6300, "s3cret") is False
