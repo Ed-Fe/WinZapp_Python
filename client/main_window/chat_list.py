@@ -10,6 +10,7 @@ import threading
 import time
 import wx
 from core.conversation_view import ARCHIVED
+from core.listed_chats import channels_listed, is_listed_chat
 from core.unsaved_contact_marker import marked_chat_name
 from core.pinned_chat_order import canonical_pin_jid, keep_pinned_order, pinned_chat_ranks
 from core.view_once import VIEW_ONCE_UNAVAILABLE_TYPE
@@ -207,6 +208,7 @@ class ChatListMixin:
         pinned   = self._pinned_chats
         pin_order = pinned_chat_ranks(self, pinned) if keep_pinned_order(self) else None
         my_jid   = getattr(self, "my_jid", "")
+        show_channels = channels_listed(self.settings)
 
         # Dedup: if both a @lid JID and its corresponding phone JID exist as
         # separate keys in self.chats, only render the one with more content
@@ -254,6 +256,8 @@ class ChatListMixin:
             render_jid = chat.get("remoteJid") or jid
             if render_jid in _seen_render_jids:
                 continue
+            if not is_listed_chat(render_jid, show_channels):
+                continue    # a channel stored before the setting existed, or while it was on
             _seen_render_jids.add(render_jid)
 
     

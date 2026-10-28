@@ -1169,6 +1169,7 @@ DEFAULT_SETTINGS = {
         "mark_unsaved_contacts": True,
         "show_delivery_status_in_chat_list": True,
         "keep_pinned_chat_order": False,
+        "show_channels_in_chat_list": False,
         # What happens to what was typed and not sent when the conversation
         # is left: one draft per conversation, like WhatsApp Web
         # (core/message_drafts.py MODES).

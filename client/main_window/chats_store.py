@@ -15,7 +15,7 @@ import wx
 from core.sync_lifecycle import capture_sync_context, sync_context_is_current
 from core.conversation_view import conversation_in_view
 from core.chat_contact_names import learn_chat_names
-from core.listed_chats import is_listed_chat
+from core.listed_chats import channels_listed, is_listed_chat
 from core.unsaved_contact_marker import mark_unsaved_name
 from core.pinned_chat_order import keep_pinned_order, reset_pinned_order, sync_pinned_order
 from main_window.log_files import (
@@ -821,8 +821,9 @@ class ChatsStoreMixin:
                                     # follows the person to the phone JID.
                                     self._follow_saved_contacts([learned_pair])
 
-                    # Statuses go to the Status tab; channels are not conversations
-                    if not is_listed_chat(jid):
+                    # Statuses go to the Status tab; channels only when the user
+                    # asked for them in the chat list (Settings > Interface > Chats)
+                    if not is_listed_chat(jid, channels_listed(self.settings)):
                         continue
 
                     # Populate/update self.contacts from chat name metadata

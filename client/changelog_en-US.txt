@@ -124,6 +124,8 @@ WHAT'S NEW
 
 - Neonize: a saved contact who writes in a group shows with their address-book name, without the "~" of an unsaved contact. Channels no longer appear in the chat list as chats without a name. A group member whose number is hidden shows with their profile name, no longer as "+55∙∙∙∙∙∙∙∙76".
 
+- Channels in the chat list: a new option, "Show channels in the chat list", in Settings, Interface, Chats, off by default, keeps channels out of the conversation list. Turn it on to see them there again.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.

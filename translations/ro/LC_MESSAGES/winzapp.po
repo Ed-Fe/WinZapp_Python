@@ -15734,6 +15734,12 @@ msgstr "&Tu"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_show_channels_in_chat_list"
+msgid "Show &channels in the chat list"
+msgstr "Afișează canalele în lis&ta de conversații"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
 msgctxt "ui_show_delivery_status_in_chat_list"
 msgid "&Show last message's delivery status in the chat list"
 msgstr "&Afișează starea de livrare a ultimului mesaj în lista de conversații"
