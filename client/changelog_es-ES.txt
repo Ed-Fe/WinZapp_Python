@@ -135,6 +135,8 @@ NOVEDADES
 
 - Canales en la lista de chats: una nueva opción, "Mostrar canales en la lista de chats", en Configuración, Interfaz, Conversaciones, desactivada por defecto, mantiene los canales fuera de la lista de chats. Actívala para volver a verlos ahí.
 
+- Cambio entre WPPConnect y Neonize: los dos motores usan el puerto 6300, y el programa confundía el motor que acababas de dejar, aún cerrándose, con el que elegiste. Elegir WPPConnect daba "no se recibió ningún código de vinculación", y cambiar a Neonize mostraba conectando y luego sin conexión hasta reiniciar. Ahora WinZapp hace sitio primero (detiene el puente de Neonize o espera a que se cierre el servidor de WPPConnect), y una segunda carpeta de WinZapp ya no se une al puente de la primera.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.

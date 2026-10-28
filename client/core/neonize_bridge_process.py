@@ -111,6 +111,11 @@ def environment(bridge: str, base_env=None) -> dict:
     """The bridge's environment: ffmpeg on PATH (client/lib, plus the
     folders listed in neonize_bridge/path_extra.txt)."""
     env = dict(os.environ if base_env is None else base_env)
+    # A WPPConnect Node started earlier by this process left its installation
+    # id here; the bridge must keep reporting an empty one (see
+    # is_bridge_identity), or it would be taken for a Node.
+    for name in ("WINZAPP_INSTALLATION_ID", "WINZAPP_INSTANCE_ID"):
+        env.pop(name, None)
     folders = [resource_path("lib")]
     extra = os.path.join(bridge, EXTRA_PATH_FILE)
     if os.path.isfile(extra):
@@ -218,6 +223,24 @@ def identity_matches(identity, expected_pid: int) -> bool:
     if expected_pid <= 0:
         return True
     return pid == expected_pid or (_is_number(parent) and parent == expected_pid)
+
+
+def is_bridge_identity(identity) -> bool:
+    """Whether a ``/winzapp/identity`` answer is a neonize bridge's rather than a
+    WPPConnect Node's. Both answer in the same shape; the Node is started with its
+    installation id and the bridge, a process shared by the install, is not
+    (neonize_bridge/administration.py). Pure."""
+    return (isinstance(identity, dict) and _is_number(identity.get("protocol_version"))
+            and not identity.get("installation_id"))
+
+
+def cmd_is_missing(handle) -> bool:
+    """True when this install has no bridge to start (nothing to wait for)."""
+    return command(handle.bridge, handle.port) is None
+
+
+#: How long a Node that is closing may keep the shared port before the bridge gives up.
+PORT_FREE_WAIT = 15
 
 
 def rotate_output(path: str, limit: int = OUTPUT_LIMIT, *,
@@ -344,7 +367,18 @@ class NeonizeBridge:
             answer = self._identity(self.port)
         except Exception:
             answer = None
-        if identity_matches(answer, expected_pid):
+        self._last_answer_was_a_node = (
+            isinstance(answer, dict) and identity_matches(answer, 0)
+            and not is_bridge_identity(answer))
+        if identity_matches(answer, expected_pid) and not self._last_answer_was_a_node:
+            if expected_pid <= 0 and not read_secret(self.bridge):
+                # A bridge of the right shape that this install never started and
+                # whose secret it does not hold: another WinZapp install's (two
+                # folders sharing the port). Using it would answer 401 to everything.
+                log.error("port %s is held by the neonize bridge of another WinZapp "
+                          "installation (this one has no secret for it); refusing to use it",
+                          self.port)
+                return False
             return True
         log.error("port %s is taken by a program that is not the neonize bridge "
                   "(answer type: %s); refusing to use it", self.port, type(answer).__name__)
@@ -433,7 +467,10 @@ class NeonizeBridge:
             return False
         self._register()
         if self._is_open(self.port):
-            return self._listener_is_the_bridge()
+            if self._listener_is_the_bridge():
+                return True
+            if not self._port_frees_up():
+                return False
         os.makedirs(data_dir(self.bridge), exist_ok=True)
         os.makedirs(run_dir(self.bridge), exist_ok=True)
         # Two accounts starting together (at login) must not both find the port
@@ -447,6 +484,21 @@ class NeonizeBridge:
         except LockTimeout:
             log.error("neonize bridge start: another client held the start lock too long")
             return False
+
+    def _port_frees_up(self) -> bool:
+        """The port is held by a WPPConnect Node (the other engine, still closing
+        after a switch or a restart): give it a while to let go, then start the
+        bridge. A listener that is anything else is not waited for."""
+        if not getattr(self, "_last_answer_was_a_node", False) or cmd_is_missing(self):
+            return False
+        log.info("port %s is held by a WPPConnect Node; waiting for it to close", self.port)
+        deadline = self._clock() + PORT_FREE_WAIT
+        while self._clock() < deadline:
+            if not self._is_open(self.port):
+                return True
+            self._sleep(0.5)
+        log.error("port %s is still held by a WPPConnect Node; the neonize bridge cannot start", self.port)
+        return False
 
     def _spawn_and_wait(self, cmd) -> bool:
         output = os.path.join(run_dir(self.bridge), OUTPUT_FILE)

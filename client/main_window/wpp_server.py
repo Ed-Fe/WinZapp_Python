@@ -1060,6 +1060,38 @@ class WppServerMixin:
         except Exception:
             return False
 
+    def _port_held_by_neonize_bridge(self) -> bool:
+        """Whether what listens on this account's WPPConnect port is the neonize
+        bridge (left running by the other engine, or by another install). The two
+        engines share port 6300 and a bare connect cannot tell them apart; the
+        bridge answered 401 to every WPPConnect call. Never raises."""
+        try:
+            from core.neonize_bridge_process import fetch_identity, is_bridge_identity
+            return is_bridge_identity(fetch_identity(int(self.wpp_port)))
+        except Exception:
+            return False
+
+    def _make_room_for_wppconnect(self):
+        """The port WPPConnect is about to use is held by the neonize bridge: stop
+        it when this install started it and nobody uses it, and otherwise move this
+        run to a free port. Without this the Node was never started (the held port
+        looked like a running server) and every call came back 401."""
+        if self.wpp_custom_api or not self._port_held_by_neonize_bridge():
+            return
+        logging.info("[ensure_wpp_running] port %s is held by the neonize bridge — "
+                     "making room for WPPConnect", self.wpp_port)
+        try:
+            from core.neonize_bridge_process import NeonizeBridge
+            NeonizeBridge(port=self.wpp_port).stop()
+        except Exception:
+            logging.exception("[ensure_wpp_running] stopping the neonize bridge failed (non-fatal)")
+        deadline = time.time() + 15
+        while time.time() < deadline and not self._is_port_free(self.wpp_port):
+            time.sleep(0.5)
+        if not self._is_port_free(self.wpp_port):
+            # Not ours to stop (another install, or another client still uses it)
+            self._ensure_wpp_port_still_free()
+
     def _is_wpp_running(self):
         """Return True if the WPPConnect is already listening on the configured server/port."""
         import urllib.parse
@@ -1732,6 +1764,7 @@ class WppServerMixin:
         start.js) startup can take well over 2 minutes, hence the 5-minute
         budget below.
         """
+        self._make_room_for_wppconnect()
         if self._is_wpp_running():
             # ADOPT path: the shared Node is already listening (spawned by another
             # account, or left running from a previous session). We won't spawn it,

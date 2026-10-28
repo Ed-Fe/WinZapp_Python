@@ -135,6 +135,8 @@ NOVIDADES
 
 - Canais na lista de conversas: uma nova opção, "Mostrar canais na lista de conversas", em Definições, Interface, Conversas, desmarcada por predefinição, mantém os canais fora da lista de conversas. Marque-a para os voltar a ver ali.
 
+- Alternância entre WPPConnect e Neonize: os dois motores usam a porta 6300, e o programa confundia o motor que acabou de deixar, ainda a fechar, com o que escolheu. Escolher a WPPConnect dava "não foi recebido nenhum código de emparelhamento", e alternar para a Neonize mostrava a ligar e depois offline até reiniciar. Agora o WinZapp abre espaço primeiro (pára a ponte da Neonize, ou espera que o servidor da WPPConnect feche), e uma segunda pasta do WinZapp deixa de se juntar à ponte da primeira.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.

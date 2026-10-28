@@ -22,6 +22,16 @@ def _bridge(tmp_path, with_python=True):
     return str(root)
 
 
+def _with_secret(bridge):
+    """A bridge folder whose bridge wrote its secret: the one this install owns (or
+    that was started by hand with this --folder)."""
+    folder = nb.data_dir(bridge)
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, nb.SECRET_FILE), "w", encoding="utf-8") as stream:
+        stream.write("secret")
+    return bridge
+
+
 def _bridge_says(pid=900, ppid=1):
     """What a real bridge answers at /winzapp/identity."""
     return lambda port: {"installation_id": "", "instance_id": "",
@@ -66,7 +76,7 @@ def test_a_packaged_bridge_exe_wins(tmp_path):
 
 def test_an_open_port_is_adopted_without_spawning(tmp_path):
     spawned = []
-    handle = _handle(_bridge(tmp_path), port_open=True, spawned=spawned)
+    handle = _handle(_with_secret(_bridge(tmp_path)), port_open=True, spawned=spawned)
     assert handle.start() is True
     assert spawned == []
     assert not os.path.exists(handle._pid_file)       # not ours: never stopped
@@ -137,6 +147,14 @@ def test_the_environment_puts_ffmpeg_folders_first(tmp_path):
     parts = env["PATH"].split(os.pathsep)
     assert str(extra) in parts and str(tmp_path / "missing") not in parts
     assert parts[-1] == "C:\\base"
+
+
+def test_the_environment_drops_the_nodes_installation_id(tmp_path):
+    env = nb.environment(_bridge(tmp_path), {
+        "PATH": "C:\\base", "WINZAPP_INSTALLATION_ID": "abc",
+        "WINZAPP_INSTANCE_ID": "def"})
+    assert "WINZAPP_INSTALLATION_ID" not in env
+    assert "WINZAPP_INSTANCE_ID" not in env
 
 
 def test_the_secret_is_read_from_the_bridge_data_folder(tmp_path):
@@ -230,7 +248,7 @@ def test_an_install_with_no_bridge_leaves_no_client_file_behind(tmp_path):
 
 
 def test_a_bridge_started_by_hand_is_still_joined_when_the_install_has_no_command(tmp_path):
-    bridge = _bridge(tmp_path, with_python=False)
+    bridge = _with_secret(_bridge(tmp_path, with_python=False))
     handle = _handle(bridge, port_open=True)
     assert handle.start() is True
     assert os.path.exists(os.path.join(handle._clients, "100"))
@@ -242,7 +260,7 @@ def test_two_clients_starting_together_spawn_one_bridge(tmp_path):
     import threading
     import time
 
-    bridge = _bridge(tmp_path)
+    bridge = _with_secret(_bridge(tmp_path))
     state = {"open": False}
     spawned = []
 
@@ -344,7 +362,7 @@ def test_the_bridge_named_in_bridge_pid_is_trusted_even_behind_a_launcher(tmp_pa
 
 def test_a_stale_bridge_pid_does_not_block_a_bridge_started_by_hand(tmp_path):
     # the recorded process is gone, or its pid now belongs to another program
-    bridge = _bridge(tmp_path)
+    bridge = _with_secret(_bridge(tmp_path))
     for alive, created in ((lambda pid: False, lambda pid: "t900"),
                            (lambda pid: True, lambda pid: "other")):
         handle = _handle(bridge, port_open=True, alive=alive,
@@ -386,3 +404,70 @@ def test_a_spawned_bridge_that_is_the_one_on_the_port_is_used(tmp_path):
         _bridge(tmp_path), proc=_Proc(pid=900), alive=lambda pid: pid == 900,
         identity=_bridge_says(pid=901, ppid=900))
     assert handle.start() is True
+
+
+def test_a_bridge_of_another_installation_is_refused(tmp_path):
+    """Two WinZapp folders share port 6300: the second found the first one's bridge
+    on it, joined it with no secret and got 401 on every call."""
+    handle = _handle(_bridge(tmp_path), port_open=True)        # no bridge.pid, no secret
+
+    assert handle.start() is False
+
+
+def test_a_bridge_this_install_started_needs_no_secret_file_to_be_recognised(tmp_path):
+    handle = _handle(_bridge(tmp_path), port_open=True, alive=lambda pid: pid == 900,
+                     identity=_bridge_says(pid=900, ppid=1))
+    _write_pid_file(handle, 900, "t900")
+
+    assert handle.start() is True
+
+
+def test_the_node_and_the_bridge_are_told_apart_by_the_installation_id():
+    bridge = {"installation_id": "", "instance_id": "", "protocol_version": 1, "pid": 9, "ppid": 1}
+    node = {"installation_id": "abc", "instance_id": "def", "protocol_version": 1, "pid": 9, "ppid": 1}
+
+    assert nb.is_bridge_identity(bridge)
+    assert not nb.is_bridge_identity(node)
+    for junk in (None, [], "x", {"installation_id": ""}, {"protocol_version": "1"}):
+        assert not nb.is_bridge_identity(junk)
+
+
+NODE_SAYS = lambda port: {"installation_id": "abc", "instance_id": "def",
+                          "protocol_version": 1, "pid": 4242, "ppid": 1}
+
+
+def test_a_node_still_closing_on_the_port_is_waited_for_and_the_bridge_then_starts(tmp_path):
+    """Switching to Neonize while the WPPConnect Node of the last run lingers: the
+    port was taken for "the bridge", the Node answered 401 to the bridge's routes
+    and the account showed connecting, then offline, until the next restart."""
+    state = {"asks": 0}
+
+    def port_open():
+        state["asks"] += 1
+        return state["asks"] <= 4            # open for the first checks, then free
+
+    handle = _handle(_bridge(tmp_path), port_open=port_open, identity=NODE_SAYS)
+    spawned = []
+    handle._spawn = lambda cmd, env, cwd, output=None: spawned.append(cmd) or _Proc()
+
+    started = handle.start()
+
+    assert spawned, "the bridge was never started"
+    assert started in (True, False)          # whether it then answers is not under test here
+
+
+def test_a_node_that_never_lets_go_leaves_the_bridge_unstarted(tmp_path):
+    spawned = []
+    handle = _handle(_bridge(tmp_path), port_open=True, identity=NODE_SAYS, spawned=spawned)
+
+    assert handle.start() is False
+    assert spawned == []
+
+
+def test_a_foreign_bridge_is_not_waited_for(tmp_path):
+    ticks = []
+    handle = _handle(_bridge(tmp_path), port_open=True)                 # bridge-shaped, no secret
+    handle._sleep = lambda s: ticks.append(s)
+
+    assert handle.start() is False
+    assert ticks == []                                                  # refused at once
