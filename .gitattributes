@@ -8,3 +8,7 @@
 /README.md merge=ours
 /CHANGELOG.md merge=ours
 /.github/workflows/release.yml merge=ours
+
+# git format-patch files: byte for byte, never CRLF (git am applies them to LF
+# sources, and build_neonize.py compares exports against them)
+/neonize_bridge/neonize_patches/** -text

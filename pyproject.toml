@@ -92,6 +92,7 @@ dependencies = [
 [project.scripts]
 api = "winzapp_tools.cli:api"
 setup-api = "winzapp_tools.cli:setup_api"
+setup-neonize = "winzapp_tools.cli:setup_neonize"
 winzapp = "winzapp_tools.cli:app"
 build-onefile = "winzapp_tools.cli:build_onefile"
 build-installer = "winzapp_tools.cli:build_installer"

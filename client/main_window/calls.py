@@ -13,6 +13,7 @@ import wx
 from urllib.parse import quote as _url_quote
 from core.call_logic import (
     active_call_label_key,
+    engine_refuses_call,
     incoming_call_can_answer,
 )
 from core.api_client import (
@@ -20,6 +21,7 @@ from core.api_client import (
     api_post,
 )
 from core.call_matching import call_event_matches_active
+from core.call_tone_player import play_call_ended_sound, stop_call_tone, update_call_tone
 from core.call_participants import active_participants_available
 from core.call_voip_errors import VoipUnavailableError, is_voip_init_failure
 from core.call_log import (
@@ -476,6 +478,8 @@ class CallsMixin:
         in a device switch enables it again, so the other person stopped
         hearing the user (see CallAudioSession.stop).
         """
+        if not keep_call:
+            stop_call_tone(self)
         session = getattr(self, "_call_audio_session", None)
         if session is None:
             self._stop_incoming_call_audio_monitor()
@@ -847,6 +851,15 @@ class CallsMixin:
     def accept_incoming_call(self, identity: str, *, with_video: bool | None = None):
         if getattr(self, "_active_voice_call", None) is not None:
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
+            return
+        if engine_refuses_call(self._uses_neonize(), getattr(self, "_neonize_calls", False),
+                               placing=False):
+            # A bridge without the call layer reports incoming calls and can
+            # reject them, but cannot answer (501 on call/accept): do not open
+            # the microphone and the speakers first. The ring and Reject keep working.
+            t = self.i18n.t
+            self.output(t("incoming_call_answer_failed").format(
+                error=t("call_log_action_unavailable")), interrupt=True)
             return
         details = dict(getattr(self, "_incoming_call_details", {}).get(identity, {}))
         # The call TYPE never changes with `with_video` — a video offer stays
@@ -1376,6 +1389,18 @@ class CallsMixin:
         ):
             self.output(self.i18n.t("voice_call_already_active"), interrupt=True)
             return
+        if engine_refuses_call(self._uses_neonize(), getattr(self, "_neonize_calls", False),
+                               placing=True, is_video=is_video, is_group=is_group,
+                               bridge_has_video=getattr(self, "_neonize_video_calls", False),
+                               bridge_has_group_calls=getattr(self, "_neonize_group_calls", False)):
+            # The bridge places only the calls its /send-capabilities says it
+            # carries (501 on call/offer otherwise): say so now, before the
+            # microphone and the speakers are opened for a call that cannot
+            # exist -- the attempt used to end in a spoken "HTTP 501".
+            t = self.i18n.t
+            self.output(t("voice_call_start_failed").format(
+                error=t("call_log_action_unavailable")), interrupt=True)
+            return
         identity = join_call_id or f"outgoing:{peer_jid}"
         details = {
             "call_id": identity,
@@ -1745,12 +1770,19 @@ class CallsMixin:
                 else self._preview_sender_from_jid(call_peer_jid) or call_peer_jid
             )
         self._sync_voice_call_bar()
-
+        # The Neonize engine has no WhatsApp Web page to play the ringback and the
+        # connecting beeps; a call that is over silences them.
         terminal_states = {
             "ENDED", "REJECTED", "FAILED", "NOT_ANSWERED",
             "HANDLED_REMOTELY", "REMOTE_CALL_IN_PROGRESS",
         }
-        if state in terminal_states or event.get("event") in {"ended", "timeout"}:
+        call_is_over = state in terminal_states or event.get("event") in {"ended", "timeout"}
+        if call_is_over:
+            stop_call_tone(self)
+        else:
+            update_call_tone(self, active, state)
+
+        if call_is_over:
             self._confirm_call_ended(
                 active, call_id, call_peer_jid, upgraded_to_video=upgraded_to_video)
             return
@@ -1841,6 +1873,9 @@ class CallsMixin:
         self._end_active_call_locally(active, call_id, peer_jid)
 
     def _end_active_call_locally(self, active: dict, call_id: str, peer_jid: str):
+        # Here and not on the raw terminal event: this is reached only once the end is
+        # confirmed (a call upgraded to video sends a terminal event and goes on).
+        play_call_ended_sound(self, active)
         self._stop_voice_call_audio(grace_seconds=1.25)
         self.output(self.i18n.t("voice_call_ended"), interrupt=True)
         self._watch_ended_call_log(

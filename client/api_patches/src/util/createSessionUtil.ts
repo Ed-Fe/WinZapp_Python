@@ -1979,12 +1979,17 @@ export default class CreateSessionUtil {
               call?.id ||
               ''
             );
+          // The group of each incoming offer, read from the offer stanza
+          // itself (installGroupCallFixes below): it arrives before WhatsApp
+          // Web's CallModel carries groupJid.
+          const offeredGroups = new Map<string, string>();
           const groupJidOf = (call: any) =>
             String(
               call?.groupJid?._serialized ||
               call?.groupJid?.toString?.() ||
               call?.get?.('groupJid')?._serialized ||
               call?.get?.('groupJid')?.toString?.() ||
+              offeredGroups.get(callIdOf(call)) ||
               ''
             );
           const groupParticipantCountOf = (call: any): number => {
@@ -2170,6 +2175,93 @@ export default class CreateSessionUtil {
             }
             return null;
           };
+
+          // ── Group calls: never shown as the caller's private call ──
+          // Two paths lost the group of an incoming group call. The ring:
+          // emitIncomingOffer waits 1 s for CallModel.groupJid and then
+          // announced the call without its group. The record: WhatsApp Web
+          // writes the call log of a call that ended for us with
+          // {isGroup: false} unless the reason is group_call_ended
+          // (WAWebVoipActionWebHandleIncomingSignalingMessage, read over CDP
+          // on 2026-10-28), so a group call that rang out landed in the
+          // caller's private chat as a missed private call. The offer stanza
+          // names the group (group-jid); it is kept by call id and handed to
+          // both. Both modules can load after this script: retried.
+          const rememberOfferedGroup = (stanza: any) => {
+            const children = Array.isArray(stanza?.content) ? stanza.content : [];
+            for (const child of children) {
+              const attrs = child?.attrs || {};
+              const id = String(attrs['call-id'] || '');
+              const group = String(attrs['group-jid']?.toString?.() || attrs['group-jid'] || '');
+              if (id && /@g\.us$/.test(group)) {
+                offeredGroups.set(id, group);
+                while (offeredGroups.size > 200) {
+                  offeredGroups.delete(offeredGroups.keys().next().value as string);
+                }
+              }
+            }
+          };
+          const installGroupCallFixes = (): boolean => {
+            const requireWa = (name: string): any => {
+              try {
+                return (window as any).require?.(name);
+              } catch (_) {
+                return null;
+              }
+            };
+            let done = true;
+            const handler = requireWa('WAWebHandleVoipCall');
+            if (typeof handler?.handleCall !== 'function') {
+              done = false;
+            } else if (!handler.handleCall.__winzappGroups) {
+              const original = handler.handleCall;
+              const wrapped = function (this: any, stanza: any, ...rest: any[]) {
+                try {
+                  rememberOfferedGroup(stanza);
+                } catch (_) {
+                  // Never let the group lookup break call handling.
+                }
+                return original.call(this, stanza, ...rest);
+              };
+              (wrapped as any).__winzappGroups = true;
+              handler.handleCall = wrapped;
+            }
+            const notice = requireWa('WAWebVoipActionWriteCallLogOfferNotice');
+            if (typeof notice?.generateCallLogOfferNotice !== 'function') {
+              done = false;
+            } else if (!notice.generateCallLogOfferNotice.__winzappGroups) {
+              const original = notice.generateCallLogOfferNotice;
+              const wrapped = function (this: any, details: any, ...rest: any[]) {
+                let fixed = details;
+                try {
+                  const id = String(details?.callId || '');
+                  if (details && !details.isGroup && id) {
+                    const call = findCall(id);
+                    const group = groupJidOf(call) || offeredGroups.get(id) || '';
+                    if (group) {
+                      const wid =
+                        call?.groupJid ||
+                        requireWa('WAWebWidFactory')?.createWid?.(group);
+                      if (wid) fixed = { ...details, isGroup: true, groupJid: wid };
+                    }
+                  }
+                } catch (_) {
+                  fixed = details;
+                }
+                return original.call(this, fixed, ...rest);
+              };
+              (wrapped as any).__winzappGroups = true;
+              notice.generateCallLogOfferNotice = wrapped;
+            }
+            return done;
+          };
+          if (!installGroupCallFixes()) {
+            let tries = 0;
+            const retry = window.setInterval(() => {
+              tries += 1;
+              if (installGroupCallFixes() || tries >= 120) window.clearInterval(retry);
+            }, 5000);
+          }
           const emitIncomingOffer = (
             call: any,
             attempt = 0,

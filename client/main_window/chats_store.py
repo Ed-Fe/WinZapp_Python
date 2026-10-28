@@ -14,6 +14,8 @@ import time
 import wx
 from core.sync_lifecycle import capture_sync_context, sync_context_is_current
 from core.conversation_view import conversation_in_view
+from core.chat_contact_names import learn_chat_names
+from core.listed_chats import channels_listed, is_listed_chat
 from core.unsaved_contact_marker import mark_unsaved_name
 from core.pinned_chat_order import keep_pinned_order, reset_pinned_order, sync_pinned_order
 from main_window.log_files import (
@@ -819,8 +821,9 @@ class ChatsStoreMixin:
                                     # follows the person to the phone JID.
                                     self._follow_saved_contacts([learned_pair])
 
-                    # Skip status@broadcast — statuses are shown in the Status tab
-                    if not jid or jid.endswith("@broadcast"):
+                    # Statuses go to the Status tab; channels only when the user
+                    # asked for them in the chat list (Settings > Interface > Chats)
+                    if not is_listed_chat(jid, channels_listed(self.settings)):
                         continue
 
                     # Populate/update self.contacts from chat name metadata
@@ -831,30 +834,14 @@ class ChatsStoreMixin:
                             name = None
                         if looks_like_binary_blob(pushName):
                             pushName = None
-                        if jid not in self.contacts:
-                            self.contacts[jid] = {"id": jid, "remoteJid": jid}
-                        if name:
-                            self.contacts[jid]["name"] = name
-                        if pushName:
-                            self.contacts[jid]["pushName"] = pushName
-
-                        phone_jid = getattr(self, "_lid_to_phone", {}).get(jid)
-                        if phone_jid:
-                            if phone_jid not in self.contacts:
-                                self.contacts[phone_jid] = {"id": phone_jid, "remoteJid": phone_jid}
-                            if name:
-                                self.contacts[phone_jid]["name"] = name
-                            if pushName:
-                                self.contacts[phone_jid]["pushName"] = pushName
-
-                        lid_jid = getattr(self, "_phone_to_lid", {}).get(jid)
-                        if lid_jid:
-                            if lid_jid not in self.contacts:
-                                self.contacts[lid_jid] = {"id": lid_jid, "remoteJid": lid_jid}
-                            if name:
-                                self.contacts[lid_jid]["name"] = name
-                            if pushName:
-                                self.contacts[lid_jid]["pushName"] = pushName
+                        # The listing's name never replaces a name the user's
+                        # address book gives the person: the Neonize bridge
+                        # lists a nickname for many people, and the 60 s poll
+                        # re-filed it over the saved name every minute.
+                        learn_chat_names(
+                            self.contacts, jid, name, pushName,
+                            linked=(getattr(self, "_lid_to_phone", {}).get(jid),
+                                    getattr(self, "_phone_to_lid", {}).get(jid)))
 
                     if jid in deleted:
                         continue

@@ -175,6 +175,18 @@ def test_unparseable_tags_are_ignored():
     assert picked["tag_name"] == "v0.25.0.0beta"
 
 
+def test_a_neonize_dll_release_is_never_offered_as_a_winzapp_update():
+    """neonize-dll.yml publishes the bridge's neonize build in this repository,
+    with a .zip asset, under a tag that starts with "neonize-" (the workflow
+    refuses any other): it must never reach the updater, on either channel."""
+    neonize = _release("neonize-0.6.0-winzapp.1", prerelease=True,
+                       assets=_assets("neonize-0.6.0-winzapp-windows-amd64.zip", "SHA256SUMS.txt"))
+    for include_alpha in (False, True):
+        assert updater.select_release([neonize], include_alpha=include_alpha) is None
+        assert updater.select_release([neonize, _release("v0.25.0.0")],
+                                      include_alpha=include_alpha)["tag_name"] == "v0.25.0.0"
+
+
 def test_returns_none_when_nothing_eligible():
     assert updater.select_release([_release("v0.25.0.1500alpha")], include_alpha=False) is None
     assert updater.select_release([], include_alpha=True) is None

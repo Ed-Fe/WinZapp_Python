@@ -348,9 +348,12 @@ class WppServerMixin:
         """
         Ensure the WPPConnect is cloned, compiled, and has its node_modules.
 
-        node/node.exe is mandatory in all scenarios — it is the portable Node.js
-        runtime bundled with WinZapp that drives both npm and the API itself.
-        Its absence is always a fatal error.
+        node/node.exe is the portable Node.js runtime that drives both npm and
+        the API itself. Builds that carry the Neonize bridge do not bundle it
+        (build.py stages_node()): when it is missing or too old it is
+        downloaded here, checksum-verified (NodeDownloadDialog), before
+        anything else runs. This is also the validation made whenever
+        WPPConnect becomes the engine: the next start comes through here.
 
         Depending on what is present inside api/:
 
@@ -963,13 +966,20 @@ class WppServerMixin:
     def _resolve_wpp_port(self, conn: dict) -> int:
         """Resolve THIS account's stable WPPConnect Node port.
 
+        Neonize: the bridge's own port, for every account (the bridge is one
+        process for the install; an account that had an automatic port from
+        its WPPConnect days must not keep it).
         Custom API: honour the user's configured port untouched. Otherwise keep
         a valid saved port (stable Node/userDataDir across launches), or allocate
         the lowest free port not used by a peer on first run — then persist it so
         it never drifts. This is what gives each account its own isolated Node.
         """
         import node_ports
-        from core import local_api_port
+        from core import connection_engine, local_api_port
+        bridge_address = connection_engine.fixed_address(
+            connection_engine.engine_from_connection(conn))
+        if bridge_address is not None:
+            return bridge_address[2]
         if conn.get("wpp_custom_api"):
             saved = conn.get("wpp_port")
             return saved if isinstance(saved, int) and not isinstance(saved, bool) else node_ports.BASE_PORT
@@ -1052,6 +1062,38 @@ class WppServerMixin:
             return local_api_port.identity_is_ours(identity, node_coord.installation_id(gd))
         except Exception:
             return False
+
+    def _port_held_by_neonize_bridge(self) -> bool:
+        """Whether what listens on this account's WPPConnect port is the neonize
+        bridge (left running by the other engine, or by another install). The two
+        engines share port 6300 and a bare connect cannot tell them apart; the
+        bridge answered 401 to every WPPConnect call. Never raises."""
+        try:
+            from core.neonize_bridge_process import fetch_identity, is_bridge_identity
+            return is_bridge_identity(fetch_identity(int(self.wpp_port)))
+        except Exception:
+            return False
+
+    def _make_room_for_wppconnect(self):
+        """The port WPPConnect is about to use is held by the neonize bridge: stop
+        it when this install started it and nobody uses it, and otherwise move this
+        run to a free port. Without this the Node was never started (the held port
+        looked like a running server) and every call came back 401."""
+        if self.wpp_custom_api or not self._port_held_by_neonize_bridge():
+            return
+        logging.info("[ensure_wpp_running] port %s is held by the neonize bridge — "
+                     "making room for WPPConnect", self.wpp_port)
+        try:
+            from core.neonize_bridge_process import NeonizeBridge
+            NeonizeBridge(port=self.wpp_port).stop()
+        except Exception:
+            logging.exception("[ensure_wpp_running] stopping the neonize bridge failed (non-fatal)")
+        deadline = time.time() + 15
+        while time.time() < deadline and not self._is_port_free(self.wpp_port):
+            time.sleep(0.5)
+        if not self._is_port_free(self.wpp_port):
+            # Not ours to stop (another install, or another client still uses it)
+            self._ensure_wpp_port_still_free()
 
     def _is_wpp_running(self):
         """Return True if the WPPConnect is already listening on the configured server/port."""
@@ -1524,7 +1566,13 @@ class WppServerMixin:
         # Chrome processes forever (observed: 22 chrome-headless shells after a
         # few pairings). Never touch another account's ACTIVE session: we only
         # close sessions whose own status is not connected.
-        if getattr(self, "wpp_custom_api", False):
+        # Not on the neonize bridge: there is no browser to pile up, the bridge
+        # answers 401 to check-connection-session / close-session by bare name
+        # (which the sweep would count as "closed"), and the sessions it holds
+        # are other accounts' of this install -- one still starting would be
+        # closed, and close-session drops it from the bridge's list of accounts
+        # to resume.
+        if getattr(self, "wpp_custom_api", False) and not self._uses_neonize():
             try:
                 self._close_orphaned_server_sessions()
             except Exception:
@@ -1540,6 +1588,9 @@ class WppServerMixin:
             # remote) must not be tree-killed on the way out. Our own session
             # on it was closed above.
             self._shutdown_audit("custom API — the server is not ours to stop")
+            # ...except the neonize bridge this client started or joined: the
+            # last client out stops it.
+            self._stop_neonize_bridge()
             return
         elif proc is None:
             # This session never spawned WPPConnect itself — it found the port
@@ -1716,6 +1767,7 @@ class WppServerMixin:
         start.js) startup can take well over 2 minutes, hence the 5-minute
         budget below.
         """
+        self._make_room_for_wppconnect()
         if self._is_wpp_running():
             # ADOPT path: the shared Node is already listening (spawned by another
             # account, or left running from a previous session). We won't spawn it,

@@ -35,6 +35,7 @@ from unittest.mock import Mock
 import pytest
 
 from app_settings import _CONNECTION_GLOBAL, _GENERAL_GLOBAL, AppSettings
+from core import connection_engine as engines
 from core.i18n import I18n
 from core.settings_transfer import build_export
 from main import MainWindow
@@ -432,6 +433,7 @@ NOT_EDITED_BY_THE_DIALOG = {
     "first_run": "set by the first-run questions",
     "hotkey_first_run_asked": "set by the first-run questions",
     "api_type_first_run_asked": "set by the first-run questions",
+    "neonize_offer_asked": "set when the one-time Neonize notice is shown",
     "autostart": ("the box mirrors the Windows Run entry and is applied through "
                   "MainWindow._apply_autostart() only when it differs from it"),
 }
@@ -446,6 +448,7 @@ _ANOTHER_VALUE = {
     "show_tray_icon": False,
     "switch_behavior": "keep_open",
     "wpp_custom_api": True,
+    "wpp_engine": "custom",
     "wpp_server": "http://192.0.2.10",
     "wpp_ws_server": "ws://192.0.2.10",
     "wpp_api_key": "outra-chave",
@@ -477,6 +480,7 @@ class _SettingsDialog(_Dialog):
         self._wpp_all_updates_check = _Radio()
         self._tray_icon_check = _Radio()
         self._custom_api_check = _Radio()
+        self._engine_choice = _Combo()
         self._server_field = _Radio("")
         self._ws_server_field = _Radio("")
         self._api_key_field = _Radio("")
@@ -507,12 +511,17 @@ def _section_of(key):
 
 def _change_elsewhere(window, key, value):
     window.settings[_section_of(key)][key] = value
+    if key == "wpp_engine":
+        # An engine is stored with the switch that goes with it.
+        window.settings["connection"]["wpp_custom_api"] = engines.uses_custom_api(value)
     window.save_settings()
 
 
 def _set_control(dialog, key, value):
     if key == "language":
         dialog._lang_combo.SetSelection(_LANGS.index(value))
+    elif key == "wpp_engine":
+        dialog._engine_choice.SetSelection(engines.index_of(value))
     elif key == "switch_behavior":
         dialog._switch_behavior_keep_open_rb.SetValue(value == "keep_open")
         dialog._switch_behavior_single_rb.SetValue(value != "keep_open")

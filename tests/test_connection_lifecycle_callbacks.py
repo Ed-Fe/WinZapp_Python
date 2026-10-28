@@ -173,3 +173,14 @@ def test_failed_normalization_cannot_refresh_liveness(callbacks, session, result
     client.on_wpp_message_received(payload)
     assert results.live == []
     assert results.messages == []
+
+
+def test_a_drop_is_logged_with_the_reason_python_socketio_gives(callbacks, caplog):
+    import logging
+    client, _results = socket_stub()
+    with caplog.at_level(logging.INFO):
+        client.on_disconnect("ping timeout")
+        client.on_disconnect()
+    lines = [r.getMessage() for r in caplog.records if "WebSocket disconnected" in r.getMessage()]
+    assert lines == ["[WebSocketClient] WebSocket disconnected (ping timeout).",
+                     "[WebSocketClient] WebSocket disconnected (no reason given)."]

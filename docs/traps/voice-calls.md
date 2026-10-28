@@ -672,7 +672,9 @@ least one real call to learn, so read before touching the video path.
   `/json/version` before listing targets so a personal Chrome's tabs are
   never read). `getShortStatisticString()` and `getCallInfo()` on the VoIP
   interface answer "is media arriving at all" in one call; `getCallInfo()`
-  carries account identifiers, so filter it before printing.
+  carries account identifiers, so filter it before printing. The general
+  how-to, and what replaces CDP on the Neonize engine:
+  `docs/reference/live-inspection.md`.
 
 ## Voice → video upgrade, and "ended" must mean ended (2026-09-26)
 
@@ -754,3 +756,31 @@ A tester with speakers reported the other person hearing their own voice, only i
 - **Defaults:** echo cancellation is on (`migrate_echo_cancellation_default()` turned it on once for existing installs, `settings-migrations.md`); noise suppression stays off. With a headset AEC3 finds no echo and leaves the voice alone.
 
 **Answering from any window: two Windows hotkeys held only while they can act.** `main_window/call_hotkeys.py` registers them with `_HotkeyManager`: *answer* (shipped Ctrl+Alt+Shift+Enter) while an offer rings, *end* (shipped Ctrl+Alt+Shift+Backspace) while any offer rings or a call is in progress. *Answer* accepts the call, then brings the call window in front of any program (`core/dialog_foreground.force_foreground(topmost=True)`, the helper the incoming-call popup uses too) and focuses its first button; a video call is answered like its Answer button, camera on. A group offer takes *answer* like a one-to-one one (`incoming_call_can_answer()` is always true; the page accepts it through the same native `acceptCall`), in oldest-first order. *End* rejects the first ringing offer, a group one included, before it would hang up the call in progress: a group call ringing during a one-to-one call must not cost the user the call they are on. Both are settings (`general.call_answer_hotkey` / `call_end_hotkey`, `{"vk": 0, "mod": 0}` = removed) edited as `global` rows of Settings > Keyboard shortcuts next to the show-WinZapp key; an import that puts one on the show-WinZapp key or on the other call key keeps the old value. A show-WinZapp key saved on a call key's combination (possible before the call keys shipped) keeps it: `call_hotkey_setting()` then reads that call key as removed, and `saved_call_hotkey()` is the raw value. The call keys retry a failed registration every second, not every 15 s, since another account lets go of the key as soon as its call is decided. `_sync_incoming_call_bar()` and `_sync_voice_call_bar()` (which `_stop_voice_call_audio()` queues at the end of a call) ask for a sync with `_request_call_hotkey_sync()`, which queues one `_sync_call_hotkeys()` behind a pending flag. Never sync in place: `accept_incoming_call()` stops the alert before it sets `_active_voice_call`, and a sync in between dropped the end key and took it again on every answer, each `stop(wait=True)` holding the UI thread. `_perform_shutdown()` calls `_release_call_hotkeys()` first, and both keys do nothing once `_shutting_down` is set: answering into a server being stopped opens call audio for nothing. Why they are not permanent: a system-wide Ctrl+Alt+Shift+Enter held all day would take that key from every other program. Several accounts open: each account is its own process and Windows gives a combination to one registration, so while account A holds *end* for its call, account B's ringing call cannot take it and the press meant for B reaches A. With nothing ringing locally, A therefore asks every other running account first (`ipc.request_reject_ringing_call`, off the wx thread) and hangs up only when none had a call ringing, and only if the same call is still in progress by then.
+
+## The Neonize engine: calls through meowcaller (2026-10-26)
+
+With the Neonize engine there is no browser and no WebRTC: WinZapp's neonize
+build carries meowcaller's call layer (`neonize_patches/neonize/0003`, Python
+bindings in `0005`), and `neonize_bridge/call_media.py` speaks the same
+`call/*` routes and `callstate` / `call:audio:*` events as WPPConnect. What is
+different, and easy to get wrong:
+
+- **The layer must be on before the client connects.** `CallsConfigure(1)`
+  (`server.call_layer_on`) runs before each `NewClient`; it installs on
+  `Neonize()`. `send-capabilities` answers `calls: true` only then, and the
+  client offers calls only on that answer (`core/call_logic.engine_refuses_call`).
+- **Rates.** The client's microphone is 48 kHz s16le in 20 ms frames;
+  meowcaller takes 16 kHz in 60 ms frames (1920 bytes). The bridge averages
+  each 3 samples and regroups; the other side goes out at 16 kHz and the
+  client's jitter buffer resamples it.
+- **An outgoing call is ACTIVE on meowcaller's `accepted`, not on its Active
+  phase**, which can come with the relay alone, before anyone answered. And the
+  microphone feeds only an ACTIVE call: the client opens it when it dials, and
+  meowcaller queues 3 s, which would reach the other person late.
+- **The incoming offer still comes from whatsmeow's CallOfferEv** (`calls.py`,
+  with the peer by number, video and group); meowcaller's `incoming` only says
+  it holds the call. A ringing call meowcaller holds is rejected through it
+  (its Reject also ends its own record), any other through `reject_call`.
+- No group calls, no video (`call/group/offer`, `call/upgrade-video` and an
+  offer with `isVideo` answer 501). An incoming video or group call is answered
+  with voice only.

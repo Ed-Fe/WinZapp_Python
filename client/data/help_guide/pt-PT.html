@@ -283,7 +283,7 @@
 <h3>Conectar a sua conta</h3>
 <p>O ecrã de ligação oferece duas formas de emparelhar:</p>
 <ol class="steps">
-  <li><span class="step-num">1</span><div><strong>Número de telefone:</strong> escolha o país (a lista vem em ordem alfabética, usa o país e o idioma do Windows e aceita escrever várias letras para buscar), escreva o número e continue. O WinZapp mostra um código. No telemóvel, abra o WhatsApp, vá em Dispositivos ligados &gt; Ligar um dispositivo e escolha ligar com número de telefone.</div></li>
+  <li><span class="step-num">1</span><div><strong>Número de telefone:</strong> Se ainda não emparelhou, a lista "Motor de ligação", antes do país, permite escolher entre WPPConnect e Neonize sem abrir as Definições; ao escolher, o WinZapp pede confirmação e reinicia com o motor escolhido. escolha o país (a lista vem em ordem alfabética, usa o país e o idioma do Windows e aceita escrever várias letras para buscar), escreva o número e continue. O WinZapp mostra um código. No telemóvel, abra o WhatsApp, vá em Dispositivos ligados &gt; Ligar um dispositivo e escolha ligar com número de telefone.</div></li>
   <li><span class="step-num">2</span><div><strong>QR Code:</strong> escaneie o código do ecrã com o WhatsApp do telemóvel, em Dispositivos ligados.</div></li>
 </ol>
 <p>O WinZapp anuncia quando o código está a ser gerado, quando ele de fato aparece, quando expira e quando não foi possível gerá-lo. Se o WhatsApp recusar o código, a mensagem explica o motivo.</p>
@@ -601,6 +601,7 @@
   <li>As mensagens de voz seguintes tocam em sequência, a menos que desmarque "Reproduzir mensagens de voz em sequência automaticamente" em Definições &gt; Interface do utilizador. Durante a sequência, a linha em foco espera para atualizar o estado, para o leitor de ecrã não ler por cima do áudio.</li>
   <li><strong>Ctrl+Alt+Shift+P</strong> pausa ou retoma o áudio que estiver a tocar, de qualquer painel.</li>
   <li>Se o dispositivo de saída mudar (fone desconectado, por exemplo), o WinZapp passa para o dispositivo predefinição e toca a mensagem na primeira vez.</li>
+  <li>Se a placa de som não estiver disponível (por exemplo, ao acordar o computador), o WinZapp tenta restaurar a saída de áudio quando uma reprodução falha; se mesmo assim não conseguir tocar, avisa pelo leitor de ecrã.</li>
   <li>Em Definições, há a opção de não marcar áudios como reproduzidos.</li>
 </ul>
 
@@ -693,7 +694,9 @@
 <h3>Ligar</h3>
 <p>Numa conversa individual, use os botões "Chamada de voz" (Ctrl+Shift+V) e "Chamada de vídeo" (Ctrl+Alt+Shift+V); os atalhos funcionam também com o campo de mensagem em foco. O leitor de ecrã avisa quando a chamada liga, quando está a religar e quando termina.</p>
 <p>O WhatsApp só permite ligar para grupos com até 32 membros. Num grupo maior, no lugar dos botões de chamada aparece um botão "Não é possível ligar", com a nota "O grupo tem mais de 32 membros", e os atalhos de chamada dizem o mesmo.</p>
-<p>Numa conversa de grupo, os mesmos botões ligam para o grupo todo. Uma chamada de grupo recebida toca, é anunciada pelo nome do grupo e é atendida como qualquer outra chamada, sendo possível ligar a câmara durante a chamada. O WinZapp encontra a câmara com o FFmpeg que acompanha o programa, pelo que uma chamada de vídeo já não sai apenas a receber.</p>
+<p>Numa conversa de grupo, os mesmos botões ligam para o grupo todo. Uma chamada de grupo recebida toca, é anunciada pelo nome do grupo e é atendida como qualquer outra chamada, sendo possível ligar a câmara durante a chamada. O WinZapp encontra a câmara com o FFmpeg que acompanha o programa, pelo que uma chamada de vídeo já não sai apenas a receber. Uma chamada de grupo que tocou e não atendeu fica no histórico do grupo, como chamada de grupo perdida.</p>
+
+<p>Com o motor Neonize, o próprio WinZapp toca os sons que o WhatsApp Web tocava por si: enquanto o outro telemóvel toca, ouve o toque de chamada com o tom e o ritmo do país para onde ligou, e tocam bipes curtos enquanto a chamada liga ou volta a ligar. Com o motor WPPConnect nada muda. Quando uma chamada atendida termina, também toca o som de chamada terminada do WhatsApp; é o evento de som "Chamada terminada", que pode ser desligado ou trocado em Definições &gt; Eventos de som.</p>
 
 <h3>Durante a chamada</h3>
 <table class="field-table">
@@ -826,7 +829,7 @@
   <tr><td class="field-name">Interface</td><td>Cada botão abre a janela de um assunto: Mensagens, Reações, Conversas, Confirmações e Atalhos de teclado.</td></tr>
   <tr><td class="field-name">Interface &gt; Mensagens</td><td>Quantas mensagens mostrar ao abrir uma conversa; quantas pular com Page Up/Down; tipo de lista de mensagens (clássica, com limite de 512 caracteres, ou caixa de lista, com mensagens completas); mostrar quem está a escrever como última linha; "Como se referir a mim?"; ocultar o remetente nas suas mensagens; ocultar números de remetentes sem nome; preservar a mensagem digitada como legenda; "Ontem às {time}" no lugar da data; prévias de chamadas; "Reencaminhada" antes do remetente; marca inicial de "Eliminar também a multimédia do telemóvel"; vídeos e estados em player separado; tipos de multimédia exibidos por predefinição.</td></tr>
   <tr><td class="field-name">Interface &gt; Reações</td><td>Reações rápidas fixas e a escolha do emoji de cada posição.</td></tr>
-  <tr><td class="field-name">Interface &gt; Conversas</td><td>Onde focar ao abrir uma conversa; estados de entrega na lista de conversas; manter a ordem das conversas afixadas; substituir atalhos por ações em massa; comportamento de Espaço e Esc com seleção; manter a pesquisa de conversas ao abrir; posição do anúncio "selecionado".</td></tr>
+  <tr><td class="field-name">Interface &gt; Conversas</td><td>Onde focar ao abrir uma conversa; estados de entrega na lista de conversas; manter a ordem das conversas afixadas; substituir atalhos por ações em massa; comportamento de Espaço e Esc com seleção; manter a pesquisa de conversas ao abrir; posição do anúncio "selecionado"; mostrar canais na lista de conversas (desmarcado por predefinição).</td></tr>
   <tr><td class="field-name">Interface &gt; Conversas &gt; Conversas trancadas</td><td>PIN do cofre, bloqueio por tempo sem uso e o código secreto (o botão aparece quando o cofre está disponível).</td></tr>
   <tr><td class="field-name">Interface &gt; Confirmações</td><td>As perguntas de confirmação (marcar tudo como lido, limpar, eliminar, F5, Shift+F5, gravar áudio do computador) e suas versões "Não mostrar novamente".</td></tr>
   <tr><td class="field-name">Interface &gt; Atalhos de teclado</td><td>Lista todos os atalhos do programa, inclusive o global. Selecione um, escolha "Alterar" e escreva a nova combinação; ou desative-o, restaure o predefinição ou restaure todos. Conflitos são avisados antes de aplicar, e as mudanças só valem com Aplicar ou OK.</td></tr>
@@ -841,7 +844,7 @@
   <tr><td class="field-name">IA online: Transcrições e Descrições</td><td>Veja a seção Transcrição e descrição.</td></tr>
   <tr><td class="field-name">Transcrição local</td><td>Veja a seção Transcrição e descrição.</td></tr>
   <tr><td class="field-name">Definições do WhatsApp</td><td>Privacidade e Perfil: veja a secção Definições do WhatsApp.</td></tr>
-  <tr><td class="field-name">Ligação</td><td>Usar API personalizada (servidor remoto): endereço do servidor, do WebSocket, porta e chave de API.</td></tr>
+  <tr><td class="field-name">Ligação</td><td>Motor de ligação: WPPConnect (o predefinido), Neonize (experimental: liga ao WhatsApp sem navegador, através de uma ponte local que o WinZapp inicia sozinho) ou servidor personalizado (endereço do servidor, do WebSocket, porta e chave de API). Trocar o motor só vale depois de reiniciar o WinZapp; a primeira abertura também faz esta pergunta. As versões compiladas já incluem o Neonize e mantêm o WPPConnect instalado ao lado dele; a partir de um clone do repositório, execute antes o neonize_bridge/prepare.py, como explica o README da pasta. Quem ainda usa o WPPConnect vê, uma única vez ao abrir o programa, um aviso a oferecer a mudança para o Neonize (é preciso emparelhar de novo no novo motor); cada motor mantém a sua própria ligação, por isso pode alternar sem perder nenhuma. Quem ainda não emparelhou a conta pode trocar o motor na própria janela de emparelhamento, na lista "Motor de ligação" antes do país: o WinZapp pede confirmação e reinicia no motor escolhido. As versões compiladas não trazem o Node.js; ao escolher a WPPConnect (na primeira abertura, na janela de emparelhamento ou nas Definições), o WinZapp descarrega um Node.js verificado e instala os módulos da WPPConnect antes de ligar.</td></tr>
 </table>
 
 <h3>Exportar e importar configurações</h3>
@@ -1277,6 +1280,8 @@
 <p class="lead">Cada alpha nova que traz funcionalidades é acrescentada ao guia. Esta lista mostra até que alpha o guia está completo e o que foi acrescentado em cada rodada.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>O que entrou no guia</th></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Chamadas de grupo não atendidas ficam no histórico do grupo, e não como chamada particular de quem ligou.</td></tr>
+  <tr><td class="field-name">Ainda não lançado</td><td>Motor de ligação Neonize (experimental) em Definições, Ligação e na primeira abertura.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Chamadas em curso: entrar numa chamada disponível a partir da conversa do grupo ou do filtro Em curso de Chamadas, e a lista de participantes ligados. Mistral para transcrição online, descrição de imagens e extração de texto de PDFs.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Presença de contactos (a escrever, online): muitas atualizações seguidas já não congelam o programa durante segundos nem deixam o computador lento.</td></tr>
   <tr><td class="field-name">Ainda não lançado</td><td>Atualizações de presença com menos alterações repetidas na interface e gravação em segundo plano de novos nomes de contactos.</td></tr>

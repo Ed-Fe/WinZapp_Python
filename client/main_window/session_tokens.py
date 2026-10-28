@@ -19,7 +19,7 @@ from app_paths import (
 )
 from core.api_client import api_post
 from traceback import format_exc
-from core import token_vault
+from core import connection_engine, session_engine, token_vault
 from main_window.api_start_behind_window import wait_for_api_start
 
 
@@ -41,6 +41,49 @@ class SessionTokensMixin:
         if not getattr(self, "key", None):
             self.key = self.retrieve_secret_key()
         return self.key
+
+    def _session_engine_name(self) -> str:
+        """The connection engine this process runs on, as stored sessions name it."""
+        engine = getattr(self, "wpp_engine", None)
+        if engine in connection_engine.ENGINES:
+            return engine
+        if self._uses_neonize():
+            return connection_engine.NEONIZE
+        if getattr(self, "wpp_custom_api", False):
+            return connection_engine.CUSTOM
+        return connection_engine.WPPCONNECT
+
+    def _reconcile_session_engine(self) -> None:
+        """Called once at startup, before the pairing check: the stored session
+        and the ``paired`` flag belong to one engine (core/session_engine.py).
+        After a switch they are set aside, so the new engine is asked to pair
+        instead of being handed a token it has never seen -- which it answered
+        with a pairing code that the client took for a corrupted profile and a
+        logout. Switching back brings the parked session back."""
+        private_info = self.settings.setdefault("privateinfo", {})
+        engine = self._session_engine_name()
+        before = private_info.get(session_engine.ENGINE_KEY)
+        outcome = session_engine.reconcile(private_info, engine, self._get_wa_token())
+        if outcome == session_engine.UNCHANGED and before == engine:
+            return
+        self.save_settings()
+        before = before or "(unrecorded)"
+        logging.info("[engine] session engine %s -> %s: %s", before, engine, outcome)
+        if outcome != session_engine.UNCHANGED:
+            self.token = ""
+            self._shutdown_audit("engine switch %s -> %s: %s" % (before, engine, outcome))
+        if (outcome == session_engine.PARKED and not getattr(self, "background_mode", False)
+                and not getattr(self, "_engine_switch_announced", False)):
+            self._announce_engine_switch()
+
+    def _announce_engine_switch(self) -> None:
+        """Say why the pairing dialog is about to appear for an account that was
+        paired a moment ago."""
+        wx.MessageBox(
+            self.i18n.t("engine_switch_pair_again_message"),
+            self.i18n.t("engine_switch_pair_again_title"),
+            wx.OK | wx.ICON_INFORMATION,
+        )
 
     def _get_wa_token(self) -> str:
         """Read the WPPConnect session token, transparently migrating a
@@ -108,11 +151,16 @@ class SessionTokensMixin:
                 # works; the store is reconciled on a later register/startup).
                 from coord_locks import sessions_lock, LockTimeout
                 gd = getattr(self, "global_dir", None)
+                engine = self._session_engine_name()
+
                 def _commit():
+                    # Only this engine's sessions are superseded: another
+                    # engine's active session is parked, not replaced.
                     for s in store.list():
-                        if s.get("status") == "active" and s.get("name") != new_name:
+                        if (s.get("status") == "active" and s.get("name") != new_name
+                                and session_engine.entry_engine(s, engine) == engine):
                             store.set_status(s["name"], "abandoned")
-                    store.register(new_name, token=token, status="active")
+                    store.register(new_name, token=token, status="active", engine=engine)
                 if gd:
                     try:
                         with sessions_lock(gd):
@@ -148,7 +196,8 @@ class SessionTokensMixin:
             gd = getattr(self, "global_dir", None)
 
             def _commit():
-                store.register(name, token=token, status="abandoned")
+                store.register(name, token=token, status="abandoned",
+                               engine=self._session_engine_name())
                 logging.info(
                     "[sessions] registered failed pairing session %s as abandoned "
                     "so it can be deregistered and its userDataDir reclaimed",
@@ -261,8 +310,10 @@ class SessionTokensMixin:
         if store is None:
             return ""
         try:
+            engine = self._session_engine_name()
             active = [s for s in store.list()
-                      if s.get("status") == "active" and s.get("token")]
+                      if s.get("status") == "active" and s.get("token")
+                      and session_engine.entry_engine(s, engine) == engine]
         except Exception:
             logging.exception("[token-recovery] Failed to read the session store")
             return ""
@@ -337,9 +388,12 @@ class SessionTokensMixin:
                     self._set_wa_token(token)
             except Exception:
                 pass
-        if token and ":" not in token:
+        # The Neonize bridge derives the hash from its own secret, so a token made
+        # with the old public key is renewed at every start (same name, same hash).
+        if token and (":" not in token or self._uses_neonize()):
+            token_name = token.split(":", 1)[0]
             try:
-                url = f"{self.wpp_server}:{self.wpp_port}/api/{token}/{self.wpp_api_key}/generate-token"
+                url = f"{self.wpp_server}:{self.wpp_port}/api/{token_name}/{self.wpp_api_key}/generate-token"
                 import requests
                 response = api_post(url, timeout=10)
                 if response.status_code in (200, 201):
@@ -347,10 +401,13 @@ class SessionTokensMixin:
                     hash_token = data.get("token")
                     if hash_token:
                         hash_token = hash_token.replace("/", "_").replace("+", "-")
-                        token = f"{token}:{hash_token}"
+                        token = f"{token_name}:{hash_token}"
                         self._set_wa_token(token)
             except Exception as e:
-                logging.error("[retrieve_token] Failed to migrate WPPConnect token: %s", e)
+                # not %s of the exception: a requests error repeats the URL, and the
+                # Neonize bridge's secret is in it (/api/<name>/<secret>/generate-token)
+                logging.error("[retrieve_token] Failed to migrate WPPConnect token: %s",
+                              type(e).__name__)
         if not token:
             if not wx.IsMainThread():
                 logging.error("[retrieve_token] No token on post_ui_init's thread — quitting from the UI thread.")
@@ -370,7 +427,8 @@ class SessionTokensMixin:
         try:
             store = self._get_session_store()
             if store is not None and self.token:
-                store.ensure_from_legacy_token(self.token.split(":")[0], self.token)
+                store.ensure_from_legacy_token(self.token.split(":")[0], self.token,
+                                               engine=self._session_engine_name())
         except Exception:
             logging.exception("[sessions] seeding session store failed (non-fatal)")
         if self._startup_token_tail_done:
@@ -489,6 +547,14 @@ class SessionTokensMixin:
         # browser via this cleanup). Let the external server manage its own
         # sessions; never clean under custom API (plan Zad 3.2 + user config).
         if getattr(self, "wpp_custom_api", False):
+            if self._uses_neonize():
+                # The bridge is ours (started or joined by this client) and its
+                # sessions are the ones in the store: it deletes them itself.
+                try:
+                    self._cleanup_abandoned_bridge_sessions()
+                except Exception:
+                    logging.exception("[sessions] bridge cleanup failed (non-fatal)")
+                return
             logging.info("[sessions] custom API active — skipping abandoned-session cleanup")
             return
         # A Node still starting behind the window (issue #407) refuses the
@@ -528,7 +594,8 @@ class SessionTokensMixin:
                                           "aborting cleanup (fail-closed)")
                         return
                     protected.add(current)
-                    stale = session_store.sessions_to_close(store.list(), current)
+                    stale = session_store.sessions_to_close(
+                        store.list(), current, engine=self._session_engine_name())
                     for s in stale:
                         name = s.get("name") or ""
                         if not name or name in protected:

@@ -291,6 +291,9 @@ class TestTheDialogIsHandedTheReResolvedPort:
             def _main_window_is_up(self):
                 return False
 
+            def _make_room_for_wppconnect(self):
+                pass  # the engine-switch step before the port re-check
+
             def _ensure_wpp_port_still_free(self):
                 # Stands in for the real re-check finding the port taken.
                 self.wpp_port = 6342

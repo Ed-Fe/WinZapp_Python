@@ -283,7 +283,7 @@
 <h3>Vincular tu cuenta</h3>
 <p>La pantalla de conexión ofrece dos formas de emparejar:</p>
 <ol class="steps">
-  <li><span class="step-num">1</span><div><strong>Número de teléfono:</strong> elige el país (la lista está en orden alfabético, usa el país y el idioma de Windows y admite escribir varias letras para buscar), escribe el número y continúa. WinZapp muestra un código. En el teléfono, abre WhatsApp, ve a Dispositivos vinculados &gt; Vincular un dispositivo y elige vincular con número de teléfono.</div></li>
+  <li><span class="step-num">1</span><div><strong>Número de teléfono:</strong> Si todavía no has vinculado, la lista "Motor de conexión", antes del país, permite elegir entre WPPConnect y Neonize sin abrir la configuración; al elegir, WinZapp pide confirmación y se reinicia con el motor elegido. elige el país (la lista está en orden alfabético, usa el país y el idioma de Windows y admite escribir varias letras para buscar), escribe el número y continúa. WinZapp muestra un código. En el teléfono, abre WhatsApp, ve a Dispositivos vinculados &gt; Vincular un dispositivo y elige vincular con número de teléfono.</div></li>
   <li><span class="step-num">2</span><div><strong>Código QR:</strong> escanea el código de la pantalla con WhatsApp en el teléfono, en Dispositivos vinculados.</div></li>
 </ol>
 <p>WinZapp anuncia cuándo se está generando el código, cuándo aparece de verdad, cuándo caduca y cuándo no se pudo generar. Si WhatsApp rechaza el código, el mensaje explica el motivo.</p>
@@ -601,6 +601,7 @@
   <li>Los mensajes de voz siguientes se reproducen en secuencia, salvo que desmarques "Reproducir mensajes de voz en secuencia automáticamente" en Configuración &gt; Interfaz de usuario. Durante la secuencia, la fila con el foco espera para actualizar su estado, para que el lector de pantalla no hable por encima del audio.</li>
   <li><strong>Ctrl+Alt+Shift+P</strong> pausa o reanuda el audio que suena, desde cualquier panel.</li>
   <li>Si cambia el dispositivo de salida (se desenchufan los auriculares, por ejemplo), WinZapp cambia al dispositivo predeterminado y reproduce el mensaje la primera vez.</li>
+  <li>Si la tarjeta de sonido no está disponible (por ejemplo, al reactivar el equipo), WinZapp intenta restaurar la salida de audio cuando falla una reproducción; si aun así no consigue reproducir, lo avisa mediante el lector de pantalla.</li>
   <li>En la configuración hay una opción para no marcar los audios como reproducidos.</li>
 </ul>
 
@@ -693,7 +694,9 @@
 <h3>Hacer una llamada</h3>
 <p>En un chat individual, usa los botones "Llamada de voz" (Ctrl+Shift+V) y "Videollamada" (Ctrl+Alt+Shift+V); los atajos también funcionan con el foco en el campo de mensaje. El lector de pantalla anuncia cuándo se conecta la llamada, cuándo se está reconectando y cuándo termina.</p>
 <p>WhatsApp solo permite llamar a grupos de hasta 32 participantes. En un grupo mayor, un botón "No es posible llamar" con la nota "El grupo tiene más de 32 participantes" sustituye a los botones de llamada, y los atajos de llamada dicen lo mismo.</p>
-<p>En un chat de grupo, los mismos botones llaman a todo el grupo. Una llamada de grupo entrante suena, se anuncia con el nombre del grupo y se contesta como cualquier otra llamada, y se puede activar la cámara durante la llamada. WinZapp encuentra la cámara con el FFmpeg que incluye, así que una videollamada ya no sale solo recibiendo.</p>
+<p>En un chat de grupo, los mismos botones llaman a todo el grupo. Una llamada de grupo entrante suena, se anuncia con el nombre del grupo y se contesta como cualquier otra llamada, y se puede activar la cámara durante la llamada. WinZapp encuentra la cámara con el FFmpeg que incluye, así que una videollamada ya no sale solo recibiendo. Una llamada de grupo que sonó y no contestaste queda en el historial del grupo, como llamada de grupo perdida.</p>
+
+<p>Con el motor Neonize, el propio WinZapp reproduce los sonidos que WhatsApp Web reproducía por ti: mientras el otro teléfono suena oyes el tono de llamada con el tono y el ritmo del país al que llamaste, y suenan pitidos cortos mientras la llamada se conecta o se reconecta. Con el motor WPPConnect no cambia nada. Cuando termina una llamada contestada, también reproduce el sonido de llamada finalizada de WhatsApp; es el evento de sonido "Llamada finalizada", que se puede desactivar o cambiar en Configuración &gt; Eventos de sonido.</p>
 
 <h3>Durante la llamada</h3>
 <table class="field-table">
@@ -826,7 +829,7 @@
   <tr><td class="field-name">Interfaz</td><td>Cada botón abre la ventana de un tema: Mensajes, Reacciones, Conversaciones, Confirmaciones y Atajos de teclado.</td></tr>
   <tr><td class="field-name">Interfaz &gt; Mensajes</td><td>Cuántos mensajes mostrar al abrir un chat; cuántos saltar con Re Pág/Av Pág; tipo de lista de mensajes (clásica, con un límite de 512 caracteres, o cuadro de lista, con los mensajes completos); mostrar quién está escribiendo como última fila; "¿Cómo debo referirme a mí?"; ocultar el remitente en tus propios mensajes; ocultar los números de remitentes sin nombre; conservar el mensaje escrito como pie; "ayer" en lugar de la fecha; vistas previas de enlaces; "Reenviado" antes del remitente; estado inicial de "Eliminar también el archivo multimedia del teléfono"; vídeos y estados en un reproductor aparte; tipos de medios mostrados por defecto.</td></tr>
   <tr><td class="field-name">Interfaz &gt; Reacciones</td><td>Reacciones rápidas fijas y la elección del emoji de cada posición.</td></tr>
-  <tr><td class="field-name">Interfaz &gt; Conversaciones</td><td>Dónde poner el foco al abrir un chat; estado de entrega en la lista de chats; mantener los chats fijados en un orden fijo; sustituir los atajos por acciones en lote; comportamiento de Espacio y Esc con una selección; mantener la búsqueda de chats al abrir; posición del anuncio de "seleccionado".</td></tr>
+  <tr><td class="field-name">Interfaz &gt; Conversaciones</td><td>Dónde poner el foco al abrir un chat; estado de entrega en la lista de chats; mantener los chats fijados en un orden fijo; sustituir los atajos por acciones en lote; comportamiento de Espacio y Esc con una selección; mantener la búsqueda de chats al abrir; posición del anuncio de "seleccionado"; mostrar canales en la lista de chats (desactivado por defecto).</td></tr>
   <tr><td class="field-name">Interfaz &gt; Conversaciones &gt; Chats bloqueados</td><td>PIN de la cámara, bloqueo tras inactividad y el código secreto (el botón aparece cuando la bóveda está disponible).</td></tr>
   <tr><td class="field-name">Interfaz &gt; Confirmaciones</td><td>Las preguntas de confirmación (marcar todo como leído, vaciar, eliminar, F5, Shift+F5, grabar audio del ordenador) y sus versiones "No volver a mostrar".</td></tr>
   <tr><td class="field-name">Interfaz &gt; Atajos de teclado</td><td>Lista todos los atajos del programa, incluido el global. Selecciona uno, elige "Cambiar" y escribe la nueva combinación; o desactívalo, restaura el predeterminado o restaura todos. Los conflictos se avisan antes de aplicar, y los cambios solo surten efecto con Aplicar o Aceptar.</td></tr>
@@ -841,7 +844,7 @@
   <tr><td class="field-name">IA en línea: Transcripciones y Descripciones</td><td>Consulta la sección Transcripción y descripción.</td></tr>
   <tr><td class="field-name">Transcripción local</td><td>Consulta la sección Transcripción y descripción.</td></tr>
   <tr><td class="field-name">Configuración de WhatsApp</td><td>Privacidad y Perfil: consulta la sección Configuración de WhatsApp.</td></tr>
-  <tr><td class="field-name">Conexión</td><td>Usar una API personalizada (servidor remoto): dirección del servidor, dirección WebSocket, puerto y clave de API.</td></tr>
+  <tr><td class="field-name">Conexión</td><td>Motor de conexión: WPPConnect (el predeterminado), Neonize (experimental: se conecta a WhatsApp sin navegador, mediante un puente local que WinZapp inicia por sí mismo) o servidor personalizado (dirección del servidor, dirección WebSocket, puerto y clave de API). Cambiar el motor solo surte efecto tras reiniciar WinZapp; el primer inicio también hace esta pregunta. Las compilaciones incluyen Neonize y mantienen WPPConnect instalado a su lado; desde un clon del repositorio, ejecuta antes neonize_bridge/prepare.py, como explica el README de esa carpeta. Quien sigue con WPPConnect ve, una sola vez al abrir el programa, un aviso que ofrece cambiar a Neonize (hay que emparejar de nuevo en el nuevo motor); cada motor conserva su propia conexión, así que puedes alternar sin perder ninguna. Quien aún no ha emparejado la cuenta puede cambiar el motor en la propia ventana de emparejamiento, en la lista "Motor de conexión" antes del país: WinZapp pide confirmación y se reinicia con el motor elegido. Las compilaciones no incluyen Node.js; al elegir WPPConnect (en el primer inicio, en la ventana de emparejamiento o en Configuración), WinZapp descarga un Node.js verificado e instala los módulos de WPPConnect antes de conectar.</td></tr>
 </table>
 
 <h3>Exportar e importar la configuración</h3>
@@ -1277,6 +1280,8 @@
 <p class="lead">Cada alpha nueva que trae funciones se añade a la guía. Esta lista muestra hasta qué alpha está completa la guía y qué se añadió en cada ronda.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Qué entró en la guía</th></tr>
+  <tr><td class="field-name">Aún no publicado</td><td>Las llamadas de grupo no contestadas quedan en el historial del grupo, no como llamada privada de quien llamó.</td></tr>
+  <tr><td class="field-name">Aún no publicado</td><td>Motor de conexión Neonize (experimental) en Configuración, Conexión y en el primer inicio.</td></tr>
   <tr><td class="field-name">Aún no publicado</td><td>Llamadas en curso: unirse a una llamada disponible desde el chat del grupo o desde el filtro En curso de Llamadas, y la lista de participantes conectados. Mistral para transcripción en línea, descripción de imágenes y extracción de texto de PDF.</td></tr>
   <tr><td class="field-name">Aún no publicado</td><td>Presencia de contactos (escribiendo, en línea): muchas actualizaciones seguidas ya no congelan el programa durante segundos ni ralentizan el equipo.</td></tr>
   <tr><td class="field-name">Aún no publicado</td><td>Actualizaciones de presencia con menos cambios repetidos en la interfaz y guardado en segundo plano de nuevos nombres de contactos.</td></tr>

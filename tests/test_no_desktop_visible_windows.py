@@ -96,12 +96,43 @@ class TestTheDefaultRunIsSafe:
                 command = _pytest_command_in_workflow_line(line)
                 if command is None:
                     continue
-                if "--run-wx-gui" not in command:
+                if "--run-wx-gui" not in command and not _runs_only_the_bridge_suite(command):
                     offenders.append(f"{wf.name}:{i}: {command}")
         assert not offenders, (
             "these CI steps run pytest without --run-wx-gui, so the wxgui "
             f"tests are skipped there too and nothing covers them: {offenders}"
         )
+
+    def test_the_one_suite_allowed_without_the_flag_builds_no_window(self):
+        """The Neonize bridge suite (neonize_bridge/) has its own pytest.ini and
+        no conftest, so `--run-wx-gui` is an unknown option there; the guard
+        above lets a command that runs only that folder go without it. That is
+        only safe while nothing in the folder can put a window up."""
+        from tests.ci_shards import _REAL_WINDOWS
+
+        bridge = TESTS.parent / "neonize_bridge"
+        assert any(bridge.glob("test_*.py")), "no bridge tests found: has the path changed?"
+        offenders = []
+        for path in sorted(bridge.glob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            if re.search(r"^\s*(?:import|from)\s+wx\b", source, re.MULTILINE) or _REAL_WINDOWS.search(source):
+                offenders.append(path.name)
+        assert not offenders, (
+            "neonize_bridge/ is exempt from --run-wx-gui only while it builds no "
+            f"window, but these files reach for wx: {offenders}")
+
+    @pytest.mark.parametrize("command,exempt", [
+        (r"venv\Scripts\python.exe -m pytest neonize_bridge -q", True),
+        ("uv run pytest neonize_bridge", True),
+        ("pytest neonize_bridge/test_prepare.py -q", True),
+        ("pytest -q", False),
+        ("uv run pytest --run-wx-gui -n auto --shard 1/4", False),
+        ("pytest tests neonize_bridge", False),
+        ("pytest tests/test_x.py neonize_bridge", False),
+        ("pytest tests", False),
+    ])
+    def test_only_a_command_that_targets_the_bridge_alone_is_exempt(self, command, exempt):
+        assert _runs_only_the_bridge_suite(command) is exempt
 
     def test_launcher_prefixes_do_not_blind_the_guard(self):
         """`uv run pytest` used to read as "not pytest", which silently turned
@@ -169,6 +200,15 @@ def _pytest_command_in_workflow_line(line):
     else:
         command = stripped
     return _as_pytest_invocation(command)
+
+
+def _runs_only_the_bridge_suite(command):
+    """True for a pytest command whose every target is under neonize_bridge/."""
+    after = re.split(r"(?:^|[\s\\/])pytest(?:\.exe)?(?=\s|$)", command, maxsplit=1)
+    if len(after) < 2:
+        return False
+    targets = [t for t in after[1].split() if not t.startswith("-")]
+    return bool(targets) and all(re.match(r"neonize_bridge(?:[\\/]|$)", t) for t in targets)
 
 
 def _as_pytest_invocation(command):

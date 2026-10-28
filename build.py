@@ -141,6 +141,9 @@ ONEFILE_EXE     = os.path.join(DIST_DIR, "WinZapp.exe")
 # Staging dir (onedir only)
 STAGING_DIR     = os.path.join(BUILD_DIR, "staging_pyinstaller")
 
+# The frozen Neonize bridge (onedir only): built in its own folder, copied to staging
+BRIDGE_OUTDIR   = os.path.join(BUILD_DIR, "bridge_out")
+
 # Installer paths (onedir only)
 PAYLOAD_ZIP     = os.path.join(BUILD_DIR, "payload_pyinstaller.zip")
 INSTALLER_STUB  = os.path.join(BUILD_DIR, "installer_stub.exe")
@@ -392,6 +395,10 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--onefile", action="store_true",
     help="Build single-file .exe with all resources embedded (default: onedir)"
+)
+parser.add_argument(
+    "--skip-bridge", action="store_true",
+    help="Leave the Neonize bridge out of the build (quick local builds; releases include it)"
 )
 args = parser.parse_args()
 ONEFILE = args.onefile
@@ -906,6 +913,35 @@ def pyinstaller_compile():
             count = sum(1 for _, _, fs in os.walk(PYINST_INTERNAL) for _ in fs)
             print(f"  -> {PYINST_INTERNAL}  ({count} files)")
 
+# -- Step 2b: Freeze the Neonize bridge (onedir only) ------------------------
+
+def stages_node(bridge_staged: bool) -> bool:
+    """Whether the onedir build carries the portable Node.js runtime. A build
+    with the Neonize bridge does not: Node is only for WPPConnect, which
+    downloads it (checksum-verified, ui/dialogs/node_download.py) the first time
+    it is chosen. Without a bridge WPPConnect is the only engine, so Node stays
+    in the build."""
+    return not bridge_staged
+
+
+def freeze_neonize_bridge():
+    """The Neonize bridge, frozen with the PyInstaller this build uses, ships
+    beside the WPPConnect API (api/); Node.js is not bundled (stages_node())."""
+    if args.skip_bridge:
+        print("\n  [WARN] --skip-bridge: this build has no Neonize engine.")
+        shutil.rmtree(BRIDGE_OUTDIR, ignore_errors=True)    # no stale bridge from an earlier build
+        return
+    step("2b/8  Freezing the Neonize bridge")
+    from winzapp_tools import bridge_build
+
+    try:
+        frozen = bridge_build.build(ROOT_DIR, BRIDGE_OUTDIR, base_python=PYTHON_CMD)
+    except (bridge_build.BridgeBuildError, subprocess.CalledProcessError) as error:
+        print(f"\n[ERROR] Could not freeze the Neonize bridge: {error}")
+        print("        (use --skip-bridge for a build without the Neonize engine)")
+        sys.exit(1)
+    print(f"  -> {frozen}")
+
 # -- Step 3: Assemble staging dir (onedir only) -----------------------------
 
 def assemble_staging():
@@ -1009,11 +1045,15 @@ def assemble_staging():
         shutil.copy2(src, os.path.join(STAGING_DIR, os.path.basename(src)))
     print(f"  -> changelog_*.txt  ({len(changelog_files)} files)")
 
-    node_dst = os.path.join(STAGING_DIR, "node")
-    shutil.copytree(NODE_DIR, node_dst,
-                    ignore=shutil.ignore_patterns("corepack"))
-    node_count = sum(1 for _, _, fs in os.walk(node_dst) for _ in fs)
-    print(f"  -> node/  ({node_count} files)")
+    frozen_bridge = os.path.join(BRIDGE_OUTDIR, "dist", "neonize_bridge")
+    if stages_node(os.path.isdir(frozen_bridge)):
+        node_dst = os.path.join(STAGING_DIR, "node")
+        shutil.copytree(NODE_DIR, node_dst,
+                        ignore=shutil.ignore_patterns("corepack"))
+        node_count = sum(1 for _, _, fs in os.walk(node_dst) for _ in fs)
+        print(f"  -> node/  ({node_count} files)")
+    else:
+        print("  -> node/  (not bundled: downloaded when WPPConnect is chosen)")
 
     git_src = os.path.join(CLIENT_DIR, "git")
     if os.path.isdir(git_src):
@@ -1021,6 +1061,15 @@ def assemble_staging():
         shutil.copytree(git_src, git_dst)
         git_count = sum(1 for _, _, fs in os.walk(git_dst) for _ in fs)
         print(f"  -> git/   ({git_count} files)")
+
+    if os.path.isdir(frozen_bridge):
+        from winzapp_tools import bridge_build
+
+        bridge_count = bridge_build.stage(frozen_bridge, STAGING_DIR)
+        print(f"  -> neonize_bridge/  ({bridge_count} files)")
+    elif not args.skip_bridge:
+        print("\n[ERROR] The frozen Neonize bridge is missing from the build output.")
+        sys.exit(1)
 
     api_dst = os.path.join(STAGING_DIR, "api")
     os.makedirs(api_dst)
@@ -1181,6 +1230,7 @@ if __name__ == "__main__":
     else:
         check_tools()
         pyinstaller_compile()
+        freeze_neonize_bridge()
         assemble_staging()
         compile_uninstaller()
         create_payload_zip()

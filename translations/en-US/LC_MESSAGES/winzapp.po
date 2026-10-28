@@ -1678,22 +1678,6 @@ msgctxt "api_startup_warning"
 msgid "WinZapp API failed to start in time. The program will now close."
 msgstr "WinZapp API failed to start in time. The program will now close."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-msgctxt "api_type_ask_message"
-msgid ""
-"Do you want to use the default local API server (Recommended)?\n"
-"\n"
-"Choose 'Yes' for the default local mode (recommended), or 'No' if you want to specify and configure a custom/remote API server."
-msgstr ""
-"Do you want to use the default local API server (Recommended)?\n"
-"\n"
-"Choose 'Yes' for the default local mode (recommended), or 'No' if you want to specify and configure a custom/remote API server."
-
-#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
-msgctxt "api_type_ask_title"
-msgid "API Server Configuration"
-msgstr "API Server Configuration"
-
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "api_update_continue"
 msgid "&Continue with current WPPConnect version (not recommended)"
@@ -1957,6 +1941,12 @@ msgstr "&Mark audios as played in chats and announce it to the screen reader"
 msgctxt "audio_output_device_label"
 msgid "P&layback device (speaker)"
 msgstr "P&layback device (speaker)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/audio_playback.py
+msgctxt "audio_playback_failed"
+msgid "Could not play this audio."
+msgstr "Could not play this audio."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "audio_progress_label"
@@ -4588,6 +4578,55 @@ msgctxt "connection_custom_api_label"
 msgid "&Use custom API (remote server)"
 msgstr "&Use custom API (remote server)"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_message"
+msgid ""
+"Choose how WinZapp connects to WhatsApp. You can change this later in "
+"Settings, Connection."
+msgstr ""
+"Choose how WinZapp connects to WhatsApp. You can change this later in "
+"Settings, Connection."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_ask_title"
+msgid "Connection engine"
+msgstr "Connection engine"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_custom"
+msgid "Custom server (remote compatible API)"
+msgstr "Custom server (remote compatible API)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_hint"
+msgid ""
+"Neonize connects without a browser through the local bridge on port 6300, "
+"which must be running. Changing the engine takes effect after restarting "
+"WinZapp."
+msgstr ""
+"Neonize connects without a browser through the local bridge on port 6300, "
+"which must be running. Changing the engine takes effect after restarting "
+"WinZapp."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/connect_engine.py client/ui/dialogs/engine_picker.py
+msgctxt "connection_engine_label"
+msgid "Connection &engine:"
+msgstr "Connection &engine:"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_neonize"
+msgid "Neonize (direct connection, experimental)"
+msgstr "Neonize (direct connection, experimental)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "connection_engine_wppconnect"
+msgid "WPPConnect (default, uses the Windows browser)"
+msgstr "WPPConnect (default, uses the Windows browser)"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
 #: client/ui/dialogs/connect.py
 msgctxt "connection_error"
@@ -5495,6 +5534,24 @@ msgstr "Emoji search results"
 msgctxt "emoji_picker_title"
 msgid "Select emoji"
 msgstr "Select emoji"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/session_tokens.py
+msgctxt "engine_switch_pair_again_message"
+msgid ""
+"You changed the connection engine, so this account has to be paired again on"
+" it. Your messages stay on this computer, and switching back to the previous"
+" engine picks its connection up where it was."
+msgstr ""
+"You changed the connection engine, so this account has to be paired again on"
+" it. Your messages stay on this computer, and switching back to the previous"
+" engine picks its connection up where it was."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/session_tokens.py
+msgctxt "engine_switch_pair_again_title"
+msgid "Connection engine changed"
+msgstr "Connection engine changed"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
 msgctxt "enter_phone"
@@ -7661,6 +7718,56 @@ msgctxt "my_status_update"
 msgid "update status"
 msgstr "update status"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py client/ui/dialogs/settings_dialog.py
+msgctxt "neonize_bridge_unavailable_message"
+msgid ""
+"WinZapp could not start the Neonize bridge, so it cannot connect to WhatsApp"
+" with this engine. Check the log, or choose another connection engine in "
+"Settings, Connection."
+msgstr ""
+"WinZapp could not start the Neonize bridge, so it cannot connect to WhatsApp"
+" with this engine. Check the log, or choose another connection engine in "
+"Settings, Connection."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py client/ui/dialogs/settings_dialog.py
+msgctxt "neonize_bridge_unavailable_title"
+msgid "Neonize bridge"
+msgstr "Neonize bridge"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_keep"
+msgid "Continue using WPPConnect"
+msgstr "Continue using WPPConnect"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_message"
+msgid ""
+"WinZapp now supports the new Neonize connection engine (optional). It starts faster, runs lighter and uses much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+msgstr ""
+"WinZapp now supports the new Neonize connection engine (optional). It starts faster, runs lighter and uses much less CPU and RAM on your computer. If you decide to switch, you can always change it in Settings > Connection. Your WPPConnect connection is kept as a backup.\n"
+"\n"
+"Neonize advantages: fast connection, lower resource use and no browser.\n"
+"WPPConnect advantages: based entirely on WhatsApp Web, with faster support for the newest WhatsApp features."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_switch"
+msgid "Switch to Neonize (pairing required)"
+msgstr "Switch to Neonize (pairing required)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
+#: client/ui/dialogs/engine_picker.py
+msgctxt "neonize_offer_title"
+msgid "New Neonize engine available"
+msgstr "New Neonize engine available"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/settings.py
 #, python-brace-format
 msgctxt "network_install_location_message"
@@ -8337,6 +8444,28 @@ msgstr ""
 msgctxt "pairing_dial_intro"
 msgid "Enter the pairing code"
 msgstr "Enter the pairing code"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/connect_engine.py
+msgctxt "pairing_engine_restart_failed"
+msgid ""
+"WinZapp could not restart by itself, so the connection engine was not "
+"changed."
+msgstr ""
+"WinZapp could not restart by itself, so the connection engine was not "
+"changed."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
+#, python-brace-format
+msgctxt "pairing_engine_switch_message"
+msgid "WinZapp will restart to connect with {engine}. Continue?"
+msgstr "WinZapp will restart to connect with {engine}. Continue?"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/ui/dialogs/connect.py
+#: client/ui/dialogs/connect_engine.py
+msgctxt "pairing_engine_switch_title"
+msgid "Change connection engine"
+msgstr "Change connection engine"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "pairing_failed_msg"
@@ -11226,6 +11355,11 @@ msgid "Transition to next voice message"
 msgstr "Transition to next voice message"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "sound_event_call_ended"
+msgid "Call ended"
+msgstr "Call ended"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "sound_event_call_incoming"
 msgid "Incoming call"
 msgstr "Incoming call"
@@ -11670,6 +11804,7 @@ msgstr ""
 "before retrying; it may already have been applied."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/neonize_bridge.py
 msgctxt "starting_api"
 msgid "Starting WinZapp, please wait..."
 msgstr "Starting WinZapp, please wait..."
@@ -15567,6 +15702,12 @@ msgstr "You"
 msgctxt "ui_self_reference_voce_option"
 msgid "&You"
 msgstr "&You"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/settings_dialog.py
+msgctxt "ui_show_channels_in_chat_list"
+msgid "Show &channels in the chat list"
+msgstr "Show &channels in the chat list"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py

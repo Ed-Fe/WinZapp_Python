@@ -40,6 +40,14 @@ class _Stub:
     def _shutdown_audit(self, line):
         self.audits.append(line)
 
+    def _stop_neonize_bridge(self):
+        self.bridge_stopped = True
+
+    neonize = False
+
+    def _uses_neonize(self):
+        return self.neonize
+
 
 @pytest.mark.parametrize("owner,expected", [
     (types.SimpleNamespace(), True),
@@ -140,6 +148,30 @@ class TestShutdown:
         stub.wait_for_profile_release = _forbidden
         WppServerMixin._stop_wpp_server(stub, budget=5.0)
         assert stub.audits[-1] == "custom API — the server is not ours to stop"
+
+    def test_the_orphan_sweep_does_not_run_on_the_neonize_bridge(self):
+        """The bridge answers 401 to check-connection-session / close-session
+        by bare name, which the sweep counted as "closed"; and the sessions it
+        holds are the other accounts' of this install."""
+        stub = _Stub()
+        stub.neonize = True
+        stub.token = ""
+        stub.global_dir = None
+        stub.wpp_process = None
+        swept = []
+        stub._close_orphaned_server_sessions = lambda: swept.append(True)
+        WppServerMixin._stop_wpp_server(stub, budget=5.0)
+        assert swept == [] and stub.bridge_stopped is True
+
+    def test_the_orphan_sweep_still_runs_on_a_custom_server(self):
+        stub = _Stub()
+        stub.token = ""
+        stub.global_dir = None
+        stub.wpp_process = None
+        swept = []
+        stub._close_orphaned_server_sessions = lambda: swept.append(True)
+        WppServerMixin._stop_wpp_server(stub, budget=5.0)
+        assert swept == [True]
 
     def test_a_bundled_server_left_from_a_crash_is_still_found_by_port(self):
         stub = _Stub(custom_api=False)

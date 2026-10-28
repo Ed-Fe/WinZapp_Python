@@ -1,0 +1,93 @@
+"""Audio messages without ffprobe: the message built, and send-voice-base64 for
+real (create_app) against a fake client with no build_audio_message. Runs no
+ffmpeg."""
+import base64
+from types import SimpleNamespace as N
+
+import pytest
+from aiohttp.test_utils import TestClient, TestServer
+
+import audio_message as am
+import authentication as auth
+import media_probe
+import server
+from test_media_probe import opus
+
+UPLOAD = N(url="https://mmg/x", DirectPath="/v/x", MediaKey=b"k", FileEncSHA256=b"e",
+           FileSHA256=b"s", FileLength=5)
+
+
+class Client:
+    """Only upload and send_message: neonize's build_audio_message (and its
+    ffprobe) is not there to be called."""
+
+    def __init__(self):
+        self.uploads, self.sent = [], []
+
+    def upload(self, binary, media_type=None):
+        self.uploads.append(binary)
+        return UPLOAD
+
+    def send_message(self, destination, message):
+        self.sent.append((destination, message))
+        return N(ID="NEW1", Timestamp=1_700_000_000, Message=message)
+
+
+def test_build_a_voice_note_from_bytes():
+    client = Client()
+    m = am.build(client, b"abcde", True, mimetype_of=lambda d: "audio/ogg",
+                 seconds_of=lambda d: 7)
+    a = m.audioMessage
+    assert client.uploads == [b"abcde"]
+    assert (a.URL, a.directPath, a.fileLength) == ("https://mmg/x", "/v/x", 5)
+    assert a.PTT is True and a.seconds == 7
+    assert a.mimetype == "audio/ogg; codecs=opus"
+
+
+def test_build_an_audio_from_a_path_keeps_its_mimetype(tmp_path):
+    path = tmp_path / "a.m4a"
+    path.write_bytes(b"m4a!!")
+    client = Client()
+    m = am.build(client, str(path), False, mimetype_of=lambda d: "audio/mp4",
+                 seconds_of=lambda d: 3)
+    assert client.uploads == [b"m4a!!"]
+    assert m.audioMessage.PTT is False and m.audioMessage.mimetype == "audio/mp4"
+
+
+@pytest.fixture
+def sessions(monkeypatch):
+    created = []
+
+    class Registered(server.Session):
+        def __init__(self, *args, **kw):
+            super().__init__(*args, **kw)
+            created.append(self)
+    monkeypatch.setattr(server, "Session", Registered)
+    return created
+
+
+@pytest.mark.asyncio
+async def test_send_voice_base64_goes_out_without_ffprobe(tmp_path, sessions, monkeypatch):
+    monkeypatch.setattr(media_probe, "mimetype", lambda data: "audio/ogg")
+    monkeypatch.setattr(media_probe, "_ffmpeg_seconds", lambda data: pytest.fail("ffmpeg asked"))
+    http = TestClient(TestServer(server.create_app(str(tmp_path))))
+    await http.start_server()
+    try:
+        secret = (tmp_path / auth.SECRET_FILE).read_text(encoding="utf-8")
+        token = f"account1:{auth.session_token(secret, 'account1')}"
+        await http.get(f"/api/{token}/status-session")
+        client = Client()
+        s = sessions[0]
+        s.client, s.status, s.me = client, "CONNECTED", "5500000000@s.whatsapp.net"
+        voice = opus(48000 * 5 + 312)
+        response = await http.post(f"/api/{token}/send-voice-base64", json={
+            "phone": "5511999990000@c.us",
+            "base64Ptt": "data:audio/ogg;base64," + base64.b64encode(voice).decode()})
+        assert response.status == 200
+        assert (await response.json())["status"] == "success"
+        assert client.uploads == [voice]
+        sent = client.sent[0][1].audioMessage
+        assert sent.PTT is True and sent.seconds == 5
+        assert sent.mimetype == "audio/ogg; codecs=opus"
+    finally:
+        await http.close()

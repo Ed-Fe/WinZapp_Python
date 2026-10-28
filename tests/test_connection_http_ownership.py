@@ -225,6 +225,22 @@ def test_unchanged_closed_poll_lifts_deferral_and_starts_once(poll_api):
     assert calls[-1][0].endswith("/api/old:key/start-session")
 
 
+def test_a_terminal_bridge_failure_is_never_auto_started_again(poll_api):
+    """The neonize bridge reports "terminalFailure" (neonize_bridge/session_lifecycle.py
+    TERMINAL) after a ban, an outdated client or a replaced stream. Reporting
+    CLOSED there made this 30 s poll call start-session for ever; any status
+    outside CLOSED/DESTROYED/"" takes the "active state" branch instead: offline,
+    no start, and not one of the unlinked states either (no logout wipe)."""
+    window, scenario, calls, queue = poll_api
+    scenario.status = "terminalFailure"
+    assert "terminalFailure" not in cs.UNLINKED_STATES
+    for _ in range(3):
+        window.check_wa_connection_http()
+    assert window._wa_connected is False
+    assert window.starts == [] and window.disconnects == []
+    assert [url.rsplit("/", 1)[-1] for url, _ in calls] == ["status-session"] * 3
+
+
 @pytest.mark.parametrize("stage,expected_strikes", [("status_error", 8), ("status_json_error", 1)])
 def test_current_owner_keeps_existing_http_failure_budget(poll_api, stage, expected_strikes):
     window, scenario, calls, queue = poll_api

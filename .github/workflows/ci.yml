@@ -23,6 +23,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.13"
+  GO_VERSION: "1.27.x"
 
 # Um push novo no PR cancela a execução anterior: só o último commit interessa.
 concurrency:
@@ -115,3 +116,58 @@ jobs:
 
       - name: Run the dependency and build-environment checks under the venv
         run: venv\Scripts\python.exe -m pytest tests/test_requirements_in_sync.py tests/test_uv_build_architecture.py --run-wx-gui -q
+
+  # The Neonize bridge (neonize_bridge/) has its own suite, its own
+  # pytest.ini and its own dependencies; the root `pytest` only collects
+  # `tests/`, so none of the other jobs runs it. That suite holds the tests of
+  # the local port's authentication (neonize_bridge/test_authentication*.py),
+  # of the extraction of the prepare.py zip and of the one-handler-per-event rule
+  # of neonize: without this job, a regression in them would go green.
+  # It runs against the neonize the bridge runs every day: WinZapp's build
+  # (official neonize plus neonize_patches/, compiled by build_neonize.py), never
+  # PyPI's, which lacks the events and functions the bridge relies on.
+  # Only on PR CI, like pip-compat. To block the merge, an admin has to mark
+  # "Neonize bridge tests" in the ruleset (the `Run test suite` aggregate does not
+  # include this job on purpose: whoever does not use the bridge should not depend on it).
+  neonize-bridge:
+    name: Neonize bridge tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Set up MSYS2 (64-bit GCC for cgo)
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: false
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Add MSYS2 UCRT64 bin to Windows PATH
+        shell: msys2 {0}
+        run: echo "$(cygpath -w /ucrt64/bin)" >> "$GITHUB_PATH"
+
+      - name: Build WinZapp's neonize (the one the bridge runs)
+        run: python neonize_bridge/build_neonize.py all
+
+      - name: Install the bridge's requirements, the test tooling and that neonize into a venv
+        run: |
+          python -m venv venv
+          venv\Scripts\python.exe -m pip install --upgrade pip --quiet
+          venv\Scripts\python.exe -m pip install --require-hashes -r neonize_bridge/requirements.lock --quiet
+          venv\Scripts\python.exe -m pip install -r requirements-dev.txt --quiet
+          python neonize_bridge/build_neonize.py install --venv venv
+
+      - name: Run the bridge's tests
+        run: venv\Scripts\python.exe -m pytest neonize_bridge -q

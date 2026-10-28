@@ -283,7 +283,7 @@
 <h3>Connect your account</h3>
 <p>The connection screen offers two ways to pair:</p>
 <ol class="steps">
-  <li><span class="step-num">1</span><div><strong>Phone number:</strong> choose the country (the list is alphabetical, uses the country and language of Windows, and accepts typing several letters to search), type the number and continue. WinZapp shows a code. On your phone, open WhatsApp, go to Linked devices &gt; Link a device and choose to link with a phone number.</div></li>
+  <li><span class="step-num">1</span><div><strong>Phone number:</strong> If you have not paired yet, the "Connection engine" list before the country lets you choose between WPPConnect and Neonize without opening Settings; when you choose, WinZapp asks for confirmation and restarts with the chosen engine. choose the country (the list is alphabetical, uses the country and language of Windows, and accepts typing several letters to search), type the number and continue. WinZapp shows a code. On your phone, open WhatsApp, go to Linked devices &gt; Link a device and choose to link with a phone number.</div></li>
   <li><span class="step-num">2</span><div><strong>QR code:</strong> scan the code on the screen with WhatsApp on your phone, under Linked devices.</div></li>
 </ol>
 <p>WinZapp announces when the code is being generated, when it actually appears, when it expires and when it could not be generated. If WhatsApp refuses the code, the message explains why.</p>
@@ -601,6 +601,7 @@
   <li>The following voice messages play in sequence, unless you clear "Automatically play voice messages in sequence" in Settings &gt; User interface. During the sequence, the focused row waits to update its state, so the screen reader does not read over the audio.</li>
   <li><strong>Ctrl+Alt+Shift+P</strong> pauses or resumes the audio that is playing, from any panel.</li>
   <li>If the output device changes (headphones unplugged, for example), WinZapp switches to the default device and plays the message the first time.</li>
+  <li>If the sound card is not available (for example, when the computer wakes up), WinZapp tries to restore the audio output when a playback fails; if it still cannot play, it tells you through the screen reader.</li>
   <li>In Settings, there is an option not to mark audio as played.</li>
 </ul>
 
@@ -693,7 +694,9 @@
 <h3>Make a call</h3>
 <p>In an individual chat, use the "Voice call" (Ctrl+Shift+V) and "Video call" (Ctrl+Alt+Shift+V) buttons; the shortcuts also work with the message field focused. The screen reader announces when the call connects, when it is reconnecting and when it ends.</p>
 <p>WhatsApp only allows calls to groups of up to 32 participants. In a larger group, a "Calling is not possible" button with the note "The group has more than 32 participants" replaces the call buttons, and the call shortcuts say the same.</p>
-<p>In a group chat the same buttons call the whole group. An incoming group call rings, is announced by the group's name and is answered like any other call, and the camera can be turned on during the call. WinZapp finds the camera with the FFmpeg it ships, so a video call no longer goes out receive-only.</p>
+<p>In a group chat the same buttons call the whole group. An incoming group call rings, is announced by the group's name and is answered like any other call, and the camera can be turned on during the call. WinZapp finds the camera with the FFmpeg it ships, so a video call no longer goes out receive-only. A group call that rang and you did not answer stays in the group's history, as a missed group call.</p>
+
+<p>With the Neonize engine, WinZapp itself plays the sounds WhatsApp Web used to play for you: while the other phone rings you hear the ringback tone with the pitch and rhythm of the country you called, and short beeps play while the call connects or reconnects. With the WPPConnect engine nothing changes. When an answered call ends, it also plays the WhatsApp call-ended sound; this is the "Call ended" sound event, which can be turned off or replaced in Settings &gt; Sound events.</p>
 
 <h3>During the call</h3>
 <table class="field-table">
@@ -826,7 +829,7 @@
   <tr><td class="field-name">Interface</td><td>Each button opens the window of one subject: Messages, Reactions, Chats, Confirmations and Keyboard shortcuts.</td></tr>
   <tr><td class="field-name">Interface &gt; Messages</td><td>How many messages to show when opening a chat; how many to skip with Page Up/Down; type of message list (classic, with a 512-character limit, or list box, with full messages); show who is typing as the last row; "How should I be referred to?"; hide the sender on your own messages; hide numbers of unnamed senders; preserve the typed message as a caption; "yesterday" instead of the date; link previews; "Forwarded" before the sender; initial state of "Also delete the media from your phone"; videos and statuses in a separate player; media types shown by default.</td></tr>
   <tr><td class="field-name">Interface &gt; Reactions</td><td>Fixed quick reactions and the choice of the emoji for each position.</td></tr>
-  <tr><td class="field-name">Interface &gt; Chats</td><td>Where to put the focus when opening a chat; delivery status in the chat list; keep pinned chats in a fixed order; replace shortcuts with bulk actions; Space and Esc behavior with a selection; keep chat search when opening; position of the "selected" announcement.</td></tr>
+  <tr><td class="field-name">Interface &gt; Chats</td><td>Where to put the focus when opening a chat; delivery status in the chat list; keep pinned chats in a fixed order; replace shortcuts with bulk actions; Space and Esc behavior with a selection; keep chat search when opening; position of the "selected" announcement; show channels in the chat list (off by default).</td></tr>
   <tr><td class="field-name">Interface &gt; Chats &gt; Locked chats</td><td>Vault PIN, lock after inactivity and the secret code (the button appears when the vault is available).</td></tr>
   <tr><td class="field-name">Interface &gt; Confirmations</td><td>The confirmation questions (mark all as read, clear, delete, F5, Shift+F5, record computer audio) and their "Don't show again" versions.</td></tr>
   <tr><td class="field-name">Interface &gt; Keyboard shortcuts</td><td>Lists all of the program's shortcuts, including the global one. Select one, choose "Change" and type the new combination; or disable it, restore the default or restore all. Conflicts are warned about before applying, and changes only take effect with Apply or OK.</td></tr>
@@ -841,7 +844,7 @@
   <tr><td class="field-name">Online AI: Transcriptions and Descriptions</td><td>See the Transcription and description section.</td></tr>
   <tr><td class="field-name">Local Transcription</td><td>See the Transcription and description section.</td></tr>
   <tr><td class="field-name">WhatsApp settings</td><td>Privacy and Profile: see the WhatsApp settings section.</td></tr>
-  <tr><td class="field-name">Connection</td><td>Use custom API (remote server): server address, WebSocket address, port and API key.</td></tr>
+  <tr><td class="field-name">Connection</td><td>Connection engine: WPPConnect (the default), Neonize (experimental: connects to WhatsApp without a browser, through a local bridge that WinZapp starts by itself) or custom server (server address, WebSocket address, port and API key). Changing the engine only takes effect after restarting WinZapp; the first launch also asks this question. Compiled builds include Neonize and keep WPPConnect installed alongside it; from a repository checkout, first run neonize_bridge/prepare.py, as the README in that folder explains. Installs still on WPPConnect see a one-time notice at startup offering to switch to Neonize (pairing is required on the new engine); each engine keeps its own connection, so you can go back and forth without losing either. Someone who has not paired yet can change the engine in the pairing window itself, in the "Connection engine" list before the country: WinZapp asks for confirmation and restarts on the chosen engine. Compiled builds do not include Node.js; when you choose WPPConnect (on first launch, in the pairing window or in Settings), WinZapp downloads a verified Node.js and installs the WPPConnect modules before connecting.</td></tr>
 </table>
 
 <h3>Export and import settings</h3>
@@ -1277,6 +1280,8 @@
 <p class="lead">Every new alpha that brings features is added to the guide. This list shows up to which alpha the guide is complete and what was added in each round.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
+  <tr><td class="field-name">Not yet released</td><td>Unanswered group calls stay in the group's history, not as a private call from whoever started them.</td></tr>
+  <tr><td class="field-name">Not yet released</td><td>Neonize connection engine (experimental) in Settings, Connection and on the first launch.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Ongoing calls: joining an available call from the group chat or from the Ongoing filter in Calls, and the list of connected participants. Mistral for online transcription, image descriptions and PDF text extraction.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Contact presence (typing, online): many updates in a row no longer freeze the program for seconds or slow the computer down.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Contact status updates with fewer repeated interface changes and background saving of newly learned contact names.</td></tr>

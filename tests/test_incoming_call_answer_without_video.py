@@ -49,6 +49,7 @@ class _I18n:
 
 
 class _MainStub:
+    _uses_neonize = lambda self: False      # these tests are about the WPPConnect engine
     accept_incoming_call = MainWindow.accept_incoming_call
     stop_incoming_call_alert = MainWindow.stop_incoming_call_alert
     _call_control_payload = MainWindow._call_control_payload

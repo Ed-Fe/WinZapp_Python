@@ -1055,7 +1055,8 @@ DEFAULT_SETTINGS = {
         "wpp_port": 6300,
         "wpp_ws_server": "ws://127.0.0.1",
         "wpp_api_key": "70733f08be1ed195bda1c31b6e135f5ebeb9fb8c6c28530a3a46e4093357b037",
-        "wpp_custom_api": False
+        "wpp_custom_api": False,
+        "wpp_engine": ""
     },
     "general": {
         "language": "",
@@ -1100,6 +1101,7 @@ DEFAULT_SETTINGS = {
         "convert_emoticons": True,
         "first_run": True,
         "api_type_first_run_asked": False,
+        "neonize_offer_asked": False,
         "hotkey_first_run_asked": False,
         "autostart": False,
         "show_tray_icon": True,
@@ -1167,6 +1169,7 @@ DEFAULT_SETTINGS = {
         "mark_unsaved_contacts": True,
         "show_delivery_status_in_chat_list": True,
         "keep_pinned_chat_order": False,
+        "show_channels_in_chat_list": False,
         # What happens to what was typed and not sent when the conversation
         # is left: one draft per conversation, like WhatsApp Web
         # (core/message_drafts.py MODES).
@@ -1449,6 +1452,18 @@ def decrypt_json(encrypted_data, key):
     data = json.loads(decrypted_data.decode())
     return data
 
+_NUMBER_MASK = "∙•·*"
+
+
+def is_masked_number(name: str) -> bool:
+    """'+55∙∙∙∙∙∙∙∙76': the name WhatsApp gives a group member whose number is
+    hidden. Digits with mask characters in between, never a real name."""
+    if not name or not any(m in name for m in _NUMBER_MASK):
+        return False
+    rest = "".join(ch for ch in name if ch not in _NUMBER_MASK + "+-() ")
+    return rest.isdigit()
+
+
 def is_phone_like(name: str) -> bool:
     """Return True if name looks like a phone number rather than a display name.
 
@@ -1461,6 +1476,8 @@ def is_phone_like(name: str) -> bool:
     stripped = name.strip()
     if stripped.isdigit():
         return True  # "0", "123", "5511999999999" — never a real name
+    if is_masked_number(stripped):
+        return True
     digit_count = sum(1 for c in stripped if c.isdigit())
     return digit_count >= 7 and digit_count >= len(stripped) * 0.7
 

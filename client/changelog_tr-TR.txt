@@ -4,6 +4,10 @@ Bu sürüm, 2.1.0.0 sürümündeki her şeye ek olarak toplulukları ve yeniden 
 
 YENİLİKLER
 
+- Çalan ve yanıtlanmayan bir grup araması artık kendi grubuna kaydediliyor ve arama bildirimi grubu gösteriyor: aramayı başlatan kişiden gelen özel bir arama gibi görünmüyor.
+
+- Yeni bağlantı motoru, deneysel: Neonize, WhatsApp'a tarayıcı olmadan, yerel bir köprü üzerinden bağlanır. Ayarlar, Bağlantı bölümünden (veya ilk açılıştaki soruda) seçin ve WinZapp'ı yeniden başlatın; WPPConnect varsayılan olarak kalır. Derlenmiş sürümler köprüyü zaten içerir ve WPPConnect'i yanında kurulu tutar; bir depo kopyasından köprüyü neonize_bridge/prepare.py ile hazırlayın (o klasördeki README'ye bakın). Güncellemeden sonraki ilk açılışta WPPConnect kullanan kişiye geçişi öneren tek seferlik bir bildirim gösterilir; her motor kendi bağlantısını korur, bu yüzden geçip geri dönmek hiçbirini kaybettirmez. Neonize ile özel sohbet listeleri, bir topluluğun gruplarına katılma (veya katılma isteği gönderme) ve bu isteği iptal etme, bir topluluğu devre dışı bırakma, kanallarınızı düzenleme ve silme, durumunuzu kimlerin göreceğini seçme ve bir kişiyi kaldırma da çalışır. Neonize ile kataloglar, sepetler ve siparişler de çalışır (bir işletmenin kataloğunu görme, sepet doldurup gönderme ve Business hesabında siparişleri yanıtlama ile kendi kataloğunu yönetme); mesajlardaki düğmeler, listeler ve Pix anahtarları da öyle. Konumları ve kişi kartlarını iletmek de Neonize ile çalışır. Görüntülü aramalar, sesli bir aramayı görüntülü aramaya çevirme ve grup aramaları da Neonize ile çalışır. Neonize ile bir topluluk, üyesi olmadığınız grupları da listeler. Neonize ile devam eden grup aramaları da bulunabilir, bunlara katılınabilir ve aramada kimlerin olduğu görülebilir.
+
 - Bağlı kişileri adlarıyla görmek için arama penceresindeki veya Aramalar bölümünde seçili devam eden aramadaki Arama katılımcıları düğmesini kullanın.
 
 - Mistral çevrimiçi ses dökümü, görüntü açıklamaları ve PDF metni çıkarma için kullanılabilir. Ses için sağlayıcı penceresinde seçilen sesli mesaj modeli (varsayılan olarak Voxtral Mini Transcribe 3, isteğe bağlı olarak Voxtral Small Transcribe 3; ikisi de önizlemede), fotoğraflar, çıkartmalar ve video kareleri için seçilen görüntü modeli (varsayılan Ministral 3 3B), PDF için Mistral OCR kullanılır. Listede uyumlu görüntü modelleri gösterilir. WinZapp, Mistral'e medya göndermeden önce ücretsiz planın istekleri eğitim için kullanabileceği konusunda uyarır.
@@ -116,6 +120,30 @@ YENİLİKLER
 - Yeni sohbet: bağlantıyla gruba katılma düğmesinin artık bir Alt kısayol harfi var.
 
 - Yankı önleme artık yankı çok gecikmeli döndüğünde de çalışıyor; bazı mikserlerin geri dönüşünde (loopback) olduğu gibi yarım saniyeyi aşabilen ve karşıdaki kişiye olduğu gibi ulaşan yankılar dahil. WinZapp karşıdaki kişinin sesinin mikrofonunuzdan geri dönmesinin ne kadar sürdüğünü ölçer ve önleyiciyi bu gecikmeye göre, 1,5 saniyeye kadar ayarlar.
+
+- Neonize: kayıtlı bir kişinin adı artık her dakika, kişinin kendi WhatsApp'ında seçtiği profil adıyla (veya telefonun sohbete verdiği adla) değiştirilmiyor. Kişiye verdiğiniz ad kalır; profil adı yalnızca kaydetmediğiniz kişilerde görünür.
+
+- Neonize aramaları: WinZapp artık WhatsApp Web'in sizin yerinize çaldığı sesleri kendisi çalıyor. Karşıdaki telefon çalarken, aradığınız ülkenin ses yüksekliği ve ritmiyle çalma sesini duyarsınız; arama bağlanırken veya yeniden bağlanırken kısa bip sesleri çalar. Sesleri WinZapp kendisi üretir; WPPConnect motorunda hiçbir şey değişmez.
+
+- Neonize aramaları: yanıtlanan bir arama bittiğinde WinZapp, WhatsApp'ın arama sona erdi sesini çalar. Bu, ses paketini izleyen ve ses olaylarında kapatılabilen veya değiştirilebilen yeni bir ses olayıdır: "Arama sona erdi". WPPConnect motorunda WhatsApp Web kendi sesini çalmaya devam eder.
+
+- Çalınmayan sesli mesajlar ve ses kayıtları: WinZapp ses çıkışını açtığı anda ses kartı kullanılamıyorsa (örneğin bilgisayar uykudan uyandığında), WinZapp yeniden başlatılana kadar hiçbir sesli mesaj çalınmıyor ve nedenini söyleyen bir şey olmuyordu. WinZapp artık bir oynatma başarısız olduğunda ses çıkışını geri yüklemeyi dener ve yine de çalamazsa bunu ekran okuyucuyla bildirir.
+
+- Neonize: kaybolmuş gibi görünen sohbetler. WhatsApp eski sohbetlerin çoğuna etkinlik tarihi vermiyor ve WinZapp bunları boş sohbet sanıp yerel veriler silindiğinde (örneğin yeniden eşitlemek için F5) saklamıyordu: 160'tan fazla sohbeti olan bir hesap 37 sohbetle geri geliyordu. Köprü artık her sohbeti en yeni iletisinin tarihiyle tarihliyor ve hepsi geri geliyor.
+
+- Neonize: bir topluluk ve duyuru grubu, WhatsApp'ta olduğu gibi yalnızca grubun kendi katılımcılarını değil, topluluğun toplam üye sayısını gösterir.
+
+- Neonize: bir grupta yazan kayıtlı bir kişi, kayıtsız kişiyi gösteren "~" olmadan rehberdeki adıyla görünür. Kanallar artık sohbet listesinde adsız sohbetler olarak görünmüyor. Numarası gizli bir grup üyesi artık "+55∙∙∙∙∙∙∙∙76" olarak değil, profil adıyla görünür.
+
+- Sohbet listesinde kanallar: Ayarlar, Arayüz, Sohbetler altındaki yeni "Kanalları sohbet listesinde göster" seçeneği varsayılan olarak kapalıdır ve kanalları sohbet listesinin dışında tutar. Kanalları orada yeniden görmek için işaretleyin.
+
+- WPPConnect ve Neonize arasında geçiş: iki motor da 6300 numaralı bağlantı noktasını kullanır ve program, az önce bıraktığınız, hâlâ kapanmakta olan motoru seçtiğiniz motor sanıyordu. WPPConnect seçmek "eşleştirme kodu alınmadı" sonucunu veriyor, Neonize'a geçmek yeniden başlatmaya kadar bağlanıyor, sonra çevrimdışı gösteriyordu. WinZapp artık önce yer açıyor (Neonize köprüsünü durduruyor ya da WPPConnect sunucusunun kapanmasını bekliyor) ve ikinci bir WinZapp klasörü artık birincinin köprüsüne katılmıyor.
+
+- Eşleştirme penceresinde artık ülkeden önce bir "Bağlantı motoru" listesi var; böylece henüz eşleştirmemiş biri Ayarlar'a ulaşmadan WPPConnect ile Neonize arasında seçim yapabilir. Seçim yapınca WinZapp onay ister ve seçilen motorla yeniden başlar.
+
+- Program artık Node.js ile gelmiyor, çünkü Neonize'a gerekmiyor. WPPConnect'i seçerseniz (ilk açılışta, eşleştirme penceresinde veya Ayarlar'da), WinZapp sağlama toplamı doğrulanmış bir Node.js indirir ve bağlanmadan önce WPPConnect'i hazırlar. İndirme daha küçük.
+
+- Neonize: WinZapp açıkken köprü kaybolursa (örneğin hâlâ kapanmakta olan önceki bir çalıştırma, bu çalıştırma köprüyü kabul ettikten hemen sonra onu durdurur; başlangıç bildiriminden Neonize'a geçerken böyle oluyordu), WinZapp artık "bağlanıyor" ve ardından çevrimdışı durumunda sonraki yeniden başlatmaya kadar kalmak yerine köprüyü kendisi yeniden başlatıyor.
 
 V2.1.0.0
 

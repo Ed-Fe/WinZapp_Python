@@ -4,6 +4,8 @@
   "commit": "4b8a5c6a",
   "data": "14/10/2026",
   "itens": {
+    "6697db06297a": "Uma chamada em grupo que tocou e não foi atendida agora fica registrada no grupo",
+    "d9d948c893be": "Novo motor de conexão, experimental: o Neonize conecta ao WhatsApp sem navegador",
     "14fa082bca66": "Use o botão Participantes da ligação na janela da ligação ou em uma ligação em a",
     "eb3210a239a0": "Mistral está disponível para transcrição online, descrição de imagens e extração",
     "2f0469091fa6": "Nas conversas de grupo, enquanto há uma ligação disponível, os botões de iniciar",
@@ -60,6 +62,18 @@
     "235bbd9cd71c": "Sincronização de contas grandes: depois de lotes grandes de mensagens, o WinZapp",
     "23f9ecafb5e7": "Aba Mídias dos dados da conversa: depois do Salvar como, o leitor de tela não an",
     "10e881249e52": "Nova conversa: o botão de entrar num grupo por link ganhou uma letra de atalho c",
-    "87443f8afcee": "O cancelamento de eco agora também funciona quando o eco volta com muito atraso,"
+    "87443f8afcee": "O cancelamento de eco agora também funciona quando o eco volta com muito atraso,",
+    "21c122c9d1a0": "Neonize: o nome de um contato salvo não é mais trocado, a cada minuto, pelo nome",
+    "ed49b7d30a40": "Chamadas na Neonize: o WinZapp agora toca os sons que o WhatsApp Web tocava por ",
+    "185c6cd7681c": "Chamadas na Neonize: quando uma ligação atendida termina, o WinZapp toca o som d",
+    "611803eb89e7": "Mensagens de voz e áudios que não tocavam: quando a placa de som não estava disp",
+    "cee6e402eb1a": "Neonize: conversas que pareciam sumir. O WhatsApp não informa a data de atividad",
+    "78ac293066fd": "Neonize: uma comunidade e o grupo de avisos dela mostram o total de membros da c",
+    "762ab3e93a97": "Neonize: um contato salvo que escreve num grupo aparece com o nome da agenda, se",
+    "0f4c4616e877": "Canais na lista de conversas: uma nova opção, \"Mostrar canais na lista de conver",
+    "76992ff7ddb2": "Alternância entre WPPConnect e Neonize: os dois motores usam a porta 6300, e o p",
+    "55fbd2486c85": "A janela de pareamento agora tem uma lista \"Motor de conexão\" antes do país, par",
+    "0773bf0602c1": "O programa não vem mais com o Node.js, já que a Neonize não precisa dele. Se voc",
+    "560b2402ce0f": "Neonize: se a ponte some enquanto o WinZapp está aberto (por exemplo, uma execuç"
   }
 }

@@ -94,3 +94,14 @@ rewrite unchanged rows or announce periodic updates. Closing invalidates
 pending results. Failure clears stale names; an ended call clears the list
 and stops polling. Locked-call permission is checked before opening and again
 before presenting an asynchronous response. No audio device or join is invoked.
+
+## Neonize engine
+
+The bridge answers the same four routes (`neonize_bridge/ongoing_calls.py`).
+It has no native call store: it remembers the group calls it saw (an offer that
+rang, a call placed from WinZapp) and asks the server about each with the
+lobby query WhatsApp Web sends for a call the account is not in
+(`<lobby query="1"/>` to `<id>@call`, captured over CDP); the answer's roster
+gives who is `connected`. Joining sends WhatsApp Web's `<accept>` (meowcaller
+`api/ongoing-group-join`). A call started while the bridge was off, that never
+rang here, is not listed.

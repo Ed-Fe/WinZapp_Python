@@ -3,7 +3,10 @@ import os
 import sys
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
+from core import connection_engine as engines
+from core.listed_chats import channels_listed
 from core.chat_lock_vault import AUTO_LOCK_MINUTE_OPTIONS
+from ui.dialogs import engine_picker
 from core.i18n import LANGUAGE_NAMES
 from core.combo_search import bind_incremental_search
 from core.alert_tones import CUSTOM_PATH_CHECK_DELAY_MS, alert_tone_previewable
@@ -597,9 +600,14 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._conn_page = wx.Panel(self._notebook)
         conn_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # The engine picker drives the (now hidden) custom-API switch below,
+        # which stays the flag the rest of the client reads.
+        (self._engine_label, self._engine_choice,
+         self._engine_hint) = engine_picker.build_row(self._conn_page, conn_sizer, i18n)
         self._custom_api_check = wx.CheckBox(
             self._conn_page, label=i18n.t("connection_custom_api_label")
         )
+        self._custom_api_check.Show(False)
         conn_sizer.Add(self._custom_api_check, 0, wx.ALL, 8)
 
         self._server_label = wx.StaticText(self._conn_page, label=i18n.t("connection_server_label"))
@@ -625,6 +633,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._conn_page.SetSizer(conn_sizer)
 
         self._custom_api_check.Bind(wx.EVT_CHECKBOX, self._on_custom_api_toggle)
+        self._engine_choice.Bind(wx.EVT_CHOICE, self._on_engine_choice)
 
         # ── Audio Devices tab ────────────────────────────────────────────────
         self._audio_devices_page = ScrollingPage(self._notebook)
@@ -1687,6 +1696,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         )
         chats_sizer.Add(self._keep_pinned_order_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
 
+        self._show_channels_cb = wx.CheckBox(
+            self._chats_page, label=i18n.t("ui_show_channels_in_chat_list")
+        )
+        chats_sizer.Add(self._show_channels_cb, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+
         # What happens to what was typed and not sent when the conversation is
         # left (core/message_drafts.py MODES, in this order).
         self._message_draft_radio = wx.RadioBox(
@@ -1958,6 +1972,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                 "keep_open" if self._switch_behavior_keep_open_rb.GetValue() else "single"
             ),
             "wpp_custom_api": self._custom_api_check.GetValue(),
+            "wpp_engine": engines.engine_at(self._engine_choice.GetSelection()),
             "wpp_server": self._server_field.GetValue().strip(),
             "wpp_ws_server": self._ws_server_field.GetValue().strip(),
             "wpp_api_key": self._api_key_field.GetValue().strip(),
@@ -2029,6 +2044,14 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         conn = install_wide.get("connection", {})
         custom_api = conn.get("wpp_custom_api", False)
         self._custom_api_check.SetValue(custom_api)
+
+        # The stored engine, not one read off the address fields: the port
+        # is this account's own and says nothing about the install's engine.
+        engine = engines.engine_from_connection(
+            {**conn, "wpp_engine": conn.get("wpp_engine", ""),
+             "wpp_port": getattr(self.main_window, "wpp_port", None)})
+        self._engine_choice.SetSelection(engines.index_of(engine))
+        self._loaded_engine = self._engine_shown = engine
 
         server = conn.get("wpp_server", "http://127.0.0.1")
         self._server_field.SetValue(server)
@@ -2103,6 +2126,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         if self._global_control_changed("wpp_custom_api", custom_api):
             choices["wpp_custom_api"] = custom_api
             self.main_window.wpp_custom_api = custom_api
+
+        # The process keeps the engine it started with (main_window.wpp_engine)
+        # until the restart _flag_restart_if_engine_changed() asks for.
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if self._global_control_changed("wpp_engine", engine):
+            choices["wpp_engine"] = engine
 
         server = self._server_field.GetValue().strip()
         if self._global_control_changed("wpp_server", server):
@@ -2485,6 +2514,11 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
                 "mark_unsaved_contacts", True
             )
         ))
+        self._show_channels_cb.SetValue(
+            self.main_window.settings.get("user_interface", {}).get(
+                "show_channels_in_chat_list", False
+            ) is True
+        )
 
         accessibility = self.main_window.settings.get("accessibility", {})
         self._extended_sr_compat_check.SetValue(accessibility.get("extended_sr_compat_enabled", True))
@@ -2949,8 +2983,40 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
             wx.OK | wx.ICON_INFORMATION, self,
         )
 
+    def _on_engine_choice(self, event):
+        """Pick an engine: the switch and the addresses follow it. Neonize has
+        a fixed local address; only the custom engine lets the user type one."""
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if not self._bridge_allows(engine):
+            # Same rule as the first-run question: not offered an engine that
+            # could only end in an error (no bridge installed next to WinZapp).
+            i18n = self.main_window.i18n
+            wx.MessageBox(i18n.t("neonize_bridge_unavailable_message"),
+                          i18n.t("neonize_bridge_unavailable_title"),
+                          wx.OK | wx.ICON_ERROR, self)
+            self._engine_choice.SetSelection(engines.index_of(self._engine_shown))
+            event.Skip()
+            return
+        self._engine_shown = engine
+        self._custom_api_check.SetValue(engines.uses_custom_api(engine))
+        fixed = engines.fixed_address(engine)
+        if fixed is not None:
+            server, ws_server, port = fixed
+            self._server_field.SetValue(server)
+            self._ws_server_field.SetValue(ws_server)
+            self._port_field.SetValue(str(port))
+        self._update_fields_state()
+        self._sync_fixed_port_field()
+        event.Skip()
+
+    def _bridge_allows(self, engine) -> bool:
+        from core import neonize_bridge_process as bridge
+        return engines.can_choose(
+            engine, bridge.command(bridge.bridge_dir()) is not None, self._loaded_engine)
+
     def _update_fields_state(self):
-        is_custom = self._custom_api_check.GetValue()
+        is_custom = engines.addresses_editable(
+            engines.engine_at(self._engine_choice.GetSelection()))
         self._server_field.Enable(is_custom)
         self._ws_server_field.Enable(is_custom)
         self._api_key_field.Enable(is_custom)
@@ -3653,6 +3719,13 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         for idx, key in enumerate(GROUP_MEDIA_TYPES):
             self._group_media_types_list.CheckItem(idx, key in saved)
 
+    def _flag_restart_if_engine_changed(self):
+        """The connection engine is read at startup: a new choice needs a restart."""
+        engine = engines.engine_at(self._engine_choice.GetSelection())
+        if engines.needs_restart(self._loaded_engine, engine):
+            self._loaded_engine = engine
+            self._restart_required = True
+
     def _apply_values(self) -> bool:
         """Validate, save, and apply all settings. Returns True on success."""
         if not self._validate_shortcut_values():
@@ -3836,6 +3909,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         unsaved_mark_changed = (
             bool(old_ui_settings.get("mark_unsaved_contacts", True))
         ) != self._mark_unsaved_contacts_cb.GetValue()
+        channels_changed = channels_listed(self.main_window.settings) != self._show_channels_cb.GetValue()
         self_reference_changed = (
             old_ui_settings.get("self_reference_mode", "eu") != self_reference_mode
             or old_ui_settings.get("self_reference_custom_word", "") != self_reference_custom_word
@@ -3857,6 +3931,9 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self.main_window.settings.setdefault("user_interface", {})[
             "mark_unsaved_contacts"
         ] = self._mark_unsaved_contacts_cb.GetValue()
+        self.main_window.settings.setdefault("user_interface", {})[
+            "show_channels_in_chat_list"
+        ] = self._show_channels_cb.GetValue()
 
         # Accessibility
         self.main_window.settings.setdefault("accessibility", {})[
@@ -3897,6 +3974,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
 
         # Connection: this account's own port. Server, websocket, key and the
         # custom-API switch are install-wide (_apply_install_wide_values()).
+        self._flag_restart_if_engine_changed()
         port = int(self._port_field.GetValue().strip())
         self.main_window.settings.setdefault("connection", {})["wpp_port"] = port
         self.main_window.wpp_port = port
@@ -4122,12 +4200,12 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         # word for chats whose last message is our own), so a self-reference
         # change (e.g. "Eu" -> "Você") takes effect immediately instead of
         # only on the next restart.
-        if unsaved_mark_changed and not (self_reference_changed or vm_mode_changed):
+        if (unsaved_mark_changed or channels_changed) and not (self_reference_changed or vm_mode_changed):
             if cp is not None and getattr(cp, "conversation", None) is not None:
                 cp.populate_messages(preserve_focus=True)
             self.main_window._chats_ui_fp = None
             self.main_window.add_chats_to_ui()
-        if sender_numbers_changed and not (self_reference_changed or vm_mode_changed or unsaved_mark_changed):
+        if sender_numbers_changed and not (self_reference_changed or vm_mode_changed or unsaved_mark_changed or channels_changed):
             if cp is not None and getattr(cp, "conversation", None) is not None:
                 cp.populate_messages(preserve_focus=True)
         if self_reference_changed or vm_mode_changed:
@@ -4379,6 +4457,7 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._hide_unnamed_sender_numbers_cb.SetHelpText(i18n.t("ui_hide_unnamed_sender_numbers_help"))
         self._show_delivery_status_cb.SetLabel(i18n.t("ui_show_delivery_status_in_chat_list"))
         self._keep_pinned_order_cb.SetLabel(i18n.t("ui_keep_pinned_chat_order"))
+        self._show_channels_cb.SetLabel(i18n.t("ui_show_channels_in_chat_list"))
         self._message_draft_radio.SetLabel(i18n.t("ui_message_draft_label"))
         for _i, _key in enumerate(("ui_message_draft_keep_in_field",
                                    "ui_message_draft_per_conversation",
@@ -4459,6 +4538,8 @@ class SettingsDialog(ShortcutsTabMixin, TranscriptionTabMixin, ExternalModelsMix
         self._apply_btn.SetLabel(i18n.t("apply"))
         self._audio_speed_label.SetLabel(i18n.t("audio_speed_label"))
         self._custom_api_check.SetLabel(i18n.t("connection_custom_api_label"))
+        engine_picker.relabel(self._engine_label, self._engine_choice,
+                              self._engine_hint, i18n)
         self._server_label.SetLabel(i18n.t("connection_server_label"))
         self._ws_server_label.SetLabel(i18n.t("connection_ws_server_label"))
         self._port_label.SetLabel(i18n.t("wpp_port_label"))

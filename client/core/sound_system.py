@@ -459,7 +459,8 @@ class SoundSystem:
         return (now - last) >= self._RECOVERY_COOLDOWN_SECONDS
 
     def handle_playback_failure(self) -> bool:
-        """Called when playing a BASS stream raises, on some already-active
+        """Called when playing a BASS stream raises (or a stream cannot be opened for
+        want of an output device), on some already-active
         output device configured earlier (not the default). Falls back to
         the system default device and warns once per session — further
         failures on the same device this session stay silent so a broken
@@ -545,6 +546,7 @@ SOUND_EVENTS: list[tuple[str, str]] = [
     ("message_background", "message_background.ogg"),
     ("reaction_received", "reaction_received.ogg"),
     ("call_incoming", "call_incoming.ogg"),
+    ("call_ended", "call_ended.ogg"),
     ("message_sent", "message_sent.ogg"),
     ("audio_transition_next", "audio_transition_next.ogg"),
     ("audio_transition_end", "audio_transition_end.ogg"),

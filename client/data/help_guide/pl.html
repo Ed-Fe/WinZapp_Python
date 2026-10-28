@@ -283,7 +283,7 @@
 <h3>Połącz swoje konto</h3>
 <p>Ekran połączenia oferuje dwa sposoby parowania:</p>
 <ol class="steps">
-  <li><span class="step-num">1</span><div><strong>Numer telefonu:</strong> wybierz kraj (lista jest alfabetyczna, używa kraju i języka Windows i pozwala wpisać kilka liter, aby wyszukać), wpisz numer i przejdź dalej. WinZapp pokaże kod. Na telefonie otwórz WhatsApp, przejdź do Połączone urządzenia &gt; Połącz urządzenie i wybierz łączenie za pomocą numeru telefonu.</div></li>
+  <li><span class="step-num">1</span><div><strong>Numer telefonu:</strong> Jeśli jeszcze nie sparowano, lista "Silnik połączenia" przed krajem pozwala wybrać WPPConnect lub Neonize bez otwierania ustawień; po wyborze WinZapp prosi o potwierdzenie i uruchamia się ponownie z wybranym silnikiem. wybierz kraj (lista jest alfabetyczna, używa kraju i języka Windows i pozwala wpisać kilka liter, aby wyszukać), wpisz numer i przejdź dalej. WinZapp pokaże kod. Na telefonie otwórz WhatsApp, przejdź do Połączone urządzenia &gt; Połącz urządzenie i wybierz łączenie za pomocą numeru telefonu.</div></li>
   <li><span class="step-num">2</span><div><strong>Kod QR:</strong> zeskanuj kod z ekranu aplikacją WhatsApp na telefonie, w sekcji Połączone urządzenia.</div></li>
 </ol>
 <p>WinZapp ogłasza, kiedy kod jest generowany, kiedy faktycznie się pojawia, kiedy wygasa i kiedy nie udało się go wygenerować. Jeśli WhatsApp odrzuci kod, komunikat wyjaśnia dlaczego.</p>
@@ -601,6 +601,7 @@
   <li>Kolejne wiadomości głosowe odtwarzają się po kolei, chyba że odznaczysz "Automatycznie odtwarzaj wiadomości głosowe po kolei" w Ustawienia &gt; Dźwięk &gt; Odtwarzanie audio. W trakcie sekwencji wiersz z fokusem czeka z aktualizacją stanu, aby czytnik ekranu nie mówił na dźwięk.</li>
   <li><strong>Ctrl+Alt+Shift+P</strong> wstrzymuje lub wznawia odtwarzane audio, z dowolnego panelu.</li>
   <li>Jeśli zmieni się urządzenie wyjściowe (na przykład odłączone słuchawki), WinZapp przełącza się na urządzenie domyślne i odtwarza wiadomość za pierwszym razem.</li>
+  <li>Jeśli karta dźwiękowa jest niedostępna (na przykład po wybudzeniu komputera), WinZapp próbuje przywrócić wyjście audio, gdy odtwarzanie się nie powiedzie; jeśli nadal nie może odtworzyć, informuje o tym przez czytnik ekranu.</li>
   <li>W ustawieniach jest opcja, aby nie oznaczać audio jako odtworzonego.</li>
 </ul>
 
@@ -693,7 +694,9 @@
 <h3>Wykonanie połączenia</h3>
 <p>W czacie indywidualnym użyj przycisków "Połączenie głosowe" (Ctrl+Shift+V) i "Połączenie wideo" (Ctrl+Alt+Shift+V); skróty działają także przy fokusie w polu wiadomości. Czytnik ekranu ogłasza, kiedy połączenie zostaje nawiązane, kiedy się łączy ponownie i kiedy się kończy.</p>
 <p>W WinZappie połączenie można rozpocząć z grupą liczącą najwyżej 32 członków. W większej grupie przyciski połączeń zastępuje przycisk "Nie można zadzwonić" z opisem "Grupa ma więcej niż 32 członków", a skróty połączeń mówią to samo.</p>
-<p>W czacie grupowym te same przyciski dzwonią do całej grupy. Połączenie przychodzące z grupy jest sygnalizowane dzwonkiem, a czytnik ekranu odczytuje nazwę grupy. Odbiera się je jak każde inne połączenie, a kamerę można włączyć w trakcie rozmowy. WinZapp wykrywa kamerę za pomocą dołączonego FFmpeg. Podczas połączenia można również przesyłać obraz z własnej kamery.</p>
+<p>W czacie grupowym te same przyciski dzwonią do całej grupy. Połączenie przychodzące z grupy jest sygnalizowane dzwonkiem, a czytnik ekranu odczytuje nazwę grupy. Odbiera się je jak każde inne połączenie, a kamerę można włączyć w trakcie rozmowy. WinZapp wykrywa kamerę za pomocą dołączonego FFmpeg. Podczas połączenia można również przesyłać obraz z własnej kamery. Połączenie grupowe, które zadzwoniło i nie zostało odebrane, zostaje w historii grupy jako nieodebrane połączenie grupowe.</p>
+
+<p>Przy silniku Neonize sam WinZapp odtwarza dźwięki, które wcześniej odtwarzał dla Ciebie WhatsApp Web: gdy drugi telefon dzwoni, słyszysz sygnał wywołania o wysokości i rytmie właściwych dla kraju, do którego dzwonisz, a podczas łączenia lub ponownego łączenia rozlegają się krótkie sygnały. Przy silniku WPPConnect nic się nie zmienia. Gdy odebrane połączenie się kończy, odtwarza też dźwięk zakończenia połączenia z WhatsApp; to zdarzenie dźwiękowe "Połączenie zakończone", które można wyłączyć lub zmienić w Ustawienia &gt; Zdarzenia dźwiękowe.</p>
 
 <h3>Podczas połączenia</h3>
 <table class="field-table">
@@ -826,7 +829,7 @@
   <tr><td class="field-name">Interfejs</td><td>Każdy przycisk otwiera okno jednego tematu: Wiadomości, Reakcje, Czaty, Potwierdzenia i Skróty klawiszowe.</td></tr>
   <tr><td class="field-name">Interfejs &gt; Wiadomości</td><td>Ile wiadomości pokazać po otwarciu czatu; ile pominąć klawiszami Page Up/Down; rodzaj listy wiadomości (klasyczna, z limitem 512 znaków, lub pole listy, z pełnymi wiadomościami); pokazywanie, kto pisze, jako ostatniego wiersza; "Jak mam się do Ciebie zwracać?"; ukrywanie nadawcy przy własnych wiadomościach; ukrywanie numerów nadawców bez nazwy; zachowanie wpisanej wiadomości jako podpisu; "wczoraj" zamiast daty; podglądy linków; "Przekazano" na początku wiadomości, przed nadawcą; początkowy stan "Usuń też multimedia z telefonu"; filmy i statusy w osobnym odtwarzaczu; rodzaje multimediów pokazywane domyślnie.</td></tr>
   <tr><td class="field-name">Interfejs &gt; Reakcje</td><td>Stałe szybkie reakcje i wybór emoji dla każdej pozycji.</td></tr>
-  <tr><td class="field-name">Interfejs &gt; Czaty</td><td>Gdzie ustawić fokus po otwarciu czatu; stan dostarczenia na liście czatów; utrzymywanie przypiętych czatów w stałej kolejności; zastępowanie skrótów akcjami zbiorczymi; zachowanie Spacji i Esc przy zaznaczeniu; zachowanie wyszukiwania czatów po otwarciu; pozycja komunikatu "zaznaczono".</td></tr>
+  <tr><td class="field-name">Interfejs &gt; Czaty</td><td>Gdzie ustawić fokus po otwarciu czatu; stan dostarczenia na liście czatów; utrzymywanie przypiętych czatów w stałej kolejności; zastępowanie skrótów akcjami zbiorczymi; zachowanie Spacji i Esc przy zaznaczeniu; zachowanie wyszukiwania czatów po otwarciu; pozycja komunikatu "zaznaczono"; pokazywanie kanałów na liście czatów (domyślnie wyłączone).</td></tr>
   <tr><td class="field-name">Interfejs &gt; Czaty &gt; Zabezpieczone czaty</td><td>PIN sejfu, blokada po bezczynności i tajny kod (przycisk pojawia się, gdy sejf jest dostępny).</td></tr>
   <tr><td class="field-name">Interfejs &gt; Potwierdzenia</td><td>Pytania potwierdzające (oznacz wszystko jako przeczytane, wyczyść, usuń, F5, Shift+F5, nagrywaj dźwięk komputera) i ich wersje "Nie pokazuj ponownie".</td></tr>
   <tr><td class="field-name">Interfejs &gt; Skróty klawiszowe</td><td>Wymienia wszystkie skróty programu, w tym globalny. Wybierz jeden, użyj "Zmień" i wpisz nową kombinację; albo wyłącz go, przywróć domyślny lub przywróć wszystkie. O konfliktach ostrzega się przed zastosowaniem, a zmiany zaczynają działać dopiero po Zastosuj lub OK.</td></tr>
@@ -841,7 +844,7 @@
   <tr><td class="field-name">AI online: transkrypcje i opisy</td><td>Zobacz sekcję Transkrypcja i opis.</td></tr>
   <tr><td class="field-name">Transkrypcja lokalna</td><td>Zobacz sekcję Transkrypcja i opis.</td></tr>
   <tr><td class="field-name">Ustawienia WhatsApp</td><td>Prywatność i Profil: zobacz sekcję Ustawienia WhatsApp.</td></tr>
-  <tr><td class="field-name">Połączenie</td><td>Użycie własnego API (serwer zdalny): adres serwera, adres WebSocket, port i klucz API.</td></tr>
+  <tr><td class="field-name">Połączenie</td><td>Silnik połączenia: WPPConnect (domyślny), Neonize (eksperymentalny: łączy się z WhatsApp bez przeglądarki, przez lokalny most, który WinZapp uruchamia sam) lub serwer niestandardowy (adres serwera, adres WebSocket, port i klucz API). Zmiana silnika działa dopiero po ponownym uruchomieniu WinZapp; to pytanie zadawane jest też przy pierwszym uruchomieniu. Skompilowane wersje zawierają Neonize i zachowują obok niego zainstalowany WPPConnect; z klonu repozytorium najpierw uruchom neonize_bridge/prepare.py, jak opisuje README w tym folderze. Osoba, która nadal używa WPPConnect, widzi przy uruchomieniu jednorazowe powiadomienie z propozycją przejścia na Neonize (w nowym silniku trzeba sparować ponownie); każdy silnik zachowuje własne połączenie, więc można przełączać się bez utraty żadnego. Osoba, która jeszcze nie sparowała konta, może zmienić silnik w samym oknie parowania, na liście „Silnik połączenia” przed krajem: WinZapp prosi o potwierdzenie i uruchamia się ponownie z wybranym silnikiem. Skompilowane wersje nie zawierają Node.js; po wybraniu WPPConnect (przy pierwszym uruchomieniu, w oknie parowania lub w Ustawieniach) WinZapp pobiera zweryfikowany Node.js i instaluje moduły WPPConnect przed połączeniem.</td></tr>
 </table>
 
 <h3>Eksport i import ustawień</h3>
@@ -1277,6 +1280,14 @@
 <p class="lead">Każda nowa alpha, która wnosi funkcje, jest dodawana do podręcznika. Ta lista pokazuje, do której alphy podręcznik jest kompletny i co dodano w każdej rundzie.</p>
 <table class="field-table">
   <tr><th>Alpha</th><th>Co trafiło do podręcznika</th></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Nieodebrane połączenia grupowe zostają w historii grupy, a nie jako prywatne połączenie od osoby dzwoniącej.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Silnik połączenia Neonize (eksperymentalny) w Ustawieniach, Połączenie oraz przy pierwszym uruchomieniu.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Obecność kontaktów (pisanie, online): wiele kolejnych aktualizacji nie zawiesza już programu na kilka sekund ani nie spowalnia komputera.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Mniej powtarzanych zmian interfejsu przy aktualizacji obecności i zapisywanie nowych nazw kontaktów w tle.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Aktualizacja WinZapp lub WPPConnect: instalacja i kompilacja działają z niższym priorytetem, aby komputer i czytnik ekranu nie zawieszały się w połowie aktualizacji.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Wskaźniki pisania i nagrywania wiadomości głosowej w czatach prywatnych pozostają dostępne, gdy WhatsApp informuje, że kontakt jest offline. Aktywność jest pokazywana oddzielnie od widoczności online i wygasa, gdy nie jest odświeżana. Aktywność jest przypisana do czatu, w którym występuje: grupy i czaty prywatne są śledzone oddzielnie.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Przypięte wiadomości w grupach: lista przypiętych wiadomości wczytuje także przypięcia starsze niż to, co WhatsApp Web trzyma w pamięci.</td></tr>
+  <tr><td class="field-name">Jeszcze niewydane</td><td>Połączenia: ponowna instalacja WPPConnect zachowuje nowszy, zgodny katalog WhatsApp Web i sprawdza jego aktualność. Ponownie zainstalowany katalog jest sprawdzany bez wcześniejszego sześciogodzinnego oczekiwania. Potwierdzona niezgodność VoIP, której nie można ponowić, zatrzymuje powtarzanie inicjalizacji.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Trwające połączenia: dołączanie do dostępnego połączenia z czatu grupowego lub z filtra Trwające w sekcji Połączenia oraz lista połączonych uczestników. Mistral do transkrypcji online, opisywania obrazów i odczytywania tekstu z PDF.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Informacje o stanie kontaktów (pisanie, online): wiele kolejnych aktualizacji nie zawiesza już programu na kilka sekund ani nie spowalnia komputera.</td></tr>
   <tr><td class="field-name">Jeszcze niewydane</td><td>Mniej zbędnych operacji interfejsu przy aktualizowaniu informacji o stanie kontaktów oraz zapisywanie nowych nazw kontaktów w tle.</td></tr>

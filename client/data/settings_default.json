@@ -5,7 +5,8 @@
         "wpp_port": 6300,
         "wpp_ws_server": "ws://127.0.0.1",
         "wpp_api_key": "70733f08be1ed195bda1c31b6e135f5ebeb9fb8c6c28530a3a46e4093357b037",
-        "wpp_custom_api": false
+        "wpp_custom_api": false,
+        "wpp_engine": ""
     },
     "general": {
         "language": "",
@@ -25,6 +26,7 @@
         "convert_emoticons": true,
         "first_run": true,
         "api_type_first_run_asked": false,
+        "neonize_offer_asked": false,
         "hotkey_first_run_asked": false,
         "autostart": false,
         "show_tray_icon": true,
@@ -77,6 +79,7 @@
         "mark_unsaved_contacts": true,
         "show_delivery_status_in_chat_list": true,
         "keep_pinned_chat_order": false,
+        "show_channels_in_chat_list": false,
         "message_draft_mode": "per_conversation",
         "preserve_typed_text_as_attachment_caption": true,
         "bulk_action_shortcuts": true,

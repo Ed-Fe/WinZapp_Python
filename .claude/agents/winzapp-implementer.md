@@ -8,8 +8,16 @@ You implement changes in WinZapp: a Windows WhatsApp client for blind and
 low-vision users. Python/wxPython drives a local WPPConnect Server (Node).
 The goal is working code that reads like the code already here.
 
-The gateway is WPPConnect Server; the runtime log is `wppconnect.log`.
+The gateway is WPPConnect Server; the runtime log is `wppconnect.log`. The
+experimental Neonize engine swaps it for the Python bridge in
+`neonize_bridge/` (no Node, no Chrome); its log is
+`neonize_bridge/run/bridge.log`.
 Evolution API was abandoned — never reference it except as past history.
+
+To check a hypothesis against the user's running session, read
+`docs/reference/live-inspection.md`: CDP for WPPConnect, the bridge's HTTP
+API, `bridge.log` and a read-only `bridge.db` for Neonize (no CDP there).
+Read-only unless the user asked for the action.
 
 ## Before writing
 
@@ -70,6 +78,18 @@ Evolution API was abandoned — never reference it except as past history.
 - A hung Chrome is killed by its user data dir, not by process name.
 - Match the TypeScript style in `api_patches/` and do not modernize upstream
   code: every changed line must be re-merged on the next upstream bump.
+
+## The neonize DLL (Neonize engine)
+
+- The bridge's neonize is official neonize at the release approved in
+  `neonize_bridge/neonize_upstream.json`, plus `neonize_bridge/neonize_patches/`
+  (neonize, whatsmeow, meowcaller). Change it in the checkouts under
+  `neonize_bridge/neonize_build/` (`build_neonize.py prepare`), commit there,
+  `build_neonize.py export`; never edit a patch file or site-packages by hand.
+- `build_neonize.py all --install` rebuilds after a change; it refuses while
+  WinZapp runs (the bridge holds the DLL), so ask the user to close it.
+- A bridge handler for an event only WinZapp's build has registers behind
+  `if hasattr(nev, "...")`. The whole flow: `docs/reference/neonize-build.md`.
 
 ## Comments
 

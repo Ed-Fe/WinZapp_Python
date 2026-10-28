@@ -51,6 +51,23 @@ _MAIN_PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 
 
+def contact_card_id(jid, lid_to_phone) -> str:
+    """The ``contactsId`` entry of contact-vcard for the contact ``jid``.
+
+    A phone goes as its ``@c.us`` form. A ``@lid`` is bridged to the phone it
+    stands for; with none known it is sent whole, because the digits of a LID
+    are not a phone number (the card carried a stranger's number, or none).
+    """
+    jid = str(jid or "")
+    user, _, server = jid.partition("@")
+    user = user.split(":")[0]
+    if server == "lid":
+        phone_jid = (lid_to_phone or {}).get(f"{user}@lid", "")
+        phone = phone_jid.partition("@")[0].split(":")[0]
+        return f"{phone}@c.us" if phone else f"{user}@lid"
+    return f"{user}@c.us"
+
+
 class SendingMixin:
     """Sending messages: text, audio, media, contacts, reactions, pins; send
     capability checks, Meta AI terms and the message-queue callbacks.
@@ -187,6 +204,12 @@ class SendingMixin:
                         response.status_code, str(body)[:300],
                     )
                     continue
+                # The Neonize bridge says here whether it carries calls, video
+                # calls and group calls (WinZapp's neonize build); WPPConnect
+                # never sends these keys.
+                self._neonize_calls = details.get("calls") is True
+                self._neonize_video_calls = details.get("videoCalls") is True
+                self._neonize_group_calls = details.get("groupCalls") is True
                 if details.get("compatible") is True:
                     logging.info("[startup] Send compatibility probe passed: %s", details)
                     return
@@ -1633,13 +1656,12 @@ class SendingMixin:
             remote_jid = remote_jid.split("@")[0]
         name = contact_info.get("pushName") or ""
         jid = contact_info.get("remoteJid", "")
-        phone_raw = jid.split("@")[0] if "@" in jid else jid
         url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/contact-vcard"
         payload = {
             "phone":       [remote_jid],
             "isGroup":     is_group,
             "isLid":       is_lid_target,
-            "contactsId":  [f"{phone_raw}@c.us"],
+            "contactsId":  [contact_card_id(jid, getattr(self, "_lid_to_phone", {}))],
         }
         if quoted:
             quoted_id = self._serialize_quoted_id(quoted, fallback_jid=remote_jid)

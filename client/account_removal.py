@@ -128,9 +128,25 @@ def remove_session_data(global_dir: str, names, protected=()) -> bool:
     return clean
 
 
-def purge_account(registry, global_dir: str, account_id: str) -> bool:
+def remove_bridge_sessions(names, protected, bridge_delete) -> bool:
+    """Ask the neonize bridge to delete each of `names` (skipping `protected`):
+    the WhatsApp keys and the messages live in its data folder, not in the
+    account's. True when it confirmed all of them."""
+    clean = True
+    for name in names:
+        if name not in protected and not bridge_delete(name):
+            clean = False
+    return clean
+
+
+def purge_account(registry, global_dir: str, account_id: str, bridge_delete=None) -> bool:
     """Remove the account's data, its session profiles and restore points, then
     its registry entry. True when everything was removed.
+
+    `bridge_delete(name) -> bool` is given with the Neonize engine, whose
+    sessions live in the bridge's data folder (neonize_bridge/cleanup.py). A
+    bridge that does not answer leaves the account ``deleting``, like any
+    other leftover.
 
     The account is marked ``deleting`` first (hidden, never started). If
     anything stays behind it stays ``deleting`` and the next start finishes the
@@ -155,12 +171,18 @@ def purge_account(registry, global_dir: str, account_id: str) -> bool:
         trusted = False
 
     complete = True
+    if trusted and bridge_delete is not None:
+        try:
+            complete = remove_bridge_sessions(names, protected, bridge_delete)
+        except Exception:
+            logging.exception("[account removal] bridge cleanup failed")
+            complete = False
     if trusted:
         try:
             from coord_locks import LockTimeout, sessions_lock
             try:
                 with sessions_lock(global_dir):
-                    complete = remove_session_data(global_dir, names, protected)
+                    complete = remove_session_data(global_dir, names, protected) and complete
             except LockTimeout:
                 logging.info("[account removal] sessions lock busy - profile kept for retry")
                 complete = False
@@ -185,16 +207,16 @@ def purge_account(registry, global_dir: str, account_id: str) -> bool:
     return complete
 
 
-def finish_pending_deletions(registry, global_dir: str) -> int:
+def finish_pending_deletions(registry, global_dir: str, bridge_delete=None) -> int:
     """Finish every account left ``deleting`` (a removal that was interrupted,
     or the one-and-only account removed while in use). Returns how many were
-    completed."""
+    completed. `bridge_delete`: see purge_account()."""
     done = 0
     for account in list(registry.list()):
         if account.get("state") != "deleting":
             continue
         try:
-            if purge_account(registry, global_dir, account["id"]):
+            if purge_account(registry, global_dir, account["id"], bridge_delete):
                 done += 1
         except Exception:
             logging.exception("[account removal] finishing a pending removal failed")

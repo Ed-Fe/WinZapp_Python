@@ -62,6 +62,11 @@ class _MainWindow:
 
     def __init__(self, fell_back):
         self.sound_system = _SoundSystem(fell_back)
+        self.spoken = []
+        self.i18n = type("I18n", (), {"t": staticmethod(lambda key: key)})()
+
+    def output(self, text, interrupt=False):
+        self.spoken.append(text)
 
     def _find_api_ffmpeg(self):
         return None
@@ -69,6 +74,8 @@ class _MainWindow:
 
 class _Stub:
     _play_audio = ConversationsPanel._play_audio
+    _open_stream_recovering_device = ConversationsPanel._open_stream_recovering_device
+    _announce_audio_failure = ConversationsPanel._announce_audio_failure
 
     def __init__(self, streams, fell_back=True):
         self.main_window = _MainWindow(fell_back)
@@ -154,3 +161,90 @@ def test_without_a_fallback_playback_still_stops(tmp_path, monkeypatch):
     assert stub.opened == [dead]
     assert stub.stop_calls == 1
     assert stub._is_audio_playing is False
+
+
+class _OpenFailsThenWorks(_Stub):
+    """BASS was never initialised (the output device was missing when the PC woke
+    up): every stream opens with error 8 until BASS is re-initialised."""
+
+    def __init__(self, fresh, recovers=True):
+        super().__init__([], fell_back=recovers)
+        self._fresh = fresh
+        self.attempts = 0
+
+    def _open_audio_stream_from_temp_file(self):
+        self.attempts += 1
+        if self.main_window.sound_system.calls == 0:
+            raise RuntimeError("8, BASS_Init has not been successfully called")
+        return self._fresh, None
+
+
+def test_a_stream_that_cannot_open_is_retried_after_bass_is_reinitialised(tmp_path, monkeypatch):
+    fresh = _Stream()
+    stub = _OpenFailsThenWorks(fresh)
+    try:
+        stub._play_audio("m1", 12, _voice_file(tmp_path, monkeypatch))
+    finally:
+        _cleanup(stub)
+
+    assert stub.main_window.sound_system.calls == 1 and stub.attempts == 2
+    assert fresh.played == 1 and stub._is_audio_playing is True
+    assert stub.main_window.spoken == []
+
+
+def test_when_nothing_plays_the_screen_reader_is_told(tmp_path, monkeypatch):
+    stub = _OpenFailsThenWorks(_Stream(), recovers=False)
+    monkeypatch.setattr("ui.conversation_panel.audio_playback.transcode_audio_to_wav",
+                        lambda *a, **k: None, raising=False)
+    try:
+        stub._play_audio("m1", 12, _voice_file(tmp_path, monkeypatch))
+    finally:
+        _cleanup(stub)
+
+    assert stub.main_window.spoken == ["audio_playback_failed"]
+    assert stub.stop_calls >= 1 and stub._is_audio_playing is False
+
+
+def test_a_missing_file_is_announced_too(tmp_path):
+    stub = _Stub([])
+
+    stub._play_audio("m1", 12, str(tmp_path / "gone.ogg"))
+
+    assert stub.main_window.spoken == ["audio_playback_failed"]
+
+
+def test_a_failed_play_after_a_fallback_is_announced(tmp_path, monkeypatch):
+    stub = _Stub([_Stream(raise_on_play=True)], fell_back=False)
+    try:
+        stub._play_audio("m1", 12, _voice_file(tmp_path, monkeypatch))
+    finally:
+        _cleanup(stub)
+
+    assert stub.main_window.spoken == ["audio_playback_failed"]
+
+
+def test_only_errors_about_the_output_device_ask_for_a_reinit():
+    from ui.conversation_panel.audio_playback import _is_output_device_error as is_device
+    assert is_device(RuntimeError("8, BASS_Init has not been successfully called"))
+    assert is_device(RuntimeError("3, can't find a free/valid driver"))
+    assert is_device(RuntimeError("23, the device is not available"))
+    assert is_device(RuntimeError("BASS_Init has not been successfully called"))
+    assert not is_device(RuntimeError("41, unsupported file format"))
+    assert not is_device(RuntimeError("something else"))
+
+
+def test_a_file_bass_cannot_decode_does_not_reinitialise_the_output(tmp_path, monkeypatch):
+    class _Undecodable(_Stub):
+        def _open_audio_stream_from_temp_file(self):
+            raise RuntimeError("41, unsupported file format")
+
+    stub = _Undecodable([], fell_back=True)
+    monkeypatch.setattr("ui.conversation_panel.audio_playback.transcode_audio_to_wav",
+                        lambda *a, **k: None, raising=False)
+    try:
+        stub._play_audio("m1", 12, _voice_file(tmp_path, monkeypatch))
+    finally:
+        _cleanup(stub)
+
+    assert stub.main_window.sound_system.calls == 0
+    assert stub.main_window.spoken == ["audio_playback_failed"]
