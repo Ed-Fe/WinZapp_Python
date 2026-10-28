@@ -122,6 +122,8 @@ NOVEDADES
 
 - Neonize: chats que parecían desaparecer. WhatsApp no da fecha de actividad a la mayoría de los chats antiguos, y WinZapp los tomaba por chats vacíos y no los conservaba al borrar los datos locales (F5 para resincronizar, por ejemplo): una cuenta con más de 160 chats volvía con 37. Ahora el puente fecha cada chat con su mensaje más reciente y vuelven todos.
 
+- Neonize: una comunidad y su grupo de avisos muestran el total de miembros de la comunidad, como en WhatsApp, y no solo los participantes del propio grupo.
+
 - Neonize: un contacto guardado que escribe en un grupo aparece con el nombre de la agenda, sin la "~" de contacto no guardado. Los canales ya no aparecen en la lista de chats como chats sin nombre. Un miembro de grupo con el número oculto aparece con el nombre de su perfil, y ya no como "+55∙∙∙∙∙∙∙∙76".
 
 - Canales en la lista de chats: una nueva opción, "Mostrar canales en la lista de chats", en Configuración, Interfaz, Conversaciones, desactivada por defecto, mantiene los canales fuera de la lista de chats. Actívala para volver a verlos ahí.

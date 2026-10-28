@@ -122,6 +122,8 @@ YENİLİKLER
 
 - Neonize: kaybolmuş gibi görünen sohbetler. WhatsApp eski sohbetlerin çoğuna etkinlik tarihi vermiyor ve WinZapp bunları boş sohbet sanıp yerel veriler silindiğinde (örneğin yeniden eşitlemek için F5) saklamıyordu: 160'tan fazla sohbeti olan bir hesap 37 sohbetle geri geliyordu. Köprü artık her sohbeti en yeni iletisinin tarihiyle tarihliyor ve hepsi geri geliyor.
 
+- Neonize: bir topluluk ve duyuru grubu, WhatsApp'ta olduğu gibi yalnızca grubun kendi katılımcılarını değil, topluluğun toplam üye sayısını gösterir.
+
 - Neonize: bir grupta yazan kayıtlı bir kişi, kayıtsız kişiyi gösteren "~" olmadan rehberdeki adıyla görünür. Kanallar artık sohbet listesinde adsız sohbetler olarak görünmüyor. Numarası gizli bir grup üyesi artık "+55∙∙∙∙∙∙∙∙76" olarak değil, profil adıyla görünür.
 
 - Sohbet listesinde kanallar: Ayarlar, Arayüz, Sohbetler altındaki yeni "Kanalları sohbet listesinde göster" seçeneği varsayılan olarak kapalıdır ve kanalları sohbet listesinin dışında tutar. Kanalları orada yeniden görmek için işaretleyin.

@@ -122,6 +122,8 @@ NOWOŚCI
 
 - Neonize: czaty, które zdawały się znikać. WhatsApp nie podaje daty aktywności większości starych czatów, a WinZapp brał je za puste i nie zachowywał ich po wyczyszczeniu danych lokalnych (na przykład po F5 do ponownej synchronizacji): konto z ponad 160 czatami wracało z 37. Teraz most datuje każdy czat według jego najnowszej wiadomości i wracają wszystkie.
 
+- Neonize: społeczność i jej grupa ogłoszeń pokazują łączną liczbę członków społeczności, tak jak WhatsApp, a nie tylko uczestników samej grupy.
+
 - Neonize: zapisany kontakt, który pisze w grupie, jest pokazywany z nazwą z książki adresowej, bez znaku "~" niezapisanego kontaktu. Kanały nie pojawiają się już na liście czatów jako czaty bez nazwy. Członek grupy z ukrytym numerem jest pokazywany z nazwą profilu, a nie jako "+55∙∙∙∙∙∙∙∙76".
 
 - Kanały na liście czatów: nowa opcja "Pokaż kanały na liście czatów" w Ustawieniach, Interfejs, Czaty, domyślnie wyłączona, trzyma kanały poza listą czatów. Włącz ją, aby znów je tam widzieć.

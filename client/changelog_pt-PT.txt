@@ -122,6 +122,8 @@ NOVIDADES
 
 - Neonize: conversas que pareciam desaparecer. O WhatsApp não indica a data de atividade da maioria das conversas antigas, e o WinZapp tomava-as por conversas vazias e não as mantinha quando os dados locais eram apagados (o F5 para voltar a sincronizar, por exemplo): uma conta com mais de 160 conversas voltava com 37. Agora a ponte data cada conversa pela mensagem mais recente, e todas voltam.
 
+- Neonize: uma comunidade e o grupo de avisos dela mostram o total de membros da comunidade, como no WhatsApp, e não apenas os participantes do próprio grupo.
+
 - Neonize: um contacto guardado que escreve num grupo aparece com o nome da agenda, sem o "~" de contacto não guardado. Os canais deixam de aparecer na lista de conversas como conversas sem nome. Um membro de grupo com o número oculto aparece pelo nome do perfil, e já não como "+55∙∙∙∙∙∙∙∙76".
 
 - Canais na lista de conversas: uma nova opção, "Mostrar canais na lista de conversas", em Definições, Interface, Conversas, desmarcada por predefinição, mantém os canais fora da lista de conversas. Marque-a para os voltar a ver ali.
