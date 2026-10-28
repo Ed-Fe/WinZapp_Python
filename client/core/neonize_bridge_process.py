@@ -111,6 +111,11 @@ def environment(bridge: str, base_env=None) -> dict:
     """The bridge's environment: ffmpeg on PATH (client/lib, plus the
     folders listed in neonize_bridge/path_extra.txt)."""
     env = dict(os.environ if base_env is None else base_env)
+    # A WPPConnect Node started earlier by this process left its installation
+    # id here; the bridge must keep reporting an empty one (see
+    # is_bridge_identity), or it would be taken for a Node.
+    for name in ("WINZAPP_INSTALLATION_ID", "WINZAPP_INSTANCE_ID"):
+        env.pop(name, None)
     folders = [resource_path("lib")]
     extra = os.path.join(bridge, EXTRA_PATH_FILE)
     if os.path.isfile(extra):

@@ -149,6 +149,14 @@ def test_the_environment_puts_ffmpeg_folders_first(tmp_path):
     assert parts[-1] == "C:\\base"
 
 
+def test_the_environment_drops_the_nodes_installation_id(tmp_path):
+    env = nb.environment(_bridge(tmp_path), {
+        "PATH": "C:\\base", "WINZAPP_INSTALLATION_ID": "abc",
+        "WINZAPP_INSTANCE_ID": "def"})
+    assert "WINZAPP_INSTALLATION_ID" not in env
+    assert "WINZAPP_INSTANCE_ID" not in env
+
+
 def test_the_secret_is_read_from_the_bridge_data_folder(tmp_path):
     folder = tmp_path / "data"
     folder.mkdir()
