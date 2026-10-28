@@ -137,6 +137,8 @@ WHAT'S NEW
 
 - Switching between WPPConnect and Neonize: both engines use port 6300, and the program mistook the engine you had just left, still closing, for the one you chose. Choosing WPPConnect then gave "no pairing code was received", and switching to Neonize showed connecting and then offline until the next restart. WinZapp now makes room first (it stops the Neonize bridge, or waits for the WPPConnect server to close), and a second WinZapp folder no longer joins the first one's bridge.
 
+- The pairing window now has a "Connection engine" list before the country, so someone who has not paired yet can choose between WPPConnect and Neonize without reaching Settings. Choosing one asks for confirmation and restarts WinZapp on it.
+
 V2.1.0.0
 
 This release brings transcription of voice messages on your own computer, with nothing sent anywhere, and online AI transcription and description of voice messages, images, videos, stickers and PDFs.
