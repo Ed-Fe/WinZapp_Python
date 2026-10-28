@@ -2315,6 +2315,9 @@ class ConnectionMixin:
                 "[check_wa_connection_http] Request failed (strike %d/%d): %s",
                 self._wa_http_fail_strikes, allowed_strikes, e,
             )
+            # On the Neonize engine the local API is the bridge, and this client
+            # started it: if it is gone, bring it back (neonize_bridge.py).
+            getattr(self, "_revive_neonize_bridge", lambda: None)()
             if self._wa_http_fail_strikes < allowed_strikes:
                 return
             self._set_wa_connected(False, f"status-session request failed: {e}")

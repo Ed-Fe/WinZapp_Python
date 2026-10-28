@@ -14,7 +14,52 @@ import wx
 from core import connection_engine as engines
 
 
+#: Seconds between two attempts to start a bridge that went away.
+REVIVE_COOLDOWN = 30
+
+
+def should_revive_bridge(uses_neonize: bool, port_is_open: bool, reviving: bool,
+                         last_attempt, now: float, cooldown: float = REVIVE_COOLDOWN) -> bool:
+    """Whether the bridge, which the client counts on, is gone and a new one is
+    due: only on the Neonize engine, with the port closed, nobody starting one
+    already, and the last attempt not too recent."""
+    if not uses_neonize or port_is_open or reviving:
+        return False
+    return last_attempt is None or now - last_attempt >= cooldown
+
+
 class NeonizeBridgeMixin:
+    def _revive_neonize_bridge(self):
+        """The local API stopped answering on the Neonize engine: if the bridge
+        is gone (it can be killed by a previous run that was still leaving when
+        this one accepted it, or crash), start it again, off the calling thread."""
+        import time
+        from core.neonize_bridge_process import NeonizeBridge, port_open
+
+        port = getattr(self, "wpp_port", 0)
+        if not should_revive_bridge(self._uses_neonize(), port_open(port),
+                                    getattr(self, "_neonize_reviving", False),
+                                    getattr(self, "_neonize_revive_at", None), time.monotonic()):
+            return
+        self._neonize_reviving = True
+        self._neonize_revive_at = time.monotonic()
+
+        def _run():
+            try:
+                bridge = getattr(self, "neonize_bridge", None) or NeonizeBridge(port=port)
+                if bridge.start():
+                    self.neonize_bridge = bridge
+                    self._use_neonize_bridge_secret()
+                    logging.info("MainWindow: the neonize bridge was gone and is running again")
+                else:
+                    logging.error("MainWindow: the neonize bridge is gone and could not be restarted")
+            except Exception:
+                logging.exception("MainWindow: restarting the neonize bridge failed")
+            finally:
+                self._neonize_reviving = False
+
+        threading.Thread(target=_run, name="neonize-bridge-revive", daemon=True).start()
+
     def _uses_neonize(self) -> bool:
         engine = getattr(self, "wpp_engine", None)
         if engine in engines.ENGINES:
