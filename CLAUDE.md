@@ -78,6 +78,7 @@ The experimental Neonize engine replaces Node and Chrome with a Python bridge
 
 ```powershell
 uv sync; uv run setup-api              # fresh checkout; setup-api clones and builds client/api/
+uv run setup-neonize                   # install Go/MinGW if needed and prepare the Neonize bridge
 uv run winzapp                         # run the app
 uv run pytest tests/test_database.py   # the test files for what you touched — the normal loop
 uv run pytest                         # serial full suite, only for cross-cutting changes

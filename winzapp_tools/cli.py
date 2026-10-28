@@ -66,6 +66,14 @@ def setup_api() -> None:
     _run("setup_api")
 
 
+def setup_neonize() -> None:
+    """Prepare the Neonize bridge used by the development app."""
+    from .neonize_setup import ensure_build_tools
+    ensure_build_tools()
+    _exec([sys.executable, str(ROOT / "neonize_bridge" / "prepare.py"),
+           *sys.argv[1:]], ROOT)
+
+
 def build_onefile() -> None:
     """Build the portable one-file executable (does not require GCC/windres)."""
     _run("build_onefile")
