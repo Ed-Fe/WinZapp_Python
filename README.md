@@ -27,7 +27,7 @@ If you are not sure which to pick, download the release marked "Latest".
 
 ### System requirements
 
-* Windows 10 or Windows 11, 64-bit. The bundled Node.js runtime is a 64-bit Windows build, and the code targets Windows 10 and 11. We have not published a tested list of older builds.
+* Windows 10 or Windows 11, 64-bit. The Node.js runtime WinZapp downloads for the WPPConnect engine is a 64-bit Windows build, and the code targets Windows 10 and 11. We have not published a tested list of older builds.
 * An internet connection, and a WhatsApp account on your phone.
 * A screen reader is optional. WinZapp works with NVDA, JAWS and Narrator.
 
@@ -42,7 +42,16 @@ The installer also registers an uninstaller, so you can remove WinZapp from Wind
 
 ### First start
 
-The release includes the program and a portable Node.js runtime, so you do not need to install Node.js. It does not include the WPPConnect Server's own dependencies (the files that let WinZapp talk to WhatsApp Web). On first start WinZapp downloads and sets them up, including a browser component (Chromium) that it uses to reach WhatsApp Web. This needs an internet connection and shows a progress window. Starting the API for the first time can then take up to 3 minutes while its database is prepared; WinZapp tells you to wait. Later starts skip these steps.
+The release includes the program, the Neonize engine and the WPPConnect Server's own code. On first start WinZapp asks which connection engine to use (see "Connection engines" below). If you choose Neonize, nothing more is downloaded. If you choose WPPConnect, WinZapp downloads a checksum-verified portable Node.js runtime, so you do not need to install Node.js, and then the WPPConnect Server's dependencies (the files that let WinZapp talk to WhatsApp Web), including a browser component (Chromium) that it uses to reach WhatsApp Web. This needs an internet connection and shows a progress window. The same happens the first time you switch to WPPConnect later. Starting the API for the first time can then take up to 3 minutes while its database is prepared; WinZapp tells you to wait. Later starts skip these steps.
+
+### Connection engines
+
+WinZapp can reach WhatsApp in two ways:
+
+* **WPPConnect**: the original engine. It automates WhatsApp Web in a browser component and needs Node.js, which WinZapp downloads for it.
+* **Neonize** (experimental): a newer engine that connects without a browser or Node.js, through a small local bridge built on the whatsmeow library. It starts faster and uses less memory, but it is still being tested, so expect rough edges.
+
+You choose on first start, and you can change it at any time: in the pairing window (the "Connection engine" list, before the country) if you have not paired yet, or in Settings, Connection. Each engine keeps its own link to your account, so after switching you pair again, and switching back picks the previous link up where it was. Your messages stay on your computer either way.
 
 ### Link your WhatsApp account
 
@@ -119,7 +128,9 @@ WhatsApp uses several different identifier formats for the same contact (`@s.wha
 
 The application is split into two processes that run together locally:
 1. **Client (Python 3.13 + wxPython):** all UI, business logic, local storage, notifications, and sounds.
-2. **WPPConnect Server (Node.js):** a locally-run WhatsApp Web automation gateway, built from the upstream [wppconnect-team/wppconnect-server](https://github.com/wppconnect-team/wppconnect-server) project with a small set of patches WinZapp maintains on top. The client talks to it over local HTTP (`http://127.0.0.1:6300/api/...`) and Socket.IO.
+2. **A connection engine**, one of:
+   * **Neonize bridge (experimental):** a local Python process built on the whatsmeow library that answers the same local HTTP routes, with no browser and no Node.js.
+   * **WPPConnect Server (Node.js):** a locally-run WhatsApp Web automation gateway, built from the upstream [wppconnect-team/wppconnect-server](https://github.com/wppconnect-team/wppconnect-server) project with a small set of patches WinZapp maintains on top. The client talks to it over local HTTP (`http://127.0.0.1:6300/api/...`) and Socket.IO.
 
 ---
 

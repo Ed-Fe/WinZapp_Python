@@ -139,6 +139,8 @@ NOWOŚCI
 
 - Okno parowania ma teraz listę „Silnik połączenia” przed krajem, aby osoba, która jeszcze nie sparowała konta, mogła wybrać WPPConnect lub Neonize bez wchodzenia do Ustawień. Po wyborze WinZapp prosi o potwierdzenie i uruchamia się ponownie z wybranym silnikiem.
 
+- Program nie zawiera już Node.js, bo Neonize go nie potrzebuje. Jeśli wybierzesz WPPConnect (przy pierwszym uruchomieniu, w oknie parowania lub w Ustawieniach), WinZapp pobierze Node.js ze zweryfikowaną sumą kontrolną i przygotuje WPPConnect przed połączeniem. Pobierany plik jest mniejszy.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
