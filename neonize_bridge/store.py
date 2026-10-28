@@ -181,9 +181,31 @@ class Store:
             self._conn.commit()
 
     def chats(self):
+        """Every chat, newest first. A chat the history gave no date (0) takes the
+        date of its newest real message, and keeps it: history leaves 0 on most
+        conversations (132 of 145 private chats of a real account) and the client
+        takes a chat with no date, no last message and no unread count for a
+        "phantom" and does not keep it. A group notice (`gp2`) is not a real
+        message here, as in `lower_dates_raised_by_notices`; a date the history
+        did give is left alone."""
         with self._lock:
-            return [dict(r) for r in self._conn.execute(
-                "SELECT * FROM chats ORDER BY ts DESC")]
+            rows = [dict(r) for r in self._conn.execute("SELECT * FROM chats")]
+            dated = []
+            for row in rows:
+                if int(row["ts"] or 0) > 0:
+                    continue
+                newest = self._conn.execute(
+                    "SELECT MAX(ts) FROM msgs WHERE chat=? "
+                    "AND IFNULL(json_extract(data, '$.type'), '') <> 'gp2'",
+                    (row["jid"],)).fetchone()[0]
+                if newest:
+                    row["ts"] = int(newest)
+                    dated.append((row["ts"], row["jid"]))
+            if dated:
+                self._conn.executemany("UPDATE chats SET ts=? WHERE jid=?", dated)
+                self._conn.commit()
+        rows.sort(key=lambda row: int(row["ts"] or 0), reverse=True)
+        return rows
 
     # ----------------------------------------------------------- contacts
     def contact(self, jid, name=None, pushname=None):

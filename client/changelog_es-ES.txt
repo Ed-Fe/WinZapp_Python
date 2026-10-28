@@ -120,6 +120,8 @@ NOVEDADES
 
 - Mensajes de voz y audios que no se reproducían: cuando la tarjeta de sonido no estaba disponible en el momento en que WinZapp abrió la salida de audio (por ejemplo al despertar el equipo), ningún mensaje de voz se reproducía hasta reiniciar WinZapp, y nada explicaba el motivo. Ahora WinZapp intenta restaurar la salida de audio cuando falla una reproducción y, si aun así no puede reproducir, lo anuncia con el lector de pantalla.
 
+- Neonize: chats que parecían desaparecer. WhatsApp no da fecha de actividad a la mayoría de los chats antiguos, y WinZapp los tomaba por chats vacíos y no los conservaba al borrar los datos locales (F5 para resincronizar, por ejemplo): una cuenta con más de 160 chats volvía con 37. Ahora el puente fecha cada chat con su mensaje más reciente y vuelven todos.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
