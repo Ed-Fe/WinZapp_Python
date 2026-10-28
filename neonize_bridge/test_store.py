@@ -277,3 +277,12 @@ def test_the_date_taken_from_the_messages_is_kept(tmp_path):
     a.close()
 
     assert {c["jid"]: c["ts"] for c in Store(path).chats()} == {"old@lid": 700}
+
+
+def test_a_notice_newer_than_the_last_real_message_does_not_date_the_chat(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.chat("g@g.us", ts=0)
+    a.message("g@g.us", _msg("real", 300))
+    a.message("g@g.us", {"id": {"id": "n"}, "t": 900, "type": "gp2", "subtype": "join"})
+
+    assert {c["jid"]: c["ts"] for c in a.chats()} == {"g@g.us": 300}

@@ -194,10 +194,13 @@ class Store:
             for row in rows:
                 if int(row["ts"] or 0) > 0:
                     continue
-                newest = self._conn.execute(
-                    "SELECT MAX(ts) FROM msgs WHERE chat=? "
-                    "AND IFNULL(json_extract(data, '$.type'), '') <> 'gp2'",
-                    (row["jid"],)).fetchone()[0]
+                # newest first through the (chat, ts) index: it stops at the first
+                # row that is not a notice. Calls and revocations count as activity.
+                found = self._conn.execute(
+                    "SELECT ts FROM msgs WHERE chat=? "
+                    "AND IFNULL(json_extract(data, '$.type'), '') <> 'gp2' "
+                    "ORDER BY ts DESC LIMIT 1", (row["jid"],)).fetchone()
+                newest = found[0] if found else 0
                 if newest:
                     row["ts"] = int(newest)
                     dated.append((row["ts"], row["jid"]))
