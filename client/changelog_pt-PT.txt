@@ -145,6 +145,8 @@ NOVIDADES
 
 - Neonize: se a ponte desaparecer enquanto o WinZapp está aberto (por exemplo, uma execução anterior que ainda estava a fechar encerra-a logo depois de esta a ter aceitado, o que acontecia ao alternar para a Neonize pelo aviso do arranque), o WinZapp passa a iniciá-la de novo sozinho, em vez de ficar em "a ligar" e depois offline até ao próximo reinício.
 
+- Neonize: quando o último WinZapp sai, a ponte passa a ser convidada a fechar as suas ligações e bases de dados com o WhatsApp e a terminar sozinha; só é forçada a parar se não o fizer em 10 segundos. Antes, era sempre terminada à força de imediato, o que podia interromper uma gravação.
+
 V2.1.0.0
 
 Esta versão traz a transcrição de mensagens de voz no seu próprio computador, sem enviar nada para lado nenhum, e a transcrição e a descrição com IA online de mensagens de voz, imagens, vídeos, autocolantes e PDFs.

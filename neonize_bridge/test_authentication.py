@@ -65,6 +65,7 @@ def test_another_host_is_refused_against_dns_rebinding(host):
     ("/api/{session}/{key}/generate-token", {"session": "account1", "key": "KEY"}, ("key", "KEY")),
     ("/api/{secretkey}/show-all-sessions", {"secretkey": "SECRET"}, ("key", "SECRET")),
     ("/api/{secretkey}/start-all", {"secretkey": "SECRET"}, ("key", "SECRET")),
+    ("/api/{secretkey}/shutdown", {"secretkey": "SECRET"}, ("key", "SECRET")),
     ("/api/{tok}/send-message", {"tok": "account1:abc"}, ("session", "account1:abc")),
     ("/api/{tok}/group-info/{groupId}", {"tok": "account1:abc", "groupId": "1@g.us"}, ("session", "account1:abc")),
     ("/api/{tok}/delete-all-chats", {"tok": "account1:abc"}, ("session", "account1:abc")),
