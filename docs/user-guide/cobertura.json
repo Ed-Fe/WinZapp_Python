@@ -75,6 +75,7 @@
     "55fbd2486c85": "A janela de pareamento agora tem uma lista \"Motor de conexão\" antes do país, par",
     "0773bf0602c1": "O programa não vem mais com o Node.js, já que a Neonize não precisa dele. Se voc",
     "560b2402ce0f": "Neonize: se a ponte some enquanto o WinZapp está aberto (por exemplo, uma execuç",
-    "2fc8239b935d": "Neonize: quando o último WinZapp sai, a ponte agora é convidada a fechar suas co"
+    "2fc8239b935d": "Neonize: quando o último WinZapp sai, a ponte agora é convidada a fechar suas co",
+    "ea9236a58e40": "Neonize: o QR code de pareamento não aparece mais cortado na janela de conexão. "
   }
 }
