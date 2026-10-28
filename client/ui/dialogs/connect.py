@@ -18,6 +18,7 @@ from countries import get_countries, get_default_country_index
 from core.combo_search import bind_incremental_search
 from core import app_restart, connection_engine, neonize_bridge_process
 from ui.dialogs import connect_engine
+from core import qr_geometry
 import logging
 
 
@@ -1158,11 +1159,19 @@ class Connect:
             src_w, src_h = image.GetWidth(), image.GetHeight()
             # Quiet zone first, magnification second: padding then scaling keeps
             # the border proportional and every edge on a whole pixel.
-            pad = self._qr_quiet_zone(min(src_w, src_h))
+            geometry = qr_geometry.measure(bytes(image.GetData()), src_w, src_h)
+            margin, module = geometry if geometry else (0, None)
+            pad = qr_geometry.extra_margin(margin, module,
+                                           self._qr_quiet_zone(min(src_w, src_h)))
             if pad:
                 image = image.Size(wx.Size(src_w + 2 * pad, src_h + 2 * pad),
                                    wx.Point(pad, pad), 255, 255, 255)
             padded = min(image.GetWidth(), image.GetHeight())
+            divisor = qr_geometry.shrink_divisor(padded, self._QR_BOX, module, margin + pad)
+            if divisor > 1:
+                image = image.Scale(image.GetWidth() // divisor, image.GetHeight() // divisor,
+                                    wx.IMAGE_QUALITY_NEAREST)
+                padded = min(image.GetWidth(), image.GetHeight())
             factor = self._qr_scale_factor(padded, self._QR_BOX)
             if factor > 1:
                 image = image.Scale(image.GetWidth() * factor, image.GetHeight() * factor,
