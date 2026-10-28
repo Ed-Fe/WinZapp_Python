@@ -58,8 +58,8 @@ def consent_text(i18n, providers, kind, locked):
         message += "\n\n" + i18n.t("ai_metadata_notice")
     if kind == "video":
         message += "\n\n" + i18n.t("ai_video_frame_notice")
-    if "gemini" in providers:
-        message += "\n\n" + i18n.t("ai_gemini_notice")
+    for key in ai_config.notice_keys(providers):
+        message += "\n\n" + i18n.t(key)
     if locked:
         message += "\n\n" + i18n.t("ai_locked_consent")
     return message
@@ -292,7 +292,8 @@ class AIResultDialog(wx.Dialog):
                 prepared = media or prepare_media(kind, loader(operation), mime, config["profile"])
                 record("media_ready", generation=generation)
                 operation.check()
-                answer = run_chain(operation, providers, config["models"], store.get, prepared, history,
+                answer = run_chain(operation, providers, ai_config.models_for(config, kind),
+                                   store.get, prepared, history,
                                    question, instructions(language, config["profile"], kind),
                                    config["profile"])
                 return prepared, answer

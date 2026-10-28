@@ -7,8 +7,10 @@ or the filesystem, so each provider's payload shape is tested directly.
 import base64
 from typing import NamedTuple, Optional
 
-from .config import MAX_OUTPUT_CHARS, MAX_OUTPUT_TOKENS, PROVIDERS, supports, valid_model
+from .config import (MAX_OUTPUT_CHARS, MAX_OUTPUT_TOKENS, PROVIDERS, supports, transcribe_model,
+                     valid_model)
 from .errors import DescriptionError
+from .mistral_ocr import parse_document
 
 
 class Request(NamedTuple):
@@ -27,8 +29,9 @@ _GEMINI = "https://generativelanguage.googleapis.com/v1beta"
 _CLAUDE = "https://api.anthropic.com/v1/messages"
 _GROQ = "https://api.groq.com/openai/v1"
 _OPENROUTER = "https://openrouter.ai/api/v1"
+_MISTRAL = "https://api.mistral.ai/v1"
 #: OpenAI-compatible chat endpoints.
-_CHAT_BASE = {"groq": _GROQ, "openrouter": _OPENROUTER}
+_CHAT_BASE = {"groq": _GROQ, "openrouter": _OPENROUTER, "mistral": _MISTRAL}
 
 
 def _b64(media):
@@ -41,7 +44,7 @@ def _data_url(media):
 
 def is_transcription(provider, media):
     """Audio goes to a dedicated transcription endpoint where the provider has
-    one (OpenAI, Groq); Gemini takes audio as ordinary chat input."""
+    one (OpenAI, Groq, Mistral); Gemini takes audio as ordinary chat input."""
     return media.kind == "audio" and bool(PROVIDERS[provider].transcribe_model)
 
 
@@ -52,7 +55,12 @@ def build_request(provider, model, key, media, history, question, instructions, 
     if not valid_model(model):
         raise DescriptionError("request")
     if is_transcription(provider, media):
-        return _transcription(provider, key, media)
+        return _transcription(provider, key, media, model)
+    if provider == "mistral" and media.kind == "pdf":
+        return Request(f"{_MISTRAL}/ocr", {"Authorization": f"Bearer {key}"},
+                       {"model": PROVIDERS[provider].ocr_model,
+                        "document": {"type": "document_url", "document_url": _data_url(media)},
+                        "include_image_base64": False})
     tokens = MAX_OUTPUT_TOKENS[media.kind]
     if provider == "openai":
         messages = [{"role": role, "content": text} for role, text in history]
@@ -84,31 +92,46 @@ def build_request(provider, model, key, media, history, question, instructions, 
                         "messages": messages})
     if provider == "groq" and media.kind in ("image", "sticker") and len(_b64(media)) > GROQ_IMAGE_BASE64_LIMIT:
         raise DescriptionError("request")  # this provider only: the chain moves on to the next
-    # groq and openrouter speak the OpenAI chat-completions dialect.
+    # Groq, OpenRouter and Mistral use chat completions for vision.
     messages = [{"role": "system", "content": instructions}]
     messages += [{"role": role, "content": text} for role, text in history]
     if media.kind == "pdf":
         part = {"type": "file", "file": {"filename": media.filename, "file_data": _data_url(media)}}
     else:
-        part = {"type": "image_url", "image_url": {"url": _data_url(media)}}
+        part = {"type": "image_url", "image_url": (
+            _data_url(media) if provider == "mistral" else {"url": _data_url(media)})}
     messages.append({"role": "user", "content": [{"type": "text", "text": question}, part]})
     return Request(f"{_CHAT_BASE[provider]}/chat/completions", {"Authorization": f"Bearer {key}"},
                    {"model": model, "messages": messages, "max_tokens": tokens})
 
 
-def _transcription(provider, key, media):
+def _transcription(provider, key, media, model):
     """Multipart upload. The language is left to the model's own detection: a
-    forced language would garble a voice message in any other."""
-    base = _OPENAI if provider == "openai" else _GROQ
+    forced language would garble a voice message in any other. ``model`` is
+    honoured only when it is one of the provider's voice-message models (the
+    provider window's model is for pictures)."""
+    model = transcribe_model(provider, model)
+    if provider == "mistral":
+        # Mistral has no response_format form field.
+        base, fields = _MISTRAL, {"model": model}
+    else:
+        base = _OPENAI if provider == "openai" else _GROQ
+        fields = {"model": model, "response_format": "json"}
     return Request(f"{base}/audio/transcriptions", {"Authorization": f"Bearer {key}"},
-                   data={"model": PROVIDERS[provider].transcribe_model, "response_format": "json"},
+                   data=fields,
                    files={"file": (media.filename, media.data, media.mime)})
 
 
 def parse_answer(provider, body, kind):
     limit = MAX_OUTPUT_CHARS[kind]
     try:
-        if provider == "openai" and "text" in body and "output" not in body:
+        if provider == "mistral" and kind == "audio":
+            if body.get("finish_reason") not in (None, "stop"):
+                raise DescriptionError("response")
+            text = body["text"]
+        elif provider == "mistral" and kind == "pdf":
+            text = parse_document(body)
+        elif provider == "openai" and "text" in body and "output" not in body:
             text = body["text"]  # audio transcription
         elif provider == "openai":
             if body.get("status") in ("incomplete", "failed", "cancelled"):
@@ -144,7 +167,9 @@ def parse_answer(provider, body, kind):
                 message = choice["message"]
                 if message.get("refusal") or choice.get("finish_reason") == "content_filter":
                     raise DescriptionError("refusal")
-                if choice.get("finish_reason") == "length":
+                # Mistral's enum adds "model_length" and "error": the answer
+                # was cut off too, and must not be shown as complete.
+                if choice.get("finish_reason") in ("length", "model_length", "error"):
                     raise DescriptionError("response")
                 text = message.get("content")
         else:

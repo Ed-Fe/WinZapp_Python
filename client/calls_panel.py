@@ -11,11 +11,12 @@ out of this tab, and returning it (Ctrl+Shift+R / the button) is refused,
 regardless of whether the vault happens to be unlocked right now.
 
 A wx.Notebook holds the filters -- Todas (selected by default), Perdidas,
-Recusadas, Atendidas -- each page with its own "&Ligações" list, so Ctrl+Tab
+Recusadas, Atendidas, Em andamento -- each page with its own "&Ligações" list, so Ctrl+Tab
 switches filter and Alt+L lands on the list of whichever page is shown. Enter
 opens the call's conversation; on a missed one-to-one call Ctrl+Shift+R, the
 context menu and the "Retornar ligação" button call back, as in the
-conversation itself.
+conversation itself. Live calls come from WhatsApp's ongoing collection,
+appear first in All and on Ongoing, and Enter joins them by call id.
 """
 
 from ui.shortcut_bindings import refresh_popup_shortcuts
@@ -31,6 +32,7 @@ from core.call_log import (
     TAB_ANSWERED,
     TAB_DECLINED,
     TAB_MISSED,
+    TAB_ONGOING,
     call_log_in_tab,
     call_log_is_video,
     call_log_label,
@@ -40,7 +42,9 @@ from core.call_log import (
     is_returnable_missed_call,
     list_update_plan,
 )
+from core.list_row_diff import plan_row_diff
 from ui.accessible import AccessibleReturnCallButton
+from ui.ongoing_calls import OngoingCallsMixin
 
 # How many call records the tab reads from the database at most.
 CALLS_TAB_LIMIT = 1000
@@ -50,10 +54,11 @@ _TAB_LABEL_KEYS = {
     TAB_MISSED: "calls_tab_missed",
     TAB_DECLINED: "calls_tab_declined",
     TAB_ANSWERED: "calls_tab_answered",
+    TAB_ONGOING: "calls_tab_ongoing",
 }
 
 
-class CallsPanel(wx.Panel):
+class CallsPanel(OngoingCallsMixin, wx.Panel):
     def __init__(self, main_window, parent):
         super().__init__(parent)
         self.main_window = main_window
@@ -105,6 +110,7 @@ class CallsPanel(wx.Panel):
         self._return_call_btn.Bind(wx.EVT_BUTTON, self._on_return_call)
         sizer.Add(self._return_call_btn, 0, wx.LEFT | wx.BOTTOM, 5)
         self._return_call_btn.Hide()
+        self._init_ongoing_calls(sizer)
 
         self.SetSizer(sizer)
 
@@ -169,6 +175,7 @@ class CallsPanel(wx.Panel):
         if not self._loaded:
             self._show_placeholder(self.main_window.i18n.t("loading"))
         self.focus_list()
+        self._watch_ongoing_calls()
         threading.Thread(target=self._load, daemon=True, name="calls-tab-load").start()
 
     def schedule_refresh(self):
@@ -209,6 +216,9 @@ class CallsPanel(wx.Panel):
 
     def _row_text(self, entry) -> str:
         mw = self.main_window
+        if entry.get("ongoing"):
+            key = "call_log_ongoing_video" if entry["ongoing"]["isVideo"] else "call_log_ongoing_voice"
+            return f'{mw.chat_display_name(entry["jid"])}: {mw.i18n.t(key)}'
         panel = getattr(mw, "conversations_panel", None)
         msg = entry["msg"]
         label = call_log_label(
@@ -225,14 +235,22 @@ class CallsPanel(wx.Panel):
             self._apply_rows(tab, [("", text)])
         self._update_return_call_button()
 
-    def _populate_all(self):
+    def _populate_all(self, tabs=None):
+        """Bring *tabs* (every tab by default) up to date with the history
+        and the live calls."""
         empty = self.main_window.i18n.t("calls_empty")
-        for tab in CALL_TABS:
+        for tab in tabs or CALL_TABS:
             rows = [e for e in self._entries if call_log_in_tab(e["msg"], tab)]
+            live = self._ongoing_rows_for_tab(tab)
+            ids = {self._entry_id(entry) for entry in live}
+            rows = live + [entry for entry in rows if self._entry_id(entry) not in ids]
             keep = self._focused_id(tab)
             self._rows[tab] = rows
+            placeholder = empty
+            if tab == TAB_ONGOING:
+                placeholder = self.main_window.i18n.t(self._ongoing_placeholder_key())
             shown = ([(self._entry_id(e), self._row_text(e)) for e in rows]
-                     or [("", empty)])
+                     or [("", placeholder)])
             self._apply_rows(tab, shown, keep)
         self._update_return_call_button()
 
@@ -244,7 +262,8 @@ class CallsPanel(wx.Panel):
         written at all, and a call whose outcome settled rewrites its row only.
         """
         lst = self._lists[tab]
-        action, changes = list_update_plan(self._shown[tab], shown)
+        old = self._shown[tab]
+        action, changes = list_update_plan(old, shown)
         self._shown[tab] = list(shown)
         if action == "none":
             return
@@ -254,12 +273,24 @@ class CallsPanel(wx.Panel):
                 for index, text in changes:
                     lst.SetItemText(index, text)
                 return
-            lst.DeleteAllItems()
-            for _id, text in shown:
-                lst.Append((text,))
+            # A live call starting or ending inserts or deletes its row only;
+            # clearing the list would re-announce the row the user is on.
+            deletes, inserts = plan_row_diff([row_id for row_id, _t in old],
+                                             [row_id for row_id, _t in shown])
+            for index in deletes:
+                lst.DeleteItem(index)
+            for index in inserts:
+                lst.InsertItem(index, shown[index][1])
+            gone, added = set(deletes), set(inserts)
+            kept = iter([text for i, (_id, text) in enumerate(old) if i not in gone])
+            for index, (_id, text) in enumerate(shown):
+                if index not in added and next(kept) != text:
+                    lst.SetItemText(index, text)
             target = next((i for i, (row_id, _t) in enumerate(shown)
                            if keep_id and row_id == keep_id), 0)
-            if lst.GetItemCount():
+            # A surviving focused row has moved with its index; refocus only
+            # when it is gone or the list had no focus.
+            if lst.GetItemCount() and lst.GetFocusedItem() != target:
                 lst.Focus(target)
                 lst.Select(target)
         finally:
@@ -267,6 +298,8 @@ class CallsPanel(wx.Panel):
 
     @staticmethod
     def _entry_id(entry) -> str:
+        if (entry or {}).get("ongoing"):
+            return str(entry["ongoing"]["id"])
         return str(((entry or {}).get("msg") or {}).get("key", {}).get("id") or "")
 
     def _focused_id(self, tab) -> str:
@@ -289,18 +322,25 @@ class CallsPanel(wx.Panel):
         mw = self.main_window
         locked = entry is not None and getattr(
             mw, "is_chat_locked", lambda _jid: False)(entry["jid"])
-        show = (entry is not None and not locked
+        show = (entry is not None and not entry.get("ongoing") and not locked
                 and is_returnable_missed_call(entry["msg"], entry["jid"]))
         self._return_call_btn.Show(show)
+        self._update_ongoing_join_button()
         self.Layout()
 
     def _on_item_activated(self, event):
         entry = self.focused_entry()
+        if entry is not None and entry.get("ongoing"):
+            self._join_ongoing_call()
+            return
         if entry is not None:
             self.main_window.navigate_to_conversation_jid(entry["jid"])
 
     def _on_return_call(self, _event=None):
         entry = self.focused_entry()
+        if entry is not None and entry.get("ongoing"):
+            self._join_ongoing_call()
+            return
         mw = self.main_window
         locked = entry is not None and getattr(
             mw, "is_chat_locked", lambda _jid: False)(entry["jid"])
@@ -321,6 +361,9 @@ class CallsPanel(wx.Panel):
     def _on_context_menu(self, event):
         entry = self.focused_entry()
         if entry is None:
+            return
+        if entry.get("ongoing"):
+            self._ongoing_context_menu()
             return
         i18n = self.main_window.i18n
         menu = wx.Menu()

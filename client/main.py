@@ -277,6 +277,7 @@ from main_window.window_lifecycle import WindowLifecycleMixin
 from main_window.chat_list import ChatListMixin
 from main_window.chat_lists import WhatsAppListsMixin
 from main_window.calls import CallsMixin
+from main_window.call_participants import CallParticipantsMixin
 from main_window.call_hotkeys import CallHotkeysMixin
 from main_window.identity import IdentityMixin
 from main_window.message_events import MessageEventsMixin
@@ -342,6 +343,7 @@ class MainWindow(
     ChatListMixin,
     WhatsAppListsMixin,
     CallsMixin,
+    CallParticipantsMixin,
     CallHotkeysMixin,
     IdentityMixin,
     MessageEventsMixin,
@@ -1369,6 +1371,9 @@ class MainWindow(
         self.voice_call_window_promote_button = wx.Button(
             call_panel, label=self.i18n.t("voice_call_promote_video_button"))
         self.voice_call_window_video_button = wx.Button(call_panel, label=self.i18n.t("voice_call_video_off_button"))
+        self.voice_call_window_participants_button = wx.Button(
+            call_panel, label=self.i18n.t("call_participants_button"))
+        self.voice_call_window_participants_button.Bind(wx.EVT_BUTTON, self._show_active_call_participants)
         self.voice_call_window_video_button.Hide()
         self.voice_call_window_end_button.SetAccessible(AccessibleCallEndButton())
         self.voice_call_window_settings_button.SetAccessible(AccessibleCallSettingsButton())
@@ -1394,6 +1399,7 @@ class MainWindow(
         controls.Add(self.voice_call_window_promote_button, 0, wx.ALL, 8)
         controls.Add(self.voice_call_window_video_button, 0, wx.ALL, 8)
         call_sizer.Add(controls, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
+        call_sizer.Add(self.voice_call_window_participants_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
         call_panel.SetSizer(call_sizer)
         self._call_window_sizer = call_sizer
         self.voice_call_window.Bind(wx.EVT_CLOSE, self._on_voice_call_window_close)

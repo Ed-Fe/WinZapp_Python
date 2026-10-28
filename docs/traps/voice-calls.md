@@ -732,7 +732,10 @@ least one real call to learn, so read before touching the video path.
   or dialling -- checked again inside the native callback right before the
   unscoped `endCall()` -- so it can never kill a newer call. `page still held a call
   WinZapp had ended` in `log.log` is the defect's signature — if it appears,
-  some terminal event was spurious and its source is worth finding.
+  some terminal event was spurious and its source is worth finding. A failed
+  join of an ongoing call posts it too, with `unless_active=True`: a join
+  reuses the call's own id, so a late join WinZapp adopted (or a second join)
+  is that same id, and the check skips it when the call record holds it again.
 
 **The call media bridge must never reload WhatsApp Web to install itself.** Its hooks (synthetic `getUserMedia`, the `RTCPeerConnection` tap) have to exist before WhatsApp's VoIP modules evaluate. They used to be registered with `evaluateOnNewDocument` only once WPPConnect handed over an already-loaded page, followed by a "priming" `page.reload()`. On 2026-09-24, right after an alpha update, that reload wedged the page on two consecutive starts. WhatsApp Web had reloaded itself right after its first load (history entry `transitionType: reload`, not served by the pin), and the priming reload landed on top of it.
 - **What the renderer did:** it stopped answering everything, including CDP `Runtime.evaluate`, `Debugger.enable`, `Page.getFrameTree`, and even the trace-start task. It was idle, not suspended, with no JS dialog, not frozen (`Page.setWebLifecycleState active` changed nothing), and `Page.stopLoading` changed nothing either.

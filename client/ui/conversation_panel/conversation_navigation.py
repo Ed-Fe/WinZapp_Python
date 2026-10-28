@@ -581,6 +581,7 @@ class ConversationNavigationMixin:
             self.message_field.SetFocus()
             return False, ""
         self._stop_contact_presence()
+        self._stop_group_call_watch()
         # Before the composer is reset below (message_drafts.py).
         self._stash_message_draft()
         if hasattr(self, "close_ai_media"):

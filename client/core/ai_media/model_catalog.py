@@ -55,6 +55,18 @@ COMPATIBLE_MODELS = {
         "anthropic/claude-sonnet-5": "Claude Sonnet 5",
         "qwen/qwen3.8-27b:free": "Qwen 3.8 27B (free)",
     },
+    "mistral": {
+        # Vision choices only; transcription and OCR have fixed models.
+        # Official vision docs + live key metadata checked 2026-10-25.
+        "mistral-small-latest": "Mistral Small",
+        "mistral-small-2603": "Mistral Small 4",
+        "ministral-3b-latest": "Ministral 3 3B",
+        "ministral-3b-2512": "Ministral 3 3B",
+        "ministral-8b-latest": "Ministral 3 8B",
+        "ministral-8b-2512": "Ministral 3 8B",
+        "ministral-14b-latest": "Ministral 3 14B",
+        "ministral-14b-2512": "Ministral 3 14B",
+    },
 }
 MAX_PAGES = 5
 # OpenRouter lists every model it routes to, with descriptions: hundreds of KB.
@@ -101,6 +113,8 @@ def _list_request(provider, key):
         return "https://api.groq.com/openai/v1/models", bearer, {}
     if provider == "openrouter":
         return "https://openrouter.ai/api/v1/models", bearer, {}
+    if provider == "mistral":
+        return "https://api.mistral.ai/v1/models", bearer, {}
     return "https://api.openai.com/v1/models", bearer, {}
 
 

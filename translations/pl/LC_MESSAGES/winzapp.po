@@ -967,7 +967,6 @@ msgid "Quick"
 msgstr "Krótki"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
-#: client/ui/dialogs/ai_result_dialog.py
 msgctxt "ai_gemini_notice"
 msgid ""
 "Gemini: unpaid services may use inputs for product improvement and human "
@@ -1091,6 +1090,30 @@ msgstr ""
 "informacjami zapisanymi w pliku, takimi jak autor czy lokalizacja."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_mistral_model_note"
+msgid ""
+"Photos, stickers and video frames use the vision model set below. Voice "
+"messages use the voice message model, and PDF documents use Mistral OCR."
+msgstr ""
+"Zdjęcia, naklejki i klatki wideo są opisywane przez model wizyjny ustawiony "
+"poniżej. Wiadomości głosowe są transkrybowane przez model dla wiadomości "
+"głosowych, a dokumenty PDF są przetwarzane przez Mistral OCR."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_mistral_notice"
+msgid ""
+"Mistral: on the free Experiment plan, API requests may be used to train "
+"Mistral's models unless you opt out in your Mistral account. Do not send "
+"sensitive or personal information under those terms. The paid Scale plan is "
+"opted out by default. WinZapp cannot infer your plan from an API key."
+msgstr ""
+"Mistral: w bezpłatnym planie Experiment żądania API mogą być wykorzystywane "
+"do trenowania modeli Mistral, chyba że wyłączysz to na swoim koncie Mistral."
+" W takich warunkach nie wysyłaj danych osobowych ani informacji wrażliwych. "
+"W płatnym planie Scale trenowanie jest domyślnie wyłączone. WinZapp nie może"
+" ustalić Twojego planu na podstawie klucza API."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_model"
 msgid "Model &identifier (advanced)"
 msgstr "&Identyfikator modelu (dla zaawansowanych)"
@@ -1104,6 +1127,12 @@ msgstr "Używaj modelu &zalecanego przez WinZapp"
 msgctxt "ai_model_choice"
 msgid "&Model"
 msgstr "&Model"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#, python-brace-format
+msgctxt "ai_model_preview"
+msgid "{name} (preview)"
+msgstr "{name} (wersja zapoznawcza)"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "ai_models_empty"
@@ -1361,6 +1390,11 @@ msgid ""
 msgstr ""
 "Wysyłana jest tylko jedna klatka filmu, bez dźwięku i informacji zapisanych "
 "w pliku."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "ai_voice_model"
+msgid "&Voice message model"
+msgstr "Model dla wiadomości &głosowych"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/conversation_data_dialog.py
@@ -2483,6 +2517,64 @@ msgctxt "call_log_unknown_voice"
 msgid "Voice call"
 msgstr "Połączenie głosowe"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main.py
+#: client/main_window/shortcuts.py client/ui/ongoing_calls.py
+msgctxt "call_participants_button"
+msgid "Call participants"
+msgstr "Uczestnicy połączenia"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+#, python-brace-format
+msgctxt "call_participants_count"
+msgid "Connected participants: {count}"
+msgstr "Połączeni uczestnicy: {count}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_empty"
+msgid "No participants are currently connected."
+msgstr "Obecnie nie ma połączonych uczestników."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/main_window/call_participants.py
+#: client/ui/dialogs/call_participants.py client/ui/ongoing_calls.py
+msgctxt "call_participants_ended"
+msgid "This call has ended or is no longer available."
+msgstr "To połączenie zakończyło się lub nie jest już dostępne."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_failed"
+msgid "Could not load the current participants. Use Refresh to try again."
+msgstr ""
+"Nie udało się wczytać bieżących uczestników. Użyj Odśwież, aby spróbować "
+"ponownie."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_list"
+msgid "Connected participants"
+msgstr "Połączeni uczestnicy"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+msgctxt "call_participants_refresh"
+msgid "&Refresh"
+msgstr "&Odśwież"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/dialogs/call_participants.py
+#, python-brace-format
+msgctxt "call_participants_title"
+msgid "Call participants: {name}"
+msgstr "Uczestnicy połączenia: {name}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_participants.py
+msgctxt "call_participants_you"
+msgid "You"
+msgstr "Ty"
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
 msgctxt "call_video_no_camera_error"
 msgid "No camera available."
@@ -2549,7 +2641,19 @@ msgstr ""
 "Włącz redukcję szumów mikrofonu podczas połączenia (np. szum wentylatora, "
 "syczenie)"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_ongoing_empty"
+msgid "No ongoing calls."
+msgstr "Brak trwających połączeń."
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_ongoing_unavailable"
+msgid "Ongoing calls are unavailable. Press F5 to retry."
+msgstr ""
+"Trwające połączenia są niedostępne. Naciśnij F5, aby spróbować ponownie."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
+#: client/ui/ongoing_calls.py
 msgctxt "calls_open_conversation"
 msgid "Open chat"
 msgstr "Otwórz czat"
@@ -2559,6 +2663,11 @@ msgstr "Otwórz czat"
 msgctxt "calls_popup_enabled_label"
 msgid "Open a &window when a call comes in"
 msgstr "Otwieraj okno &przy połączeniu przychodzącym"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_return_to_current"
+msgid "Return to call"
+msgstr "Powrót do połączenia"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 msgctxt "calls_tab_all"
@@ -2579,6 +2688,11 @@ msgstr "Odrzucone"
 msgctxt "calls_tab_missed"
 msgid "Missed"
 msgstr "Nieodebrane"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+msgctxt "calls_tab_ongoing"
+msgid "Ongoing"
+msgstr "Trwające"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/dialogs/settings_dialog.py
@@ -3345,6 +3459,7 @@ msgstr "Wyczyść zaznaczone czaty"
 #: client/status_tab/status_composer.py client/status_tab/status_dialogs.py
 #: client/ui/conversation_panel/message_data.py
 #: client/ui/conversation_panel/message_menu.py
+#: client/ui/dialogs/call_participants.py
 #: client/ui/dialogs/community_comments.py client/ui/dialogs/error_details.py
 #: client/ui/dialogs/media_cleanup_dialog.py
 #: client/ui/dialogs/new_conversation.py
@@ -5728,6 +5843,30 @@ msgctxt "group_admins_only"
 msgid "Only admins can send messages in this grou&p"
 msgstr "Tylko a&dministratorzy mogą wysyłać wiadomości w tej grupie"
 
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/group_calls.py client/ui/ongoing_calls.py
+msgctxt "group_call_join_button"
+msgid "Join ongoing voice call"
+msgstr "Dołącz do trwającego połączenia głosowego"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
+#, python-brace-format
+msgctxt "group_call_join_failed"
+msgid "Could not join the ongoing call: {error}"
+msgstr "Nie udało się dołączyć do trwającego połączenia: {error}"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po
+#: client/ui/conversation_panel/group_calls.py
+msgctxt "group_call_join_video_button"
+msgid "Join ongoing video call (camera off)"
+msgstr "Dołącz do trwającego połączenia wideo (kamera wyłączona)"
+
+#: translations/en-US/LC_MESSAGES/winzapp.po client/main_window/calls.py
+#, python-brace-format
+msgctxt "group_call_joining"
+msgid "Joining the ongoing call: {name}..."
+msgstr "Dołączanie do trwającego połączenia: {name}..."
+
 #: translations/en-US/LC_MESSAGES/winzapp.po client/ui/conversations.py
 msgctxt "group_call_unavailable_label"
 msgid "Calling is not possible"
@@ -6840,10 +6979,11 @@ msgid "list selection"
 msgstr "wybór z listy"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po client/calls_panel.py
-#: client/ui/dialogs/cart_dialog.py client/ui/dialogs/community_comments.py
+#: client/ui/dialogs/call_participants.py client/ui/dialogs/cart_dialog.py
+#: client/ui/dialogs/community_comments.py
 #: client/ui/dialogs/order_create_dialog.py
 #: client/ui/dialogs/order_update_dialog.py
-#: client/ui/dialogs/profile_picture_dialog.py
+#: client/ui/dialogs/profile_picture_dialog.py client/ui/ongoing_calls.py
 msgctxt "loading"
 msgid "Loading..."
 msgstr "Wczytywanie..."
@@ -7406,13 +7546,13 @@ msgstr "Synchronizuj &multimedia"
 #: client/main_window/window_chrome.py
 msgctxt "menu_whats_new"
 msgid "&What's New"
-msgstr "&Nowości"
+msgstr "&Co nowego?"
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/main_window/window_chrome.py
 msgctxt "menu_whats_new_since"
 msgid "What's New Since You &Last Looked..."
-msgstr "Nowości od &ostatniego przeglądania..."
+msgstr "Co nowego od &ostatniego przeglądu..."
 
 #: translations/en-US/LC_MESSAGES/winzapp.po
 #: client/ui/conversation_panel/message_rendering.py
@@ -16012,7 +16152,7 @@ msgid ""
 "operation."
 msgstr "{app_name} napotkał nieoczekiwany błąd i nie mógł ukończyć operacji."
 
-#: translations/en-US/LC_MESSAGES/winzapp.po
+#: translations/en-US/LC_MESSAGES/winzapp.po client/core/call_participants.py
 #: client/core/notification_manager.py client/core/polls.py
 #: client/main_window/calls.py client/main_window/chat_list.py
 #: client/main_window/chats_store.py client/main_window/groups.py

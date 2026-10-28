@@ -232,6 +232,17 @@ def test_a_call_that_ends_during_the_switch_is_not_reopened():
     assert window._active_voice_call is None
 
 
+def test_multiparty_audio_keeps_person_chat_when_there_is_no_group_jid():
+    window = _CallWindow()
+    window._call_audio_session = None
+    window._start_voice_call_audio("MULTI", {
+        "call_id": "MULTI", "is_group": True, "group_jid": "",
+        "peer_jid": "555000001@lid", "name": "Contact",
+    })
+    assert window._active_voice_call["peer_jid"] == "555000001@lid"
+    assert window._active_voice_call["group_jid"] == ""
+
+
 def test_the_call_settings_camera_reopen_uses_the_guarded_path():
     import inspect
     source = inspect.getsource(MainWindow.open_call_audio_settings)

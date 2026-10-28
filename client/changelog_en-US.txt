@@ -5,6 +5,13 @@ This release brings communities and a reorganized settings window, on top of eve
 WHAT'S NEW
 
 - New connection engine, experimental: Neonize connects to WhatsApp without a browser, through a local bridge. Choose it in Settings, Connection (or in the question on the first launch) and restart WinZapp; WPPConnect remains the default. Compiled builds already include the bridge and keep WPPConnect installed alongside it; from a repository checkout, set the bridge up with neonize_bridge/prepare.py (see the README in that folder). On the first launch after updating, an install still on WPPConnect gets a one-time notice offering the switch; each engine keeps its own connection, so switching and coming back does not lose either. With Neonize, custom chat lists, joining a community's groups (or asking to) and cancelling that request, deactivating a community, editing and deleting your channels, choosing who sees your status and removing a contact also work. Catalogs, carts and orders also work with Neonize (viewing a business's catalog, filling and sending a cart, and, on a Business account, answering orders and managing your own catalog), as do buttons, lists and Pix keys in messages. Forwarding locations and contact cards works with Neonize too. Video calls, turning a voice call into a video call and group calls also work with Neonize. A community also lists, with Neonize, the groups you are not in.
+
+- Use the Call participants button in the call window, or on a selected ongoing call in Calls, to see the connected people by name.
+
+- Mistral is available for online transcription, image descriptions and PDF text extraction. Audio uses the voice message model chosen in the provider window (Voxtral Mini Transcribe 3 by default, or Voxtral Small Transcribe 3; both in preview); photos, stickers and video frames use the selected vision model (Ministral 3 3B by default); PDFs use Mistral OCR. Get models lists only compatible vision models. Before media is sent to Mistral, WinZapp warns that its free plan may use requests for training.
+
+- While a call is available, group chats show "Join ongoing voice call" or "Join ongoing video call (camera off)" instead of the start-call buttons. Calls lists ongoing calls in All and Ongoing, including multiparty calls outside group chats. Video joins start with the camera off.
+
 - Many contact presence updates in a row (typing, online) no longer freeze WinZapp for seconds or slow the whole computer down on accounts with many chats.
 - Contact presence: learning new contact names no longer waits for a database write in the interface. Pending name updates keep the latest full snapshot, with ordered handling during shutdown and local data clearing.
 

@@ -43,7 +43,7 @@ def _listing(provider, ids):
     return {"data": [{"id": key, "display_name": "untrusted text"} for key in ids]}
 
 
-@pytest.mark.parametrize("provider", ["claude", "groq", "openrouter"])
+@pytest.mark.parametrize("provider", ["claude", "groq", "openrouter", "mistral"])
 def test_other_providers_list_their_models_under_data_and_are_filtered_the_same_way(catalog, provider):
     known = next(iter(catalog.COMPATIBLE_MODELS[provider]))
     body = _listing(provider, [known, "unreviewed-model", "../" + known])
@@ -61,7 +61,7 @@ def test_catalog_has_real_alternatives_and_uses_trusted_names(catalog):
         assert all("untrusted" not in m.label for m in result)
 
 
-@pytest.mark.parametrize("provider", ["openai", "gemini", "claude", "groq", "openrouter"])
+@pytest.mark.parametrize("provider", ["openai", "gemini", "claude", "groq", "openrouter", "mistral"])
 def test_listing_has_auth_headers_no_photo_no_generation_or_redirects(catalog, provider):
     body = {"models": []} if provider == "gemini" else {"data": []}
     http = FakeHTTP(response(body))
@@ -75,6 +75,7 @@ def test_listing_has_auth_headers_no_photo_no_generation_or_redirects(catalog, p
     assert auth == {"openai": {"Authorization": "Bearer synthetic-secret"},
                     "groq": {"Authorization": "Bearer synthetic-secret"},
                     "openrouter": {"Authorization": "Bearer synthetic-secret"},
+                    "mistral": {"Authorization": "Bearer synthetic-secret"},
                     "gemini": {"x-goog-api-key": "synthetic-secret"},
                     "claude": {"x-api-key": "synthetic-secret", "anthropic-version": "2023-06-01"}}[provider]
     assert kwargs["timeout"].total <= 20 and http.response.closed

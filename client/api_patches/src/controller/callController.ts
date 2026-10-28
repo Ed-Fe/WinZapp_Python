@@ -8,6 +8,7 @@
  */
 import { Request, Response } from 'express';
 import { installVoipInitPolicyInPage } from '../util/voipInitPolicy';
+import { installGroupCallRuntimeInPage } from '../util/groupCallRuntime';
 
 import {
   ensureCallMediaBridge,
@@ -19,6 +20,7 @@ type CallActionPayload = {
   callId?: string;
   to?: string;
   groupJid?: string;
+  chatJid?: string;
   isVideo?: boolean;
 };
 
@@ -35,11 +37,24 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
   const page = getWhatsappPage(req);
   const logger = (req as any).logger;
   const session = String((req.client as any)?.session || 'unknown');
+  if (action === 'group-ongoing' || action === 'ongoing-list' || action === 'participants' || action === 'group-join-check') {
+    // Discovery must not initialize VoIP or acquire devices every timer tick.
+    await page.evaluate(installGroupCallRuntimeInPage);
+    return page.evaluate(({ action, payload }) => {
+      const runtime = (window as any).__winzappGroupCallRuntime;
+      if (action === 'ongoing-list') return runtime.list();
+      if (action === 'participants') return runtime.participants(payload.callId);
+      return action === 'group-ongoing' ? runtime.ongoing(payload.groupJid) : runtime.check(payload);
+    }, { action, payload });
+  }
   // Session startup warms the lazy VoIP bundle in the background. Await it in
   // Node, before entering the browser context, so the browser callback never
   // tries to resolve a Node-side helper name.
   await warmCallVoipRuntime(req.client, logger);
   await page.evaluate(installVoipInitPolicyInPage);
+  if (action === 'group-join') {
+    await page.evaluate(installGroupCallRuntimeInPage);
+  }
 
   let result: any;
   try {
@@ -274,6 +289,11 @@ async function evaluateWppCall(req: Request, action: string, payload: CallAction
         }
         throw lastError;
       };
+
+      if (action === 'group-join') {
+        await ensureVoipRuntimeReady();
+        return win.__winzappGroupCallRuntime.join(payload);
+      }
 
       if (action === 'accept') {
         const callId = String(payload.callId || '');
@@ -715,6 +735,54 @@ export async function offerGroupCall(req: Request, res: Response) {
   } catch (error) {
     await stopAudioBridge(req);
     fail(req, res, 'offerGroupCall', error);
+  }
+}
+
+export async function ongoingGroupCall(req: Request, res: Response) {
+  try {
+    ok(res, await evaluateWppCall(req, 'group-ongoing', req.body || {}));
+  } catch (error) {
+    fail(req, res, 'ongoingGroupCall', error);
+  }
+}
+
+export async function ongoingCalls(req: Request, res: Response) {
+  try {
+    ok(res, await evaluateWppCall(req, 'ongoing-list'));
+  } catch (error) {
+    fail(req, res, 'ongoingCalls', error);
+  }
+}
+
+export async function callParticipants(req: Request, res: Response) {
+  try {
+    ok(res, await evaluateWppCall(req, 'participants', req.body || {}));
+  } catch (error) {
+    fail(req, res, 'callParticipants', error);
+  }
+}
+
+export async function joinGroupCall(req: Request, res: Response) {
+  try {
+    const body = req.body || {};
+    if (!body.callId || !(body.chatJid || body.groupJid)) {
+      res.status(400).json({ status: 'error', message: 'Parameters callId and chatJid are required!' });
+      return;
+    }
+    await evaluateWppCall(req, 'group-join-check', body);
+    await prepareAudioBridge(req);
+    ok(res, await evaluateWppCall(req, 'group-join', body));
+  } catch (error) {
+    // An incoming/new call can replace this attempt while its POST is pending.
+    // Its media bridge belongs to that call, even when our join failed.
+    let mayStop = false;
+    try {
+      mayStop = await getWhatsappPage(req).evaluate((callId: string) =>
+        (window as any).__winzappGroupCallRuntime?.mayStopAudio(callId) === true,
+      req.body?.callId);
+    } catch (_) { /* A lost page cannot prove it is safe to stop another call. */ }
+    if (mayStop) await stopAudioBridge(req);
+    fail(req, res, 'joinGroupCall', error);
   }
 }
 

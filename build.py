@@ -361,6 +361,7 @@ API_CUSTOM_SRC_FILES = [
     "src/config.ts",
     "src/util/callMediaBridge.ts",
     "src/util/voipInitPolicy.ts",
+    "src/util/groupCallRuntime.ts",
     "src/util/forwardRuntime.ts",
     "src/util/statusReactionRuntime.ts",
     "src/util/quotedMessagePreflight.ts",

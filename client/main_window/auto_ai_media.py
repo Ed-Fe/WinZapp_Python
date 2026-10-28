@@ -183,7 +183,7 @@ class AutoAIMediaMixin:
                 return
             language = getattr(self.i18n, "language", "")
             answer, provider = run_chain(
-                Operation(kind), providers, config["models"], store.get, prepared, (),
+                Operation(kind), providers, ai_config.models_for(config, kind), store.get, prepared, (),
                 first_question(kind), instructions(language, config["profile"], kind),
                 config["profile"])
         except Exception as exc:
