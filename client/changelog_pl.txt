@@ -137,6 +137,8 @@ NOWOŚCI
 
 - Przełączanie między WPPConnect a Neonize: oba silniki używają portu 6300, a program brał silnik, który właśnie przestał być używany i jeszcze się zamykał, za wybrany. Wybór WPPConnect kończył się komunikatem "nie otrzymano kodu parowania", a przełączenie na Neonize pokazywało łączenie i tryb offline do ponownego uruchomienia. Teraz WinZapp najpierw robi miejsce (zatrzymuje most Neonize albo czeka na zamknięcie serwera WPPConnect), a druga kopia WinZapp w innym folderze nie dołącza już do mostu pierwszej.
 
+- Okno parowania ma teraz listę „Silnik połączenia” przed krajem, aby osoba, która jeszcze nie sparowała konta, mogła wybrać WPPConnect lub Neonize bez wchodzenia do Ustawień. Po wyborze WinZapp prosi o potwierdzenie i uruchamia się ponownie z wybranym silnikiem.
+
 V2.1.0.0
 
 W tej wersji pojawia się transkrypcja wiadomości głosowych na Twoim własnym komputerze, bez wysyłania czegokolwiek, a także transkrypcje i opisy wiadomości głosowych, obrazów, filmów, naklejek i plików PDF tworzone przez AI online.
