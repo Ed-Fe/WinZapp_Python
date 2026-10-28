@@ -249,3 +249,40 @@ def test_a_message_is_looked_up_by_its_id_through_an_index(tmp_path):
     plan = db._conn.execute("EXPLAIN QUERY PLAN SELECT data FROM msgs WHERE id=?", ("A",)).fetchall()
     assert any("msgs_by_id" in str(row[-1]) for row in plan), plan
     assert db.wpp_message("A")["id"]["id"] == "A"
+
+
+def test_a_chat_the_history_gave_no_date_takes_the_date_of_its_newest_real_message(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.chat("old@lid", name="", ts=0)             # history: no activity time
+    a.chat("dated@lid", ts=50)                   # a date the history gave stays
+    a.chat("empty@lid", ts=0)                    # no message either: stays undated
+    a.chat("notice@g.us", ts=0)
+    a.message("old@lid", _msg("m1", 700))
+    a.message("old@lid", _msg("m2", 900))
+    a.message("dated@lid", _msg("m3", 60))
+    a.message("notice@g.us", {"id": {"id": "n1"}, "t": 800, "type": "gp2", "subtype": "leave"})
+
+    listing = {c["jid"]: c["ts"] for c in a.chats()}
+
+    assert listing == {"old@lid": 900, "dated@lid": 50, "empty@lid": 0, "notice@g.us": 0}
+    assert [c["jid"] for c in a.chats()][0] == "old@lid"
+
+
+def test_the_date_taken_from_the_messages_is_kept(tmp_path):
+    path = str(tmp_path / "x.db")
+    a = Store(path)
+    a.chat("old@lid", ts=0)
+    a.message("old@lid", _msg("m1", 700))
+    a.chats()
+    a.close()
+
+    assert {c["jid"]: c["ts"] for c in Store(path).chats()} == {"old@lid": 700}
+
+
+def test_a_notice_newer_than_the_last_real_message_does_not_date_the_chat(tmp_path):
+    a = Store(str(tmp_path / "x.db"))
+    a.chat("g@g.us", ts=0)
+    a.message("g@g.us", _msg("real", 300))
+    a.message("g@g.us", {"id": {"id": "n"}, "t": 900, "type": "gp2", "subtype": "join"})
+
+    assert {c["jid"]: c["ts"] for c in a.chats()} == {"g@g.us": 300}
