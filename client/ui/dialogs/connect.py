@@ -16,6 +16,8 @@ import base64
 from io import BytesIO
 from countries import get_countries, get_default_country_index
 from core.combo_search import bind_incremental_search
+from core import app_restart, connection_engine, neonize_bridge_process
+from ui.dialogs import connect_engine
 import logging
 
 
@@ -634,6 +636,16 @@ class Connect:
 
         # Main sizer
         main_sizer = wx.BoxSizer(wx.VERTICAL)
+        # First in the tab order, before the country: someone who has not paired
+        # cannot reach Settings to change the engine.
+        self._offered_engines = connect_engine.offered_engines(
+            neonize_bridge_process.command(neonize_bridge_process.bridge_dir()) is not None,
+            getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT))
+        self.engine_choice = connect_engine.build_row(
+            self.connection_dial, main_sizer, self.i18n, self._offered_engines,
+            getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT))
+        if self.engine_choice is not None:
+            self.engine_choice.Bind(wx.EVT_CHOICE, self.on_engine_chosen)
         main_sizer.Add(self.qrcode_panel, 1, wx.ALL | wx.EXPAND, 5)
         main_sizer.Add(self.phone_panel, 1, wx.ALL | wx.EXPAND, 5)
         main_sizer.Add(self.quit_btn, 0, wx.ALL | wx.CENTER, 5)
@@ -2186,6 +2198,27 @@ class Connect:
 
         self._close_active_session()
         event.Skip()
+
+    def on_engine_chosen(self, event):
+        """The engine list of the dialog changed: confirm, store it and restart
+        WinZapp on it (connect_engine.py)."""
+        current = getattr(self.main_window, "wpp_engine", connection_engine.WPPCONNECT)
+        index = self.engine_choice.GetSelection()
+        if index == wx.NOT_FOUND or self._offered_engines[index] == current:
+            return
+        engine = self._offered_engines[index]
+        label = self.i18n.t(connection_engine.LABEL_KEYS[engine])
+        title = self.i18n.t("pairing_engine_switch_title")
+        answer = wx.MessageBox(
+            self.i18n.t("pairing_engine_switch_message").format(engine=label), title,
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self.connection_dial)
+        if answer == wx.YES and connect_engine.switch_and_restart(
+                self.main_window, self.i18n, engine, app_restart.restart_this_program):
+            logging.info("[engine] pairing dialog: restarting on the %s engine", engine)
+            self.on_quit_from_connect(None)
+            return
+        self.engine_choice.SetSelection(self._offered_engines.index(current)
+                                        if current in self._offered_engines else 0)
 
     def on_quit_from_connect(self, event):
         logging.info("[on_quit_from_connect] Quit requested from connection dialog.")
