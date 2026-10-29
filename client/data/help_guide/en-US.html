@@ -696,6 +696,7 @@
 <p>WhatsApp only allows calls to groups of up to 32 participants. In a larger group, a "Calling is not possible" button with the note "The group has more than 32 participants" replaces the call buttons, and the call shortcuts say the same.</p>
 <p>In a group chat the same buttons call the whole group. An incoming group call rings, is announced by the group's name and is answered like any other call, and the camera can be turned on during the call. WinZapp finds the camera with the FFmpeg it ships, so a video call no longer goes out receive-only. A group call that rang and you did not answer stays in the group's history, as a missed group call.</p>
 
+<p>With Neonize, voice, video and group call buttons appear only for the call types the engine reports as supported. Until that information arrives, these buttons stay hidden; they update automatically when it arrives. The same check applies to joining an ongoing group call from its chat. An update never brings a hidden chat or an inactive window into focus.</p>
 <p>With the Neonize engine, WinZapp itself plays the sounds WhatsApp Web used to play for you: while the other phone rings you hear the ringback tone with the pitch and rhythm of the country you called, and short beeps play while the call connects or reconnects. With the WPPConnect engine nothing changes. When an answered call ends, it also plays the WhatsApp call-ended sound; this is the "Call ended" sound event, which can be turned off or replaced in Settings &gt; Sound events.</p>
 
 <h3>During the call</h3>
@@ -1282,7 +1283,7 @@
   <tr><th>Alpha</th><th>What went into the guide</th></tr>
   <tr><td class="field-name">Not yet released</td><td>QR code pairing with Neonize: the QR code is shown whole in the connection window, at a size the phone camera can read.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Unanswered group calls stay in the group's history, not as a private call from whoever started them.</td></tr>
-  <tr><td class="field-name">Not yet released</td><td>Neonize connection engine (experimental) in Settings, Connection and on the first launch.</td></tr>
+  <tr><td class="field-name">Not yet released</td><td>Neonize connection engine (experimental) in Settings, Connection and on the first launch. Chat call buttons follow the support reported by the engine, including joining ongoing group calls.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Ongoing calls: joining an available call from the group chat or from the Ongoing filter in Calls, and the list of connected participants. Mistral for online transcription, image descriptions and PDF text extraction.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Contact presence (typing, online): many updates in a row no longer freeze the program for seconds or slow the computer down.</td></tr>
   <tr><td class="field-name">Not yet released</td><td>Contact status updates with fewer repeated interface changes and background saving of newly learned contact names.</td></tr>

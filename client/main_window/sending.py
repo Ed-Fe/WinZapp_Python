@@ -17,6 +17,7 @@ import tempfile
 import threading
 import time
 import wx
+from ui.conversation_panel.call_capabilities import refresh_call_controls
 from core.message_queue import MessageCancelled
 from core.reply_failure import mark_missing_reply_quote, quote_missing_before_send
 from core.connection_lifecycle import schedule_connection_check
@@ -210,6 +211,7 @@ class SendingMixin:
                 self._neonize_calls = details.get("calls") is True
                 self._neonize_video_calls = details.get("videoCalls") is True
                 self._neonize_group_calls = details.get("groupCalls") is True
+                wx.CallAfter(refresh_call_controls, self)
                 if details.get("compatible") is True:
                     logging.info("[startup] Send compatibility probe passed: %s", details)
                     return
