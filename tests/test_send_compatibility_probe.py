@@ -552,3 +552,67 @@ class TestTheNeonizeBridgeSaysWhetherItCarriesCalls:
                                                 "videoCalls": True, "groupCalls": True}})
         stub._check_send_capabilities()
         assert stub._neonize_video_calls is True and stub._neonize_group_calls is True
+
+
+class TestCallControlsRefreshAfterTheVerdict:
+    @pytest.mark.parametrize("compatible", [True, False])
+    def test_refresh_is_queued_for_the_ui_thread_and_uses_the_current_chat(
+        self, stub, monkeypatch, compatible
+    ):
+        from tests.test_call_capability_ui import Panel, GROUP, PERSON
+
+        panel = Panel(GROUP)
+        panel.main_window = stub
+        stub._uses_neonize = lambda: True
+        stub._is_self_jid = lambda jid: False
+        stub._allow_ui_focus_changes = lambda: True
+        stub.conversations_panel = panel
+        queued = []
+        monkeypatch.setattr(main.wx, "CallAfter", lambda fn, *a: queued.append((fn, a)))
+        _answer(monkeypatch, 200, {"response": {
+            "compatible": compatible, "calls": True, "videoCalls": True,
+            "groupCalls": False,
+        }})
+        stub._check_send_capabilities()
+        assert not panel._voice_call_btn.shown  # no worker-thread widget calls
+        panel.conversation = {"remoteJid": PERSON}
+        assert queued
+        for fn, args in queued:
+            fn(*args)
+        assert panel._voice_call_btn.shown and panel._video_call_btn.shown
+        panel.conversation = {"remoteJid": GROUP}
+        panel._show_ongoing_group_call(None)
+        assert not panel._voice_call_btn.shown and not panel._video_call_btn.shown
+
+    @pytest.mark.parametrize("state", ["shutdown", "destroyed", "no-panel"])
+    def test_late_refresh_is_harmless_after_close(self, stub, monkeypatch, state):
+        from tests.test_call_capability_ui import Panel
+
+        panel = Panel()
+        panel.main_window = stub
+        stub._uses_neonize = lambda: True
+        stub._is_self_jid = lambda jid: False
+        stub.conversations_panel = panel
+        queued = []
+        monkeypatch.setattr(main.wx, "CallAfter", lambda fn, *a: queued.append((fn, a)))
+        _answer(monkeypatch, 200, {"response": {"compatible": True, "calls": True}})
+        stub._check_send_capabilities()
+        assert queued
+        if state == "shutdown":
+            stub._shutting_down = True
+        elif state == "no-panel":
+            stub.conversations_panel = None
+        else:
+            def destroyed(*args):
+                raise RuntimeError("wrapped C/C++ object has been deleted")
+            panel._show_ongoing_group_call = destroyed
+        for fn, args in queued:
+            fn(*args)
+        assert panel.layouts == 0
+
+    def test_unavailable_probe_preserves_the_previous_capabilities(self, stub, monkeypatch):
+        stub._neonize_calls = stub._neonize_video_calls = stub._neonize_group_calls = True
+        _answer(monkeypatch, 404, {"response": None, "status": "Disconnected"})
+        stub._check_send_capabilities()
+        assert stub._neonize_calls and stub._neonize_video_calls and stub._neonize_group_calls
+        assert stub._send_capabilities_checked is False
