@@ -147,6 +147,8 @@ NOVEDADES
 
 - Neonize: cuando el último WinZapp se va, ahora se le pide al puente que cierre sus conexiones y bases de datos con WhatsApp y termine por sí mismo; solo se fuerza su cierre si no lo hace en 10 segundos. Antes se terminaba siempre a la fuerza en el acto, lo que podía cortar una escritura.
 
+- Neonize: el código QR de vinculación ya no aparece cortado en la ventana de conexión. Ahora se muestra completo, con un tamaño que la cámara del móvil puede leer.
+
 V2.1.0.0
 
 Esta versión trae la transcripción de mensajes de voz en tu propio ordenador, sin enviar nada a ningún sitio, y la transcripción y descripción con IA en línea de mensajes de voz, imágenes, vídeos, stickers y PDF.
