@@ -28,7 +28,7 @@ def refresh_call_controls(main_window):
     """UI-thread callback: recompute the current chat, never a captured one.
 
     Reuse the cached discovery result; no request, timer or watch is started.
-    Missing controls are normal during startup, and queued replies can outlive
+    A missing panel is normal during startup, and queued replies can outlive
     the native window during shutdown.
     """
     if getattr(main_window, "_shutting_down", False):
